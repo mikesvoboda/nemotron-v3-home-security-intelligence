@@ -78,13 +78,15 @@ test.describe('Mobile Viewport Tests', () => {
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('activity feed is visible on mobile', async ({ page }) => {
+  test('stats row is visible on mobile', async ({ page }) => {
+    // Note: Activity Feed is on the Timeline page, not the Dashboard.
+    // This test checks the Stats Row instead.
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    // Scroll to activity section
-    await page.evaluate(() => window.scrollBy(0, 600));
-    await expect(dashboardPage.activityFeedHeading).toBeVisible();
+    // Scroll to stats section
+    await page.evaluate(() => window.scrollBy(0, 200));
+    await expect(dashboardPage.activeCamerasStat).toBeVisible();
   });
 });
 
@@ -190,11 +192,14 @@ test.describe('Desktop Viewport Tests', () => {
     await expect(dashboardPage.navSettings).toBeVisible();
   });
 
-  test('GPU stats panel visible on desktop', async ({ page }) => {
+  test('stats row panel visible on desktop', async ({ page }) => {
+    // Note: GPU stats are on the System page, not the Dashboard.
+    // The Dashboard has StatsRow with Active Cameras, Events Today, etc.
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectGpuStatsVisible();
+    await expect(dashboardPage.activeCamerasStat).toBeVisible();
+    await expect(dashboardPage.eventsTodayStat).toBeVisible();
   });
 
   test('system page shows all metrics on desktop', async ({ page }) => {

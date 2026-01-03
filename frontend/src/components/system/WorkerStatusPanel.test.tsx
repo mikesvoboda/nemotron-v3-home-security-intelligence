@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import WorkerStatusPanel from './WorkerStatusPanel';
@@ -466,6 +466,111 @@ describe('WorkerStatusPanel', () => {
 
       // Should not have additional calls after unmount
       expect(mockFetchReadiness).toHaveBeenCalledTimes(callCount);
+    });
+  });
+
+  describe('collapsible behavior', () => {
+    it('starts collapsed by default', async () => {
+      mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
+
+      render(<WorkerStatusPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+      });
+
+      // Should show expand icon when collapsed
+      expect(screen.getByTestId('expand-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('collapse-icon')).not.toBeInTheDocument();
+    });
+
+    it('starts expanded when defaultExpanded is true', async () => {
+      mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
+
+      render(<WorkerStatusPanel defaultExpanded={true} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+      });
+
+      // Should show collapse icon when expanded
+      expect(screen.getByTestId('collapse-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('expand-icon')).not.toBeInTheDocument();
+    });
+
+    it('toggles between expanded and collapsed on click', async () => {
+      mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
+
+      render(<WorkerStatusPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+      });
+
+      // Initially collapsed
+      expect(screen.getByTestId('expand-icon')).toBeInTheDocument();
+
+      // Click to expand
+      const toggleButton = screen.getByTestId('worker-panel-toggle');
+      fireEvent.click(toggleButton);
+
+      // Should now be expanded
+      expect(screen.getByTestId('collapse-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('expand-icon')).not.toBeInTheDocument();
+
+      // Click to collapse
+      fireEvent.click(toggleButton);
+
+      // Should be collapsed again
+      expect(screen.getByTestId('expand-icon')).toBeInTheDocument();
+    });
+
+    it('has correct aria attributes for accessibility', async () => {
+      mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
+
+      render(<WorkerStatusPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+      });
+
+      const toggleButton = screen.getByTestId('worker-panel-toggle');
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+      expect(toggleButton).toHaveAttribute('aria-controls', 'worker-list-content');
+
+      fireEvent.click(toggleButton);
+
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('shows essential worker warning when essential worker is stopped', async () => {
+      const workersWithEssentialStopped: api.WorkerStatus[] = [
+        { name: 'detection_worker', running: false, message: 'State: stopped' },
+        { name: 'analysis_worker', running: true, message: null },
+      ];
+
+      mockFetchReadiness.mockResolvedValue({
+        ...mockReadinessResponse,
+        workers: workersWithEssentialStopped,
+      });
+
+      render(<WorkerStatusPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('essential-worker-warning')).toBeInTheDocument();
+      });
+    });
+
+    it('does not show essential worker warning when all essential workers running', async () => {
+      mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
+
+      render(<WorkerStatusPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('essential-worker-warning')).not.toBeInTheDocument();
     });
   });
 });

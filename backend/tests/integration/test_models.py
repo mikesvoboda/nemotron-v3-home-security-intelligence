@@ -39,14 +39,14 @@ class TestCameraModel:
         camera_id = unique_id("front_door")
         camera = Camera(
             id=camera_id,
-            name="Front Door Camera",
+            name=f"Front Door Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
         await session.flush()
 
         assert camera.id == camera_id
-        assert camera.name == "Front Door Camera"
+        assert camera.name == f"Front Door Camera {camera_id[-8:]}"
         assert camera.folder_path == f"/export/foscam/{camera_id}"
         assert camera.status == "online"
         assert isinstance(camera.created_at, datetime)
@@ -58,7 +58,7 @@ class TestCameraModel:
         camera_id = unique_id("garage")
         camera = Camera(
             id=camera_id,
-            name="Garage Camera",
+            name=f"Garage Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -72,7 +72,7 @@ class TestCameraModel:
         camera_id = unique_id("backyard")
         camera = Camera(
             id=camera_id,
-            name="Backyard Camera",
+            name=f"Backyard Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
             status="offline",
         )
@@ -87,7 +87,7 @@ class TestCameraModel:
         camera_id = unique_id("driveway")
         camera = Camera(
             id=camera_id,
-            name="Driveway Camera",
+            name=f"Driveway Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -124,7 +124,7 @@ class TestCameraModel:
         camera_id = unique_id("test_cam")
         camera = Camera(
             id=camera_id,
-            name="Test Camera",
+            name=f"Test Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -133,7 +133,7 @@ class TestCameraModel:
         result = await session.get(Camera, camera_id)
         assert result is not None
         assert result.id == camera_id
-        assert result.name == "Test Camera"
+        assert result.name == f"Test Camera {camera_id[-8:]}"
 
 
 class TestDetectionModel:
@@ -145,7 +145,7 @@ class TestDetectionModel:
         camera_id = unique_id("front_door")
         camera = Camera(
             id=camera_id,
-            name="Front Door Camera",
+            name=f"Front Door Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -169,7 +169,7 @@ class TestDetectionModel:
         camera_id = unique_id("garage")
         camera = Camera(
             id=camera_id,
-            name="Garage Camera",
+            name=f"Garage Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -201,7 +201,7 @@ class TestDetectionModel:
         camera_id = unique_id("backyard")
         camera = Camera(
             id=camera_id,
-            name="Backyard Camera",
+            name=f"Backyard Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -219,7 +219,7 @@ class TestDetectionModel:
         await session.refresh(detection, ["camera"])
         assert detection.camera is not None
         assert detection.camera.id == camera_id
-        assert detection.camera.name == "Backyard Camera"
+        assert detection.camera.name == f"Backyard Camera {camera_id[-8:]}"
 
     @pytest.mark.asyncio
     async def test_detection_repr(self, session):
@@ -227,7 +227,7 @@ class TestDetectionModel:
         camera_id = unique_id("front_door")
         camera = Camera(
             id=camera_id,
-            name="Front Door Camera",
+            name=f"Front Door Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -299,7 +299,7 @@ class TestEventModel:
         camera_id = unique_id("front_door")
         camera = Camera(
             id=camera_id,
-            name="Front Door Camera",
+            name=f"Front Door Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -326,7 +326,7 @@ class TestEventModel:
         camera_id = unique_id("backyard")
         camera = Camera(
             id=camera_id,
-            name="Backyard Camera",
+            name=f"Backyard Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -359,7 +359,7 @@ class TestEventModel:
         camera_id = unique_id("garage")
         camera = Camera(
             id=camera_id,
-            name="Garage Camera",
+            name=f"Garage Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -377,7 +377,7 @@ class TestEventModel:
         await session.refresh(event, ["camera"])
         assert event.camera is not None
         assert event.camera.id == camera_id
-        assert event.camera.name == "Garage Camera"
+        assert event.camera.name == f"Garage Camera {camera_id[-8:]}"
 
     @pytest.mark.asyncio
     async def test_event_reviewed_flag(self, session):
@@ -385,7 +385,7 @@ class TestEventModel:
         camera_id = unique_id("driveway")
         camera = Camera(
             id=camera_id,
-            name="Driveway Camera",
+            name=f"Driveway Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -415,7 +415,7 @@ class TestEventModel:
         camera_id = unique_id("front_door")
         camera = Camera(
             id=camera_id,
-            name="Front Door Camera",
+            name=f"Front Door Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -442,7 +442,7 @@ class TestEventModel:
         camera_id = unique_id("test_cam")
         camera = Camera(
             id=camera_id,
-            name="Test Camera",
+            name=f"Test Camera {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)

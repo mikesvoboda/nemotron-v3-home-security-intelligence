@@ -419,4 +419,4 @@ class WebSocketManager {
 
 export const webSocketManager = new WebSocketManager();
 
-export { WebSocketManager };
+export { WebSocketManager, isHeartbeatMessage, calculateBackoffDelay };

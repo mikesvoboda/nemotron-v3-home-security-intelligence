@@ -125,8 +125,8 @@ def test_suspicious_and_service_mutually_exclusive():
 # Test format_clothing_context
 
 
-def test_format_clothing_context_basic():
-    """Test basic clothing context formatting."""
+def test_fashion_clip_format_clothing_context_basic():
+    """Test basic clothing context formatting with FashionCLIP."""
     classification = ClothingClassification(
         top_category="casual clothing",
         confidence=0.85,
@@ -392,14 +392,14 @@ async def test_load_fashion_clip_model_runtime_error(monkeypatch):
     """Test load_fashion_clip_model handles RuntimeError for failed loading."""
     import sys
 
-    # Mock torch and transformers to exist but fail on model load
+    # Mock torch and open_clip to exist but fail on model load
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
-    mock_transformers = MagicMock()
-    mock_transformers.AutoProcessor.from_pretrained.side_effect = RuntimeError("Model not found")
+    mock_open_clip = MagicMock()
+    mock_open_clip.create_model_from_pretrained.side_effect = RuntimeError("Model not found")
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
-    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+    monkeypatch.setitem(sys.modules, "open_clip", mock_open_clip)
 
     with pytest.raises(RuntimeError, match="Failed to load FashionCLIP"):
         await load_fashion_clip_model("/nonexistent/path")
@@ -420,3 +420,105 @@ def test_fashion_clip_in_model_zoo():
     assert config.vram_mb == 500
     assert config.category == "classification"
     assert config.enabled is True
+
+
+# =============================================================================
+# Regression Tests for Meta Tensor Loading Issue (bead d9qk)
+# =============================================================================
+
+
+def test_enrichment_clothing_classifier_uses_open_clip():
+    """Verify ClothingClassifier uses open_clip for FashionCLIP model loading.
+
+    The ClothingClassifier uses open_clip directly instead of transformers.AutoModel
+    because the Marqo-FashionCLIP custom model wrapper has meta tensor issues when
+    loaded via transformers that cause "Cannot copy out of meta tensor" errors.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify open_clip-based implementation
+        assert "from open_clip import create_model_from_pretrained, get_tokenizer" in content, (
+            "ClothingClassifier should use open_clip create_model_from_pretrained"
+        )
+        assert "create_model_from_pretrained(" in content, (
+            "ClothingClassifier should load model with create_model_from_pretrained()"
+        )
+        # Device parameter is passed directly to avoid meta tensor issues
+        assert "device=target_device" in content, (
+            "ClothingClassifier should pass device to create_model_from_pretrained()"
+        )
+        assert "get_tokenizer(hub_path)" in content, (
+            "ClothingClassifier should get tokenizer with get_tokenizer()"
+        )
+
+
+def test_enrichment_clothing_classifier_has_device_handling():
+    """Verify ClothingClassifier properly handles device placement.
+
+    The ClothingClassifier should detect CUDA availability and pass the device
+    directly to create_model_from_pretrained() to avoid meta tensor issues.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify device handling - device is passed to create_model_from_pretrained
+        # to avoid "Cannot copy out of meta tensor" errors
+        assert "torch.cuda.is_available()" in content, (
+            "ClothingClassifier should check CUDA availability"
+        )
+        assert "device=target_device" in content, (
+            "ClothingClassifier should pass device to create_model_from_pretrained()"
+        )
+        assert 'self.device = "cpu"' in content, (
+            "ClothingClassifier should fallback to CPU when CUDA unavailable"
+        )
+
+
+def test_enrichment_clothing_classifier_class_structure():
+    """Verify ClothingClassifier has expected class structure.
+
+    The ClothingClassifier should have model, preprocess, and tokenizer attributes,
+    and helper methods for extracting clothing attributes.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify core attributes (now uses preprocess and tokenizer instead of processor)
+        assert "self.model" in content, "ClothingClassifier should have self.model attribute"
+        assert "self.preprocess" in content, (
+            "ClothingClassifier should have self.preprocess attribute"
+        )
+        assert "self.tokenizer" in content, (
+            "ClothingClassifier should have self.tokenizer attribute"
+        )
+        assert "self.model_path" in content, (
+            "ClothingClassifier should have self.model_path attribute"
+        )
+        assert "self.device" in content, "ClothingClassifier should have self.device attribute"
+
+        # Verify helper methods for clothing analysis
+        assert "def _extract_clothing_type" in content, (
+            "ClothingClassifier should have _extract_clothing_type method"
+        )
+        assert "def _extract_color" in content, (
+            "ClothingClassifier should have _extract_color method"
+        )
+        assert "def _extract_style" in content, (
+            "ClothingClassifier should have _extract_style method"
+        )

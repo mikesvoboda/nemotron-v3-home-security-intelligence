@@ -4,6 +4,8 @@
 
 Welcome! This system watches your security cameras around the clock and alerts you when something needs your attention. You do not need to be technical to use it - this hub will help you understand what everything means and how to get the most from your security system.
 
+> Curious what’s stable vs still evolving? See [Stability Levels](reference/stability.md).
+
 ---
 
 **New to the system?** Follow this path to get started:

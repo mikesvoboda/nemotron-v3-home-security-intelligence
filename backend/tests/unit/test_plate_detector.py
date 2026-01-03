@@ -75,8 +75,8 @@ def mock_yolo_model():
     return model
 
 
-def test_crop_bbox_with_padding_basic():
-    """Test basic bbox cropping with padding."""
+def test_plate_crop_bbox_with_padding_basic():
+    """Test basic bbox cropping with padding for plate detector."""
     image = Image.new("RGB", (1000, 800), color=(255, 0, 0))
     bbox = (100, 100, 200, 150)  # x, y, width, height
     padding = 0.1
@@ -113,8 +113,8 @@ def test_crop_bbox_with_padding_zero_padding():
     assert cropped.size == (200, 150)
 
 
-def test_convert_crop_bbox_to_original():
-    """Test bbox coordinate conversion from crop to original image."""
+def test_plate_convert_crop_bbox_to_original():
+    """Test bbox coordinate conversion from crop to original image for plates."""
     # Normalized bbox in crop space
     crop_bbox_norm = [0.25, 0.25, 0.75, 0.75]
     # Original vehicle bbox

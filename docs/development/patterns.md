@@ -244,9 +244,9 @@ async for message in redis.listen("events"):
 All components use functional components with hooks:
 
 ```tsx
-import { useState, useEffect } from "react";
-import { Camera } from "../types/api";
-import { api } from "../services/api";
+import { useState, useEffect } from 'react';
+import { Camera } from '../types/api';
+import { api } from '../services/api';
 
 interface CameraCardProps {
   camera: Camera;
@@ -299,7 +299,7 @@ export function useWebSocket(channel: string) {
 
 // Usage
 function EventFeed() {
-  const { messages, connected } = useWebSocket("events");
+  const { messages, connected } = useWebSocket('events');
   // ...
 }
 ```

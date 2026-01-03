@@ -340,13 +340,13 @@ home_security_intelligence/
 ## Docker Compose
 
 ```yaml
-version: "3.8"
+version: '3.8'
 
 services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - '8000:8000'
     volumes:
       - ./backend/data:/app/data
       - /export/foscam:/cameras:ro
@@ -363,7 +363,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -371,7 +371,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "5173:5173"
+      - '5173:5173'
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
       - VITE_WS_BASE_URL=ws://localhost:8000

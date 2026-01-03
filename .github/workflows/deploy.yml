@@ -9,24 +9,45 @@ env:
   IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
-  build-and-push:
-    name: Build and Push Images
-    runs-on: ubuntu-latest
+  # Build each image on native architecture runners
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
     permissions:
       contents: read
       packages: write
 
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - context: ./backend
+        image:
+          - name: backend
+            context: .
             dockerfile: ./backend/Dockerfile.prod
-            image: backend
-          - context: ./frontend
+          - name: frontend
+            context: ./frontend
             dockerfile: ./frontend/Dockerfile.prod
-            image: frontend
+        platform:
+          - runner: ubuntu-latest
+            arch: linux/amd64
+            suffix: amd64
+          - runner: ubuntu-24.04-arm
+            arch: linux/arm64
+            suffix: arm64
 
     steps:
+      - name: Free disk space
+        if: matrix.image.name == 'backend'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -37,6 +58,76 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}
+
+      # Build and push by digest (for later manifest merge)
+      # Note: Trivy scan temporarily disabled to reduce disk usage during build
+      # TODO: Re-enable scanning from registry after push (see option 3 in PR #128)
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          platforms: ${{ matrix.platform.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.platform.suffix }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.platform.suffix }}
+
+      # Export digest to file for artifact upload
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests/${{ matrix.image.name }}
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image.name }}-${{ matrix.platform.suffix }}
+          path: /tmp/digests/${{ matrix.image.name }}/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Merge architecture-specific images into multi-arch manifests
+  merge:
+    name: Create multi-arch manifest (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        image: [backend, frontend]
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.image }}-*
+          path: /tmp/digests/${{ matrix.image }}
+          merge-multiple: true
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -46,42 +137,12 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Create manifest list and push
+        working-directory: /tmp/digests/${{ matrix.image }}
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@sha256:%s ' *)
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Build single-arch image for Trivy scanning (can't scan multi-arch)
-      - name: Build image for scanning
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: false
-          load: true
-          platforms: linux/amd64
-          tags: ${{ matrix.image }}:scan
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.image }}:scan
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
-
-      # Build and push multi-arch images (amd64 + arm64)
-      - name: Build and push multi-arch
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest

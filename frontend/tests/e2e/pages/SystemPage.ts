@@ -56,8 +56,9 @@ export class SystemPage extends BasePage {
   readonly workerStatusPanel: Locator;
   readonly workerItems: Locator;
 
-  // Pipeline Queues Card
-  readonly pipelineQueuesCard: Locator;
+  // Pipeline Metrics Panel (combined Queues + Latency + Throughput)
+  readonly pipelineMetricsPanel: Locator;
+  readonly pipelineQueuesCard: Locator; // Alias for backwards compatibility
   readonly detectionQueue: Locator;
   readonly analysisQueue: Locator;
 
@@ -138,8 +139,9 @@ export class SystemPage extends BasePage {
     this.workerStatusPanel = page.locator('[class*="WorkerStatusPanel"]');
     this.workerItems = page.locator('[class*="WorkerStatusPanel"] [class*="worker"]');
 
-    // Pipeline Queues Card - use data-testid
-    this.pipelineQueuesCard = page.locator('[data-testid="pipeline-queues"]');
+    // Pipeline Metrics Panel (combined Queues + Latency + Throughput)
+    this.pipelineMetricsPanel = page.locator('[data-testid="pipeline-metrics-panel"]');
+    this.pipelineQueuesCard = this.pipelineMetricsPanel; // Alias for backwards compatibility
     this.detectionQueue = page.locator('[data-testid="detection-queue-row"]');
     this.analysisQueue = page.locator('[data-testid="analysis-queue-row"]');
 
@@ -273,10 +275,11 @@ export class SystemPage extends BasePage {
   }
 
   /**
-   * Check if latency stats are displayed
+   * Check if latency stats are displayed (now part of pipeline metrics panel)
    */
   async hasLatencyStats(): Promise<boolean> {
-    return this.latencyStatsCard.isVisible().catch(() => false);
+    // Latency is now combined into the pipeline metrics panel
+    return this.pipelineMetricsPanel.isVisible().catch(() => false);
   }
 
   /**

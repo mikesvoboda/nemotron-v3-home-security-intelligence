@@ -15,6 +15,7 @@ describe('ProcessingSettings', () => {
     batch_window_seconds: 90,
     batch_idle_timeout_seconds: 30,
     detection_confidence_threshold: 0.5,
+    grafana_url: 'http://localhost:3002',
   };
 
   beforeEach(() => {
@@ -176,7 +177,7 @@ describe('ProcessingSettings', () => {
     });
 
     const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+    fireEvent.input(batchWindowInput, { target: { value: '120' } });
 
     const saveButton = screen.getByText('Save Changes').closest('button');
     expect(saveButton).not.toBeDisabled();
@@ -192,7 +193,7 @@ describe('ProcessingSettings', () => {
     });
 
     const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+    fireEvent.input(batchWindowInput, { target: { value: '120' } });
 
     expect(batchWindowInput).toHaveValue('120');
 
@@ -214,7 +215,7 @@ describe('ProcessingSettings', () => {
     });
 
     const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+    fireEvent.input(batchWindowInput, { target: { value: '120' } });
 
     const saveButton = screen.getByText('Save Changes').closest('button');
     fireEvent.click(saveButton!);
@@ -245,7 +246,7 @@ describe('ProcessingSettings', () => {
     });
 
     const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+    fireEvent.input(batchWindowInput, { target: { value: '120' } });
 
     const saveButton = screen.getByText('Save Changes').closest('button');
     fireEvent.click(saveButton!);
@@ -274,7 +275,7 @@ describe('ProcessingSettings', () => {
     });
 
     const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+    fireEvent.input(batchWindowInput, { target: { value: '120' } });
 
     const saveButton = screen.getByText('Save Changes').closest('button');
     fireEvent.click(saveButton!);
@@ -297,7 +298,7 @@ describe('ProcessingSettings', () => {
     });
 
     const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+    fireEvent.input(batchWindowInput, { target: { value: '120' } });
 
     const saveButton = screen.getByText('Save Changes').closest('button');
     fireEvent.click(saveButton!);
@@ -654,7 +655,7 @@ describe('ProcessingSettings', () => {
       });
 
       const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-      fireEvent.change(batchWindowInput, { target: { value: '150' } });
+      fireEvent.input(batchWindowInput, { target: { value: '150' } });
 
       expect(screen.getByText('150s')).toBeInTheDocument();
     });
@@ -669,7 +670,7 @@ describe('ProcessingSettings', () => {
       });
 
       const confidenceInput = screen.getByLabelText('Detection confidence threshold');
-      fireEvent.change(confidenceInput, { target: { value: '0.75' } });
+      fireEvent.input(confidenceInput, { target: { value: '0.75' } });
 
       expect(screen.getByText('0.75')).toBeInTheDocument();
     });

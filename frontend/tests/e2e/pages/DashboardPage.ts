@@ -150,12 +150,13 @@ export class DashboardPage extends BasePage {
 
   /**
    * Verify all main dashboard sections are visible
+   * Note: Activity Feed is on the Timeline page, not the Dashboard
    */
   async expectAllSectionsVisible(): Promise<void> {
     await expect(this.pageTitle).toBeVisible();
     await expect(this.riskGaugeHeading).toBeVisible();
     await expect(this.cameraGridHeading).toBeVisible();
-    await expect(this.activityFeedHeading).toBeVisible();
+    // Note: activityFeedHeading is NOT on Dashboard - it's on Timeline page
   }
 
   /**

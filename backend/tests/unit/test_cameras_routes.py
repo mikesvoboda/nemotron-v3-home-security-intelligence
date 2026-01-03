@@ -344,8 +344,8 @@ class TestCreateCamera:
         assert data["folder_path"] == camera_data["folder_path"]
         assert data["status"] == camera_data["status"]
         assert "id" in data
-        # Validate UUID format
-        uuid.UUID(data["id"])
+        # ID should be normalized camera name (e.g., "front_door_camera")
+        assert data["id"] == "front_door_camera"
 
     def test_create_camera_default_status(
         self, client: TestClient, mock_db_session: AsyncMock
@@ -448,10 +448,10 @@ class TestCreateCamera:
 
         assert response.status_code == 422  # Validation error
 
-    def test_create_camera_generates_uuid(
+    def test_create_camera_generates_normalized_id(
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
-        """Test that camera creation generates a valid UUID."""
+        """Test that camera creation generates a normalized ID from the camera name."""
         # Mock execute to return no existing cameras (no duplicates)
         mock_results = [MagicMock(), MagicMock()]
         mock_results[0].scalar_one_or_none.return_value = None  # No name match
@@ -473,9 +473,8 @@ class TestCreateCamera:
 
         assert response.status_code == 201
         data = response.json()
-        # Validate UUID format - this will raise if invalid
-        parsed_uuid = uuid.UUID(data["id"])
-        assert str(parsed_uuid) == data["id"]
+        # Validate normalized ID format - should match normalize_camera_id(name)
+        assert data["id"] == "test_camera"
 
     def test_create_camera_duplicate_name_returns_409(
         self, client: TestClient, mock_db_session: AsyncMock
@@ -780,7 +779,7 @@ class TestGetCameraSnapshot:
     def test_get_snapshot_folder_outside_base_path(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
     ) -> None:
-        """Test snapshot endpoint returns 403 if folder is outside base path."""
+        """Test snapshot endpoint returns 404 if folder is outside base path."""
         # Create a camera with folder outside allowed base path
         camera = Camera(
             id=str(uuid.uuid4()),
@@ -801,9 +800,51 @@ class TestGetCameraSnapshot:
         with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
-        assert response.status_code == 403
+        assert response.status_code == 404
         data = response.json()
-        assert "outside" in data["detail"].lower()
+        assert "no snapshot" in data["detail"].lower() or "not found" in data["detail"].lower()
+
+    def test_get_snapshot_folder_outside_base_path_with_fallback(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test snapshot endpoint uses fallback when stored path is outside base but folder exists by ID."""
+        # This tests the fix for im3c: when FOSCAM_BASE_PATH changes between environments
+        # (e.g., Docker /cameras vs native /export/foscam), the endpoint should fall back
+        # to looking for the camera folder by camera_id under the current base_path.
+
+        # Set up paths - camera stored with different environment's path
+        foscam_root = tmp_path / "foscam"
+        camera_id = "den"  # Camera ID matches folder name
+        camera_folder = foscam_root / camera_id
+        camera_folder.mkdir(parents=True)
+
+        # Create a test image in the fallback folder
+        test_image = camera_folder / "snapshot.jpg"
+        test_image.write_bytes(b"\xff\xd8\xff\xe0image data")  # Valid JPEG header
+
+        # Camera has wrong folder_path (from different environment like Docker /cameras)
+        camera = Camera(
+            id=camera_id,
+            name="Den",
+            folder_path="/cameras/den",  # Wrong path - different environment
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = camera
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        # Mock settings to use tmp_path/foscam as base (simulating native environment)
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get(f"/api/cameras/{camera_id}/snapshot")
+
+        # Should succeed using fallback path
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/jpeg"
 
     def test_get_snapshot_folder_does_not_exist(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
@@ -1626,3 +1667,206 @@ class TestFolderPathAPIValidation:
 
         assert response.status_code == 200
         assert response.json()["folder_path"] == "/export/foscam/valid_path"
+
+
+class TestValidateCameraPaths:
+    """Tests for the camera path validation endpoint."""
+
+    def test_validate_paths_empty_database(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test validation endpoint with no cameras in database."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 0
+        assert data["valid_count"] == 0
+        assert data["invalid_count"] == 0
+        assert data["valid_cameras"] == []
+        assert data["invalid_cameras"] == []
+
+    def test_validate_paths_all_valid(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when all cameras have valid paths."""
+        foscam_root = tmp_path / "foscam"
+        camera_folder = foscam_root / "front_door"
+        camera_folder.mkdir(parents=True)
+        # Create an image file
+        (camera_folder / "test.jpg").write_bytes(b"fake image")
+
+        camera = Camera(
+            id="front_door",
+            name="Front Door",
+            folder_path=str(camera_folder),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 1
+        assert data["valid_count"] == 1
+        assert data["invalid_count"] == 0
+        assert len(data["valid_cameras"]) == 1
+        assert data["valid_cameras"][0]["id"] == "front_door"
+
+    def test_validate_paths_invalid_base_path(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when camera path is outside base path."""
+        foscam_root = tmp_path / "foscam"
+        foscam_root.mkdir(parents=True)
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir(parents=True)
+        (outside_dir / "test.jpg").write_bytes(b"fake image")
+
+        camera = Camera(
+            id="bad_camera",
+            name="Bad Camera",
+            folder_path=str(outside_dir),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 1
+        assert data["valid_count"] == 0
+        assert data["invalid_count"] == 1
+        assert len(data["invalid_cameras"]) == 1
+        assert data["invalid_cameras"][0]["id"] == "bad_camera"
+        assert "folder_path not under base_path" in data["invalid_cameras"][0]["issues"][0]
+
+    def test_validate_paths_directory_not_exists(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when camera directory doesn't exist."""
+        foscam_root = tmp_path / "foscam"
+        foscam_root.mkdir(parents=True)
+        # Don't create the camera folder - it doesn't exist
+
+        camera = Camera(
+            id="missing_camera",
+            name="Missing Camera",
+            folder_path=str(foscam_root / "nonexistent"),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["invalid_count"] == 1
+        assert "directory does not exist" in data["invalid_cameras"][0]["issues"]
+
+    def test_validate_paths_no_images(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when camera directory has no images."""
+        foscam_root = tmp_path / "foscam"
+        camera_folder = foscam_root / "empty_camera"
+        camera_folder.mkdir(parents=True)
+        # Create non-image file
+        (camera_folder / "readme.txt").write_text("not an image")
+
+        camera = Camera(
+            id="empty_camera",
+            name="Empty Camera",
+            folder_path=str(camera_folder),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["invalid_count"] == 1
+        assert "no image files found" in data["invalid_cameras"][0]["issues"]
+
+    def test_validate_paths_mixed_valid_invalid(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation with mix of valid and invalid cameras."""
+        foscam_root = tmp_path / "foscam"
+        valid_folder = foscam_root / "valid_camera"
+        valid_folder.mkdir(parents=True)
+        (valid_folder / "test.jpg").write_bytes(b"fake image")
+
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir(parents=True)
+
+        valid_camera = Camera(
+            id="valid_camera",
+            name="Valid Camera",
+            folder_path=str(valid_folder),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        invalid_camera = Camera(
+            id="invalid_camera",
+            name="Invalid Camera",
+            folder_path=str(outside_dir),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [valid_camera, invalid_camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 2
+        assert data["valid_count"] == 1
+        assert data["invalid_count"] == 1

@@ -33,6 +33,10 @@ from backend.core import get_session
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
+from backend.core.websocket_circuit_breaker import (
+    WebSocketCircuitBreaker,
+    WebSocketCircuitState,
+)
 from backend.models import Camera, GPUStats
 
 # Timeout for AI service health checks in seconds
@@ -91,6 +95,8 @@ class SystemBroadcaster:
             redis_getter: Optional callable that returns a Redis client or None.
                 Useful for lazy initialization when Redis may not be immediately available.
         """
+        import uuid
+
         self.connections: set[WebSocket] = set()
         self._broadcast_task: asyncio.Task[None] | None = None
         self._listener_task: asyncio.Task[None] | None = None
@@ -101,6 +107,17 @@ class SystemBroadcaster:
         self._pubsub_listening = False
         self._recovery_attempts = 0
         self._performance_collector: PerformanceCollector | None = None
+        # Unique instance ID to filter out messages from self in pub/sub
+        self._instance_id = str(uuid.uuid4())
+
+        # Circuit breaker for WebSocket connection resilience
+        self._circuit_breaker = WebSocketCircuitBreaker(
+            failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+            recovery_timeout=30.0,
+            half_open_max_calls=1,
+            success_threshold=1,
+            name="system_broadcaster",
+        )
 
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
@@ -139,6 +156,19 @@ class SystemBroadcaster:
         """
         self._performance_collector = collector
 
+    @property
+    def circuit_breaker(self) -> WebSocketCircuitBreaker:
+        """Get the circuit breaker instance for this broadcaster."""
+        return self._circuit_breaker
+
+    def get_circuit_state(self) -> WebSocketCircuitState:
+        """Get current circuit breaker state.
+
+        Returns:
+            Current WebSocketCircuitState (CLOSED, OPEN, or HALF_OPEN)
+        """
+        return self._circuit_breaker.get_state()
+
     async def connect(self, websocket: WebSocket) -> None:
         """Add a WebSocket connection to the broadcaster.
 
@@ -166,28 +196,33 @@ class SystemBroadcaster:
         logger.info(f"WebSocket disconnected. Total connections: {len(self.connections)}")
 
     async def broadcast_status(self, status_data: dict) -> None:
-        """Broadcast system status to all connected clients via Redis pub/sub.
+        """Broadcast system status to all connected clients.
 
-        If Redis is available, publishes to the system_status channel so all
-        instances receive the update. Falls back to direct broadcasting if
-        Redis is unavailable.
+        Always sends to local WebSocket clients directly for immediate delivery.
+        Additionally publishes to Redis pub/sub for multi-instance support,
+        but local clients receive updates even if Redis is unavailable or slow.
 
         Args:
             status_data: System status data to broadcast
         """
-        redis_client = self._get_redis()
+        # ALWAYS send to local clients first for immediate delivery
+        # This ensures clients get updates even if Redis pub/sub has issues
+        await self._send_to_local_clients(status_data)
 
-        # Try to publish via Redis for multi-instance support
+        # Additionally publish via Redis for multi-instance support
+        # Remote instances will receive this and forward to their local clients
+        # Include instance_id so listener can filter out messages from self
+        redis_client = self._get_redis()
         if redis_client is not None:
             try:
-                await redis_client.publish(SYSTEM_STATUS_CHANNEL, status_data)
+                pubsub_message = {
+                    "_origin_instance": self._instance_id,
+                    "payload": status_data,
+                }
+                await redis_client.publish(SYSTEM_STATUS_CHANNEL, pubsub_message)
                 logger.debug("Published system status via Redis pub/sub")
-                return
             except Exception as e:
-                logger.warning(f"Failed to publish via Redis, falling back to direct: {e}")
-
-        # Fallback: broadcast directly to local connections
-        await self._send_to_local_clients(status_data)
+                logger.warning(f"Failed to publish via Redis: {e}")
 
     async def broadcast_performance(self) -> None:
         """Broadcast detailed performance metrics to all connected clients.
@@ -195,6 +230,9 @@ class SystemBroadcaster:
         Uses the PerformanceCollector to gather comprehensive system metrics
         including GPU, AI models, databases, and host metrics. Broadcasts
         as message type "performance_update" via WebSocket.
+
+        Always sends to local WebSocket clients directly for immediate delivery.
+        Additionally publishes to Redis pub/sub for multi-instance support.
 
         If no PerformanceCollector is configured, this method returns early
         without broadcasting.
@@ -213,21 +251,24 @@ class SystemBroadcaster:
                 "data": performance_update.model_dump(mode="json"),
             }
 
-            redis_client = self._get_redis()
+            # ALWAYS send to local clients first for immediate delivery
+            # This ensures clients get updates even if Redis pub/sub has issues
+            await self._send_to_local_clients(performance_data)
 
-            # Try to publish via Redis for multi-instance support
+            # Additionally publish via Redis for multi-instance support
+            # Remote instances will receive this and forward to their local clients
+            # Include instance_id so listener can filter out messages from self
+            redis_client = self._get_redis()
             if redis_client is not None:
                 try:
-                    await redis_client.publish(PERFORMANCE_UPDATE_CHANNEL, performance_data)
+                    pubsub_message = {
+                        "_origin_instance": self._instance_id,
+                        "payload": performance_data,
+                    }
+                    await redis_client.publish(PERFORMANCE_UPDATE_CHANNEL, pubsub_message)
                     logger.debug("Published performance update via Redis pub/sub")
-                    return
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to publish performance via Redis, falling back to direct: {e}"
-                    )
-
-            # Fallback: broadcast directly to local connections
-            await self._send_to_local_clients(performance_data)
+                    logger.warning(f"Failed to publish performance via Redis: {e}")
 
         except Exception as e:
             logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
@@ -235,8 +276,10 @@ class SystemBroadcaster:
     async def _send_to_local_clients(self, status_data: dict | Any) -> None:
         """Send status data directly to all locally connected WebSocket clients.
 
-        This is used both by the Redis listener and as a fallback when Redis
-        is unavailable.
+        This is the primary method for delivering updates to clients connected
+        to this instance. It is called:
+        1. From broadcast_status/broadcast_performance for immediate local delivery
+        2. From the Redis pub/sub listener to receive updates from other instances
 
         Args:
             status_data: System status data to send
@@ -263,6 +306,32 @@ class SystemBroadcaster:
                 f"Removed {len(failed_connections)} failed connections. "
                 f"Active connections: {len(self.connections)}"
             )
+
+    async def _broadcast_degraded_state(self) -> None:
+        """Broadcast degraded state notification to all connected clients.
+
+        This method is called when the circuit breaker opens or when the broadcaster
+        enters a failed state. It notifies connected clients that system status
+        updates may not be delivered reliably.
+        """
+        if not self.connections:
+            return
+
+        degraded_message = {
+            "type": "service_status",
+            "data": {
+                "service": "system_broadcaster",
+                "status": "degraded",
+                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+                "circuit_state": self._circuit_breaker.get_state().value,
+            },
+        }
+
+        try:
+            await self._send_to_local_clients(degraded_message)
+            logger.info("Broadcast degraded state notification to connected clients")
+        except Exception as e:
+            logger.warning(f"Failed to broadcast degraded state: {e}")
 
     async def _start_pubsub_listener(self) -> None:
         """Start the Redis pub/sub listener for receiving system status updates.
@@ -295,6 +364,7 @@ class SystemBroadcaster:
             )
             self._pubsub_listening = True
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
+            self._circuit_breaker.reset()  # Reset circuit breaker on successful start
             self._listener_task = asyncio.create_task(self._listen_for_updates())
             logger.info(
                 f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
@@ -302,6 +372,7 @@ class SystemBroadcaster:
             )
         except Exception as e:
             logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
+            self._circuit_breaker.record_failure()
 
     async def _stop_pubsub_listener(self) -> None:
         """Stop the Redis pub/sub listener and close dedicated connection."""
@@ -389,23 +460,43 @@ class SystemBroadcaster:
                 if not self._pubsub_listening:
                     break
 
-                # Reset recovery attempts on successful message processing
+                # Reset recovery attempts and record success on message processing
                 self._recovery_attempts = 0
+                self._circuit_breaker.record_success()
 
-                # Extract the status data
-                status_data = message.get("data")
-                if not status_data:
+                # Extract the wrapped message data
+                wrapped_data = message.get("data")
+                if not wrapped_data:
                     continue
 
-                logger.debug(f"Received system status from Redis: {type(status_data)}")
+                # Check if this message originated from this instance
+                # If so, skip it (we already sent directly to local clients)
+                if isinstance(wrapped_data, dict):
+                    origin_instance = wrapped_data.get("_origin_instance")
+                    if origin_instance == self._instance_id:
+                        logger.debug("Skipping message from self (already sent directly)")
+                        continue
 
-                # Forward to local WebSocket clients
+                    # Extract the actual payload
+                    status_data = wrapped_data.get("payload")
+                    if not status_data:
+                        # Handle legacy format (no wrapper)
+                        status_data = wrapped_data
+                else:
+                    # Handle non-dict data (legacy format)
+                    status_data = wrapped_data
+
+                logger.debug(f"Received update from Redis (remote instance): {type(status_data)}")
+
+                # Forward to local WebSocket clients (from remote instance)
                 await self._send_to_local_clients(status_data)
 
         except asyncio.CancelledError:
             logger.info("Pub/sub listener cancelled")
         except Exception as e:
             logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
+            # Record failure in circuit breaker
+            self._circuit_breaker.record_failure()
             await self._attempt_listener_recovery()
 
     async def _attempt_listener_recovery(self) -> None:
@@ -413,18 +504,33 @@ class SystemBroadcaster:
 
         This helper method is extracted to reduce branch complexity in
         _listen_for_updates(). Recovery is bounded to MAX_RECOVERY_ATTEMPTS
-        to prevent unbounded recursion and stack overflow.
+        to prevent unbounded recursion and stack overflow. Also checks
+        circuit breaker state before attempting recovery.
         """
         if not self._pubsub_listening:
             return
 
         self._recovery_attempts += 1
+
+        # Check circuit breaker before attempting recovery
+        if not self._circuit_breaker.is_call_permitted():
+            logger.error(
+                "Pub/sub listener circuit breaker is OPEN - "
+                "recovery blocked to allow system stabilization"
+            )
+            self._pubsub_listening = False
+            # Broadcast degraded state to connected clients
+            await self._broadcast_degraded_state()
+            return
+
         if self._recovery_attempts > self.MAX_RECOVERY_ATTEMPTS:
             logger.error(
                 f"Pub/sub listener recovery failed after {self.MAX_RECOVERY_ATTEMPTS} "
                 "attempts. Giving up - manual restart required."
             )
             self._pubsub_listening = False
+            # Broadcast degraded state to connected clients
+            await self._broadcast_degraded_state()
             return
 
         logger.info(
@@ -439,10 +545,13 @@ class SystemBroadcaster:
         # Clean up old pubsub and create fresh subscription
         await self._reset_pubsub_connection()
         if self._pubsub:
+            self._circuit_breaker.record_success()
             self._listener_task = asyncio.create_task(self._listen_for_updates())
         else:
             logger.error("Failed to re-establish pub/sub connection")
+            self._circuit_breaker.record_failure()
             self._pubsub_listening = False
+            await self._broadcast_degraded_state()
 
     async def _get_system_status(self) -> dict:
         """Gather current system status data.

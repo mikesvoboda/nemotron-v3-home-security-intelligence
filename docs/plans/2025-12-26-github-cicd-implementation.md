@@ -99,60 +99,60 @@ Create `.github/dependabot.yml`:
 version: 2
 updates:
   # Python dependencies
-  - package-ecosystem: "pip"
-    directory: "/backend"
+  - package-ecosystem: 'pip'
+    directory: '/backend'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "python"
+      - 'dependencies'
+      - 'python'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
 
   # Node.js dependencies
-  - package-ecosystem: "npm"
-    directory: "/frontend"
+  - package-ecosystem: 'npm'
+    directory: '/frontend'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "javascript"
+      - 'dependencies'
+      - 'javascript'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
 
   # GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     open-pull-requests-limit: 3
     labels:
-      - "dependencies"
-      - "github-actions"
+      - 'dependencies'
+      - 'github-actions'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
 
   # Docker
-  - package-ecosystem: "docker"
-    directory: "/backend"
+  - package-ecosystem: 'docker'
+    directory: '/backend'
     schedule:
-      interval: "monthly"
+      interval: 'monthly'
     labels:
-      - "dependencies"
-      - "docker"
+      - 'dependencies'
+      - 'docker'
 
-  - package-ecosystem: "docker"
-    directory: "/frontend"
+  - package-ecosystem: 'docker'
+    directory: '/frontend'
     schedule:
-      interval: "monthly"
+      interval: 'monthly'
     labels:
-      - "dependencies"
-      - "docker"
+      - 'dependencies'
+      - 'docker'
 ```
 
 ### Step 3: Commit
@@ -185,19 +185,19 @@ mkdir -p .github/codeql
 Create `.github/codeql/codeql-config.yml`:
 
 ```yaml
-name: "CodeQL Config"
+name: 'CodeQL Config'
 
 queries:
   - uses: security-and-quality
 
 paths-ignore:
-  - "**/*.test.ts"
-  - "**/*.test.tsx"
-  - "**/test_*.py"
-  - "**/*_test.py"
-  - "**/tests/**"
-  - "**/node_modules/**"
-  - "**/.venv/**"
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/test_*.py'
+  - '**/*_test.py'
+  - '**/tests/**'
+  - '**/node_modules/**'
+  - '**/.venv/**'
 ```
 
 ### Step 3: Create CodeQL workflow
@@ -213,7 +213,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 6 * * 1" # Monday 6am UTC
+    - cron: '0 6 * * 1' # Monday 6am UTC
 
 jobs:
   analyze:
@@ -245,7 +245,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: '/language:${{ matrix.language }}'
 ```
 
 ### Step 4: Commit
@@ -277,15 +277,15 @@ on:
   push:
     branches: [main]
     paths:
-      - "**/Dockerfile*"
-      - "backend/requirements.txt"
-      - "frontend/package.json"
+      - '**/Dockerfile*'
+      - 'backend/requirements.txt'
+      - 'frontend/package.json'
   pull_request:
     branches: [main]
     paths:
-      - "**/Dockerfile*"
-      - "backend/requirements.txt"
-      - "frontend/package.json"
+      - '**/Dockerfile*'
+      - 'backend/requirements.txt'
+      - 'frontend/package.json'
 
 jobs:
   scan-backend:
@@ -301,17 +301,17 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "backend:${{ github.sha }}"
-          format: "sarif"
-          output: "trivy-backend.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          image-ref: 'backend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: "trivy-backend.sarif"
+          sarif_file: 'trivy-backend.sarif'
 
   scan-frontend:
     name: Scan Frontend Image
@@ -326,17 +326,17 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "frontend:${{ github.sha }}"
-          format: "sarif"
-          output: "trivy-frontend.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          image-ref: 'frontend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-frontend.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: "trivy-frontend.sarif"
+          sarif_file: 'trivy-frontend.sarif'
 ```
 
 ### Step 2: Commit
@@ -373,7 +373,7 @@ rules:
           - pattern: API_KEY = "..."
           - pattern: secret = "..."
           - pattern: SECRET = "..."
-    message: "Potential hardcoded credential detected"
+    message: 'Potential hardcoded credential detected'
     languages: [python, typescript, javascript]
     severity: ERROR
 
@@ -383,7 +383,7 @@ rules:
           $QUERY = f"... {$VAR} ..."
           ...
           $DB.execute($QUERY)
-    message: "Potential SQL injection via f-string"
+    message: 'Potential SQL injection via f-string'
     languages: [python]
     severity: ERROR
 
@@ -393,7 +393,7 @@ rules:
           - pattern: subprocess.call($CMD, shell=True, ...)
           - pattern: subprocess.run($CMD, shell=True, ...)
           - pattern: os.system($CMD)
-    message: "Potential shell injection vulnerability"
+    message: 'Potential shell injection vulnerability'
     languages: [python]
     severity: ERROR
 ```
@@ -422,7 +422,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install Bandit
         run: pip install bandit
@@ -649,7 +649,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -683,7 +683,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install radon
         run: pip install radon
@@ -778,7 +778,7 @@ memory:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: '3.11'
 
     - name: Install dependencies
       run: |
@@ -819,20 +819,20 @@ Create `frontend/lighthouserc.js`:
 module.exports = {
   ci: {
     collect: {
-      staticDistDir: "./dist",
+      staticDistDir: './dist',
       numberOfRuns: 3,
     },
     assert: {
       assertions: {
-        "categories:performance": ["warn", { minScore: 0.8 }],
-        "first-contentful-paint": ["warn", { maxNumericValue: 2000 }],
-        "largest-contentful-paint": ["warn", { maxNumericValue: 4000 }],
-        "cumulative-layout-shift": ["warn", { maxNumericValue: 0.1 }],
-        "total-blocking-time": ["warn", { maxNumericValue: 300 }],
+        'categories:performance': ['warn', { minScore: 0.8 }],
+        'first-contentful-paint': ['warn', { maxNumericValue: 2000 }],
+        'largest-contentful-paint': ['warn', { maxNumericValue: 4000 }],
+        'cumulative-layout-shift': ['warn', { maxNumericValue: 0.1 }],
+        'total-blocking-time': ['warn', { maxNumericValue: 300 }],
       },
     },
     upload: {
-      target: "temporary-public-storage",
+      target: 'temporary-public-storage',
     },
   },
 };
@@ -854,8 +854,8 @@ lighthouse:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: "20"
-        cache: "npm"
+        node-version: '20'
+        cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
 
     - name: Install dependencies
@@ -882,8 +882,8 @@ bundle-size:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: "20"
-        cache: "npm"
+        node-version: '20'
+        cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
 
     - name: Install dependencies
@@ -1061,13 +1061,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Python linters
@@ -1102,7 +1102,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: pip install -r backend/requirements-dev.txt
@@ -1133,8 +1133,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -1438,7 +1438,7 @@ jobs:
             -v \
             --tb=short
         env:
-          CUDA_VISIBLE_DEVICES: "0"
+          CUDA_VISIBLE_DEVICES: '0'
 
       - name: Run AI inference benchmarks
         run: |
@@ -1448,7 +1448,7 @@ jobs:
             --benchmark-json=gpu-benchmark.json \
             -v
         env:
-          CUDA_VISIBLE_DEVICES: "0"
+          CUDA_VISIBLE_DEVICES: '0'
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
@@ -1553,9 +1553,9 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image }}:scan
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -1597,7 +1597,7 @@ name: Nightly Analysis
 
 on:
   schedule:
-    - cron: "0 7 * * *" # 2am EST / 7am UTC
+    - cron: '0 7 * * *' # 2am EST / 7am UTC
   workflow_dispatch:
 
 jobs:
@@ -1650,7 +1650,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install wily
         run: pip install wily
@@ -1680,13 +1680,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Audit Python dependencies

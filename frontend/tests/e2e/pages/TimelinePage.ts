@@ -110,7 +110,9 @@ export class TimelinePage extends BasePage {
     // Results Section
     this.resultsCount = page.getByText(/Showing \d+-\d+ of \d+ events/i);
     this.riskBadges = page.locator('[class*="RiskBadge"]');
-    this.eventCards = page.locator('[class*="EventCard"]');
+    // EventCard components are rendered as clickable divs with role="button" and aria-label starting with "View details"
+    // They are inside the events grid (grid layout with gap-6)
+    this.eventCards = page.locator('[role="button"][aria-label^="View details for event"]');
     this.noEventsMessage = page.getByText(/No Events Found/i);
 
     // Bulk Actions

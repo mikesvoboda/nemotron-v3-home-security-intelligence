@@ -4,13 +4,11 @@
 
 FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-time security monitoring. Provides GPU-accelerated inference via HuggingFace Transformers, detecting security-relevant objects in camera images.
 
-## Production Deployment
+## Port and Resources
 
-In production, RT-DETRv2 runs in a Podman container (`ai-detector_1`) with NVIDIA GPU passthrough:
-
-- **Container**: `nemotron-v3-home-security-intelligence_ai-detector_1`
 - **Port**: 8090
-- **GPU VRAM**: ~650 MiB
+- **Expected VRAM**: ~3-4GB (actual: ~650 MiB in production)
+- **Inference Time**: 30-50ms per image on RTX A5500
 
 ## Directory Contents
 
@@ -18,87 +16,85 @@ In production, RT-DETRv2 runs in a Podman container (`ai-detector_1`) with NVIDI
 ai/rtdetr/
 ├── AGENTS.md          # This file
 ├── __init__.py        # Package init (version 1.0.0)
-├── Dockerfile         # Container build configuration (PyTorch + CUDA)
-├── model.py           # FastAPI inference server (HuggingFace Transformers)
+├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
+├── model.py           # FastAPI inference server
 ├── example_client.py  # Python client example using httpx
-├── test_model.py      # Unit tests (pytest) - NOTE: some tests reference deprecated ONNX API
+├── test_model.py      # Unit tests (pytest)
 ├── requirements.txt   # Python dependencies
-├── README.md          # Usage documentation (some ONNX references outdated)
-└── .gitkeep           # Git placeholder
+└── README.md          # Usage documentation
 ```
 
 ## Key Files
 
+### `model.py` (Main Server)
+
+FastAPI server implementation using HuggingFace Transformers.
+
+**Classes:**
+
+| Class               | Description                                               |
+| ------------------- | --------------------------------------------------------- |
+| `BoundingBox`       | Pydantic model: x, y, width, height                       |
+| `Detection`         | Single detection: class_name, confidence, bbox            |
+| `DetectionResponse` | Response: detections[], inference_time_ms, dimensions     |
+| `HealthResponse`    | Health: status, model_loaded, device, vram_used_gb        |
+| `RTDETRv2Model`     | Model wrapper with load_model(), detect(), detect_batch() |
+
+**Key Functions in RTDETRv2Model:**
+
+```python
+def load_model(self) -> None:
+    """Load model via AutoModelForObjectDetection.from_pretrained()"""
+
+def detect(self, image: Image.Image) -> tuple[list[dict], float]:
+    """Single image detection, returns (detections, inference_time_ms)"""
+
+def detect_batch(self, images: list[Image.Image]) -> tuple[list[list[dict]], float]:
+    """Sequential batch detection"""
+
+def _warmup(self, num_iterations: int = 3) -> None:
+    """Runs 3 warmup iterations on startup"""
+```
+
+**Constants:**
+
+```python
+SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
+```
+
 ### `Dockerfile`
 
-Container build configuration using PyTorch + CUDA runtime image:
+Container build configuration:
 
 - **Base image**: `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`
 - **Non-root user**: `rtdetr` for security
 - **Health check**: 60s start period for model loading
-- **Environment variables**: `HOST`, `PORT`, `RTDETR_CONFIDENCE`, `HF_HOME`
-- **HuggingFace cache**: Models cached at `/cache/huggingface`
-
-### `model.py`
-
-Main inference server implementation using HuggingFace Transformers:
-
-**Classes:**
-
-- `BoundingBox`: Pydantic model for bbox coordinates (x, y, width, height)
-- `Detection`: Single detection with class_name, confidence, bbox
-- `DetectionResponse`: Response with detections list, inference time, image dimensions
-- `HealthResponse`: Health check with model status, device, VRAM usage
-- `RTDETRv2Model`: HuggingFace Transformers model wrapper
-  - `load_model()`: Loads model via `AutoModelForObjectDetection.from_pretrained()`
-  - `detect()`: Single image detection, returns (detections, inference_time_ms)
-  - `detect_batch()`: Sequential batch detection
-  - `_warmup()`: Runs 3 warmup iterations on startup
-
-**FastAPI Endpoints:**
-
-- `GET /health`: Health check with GPU status
-- `POST /detect`: Single image detection (file upload or base64)
-- `POST /detect/batch`: Batch detection for multiple files
-
-**Configuration (environment variables):**
-
-- `RTDETR_MODEL_PATH`: HuggingFace model path (default: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`)
-- `RTDETR_CONFIDENCE`: Minimum confidence threshold (default: 0.5)
-- `HOST`: Server bind address (default: 0.0.0.0)
-- `PORT`: Server port (default: 8090)
-
-**Port**: 8090
-**Expected VRAM**: ~3GB
+- **HuggingFace cache**: `/cache/huggingface`
 
 ### `example_client.py`
 
 Async HTTP client demonstrating API usage with httpx:
 
-- `check_health()`: Server health check
-- `detect_from_file()`: Single image detection via file upload
-- `detect_from_base64()`: Single image detection via base64
-- `detect_batch()`: Batch detection for multiple images
-- `print_detections()`: Pretty-print detection results
+```python
+async def check_health(base_url: str) -> dict
+async def detect_from_file(image_path: str, base_url: str) -> dict
+async def detect_from_base64(image_path: str, base_url: str) -> dict
+async def detect_batch(image_paths: list[str], base_url: str) -> dict
+def print_detections(result: dict) -> None
+```
 
 ### `test_model.py`
 
-Unit tests with pytest. **Note**: Some tests reference a deprecated ONNX-based API (`use_onnx=True`, `preprocess_image()`, `postprocess_detections()`) that no longer exists in `model.py`. These tests may need updating.
+Unit tests with pytest covering:
 
-**Working tests:**
-
-- Pydantic model tests (BoundingBox, Detection, DetectionResponse)
+- Pydantic model validation (BoundingBox, Detection, DetectionResponse)
 - API endpoint tests with mocked model
+- Size limit validation tests
 
-**Outdated tests:**
-
-- `test_model_initialization` references `use_onnx` parameter
-- `test_preprocess_image` references method that doesn't exist
-- `test_postprocess_detections_onnx_format` references ONNX format
+**Note**: Some tests reference deprecated ONNX API (`use_onnx=True`, `preprocess_image()`) that no longer exists. These need updating.
 
 ### `requirements.txt`
-
-Python dependencies:
 
 ```
 fastapi>=0.104.0
@@ -115,34 +111,11 @@ python-dotenv>=1.0.0
 pynvml>=11.5.0
 ```
 
-### `__init__.py`
-
-Package initialization: `__version__ = "1.0.0"`
-
-## Model Information
-
-### RT-DETRv2 (Real-Time Detection Transformer v2)
-
-- **Framework**: HuggingFace Transformers (PyTorch)
-- **Default Model**: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`
-- **Input**: Any size RGB image (processor handles resizing)
-- **Output**: Bounding boxes, class labels, confidence scores
-- **Inference time**: 30-50ms per image on RTX A5500
-- **VRAM**: ~3-4GB
-
-### Security-Relevant Classes
-
-Defined in `SECURITY_CLASSES` constant (9 classes):
-
-```python
-{"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
-```
-
-All other COCO classes are filtered out.
-
 ## API Endpoints
 
-### `GET /health`
+### GET /health
+
+Returns server health status.
 
 ```json
 {
@@ -155,9 +128,24 @@ All other COCO classes are filtered out.
 }
 ```
 
-### `POST /detect`
+### POST /detect
 
-Accepts multipart file upload or JSON with base64.
+Single image detection. Accepts multipart file upload or JSON with base64.
+
+**Request (file upload):**
+
+```bash
+curl -X POST http://localhost:8090/detect \
+  -F "file=@image.jpg"
+```
+
+**Request (base64):**
+
+```json
+{ "image_base64": "<base64-encoded-image>" }
+```
+
+**Response:**
 
 ```json
 {
@@ -174,21 +162,40 @@ Accepts multipart file upload or JSON with base64.
 }
 ```
 
-### `POST /detect/batch`
+### POST /detect/batch
 
-Accepts multiple files, returns results per image.
+Batch detection for multiple files.
 
-## Starting the Server
+**Request:**
 
 ```bash
-# Using startup script
-./ai/start_detector.sh
-
-# Direct execution
-cd ai/rtdetr && python model.py
+curl -X POST http://localhost:8090/detect/batch \
+  -F "files=@image1.jpg" \
+  -F "files=@image2.jpg"
 ```
 
-Server runs on: `http://0.0.0.0:8090`
+**Response:**
+
+```json
+{
+  "results": [
+    {"index": 0, "filename": "image1.jpg", "detections": [...], ...},
+    {"index": 1, "filename": "image2.jpg", "detections": [...], ...}
+  ],
+  "total_inference_time_ms": 90.5,
+  "num_images": 2
+}
+```
+
+## Environment Variables
+
+| Variable            | Default                                        | Description              |
+| ------------------- | ---------------------------------------------- | ------------------------ |
+| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path   |
+| `RTDETR_CONFIDENCE` | `0.5`                                          | Min confidence threshold |
+| `HOST`              | `0.0.0.0`                                      | Bind address             |
+| `PORT`              | `8090`                                         | Server port              |
+| `HF_HOME`           | `/cache/huggingface`                           | HuggingFace cache dir    |
 
 ## Inference Pipeline
 
@@ -198,7 +205,7 @@ Server runs on: `http://0.0.0.0:8090`
 4. Run inference with `torch.no_grad()`
 5. Postprocess with `post_process_object_detection()`
 6. Filter by confidence threshold (0.5)
-7. Filter to security-relevant classes only
+7. Filter to security-relevant classes only (9 classes)
 8. Return detections with scaled bounding boxes
 
 ## Backend Integration
@@ -216,23 +223,38 @@ detections = await client.detect_objects(
 )
 ```
 
+## Starting the Server
+
+### Container (Production)
+
+```bash
+docker compose -f docker-compose.prod.yml up ai-detector
+```
+
+### Native (Development)
+
+```bash
+./ai/start_detector.sh
+# or
+cd ai/rtdetr && python model.py
+```
+
 ## Testing
 
 ```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Run tests
 pytest test_model.py -v
-python example_client.py  # requires running server
+
+# Run example client (requires running server)
+python example_client.py
 ```
-
-## Known Issues
-
-1. **Test file outdated**: `test_model.py` references deprecated ONNX API methods that no longer exist in `model.py`
-2. **README.md outdated**: References "ONNX Runtime" but code uses HuggingFace Transformers
-3. **start_detector.sh**: References ONNX model path but code uses HuggingFace model path
 
 ## Entry Points
 
-1. **Main server**: `model.py` - FastAPI app with HuggingFace Transformers
-2. **Client example**: `example_client.py` - httpx-based async client
-3. **Tests**: `test_model.py` - pytest unit tests (partially outdated)
-4. **Startup**: `../start_detector.sh` - Shell script to launch server
+1. **Main server**: `model.py` - Start here for understanding the API
+2. **Client example**: `example_client.py` - For integration patterns
+3. **Tests**: `test_model.py` - For API contracts and validation
+4. **Backend client**: `backend/services/detector_client.py` - For production integration

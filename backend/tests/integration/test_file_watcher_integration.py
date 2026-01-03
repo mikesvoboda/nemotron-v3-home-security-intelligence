@@ -50,20 +50,32 @@ def mock_redis_client():
     return mock_client
 
 
-def create_test_image(path: Path, color: str = "red", size: tuple = (100, 100)) -> Path:
-    """Helper to create a valid test image file.
+def create_test_image(path: Path, color: str = "red", size: tuple = (640, 480)) -> Path:
+    """Helper to create a valid test image file above minimum size threshold.
+
+    Creates a JPEG image with a gradient pattern to ensure the file size
+    is above the 10KB minimum required by image validation.
 
     Args:
         path: Path where to save the image
-        color: Color name for the image
-        size: Image dimensions (width, height)
+        color: Base color name for the image (used as starting point)
+        size: Image dimensions (width, height), default 640x480 for ~15-30KB files
 
     Returns:
         Path to the created image
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     img = Image.new("RGB", size, color=color)
-    img.save(path)
+    # Add gradient pattern to increase file size (solid colors compress too well)
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(size[1]):
+            for x in range(size[0]):
+                r = (x * 255 // size[0]) % 256
+                g = (y * 255 // size[1]) % 256
+                b = ((x + y) * 128 // (size[0] + size[1])) % 256
+                pixels[x, y] = (r, g, b)
+    img.save(path, "JPEG", quality=95)
     return path
 
 

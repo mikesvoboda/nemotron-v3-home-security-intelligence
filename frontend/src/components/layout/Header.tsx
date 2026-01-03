@@ -1,4 +1,4 @@
-import { Activity, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
@@ -108,14 +108,16 @@ export default function Header() {
 
   // Derive status and isConnected from the connection status summary
   const isConnected = summary.allConnected;
-  const status = systemStatus ? {
-    health: systemStatus.data.health,
-    gpu_utilization: systemStatus.data.gpu.utilization,
-    gpu_temperature: systemStatus.data.gpu.temperature,
-    gpu_memory_used: systemStatus.data.gpu.memory_used,
-    gpu_memory_total: systemStatus.data.gpu.memory_total,
-    inference_fps: systemStatus.data.gpu.inference_fps,
-  } : null;
+  const status = systemStatus
+    ? {
+        health: systemStatus.data.health,
+        gpu_utilization: systemStatus.data.gpu.utilization,
+        gpu_temperature: systemStatus.data.gpu.temperature,
+        gpu_memory_used: systemStatus.data.gpu.memory_used,
+        gpu_memory_total: systemStatus.data.gpu.memory_total,
+        inference_fps: systemStatus.data.gpu.inference_fps,
+      }
+    : null;
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -186,13 +188,15 @@ export default function Header() {
           <Menu className="h-6 w-6" />
         </button>
 
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-[#76B900]">
-            <Activity className="h-5 w-5 text-black" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img src="/images/nvidia-logo-white.svg" alt="NVIDIA" className="h-6 w-auto md:h-8" />
           <div>
-            <h1 className="text-base font-bold tracking-wide text-white md:text-lg">NVIDIA SECURITY</h1>
-            <p className="hidden text-xs font-medium tracking-wider text-[#76B900] sm:block">POWERED BY NEMOTRON</p>
+            <h1 className="text-base font-bold tracking-wide text-white md:text-lg">
+              NVIDIA SECURITY
+            </h1>
+            <p className="hidden text-xs font-medium tracking-wider text-[#76B900] sm:block">
+              Nemotron v3 Nano Intelligence
+            </p>
           </div>
         </div>
       </div>

@@ -79,8 +79,9 @@ export class AuditPage extends BasePage {
     this.endDateFilter = page.locator('input[type="date"]').last();
     this.clearFiltersButton = page.getByRole('button', { name: /Clear/i });
 
-    // Audit Table
-    this.auditTable = page.locator('[class*="AuditTable"], table');
+    // Audit Table - look for either the table element or empty/error states
+    // Note: The table may show loading state, empty state, or data state
+    this.auditTable = page.locator('table').first();
     this.tableRows = page.locator('tbody tr');
     this.tableHeaders = page.locator('thead th');
     this.emptyState = page.getByText(/No audit logs found/i);

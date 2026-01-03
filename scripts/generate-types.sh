@@ -24,7 +24,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OPENAPI_SPEC_FILE="$PROJECT_ROOT/openapi.json"
+OPENAPI_SPEC_FILE="/tmp/openapi-$$.json"
 GENERATED_TYPES_DIR="$PROJECT_ROOT/frontend/src/types/generated"
 GENERATED_TYPES_FILE="$GENERATED_TYPES_DIR/api.ts"
 
@@ -187,6 +187,12 @@ print_success "Node.js and dependencies available"
 
 # Step 3: Generate OpenAPI spec from backend
 print_step "Generating OpenAPI specification from backend..."
+
+# Set default environment variables for OpenAPI generation
+# These are only needed for Settings validation during import, not for actual functionality
+export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://user:password@localhost:5432/security}"
+export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
+
 $PYTHON_CMD -c "
 from backend.main import app
 import json

@@ -78,7 +78,13 @@ async def validate_websocket_api_key(websocket: WebSocket) -> bool:
 async def authenticate_websocket(websocket: WebSocket) -> bool:
     """Authenticate a WebSocket connection.
 
-    If authentication fails, the connection is closed with a 403 status code.
+    If authentication fails, the connection is first accepted and then closed
+    with a policy violation code (1008). This is required because in the
+    WebSocket protocol, you cannot send a close frame without first completing
+    the handshake (accepting the connection).
+
+    Note: Attempting to close without accepting would result in the HTTP layer
+    returning a 403 Forbidden, which is not a proper WebSocket close.
 
     Args:
         websocket: WebSocket connection to authenticate
@@ -87,6 +93,9 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
         True if authenticated successfully, False if connection was rejected
     """
     if not await validate_websocket_api_key(websocket):
+        # Must accept the WebSocket before we can close it with a proper close frame.
+        # Without accept(), calling close() results in HTTP 403 during handshake.
+        await websocket.accept()
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return False
     return True

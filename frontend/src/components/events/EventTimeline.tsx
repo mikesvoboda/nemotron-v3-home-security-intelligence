@@ -10,11 +10,13 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
 import ExportPanel from './ExportPanel';
+import { useEventStream } from '../../hooks/useEventStream';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
@@ -26,6 +28,7 @@ import {
 } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import ActivityFeed, { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { SearchBar, SearchResultsPanel } from '../search';
 
 import type { Detection } from './EventCard';
@@ -80,6 +83,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
+  // WebSocket hook for real-time live activity
+  const { events: wsEvents, isConnected: wsConnected } = useEventStream();
+
   // State for full-text search mode
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [fullTextQuery, setFullTextQuery] = useState('');
@@ -89,6 +95,46 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [searchOffset, setSearchOffset] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // URL search params for deep-linking (e.g., /timeline?camera=cam-1)
+  const [searchParams] = useSearchParams();
+
+  // Initialize camera filter from URL query parameter
+  // Updates when searchParams changes (e.g., navigating from dashboard camera click)
+  useEffect(() => {
+    const cameraParam = searchParams.get('camera');
+    if (cameraParam) {
+      setFilters((prev) => ({
+        ...prev,
+        camera_id: cameraParam,
+        offset: 0,
+      }));
+      // Show filters panel when coming from dashboard camera click
+      setShowFilters(true);
+    }
+  }, [searchParams]);
+
+  // Create a memoized camera name lookup map that updates when cameras change
+  // This ensures the component re-renders with correct camera names when cameras load
+  const cameraNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    cameras.forEach((camera) => {
+      map.set(camera.id, camera.name);
+    });
+    return map;
+  }, [cameras]);
+
+  // Convert WebSocket events to ActivityEvent[] for ActivityFeed
+  // Resolve camera_name from cameras list or fall back to 'Unknown Camera'
+  const activityEvents: ActivityEvent[] = useMemo(() => {
+    return wsEvents.map((event) => ({
+      id: String(event.id),
+      timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
+      camera_name: event.camera_name ?? cameraNameMap.get(event.camera_id) ?? 'Unknown Camera',
+      risk_score: event.risk_score,
+      summary: event.summary,
+    }));
+  }, [wsEvents, cameraNameMap]);
 
   // Ref to track the latest search request ID to prevent race conditions
   const searchRequestIdRef = useRef(0);
@@ -431,9 +477,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
-    // Find camera name
-    const camera = cameras.find((c) => c.id === event.camera_id);
-    const camera_name = camera?.name || 'Unknown Camera';
+    // Use memoized camera name map for efficient lookup
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
     // Convert detections (not available in list view, would need separate API call)
     const detections: Detection[] = [];
@@ -445,6 +490,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
+      thumbnail_url: event.thumbnail_url || undefined,
       detections,
       started_at: event.started_at,
       ended_at: event.ended_at,
@@ -491,12 +537,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     const event = filteredEvents.find((e) => e.id === selectedEventForModal);
     if (!event) return null;
 
-    const camera = cameras.find((c) => c.id === event.camera_id);
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
     return {
       id: String(event.id),
       timestamp: event.started_at,
-      camera_name: camera?.name || 'Unknown Camera',
+      camera_name,
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
@@ -513,7 +559,25 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white">Event Timeline</h1>
-        <p className="mt-2 text-gray-400">View and filter all security events from your cameras</p>
+        <p className="mt-2 text-gray-400">
+          View and filter all security events from your cameras
+          {!wsConnected && (
+            <span className="ml-2 text-yellow-500">(Disconnected)</span>
+          )}
+        </p>
+      </div>
+
+      {/* Live Activity Feed */}
+      <div className="mb-6">
+        <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Live Activity</h2>
+        <ActivityFeed
+          events={activityEvents}
+          maxItems={10}
+          autoScroll={true}
+          onEventClick={(eventId) => setSelectedEventForModal(parseInt(eventId, 10))}
+          className="h-[300px] md:h-[400px]"
+          showHeader={false}
+        />
       </div>
 
       {/* Full-Text Search Bar */}

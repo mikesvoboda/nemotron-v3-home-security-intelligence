@@ -74,6 +74,111 @@ flowchart TB
 
 ---
 
+## Database Credentials (REQUIRED)
+
+> **SECURITY: Database password is REQUIRED. No default passwords exist.**
+
+As of the latest security update, **all default passwords have been removed** from docker-compose files. The system will **fail to start** if `POSTGRES_PASSWORD` is not set, preventing accidental deployment with insecure credentials.
+
+```yaml
+# docker-compose.prod.yml - password is REQUIRED
+environment:
+  - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+```
+
+### Setting Up Database Credentials
+
+**Option 1: Interactive Setup (Recommended)**
+
+The setup script generates secure 32-character passwords automatically:
+
+```bash
+./setup.sh              # Quick mode - generates secure password
+./setup.sh --guided     # Guided mode - explains each step
+```
+
+**Option 2: Manual .env File**
+
+1. **Generate a secure password:**
+
+   ```bash
+   # Generate a 32-character random password
+   openssl rand -base64 32
+   ```
+
+2. **Create .env file:**
+
+   ```bash
+   # .env (never commit this file)
+   POSTGRES_USER=security
+   POSTGRES_PASSWORD=your-secure-generated-password-here
+   POSTGRES_DB=security
+   DATABASE_URL=postgresql+asyncpg://security:your-secure-generated-password-here@postgres:5432/security
+   ```
+
+3. **Set secure file permissions:**
+
+   ```bash
+   chmod 600 .env
+   ```
+
+**Option 3: Docker Secrets (Enhanced Security)**
+
+For production deployments, Docker secrets provide better security than environment variables:
+
+```bash
+# Create secrets directory
+mkdir -p secrets
+
+# Generate and store password
+openssl rand -base64 32 > secrets/postgres_password.txt
+
+# Set secure permissions
+chmod 600 secrets/postgres_password.txt
+```
+
+Then uncomment the secrets sections in `docker-compose.prod.yml`:
+
+```yaml
+services:
+  postgres:
+    secrets:
+      - postgres_password
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+```
+
+### Password Requirements
+
+The setup script enforces these security guidelines:
+
+| Requirement        | Value           | Reason                       |
+| ------------------ | --------------- | ---------------------------- |
+| Minimum length     | 16 characters   | Prevents brute force attacks |
+| Recommended length | 32 characters   | Industry best practice       |
+| Character set      | URL-safe base64 | Avoids shell escaping issues |
+
+**Weak passwords that trigger warnings:**
+
+- `security_dev_password` (old default - removed)
+- `password`, `admin`, `root`, `secret`
+- Any password under 16 characters
+
+### Production Checklist
+
+- [ ] Run `./setup.sh` or manually set `POSTGRES_PASSWORD`
+- [ ] Verify containers start without password errors
+- [ ] `.env` file has permissions `600` (owner read/write only)
+- [ ] `.env` is in `.gitignore` (verified by default)
+- [ ] (Optional) Docker secrets configured for enhanced security
+- [ ] `secrets/` directory is in `.gitignore` (verified by default)
+
+---
+
 ## Authentication
 
 ### API Key Authentication
@@ -485,37 +590,74 @@ Plus:
 
 ### Sensitive Variables
 
-| Variable        | Contains          | Storage Recommendation       |
-| --------------- | ----------------- | ---------------------------- |
-| `DATABASE_URL`  | DB password       | .env file (not in git)       |
-| `API_KEYS`      | API credentials   | .env file or secrets manager |
-| `ADMIN_API_KEY` | Admin credential  | .env file or secrets manager |
-| `SMTP_PASSWORD` | Email credentials | .env file or secrets manager |
+| Variable            | Contains          | Storage Recommendation                 |
+| ------------------- | ----------------- | -------------------------------------- |
+| `POSTGRES_PASSWORD` | DB password       | .env file or Docker secrets (REQUIRED) |
+| `DATABASE_URL`      | DB connection     | .env file (includes password)          |
+| `API_KEYS`          | API credentials   | .env file or secrets manager           |
+| `ADMIN_API_KEY`     | Admin credential  | .env file or secrets manager           |
+| `SMTP_PASSWORD`     | Email credentials | .env file or secrets manager           |
+
+### Docker Secrets (Recommended for Production)
+
+This project supports Docker secrets for enhanced credential security:
+
+```bash
+# Create secrets with the setup script
+./setup.sh --create-secrets
+
+# Or manually:
+mkdir -p secrets
+openssl rand -base64 32 > secrets/postgres_password.txt
+chmod 600 secrets/postgres_password.txt
+```
+
+Docker secrets advantages over environment variables:
+
+- Not visible in `docker inspect` output
+- Not exposed in container process listings
+- Stored in RAM-backed tmpfs at `/run/secrets/`
+- Automatically cleaned up when container stops
 
 ### Best Practices
 
-1. **Never commit `.env` to git**
+1. **Never commit secrets to git**
 
    ```bash
-   # .gitignore
+   # .gitignore (already configured)
    .env
-   data/runtime.env
+   secrets/*
+   !secrets/.gitkeep
    ```
 
 2. **Use different credentials per environment**
 
-   - Development: weak passwords OK
-   - Production: strong, unique passwords
+   - Development: auto-generated passwords from `./setup.sh`
+   - Production: Docker secrets or external secrets manager
 
 3. **Rotate credentials periodically**
 
    - API keys: quarterly
    - Database passwords: annually
+   - After any suspected compromise: immediately
 
 4. **Use secrets managers for production**
-   - Docker secrets
+
+   - Docker secrets (built-in support)
    - HashiCorp Vault
-   - Cloud provider secrets (AWS SSM, etc.)
+   - Cloud provider secrets (AWS SSM, GCP Secret Manager, etc.)
+
+5. **Verify file permissions**
+
+   ```bash
+   # .env should be owner-only
+   ls -la .env
+   # Expected: -rw------- (600)
+
+   # secrets/ files should be owner-only
+   ls -la secrets/
+   # Expected: -rw------- (600) for each file
+   ```
 
 ---
 
@@ -571,11 +713,14 @@ chown app:app data/logs/
 - [ ] `ADMIN_ENABLED=false`
 - [ ] TLS with valid certificates
 - [ ] API keys required
-- [ ] Strong, unique passwords
+- [ ] **POSTGRES_PASSWORD set** (required - see [Database Credentials](#database-credentials-required))
+- [ ] Strong, unique passwords for all services (32+ characters recommended)
+- [ ] `.env` file permissions are `600` (owner read/write only)
+- [ ] Docker secrets used for enhanced security (optional)
 - [ ] Firewall configured
-- [ ] Database not exposed
-- [ ] Redis not exposed
-- [ ] AI services not exposed
+- [ ] Database not exposed externally
+- [ ] Redis not exposed externally
+- [ ] AI services not exposed externally
 - [ ] CORS restricted to your domain
 - [ ] Log retention configured
 - [ ] Backups encrypted

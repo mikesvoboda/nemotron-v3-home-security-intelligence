@@ -9,7 +9,7 @@ This document captures the key architectural decisions made during the developme
 1. [ADR-001: PostgreSQL for Database](#adr-001-postgresql-for-database)
 2. [ADR-002: Redis for Queues and Pub/Sub](#adr-002-redis-for-queues-and-pubsub)
 3. [ADR-003: Detection Batching Strategy](#adr-003-detection-batching-strategy)
-4. [ADR-004: Hybrid Deployment Architecture](#adr-004-hybrid-deployment-architecture)
+4. [ADR-004: Fully Containerized Deployment with GPU Passthrough](#adr-004-fully-containerized-deployment-with-gpu-passthrough)
 5. [ADR-005: No Authentication](#adr-005-no-authentication)
 6. [ADR-006: RT-DETRv2 for Object Detection](#adr-006-rt-detrv2-for-object-detection)
 7. [ADR-007: Nemotron for Risk Analysis](#adr-007-nemotron-for-risk-analysis)
@@ -221,45 +221,47 @@ The system requires:
 - RT-DETRv2 object detection (~4GB VRAM)
 - Nemotron Mini 4B risk analysis (~3GB VRAM, Q4_K_M quantization)
 
-Originally, a hybrid deployment was planned with native AI services. However, NVIDIA Container Toolkit (CDI) has matured significantly, enabling reliable GPU passthrough in Podman containers.
+NVIDIA Container Toolkit (CDI) has matured significantly, enabling reliable GPU passthrough in containers. This allows all services to be deployed uniformly using Docker Compose.
 
 ### Decision
 
-Use **fully containerized deployment** with Podman for all services, including GPU-intensive AI models using NVIDIA Container Toolkit (CDI).
+Use **fully containerized deployment** with Docker Compose for all services, including GPU-intensive AI models using NVIDIA Container Toolkit (CDI).
 
 ### Update History
 
-**2024-12-30:** Changed from hybrid (Docker + native GPU) to fully containerized with GPU passthrough. NVIDIA Container Toolkit now provides reliable GPU access within Podman containers.
+**2024-12-30:** Finalized fully containerized architecture. All services run in containers with GPU passthrough via NVIDIA Container Toolkit.
 
 ### Alternatives Considered
 
-| Alternative    | Pros                                                | Cons                                                   |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------ |
-| **All Podman** | Uniform deployment, single compose file, easier ops | Requires NVIDIA Container Toolkit setup                |
-| **All Native** | Best performance, simplest GPU access               | No isolation, harder dependency management             |
-| **Hybrid**     | Avoids GPU passthrough complexity                   | Two deployment methods, AI services started separately |
-| **Kubernetes** | Production-grade orchestration                      | Massive overkill for single-node home deployment       |
+| Alternative           | Pros                                                | Cons                                             |
+| --------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| **All Containerized** | Uniform deployment, single compose file, easier ops | Requires NVIDIA Container Toolkit setup          |
+| **All Native**        | Best performance, simplest GPU access               | No isolation, harder dependency management       |
+| **Kubernetes**        | Production-grade orchestration                      | Massive overkill for single-node home deployment |
 
 ### Consequences
 
 **Positive:**
 
-- Single deployment command for all services
+- Single deployment command for all services (`docker compose up -d`)
 - Consistent container management across all services
 - GPU performance is comparable to native (minimal overhead with CDI)
-- Easier ops - `podman-compose up -d` starts everything
 - Better reproducibility - all dependencies in container images
+- Standard Docker Compose files work with both Docker and Podman
 
 **Negative:**
 
 - Requires NVIDIA Container Toolkit (nvidia-container-toolkit) installation
-- CDI configuration needed for Podman GPU access
-- Slightly more complex initial setup than native GPU
+- CDI configuration needed for GPU access in containers
+- Slightly more complex initial setup than running AI services natively
 
 **Deployment Commands:**
 
 ```bash
 # Start ALL services (including AI with GPU)
+docker compose -f docker-compose.prod.yml up -d
+
+# Or using Podman
 podman-compose -f docker-compose.prod.yml up -d
 
 # Check AI container GPU usage
@@ -268,7 +270,7 @@ nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 
 ```mermaid
 flowchart TB
-    subgraph Podman["Podman Containers"]
+    subgraph Containers["Docker/Podman Containers"]
         FE[Frontend :5173]
         BE[Backend :8000]
         RD[Redis :6379]
@@ -281,13 +283,13 @@ flowchart TB
         GPU[NVIDIA RTX A5500 24GB]
     end
 
+    FE -->|API/WS| BE
+    BE --> RD
+    BE --> PG
     BE -->|HTTP| DET
     BE -->|HTTP| LLM
     DET -->|CDI| GPU
     LLM -->|CDI| GPU
-    FE -->|API/WS| BE
-    BE --> RD
-    BE --> PG
 ```
 
 ---
@@ -538,7 +540,7 @@ Use **WebSocket** connections for real-time, bidirectional communication.
 ```typescript
 // Client-side reconnection with exponential backoff
 const { isConnected, lastMessage } = useWebSocket({
-  url: "ws://localhost:8000/ws/events",
+  url: 'ws://localhost:8000/ws/events',
   reconnect: true,
   reconnectInterval: 3000,
   reconnectAttempts: 5,
@@ -676,7 +678,7 @@ flowchart TB
     end
 
     subgraph "Architecture Decisions"
-        HY["ADR-004: Hybrid Deploy<br/>Docker + Native GPU"]
+        HY["ADR-004: Containerized<br/>Docker + GPU CDI"]
         NA["ADR-005: No Auth<br/>Trusted network"]
     end
 
@@ -768,29 +770,29 @@ Dimensions: 1400x900 pixels, suitable for README or architecture docs.
 **Prompt:**
 
 ```
-Create a deployment architecture decision diagram showing hybrid Docker +
-Native GPU deployment strategy.
+Create a deployment architecture decision diagram showing fully containerized
+deployment with GPU passthrough via NVIDIA Container Toolkit (CDI).
 
 Style: Technical infrastructure diagram, dark theme, green (#76B900)
 and blue (#0066CC) accent colors.
 
-Layout: Split diagram with Docker containers on left, native processes on right.
+Layout: Unified container diagram showing all services in Docker/Podman.
 
-Left side "Docker Containers" (blue container icons):
+"Docker/Podman Containers" (blue container icons):
 - Frontend container (:5173) - "React dashboard"
 - Backend container (:8000) - "FastAPI API"
 - Redis container (:6379) - "Queues + Pub/Sub"
-- Label: "Isolated, portable, easy deployment"
+- PostgreSQL container (:5432) - "Database"
+- RT-DETRv2 container (:8090) - "Object detection ~4GB VRAM"
+- Nemotron container (:8091) - "Risk analysis ~3GB VRAM"
+- Label: "Uniform deployment, all services containerized"
 
-Right side "Native GPU Processes" (green GPU icons):
-- RT-DETRv2 process (:8090) - "Object detection ~4GB VRAM"
-- Nemotron process (:8091) - "Risk analysis ~3GB VRAM"
+GPU Hardware (green GPU icons):
 - GPU hardware icon - "RTX A5500 24GB"
-- Label: "Direct GPU access, optimal performance"
+- Label: "GPU access via CDI (NVIDIA Container Toolkit)"
 
-Center: Arrows showing HTTP communication between containers and native processes.
-Decision callout: "Why Hybrid? GPU passthrough in Docker adds complexity
-without benefit for single-node deployment"
+Show CDI arrows from AI containers to GPU hardware.
+Decision callout: "Fully containerized: Single docker-compose command deploys everything"
 
 Dimensions: 1400x800 pixels, landscape orientation for documentation.
 ```

@@ -301,7 +301,7 @@ class ServiceHealthMonitor:
         }
 
         try:
-            await self._broadcaster.broadcast_event(event_data)
+            await self._broadcaster.broadcast_service_status(event_data)
         except Exception as e:
             # Don't let broadcast failures crash the monitor
             logger.warning(

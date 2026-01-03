@@ -10,6 +10,10 @@ venv/
 .env
 .env.local
 
+# Secrets (Docker secrets directory)
+secrets/*
+!secrets/.gitkeep
+
 # IDE
 .idea/
 .vscode/
@@ -24,7 +28,8 @@ build/
 # Data
 *.db
 *.sqlite
-backend/data/thumbnails/
+backend/data/thumbnails/*
+!backend/data/thumbnails/.gitkeep
 backend/data/security.db
 
 # AI Models (large files)
@@ -58,3 +63,4 @@ coverage.json
 # Worktrees
 .worktrees/
 .hypothesis/
+.mcp.json

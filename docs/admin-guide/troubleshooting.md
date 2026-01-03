@@ -30,6 +30,9 @@ curl http://localhost:8000/api/system/health
 # AI services health
 curl http://localhost:8090/health   # RT-DETRv2
 curl http://localhost:8091/health   # Nemotron
+curl http://localhost:8092/health   # Florence-2 (optional)
+curl http://localhost:8093/health   # CLIP (optional)
+curl http://localhost:8094/health   # Enrichment (optional)
 
 # Database connectivity
 psql -h localhost -U security -d security -c "SELECT 1;"
@@ -44,6 +47,8 @@ nvidia-smi
 podman-compose logs -f backend
 podman-compose logs -f frontend
 ```
+
+> For a fast “health → fix” flowchart, start with the [Troubleshooting Index](../reference/troubleshooting/index.md).
 
 ---
 
@@ -76,8 +81,8 @@ podman-compose logs -f frontend
 
    ```bash
    ./ai/download_models.sh
-   ls -la ai/rtdetr/models/
-   ls -la ai/nemotron/models/
+   ls -la ai/nemotron/*.gguf
+   # RT-DETRv2 models are typically fetched via HuggingFace cache on first use
    ```
 
 4. **Check startup logs:**
@@ -109,30 +114,16 @@ podman-compose logs -f frontend
 
 2. **Check Docker networking (if using Docker):**
 
-   **macOS/Windows (Docker Desktop):**
+   The correct URLs depend on your deployment mode (prod compose DNS vs host-run AI vs Docker Desktop host routing).
 
-   ```bash
-   # Use host.docker.internal
-   RTDETR_URL=http://host.docker.internal:8090
-   NEMOTRON_URL=http://host.docker.internal:8091
-   ```
+   Start here:
 
-   **Linux:**
-
-   ```bash
-   # Option 1: Add to docker-compose.yml
-   extra_hosts:
-     - "host.docker.internal:host-gateway"
-
-   # Option 2: Use host IP
-   ip route get 1 | awk '{print $7}'
-   RTDETR_URL=http://192.168.1.100:8090
-   ```
+   - [Deployment Modes & AI Networking](../operator/deployment-modes.md) (decision table + copy/paste `.env` snippets)
 
 3. **Verify environment variables:**
    ```bash
    # Check what backend sees
-   curl http://localhost:8000/api/system/config | jq '.rtdetr_url, .nemotron_url'
+   curl http://localhost:8000/api/system/config | jq '.rtdetr_url, .nemotron_url, .florence_url, .clip_url, .enrichment_url'
    ```
 
 ---
@@ -306,7 +297,7 @@ podman-compose logs -f frontend
 1. **Check DLQ status:**
 
    ```bash
-   curl http://localhost:8000/api/system/dlq/stats
+   curl http://localhost:8000/api/dlq/stats
    ```
 
 2. **Verify AI services are healthy:**
@@ -373,9 +364,9 @@ podman-compose logs -f frontend
 5. **Test WebSocket directly:**
    ```javascript
    // Browser console
-   ws = new WebSocket("ws://localhost:8000/ws/events");
-   ws.onopen = () => console.log("Connected");
-   ws.onerror = (e) => console.error("Error", e);
+   ws = new WebSocket('ws://localhost:8000/ws/events');
+   ws.onopen = () => console.log('Connected');
+   ws.onerror = (e) => console.error('Error', e);
    ```
 
 ---

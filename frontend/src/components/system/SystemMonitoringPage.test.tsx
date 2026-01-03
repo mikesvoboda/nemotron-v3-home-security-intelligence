@@ -36,20 +36,22 @@ vi.mock('../dashboard/GpuStats', () => ({
   ),
 }));
 
-vi.mock('../dashboard/PipelineQueues', () => ({
+vi.mock('./PipelineMetricsPanel', () => ({
   default: ({
-    detectionQueue,
-    analysisQueue,
+    queues,
+    latencies,
   }: {
-    detectionQueue: number;
-    analysisQueue: number;
+    queues: { detection_queue: number; analysis_queue: number };
+    latencies?: { detect?: { avg_ms: number }; analyze?: { avg_ms: number } } | null;
   }) => (
     <div
-      data-testid="pipeline-queues"
-      data-detection-queue={detectionQueue}
-      data-analysis-queue={analysisQueue}
+      data-testid="pipeline-metrics-panel"
+      data-detection-queue={queues.detection_queue}
+      data-analysis-queue={queues.analysis_queue}
+      data-detect-latency={latencies?.detect?.avg_ms}
+      data-analyze-latency={latencies?.analyze?.avg_ms}
     >
-      Pipeline Queues
+      Pipeline Metrics Panel
     </div>
   ),
 }));
@@ -91,6 +93,8 @@ vi.mock('./HostSystemPanel', () => ({
 vi.mock('./ContainersPanel', () => ({
   default: () => <div data-testid="containers-panel">Containers Panel</div>,
 }));
+
+// PipelineTelemetry was removed in favor of PipelineMetricsPanel
 
 describe('SystemMonitoringPage', () => {
   const mockSystemStats = {
@@ -146,6 +150,17 @@ describe('SystemMonitoringPage', () => {
     (api.fetchStats as Mock).mockResolvedValue(mockSystemStats);
     (api.fetchTelemetry as Mock).mockResolvedValue(mockTelemetry);
     (api.fetchGPUStats as Mock).mockResolvedValue(mockGPUStats);
+
+    // Mock fetchConfig for config API (default to URL in config)
+    (api.fetchConfig as Mock).mockResolvedValue({
+      app_name: 'Home Security Intelligence',
+      version: '0.1.0',
+      retention_days: 30,
+      batch_window_seconds: 90,
+      batch_idle_timeout_seconds: 30,
+      detection_confidence_threshold: 0.5,
+      grafana_url: 'http://localhost:3002',
+    });
 
     (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
       health: mockHealthResponse,
@@ -300,7 +315,7 @@ describe('SystemMonitoringPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('system-overview-card')).toBeInTheDocument();
         expect(screen.getByTestId('service-health-card')).toBeInTheDocument();
-        expect(screen.getByTestId('pipeline-queues')).toBeInTheDocument();
+        expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
         expect(screen.getByTestId('gpu-stats')).toBeInTheDocument();
       });
     });
@@ -346,9 +361,9 @@ describe('SystemMonitoringPage', () => {
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        // Total cameras count appears next to the "Total Cameras" label
+        // Total cameras count appears next to the "Cameras" label (compact layout)
         const systemOverviewCard = screen.getByTestId('system-overview-card');
-        expect(systemOverviewCard).toHaveTextContent('Total Cameras');
+        expect(systemOverviewCard).toHaveTextContent('Cameras');
         expect(systemOverviewCard).toHaveTextContent('4');
       });
     });
@@ -411,17 +426,6 @@ describe('SystemMonitoringPage', () => {
       });
     });
 
-    it('shows service messages', async () => {
-      render(<SystemMonitoringPage />);
-
-      await waitFor(() => {
-        // Multiple services may have "Connected" message, so use getAllByText
-        expect(screen.getAllByText('Connected').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getByText('Running')).toBeInTheDocument();
-        expect(screen.getByText('High latency')).toBeInTheDocument();
-      });
-    });
-
     it('displays last checked timestamp', async () => {
       render(<SystemMonitoringPage />);
 
@@ -468,14 +472,14 @@ describe('SystemMonitoringPage', () => {
     });
   });
 
-  describe('Pipeline Queues Component', () => {
-    it('passes correct queue depths to PipelineQueues', async () => {
+  describe('Pipeline Metrics Component', () => {
+    it('passes correct queue depths to PipelineMetricsPanel', async () => {
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        const pipelineQueues = screen.getByTestId('pipeline-queues');
-        expect(pipelineQueues).toHaveAttribute('data-detection-queue', '5');
-        expect(pipelineQueues).toHaveAttribute('data-analysis-queue', '2');
+        const pipelineMetrics = screen.getByTestId('pipeline-metrics-panel');
+        expect(pipelineMetrics).toHaveAttribute('data-detection-queue', '5');
+        expect(pipelineMetrics).toHaveAttribute('data-analysis-queue', '2');
       });
     });
 
@@ -491,9 +495,9 @@ describe('SystemMonitoringPage', () => {
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        const pipelineQueues = screen.getByTestId('pipeline-queues');
-        expect(pipelineQueues).toHaveAttribute('data-detection-queue', '0');
-        expect(pipelineQueues).toHaveAttribute('data-analysis-queue', '0');
+        const pipelineMetrics = screen.getByTestId('pipeline-metrics-panel');
+        expect(pipelineMetrics).toHaveAttribute('data-detection-queue', '0');
+        expect(pipelineMetrics).toHaveAttribute('data-analysis-queue', '0');
       });
     });
   });
@@ -529,38 +533,18 @@ describe('SystemMonitoringPage', () => {
     });
   });
 
-  describe('Latency Stats Card', () => {
-    it('displays latency stats when available', async () => {
+  describe('Latency Stats in Pipeline Metrics', () => {
+    it('passes latency data to PipelineMetricsPanel', async () => {
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('latency-stats-card')).toBeInTheDocument();
+        const pipelineMetrics = screen.getByTestId('pipeline-metrics-panel');
+        expect(pipelineMetrics).toHaveAttribute('data-detect-latency', '200');
+        expect(pipelineMetrics).toHaveAttribute('data-analyze-latency', '1500');
       });
     });
 
-    it('displays detection latency values', async () => {
-      render(<SystemMonitoringPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Detection (RT-DETRv2)')).toBeInTheDocument();
-        expect(screen.getByText('200ms')).toBeInTheDocument();
-        expect(screen.getByText('350ms')).toBeInTheDocument();
-        expect(screen.getByText('500ms')).toBeInTheDocument();
-      });
-    });
-
-    it('displays analysis latency values', async () => {
-      render(<SystemMonitoringPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Analysis (Nemotron)')).toBeInTheDocument();
-        expect(screen.getByText('1500ms')).toBeInTheDocument();
-        expect(screen.getByText('2500ms')).toBeInTheDocument();
-        expect(screen.getByText('3500ms')).toBeInTheDocument();
-      });
-    });
-
-    it('does not render latency card when latencies are not available', async () => {
+    it('handles missing latency data gracefully', async () => {
       (api.fetchTelemetry as Mock).mockResolvedValue({
         queues: {
           detection_queue: 5,
@@ -573,7 +557,8 @@ describe('SystemMonitoringPage', () => {
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        expect(screen.queryByTestId('latency-stats-card')).not.toBeInTheDocument();
+        const pipelineMetrics = screen.getByTestId('pipeline-metrics-panel');
+        expect(pipelineMetrics).toBeInTheDocument();
       });
     });
   });
@@ -688,6 +673,85 @@ describe('SystemMonitoringPage', () => {
         expect(screen.getByTestId('overall-health-badge')).toHaveTextContent('Degraded');
         const redisRow = screen.getByTestId('service-row-redis');
         expect(redisRow).toHaveClass('bg-yellow-500/10');
+      });
+    });
+  });
+
+  describe('Grafana Monitoring Banner', () => {
+    it('displays the Grafana monitoring banner', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('grafana-monitoring-banner')).toBeInTheDocument();
+      });
+    });
+
+    it('displays correct banner title', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monitoring Dashboard Available')).toBeInTheDocument();
+      });
+    });
+
+    it('displays Grafana link with default URL when config has no custom URL', async () => {
+      // Mock fetchConfig to return config without grafana_url
+      (api.fetchConfig as Mock).mockResolvedValue({
+        app_name: 'Home Security Intelligence',
+        version: '0.1.0',
+        retention_days: 30,
+        batch_window_seconds: 90,
+        batch_idle_timeout_seconds: 30,
+        detection_confidence_threshold: 0.5,
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        const grafanaLink = screen.getByTestId('grafana-link');
+        expect(grafanaLink).toHaveAttribute('href', 'http://localhost:3002');
+        expect(grafanaLink).toHaveAttribute('target', '_blank');
+        expect(grafanaLink).toHaveAttribute('rel', 'noopener noreferrer');
+      });
+    });
+
+    it('uses dynamic grafana_url from config API', async () => {
+      // Mock fetchConfig to return custom grafana_url
+      (api.fetchConfig as Mock).mockResolvedValue({
+        app_name: 'Home Security Intelligence',
+        version: '0.1.0',
+        retention_days: 30,
+        batch_window_seconds: 90,
+        batch_idle_timeout_seconds: 30,
+        detection_confidence_threshold: 0.5,
+        grafana_url: 'http://custom-grafana:3333',
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        const grafanaLink = screen.getByTestId('grafana-link');
+        expect(grafanaLink).toHaveAttribute('href', 'http://custom-grafana:3333');
+      });
+    });
+
+    it('keeps default URL when config API fails', async () => {
+      // Mock fetchConfig to fail
+      (api.fetchConfig as Mock).mockRejectedValue(new Error('Network error'));
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        const grafanaLink = screen.getByTestId('grafana-link');
+        expect(grafanaLink).toHaveAttribute('href', 'http://localhost:3002');
+      });
+    });
+
+    it('mentions anonymous access in banner text', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/no login required/i)).toBeInTheDocument();
       });
     });
   });

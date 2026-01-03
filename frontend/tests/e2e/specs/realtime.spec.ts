@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { DashboardPage, SystemPage } from '../pages';
+import { DashboardPage, SystemPage, TimelinePage } from '../pages';
 import { setupApiMocks, defaultMockConfig, emptyMockConfig, errorMockConfig } from '../fixtures';
 
 test.describe('Real-time Updates', () => {
@@ -25,19 +25,23 @@ test.describe('Real-time Updates', () => {
     await expect(page.getByRole('button', { name: /WebSocket connection status/i })).toBeVisible();
   });
 
-  test('dashboard displays GPU stats from API', async ({ page }) => {
+  test('dashboard displays risk gauge and camera grid', async ({ page }) => {
+    // Note: GPU stats are displayed on the System page, not the Dashboard.
+    // The Dashboard shows Risk Gauge, Camera Grid, and Stats Row.
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectGpuStatsVisible();
+    // Verify the main dashboard sections are visible
+    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
+    await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('system page shows GPU section', async ({ page }) => {
+  test('system page shows GPU statistics section', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    // Look for GPU Statistics heading
-    await expect(page.getByText(/GPU Statistics/i)).toBeVisible();
+    // Look for GPU Statistics heading - this is where GPU stats are displayed
+    await expect(page.getByText(/GPU Statistics/i)).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -64,13 +68,13 @@ test.describe('Connection Status Indicators', () => {
 });
 
 test.describe('Empty State Handling', () => {
-  test('activity feed shows empty state when no events', async ({ page }) => {
+  test('timeline shows empty state when no events', async ({ page }) => {
     await setupApiMocks(page, emptyMockConfig);
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    const hasNoActivity = await dashboardPage.hasNoActivityMessage();
-    expect(hasNoActivity).toBe(true);
+    const timelinePage = new TimelinePage(page);
+    await timelinePage.goto();
+    await timelinePage.waitForTimelineLoad();
+    const hasNoEvents = await timelinePage.hasNoEventsMessage();
+    expect(hasNoEvents).toBe(true);
   });
 });
 

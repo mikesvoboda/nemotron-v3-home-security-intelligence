@@ -56,6 +56,7 @@ from watchdog.observers.polling import PollingObserver
 from backend.core.config import get_settings
 from backend.core.constants import DETECTION_QUEUE
 from backend.core.logging import get_logger
+from backend.core.metrics import record_pipeline_stage_latency
 from backend.core.redis import QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
@@ -121,14 +122,26 @@ def get_media_type(file_path: str) -> str | None:
     return None
 
 
+# Minimum image file size (10KB) - images smaller than this are likely truncated/corrupt
+# A valid JPEG with any meaningful content is typically at least a few KB
+MIN_IMAGE_FILE_SIZE = 10 * 1024  # 10KB
+
+
 def is_valid_image(file_path: str) -> bool:
     """Validate that file is a valid, non-corrupted image.
+
+    This performs comprehensive validation to catch truncated/corrupt images
+    from incomplete FTP uploads:
+    1. File exists and is readable
+    2. File size is non-zero and above minimum threshold
+    3. PIL can verify the image header (basic structure check)
+    4. PIL can fully load the image data (catches truncated images)
 
     Args:
         file_path: Path to the image file
 
     Returns:
-        True if file is a valid image with size > 0
+        True if file is a valid, complete image
     """
     try:
         # Check file exists and has content
@@ -136,15 +149,37 @@ def is_valid_image(file_path: str) -> bool:
         if not file_path_obj.exists():
             return False
 
-        if file_path_obj.stat().st_size == 0:
-            logger.warning(f"Empty file detected: {file_path}")
+        file_size = file_path_obj.stat().st_size
+
+        if file_size == 0:
+            logger.warning(f"Empty image file detected: {file_path}")
             return False
 
-        # Try to open and verify image
+        # Check minimum file size - very small images are likely truncated
+        if file_size < MIN_IMAGE_FILE_SIZE:
+            logger.warning(
+                f"Image file too small ({file_size} bytes, minimum {MIN_IMAGE_FILE_SIZE}): {file_path}"
+            )
+            return False
+
+        # Try to open and verify image header
         with Image.open(file_path) as img:
+            # verify() checks image header but doesn't load pixel data
             img.verify()
 
+        # Re-open and fully load the image to catch truncation
+        # verify() only checks headers - truncated files can pass verify() but fail load()
+        # Note: We need to re-open because verify() invalidates the image object
+        with Image.open(file_path) as img:
+            # load() forces PIL to read and decompress all image data
+            # This will raise an exception for truncated/corrupt images
+            img.load()
+
         return True
+    except OSError as e:
+        # OSError covers most PIL image errors (truncated, corrupt, etc.)
+        logger.warning(f"Image validation failed (corrupt/truncated) {file_path}: {e}")
+        return False
     except Exception as e:
         logger.warning(f"Invalid image file {file_path}: {e}")
         return False
@@ -550,6 +585,8 @@ class FileWatcher:
         try:
             await self._queue_for_detection(camera_id, file_path, media_type)
             duration_ms = int((time.time() - start_time) * 1000)
+            # Record watch stage latency to in-memory tracker for /api/system/pipeline-latency
+            record_pipeline_stage_latency("watch_to_detect", float(duration_ms))
             logger.info(
                 f"Queued {media_type} for detection: {file_path} (camera: {camera_id})",
                 extra={
@@ -600,11 +637,14 @@ class FileWatcher:
                 )
                 return
 
+        # Record pipeline start time for total_pipeline latency tracking
+        pipeline_start_time = datetime.now().isoformat()
         detection_data = {
             "camera_id": camera_id,
             "file_path": file_path,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": pipeline_start_time,
             "media_type": media_type or get_media_type(file_path) or "image",
+            "pipeline_start_time": pipeline_start_time,
         }
 
         # Include hash in queue data for downstream deduplication if needed

@@ -445,12 +445,12 @@ describe('ExportPanel', () => {
 
       render(<ExportPanel />);
 
+      // Wait for stats to load AND for React to re-render with the disabled state
       await waitFor(() => {
         expect(api.fetchEventStats).toHaveBeenCalled();
+        const exportButton = screen.getByRole('button', { name: /Export Events/i });
+        expect(exportButton).toBeDisabled();
       });
-
-      const exportButton = screen.getByRole('button', { name: /Export Events/i });
-      expect(exportButton).toBeDisabled();
     });
   });
 

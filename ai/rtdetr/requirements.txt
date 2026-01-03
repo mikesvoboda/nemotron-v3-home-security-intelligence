@@ -20,4 +20,4 @@ pydantic>=2.4.0
 python-dotenv>=1.0.0
 
 # Monitoring
-pynvml>=11.5.0
+nvidia-ml-py>=12.560.30

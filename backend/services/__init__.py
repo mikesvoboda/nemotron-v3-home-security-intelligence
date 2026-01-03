@@ -3,6 +3,8 @@
 from .alert_dedup import AlertDeduplicationService, DedupResult, build_dedup_key
 from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_alert_engine
 from .audit import AuditService, audit_service
+from .audit_service import AuditService as AIAuditService
+from .audit_service import get_audit_service, reset_audit_service
 from .baseline import BaselineService, get_baseline_service, reset_baseline_service
 from .batch_aggregator import BatchAggregator
 from .cache_service import (
@@ -69,7 +71,12 @@ from .face_detector import (
     detect_faces,
     is_person_class,
 )
-from .file_watcher import FileWatcher, is_image_file, is_valid_image
+from .file_watcher import (
+    MIN_IMAGE_FILE_SIZE,
+    FileWatcher,
+    is_image_file,
+    is_valid_image,
+)
 from .florence_extractor import (
     EnvironmentContext,
     FlorenceExtractor,
@@ -183,6 +190,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "EMBEDDING_DIMENSION",
     "EMBEDDING_TTL_SECONDS",
     "LONG_TTL",
+    "MIN_IMAGE_FILE_SIZE",
     "MODEL_ZOO",
     "PERSON_CLASS",
     "SEVERITY_COLORS",
@@ -190,6 +198,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SHORT_TTL",
     "VEHICLE_CLASSES",
     # Classes
+    "AIAuditService",
     "AlertDeduplicationService",
     "AlertRuleEngine",
     "AuditService",
@@ -268,6 +277,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     # Functions
     "audit_service",
     "bbox_center",
+    "get_audit_service",
     "build_dedup_key",
     "clean_plate_text",
     "compute_file_hash",
@@ -326,6 +336,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_reid_service",
     "reset_retry_handler",
     "reset_scene_change_detector",
+    "reset_audit_service",
     "reset_severity_service",
     "search_events",
     "severity_from_string",

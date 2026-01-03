@@ -33,13 +33,13 @@
       },
       "id": 1,
       "panels": [],
-      "title": "System Overview",
+      "title": "Status Bar",
       "type": "row"
     },
     {
       "datasource": {
         "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "uid": "P6CAC8AF542CA101E"
       },
       "fieldConfig": {
         "defaults": {
@@ -49,18 +49,18 @@
           "mappings": [
             {
               "options": {
-                "healthy": {
-                  "color": "green",
+                "ready": {
+                  "color": "#73BF69",
                   "index": 0,
                   "text": "Healthy"
                 },
                 "degraded": {
-                  "color": "yellow",
+                  "color": "#FF9830",
                   "index": 1,
                   "text": "Degraded"
                 },
-                "unhealthy": {
-                  "color": "red",
+                "not_ready": {
+                  "color": "#F2495C",
                   "index": 2,
                   "text": "Unhealthy"
                 }
@@ -72,7 +72,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
               }
             ]
@@ -81,8 +81,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
+        "h": 3,
+        "w": 5,
         "x": 0,
         "y": 1
       },
@@ -104,38 +104,38 @@
         {
           "datasource": {
             "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "uid": "P6CAC8AF542CA101E"
           },
           "fields": [
             {
               "jsonPath": "$.status",
-              "name": "System Status"
+              "name": "Overall Health"
             }
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/system/health"
+          "urlPath": "/api/system/health/ready"
         }
       ],
-      "title": "System Health",
+      "title": "Overall Health",
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
               }
             ]
@@ -145,15 +145,15 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 4,
+        "h": 3,
+        "w": 5,
+        "x": 5,
         "y": 1
       },
       "id": 3,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
@@ -167,39 +167,33 @@
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.total_cameras",
-              "name": "Cameras"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/stats"
+          "expr": "hsi_total_cameras",
+          "legendFormat": "Cameras",
+          "refId": "A"
         }
       ],
-      "title": "Total Cameras",
+      "title": "Active Cameras",
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue",
+                "color": "#6ED0E0",
                 "value": null
               }
             ]
@@ -209,15 +203,15 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
+        "h": 3,
+        "w": 5,
+        "x": 10,
         "y": 1
       },
       "id": 4,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
@@ -231,39 +225,33 @@
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.total_events",
-              "name": "Events"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/stats"
+          "expr": "hsi_total_events",
+          "legendFormat": "Events",
+          "refId": "A"
         }
       ],
-      "title": "Total Events",
+      "title": "Events Today",
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "purple",
+                "color": "#B877D9",
                 "value": null
               }
             ]
@@ -273,15 +261,15 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 12,
+        "h": 3,
+        "w": 5,
+        "x": 15,
         "y": 1
       },
       "id": 5,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
@@ -295,51 +283,45 @@
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.total_detections",
-              "name": "Detections"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/stats"
+          "expr": "hsi_total_detections",
+          "legendFormat": "Detections",
+          "refId": "A"
         }
       ],
-      "title": "Total Detections",
+      "title": "Detections Today",
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
               }
             ]
           },
-          "unit": "s"
+          "unit": "dtdurations"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 3,
         "w": 4,
-        "x": 16,
+        "x": 20,
         "y": 1
       },
       "id": 6,
@@ -359,18 +341,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.uptime_seconds",
-              "name": "Uptime"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/stats"
+          "expr": "hsi_uptime_seconds",
+          "legendFormat": "Uptime",
+          "refId": "A"
         }
       ],
       "title": "Uptime",
@@ -382,17 +358,17 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 4
       },
       "id": 10,
       "panels": [],
-      "title": "Queue Depths",
+      "title": "Pipeline Health",
       "type": "row"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
       "fieldConfig": {
         "defaults": {
@@ -400,24 +376,22 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "max": 100,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
               },
               {
-                "color": "yellow",
+                "color": "#FF9830",
                 "value": 10
               },
               {
-                "color": "orange",
+                "color": "#F2495C",
                 "value": 50
-              },
-              {
-                "color": "red",
-                "value": 100
               }
             ]
           },
@@ -429,46 +403,38 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 6
+        "y": 5
       },
       "id": 11,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.queues.detection_queue",
-              "name": "Detection Queue"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
+          "expr": "hsi_detection_queue_depth",
+          "legendFormat": "Detection Queue",
+          "refId": "A"
         }
       ],
-      "title": "Detection Queue Depth",
-      "type": "stat"
+      "title": "Detection Queue",
+      "type": "gauge"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
       "fieldConfig": {
         "defaults": {
@@ -476,24 +442,22 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "max": 50,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
               },
               {
-                "color": "yellow",
+                "color": "#FF9830",
                 "value": 5
               },
               {
-                "color": "orange",
+                "color": "#F2495C",
                 "value": 20
-              },
-              {
-                "color": "red",
-                "value": 50
               }
             ]
           },
@@ -505,48 +469,40 @@
         "h": 6,
         "w": 6,
         "x": 6,
-        "y": 6
+        "y": 5
       },
       "id": 12,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.queues.analysis_queue",
-              "name": "Analysis Queue"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
+          "expr": "hsi_analysis_queue_depth",
+          "legendFormat": "Analysis Queue",
+          "refId": "A"
         }
       ],
-      "title": "Analysis Queue Depth",
-      "type": "stat"
+      "title": "Analysis Queue",
+      "type": "gauge"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
-      "description": "Combined queue depths over time",
+      "description": "Queue depths over time - stacked view",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -559,7 +515,599 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Detection Queue"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#6ED0E0",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Analysis Queue"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#B877D9",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_detection_queue_depth",
+          "legendFormat": "Detection Queue",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_analysis_queue_depth",
+          "legendFormat": "Analysis Queue",
+          "refId": "B"
+        }
+      ],
+      "title": "Queue Depth Over Time",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 20,
+      "panels": [],
+      "title": "GPU Performance",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 70
+              },
+              {
+                "color": "#F2495C",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 12
+      },
+      "id": 21,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_gpu_utilization",
+          "legendFormat": "GPU Utilization",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Utilization",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 70
+              },
+              {
+                "color": "#F2495C",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 12
+      },
+      "id": 22,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_gpu_temperature",
+          "legendFormat": "GPU Temperature",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Temperature",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "GPU VRAM usage as percentage",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 75
+              },
+              {
+                "color": "#F2495C",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 12
+      },
+      "id": 23,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "100 * hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb",
+          "legendFormat": "GPU Memory",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Memory",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 15
+              },
+              {
+                "color": "#73BF69",
+                "value": 25
+              }
+            ]
+          },
+          "unit": "fps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 12
+      },
+      "id": 24,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_inference_fps",
+          "legendFormat": "Inference FPS",
+          "refId": "A"
+        }
+      ],
+      "title": "Inference FPS",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 30,
+      "panels": [],
+      "title": "Pipeline Latencies",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P6CAC8AF542CA101E"
+      },
+      "description": "P95 latencies for each pipeline stage",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 500
+              },
+              {
+                "color": "#F2495C",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Watch P95"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#73BF69",
+                      "value": null
+                    },
+                    {
+                      "color": "#FF9830",
+                      "value": 100
+                    },
+                    {
+                      "color": "#F2495C",
+                      "value": 500
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Batch P95"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#73BF69",
+                      "value": null
+                    },
+                    {
+                      "color": "#FF9830",
+                      "value": 60000
+                    },
+                    {
+                      "color": "#F2495C",
+                      "value": 120000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Analyze P95"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#73BF69",
+                      "value": null
+                    },
+                    {
+                      "color": "#FF9830",
+                      "value": 10000
+                    },
+                    {
+                      "color": "#F2495C",
+                      "value": 30000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 19
+      },
+      "id": 31,
+      "options": {
+        "displayMode": "lcd",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P6CAC8AF542CA101E"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.latencies.watch.p95_ms",
+              "name": "Watch P95"
+            },
+            {
+              "jsonPath": "$.latencies.detect.p95_ms",
+              "name": "Detect P95"
+            },
+            {
+              "jsonPath": "$.latencies.batch.p95_ms",
+              "name": "Batch P95"
+            },
+            {
+              "jsonPath": "$.latencies.analyze.p95_ms",
+              "name": "Analyze P95"
+            }
+          ],
+          "method": "GET",
+          "refId": "A",
+          "urlPath": "/api/system/telemetry"
+        }
+      ],
+      "title": "Latency Bar Gauge (P95)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P6CAC8AF542CA101E"
+      },
+      "description": "Latency percentiles P50/P95/P99 for all pipeline stages",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Latency (ms)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -583,32 +1131,59 @@
             }
           },
           "mappings": [],
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
               }
             ]
           },
-          "unit": "short"
+          "unit": "ms"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*P50.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [10, 10],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*P99.*"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 6
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 19
       },
-      "id": 13,
+      "id": 32,
       "options": {
         "legend": {
           "calcs": ["mean", "max"],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -621,409 +1196,7 @@
         {
           "datasource": {
             "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.queues.detection_queue",
-              "name": "Detection Queue"
-            },
-            {
-              "jsonPath": "$.queues.analysis_queue",
-              "name": "Analysis Queue"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
-        }
-      ],
-      "title": "Queue Depths Over Time",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 12
-      },
-      "id": 20,
-      "panels": [],
-      "title": "Pipeline Latencies",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "description": "File watcher stage - file event to queue",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 500
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 0,
-        "y": 13
-      },
-      "id": 21,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.latencies.watch.p95_ms",
-              "name": "Watch P95"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
-        }
-      ],
-      "title": "Watch Latency (P95)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "description": "RT-DETRv2 object detection inference",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 500
-              },
-              {
-                "color": "red",
-                "value": 2000
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 6,
-        "y": 13
-      },
-      "id": 22,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.latencies.detect.p95_ms",
-              "name": "Detect P95"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
-        }
-      ],
-      "title": "Detection Latency (P95)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "description": "Batch aggregation window time",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 60000
-              },
-              {
-                "color": "red",
-                "value": 120000
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 12,
-        "y": 13
-      },
-      "id": 23,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.latencies.batch.p95_ms",
-              "name": "Batch P95"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
-        }
-      ],
-      "title": "Batch Latency (P95)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "description": "Nemotron LLM risk analysis",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 10000
-              },
-              {
-                "color": "red",
-                "value": 30000
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 18,
-        "y": 13
-      },
-      "id": 24,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.latencies.analyze.p95_ms",
-              "name": "Analyze P95"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/telemetry"
-        }
-      ],
-      "title": "Analysis Latency (P95)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "description": "Latency percentiles across all pipeline stages",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "Latency (ms)",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 18
-      },
-      "id": 25,
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.9,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "orientation": "horizontal",
-        "showValue": "always",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "uid": "P6CAC8AF542CA101E"
           },
           "fields": [
             {
@@ -1080,8 +1253,8 @@
           "urlPath": "/api/system/telemetry"
         }
       ],
-      "title": "Pipeline Latency Histogram",
-      "type": "barchart"
+      "title": "Latency Trends",
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -1089,22 +1262,183 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 27
       },
-      "id": 30,
+      "id": 40,
       "panels": [],
-      "title": "GPU Statistics",
+      "title": "Activity Rates",
       "type": "row"
     },
     {
       "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
+      "description": "Events and detections per minute",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "per minute",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Events/min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#6ED0E0",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Detections/min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#B877D9",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 41,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(hsi_total_events[5m]) * 60",
+          "legendFormat": "Events/min",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(hsi_total_detections[5m]) * 60",
+          "legendFormat": "Detections/min",
+          "refId": "B"
+        }
+      ],
+      "title": "Events & Detections Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "GPU utilization and memory usage over time",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "%",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "max": 100,
@@ -1113,611 +1447,727 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#73BF69",
                 "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
               }
             ]
           },
           "unit": "percent"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 0,
-        "y": 27
-      },
-      "id": 31,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.utilization",
-              "name": "GPU Utilization"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/gpu"
-        }
-      ],
-      "title": "GPU Utilization",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "GPU Utilization"
+            },
+            "properties": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
               }
             ]
           },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 6,
-        "y": 27
-      },
-      "id": 32,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.temperature",
-              "name": "Temperature"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/gpu"
-        }
-      ],
-      "title": "GPU Temperature",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "description": "GPU VRAM usage",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "GPU Memory %"
+            },
+            "properties": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 18000
-              },
-              {
-                "color": "red",
-                "value": 22000
+                "id": "color",
+                "value": {
+                  "fixedColor": "#FF9830",
+                  "mode": "fixed"
+                }
               }
             ]
-          },
-          "unit": "decmbytes"
-        },
-        "overrides": []
+          }
+        ]
       },
       "gridPos": {
         "h": 6,
-        "w": 6,
+        "w": 12,
         "x": 12,
-        "y": 27
+        "y": 28
       },
-      "id": 33,
+      "id": 42,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "textMode": "auto"
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.memory_used",
-              "name": "Memory Used"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/gpu"
-        }
-      ],
-      "title": "GPU Memory Used",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 10
-              },
-              {
-                "color": "green",
-                "value": 25
-              }
-            ]
-          },
-          "unit": "fps"
+          "expr": "hsi_gpu_utilization",
+          "legendFormat": "GPU Utilization",
+          "refId": "A"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 18,
-        "y": 27
-      },
-      "id": 34,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
-            {
-              "jsonPath": "$.inference_fps",
-              "name": "Inference FPS"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/gpu"
+          "expr": "100 * hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb",
+          "legendFormat": "GPU Memory %",
+          "refId": "B"
         }
       ],
-      "title": "Inference FPS",
-      "type": "stat"
+      "title": "GPU Over Time",
+      "type": "timeseries"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 33
+        "y": 34
       },
-      "id": 40,
-      "panels": [],
+      "id": 50,
+      "panels": [
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P6CAC8AF542CA101E"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [
+                {
+                  "options": {
+                    "healthy": {
+                      "color": "#73BF69",
+                      "index": 0,
+                      "text": "Healthy"
+                    },
+                    "unhealthy": {
+                      "color": "#F2495C",
+                      "index": 1,
+                      "text": "Unhealthy"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 35
+          },
+          "id": 51,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "P6CAC8AF542CA101E"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.services.database.status",
+                  "name": "Database"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/system/health"
+            }
+          ],
+          "title": "Database",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P6CAC8AF542CA101E"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [
+                {
+                  "options": {
+                    "healthy": {
+                      "color": "#73BF69",
+                      "index": 0,
+                      "text": "Healthy"
+                    },
+                    "unhealthy": {
+                      "color": "#F2495C",
+                      "index": 1,
+                      "text": "Unhealthy"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 35
+          },
+          "id": 52,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "P6CAC8AF542CA101E"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.services.redis.status",
+                  "name": "Redis"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/system/health"
+            }
+          ],
+          "title": "Redis",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P6CAC8AF542CA101E"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [
+                {
+                  "options": {
+                    "healthy": {
+                      "color": "#73BF69",
+                      "index": 0,
+                      "text": "Healthy"
+                    },
+                    "unhealthy": {
+                      "color": "#F2495C",
+                      "index": 1,
+                      "text": "Unhealthy"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 35
+          },
+          "id": 53,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "P6CAC8AF542CA101E"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.services.ai.status",
+                  "name": "AI Services"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/system/health"
+            }
+          ],
+          "title": "AI Services",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P6CAC8AF542CA101E"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [
+                {
+                  "options": {
+                    "ready": {
+                      "color": "#73BF69",
+                      "index": 0,
+                      "text": "Ready"
+                    },
+                    "degraded": {
+                      "color": "#FF9830",
+                      "index": 1,
+                      "text": "Degraded"
+                    },
+                    "not_ready": {
+                      "color": "#F2495C",
+                      "index": 2,
+                      "text": "Not Ready"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 35
+          },
+          "id": 54,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "marcusolsson-json-datasource",
+                "uid": "P6CAC8AF542CA101E"
+              },
+              "fields": [
+                {
+                  "jsonPath": "$.status",
+                  "name": "Readiness"
+                }
+              ],
+              "method": "GET",
+              "refId": "A",
+              "urlPath": "/api/system/health/ready"
+            }
+          ],
+          "title": "Readiness",
+          "type": "stat"
+        }
+      ],
       "title": "Service Health",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "healthy": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Healthy"
-                },
-                "unhealthy": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "Unhealthy"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "collapsed": true,
       "gridPos": {
-        "h": 4,
-        "w": 6,
+        "h": 1,
+        "w": 24,
         "x": 0,
-        "y": 34
+        "y": 35
       },
-      "id": 41,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
+      "id": 60,
+      "panels": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
+          "description": "Redis memory usage",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 536870912,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 268435456
+                  },
+                  {
+                    "color": "#F2495C",
+                    "value": 429496729
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 36
+          },
+          "id": 61,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
             {
-              "jsonPath": "$.services.database.status",
-              "name": "Database"
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "expr": "redis_memory_used_bytes",
+              "legendFormat": "Memory Used",
+              "refId": "A"
             }
           ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/health"
-        }
-      ],
-      "title": "Database",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
+          "title": "Redis Memory",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "mappings": [
-            {
-              "options": {
-                "healthy": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Healthy"
+          "description": "Redis operations per second",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ops/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
                 },
-                "unhealthy": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "Unhealthy"
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
                 }
               },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 34
-      },
-      "id": 42,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.services.redis.status",
-              "name": "Redis"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/health"
-        }
-      ],
-      "title": "Redis",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "healthy": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Healthy"
-                },
-                "unhealthy": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "Unhealthy"
-                }
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  }
+                ]
               },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 34
-      },
-      "id": 43,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+              "unit": "ops"
+            },
+            "overrides": []
           },
-          "fields": [
-            {
-              "jsonPath": "$.services.ai.status",
-              "name": "AI Services"
-            }
-          ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/health"
-        }
-      ],
-      "title": "AI Services",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "Backend-API"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
+          "gridPos": {
+            "h": 6,
+            "w": 9,
+            "x": 6,
+            "y": 36
           },
-          "mappings": [
+          "id": 62,
+          "options": {
+            "legend": {
+              "calcs": ["mean", "max"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
             {
-              "options": {
-                "ready": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Ready"
-                },
-                "degraded": {
-                  "color": "yellow",
-                  "index": 1,
-                  "text": "Degraded"
-                },
-                "not_ready": {
-                  "color": "red",
-                  "index": 2,
-                  "text": "Not Ready"
-                }
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
               },
-              "type": "value"
+              "expr": "rate(redis_commands_processed_total[1m])",
+              "legendFormat": "Commands/sec",
+              "refId": "A"
             }
           ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
+          "title": "Redis Ops/sec",
+          "type": "timeseries"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 34
-      },
-      "id": 44,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
         {
           "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "Backend-API"
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           },
-          "fields": [
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#73BF69",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 50
+                  },
+                  {
+                    "color": "#F2495C",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 15,
+            "y": 36
+          },
+          "id": 63,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
             {
-              "jsonPath": "$.status",
-              "name": "Readiness"
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "expr": "redis_connected_clients",
+              "legendFormat": "Clients",
+              "refId": "A"
             }
           ],
-          "method": "GET",
-          "refId": "A",
-          "urlPath": "/api/system/health/ready"
+          "title": "Redis Clients",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "description": "Cache hit rate percentage",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "#F2495C",
+                    "value": null
+                  },
+                  {
+                    "color": "#FF9830",
+                    "value": 80
+                  },
+                  {
+                    "color": "#73BF69",
+                    "value": 95
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 18,
+            "y": 36
+          },
+          "id": 64,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "expr": "100 * redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)",
+              "legendFormat": "Hit Rate",
+              "refId": "A"
+            }
+          ],
+          "title": "Redis Hit Rate",
+          "type": "gauge"
         }
       ],
-      "title": "Readiness",
-      "type": "stat"
+      "title": "Redis Details",
+      "type": "row"
     }
   ],
   "refresh": "10s",

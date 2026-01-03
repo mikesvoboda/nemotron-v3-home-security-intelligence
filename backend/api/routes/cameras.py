@@ -1,6 +1,5 @@
 """API routes for camera management."""
 
-import uuid
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +19,7 @@ from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
-from backend.models.camera import Camera
+from backend.models.camera import Camera, normalize_camera_id
 from backend.services.audit import AuditService
 from backend.services.cache_service import (
     SHORT_TTL,
@@ -187,9 +186,12 @@ async def create_camera(
             f"(id: {existing_path_camera.id})",
         )
 
-    # Create camera with generated UUID
+    # Create camera using normalized ID from the name
+    # This ensures the camera ID matches what FileWatcher will use when processing files
+    # from this camera's folder_path. Without this, detector_client can't update last_seen_at.
+    camera_id = normalize_camera_id(camera_data.name)
     camera = Camera(
-        id=str(uuid.uuid4()),
+        id=camera_id,
         name=camera_data.name,
         folder_path=camera_data.folder_path,
         status=camera_data.status,
@@ -360,7 +362,6 @@ async def delete_camera(
     response_class=FileResponse,
     responses={
         200: {"description": "Snapshot served successfully"},
-        403: {"description": "Access denied"},
         404: {"description": "Camera or snapshot not found"},
         429: {"description": "Too many requests"},
     },
@@ -395,11 +396,43 @@ async def get_camera_snapshot(
     camera_dir = Path(camera.folder_path).resolve()
     try:
         camera_dir.relative_to(base_root)
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Camera folder_path is outside configured foscam_base_path",
-        ) from err
+    except ValueError:
+        # Stored folder_path is outside the current FOSCAM_BASE_PATH.
+        # This commonly happens when:
+        # - Database has cameras from a different environment (Docker vs native)
+        # - Container FOSCAM_BASE_PATH (/cameras) differs from dev path (/export/foscam)
+        #
+        # Fallback: Try to find the camera folder by ID under the current base_path.
+        # This is safe because we only look within FOSCAM_BASE_PATH (no traversal).
+        # The camera ID is normalized from the folder name (e.g., "den" -> "den").
+        fallback_dir = base_root / camera_id
+        if fallback_dir.exists() and fallback_dir.is_dir():
+            # Found camera folder by ID - use it
+            logger.debug(
+                "Using fallback camera path by ID",
+                extra={
+                    "camera_id": camera_id,
+                    "stored_path": sanitize_log_value(camera.folder_path),
+                    "fallback_path": str(fallback_dir),
+                    "base_path": str(base_root),
+                },
+            )
+            camera_dir = fallback_dir
+        else:
+            # No fallback available - return 404
+            logger.debug(
+                "Camera folder_path outside base_path and no fallback found",
+                extra={
+                    "camera_id": camera_id,
+                    "folder_path": sanitize_log_value(camera.folder_path),
+                    "base_path": str(base_root),
+                    "fallback_tried": str(fallback_dir),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No snapshot available for this camera",
+            ) from None
 
     if not camera_dir.exists() or not camera_dir.is_dir():
         raise HTTPException(
@@ -422,3 +455,76 @@ async def get_camera_snapshot(
     media_type = _SNAPSHOT_TYPES.get(latest.suffix.lower(), "application/octet-stream")
 
     return FileResponse(path=str(latest), media_type=media_type, filename=latest.name)
+
+
+@router.get("/validation/paths")
+async def validate_camera_paths(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Validate all camera folder paths against the configured base path.
+
+    This endpoint checks each camera's folder_path to determine:
+    1. Whether the path is under the configured FOSCAM_BASE_PATH
+    2. Whether the directory exists on disk
+    3. Whether the directory contains any images
+
+    Use this to diagnose cameras that show "No snapshot available" errors.
+
+    Returns:
+        Dictionary with validation results for all cameras
+    """
+    settings = get_settings()
+    base_root = Path(settings.foscam_base_path).resolve()
+
+    result = await db.execute(select(Camera))
+    cameras = result.scalars().all()
+
+    valid_cameras: list[dict[str, Any]] = []
+    invalid_cameras: list[dict[str, Any]] = []
+
+    for camera in cameras:
+        camera_info: dict[str, Any] = {
+            "id": camera.id,
+            "name": camera.name,
+            "folder_path": camera.folder_path,
+            "status": camera.status,
+        }
+
+        issues: list[str] = []
+
+        # Check if path is under base_path
+        try:
+            camera_dir = Path(camera.folder_path).resolve()
+            camera_dir.relative_to(base_root)
+        except ValueError:
+            issues.append(f"folder_path not under base_path ({settings.foscam_base_path})")
+            camera_info["resolved_path"] = str(Path(camera.folder_path).resolve())
+
+        # Check if directory exists
+        camera_path = Path(camera.folder_path)
+        if not camera_path.exists():
+            issues.append("directory does not exist")
+        elif not camera_path.is_dir():
+            issues.append("path is not a directory")
+        else:
+            # Check for images - use any() on actual file matches, not generators
+            has_images = any(
+                list(camera_path.rglob(f"*{ext}")) for ext in [".jpg", ".jpeg", ".png", ".gif"]
+            )
+            if not has_images:
+                issues.append("no image files found")
+
+        if issues:
+            camera_info["issues"] = issues
+            invalid_cameras.append(camera_info)
+        else:
+            valid_cameras.append(camera_info)
+
+    return {
+        "base_path": str(base_root),
+        "total_cameras": len(cameras),
+        "valid_count": len(valid_cameras),
+        "invalid_count": len(invalid_cameras),
+        "valid_cameras": valid_cameras,
+        "invalid_cameras": invalid_cameras,
+    }

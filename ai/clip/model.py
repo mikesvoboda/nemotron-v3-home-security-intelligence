@@ -51,6 +51,72 @@ class EmbedResponse(BaseModel):
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
 
 
+class AnomalyScoreRequest(BaseModel):
+    """Request format for anomaly-score endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image to analyze")
+    baseline_embedding: list[float] = Field(
+        ..., description=f"{EMBEDDING_DIMENSION}-dimensional baseline embedding"
+    )
+
+
+class AnomalyScoreResponse(BaseModel):
+    """Response format for anomaly-score endpoint."""
+
+    anomaly_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Anomaly score (0 = normal, 1 = highly anomalous)"
+    )
+    similarity_to_baseline: float = Field(
+        ..., ge=-1.0, le=1.0, description="Cosine similarity to baseline (-1 to 1)"
+    )
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class ClassifyRequest(BaseModel):
+    """Request format for zero-shot classification endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image")
+    labels: list[str] = Field(..., description="List of text labels to classify against")
+
+
+class ClassifyResponse(BaseModel):
+    """Response format for zero-shot classification endpoint."""
+
+    scores: dict[str, float] = Field(..., description="Classification scores for each label")
+    top_label: str = Field(..., description="Label with highest score")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class SimilarityRequest(BaseModel):
+    """Request format for image-text similarity endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image")
+    text: str = Field(..., description="Text description to compare against")
+
+
+class SimilarityResponse(BaseModel):
+    """Response format for image-text similarity endpoint."""
+
+    similarity: float = Field(..., description="Cosine similarity score between image and text")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class BatchSimilarityRequest(BaseModel):
+    """Request format for batch image-text similarity endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image")
+    texts: list[str] = Field(..., description="List of text descriptions to compare against")
+
+
+class BatchSimilarityResponse(BaseModel):
+    """Response format for batch image-text similarity endpoint."""
+
+    similarities: dict[str, float] = Field(
+        ..., description="Similarity scores for each text description"
+    )
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -178,6 +244,208 @@ class CLIPEmbeddingModel:
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
         return embedding, inference_time_ms
+
+    def compute_anomaly_score(
+        self, image: Image.Image, baseline_embedding: list[float]
+    ) -> tuple[float, float, float]:
+        """Compute anomaly score by comparing image embedding to baseline.
+
+        The anomaly score is computed as: 1 - cosine_similarity
+        This means:
+        - 0.0 = identical to baseline (no anomaly)
+        - 1.0 = completely different from baseline (high anomaly)
+        - 2.0 = opposite direction (theoretically maximum anomaly)
+
+        In practice, scores are clamped to [0, 1] for usability.
+
+        Args:
+            image: PIL Image to analyze
+            baseline_embedding: 768-dimensional baseline embedding to compare against
+
+        Returns:
+            Tuple of (anomaly_score, similarity, inference_time_ms)
+        """
+        start_time = time.perf_counter()
+
+        # Extract embedding for current image
+        current_embedding, _ = self.extract_embedding(image)
+
+        # Convert to tensors for cosine similarity computation
+        current_tensor = torch.tensor(current_embedding, dtype=torch.float32)
+        baseline_tensor = torch.tensor(baseline_embedding, dtype=torch.float32)
+
+        # Ensure embeddings are normalized (they should be from extract_embedding)
+        current_norm = current_tensor / current_tensor.norm(p=2)
+        baseline_norm = baseline_tensor / baseline_tensor.norm(p=2)
+
+        # Compute cosine similarity (dot product of normalized vectors)
+        similarity = float(torch.dot(current_norm, baseline_norm).item())
+
+        # Compute anomaly score: 1 - similarity, clamped to [0, 1]
+        # similarity of 1.0 -> anomaly of 0.0 (identical)
+        # similarity of 0.0 -> anomaly of 1.0 (orthogonal)
+        # similarity of -1.0 -> anomaly of 2.0, but we clamp to 1.0
+        anomaly_score = max(0.0, min(1.0, 1.0 - similarity))
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return anomaly_score, similarity, inference_time_ms
+
+    def classify(
+        self, image: Image.Image, labels: list[str]
+    ) -> tuple[dict[str, float], str, float]:
+        """Classify an image against a list of text labels using zero-shot classification.
+
+        Uses CLIP's text encoder and image encoder to compute similarity scores,
+        then applies softmax to normalize scores to sum to 1.0.
+
+        Args:
+            image: PIL Image to classify
+            labels: List of text labels to classify against
+
+        Returns:
+            Tuple of (scores dict, top_label, inference_time_ms)
+        """
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        if not labels:
+            raise ValueError("Labels list cannot be empty")
+
+        start_time = time.perf_counter()
+
+        # Convert to RGB if needed
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Preprocess image and text
+        inputs = self.processor(
+            images=image,
+            text=labels,
+            return_tensors="pt",
+            padding=True,
+        )
+
+        # Move inputs to device with correct dtype
+        model_dtype = next(self.model.parameters()).dtype
+        inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
+
+        # Generate logits
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            logits_per_image = outputs.logits_per_image
+
+            # Apply softmax to normalize scores
+            probs = torch.softmax(logits_per_image, dim=-1)
+
+        # Convert to dict
+        scores_list = probs[0].cpu().float().numpy().tolist()
+        scores = dict(zip(labels, scores_list, strict=True))
+
+        # Find top label
+        top_idx = int(probs[0].argmax().item())
+        top_label = labels[top_idx]
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return scores, top_label, inference_time_ms
+
+    def compute_similarity(self, image: Image.Image, text: str) -> tuple[float, float]:
+        """Compute cosine similarity between an image and a text description.
+
+        Args:
+            image: PIL Image to compare
+            text: Text description to compare against
+
+        Returns:
+            Tuple of (similarity score, inference_time_ms)
+        """
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        start_time = time.perf_counter()
+
+        # Convert to RGB if needed
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Preprocess image
+        image_inputs = self.processor(images=image, return_tensors="pt")
+        model_dtype = next(self.model.parameters()).dtype
+        image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
+
+        # Preprocess text
+        text_inputs = self.processor(text=[text], return_tensors="pt", padding=True)
+        text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
+
+        # Generate embeddings
+        with torch.no_grad():
+            image_features = self.model.get_image_features(**image_inputs)
+            text_features = self.model.get_text_features(**text_inputs)
+
+            # Normalize embeddings
+            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+            text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
+
+            # Compute cosine similarity
+            similarity = (image_features @ text_features.T)[0, 0].cpu().float().item()
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return similarity, inference_time_ms
+
+    def compute_batch_similarity(
+        self, image: Image.Image, texts: list[str]
+    ) -> tuple[dict[str, float], float]:
+        """Compute cosine similarity between an image and multiple text descriptions.
+
+        Args:
+            image: PIL Image to compare
+            texts: List of text descriptions to compare against
+
+        Returns:
+            Tuple of (similarities dict, inference_time_ms)
+        """
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        if not texts:
+            raise ValueError("Texts list cannot be empty")
+
+        start_time = time.perf_counter()
+
+        # Convert to RGB if needed
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Preprocess image
+        image_inputs = self.processor(images=image, return_tensors="pt")
+        model_dtype = next(self.model.parameters()).dtype
+        image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
+
+        # Preprocess texts
+        text_inputs = self.processor(text=texts, return_tensors="pt", padding=True)
+        text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
+
+        # Generate embeddings
+        with torch.no_grad():
+            image_features = self.model.get_image_features(**image_inputs)
+            text_features = self.model.get_text_features(**text_inputs)
+
+            # Normalize embeddings
+            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+            text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
+
+            # Compute cosine similarities (1, num_texts)
+            similarities_tensor = (image_features @ text_features.T)[0]
+
+        # Convert to dict
+        similarities_list = similarities_tensor.cpu().float().numpy().tolist()
+        similarities = dict(zip(texts, similarities_list, strict=True))
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return similarities, inference_time_ms
 
 
 # Global model instance
@@ -314,6 +582,220 @@ async def embed(request: EmbedRequest) -> EmbedResponse:
     except Exception as e:
         logger.error(f"Embedding extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Embedding extraction failed: {e!s}") from e
+
+
+def _decode_and_validate_image(image_b64: str) -> Image.Image:
+    """Decode and validate a base64-encoded image.
+
+    Args:
+        image_b64: Base64-encoded image string
+
+    Returns:
+        PIL Image
+
+    Raises:
+        HTTPException: If image is invalid or too large
+    """
+    # Validate base64 string size BEFORE decoding to prevent DoS
+    if len(image_b64) > MAX_BASE64_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Base64 image data size ({len(image_b64)} bytes) exceeds "
+            f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
+            f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+        )
+
+    # Decode base64 image
+    try:
+        image_bytes = base64.b64decode(image_b64)
+    except binascii.Error as e:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
+
+    # Validate decoded image size
+    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
+            f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+            f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+        )
+
+    # Open image
+    try:
+        return Image.open(io.BytesIO(image_bytes))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {e}") from e
+
+
+@app.post("/anomaly-score", response_model=AnomalyScoreResponse)
+async def anomaly_score(request: AnomalyScoreRequest) -> AnomalyScoreResponse:
+    """Compute scene anomaly score by comparing image to baseline embedding.
+
+    The anomaly score indicates how different the current frame is from the
+    baseline (average of "normal" frames). This is useful for detecting:
+    - New objects appearing in frame
+    - Significant scene changes
+    - Unexpected activity patterns
+
+    Args:
+        request: Contains base64-encoded image and baseline embedding
+
+    Returns:
+        Anomaly score (0-1), similarity to baseline, and inference time
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Validate baseline embedding dimension
+        if len(request.baseline_embedding) != EMBEDDING_DIMENSION:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Baseline embedding must have {EMBEDDING_DIMENSION} dimensions, "
+                f"got {len(request.baseline_embedding)}",
+            )
+
+        # Decode and validate image
+        image = _decode_and_validate_image(request.image)
+
+        # Compute anomaly score
+        score, similarity, inference_time_ms = model.compute_anomaly_score(
+            image, request.baseline_embedding
+        )
+
+        return AnomalyScoreResponse(
+            anomaly_score=score,
+            similarity_to_baseline=similarity,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Anomaly score computation failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Anomaly score computation failed: {e!s}"
+        ) from e
+
+
+@app.post("/classify", response_model=ClassifyResponse)
+async def classify(request: ClassifyRequest) -> ClassifyResponse:
+    """Classify an image against a list of text labels using zero-shot classification.
+
+    Uses CLIP's text and image encoders to compute similarity scores between
+    the image and each label. Scores are normalized using softmax to sum to 1.0.
+
+    Args:
+        request: Classification request with base64 image and text labels
+
+    Returns:
+        Classification results with scores for each label, top label, and inference time
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Validate labels
+        if not request.labels:
+            raise HTTPException(status_code=400, detail="Labels list cannot be empty")
+
+        # Decode and validate image
+        image = _decode_and_validate_image(request.image)
+
+        # Classify
+        scores, top_label, inference_time_ms = model.classify(image, request.labels)
+
+        return ClassifyResponse(
+            scores=scores,
+            top_label=top_label,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Classification failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Classification failed: {e!s}") from e
+
+
+@app.post("/similarity", response_model=SimilarityResponse)
+async def similarity(request: SimilarityRequest) -> SimilarityResponse:
+    """Compute cosine similarity between an image and a text description.
+
+    Uses CLIP's text and image encoders to generate embeddings, then computes
+    cosine similarity between the normalized embeddings.
+
+    Args:
+        request: Similarity request with base64 image and text description
+
+    Returns:
+        Similarity score and inference time
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Decode and validate image
+        image = _decode_and_validate_image(request.image)
+
+        # Compute similarity
+        sim_score, inference_time_ms = model.compute_similarity(image, request.text)
+
+        return SimilarityResponse(
+            similarity=sim_score,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Similarity computation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Similarity computation failed: {e!s}") from e
+
+
+@app.post("/batch-similarity", response_model=BatchSimilarityResponse)
+async def batch_similarity(request: BatchSimilarityRequest) -> BatchSimilarityResponse:
+    """Compute cosine similarity between an image and multiple text descriptions.
+
+    Uses CLIP's text and image encoders to generate embeddings, then computes
+    cosine similarity between the image embedding and each text embedding.
+
+    Args:
+        request: Batch similarity request with base64 image and list of text descriptions
+
+    Returns:
+        Similarity scores for each text and inference time
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Validate texts
+        if not request.texts:
+            raise HTTPException(status_code=400, detail="Texts list cannot be empty")
+
+        # Decode and validate image
+        image = _decode_and_validate_image(request.image)
+
+        # Compute similarities
+        similarities, inference_time_ms = model.compute_batch_similarity(image, request.texts)
+
+        return BatchSimilarityResponse(
+            similarities=similarities,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Batch similarity computation failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Batch similarity computation failed: {e!s}"
+        ) from e
 
 
 if __name__ == "__main__":

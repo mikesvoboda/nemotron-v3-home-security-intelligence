@@ -13,6 +13,13 @@ This project is an AI-powered home security monitoring dashboard.
 
 ## Local Development Environment
 
+**First-time setup:** Run the interactive setup script to generate `.env` and `docker-compose.override.yml`:
+
+```bash
+./setup.sh              # Quick mode - accept defaults with Enter
+./setup.sh --guided     # Guided mode - step-by-step with explanations
+```
+
 This project uses standard Docker Compose files (`docker-compose.prod.yml`) that work with both Docker and Podman:
 
 ```bash
@@ -32,6 +39,27 @@ For macOS with Podman, set the AI host:
 ```bash
 export AI_HOST=host.containers.internal
 ```
+
+## Deploy from CI/CD Containers
+
+Pull and redeploy using pre-built containers from GitHub Container Registry (main branch):
+
+```bash
+# Pull latest containers from GHCR
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
+
+# Stop current containers
+podman-compose -f docker-compose.prod.yml down
+
+# Redeploy with latest images
+podman-compose -f docker-compose.prod.yml up -d
+
+# Verify deployment
+curl http://localhost:8000/api/system/health/ready
+```
+
+**Note:** CI/CD automatically builds and pushes images on every merge to `main`. Use `:latest` for most recent stable build or specify a commit SHA tag for specific versions.
 
 ## Python Dependencies (uv)
 
@@ -70,96 +98,331 @@ uv run mypy backend        # Run type checker
 
 ## Issue Tracking
 
-This project uses **bd** (beads) for issue tracking:
+This project uses **Linear** for issue tracking:
+
+- **Workspace:** [nemotron-v3-home-security](https://linear.app/nemotron-v3-home-security)
+- **Team:** NEM
 
 ```bash
-bd ready                    # Find available work
-bd show <id>               # View task details
-bd update <id> --status in_progress  # Claim work
-bd close <id>              # Complete work
-bd sync                    # Sync with git
+# View active issues
+# https://linear.app/nemotron-v3-home-security/team/NEM/active
+
+# Filter by label (e.g., phase-1)
+# https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1
 ```
+
+Issues are organized with:
+
+- **Priorities:** Urgent, High, Medium, Low (mapped from P0-P4)
+- **Labels:** phase-1 through phase-8, backend, frontend, tdd, etc.
+- **Parent/sub-issues:** Epics contain sub-tasks
 
 ## Task Execution Order
 
 Tasks are organized into 8 execution phases. **Always complete earlier phases before starting later ones.**
 
-### Phase 1: Project Setup (P0) - 7 tasks
+### Phase 1: Project Setup (P0)
 
 Foundation - directory structures, container setup, environment, dependencies.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1)
 
-```bash
-bd list --label phase-1
-```
-
-### Phase 2: Database & Layout Foundation (P1) - 6 tasks
+### Phase 2: Database & Layout Foundation (P1)
 
 PostgreSQL models, Redis connection, Tailwind theme, app layout.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-2)
 
-```bash
-bd list --label phase-2
-```
-
-### Phase 3: Core APIs & Components (P2) - 11 tasks
+### Phase 3: Core APIs & Components (P2)
 
 Cameras API, system API, WebSocket hooks, API client, basic UI components.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3)
 
-```bash
-bd list --label phase-3
-```
-
-### Phase 4: AI Pipeline (P3/P4) - 13 tasks
+### Phase 4: AI Pipeline (P3/P4)
 
 File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-4)
 
-```bash
-bd list --label phase-4
-```
-
-### Phase 5: Events & Real-time (P4) - 9 tasks
+### Phase 5: Events & Real-time (P4)
 
 Events API, detections API, WebSocket channels, GPU monitor, cleanup service.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-5)
 
-```bash
-bd list --label phase-5
-```
-
-### Phase 6: Dashboard Components (P3) - 7 tasks
+### Phase 6: Dashboard Components (P3)
 
 Risk gauge, camera grid, live activity feed, GPU stats, EventCard.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-6)
 
-```bash
-bd list --label phase-6
-```
-
-### Phase 7: Pages & Modals (P4) - 6 tasks
+### Phase 7: Pages & Modals (P4)
 
 Main dashboard, event timeline, event detail modal, settings pages.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-7)
 
-```bash
-bd list --label phase-7
-```
-
-### Phase 8: Integration & E2E (P4) - 8 tasks
+### Phase 8: Integration & E2E (P4)
 
 Unit tests, E2E tests, deployment verification, documentation.
-
-```bash
-bd list --label phase-8
-```
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-8)
 
 ## Post-MVP Roadmap (After MVP is Operational)
 
 After the MVP is **fully operational end-to-end** (Phases 1–8 complete, deployment verified, and tests passing),
-review `docs/ROADMAP.md` to identify post-MVP enhancements and create/claim new beads tasks accordingly.
+review `docs/ROADMAP.md` to identify post-MVP enhancements and create new Linear issues accordingly.
 
 ## TDD Approach
 
-Tasks labeled `tdd` are test tasks that should be completed alongside their feature tasks:
+This project follows **Test-Driven Development (TDD)** for all feature implementation. Tests are not an afterthought; they drive the design and ensure correctness from the start.
+
+### The TDD Cycle: RED-GREEN-REFACTOR
+
+1. **RED** - Write a failing test that defines the expected behavior
+2. **GREEN** - Write the minimum code necessary to make the test pass
+3. **REFACTOR** - Improve the code while keeping tests green
+
+```
+┌─────────┐     ┌─────────┐     ┌──────────┐
+│   RED   │ ──▶ │  GREEN  │ ──▶ │ REFACTOR │
+│  (fail) │     │ (pass)  │     │ (improve)│
+└─────────┘     └─────────┘     └──────────┘
+      ▲                               │
+      └───────────────────────────────┘
+```
+
+### Pre-Implementation Checklist
+
+Before writing any production code, complete this checklist:
+
+- [ ] Understand the acceptance criteria from the Linear issue
+- [ ] Identify the code layer(s) involved (API, service, component, E2E)
+- [ ] Write test stubs for each acceptance criterion
+- [ ] Run tests to confirm they fail (RED phase)
+- [ ] Only then begin implementation
+
+### Test Patterns by Layer
+
+#### Backend API Routes (pytest + httpx)
+
+```python
+# backend/tests/unit/api/routes/test_cameras.py
+import pytest
+from httpx import AsyncClient
+from backend.main import app
+
+@pytest.mark.asyncio
+async def test_get_camera_returns_camera_data(async_client: AsyncClient):
+    """RED: Write this test first, then implement the endpoint."""
+    response = await async_client.get("/api/cameras/front_door")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "front_door"
+    assert "status" in data
+    assert "last_seen" in data
+
+@pytest.mark.asyncio
+async def test_get_camera_not_found_returns_404(async_client: AsyncClient):
+    """Test error handling for missing cameras."""
+    response = await async_client.get("/api/cameras/nonexistent")
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+```
+
+#### Backend Services (pytest + mocking)
+
+```python
+# backend/tests/unit/services/test_detection_service.py
+import pytest
+from unittest.mock import AsyncMock, patch
+from backend.services.detection import DetectionService
+
+@pytest.mark.asyncio
+async def test_process_image_calls_rtdetr_client():
+    """RED: Test that service integrates with RT-DETR correctly."""
+    mock_rtdetr = AsyncMock()
+    mock_rtdetr.detect.return_value = [
+        {"label": "person", "confidence": 0.95, "bbox": [100, 200, 300, 400]}
+    ]
+
+    service = DetectionService(rtdetr_client=mock_rtdetr)
+    result = await service.process_image("/path/to/image.jpg")
+
+    mock_rtdetr.detect.assert_called_once_with("/path/to/image.jpg")
+    assert len(result.detections) == 1
+    assert result.detections[0].label == "person"
+
+@pytest.mark.asyncio
+async def test_process_image_handles_rtdetr_timeout():
+    """Test graceful handling of AI service timeouts."""
+    mock_rtdetr = AsyncMock()
+    mock_rtdetr.detect.side_effect = TimeoutError("RT-DETR timeout")
+
+    service = DetectionService(rtdetr_client=mock_rtdetr)
+
+    with pytest.raises(DetectionError) as exc_info:
+        await service.process_image("/path/to/image.jpg")
+
+    assert "timeout" in str(exc_info.value).lower()
+```
+
+#### Frontend Components (Vitest + React Testing Library)
+
+```typescript
+// frontend/src/components/RiskGauge.test.tsx
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { RiskGauge } from './RiskGauge';
+
+describe('RiskGauge', () => {
+  it('displays low risk styling for scores under 30', () => {
+    // RED: Write test first, then implement component
+    render(<RiskGauge score={25} />);
+
+    const gauge = screen.getByRole('meter');
+    expect(gauge).toHaveAttribute('aria-valuenow', '25');
+    expect(gauge).toHaveClass('risk-low');
+  });
+
+  it('displays high risk styling for scores over 70', () => {
+    render(<RiskGauge score={85} />);
+
+    const gauge = screen.getByRole('meter');
+    expect(gauge).toHaveClass('risk-high');
+    expect(screen.getByText(/high risk/i)).toBeInTheDocument();
+  });
+
+  it('updates in real-time when score changes', async () => {
+    const { rerender } = render(<RiskGauge score={20} />);
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '20');
+
+    rerender(<RiskGauge score={80} />);
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '80');
+  });
+});
+```
+
+#### E2E Tests (Playwright)
+
+```typescript
+// frontend/tests/e2e/dashboard.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Dashboard', () => {
+  test('displays live camera feeds on load', async ({ page }) => {
+    // RED: Write E2E test first to define user journey
+    await page.goto('/');
+
+    // Wait for WebSocket connection
+    await expect(page.locator('[data-testid="ws-status"]')).toHaveText('Connected');
+
+    // Verify camera grid loads
+    const cameraCards = page.locator('[data-testid="camera-card"]');
+    await expect(cameraCards).toHaveCount(4);
+
+    // Verify each camera shows status
+    for (const card of await cameraCards.all()) {
+      await expect(card.locator('.camera-status')).toBeVisible();
+    }
+  });
+
+  test('risk gauge updates when new detection arrives', async ({ page }) => {
+    await page.goto('/');
+
+    // Initial state
+    const gauge = page.locator('[data-testid="risk-gauge"]');
+    await expect(gauge).toHaveAttribute('aria-valuenow', '0');
+
+    // Simulate detection via API (or mock WebSocket)
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent('test:detection', {
+          detail: { risk_score: 75 },
+        })
+      );
+    });
+
+    // Verify gauge updates
+    await expect(gauge).toHaveAttribute('aria-valuenow', '75');
+  });
+});
+```
+
+### Using the TDD Skill
+
+For complex features, invoke the TDD skill to guide your workflow:
 
 ```bash
-bd list --label tdd
+/test-driven-development
 ```
+
+This skill will:
+
+1. Help identify test cases from requirements
+2. Generate test stubs for each layer
+3. Guide you through the RED-GREEN-REFACTOR cycle
+4. Ensure proper test coverage before completion
+
+### Integration with Linear
+
+Tasks labeled `tdd` are test-focused tasks that pair with feature tasks:
+[View TDD issues](https://linear.app/nemotron-v3-home-security/team/NEM/label/tdd)
+
+**Workflow for TDD-labeled issues:**
+
+1. **Claim both tasks** - The feature task and its corresponding TDD task
+2. **Start with tests** - Implement tests from the TDD issue first
+3. **Verify RED** - Run tests to confirm they fail appropriately
+4. **Implement feature** - Write code to make tests pass (GREEN)
+5. **Refactor** - Clean up while keeping tests green
+6. **Close TDD issue first** - Then close the feature issue
+
+### Test Coverage Requirements
+
+This project enforces strict coverage thresholds:
+
+| Test Type   | Minimum Coverage | Enforcement   |
+| ----------- | ---------------- | ------------- |
+| Unit        | 92%              | CI gate       |
+| Integration | 50%              | CI gate       |
+| Combined    | 90%              | CI gate       |
+| E2E         | Critical paths   | Manual review |
+
+**Coverage Commands:**
+
+```bash
+# Backend coverage report
+uv run pytest backend/tests/unit/ --cov=backend --cov-report=term-missing
+
+# Frontend coverage report
+cd frontend && npm test -- --coverage
+
+# Full coverage report
+./scripts/validate.sh --coverage
+```
+
+### Never Disable Testing
+
+See the **[NEVER DISABLE TESTING](#never-disable-testing)** section below. This is an absolute rule:
+
+- Do NOT skip tests to pass CI
+- Do NOT lower coverage thresholds
+- Do NOT comment out failing tests
+- FIX the code or FIX the test
+
+### PR Checklist for TDD Verification
+
+Before creating a PR, verify:
+
+- [ ] All new code has corresponding tests
+- [ ] Tests were written BEFORE implementation (TDD)
+- [ ] Tests cover happy path AND error cases
+- [ ] Coverage thresholds are met (92% unit, 50% integration)
+- [ ] No tests were skipped or disabled
+- [ ] E2E tests pass for UI changes
+
+### Testing Resources
+
+- **Test Infrastructure:** See `backend/tests/AGENTS.md`
+- **Fixtures and Factories:** See `backend/tests/conftest.py`
+- **E2E Test Patterns:** See `frontend/tests/e2e/README.md`
+- **Coverage Reports:** Generated in `coverage/` directory after test runs
 
 ## Testing Requirements
 
@@ -241,6 +504,12 @@ Validation agents should run the full test suite and report any failures. Fix al
 - `git commit --no-verify`
 - `git push --no-verify`
 - Any flags that skip pre-commit hooks
+
+**Branch Protection (GitHub enforced):**
+
+- All CI jobs must pass before merge
+- Admin bypass is disabled
+- CODEOWNERS review required
 
 ## NEVER DISABLE TESTING
 
@@ -410,9 +679,71 @@ docs/plans/            # Design and implementation docs
 
 ## Session Workflow
 
-1. Check available work: `bd ready`
-2. Filter by current phase: `bd list --label phase-N`
-3. Claim task: `bd update <id> --status in_progress`
+1. Check available work in [Linear Active view](https://linear.app/nemotron-v3-home-security/team/NEM/active)
+2. Filter by label (e.g., phase-1, backend, frontend)
+3. Claim task by assigning to yourself and setting status to "In Progress"
 4. Implement following TDD (test first for `tdd` labeled tasks)
-5. Close task: `bd close <id>`
-6. End session: `bd sync && git push`
+5. Validate before closing: run `./scripts/validate.sh`
+6. Close task by setting status to "Done" in Linear
+7. End session: `git push`
+
+## One-Task-One-PR Policy
+
+Each Linear issue should result in exactly one PR:
+
+- **PR title format:** `<type>: <issue title> (NEM-<id>)`
+- **Example:** `fix: resolve WebSocket broadcast error (NEM-123)`
+
+**Anti-patterns (do not do):**
+
+| Bad PR Title                        | Problem                    |
+| ----------------------------------- | -------------------------- |
+| "fix: resolve 9 issues"             | Split into 9 PRs           |
+| "fix: resolve 20 production issues" | Create 20 issues, 20 PRs   |
+| "feat: X AND Y"                     | Split into separate issues |
+
+**Exceptions:**
+
+- Trivial related typo fixes can be batched
+- Changes to the same function/component in same file
+
+**Why this matters:**
+
+- Enables precise rollbacks without reverting unrelated changes
+- Clear attribution of which change fixed which issue
+- Better code review quality (smaller, focused diffs)
+- Regressions are easier to identify and bisect
+
+## Issue Closure Requirements
+
+Before marking an issue as "Done" in Linear, verify ALL of the following:
+
+### Required Checklist
+
+```bash
+# Quick validation (recommended)
+./scripts/validate.sh
+
+# Or run individually:
+uv run pytest backend/tests/unit/ -n auto --dist=worksteal  # Backend unit tests
+uv run pytest backend/tests/integration/ -n0                 # Backend integration tests
+cd frontend && npm test                                       # Frontend tests
+uv run mypy backend/                                          # Backend type check
+cd frontend && npm run typecheck                              # Frontend type check
+pre-commit run --all-files                                    # Pre-commit hooks
+```
+
+### For UI Changes, Also Run
+
+```bash
+cd frontend && npx playwright test  # E2E tests (multi-browser)
+```
+
+### Closure Workflow
+
+1. Ensure all code is committed and pushed
+2. Run validation: `./scripts/validate.sh`
+3. If all tests pass, mark the issue as "Done" in Linear
+4. If tests fail, fix the issue and re-run before closing
+
+**CRITICAL:** Do not close an issue if any validation fails. Fix the issue first.

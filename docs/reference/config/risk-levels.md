@@ -109,6 +109,42 @@ You can customize these thresholds via environment variables:
 
 **Constraint:** Values must satisfy: `0 <= low_max < medium_max < high_max <= 100`
 
+### Threshold Validation
+
+The system validates severity thresholds at startup. If the constraint is violated, the application will fail to start with a validation error.
+
+**Constraint Requirements:**
+
+- All values must be non-negative integers
+- `SEVERITY_LOW_MAX` must be less than `SEVERITY_MEDIUM_MAX`
+- `SEVERITY_MEDIUM_MAX` must be less than `SEVERITY_HIGH_MAX`
+- `SEVERITY_HIGH_MAX` must be less than or equal to 100
+
+**Invalid Configuration Example:**
+
+```bash
+# INVALID - medium_max is not greater than low_max
+export SEVERITY_LOW_MAX=50
+export SEVERITY_MEDIUM_MAX=40
+export SEVERITY_HIGH_MAX=84
+```
+
+**Expected Error:**
+
+```
+pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+  Value error, Severity thresholds must satisfy: 0 <= low_max (50) < medium_max (40) < high_max (84) <= 100
+```
+
+**Valid Configuration Example:**
+
+```bash
+# VALID - thresholds are properly ordered
+export SEVERITY_LOW_MAX=29
+export SEVERITY_MEDIUM_MAX=59
+export SEVERITY_HIGH_MAX=84
+```
+
 ### Example: Stricter Thresholds
 
 To escalate more events to higher severity:

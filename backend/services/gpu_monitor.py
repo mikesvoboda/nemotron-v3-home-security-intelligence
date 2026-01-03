@@ -1,18 +1,22 @@
-"""GPU monitoring service using pynvml or AI container endpoints.
+"""GPU monitoring service using pynvml, nvidia-smi, or AI container endpoints.
 
 This service polls GPU statistics at a configurable interval, stores them in the
 database, and can expose them for real-time monitoring via WebSocket.
 
-When running in a container without GPU access, it queries the RT-DETRv2
-AI container for GPU statistics instead of using local pynvml. The RT-DETRv2
-container reports VRAM usage via its /health endpoint.
+Fallback order:
+1. pynvml (direct NVML bindings - fastest, requires GPU access)
+2. nvidia-smi subprocess (works when nvidia-smi is available in PATH)
+3. AI container health endpoints (RT-DETRv2 reports VRAM usage)
+4. Mock data (for development environments without GPU)
 
 Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
-are obtained exclusively from RT-DETRv2 when pynvml is unavailable.
+from AI containers are obtained exclusively from RT-DETRv2.
 """
 
 import asyncio
 import contextlib
+import shutil
+import subprocess
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -29,14 +33,15 @@ logger = get_logger(__name__)
 
 
 class GPUMonitor:
-    """Monitor NVIDIA GPU statistics using pynvml or AI container endpoints.
+    """Monitor NVIDIA GPU statistics using pynvml, nvidia-smi, or AI container endpoints.
 
     Features:
     - Async polling at configurable intervals
     - Graceful handling of missing GPU or pynvml errors
     - In-memory stats history for quick access
     - Database persistence for historical analysis
-    - AI container querying when local GPU unavailable
+    - nvidia-smi subprocess fallback when pynvml unavailable
+    - AI container querying when nvidia-smi unavailable
     - Mock data mode as final fallback
     """
 
@@ -71,12 +76,21 @@ class GPUMonitor:
         self._gpu_handle: Any = None
         self._gpu_name: str | None = None
 
-        # Initialize pynvml
+        # nvidia-smi availability (checked once at init)
+        self._nvidia_smi_available = False
+        self._nvidia_smi_path: str | None = None
+
+        # Initialize pynvml first, then check nvidia-smi as fallback
         self._initialize_nvml()
+
+        # If pynvml unavailable, check for nvidia-smi
+        if not self._gpu_available:
+            self._check_nvidia_smi()
 
         logger.info(
             f"GPUMonitor initialized (poll_interval={self.poll_interval}s, "
-            f"history_minutes={self.history_minutes}m, gpu_available={self._gpu_available})"
+            f"history_minutes={self.history_minutes}m, gpu_available={self._gpu_available}, "
+            f"nvidia_smi_available={self._nvidia_smi_available})"
         )
 
     def _initialize_nvml(self) -> None:
@@ -102,13 +116,129 @@ class GPUMonitor:
                 self._gpu_available = False
 
         except ImportError:
-            logger.warning("pynvml not installed. GPU monitoring disabled. Will return mock data.")
+            logger.warning("pynvml not installed. Will try nvidia-smi fallback.")
             self._nvml_initialized = False
             self._gpu_available = False
         except Exception as e:
-            logger.warning(f"Failed to initialize NVML: {e}. Will return mock data.")
+            logger.warning(f"Failed to initialize NVML: {e}. Will try nvidia-smi fallback.")
             self._nvml_initialized = False
             self._gpu_available = False
+
+    def _check_nvidia_smi(self) -> None:
+        """Check if nvidia-smi is available as a fallback for GPU stats.
+
+        This is used when pynvml is not available (e.g., running in a container
+        where the NVIDIA driver libraries aren't mounted, but nvidia-smi is in PATH).
+        """
+        nvidia_smi_path = shutil.which("nvidia-smi")
+        if nvidia_smi_path:
+            # Verify it works by running a quick test query
+            try:
+                # nvidia_smi_path is validated via shutil.which, not user input
+                result = subprocess.run(  # noqa: S603
+                    [nvidia_smi_path, "--query-gpu=name", "--format=csv,noheader,nounits"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    self._nvidia_smi_available = True
+                    self._nvidia_smi_path = nvidia_smi_path
+                    self._gpu_name = result.stdout.strip().split("\n")[0]
+                    logger.info(f"nvidia-smi available at {nvidia_smi_path}, GPU: {self._gpu_name}")
+                else:
+                    logger.warning(f"nvidia-smi found but returned error: {result.stderr.strip()}")
+            except subprocess.TimeoutExpired:
+                logger.warning("nvidia-smi found but timed out during test query")
+            except Exception as e:
+                logger.warning(f"nvidia-smi found but failed during test: {e}")
+        else:
+            logger.debug("nvidia-smi not found in PATH")
+
+    def _get_gpu_stats_nvidia_smi(self) -> dict[str, Any]:
+        """Get GPU statistics using nvidia-smi subprocess.
+
+        This is a fallback for when pynvml is not available but nvidia-smi is.
+        Queries temperature, power draw, utilization, and memory in a single call.
+
+        Returns:
+            Dictionary containing GPU statistics
+
+        Raises:
+            RuntimeError: If nvidia-smi fails or is not available
+        """
+        if not self._nvidia_smi_available or not self._nvidia_smi_path:
+            raise RuntimeError("nvidia-smi not available")
+
+        try:
+            # Query all needed metrics in one call for efficiency
+            # Format: temperature, power, utilization, memory_used, memory_total, name
+            # self._nvidia_smi_path is validated via shutil.which at init, not user input
+            result = subprocess.run(  # noqa: S603
+                [
+                    self._nvidia_smi_path,
+                    "--query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,memory.total,name",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"nvidia-smi returned error: {result.stderr.strip()}")
+
+            # Parse CSV output: "39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"
+            line = result.stdout.strip().split("\n")[0]  # Take first GPU if multiple
+            parts = [p.strip() for p in line.split(",")]
+
+            if len(parts) < 5:
+                raise RuntimeError(f"Unexpected nvidia-smi output format: {line}")
+
+            # Parse values with error handling for each field
+            try:
+                temperature = float(parts[0]) if parts[0] and parts[0] != "[N/A]" else None
+            except ValueError:
+                temperature = None
+
+            try:
+                power_usage = float(parts[1]) if parts[1] and parts[1] != "[N/A]" else None
+            except ValueError:
+                power_usage = None
+
+            try:
+                gpu_utilization = float(parts[2]) if parts[2] and parts[2] != "[N/A]" else None
+            except ValueError:
+                gpu_utilization = None
+
+            try:
+                memory_used = int(float(parts[3])) if parts[3] and parts[3] != "[N/A]" else None
+            except ValueError:
+                memory_used = None
+
+            try:
+                memory_total = int(float(parts[4])) if parts[4] and parts[4] != "[N/A]" else None
+            except ValueError:
+                memory_total = None
+
+            gpu_name = parts[5] if len(parts) > 5 else self._gpu_name
+
+            return {
+                "gpu_name": gpu_name,
+                "gpu_utilization": gpu_utilization,
+                "memory_used": memory_used,
+                "memory_total": memory_total,
+                "temperature": temperature,
+                "power_usage": power_usage,
+                "recorded_at": datetime.now(UTC),
+            }
+
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError("nvidia-smi timed out") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
 
     def _get_gpu_stats_real(self) -> dict[str, Any]:
         """Get real GPU statistics from pynvml.
@@ -219,19 +349,33 @@ class GPUMonitor:
             "recorded_at": now,
         }
 
-    def _parse_rtdetr_response(self, data: dict[str, Any]) -> tuple[float, str | None]:
+    def _parse_rtdetr_response(
+        self, data: dict[str, Any]
+    ) -> tuple[float, str | None, float | None, int | None, float | None]:
         """Parse RT-DETRv2 health response for GPU stats.
 
         Returns:
-            Tuple of (vram_used_mb, gpu_device_name or None)
+            Tuple of (vram_used_mb, gpu_device_name or None, gpu_utilization or None,
+                      temperature or None, power_watts or None)
         """
         vram_mb = 0.0
         device = None
+        gpu_utilization = None
+        temperature = None
+        power_watts = None
+
         if data.get("vram_used_gb") is not None:
             vram_mb = data["vram_used_gb"] * 1024  # Convert GB to MB
         if data.get("device"):
             device = data["device"]
-        return vram_mb, device
+        if data.get("gpu_utilization") is not None:
+            gpu_utilization = data["gpu_utilization"]
+        if data.get("temperature") is not None:
+            temperature = data["temperature"]
+        if data.get("power_watts") is not None:
+            power_watts = data["power_watts"]
+
+        return vram_mb, device, gpu_utilization, temperature, power_watts
 
     def _parse_vram_metric_line(self, line: str) -> float:
         """Parse a single Prometheus metric line for VRAM value.
@@ -259,7 +403,7 @@ class GPUMonitor:
         """Query AI containers for GPU statistics.
 
         Queries RT-DETRv2 health endpoint for GPU usage information.
-        RT-DETRv2 reports vram_used_gb which is used for memory tracking.
+        RT-DETRv2 reports vram_used_gb, gpu_utilization, temperature, and power_watts.
 
         Note: Nemotron (llama.cpp server) does not expose a /metrics endpoint,
         so GPU stats are obtained exclusively from RT-DETRv2.
@@ -270,6 +414,9 @@ class GPUMonitor:
         settings = get_settings()
         total_vram_used_mb = 0.0
         gpu_name = "NVIDIA GPU (via AI Containers)"
+        gpu_utilization: float | None = None
+        temperature: int | None = None
+        power_watts: float | None = None
 
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -277,11 +424,22 @@ class GPUMonitor:
                 try:
                     resp = await client.get(f"{settings.rtdetr_url}/health")
                     if resp.status_code == 200:
-                        vram_mb, device = self._parse_rtdetr_response(resp.json())
+                        vram_mb, device, util, temp, power = self._parse_rtdetr_response(
+                            resp.json()
+                        )
                         total_vram_used_mb += vram_mb
                         if device:
                             gpu_name = f"NVIDIA GPU ({device})"
-                        logger.debug(f"RT-DETRv2 GPU stats: {vram_mb / 1024:.2f} GB")
+                        if util is not None:
+                            gpu_utilization = util
+                        if temp is not None:
+                            temperature = temp
+                        if power is not None:
+                            power_watts = power
+                        logger.debug(
+                            f"RT-DETRv2 GPU stats: {vram_mb / 1024:.2f} GB, "
+                            f"util={gpu_utilization}%, temp={temperature}C, power={power_watts}W"
+                        )
                 except Exception as e:
                     logger.debug(f"Failed to query RT-DETRv2 health: {e}")
 
@@ -290,16 +448,16 @@ class GPUMonitor:
                 # GPU VRAM tracking is handled by the RT-DETRv2 container which has
                 # better visibility into GPU memory usage.
 
-                if total_vram_used_mb > 0:
+                if total_vram_used_mb > 0 or gpu_utilization is not None:
                     # RTX A5500 has 24GB VRAM - use this as default
-                    # These defaults ensure meaningful display rather than N/A
+                    # Use actual values from RT-DETRv2 when available
                     return {
                         "gpu_name": gpu_name,
-                        "gpu_utilization": 0.0,  # Cannot determine from AI containers
+                        "gpu_utilization": gpu_utilization if gpu_utilization is not None else 0.0,
                         "memory_used": int(total_vram_used_mb),
                         "memory_total": 24576,  # 24GB in MB (RTX A5500 default)
-                        "temperature": 0,  # Cannot determine from AI containers
-                        "power_usage": 0.0,  # Cannot determine from AI containers
+                        "temperature": temperature if temperature is not None else 0,
+                        "power_usage": power_watts if power_watts is not None else 0.0,
                         "recorded_at": datetime.now(UTC),
                     }
 
@@ -313,8 +471,9 @@ class GPUMonitor:
 
         Tries in order:
         1. Local pynvml (if GPU available)
-        2. AI container health endpoints (RT-DETRv2, Nemotron)
-        3. Mock data as fallback
+        2. nvidia-smi subprocess (if available)
+        3. AI container health endpoints (RT-DETRv2)
+        4. Mock data as fallback
 
         Returns:
             Dictionary containing current GPU stats
@@ -323,6 +482,14 @@ class GPUMonitor:
             # First try local pynvml
             if self._gpu_available:
                 return self._get_gpu_stats_real()
+
+            # Try nvidia-smi subprocess as second option
+            if self._nvidia_smi_available:
+                try:
+                    return self._get_gpu_stats_nvidia_smi()
+                except Exception as e:
+                    logger.warning(f"nvidia-smi fallback failed: {e}")
+                    # Continue to try other methods
 
             # Try AI container endpoints
             ai_stats = await self._get_gpu_stats_from_ai_containers()
@@ -341,14 +508,27 @@ class GPUMonitor:
         Note: This sync version cannot query AI containers. Use get_current_stats_async()
         for the full functionality including AI container querying.
 
+        Tries in order:
+        1. Local pynvml (if GPU available)
+        2. nvidia-smi subprocess (if available)
+        3. Mock data as fallback
+
         Returns:
             Dictionary containing current GPU stats (real or mock)
         """
         try:
             if self._gpu_available:
                 return self._get_gpu_stats_real()
-            else:
-                return self._get_gpu_stats_mock()
+
+            # Try nvidia-smi subprocess as fallback
+            if self._nvidia_smi_available:
+                try:
+                    return self._get_gpu_stats_nvidia_smi()
+                except Exception as e:
+                    logger.warning(f"nvidia-smi fallback failed: {e}")
+                    # Continue to mock data
+
+            return self._get_gpu_stats_mock()
         except Exception as e:
             logger.error(f"Failed to get GPU stats: {e}")
             return self._get_gpu_stats_mock()

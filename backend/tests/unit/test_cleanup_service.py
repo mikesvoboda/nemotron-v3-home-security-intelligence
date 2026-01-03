@@ -1,8 +1,10 @@
-"""Unit tests for cleanup service.
+"""Integration tests for cleanup service.
 
 Note: These tests use unique IDs for cameras to allow parallel test execution.
 Cleanup service assertions use >= instead of == for counts since the service
 operates on the entire database and parallel tests may create additional data.
+
+These tests require PostgreSQL via the session fixture.
 """
 
 import asyncio
@@ -20,6 +22,9 @@ from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.services.cleanup_service import CleanupService, CleanupStats
 from backend.tests.conftest import unique_id
+
+# Mark all tests in this module as integration tests (require PostgreSQL)
+pytestmark = pytest.mark.integration
 
 # Fixtures
 
@@ -318,7 +323,11 @@ async def test_run_cleanup_deletes_old_events(test_db):
 
     async with test_db() as session:
         # Create camera
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -374,7 +383,11 @@ async def test_run_cleanup_deletes_old_detections(test_db):
 
     async with test_db() as session:
         # Create camera
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -487,7 +500,11 @@ async def test_run_cleanup_deletes_thumbnail_files(test_db, tmp_path):
     old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -523,7 +540,11 @@ async def test_run_cleanup_deletes_images_when_enabled(test_db, tmp_path):
     old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -559,7 +580,11 @@ async def test_run_cleanup_keeps_images_when_disabled(test_db, tmp_path):
     old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -607,7 +632,11 @@ async def test_run_cleanup_no_old_data(test_db):
     recent_date = datetime.now(UTC) - timedelta(days=10)
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -642,7 +671,11 @@ async def test_run_cleanup_handles_missing_files(test_db):
     old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -1011,7 +1044,11 @@ async def test_run_cleanup_includes_log_cleanup(test_db):
 
     async with test_db() as session:
         # Create camera for event/detection tests
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -1204,7 +1241,11 @@ async def test_dry_run_cleanup_counts_without_deleting(test_db):
 
     async with test_db() as session:
         # Create camera for event/detection
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -1326,7 +1367,11 @@ async def test_dry_run_cleanup_returns_zero_when_nothing_to_delete(test_db):
     recent_date = now - timedelta(days=5)  # Within 30-day retention
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 
@@ -1386,7 +1431,11 @@ async def test_dry_run_cleanup_vs_actual_cleanup_same_counts(test_db):
     old_date = now - timedelta(days=40)
 
     async with test_db() as session:
-        camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+        camera = Camera(
+            id=camera_id,
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
         session.add(camera)
         await session.flush()
 

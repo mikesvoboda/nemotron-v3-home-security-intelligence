@@ -20,10 +20,12 @@ class EventResponse(BaseModel):
                 "risk_level": "medium",
                 "summary": "Person detected near front entrance",
                 "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
+                "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
                 "reviewed": False,
                 "notes": None,
                 "detection_count": 5,
                 "detection_ids": [1, 2, 3, 4, 5],
+                "thumbnail_url": "/api/media/detections/1",
             }
         },
     )
@@ -36,11 +38,17 @@ class EventResponse(BaseModel):
     risk_level: str | None = Field(None, description="Risk level (low, medium, high, critical)")
     summary: str | None = Field(None, description="LLM-generated event summary")
     reasoning: str | None = Field(None, description="LLM reasoning for risk score")
+    llm_prompt: str | None = Field(
+        None, description="Full prompt sent to Nemotron LLM (for debugging/improvement)"
+    )
     reviewed: bool = Field(False, description="Whether event has been reviewed")
     notes: str | None = Field(None, description="User notes for the event")
     detection_count: int = Field(0, description="Number of detections in this event")
     detection_ids: list[int] = Field(
         default_factory=list, description="List of detection IDs associated with this event"
+    )
+    thumbnail_url: str | None = Field(
+        None, description="URL to thumbnail image (first detection's media)"
     )
 
 
@@ -76,10 +84,12 @@ class EventListResponse(BaseModel):
                         "risk_level": "medium",
                         "summary": "Person detected near front entrance",
                         "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
+                        "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
                         "reviewed": False,
                         "notes": None,
                         "detection_count": 5,
                         "detection_ids": [1, 2, 3, 4, 5],
+                        "thumbnail_url": "/api/media/detections/1",
                     }
                 ],
                 "count": 1,

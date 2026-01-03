@@ -157,6 +157,7 @@ class TestRetryHandler:
             return_value=QueueAddResult(success=True, queue_length=1)
         )
         redis.get_from_queue = AsyncMock(return_value=None)
+        redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.peek_queue = AsyncMock(return_value=[])
         redis.clear_queue = AsyncMock(return_value=True)
@@ -359,7 +360,7 @@ class TestRetryHandler:
     @pytest.mark.asyncio
     async def test_requeue_dlq_job(self, handler: RetryHandler, mock_redis: MagicMock) -> None:
         """Test requeuing a job from DLQ."""
-        mock_redis.get_from_queue = AsyncMock(
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
             return_value={
                 "original_job": {"camera_id": "cam1", "file_path": "/path"},
                 "error": "Error",
@@ -373,14 +374,14 @@ class TestRetryHandler:
         job = await handler.requeue_dlq_job("dlq:detection_queue")
 
         assert job == {"camera_id": "cam1", "file_path": "/path"}
-        mock_redis.get_from_queue.assert_called_once_with("dlq:detection_queue", timeout=0)
+        mock_redis.pop_from_queue_nonblocking.assert_called_once_with("dlq:detection_queue")
 
     @pytest.mark.asyncio
     async def test_requeue_dlq_job_empty(
         self, handler: RetryHandler, mock_redis: MagicMock
     ) -> None:
         """Test requeuing from empty DLQ returns None."""
-        mock_redis.get_from_queue = AsyncMock(return_value=None)
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
 
         job = await handler.requeue_dlq_job("dlq:detection_queue")
 
@@ -408,7 +409,7 @@ class TestRetryHandler:
         self, handler: RetryHandler, mock_redis: MagicMock
     ) -> None:
         """Test moving a job from DLQ back to processing queue."""
-        mock_redis.get_from_queue = AsyncMock(
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
             return_value={
                 "original_job": {"camera_id": "cam1"},
                 "error": "Error",
@@ -434,7 +435,7 @@ class TestRetryHandler:
         self, handler: RetryHandler, mock_redis: MagicMock
     ) -> None:
         """Test moving from empty DLQ returns False."""
-        mock_redis.get_from_queue = AsyncMock(return_value=None)
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
 
         success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
 
@@ -594,6 +595,7 @@ class TestDLQCircuitBreaker:
             return_value=QueueAddResult(success=True, queue_length=1)
         )
         redis.get_from_queue = AsyncMock(return_value=None)
+        redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.peek_queue = AsyncMock(return_value=[])
         redis.clear_queue = AsyncMock(return_value=True)
@@ -842,6 +844,7 @@ class TestDLQJobLossLogging:
             return_value=QueueAddResult(success=False, queue_length=10000, error="Queue full")
         )
         redis.get_from_queue = AsyncMock(return_value=None)
+        redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.peek_queue = AsyncMock(return_value=[])
         redis.clear_queue = AsyncMock(return_value=True)

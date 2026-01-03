@@ -9,6 +9,14 @@
 
 ## Hardware Requirements
 
+### VRAM Requirements by Deployment Scenario
+
+| Scenario                       | Models Used                                         | VRAM Required     | Recommended GPU |
+| ------------------------------ | --------------------------------------------------- | ----------------- | --------------- |
+| **Dev (host-run)**             | Nemotron Mini 4B + RT-DETRv2                        | 8GB minimum       | RTX 3060/4060   |
+| **Prod (containerized, core)** | Nemotron-3-Nano-30B + RT-DETRv2                     | 16GB minimum      | RTX 4080/A4000  |
+| **Prod (all services)**        | Nano 30B + RT-DETRv2 + Florence + CLIP + Enrichment | 24GB+ recommended | RTX A5500/4090  |
+
 ### Minimum
 
 - **GPU**: NVIDIA RTX 3060 (8GB+ VRAM) or equivalent
@@ -139,7 +147,7 @@ pip install -r requirements.txt
 Key dependencies:
 
 - `torch` + `torchvision` - PyTorch for deep learning
-- `onnxruntime-gpu` - ONNX Runtime with CUDA
+- `transformers` - HuggingFace model loading/inference (RT-DETRv2)
 - `fastapi` + `uvicorn` - Web server
 - `pillow` + `opencv-python` - Image processing
 - `pynvml` - NVIDIA GPU monitoring
@@ -148,7 +156,23 @@ Key dependencies:
 
 ## Model Downloads
 
-### Automated Download
+### LLM Model Versions
+
+This project supports two Nemotron LLM models for different deployment scenarios:
+
+| Model                         | Size   | VRAM  | Use Case                   | Location                                                   |
+| ----------------------------- | ------ | ----- | -------------------------- | ---------------------------------------------------------- |
+| **Nemotron Mini 4B Instruct** | ~2.5GB | ~3GB  | Development (host-run)     | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`        |
+| **Nemotron-3-Nano-30B-A3B**   | ~18GB  | ~14GB | Production (containerized) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` |
+
+**When to use each:**
+
+- **Mini 4B**: Fast iteration during development, lower quality reasoning but sufficient for testing pipelines
+- **Nano 30B**: Production deployment with higher quality risk analysis, requires more VRAM
+
+### Development Model (Mini 4B)
+
+#### Automated Download
 
 ```bash
 cd $PROJECT_ROOT
@@ -167,9 +191,7 @@ cd $PROJECT_ROOT
    - Auto-downloaded on first use via HuggingFace transformers
    - Location: `~/.cache/huggingface/`
 
-### Manual Download (if automatic fails)
-
-**Nemotron model:**
+#### Manual Download (if automatic fails)
 
 ```bash
 cd ai/nemotron
@@ -177,12 +199,32 @@ wget https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF/resolve/mai
   -O nemotron-mini-4b-instruct-q4_k_m.gguf
 ```
 
+### Production Model (Nano 30B)
+
+For production deployments with better reasoning quality:
+
+```bash
+# Create production model directory
+mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
+
+# Download the model (large download, ~18GB)
+cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
+wget https://huggingface.co/bartowski/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
+  -O Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
+```
+
+The `docker-compose.prod.yml` expects this model at `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`.
+
 ### Verify Downloads
 
 ```bash
-# Check Nemotron model
+# Check development model
 ls -lh ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 # Expected: ~2.5GB file
+
+# Check production model (if downloaded)
+ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
+# Expected: ~18GB file
 
 # RT-DETRv2 downloads automatically on first inference
 ```
@@ -198,6 +240,104 @@ Run the startup script with status check:
 ```
 
 This identifies any missing prerequisites.
+
+---
+
+## Optional AI Services Setup
+
+Beyond the core RT-DETRv2 and Nemotron services, three optional AI services provide enhanced detection capabilities. These are only needed for production deployments requiring advanced features.
+
+### Service Overview
+
+| Service        | Port | VRAM   | Purpose                                                              |
+| -------------- | ---- | ------ | -------------------------------------------------------------------- |
+| **Florence-2** | 8092 | ~1.2GB | Vision-language captions, OCR, dense region descriptions             |
+| **CLIP**       | 8093 | ~800MB | Entity re-identification, scene anomaly detection                    |
+| **Enrichment** | 8094 | ~6GB   | Vehicle/pet/clothing classification, depth estimation, pose analysis |
+
+### Florence-2 Setup
+
+Provides detailed scene descriptions and OCR capabilities.
+
+```bash
+# Download Florence-2-large model
+mkdir -p /export/ai_models/model-zoo/florence-2-large
+cd /export/ai_models/model-zoo/florence-2-large
+
+# Clone from HuggingFace (requires git-lfs)
+git lfs install
+git clone https://huggingface.co/microsoft/Florence-2-large .
+```
+
+### CLIP Setup
+
+Enables entity tracking across cameras and anomaly detection.
+
+```bash
+# Download CLIP ViT-L model
+mkdir -p /export/ai_models/model-zoo/clip-vit-l
+cd /export/ai_models/model-zoo/clip-vit-l
+
+# Clone from HuggingFace
+git lfs install
+git clone https://huggingface.co/openai/clip-vit-large-patch14 .
+```
+
+### Enrichment Service Setup
+
+Requires multiple specialized models:
+
+```bash
+# Create model directories
+mkdir -p /export/ai_models/model-zoo/{vehicle-segment-classification,pet-classifier,fashion-clip,depth-anything-v2-small}
+
+# Vehicle classification model
+cd /export/ai_models/model-zoo/vehicle-segment-classification
+git lfs install
+git clone https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification .
+
+# Pet classifier
+cd /export/ai_models/model-zoo/pet-classifier
+git clone https://huggingface.co/microsoft/resnet-18 .
+
+# FashionCLIP for clothing analysis
+cd /export/ai_models/model-zoo/fashion-clip
+git clone https://huggingface.co/patrickjohncyh/fashion-clip .
+
+# Depth estimation
+cd /export/ai_models/model-zoo/depth-anything-v2-small
+git clone https://huggingface.co/depth-anything/Depth-Anything-V2-Small .
+```
+
+### Starting Optional Services
+
+Start individual services:
+
+```bash
+# Start Florence-2 only
+docker compose -f docker-compose.prod.yml up ai-florence -d
+
+# Start CLIP only
+docker compose -f docker-compose.prod.yml up ai-clip -d
+
+# Start Enrichment service only
+docker compose -f docker-compose.prod.yml up ai-enrichment -d
+```
+
+Or start all services including optional ones:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Verifying Optional Services
+
+```bash
+# Health checks
+curl http://localhost:8092/health  # Florence-2
+curl http://localhost:8093/health  # CLIP
+curl http://localhost:8094/health  # Enrichment
+```
 
 ---
 

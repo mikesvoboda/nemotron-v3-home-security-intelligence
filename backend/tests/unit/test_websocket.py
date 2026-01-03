@@ -36,6 +36,8 @@ class MockEventBroadcaster:
     - connect(websocket) -> None
     - disconnect(websocket) -> None
     - broadcast_event(event_data) -> int
+    - broadcast_service_status(status_data) -> int
+    - get_circuit_state() -> str
     """
 
     CHANNEL_NAME = "security_events"  # Matches real implementation default
@@ -105,6 +107,38 @@ class MockEventBroadcaster:
                 pass
         return count
 
+    async def broadcast_service_status(self, status_data: dict[str, Any]) -> int:
+        """Broadcast a service status message to all connected WebSocket clients.
+
+        Args:
+            status_data: Status data dictionary containing service status details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in status_data:
+            status_data = {"type": "service_status", "data": status_data}
+
+        self.messages.append(status_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(status_data)
+                count += 1
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
+                pass
+
+        return count
+
+    def get_circuit_state(self) -> str:
+        """Get the current circuit breaker state.
+
+        Returns:
+            Circuit breaker state string (e.g., "closed", "open", "half_open")
+        """
+        return "closed"  # Mock always returns healthy state
+
     def is_listener_healthy(self) -> bool:
         """Check if the listener is currently healthy.
 
@@ -173,6 +207,7 @@ class MockSystemBroadcaster:
     - broadcast_performance() -> None
     - start_broadcasting(interval=5.0) -> None
     - stop_broadcasting() -> None
+    - get_circuit_state() -> str
     """
 
     def __init__(
@@ -277,6 +312,14 @@ class MockSystemBroadcaster:
     async def stop_broadcasting(self) -> None:
         """Stop periodic broadcasting of system status."""
         self._running = False
+
+    def get_circuit_state(self) -> str:
+        """Get the current circuit breaker state.
+
+        Returns:
+            Circuit breaker state string (e.g., "closed", "open", "half_open")
+        """
+        return "closed"  # Mock always returns healthy state
 
     # ==========================================================================
     # Test-only methods below - NOT part of the real SystemBroadcaster interface

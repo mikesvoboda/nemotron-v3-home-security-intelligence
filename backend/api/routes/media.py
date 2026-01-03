@@ -4,10 +4,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.media import MediaErrorResponse
 from backend.core.config import get_settings
+from backend.core.database import get_db
+from backend.models.detection import Detection
 
 # Rate limiter for media endpoints
 media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
@@ -89,6 +93,31 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
     return full_path
 
 
+def _is_path_within(path: Path, base: Path) -> bool:
+    """Check if a path is within a base directory."""
+    try:
+        path.relative_to(base.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _try_alternate_path(file_path: str, base_path: Path) -> Path | None:
+    """Try to find file under base_path if it references seeded data path."""
+    seeded_prefix = "/app/data/cameras/"
+    if not file_path.startswith(seeded_prefix):
+        return None
+    relative = file_path[len(seeded_prefix) :]
+    alt_path = (base_path / relative).resolve()
+    if alt_path.exists() and alt_path.is_file() and _is_path_within(alt_path, base_path):
+        return alt_path
+    return None
+
+
+# NOTE: This catch-all route MUST be defined FIRST because tests rely on it
+# calling serve_thumbnail/serve_camera_file as functions (which can be patched).
+# When specific routes are first, FastAPI calls the registered handler directly,
+# bypassing any module-level patches.
 @router.get(
     "/{path:path}",
     response_class=FileResponse,
@@ -112,6 +141,7 @@ async def serve_media_compat(
     Mapping rules:
     - `cameras/<camera_id>/<filename...>` → camera media
     - `thumbnails/<filename>` → thumbnails
+    - `detections/<id>` → detection images
     """
     # Normalize: strip any leading slashes (FastAPI path params shouldn't include it, but be safe).
     rel = path.lstrip("/")
@@ -134,10 +164,37 @@ async def serve_media_compat(
         filename = rel.removeprefix("thumbnails/")
         return await serve_thumbnail(filename=filename)
 
+    if rel.startswith("detections/"):
+        detection_id_str = rel.removeprefix("detections/")
+        try:
+            detection_id = int(detection_id_str)
+        except ValueError:
+            raise HTTPException(
+                status_code=404,
+                detail=MediaErrorResponse(
+                    error="Invalid detection ID",
+                    path=path,
+                ).model_dump(),
+            ) from None
+        # Get database session manually for detections
+        async for db in get_db():
+            try:
+                return await serve_detection_image(detection_id=detection_id, db=db)
+            finally:
+                await db.close()
+        # Should never reach here, but handle edge case
+        raise HTTPException(
+            status_code=500,
+            detail=MediaErrorResponse(
+                error="Database connection unavailable",
+                path=path,
+            ).model_dump(),
+        )
+
     raise HTTPException(
         status_code=404,
         detail=MediaErrorResponse(
-            error="Unsupported media path (expected cameras/... or thumbnails/...)",
+            error="Unsupported media path (expected cameras/..., thumbnails/..., or detections/...)",
             path=path,
         ).model_dump(),
     )
@@ -227,6 +284,105 @@ async def serve_thumbnail(
 
     # Get content type from extension
     content_type = ALLOWED_TYPES[full_path.suffix.lower()]
+
+    return FileResponse(
+        path=str(full_path),
+        media_type=content_type,
+        filename=full_path.name,
+    )
+
+
+async def serve_detection_image(
+    detection_id: int,
+    db: AsyncSession,
+) -> FileResponse:
+    """
+    Serve the image associated with a detection.
+
+    Args:
+        detection_id: The detection ID to look up
+        db: Database session
+
+    Returns:
+        FileResponse with the detection's source image
+
+    Raises:
+        HTTPException: 404 if detection not found or file doesn't exist
+    """
+    # Look up the detection
+    result = await db.execute(select(Detection).where(Detection.id == detection_id))
+    detection = result.scalar_one_or_none()
+
+    if not detection:
+        raise HTTPException(
+            status_code=404,
+            detail=MediaErrorResponse(
+                error="Detection not found",
+                path=f"detections/{detection_id}",
+            ).model_dump(),
+        )
+
+    # Get the file path from the detection
+    file_path = detection.file_path
+    if not file_path:
+        raise HTTPException(
+            status_code=404,
+            detail=MediaErrorResponse(
+                error="Detection has no associated file",
+                path=f"detections/{detection_id}",
+            ).model_dump(),
+        )
+
+    # Resolve paths
+    settings = get_settings()
+    base_path = Path(settings.foscam_base_path)
+    data_path = Path(__file__).parent.parent.parent.parent / "data" / "cameras"
+
+    # Determine full path (absolute or relative)
+    full_path = (
+        Path(file_path)
+        if Path(file_path).is_absolute()
+        else base_path / detection.camera_id / file_path
+    ).resolve()
+
+    # Security check: ensure path is within allowed directories
+    if not _is_path_within(full_path, base_path) and not _is_path_within(full_path, data_path):
+        raise HTTPException(
+            status_code=403,
+            detail=MediaErrorResponse(
+                error="Access denied - file outside allowed directory",
+                path=f"detections/{detection_id}",
+            ).model_dump(),
+        )
+
+    # Try alternate path if file doesn't exist (seeded data -> real camera path)
+    if not full_path.exists() or not full_path.is_file():
+        alt_path = _try_alternate_path(file_path, base_path)
+        if alt_path:
+            full_path = alt_path
+
+    # Final check if file exists
+    if not full_path.exists() or not full_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=MediaErrorResponse(
+                error="File not found on disk",
+                path=f"detections/{detection_id}",
+            ).model_dump(),
+        )
+
+    # Check file extension is allowed
+    file_ext = full_path.suffix.lower()
+    if file_ext not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=403,
+            detail=MediaErrorResponse(
+                error=f"File type not allowed: {file_ext}",
+                path=f"detections/{detection_id}",
+            ).model_dump(),
+        )
+
+    content_type = ALLOWED_TYPES[file_ext]
 
     return FileResponse(
         path=str(full_path),

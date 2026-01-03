@@ -1,6 +1,7 @@
 """Unit tests for file watcher service."""
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,10 +11,49 @@ from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 from backend.services.file_watcher import (
+    MIN_IMAGE_FILE_SIZE,
     FileWatcher,
     is_image_file,
     is_valid_image,
 )
+
+
+# Helper function to create valid test images above minimum size
+def create_valid_test_image(path: Path | str, size: tuple[int, int] = (640, 480)) -> Path:
+    """Create a valid test image that passes all validation checks.
+
+    Creates a JPEG image large enough to pass MIN_IMAGE_FILE_SIZE validation.
+    The default 640x480 size produces a file of approximately 15-30KB.
+
+    Args:
+        path: Path where the image should be saved
+        size: Tuple of (width, height) for the image. Default 640x480.
+
+    Returns:
+        Path to the created image file
+    """
+    if isinstance(path, str):
+        path = Path(path)
+
+    # Create an image with enough detail to meet size requirements
+    # Using RGB mode and a reasonable size ensures the file is > 10KB
+    img = Image.new("RGB", size, color="red")
+
+    # Add some noise/variation to increase file size and make it more realistic
+    # This creates a gradient which compresses less than a solid color
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(size[1]):
+            for x in range(size[0]):
+                r = (x * 255 // size[0]) % 256
+                g = (y * 255 // size[1]) % 256
+                b = ((x + y) * 128 // (size[0] + size[1])) % 256
+                pixels[x, y] = (r, g, b)
+
+    # Save with high quality to ensure adequate file size
+    img.save(path, "JPEG", quality=95)
+    return path
+
 
 # Fixtures
 
@@ -81,14 +121,28 @@ def test_is_image_file_non_image():
 
 
 def test_is_valid_image_valid(tmp_path):
-    """Test is_valid_image accepts valid images."""
+    """Test is_valid_image accepts valid images above minimum size."""
     image_path = tmp_path / "test.jpg"
 
-    # Create a valid test image
-    img = Image.new("RGB", (100, 100), color="red")
-    img.save(image_path)
+    # Create a valid test image above minimum size (640x480 produces ~15-30KB)
+    create_valid_test_image(image_path)
 
+    # Verify the image is above minimum size
+    assert image_path.stat().st_size >= MIN_IMAGE_FILE_SIZE
     assert is_valid_image(str(image_path)) is True
+
+
+def test_is_valid_image_too_small(tmp_path):
+    """Test is_valid_image rejects images below minimum file size."""
+    image_path = tmp_path / "small.jpg"
+
+    # Create a tiny image that will be below minimum size
+    img = Image.new("RGB", (10, 10), color="red")
+    img.save(image_path, "JPEG", quality=50)
+
+    # Verify the image is below minimum size
+    assert image_path.stat().st_size < MIN_IMAGE_FILE_SIZE
+    assert is_valid_image(str(image_path)) is False
 
 
 def test_is_valid_image_empty_file(tmp_path):
@@ -112,6 +166,47 @@ def test_is_valid_image_corrupted(tmp_path):
 def test_is_valid_image_nonexistent():
     """Test is_valid_image rejects nonexistent files."""
     assert is_valid_image("/path/that/does/not/exist.jpg") is False
+
+
+def test_is_valid_image_truncated_jpeg(tmp_path):
+    """Test is_valid_image rejects truncated JPEG files.
+
+    This simulates incomplete FTP uploads where the file is cut off mid-transfer.
+    """
+    image_path = tmp_path / "truncated.jpg"
+
+    # Create a valid JPEG file first
+    valid_image = create_valid_test_image(tmp_path / "valid.jpg")
+    valid_bytes = valid_image.read_bytes()
+
+    # Truncate it to about 60% of original size (simulating incomplete transfer)
+    truncated_size = int(len(valid_bytes) * 0.6)
+    image_path.write_bytes(valid_bytes[:truncated_size])
+
+    # Verify it's above minimum size but still truncated
+    assert image_path.stat().st_size >= MIN_IMAGE_FILE_SIZE
+    # Should fail because PIL.load() will fail on truncated data
+    assert is_valid_image(str(image_path)) is False
+
+
+def test_is_valid_image_severely_truncated_jpeg(tmp_path):
+    """Test is_valid_image rejects severely truncated JPEG files.
+
+    This simulates FTP uploads that barely started before being cut off.
+    """
+    image_path = tmp_path / "truncated.jpg"
+
+    # Create a valid JPEG file first
+    valid_image = create_valid_test_image(tmp_path / "valid.jpg")
+    valid_bytes = valid_image.read_bytes()
+
+    # Truncate to only keep the header (first 5KB - below minimum)
+    truncated_bytes = valid_bytes[:5000]
+    image_path.write_bytes(truncated_bytes)
+
+    # Should fail because it's below minimum file size
+    assert image_path.stat().st_size < MIN_IMAGE_FILE_SIZE
+    assert is_valid_image(str(image_path)) is False
 
 
 # FileWatcher initialization tests
@@ -266,11 +361,10 @@ def test_get_camera_id_from_path_hyphenated(temp_camera_root, mock_redis_client)
 @pytest.mark.asyncio
 async def test_process_file_valid_image(file_watcher, temp_camera_root, mock_redis_client):
     """Test processing a valid image file."""
-    # Create valid image
+    # Create valid image above minimum size
     camera_dir = temp_camera_root / "camera1"
     image_path = camera_dir / "test.jpg"
-    img = Image.new("RGB", (100, 100), color="blue")
-    img.save(image_path)
+    create_valid_test_image(image_path)
 
     await file_watcher._process_file(str(image_path))
 
@@ -344,8 +438,7 @@ async def test_debounce_multiple_events(file_watcher, temp_camera_root, mock_red
     """Test debounce prevents multiple processing of same file."""
     camera_dir = temp_camera_root / "camera1"
     image_path = camera_dir / "test.jpg"
-    img = Image.new("RGB", (100, 100), color="green")
-    img.save(image_path)
+    create_valid_test_image(image_path)
 
     # Trigger multiple events for same file
     await file_watcher._schedule_file_processing(str(image_path))
@@ -364,14 +457,12 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
     """Test debounce handles different files independently."""
     camera_dir = temp_camera_root / "camera1"
 
-    # Create two different images
+    # Create two different images above minimum size
     image1 = camera_dir / "test1.jpg"
-    img1 = Image.new("RGB", (100, 100), color="red")
-    img1.save(image1)
+    create_valid_test_image(image1)
 
     image2 = camera_dir / "test2.jpg"
-    img2 = Image.new("RGB", (100, 100), color="blue")
-    img2.save(image2)
+    create_valid_test_image(image2)
 
     # Schedule both files
     await file_watcher._schedule_file_processing(str(image1))
@@ -421,8 +512,7 @@ async def test_stop_watcher_cancels_pending_tasks(file_watcher, temp_camera_root
     """Test stopping watcher cancels pending debounce tasks."""
     camera_dir = temp_camera_root / "camera1"
     image_path = camera_dir / "test.jpg"
-    img = Image.new("RGB", (100, 100), color="yellow")
-    img.save(image_path)
+    create_valid_test_image(image_path)
 
     # Start watcher
     with patch.object(file_watcher.observer, "start"):
@@ -533,11 +623,10 @@ async def test_full_workflow(file_watcher, temp_camera_root, mock_redis_client):
     await file_watcher.start()
 
     try:
-        # Create valid image
+        # Create valid image above minimum size
         camera_dir = temp_camera_root / "camera1"
         image_path = camera_dir / "workflow_test.jpg"
-        img = Image.new("RGB", (200, 200), color="cyan")
-        img.save(image_path)
+        create_valid_test_image(image_path)
 
         # Manually schedule (simulating watchdog event)
         await file_watcher._schedule_file_processing(str(image_path))
@@ -1003,10 +1092,9 @@ async def test_process_file_triggers_auto_create(
         camera_creator=mock_camera_creator,
     )
 
-    # Create valid image
+    # Create valid image above minimum size
     image_path = front_door_dir / "test.jpg"
-    img = Image.new("RGB", (100, 100), color="blue")
-    img.save(image_path)
+    create_valid_test_image(image_path)
 
     await watcher._process_file(str(image_path))
 
@@ -1036,10 +1124,9 @@ async def test_process_file_queues_with_normalized_id(temp_camera_root, mock_red
         auto_create_cameras=False,  # Disabled
     )
 
-    # Create valid image
+    # Create valid image above minimum size
     image_path = camera_dir / "test.jpg"
-    img = Image.new("RGB", (100, 100), color="green")
-    img.save(image_path)
+    create_valid_test_image(image_path)
 
     await watcher._process_file(str(image_path))
 
@@ -1477,3 +1564,71 @@ async def test_multiple_files_cleaned_up_independently(file_watcher, temp_camera
 
     # All should be cleaned up
     assert len(file_watcher._pending_tasks) == 0
+
+
+# Pipeline Start Time Tracking Tests (bead 4mje.3)
+
+
+@pytest.mark.asyncio
+async def test_queue_for_detection_includes_pipeline_start_time(
+    temp_camera_root, mock_redis_client
+):
+    """Test that _queue_for_detection includes pipeline_start_time in the queue payload.
+
+    This tests the fix for bead 4mje.3: Pipeline latency metrics are all null because
+    total_pipeline stage is defined but never recorded. The pipeline_start_time must
+    be set when the file is first detected.
+    """
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+    # Override _dedupe_service to None for simpler test
+    watcher._dedupe_service = None
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="blue")
+    img.save(image_path)
+
+    await watcher._queue_for_detection("camera1", str(image_path))
+
+    # Verify queue was called with pipeline_start_time
+    mock_redis_client.add_to_queue_safe.assert_called_once()
+    call_args = mock_redis_client.add_to_queue_safe.call_args[0]
+    queue_data = call_args[1]
+
+    # pipeline_start_time should be present and a valid ISO timestamp
+    assert "pipeline_start_time" in queue_data
+    assert queue_data["pipeline_start_time"] is not None
+
+    # Verify it's a valid ISO format timestamp
+    from datetime import datetime
+
+    parsed = datetime.fromisoformat(queue_data["pipeline_start_time"])
+    assert parsed is not None
+
+
+@pytest.mark.asyncio
+async def test_process_file_records_pipeline_start_time(
+    file_watcher, temp_camera_root, mock_redis_client
+):
+    """Test that processing a file records pipeline_start_time at detection time."""
+    # Create valid image above minimum size
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test_pipeline_time.jpg"
+    create_valid_test_image(image_path)
+
+    await file_watcher._process_file(str(image_path))
+
+    # Verify Redis queue was called with pipeline_start_time
+    mock_redis_client.add_to_queue_safe.assert_awaited_once()
+    call_args = mock_redis_client.add_to_queue_safe.call_args
+
+    data = call_args[0][1]
+    assert "pipeline_start_time" in data
+    assert data["pipeline_start_time"] is not None
+
+    # Verify timestamp is same as main timestamp (file detection time)
+    assert data["pipeline_start_time"] == data["timestamp"]

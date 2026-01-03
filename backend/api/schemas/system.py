@@ -194,6 +194,10 @@ class ConfigResponse(BaseModel):
         ge=0.0,
         le=1.0,
     )
+    grafana_url: str = Field(
+        ...,
+        description="Grafana dashboard URL for frontend link",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -204,6 +208,7 @@ class ConfigResponse(BaseModel):
                 "batch_window_seconds": 90,
                 "batch_idle_timeout_seconds": 30,
                 "detection_confidence_threshold": 0.5,
+                "grafana_url": "http://localhost:3002",
             }
         }
     )
@@ -1279,6 +1284,59 @@ class CircuitBreakerResetResponse(BaseModel):
     message: str = Field(
         ...,
         description="Human-readable result message",
+    )
+
+
+class WebSocketBroadcasterStatus(BaseModel):
+    """Status of a WebSocket broadcaster's circuit breaker."""
+
+    state: CircuitBreakerStateEnum = Field(
+        ...,
+        description="Current circuit state: closed (normal), open (failing), half_open (testing)",
+    )
+    failure_count: int = Field(
+        ...,
+        description="Current consecutive failure count",
+        ge=0,
+    )
+    is_degraded: bool = Field(
+        ...,
+        description="Whether the broadcaster is in degraded mode",
+    )
+
+
+class WebSocketHealthResponse(BaseModel):
+    """Response schema for WebSocket health endpoint."""
+
+    event_broadcaster: WebSocketBroadcasterStatus | None = Field(
+        None,
+        description="Status of the event broadcaster circuit breaker",
+    )
+    system_broadcaster: WebSocketBroadcasterStatus | None = Field(
+        None,
+        description="Status of the system broadcaster circuit breaker",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of health check",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "event_broadcaster": {
+                    "state": "closed",
+                    "failure_count": 0,
+                    "is_degraded": False,
+                },
+                "system_broadcaster": {
+                    "state": "closed",
+                    "failure_count": 0,
+                    "is_degraded": False,
+                },
+                "timestamp": "2025-12-30T10:30:00Z",
+            }
+        }
     )
 
 

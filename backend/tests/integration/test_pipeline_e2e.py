@@ -266,9 +266,23 @@ class MockRedisClient:
 
 
 def create_test_image(path: Path) -> None:
-    """Create a valid test image file."""
-    img = Image.new("RGB", (100, 100), color="red")
-    img.save(path, "JPEG")
+    """Create a valid test image file above minimum size threshold.
+
+    Creates a JPEG image with a gradient pattern to ensure the file size
+    is above the 10KB minimum required by image validation.
+    """
+    size = (640, 480)
+    img = Image.new("RGB", size, color="red")
+    # Add gradient pattern to increase file size (solid colors compress too well)
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(size[1]):
+            for x in range(size[0]):
+                r = (x * 255 // size[0]) % 256
+                g = (y * 255 // size[1]) % 256
+                b = ((x + y) * 128 // (size[0] + size[1])) % 256
+                pixels[x, y] = (r, g, b)
+    img.save(path, "JPEG", quality=95)
 
 
 @pytest.fixture
