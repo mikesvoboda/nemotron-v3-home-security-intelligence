@@ -1770,6 +1770,7 @@ class EnrichmentPipeline:
         """
         try:
             async with self.model_manager.load("violence-detection") as model_data:
+                record_enrichment_model_call("violence")
                 result = await classify_violence(model_data, image)
                 # Record semantic metric for enrichment model call
                 record_enrichment_model_call("violence-detection")
@@ -1805,6 +1806,7 @@ class EnrichmentPipeline:
 
         try:
             async with self.model_manager.load("fashion-clip") as model_data:
+                record_enrichment_model_call("clothing")
                 for i, person in enumerate(persons):
                     det_id = str(person.id) if person.id else str(i)
 
@@ -1923,6 +1925,7 @@ class EnrichmentPipeline:
 
         try:
             async with self.model_manager.load("vehicle-segment-classification") as model_data:
+                record_enrichment_model_call("vehicle")
                 for i, vehicle in enumerate(vehicles):
                     det_id = str(vehicle.id) if vehicle.id else str(i)
 
@@ -2051,6 +2054,7 @@ class EnrichmentPipeline:
         """
         try:
             async with self.model_manager.load("brisque-quality") as model_data:
+                record_enrichment_model_call("brisque")
                 result = await assess_image_quality(model_data, image)
 
                 # Record semantic metric for enrichment model call
@@ -2105,6 +2109,7 @@ class EnrichmentPipeline:
 
         try:
             async with self.model_manager.load("pet-classifier") as model_data:
+                record_enrichment_model_call("pet")
                 for i, animal in enumerate(animals):
                     det_id = str(animal.id) if animal.id else str(i)
 

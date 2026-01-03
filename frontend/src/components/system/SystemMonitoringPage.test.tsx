@@ -94,6 +94,14 @@ vi.mock('./ContainersPanel', () => ({
   default: () => <div data-testid="containers-panel">Containers Panel</div>,
 }));
 
+vi.mock('./CircuitBreakerPanel', () => ({
+  default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
+}));
+
+vi.mock('./SeverityConfigPanel', () => ({
+  default: () => <div data-testid="severity-config-panel">Severity Config Panel</div>,
+}));
+
 // PipelineTelemetry was removed in favor of PipelineMetricsPanel
 
 describe('SystemMonitoringPage', () => {
@@ -160,6 +168,41 @@ describe('SystemMonitoringPage', () => {
       batch_idle_timeout_seconds: 30,
       detection_confidence_threshold: 0.5,
       grafana_url: 'http://localhost:3002',
+    });
+
+    // Mock circuit breakers API
+    (api.fetchCircuitBreakers as Mock).mockResolvedValue({
+      circuit_breakers: {
+        rtdetr_detection: {
+          name: 'rtdetr_detection',
+          state: 'closed',
+          failure_count: 0,
+          success_count: 10,
+          total_calls: 100,
+          rejected_calls: 0,
+          config: { failure_threshold: 5, recovery_timeout: 60, half_open_max_calls: 3, success_threshold: 2 },
+        },
+      },
+      total_count: 1,
+      open_count: 0,
+      timestamp: '2025-01-01T12:00:00Z',
+    });
+
+    // Mock reset circuit breaker API
+    (api.resetCircuitBreaker as Mock).mockResolvedValue({
+      name: 'test',
+      previous_state: 'open',
+      new_state: 'closed',
+      message: 'Reset successful',
+    });
+
+    // Mock severity metadata API
+    (api.fetchSeverityMetadata as Mock).mockResolvedValue({
+      definitions: [
+        { severity: 'low', label: 'Low', description: 'Routine', color: '#22c55e', priority: 3, min_score: 0, max_score: 29 },
+        { severity: 'critical', label: 'Critical', description: 'Urgent', color: '#ef4444', priority: 0, min_score: 85, max_score: 100 },
+      ],
+      thresholds: { low_max: 29, medium_max: 59, high_max: 84 },
     });
 
     (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({

@@ -75,6 +75,10 @@ import {
   fetchAuditStats as fetchAuditLogStats,
   fetchAuditLog,
   type AuditLogsQueryParams,
+  // Circuit Breaker and Severity endpoints
+  fetchCircuitBreakers,
+  resetCircuitBreaker,
+  fetchSeverityMetadata,
 } from './api';
 
 // Mock data
@@ -2696,6 +2700,229 @@ describe('Audit Log API', () => {
       await expect(fetchAuditLog(999)).rejects.toMatchObject({
         status: 404,
         message: 'Audit log not found',
+      });
+    });
+  });
+
+  // ============================================================================
+  // Circuit Breaker Endpoints
+  // ============================================================================
+
+  describe('fetchCircuitBreakers', () => {
+    const mockCircuitBreakersResponse = {
+      circuit_breakers: {
+        rtdetr_detection: {
+          name: 'rtdetr_detection',
+          state: 'closed' as const,
+          failure_count: 0,
+          last_failure_time: null,
+          last_success_time: '2025-01-01T12:00:00Z',
+          consecutive_successes: 10,
+          config: {
+            failure_threshold: 5,
+            recovery_timeout_seconds: 60,
+            half_open_max_calls: 3,
+          },
+        },
+        nemotron_analysis: {
+          name: 'nemotron_analysis',
+          state: 'open' as const,
+          failure_count: 5,
+          last_failure_time: '2025-01-01T11:55:00Z',
+          last_success_time: '2025-01-01T11:50:00Z',
+          consecutive_successes: 0,
+          config: {
+            failure_threshold: 5,
+            recovery_timeout_seconds: 60,
+            half_open_max_calls: 3,
+          },
+        },
+      },
+      total_count: 2,
+      timestamp: '2025-01-01T12:00:00Z',
+    };
+
+    it('fetches all circuit breakers successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockCircuitBreakersResponse));
+
+      const result = await fetchCircuitBreakers();
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/circuit-breakers', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.circuit_breakers).toBeDefined();
+      expect(result.total_count).toBe(2);
+      expect(result.circuit_breakers.rtdetr_detection.state).toBe('closed');
+      expect(result.circuit_breakers.nemotron_analysis.state).toBe('open');
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch circuit breakers')
+      );
+
+      await expect(fetchCircuitBreakers()).rejects.toThrow(ApiError);
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch circuit breakers')
+      );
+      await expect(fetchCircuitBreakers()).rejects.toMatchObject({
+        status: 500,
+        message: 'Failed to fetch circuit breakers',
+      });
+    });
+  });
+
+  describe('resetCircuitBreaker', () => {
+    const mockResetResponse = {
+      name: 'nemotron_analysis',
+      previous_state: 'open' as const,
+      new_state: 'closed' as const,
+      message: 'Circuit breaker nemotron_analysis reset from open to closed',
+    };
+
+    it('resets a circuit breaker successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockResetResponse));
+
+      const result = await resetCircuitBreaker('nemotron_analysis');
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/circuit-breakers/nemotron_analysis/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.name).toBe('nemotron_analysis');
+      expect(result.previous_state).toBe('open');
+      expect(result.new_state).toBe('closed');
+    });
+
+    it('throws ApiError on 400 invalid name', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(400, 'Bad Request', 'Invalid circuit breaker name')
+      );
+
+      await expect(resetCircuitBreaker('invalid_name')).rejects.toThrow(ApiError);
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(400, 'Bad Request', 'Invalid circuit breaker name')
+      );
+      await expect(resetCircuitBreaker('invalid_name')).rejects.toMatchObject({
+        status: 400,
+        message: 'Invalid circuit breaker name',
+      });
+    });
+
+    it('throws ApiError on 404 not found', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(404, 'Not Found', 'Circuit breaker not found')
+      );
+
+      await expect(resetCircuitBreaker('nonexistent')).rejects.toThrow(ApiError);
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(404, 'Not Found', 'Circuit breaker not found')
+      );
+      await expect(resetCircuitBreaker('nonexistent')).rejects.toMatchObject({
+        status: 404,
+        message: 'Circuit breaker not found',
+      });
+    });
+  });
+
+  // ============================================================================
+  // Severity Metadata Endpoints
+  // ============================================================================
+
+  describe('fetchSeverityMetadata', () => {
+    const mockSeverityMetadataResponse = {
+      definitions: [
+        {
+          severity: 'low' as const,
+          label: 'Low',
+          description: 'Routine activity, no concern',
+          color: '#22c55e',
+          priority: 3,
+          min_score: 0,
+          max_score: 29,
+        },
+        {
+          severity: 'medium' as const,
+          label: 'Medium',
+          description: 'Notable activity, worth reviewing',
+          color: '#eab308',
+          priority: 2,
+          min_score: 30,
+          max_score: 59,
+        },
+        {
+          severity: 'high' as const,
+          label: 'High',
+          description: 'Concerning activity, review soon',
+          color: '#f97316',
+          priority: 1,
+          min_score: 60,
+          max_score: 84,
+        },
+        {
+          severity: 'critical' as const,
+          label: 'Critical',
+          description: 'Immediate attention required',
+          color: '#ef4444',
+          priority: 0,
+          min_score: 85,
+          max_score: 100,
+        },
+      ],
+      thresholds: {
+        low_max: 29,
+        medium_max: 59,
+        high_max: 84,
+      },
+    };
+
+    it('fetches severity metadata successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSeverityMetadataResponse));
+
+      const result = await fetchSeverityMetadata();
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/severity', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.definitions).toHaveLength(4);
+      expect(result.thresholds.low_max).toBe(29);
+      expect(result.thresholds.medium_max).toBe(59);
+      expect(result.thresholds.high_max).toBe(84);
+    });
+
+    it('returns all severity definitions with correct structure', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSeverityMetadataResponse));
+
+      const result = await fetchSeverityMetadata();
+
+      // Verify each severity level is present
+      const severities = result.definitions.map((d) => d.severity);
+      expect(severities).toContain('low');
+      expect(severities).toContain('medium');
+      expect(severities).toContain('high');
+      expect(severities).toContain('critical');
+
+      // Verify structure of a definition
+      const criticalDef = result.definitions.find((d) => d.severity === 'critical');
+      expect(criticalDef).toBeDefined();
+      expect(criticalDef?.label).toBe('Critical');
+      expect(criticalDef?.color).toBe('#ef4444');
+      expect(criticalDef?.min_score).toBe(85);
+      expect(criticalDef?.max_score).toBe(100);
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch severity metadata')
+      );
+
+      await expect(fetchSeverityMetadata()).rejects.toThrow(ApiError);
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch severity metadata')
+      );
+      await expect(fetchSeverityMetadata()).rejects.toMatchObject({
+        status: 500,
+        message: 'Failed to fetch severity metadata',
       });
     });
   });

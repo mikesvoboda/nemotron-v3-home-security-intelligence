@@ -5,7 +5,7 @@ Tests cover:
 - Alert thresholds configuration
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -625,62 +625,161 @@ class TestAlertGeneration:
 
 
 # =============================================================================
-# Inference Metrics Tests
+# Throughput Calculation Tests (NEM-249)
 # =============================================================================
 
 
-class TestCollectInferenceMetrics:
-    """Tests for collect_inference_metrics method."""
+class TestThroughputCalculation:
+    """Tests for throughput calculation in collect_inference_metrics."""
 
     @pytest.mark.asyncio
-    async def test_collect_inference_metrics_basic(self) -> None:
-        """Test basic inference metrics collection."""
+    async def test_get_detections_per_minute_with_data(self) -> None:
+        """Test detections per minute calculation with data."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
-            result = await collector.collect_inference_metrics()
 
-            assert result is not None
-            assert "avg" in result.rtdetr_latency_ms
-            assert "p95" in result.rtdetr_latency_ms
-            assert "p99" in result.rtdetr_latency_ms
-            assert "images_per_min" in result.throughput
-            assert "events_per_min" in result.throughput
+            # Mock session with detection count
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar.return_value = 30  # 30 detections in last minute
+            mock_session.execute.return_value = mock_result
+
+            result = await collector._get_detections_per_minute(mock_session)
+
+            assert result == 30
 
     @pytest.mark.asyncio
-    async def test_collect_inference_metrics_with_throughput_data(self) -> None:
-        """Test inference metrics with throughput tracker data."""
-        from backend.core.metrics import get_throughput_tracker
-
+    async def test_get_detections_per_minute_no_data(self) -> None:
+        """Test detections per minute returns 0 when no data."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
-
-            # Record some throughput data
-            tracker = get_throughput_tracker()
-            for _ in range(10):
-                tracker.record_metric("images", 1)
-                tracker.record_detection_latency(100.0)  # 100ms = 10 FPS
 
             collector = PerformanceCollector()
-            result = await collector.collect_inference_metrics()
 
-            assert result is not None
-            # Should have throughput > 0 since we recorded data
-            assert result.throughput["images_per_min"] >= 0
-            assert result.throughput["events_per_min"] >= 0
+            # Mock session with no detections
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar.return_value = None
+            mock_session.execute.return_value = mock_result
+
+            result = await collector._get_detections_per_minute(mock_session)
+
+            assert result == 0
 
     @pytest.mark.asyncio
-    async def test_collect_inference_metrics_handles_exception(self) -> None:
-        """Test inference metrics handles exceptions gracefully."""
+    async def test_get_detections_per_minute_handles_error(self) -> None:
+        """Test detections per minute returns 0 on error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
 
+            collector = PerformanceCollector()
+
+            # Mock session that raises error
+            mock_session = AsyncMock()
+            mock_session.execute.side_effect = Exception("DB error")
+
+            result = await collector._get_detections_per_minute(mock_session)
+
+            assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_get_events_per_minute_with_data(self) -> None:
+        """Test events per minute calculation with data."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+
+            # Mock session with event count
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar.return_value = 5  # 5 events in last minute
+            mock_session.execute.return_value = mock_result
+
+            result = await collector._get_events_per_minute(mock_session)
+
+            assert result == 5
+
+    @pytest.mark.asyncio
+    async def test_get_events_per_minute_no_data(self) -> None:
+        """Test events per minute returns 0 when no data."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+
+            # Mock session with no events
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar.return_value = None
+            mock_session.execute.return_value = mock_result
+
+            result = await collector._get_events_per_minute(mock_session)
+
+            assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_get_events_per_minute_handles_error(self) -> None:
+        """Test events per minute returns 0 on error."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+
+            # Mock session that raises error
+            mock_session = AsyncMock()
+            mock_session.execute.side_effect = Exception("DB error")
+
+            result = await collector._get_events_per_minute(mock_session)
+
+            assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_includes_throughput(self) -> None:
+        """Test that collect_inference_metrics includes real throughput values."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            # Mock the pipeline tracker (imported inside collect_inference_metrics)
             with patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker:
-                mock_tracker.side_effect = Exception("Tracker error")
+                mock_tracker_instance = MagicMock()
+                mock_tracker_instance.get_stage_stats.return_value = {
+                    "avg_ms": 100.0,
+                    "p95_ms": 200.0,
+                    "p99_ms": 250.0,
+                }
+                mock_tracker.return_value = mock_tracker_instance
 
-                collector = PerformanceCollector()
-                result = await collector.collect_inference_metrics()
+                # Mock the database session
+                mock_session = AsyncMock()
+                mock_session.__aenter__.return_value = mock_session
+                mock_session.__aexit__.return_value = None
 
-                # Should return None on exception
-                assert result is None
+                with patch(
+                    "backend.core.database.get_session",
+                    return_value=mock_session,
+                ):
+                    collector = PerformanceCollector()
+
+                    # Mock throughput methods that use the session
+                    async def mock_get_detections(session):
+                        return 30
+
+                    async def mock_get_events(session):
+                        return 5
+
+                    with (
+                        patch.object(
+                            collector, "_get_detections_per_minute", side_effect=mock_get_detections
+                        ),
+                        patch.object(
+                            collector, "_get_events_per_minute", side_effect=mock_get_events
+                        ),
+                    ):
+                        result = await collector.collect_inference_metrics()
+
+                        assert result is not None
+                        assert result.throughput["images_per_min"] == 30
+                        assert result.throughput["events_per_min"] == 5

@@ -78,21 +78,18 @@ export type {
   AiAuditPromptImprovements,
   AiAuditModelLeaderboardEntry,
   AiAuditRecommendationItem,
+  // Circuit Breaker types
+  CircuitBreakerStateEnum,
+  CircuitBreakerConfigResponse,
+  CircuitBreakerStatusResponse,
+  CircuitBreakersResponse,
+  CircuitBreakerResetResponse,
+  // Severity types
+  SeverityEnum,
+  SeverityDefinitionResponse,
+  SeverityThresholds,
+  SeverityMetadataResponse,
 } from '../types/generated';
-
-// Circuit Breaker types (from generated types)
-export type { components } from '../types/generated';
-export type CircuitBreakerStateEnum = components['schemas']['CircuitBreakerStateEnum'];
-export type CircuitBreakerStatusResponse = components['schemas']['CircuitBreakerStatusResponse'];
-export type CircuitBreakerConfigResponse = components['schemas']['CircuitBreakerConfigResponse'];
-export type CircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
-export type CircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
-
-// Severity types (from generated types)
-export type SeverityEnum = components['schemas']['SeverityEnum'];
-export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
-export type SeverityThresholds = components['schemas']['SeverityThresholds'];
-export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
 
 // Import concrete types for use in this module
 import type {
@@ -112,8 +109,9 @@ import type {
   CameraCreate,
   CameraListResponse as GeneratedCameraListResponse,
   CameraUpdate,
+  CircuitBreakerResetResponse as GeneratedCircuitBreakerResetResponse,
+  CircuitBreakersResponse as GeneratedCircuitBreakersResponse,
   CleanupResponse,
-  components,
   DetectionListResponse as GeneratedDetectionListResponse,
   DLQClearResponse as GeneratedDLQClearResponse,
   DLQJobsResponse as GeneratedDLQJobsResponse,
@@ -129,6 +127,7 @@ import type {
   LogStats,
   ReadinessResponse,
   SearchResponse as GeneratedSearchResponse,
+  SeverityMetadataResponse as GeneratedSeverityMetadataResponse,
   SystemConfig,
   SystemConfigUpdate,
   SystemStats,
@@ -138,11 +137,6 @@ import type {
   ZoneListResponse as GeneratedZoneListResponse,
   ZoneUpdate,
 } from '../types/generated';
-
-// Circuit Breaker and Severity types used internally
-type GeneratedCircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
-type GeneratedCircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
-type GeneratedSeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -1667,10 +1661,10 @@ export async function fetchEventAudit(eventId: number): Promise<AiAuditEventAudi
 // ============================================================================
 
 /**
- * Fetch status of all circuit breakers in the system.
+ * Fetch all circuit breakers and their current status.
  *
- * Returns the current state and metrics for each circuit breaker,
- * which protect external services from cascading failures.
+ * Returns the state (closed/open/half_open), failure count, last failure time,
+ * and configuration for each circuit breaker in the system.
  *
  * @returns CircuitBreakersResponse with status of all circuit breakers
  */
@@ -1679,20 +1673,17 @@ export async function fetchCircuitBreakers(): Promise<GeneratedCircuitBreakersRe
 }
 
 /**
- * Reset a specific circuit breaker to CLOSED state.
+ * Reset a circuit breaker to the closed state.
  *
- * Manually resets a circuit breaker, clearing failure counts
- * and returning it to normal operation. Use this to recover from
- * transient failures or after fixing an underlying issue.
+ * Manually resets a circuit breaker that is in the open or half_open state
+ * back to the closed state, clearing its failure count.
  *
- * Requires API key authentication when api_key_enabled is True.
- *
- * @param name - Name of the circuit breaker to reset
+ * @param name - The name of the circuit breaker to reset
  * @returns CircuitBreakerResetResponse with reset confirmation
+ * @throws ApiError 400 if name is invalid
+ * @throws ApiError 404 if circuit breaker not found
  */
-export async function resetCircuitBreaker(
-  name: string
-): Promise<GeneratedCircuitBreakerResetResponse> {
+export async function resetCircuitBreaker(name: string): Promise<GeneratedCircuitBreakerResetResponse> {
   return fetchApi<GeneratedCircuitBreakerResetResponse>(
     `/api/system/circuit-breakers/${encodeURIComponent(name)}/reset`,
     { method: 'POST' }
@@ -1700,19 +1691,18 @@ export async function resetCircuitBreaker(
 }
 
 // ============================================================================
-// Severity Endpoints
+// Severity Metadata Endpoints
 // ============================================================================
 
 /**
- * Fetch severity level definitions and thresholds.
+ * Fetch severity metadata including definitions and thresholds.
  *
- * Returns complete information about the severity taxonomy including:
- * - All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)
- * - Risk score thresholds for each level
- * - Color codes for UI display
- * - Human-readable labels and descriptions
+ * Returns complete information about all severity levels including:
+ * - Severity definitions with labels, colors, and descriptions
+ * - Risk score ranges for each severity level
+ * - Current threshold configuration
  *
- * @returns SeverityMetadataResponse with all severity definitions and current thresholds
+ * @returns SeverityMetadataResponse with all severity definitions and thresholds
  */
 export async function fetchSeverityMetadata(): Promise<GeneratedSeverityMetadataResponse> {
   return fetchApi<GeneratedSeverityMetadataResponse>('/api/system/severity');
