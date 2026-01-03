@@ -83,14 +83,12 @@ Application layout and navigation:
 Main dashboard components:
 
 - `DashboardPage.tsx` - Main dashboard view with real-time monitoring
-- `RiskGauge.tsx` - Risk score visualization with Tremor DonutChart
 - `CameraGrid.tsx` - Multi-camera grid display
 - `ActivityFeed.tsx` - Real-time event activity stream
 - `GpuStats.tsx` - GPU utilization and metrics display
-- `StatsRow.tsx` - Dashboard statistics row
+- `StatsRow.tsx` - Dashboard statistics row with integrated risk sparkline
 - `PipelineQueues.tsx` - Pipeline queue depths visualization
 - `PipelineTelemetry.tsx` - Pipeline performance telemetry display
-- `RiskGauge.example.tsx` - Interactive example for development
 
 #### `/components/detection/`
 

@@ -35,7 +35,12 @@ from backend.api.schemas.system import (
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthResponse,
+    LatencySample,
+    ModelRegistryResponse,
+    ModelStatusEnum,
+    ModelStatusResponse,
     PipelineLatencies,
+    PipelineLatencyHistoryResponse,
     PipelineLatencyResponse,
     PipelineStageLatency,
     PipelineStatusResponse,
@@ -67,6 +72,11 @@ from backend.core.redis import (
 from backend.models import Camera, Detection, Event, GPUStats, Log
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
+from backend.services.model_zoo import (
+    get_model_config,
+    get_model_manager,
+    get_model_zoo,
+)
 
 logger = get_logger(__name__)
 
@@ -1527,6 +1537,43 @@ async def get_pipeline_latency(
     )
 
 
+@router.get("/pipeline-latency-history", response_model=PipelineLatencyHistoryResponse)
+async def get_pipeline_latency_history(
+    window_minutes: int = 60,
+    limit: int | None = 100,
+) -> PipelineLatencyHistoryResponse:
+    """Get raw pipeline latency samples for time-series visualization.
+
+    Returns individual latency samples for all pipeline stages, suitable for
+    creating time-series graphs. Samples are sorted by timestamp in descending
+    order (most recent first).
+
+    Args:
+        window_minutes: Time window for filtering samples (default 60 minutes)
+        limit: Maximum number of samples to return (default 100, None for all)
+
+    Returns:
+        PipelineLatencyHistoryResponse with list of latency samples
+    """
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    tracker = get_pipeline_latency_tracker()
+    samples = tracker.get_samples_history(window_minutes=window_minutes, limit=limit)
+
+    return PipelineLatencyHistoryResponse(
+        samples=[
+            LatencySample(
+                timestamp=sample["timestamp"],  # type: ignore[arg-type]
+                stage=str(sample["stage"]),
+                latency_ms=float(sample["latency_ms"]),
+            )
+            for sample in samples
+        ],
+        window_minutes=window_minutes,
+        timestamp=datetime.now(UTC),
+    )
+
+
 # =============================================================================
 # Cleanup Endpoint
 # =============================================================================
@@ -2188,4 +2235,172 @@ async def get_pipeline_status(
         batch_aggregator=batch_aggregator_status,
         degradation=degradation_status,
         timestamp=datetime.now(UTC),
+    )
+
+
+# =============================================================================
+# Model Zoo Endpoints
+# =============================================================================
+
+# VRAM budget for Model Zoo (excludes RT-DETRv2 and Nemotron allocations)
+MODEL_ZOO_VRAM_BUDGET_MB = 1650
+
+
+def _get_model_display_name(name: str) -> str:
+    """Generate a human-readable display name from model identifier.
+
+    Args:
+        name: Model identifier (e.g., 'yolo11-license-plate')
+
+    Returns:
+        Human-readable name (e.g., 'YOLO11 License Plate')
+    """
+    # Mapping of known models to display names
+    display_names: dict[str, str] = {
+        "yolo11-license-plate": "YOLO11 License Plate",
+        "yolo11-face": "YOLO11 Face Detection",
+        "paddleocr": "PaddleOCR",
+        "yolo26-general": "YOLO26 General Detection",
+        "clip_embedder": "CLIP ViT-L/14",
+        "yolo-world-s": "YOLO-World Small",
+        "depth-anything-v2-small": "Depth Anything V2 Small",
+        "vitpose-small": "ViTPose Small",
+    }
+
+    if name in display_names:
+        return display_names[name]
+
+    # Generate display name from identifier
+    # Replace hyphens with spaces and capitalize
+    return name.replace("-", " ").replace("_", " ").title()
+
+
+def _model_config_to_status(
+    name: str,
+    manager_loaded_models: list[str],
+    manager_load_counts: dict[str, int],
+) -> ModelStatusResponse:
+    """Convert a ModelConfig to ModelStatusResponse.
+
+    Args:
+        name: Model name
+        manager_loaded_models: List of currently loaded model names
+        manager_load_counts: Dictionary of model load counts
+
+    Returns:
+        ModelStatusResponse with current status
+    """
+    config = get_model_config(name)
+    if config is None:
+        raise ValueError(f"Model '{name}' not found in registry")
+
+    # Determine status
+    if not config.enabled:
+        status = ModelStatusEnum.DISABLED
+    elif name in manager_loaded_models:
+        status = ModelStatusEnum.LOADED
+    else:
+        status = ModelStatusEnum.UNLOADED
+
+    return ModelStatusResponse(
+        name=config.name,
+        display_name=_get_model_display_name(config.name),
+        vram_mb=config.vram_mb,
+        status=status,
+        category=config.category,
+        enabled=config.enabled,
+        available=config.available,
+        path=config.path,
+        load_count=manager_load_counts.get(name, 0),
+    )
+
+
+@router.get(
+    "/models",
+    response_model=ModelRegistryResponse,
+    summary="Get Model Zoo Registry",
+)
+async def get_models() -> ModelRegistryResponse:
+    """Get the current status of all models in the Model Zoo.
+
+    Returns comprehensive information about all AI models available in the system,
+    including their VRAM requirements, loading status, and configuration.
+
+    **VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,
+    separate from the RT-DETRv2 detector and Nemotron LLM allocations.
+
+    **Loading Strategy**: Models are loaded sequentially (one at a time) to
+    prevent VRAM fragmentation and ensure stable operation.
+
+    **Model Categories**:
+    - detection: Object detection models (YOLO variants)
+    - recognition: Face and license plate recognition
+    - ocr: Optical character recognition
+    - embedding: Visual embedding models (CLIP)
+    - depth-estimation: Depth estimation models
+    - pose: Human pose estimation
+
+    Returns:
+        ModelRegistryResponse with VRAM stats and all model statuses
+    """
+    manager = get_model_manager()
+    zoo = get_model_zoo()
+
+    # Get current VRAM usage
+    vram_used = manager.total_loaded_vram
+
+    # Build model status list
+    models: list[ModelStatusResponse] = []
+    for model_name in zoo:
+        try:
+            status = _model_config_to_status(
+                model_name,
+                manager.loaded_models,
+                manager._load_counts,
+            )
+            models.append(status)
+        except ValueError:
+            # Skip invalid models
+            continue
+
+    return ModelRegistryResponse(
+        vram_budget_mb=MODEL_ZOO_VRAM_BUDGET_MB,
+        vram_used_mb=vram_used,
+        vram_available_mb=MODEL_ZOO_VRAM_BUDGET_MB - vram_used,
+        models=models,
+        loading_strategy="sequential",
+        max_concurrent_models=1,
+    )
+
+
+@router.get(
+    "/models/{model_name}",
+    response_model=ModelStatusResponse,
+    summary="Get Model Status",
+)
+async def get_model(model_name: str) -> ModelStatusResponse:
+    """Get detailed status information for a specific model.
+
+    Args:
+        model_name: Unique identifier of the model (e.g., 'yolo11-license-plate')
+
+    Returns:
+        ModelStatusResponse with detailed model information
+
+    Raises:
+        HTTPException: 404 if model not found in registry
+    """
+    config = get_model_config(model_name)
+    if config is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model '{model_name}' not found in registry",
+        )
+
+    manager = get_model_manager()
+
+    return _model_config_to_status(
+        model_name,
+        manager.loaded_models,
+        manager._load_counts,
     )

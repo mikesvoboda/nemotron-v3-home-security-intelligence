@@ -24,11 +24,13 @@ export type { InsightsChartsProps } from './InsightsCharts';
  */
 
 export { default as AIAuditPage } from './AIAuditPage';
+export { default as BatchAuditModal } from './BatchAuditModal';
 export { default as ModelContributionChart } from './ModelContributionChart';
 export { default as QualityScoreTrends } from './QualityScoreTrends';
 export { default as ModelLeaderboard } from './ModelLeaderboard';
 export { default as RecommendationsPanel } from './RecommendationsPanel';
 
+export type { BatchAuditModalProps } from './BatchAuditModal';
 export type { ModelContributionChartProps } from './ModelContributionChart';
 export type { QualityScoreTrendsProps } from './QualityScoreTrends';
 export type { ModelLeaderboardProps } from './ModelLeaderboard';

@@ -6,25 +6,22 @@ Contains all components for the main security dashboard page, including risk vis
 
 ## Files
 
-| File                         | Purpose                                       |
-| ---------------------------- | --------------------------------------------- |
-| `DashboardPage.tsx`          | Main dashboard page orchestrating all widgets |
-| `DashboardPage.test.tsx`     | Test suite for DashboardPage                  |
-| `RiskGauge.tsx`              | Circular SVG gauge for risk score             |
-| `RiskGauge.test.tsx`         | Test suite for RiskGauge                      |
-| `RiskGauge.example.tsx`      | Example usage for RiskGauge                   |
-| `CameraGrid.tsx`             | Responsive grid of camera thumbnails          |
-| `CameraGrid.test.tsx`        | Test suite for CameraGrid                     |
-| `ActivityFeed.tsx`           | Scrolling feed of recent events               |
-| `ActivityFeed.test.tsx`      | Test suite for ActivityFeed                   |
-| `GpuStats.tsx`               | GPU metrics with utilization history          |
-| `GpuStats.test.tsx`          | Test suite for GpuStats                       |
-| `StatsRow.tsx`               | Key metrics summary cards                     |
-| `StatsRow.test.tsx`          | Test suite for StatsRow                       |
-| `PipelineQueues.tsx`         | AI pipeline queue depth display               |
-| `PipelineQueues.test.tsx`    | Test suite for PipelineQueues                 |
-| `PipelineTelemetry.tsx`      | Pipeline latency and throughput metrics       |
-| `PipelineTelemetry.test.tsx` | Test suite for PipelineTelemetry              |
+| File                         | Purpose                                                  |
+| ---------------------------- | -------------------------------------------------------- |
+| `DashboardPage.tsx`          | Main dashboard page orchestrating all widgets            |
+| `DashboardPage.test.tsx`     | Test suite for DashboardPage                             |
+| `CameraGrid.tsx`             | Responsive grid of camera thumbnails                     |
+| `CameraGrid.test.tsx`        | Test suite for CameraGrid                                |
+| `ActivityFeed.tsx`           | Scrolling feed of recent events                          |
+| `ActivityFeed.test.tsx`      | Test suite for ActivityFeed                              |
+| `GpuStats.tsx`               | GPU metrics with utilization history                     |
+| `GpuStats.test.tsx`          | Test suite for GpuStats                                  |
+| `StatsRow.tsx`               | Key metrics summary cards with integrated risk sparkline |
+| `StatsRow.test.tsx`          | Test suite for StatsRow                                  |
+| `PipelineQueues.tsx`         | AI pipeline queue depth display                          |
+| `PipelineQueues.test.tsx`    | Test suite for PipelineQueues                            |
+| `PipelineTelemetry.tsx`      | Pipeline latency and throughput metrics                  |
+| `PipelineTelemetry.test.tsx` | Test suite for PipelineTelemetry                         |
 
 ## Key Components
 
@@ -39,14 +36,10 @@ Contains all components for the main security dashboard page, including risk vis
 |                 Security Dashboard               |
 |            (header + subtitle)                   |
 +--------------------------------------------------+
-|  StatsRow (4 cards: cameras, events, risk, status) |
-+--------------------------------------------------+
-|    RiskGauge Card     |      GpuStats Card      |
-|   (Current Risk)      |    (GPU Statistics)     |
+|  StatsRow (4 cards: cameras, events, risk with   |
+|            sparkline, status)                    |
 +--------------------------------------------------+
 |              CameraGrid (Camera Status)          |
-+--------------------------------------------------+
-|              ActivityFeed (Live Activity)        |
 +--------------------------------------------------+
 ```
 
@@ -84,59 +77,6 @@ const { status: systemStatus } = useSystemStatus();
 - Error: Red error card with reload button
 
 **No props** - Top-level page component
-
----
-
-### RiskGauge.tsx
-
-**Purpose:** Circular SVG gauge displaying risk score (0-100) with animated transitions
-
-**Props Interface:**
-
-```typescript
-interface RiskGaugeProps {
-  value: number; // Risk score 0-100
-  history?: number[]; // Historical values for sparkline
-  size?: 'sm' | 'md' | 'lg'; // Default: 'md'
-  showLabel?: boolean; // Show risk level label (default: true)
-  className?: string;
-}
-```
-
-**Key Features:**
-
-- Animated circular progress using SVG stroke-dasharray
-- Color-coded by risk level (green/yellow/orange/red)
-- Glow filter effect on high/critical levels
-- Optional sparkline chart showing risk history
-- ARIA meter role for accessibility
-
-**Size Configurations:**
-
-| Size | Dimensions | Stroke | Font Size |
-| ---- | ---------- | ------ | --------- |
-| sm   | 120px      | 8px    | 20px      |
-| md   | 160px      | 12px   | 28px      |
-| lg   | 200px      | 16px   | 36px      |
-
-**Risk Level Colors:**
-
-| Score Range | Level    | Color   |
-| ----------- | -------- | ------- |
-| 0-25        | low      | #76B900 |
-| 26-50       | medium   | #FFB800 |
-| 51-75       | high     | #E74856 |
-| 76-100      | critical | #ef4444 |
-
-**Animation:**
-
-- 1 second smooth transition on value changes
-- Uses setInterval for 60fps animation
-- Skipped in test environment for instant updates
-
-**Dependencies:**
-
-- `../../utils/risk` - getRiskColor, getRiskLabel, getRiskLevel
 
 ---
 
@@ -315,7 +255,7 @@ interface GpuStatsProps {
 
 ### StatsRow.tsx
 
-**Purpose:** Display key metrics in the dashboard header as a responsive grid
+**Purpose:** Display key metrics in the dashboard header as a responsive grid with integrated risk sparkline
 
 **Props Interface:**
 
@@ -325,25 +265,34 @@ interface StatsRowProps {
   eventsToday: number;
   currentRiskScore: number;
   systemStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  riskHistory?: number[]; // Optional array of historical risk values for sparkline
   className?: string;
 }
 ```
 
 **Key Features:**
 
-- Four stat cards in responsive grid
-- Color-coded risk level using utils/risk
+- Four stat cards in responsive grid, all clickable with navigation
+- Color-coded risk level using utils/risk with integrated sparkline
 - System status with pulse animation when healthy
 - NVIDIA dark theme styling
+- SVG sparkline showing risk history (when 2+ data points provided)
 
 **Cards:**
 
-| Card           | Icon     | Color        |
-| -------------- | -------- | ------------ |
-| Active Cameras | Camera   | NVIDIA green |
-| Events Today   | Calendar | blue         |
-| Current Risk   | Shield   | (by level)   |
-| System Status  | Activity | (by status)  |
+| Card           | Icon     | Color        | Navigates To |
+| -------------- | -------- | ------------ | ------------ |
+| Active Cameras | Camera   | NVIDIA green | /settings    |
+| Events Today   | Calendar | blue         | /timeline    |
+| Current Risk   | Shield   | (by level)   | /alerts      |
+| System Status  | Activity | (by status)  | /system      |
+
+**Risk Sparkline:**
+
+- Displayed next to risk score when `riskHistory` has 2+ values
+- Color matches current risk level (green/yellow/orange/red)
+- SVG with filled area and line path
+- Hidden from accessibility tree (decorative)
 
 **System Status Colors:**
 
@@ -390,18 +339,6 @@ interface PipelineQueuesProps {
 **Dependencies:**
 
 - `@tremor/react` - Card, Title, Text, Badge
-
----
-
-### RiskGauge.example.tsx
-
-**Purpose:** Example usage and documentation for RiskGauge component
-
-Shows various configurations:
-
-- All size variants (sm, md, lg)
-- With and without history sparkline
-- Different risk levels
 
 ---
 
@@ -492,11 +429,10 @@ const activityEvents: ActivityEvent[] = mergedEvents.map((event) => ({
 All components have comprehensive test files:
 
 - `DashboardPage.test.tsx` - Full integration test, data fetching, loading/error states
-- `RiskGauge.test.tsx` - SVG rendering, animations, color coding, sparkline
 - `CameraGrid.test.tsx` - Grid layout, status indicators, click handling, empty state
 - `ActivityFeed.test.tsx` - Auto-scroll, pause/resume, event rendering, empty state
 - `GpuStats.test.tsx` - Tremor components, temperature colors, null handling, history chart
-- `StatsRow.test.tsx` - Stat cards, status colors, risk level display
+- `StatsRow.test.tsx` - Stat cards, status colors, risk level display, sparkline rendering
 - `PipelineQueues.test.tsx` - Queue badges, warning states, thresholds
 - `PipelineTelemetry.test.tsx` - Latency charts, throughput display, auto-refresh
 
@@ -504,14 +440,11 @@ All components have comprehensive test files:
 
 ```
 DashboardPage
-├── StatsRow
-├── RiskGauge (wrapped in Card)
-├── GpuStats
+├── StatsRow (with integrated risk sparkline)
 ├── CameraGrid
 │   └── CameraCard (per camera)
-├── ActivityFeed
-│   └── RiskBadge (from common/)
-└── PipelineTelemetry (optional)
+└── ActivityFeed (optional)
+    └── RiskBadge (from common/)
 ```
 
 ## Dependencies
@@ -528,6 +461,6 @@ DashboardPage
 ## Entry Points
 
 **Start here:** `DashboardPage.tsx` - Full dashboard composition and data flow
-**Then explore:** `RiskGauge.tsx` - SVG visualization techniques
+**Then explore:** `StatsRow.tsx` - Key metrics with integrated SVG sparkline
 **Also see:** `ActivityFeed.tsx` - Real-time feed patterns
 **Monitoring:** `GpuStats.tsx` - GPU metrics and history display

@@ -35,6 +35,9 @@ from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
+    observe_detection_confidence,
+    record_detection_by_class,
+    record_detection_filtered_low_confidence,
     record_detection_processed,
     record_pipeline_error,
 )
@@ -306,14 +309,23 @@ class DetectorClient:
             for detection_data in result["detections"]:
                 try:
                     confidence = detection_data.get("confidence", 0.0)
+                    object_class = detection_data.get("class", "unknown")
+
+                    # Record detection confidence in histogram (semantic metric)
+                    observe_detection_confidence(confidence)
 
                     # Filter by confidence threshold
                     if confidence < self._confidence_threshold:
                         logger.debug(
                             f"Filtering out detection with low confidence: "
-                            f"{detection_data.get('class')} ({confidence:.2f})"
+                            f"{object_class} ({confidence:.2f})"
                         )
+                        # Record filtered detection metric
+                        record_detection_filtered_low_confidence()
                         continue
+
+                    # Record detection by class (semantic metric)
+                    record_detection_by_class(object_class)
 
                     # Extract bbox coordinates [x, y, width, height]
                     bbox = detection_data.get("bbox", {})
@@ -341,7 +353,7 @@ class DetectorClient:
                         file_path=detection_file_path,
                         file_type=file_type,
                         detected_at=detected_at,
-                        object_type=detection_data.get("class"),
+                        object_type=object_class,
                         confidence=confidence,
                         bbox_x=bbox_x,
                         bbox_y=bbox_y,

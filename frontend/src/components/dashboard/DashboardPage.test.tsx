@@ -28,11 +28,13 @@ vi.mock('./StatsRow', () => ({
     eventsToday,
     currentRiskScore,
     systemStatus,
+    riskHistory,
   }: {
     activeCameras: number;
     eventsToday: number;
     currentRiskScore: number;
     systemStatus: string;
+    riskHistory?: number[];
   }) => (
     <div
       data-testid="stats-row"
@@ -40,16 +42,9 @@ vi.mock('./StatsRow', () => ({
       data-events-today={eventsToday}
       data-risk-score={currentRiskScore}
       data-system-status={systemStatus}
+      data-risk-history={riskHistory?.join(',')}
     >
       Stats Row
-    </div>
-  ),
-}));
-
-vi.mock('./RiskGauge', () => ({
-  default: ({ value, history }: { value: number; history?: number[] }) => (
-    <div data-testid="risk-gauge" data-value={value} data-history={history?.join(',')}>
-      Risk Gauge
     </div>
   ),
 }));
@@ -314,7 +309,6 @@ describe('DashboardPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('stats-row')).toBeInTheDocument();
-        expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
         expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
       });
     });
@@ -335,24 +329,15 @@ describe('DashboardPage', () => {
       });
     });
 
-    it('passes correct props to RiskGauge', async () => {
+    it('passes risk history to StatsRow', async () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        const riskGauge = screen.getByTestId('risk-gauge');
-        expect(riskGauge).toHaveAttribute('data-value', '75'); // Latest event risk score
-      });
-    });
-
-    it('passes risk history to RiskGauge', async () => {
-      renderWithProviders(<DashboardPage />);
-
-      await waitFor(() => {
-        const riskGauge = screen.getByTestId('risk-gauge');
+        const statsRow = screen.getByTestId('stats-row');
         // History is reversed (oldest to newest) from first 10 merged events
         // WS events: [75, 50], Initial events: [40, 20]
         // Merged: [75, 50, 40, 20], reversed for history: [20, 40, 50, 75]
-        expect(riskGauge).toHaveAttribute('data-history', '20,40,50,75');
+        expect(statsRow).toHaveAttribute('data-risk-history', '20,40,50,75');
       });
     });
 
@@ -391,7 +376,6 @@ describe('DashboardPage', () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /current risk level/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /camera status/i })).toBeInTheDocument();
       });
     });
@@ -486,8 +470,8 @@ describe('DashboardPage', () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        const riskGauge = screen.getByTestId('risk-gauge');
-        expect(riskGauge).toHaveAttribute('data-value', '0');
+        const statsRow = screen.getByTestId('stats-row');
+        expect(statsRow).toHaveAttribute('data-risk-score', '0');
       });
     });
 
@@ -591,7 +575,7 @@ describe('DashboardPage', () => {
       statsResolve!();
 
       await waitFor(() => {
-        expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
+        expect(screen.getByTestId('stats-row')).toBeInTheDocument();
       });
 
       // All should be called
@@ -625,13 +609,13 @@ describe('DashboardPage', () => {
       });
     });
 
-    it('uses latest event risk score from merged events for risk gauge', async () => {
+    it('uses latest event risk score from merged events for stats row', async () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        const riskGauge = screen.getByTestId('risk-gauge');
+        const statsRow = screen.getByTestId('stats-row');
         // Latest WS event has risk_score 75
-        expect(riskGauge).toHaveAttribute('data-value', '75');
+        expect(statsRow).toHaveAttribute('data-risk-score', '75');
       });
     });
   });

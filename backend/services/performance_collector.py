@@ -543,16 +543,20 @@ class PerformanceCollector:
             return ContainerMetrics(name="redis", status="unknown", health="unhealthy")
 
     async def collect_inference_metrics(self) -> InferenceMetrics | None:
-        """Collect inference latency metrics from PipelineLatencyTracker."""
+        """Collect inference latency metrics from PipelineLatencyTracker and ThroughputTracker."""
         try:
-            from backend.core.metrics import get_pipeline_latency_tracker
+            from backend.core.metrics import get_pipeline_latency_tracker, get_throughput_tracker
 
-            tracker = get_pipeline_latency_tracker()
+            latency_tracker = get_pipeline_latency_tracker()
+            throughput_tracker = get_throughput_tracker()
 
             # Get stats for each pipeline stage (returns dict with avg_ms, p95_ms, p99_ms, etc.)
-            rtdetr_stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
-            nemotron_stats = tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
-            pipeline_stats = tracker.get_stage_stats("total_pipeline", window_minutes=5)
+            rtdetr_stats = latency_tracker.get_stage_stats("watch_to_detect", window_minutes=5)
+            nemotron_stats = latency_tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
+            pipeline_stats = latency_tracker.get_stage_stats("total_pipeline", window_minutes=5)
+
+            # Get throughput metrics from ThroughputTracker
+            throughput_data = throughput_tracker.get_throughput(window_minutes=5)
 
             return InferenceMetrics(
                 rtdetr_latency_ms={
@@ -569,7 +573,10 @@ class PerformanceCollector:
                     "avg": pipeline_stats.get("avg_ms") or 0,
                     "p95": pipeline_stats.get("p95_ms") or 0,
                 },
-                throughput={"images_per_min": 0, "events_per_min": 0},
+                throughput={
+                    "images_per_min": throughput_data.get("images_per_min", 0),
+                    "events_per_min": throughput_data.get("events_per_min", 0),
+                },
                 queues={"detection": 0, "analysis": 0},
             )
         except Exception as e:
