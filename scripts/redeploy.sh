@@ -16,6 +16,7 @@
 #   --tag TAG        Image tag for GHCR mode (default: latest)
 #   --skip-pull      Skip pulling images in GHCR mode
 #   --skip-ci-check  Skip CI build status verification (not recommended)
+#   --no-seed        Skip database seeding after clean deploy
 #
 # Services (9 total):
 #   Core:     postgres, redis, backend, frontend
@@ -47,6 +48,7 @@ KEEP_VOLUMES="${KEEP_VOLUMES:-false}"
 USE_GHCR="${USE_GHCR:-false}"
 SKIP_PULL="${SKIP_PULL:-false}"
 SKIP_CI_CHECK="${SKIP_CI_CHECK:-false}"
+SKIP_SEED="${SKIP_SEED:-false}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
@@ -153,6 +155,7 @@ OPTIONS:
     --tag TAG        Image tag for GHCR mode (default: latest)
     --skip-pull      Skip pulling images in GHCR mode
     --skip-ci-check  Skip CI build status verification (not recommended)
+    --no-seed        Skip database seeding after clean deploy
 
 DESCRIPTION:
     This script performs a CLEAN redeploy of all services:
@@ -528,6 +531,44 @@ verify_deployment() {
     return 0
 }
 
+seed_database() {
+    print_header "Seeding Database"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "Skipping database seeding in dry-run mode"
+        return 0
+    fi
+
+    cd "$PROJECT_ROOT"
+
+    # Check if uv is available
+    if ! command -v uv &> /dev/null; then
+        print_warn "uv not found - skipping database seeding"
+        print_warn "Install uv and run manually:"
+        echo "  uv run python scripts/seed-cameras.py --discover"
+        echo "  uv run python scripts/seed-mock-events.py --count 25"
+        return 0
+    fi
+
+    # Seed cameras from filesystem
+    print_step "Seeding cameras from /export/foscam..."
+    if uv run python scripts/seed-cameras.py --clear --discover 2>&1 | grep -E "(Added|Found|Error|Warning)"; then
+        print_success "Cameras seeded"
+    else
+        print_warn "Camera seeding may have failed"
+    fi
+
+    # Seed mock events
+    print_step "Seeding mock events and detections..."
+    if uv run python scripts/seed-mock-events.py --clear --count 25 2>&1 | grep -E "(Created|Error|Warning)"; then
+        print_success "Mock events seeded"
+    else
+        print_warn "Event seeding may have failed"
+    fi
+
+    return 0
+}
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -558,6 +599,10 @@ main() {
                 ;;
             --skip-ci-check)
                 SKIP_CI_CHECK="true"
+                shift
+                ;;
+            --no-seed)
+                SKIP_SEED="true"
                 shift
                 ;;
             --tag)
@@ -633,6 +678,13 @@ main() {
 
     # Verify deployment
     verify_deployment
+
+    # Seed database if volumes were destroyed and seeding not skipped
+    if [ "$KEEP_VOLUMES" != "true" ] && [ "$SKIP_SEED" != "true" ]; then
+        seed_database
+    elif [ "$SKIP_SEED" = "true" ]; then
+        print_info "Skipping database seeding (--no-seed specified)"
+    fi
 
     # Summary
     print_header "Redeploy Complete"
