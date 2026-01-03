@@ -98,88 +98,73 @@ uv run mypy backend        # Run type checker
 
 ## Issue Tracking
 
-This project uses **bd** (beads) for issue tracking:
+This project uses **Linear** for issue tracking:
+
+- **Workspace:** [nemotron-v3-home-security](https://linear.app/nemotron-v3-home-security)
+- **Team:** NEM
 
 ```bash
-bd ready                    # Find available work
-bd show <id>               # View task details
-bd update <id> --status in_progress  # Claim work
-bd close <id>              # Complete work
-bd sync                    # Sync with git
+# View active issues
+# https://linear.app/nemotron-v3-home-security/team/NEM/active
+
+# Filter by label (e.g., phase-1)
+# https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1
 ```
+
+Issues are organized with:
+
+- **Priorities:** Urgent, High, Medium, Low (mapped from P0-P4)
+- **Labels:** phase-1 through phase-8, backend, frontend, tdd, etc.
+- **Parent/sub-issues:** Epics contain sub-tasks
 
 ## Task Execution Order
 
 Tasks are organized into 8 execution phases. **Always complete earlier phases before starting later ones.**
 
-### Phase 1: Project Setup (P0) - 7 tasks
+### Phase 1: Project Setup (P0)
 
 Foundation - directory structures, container setup, environment, dependencies.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1)
 
-```bash
-bd list --label phase-1
-```
-
-### Phase 2: Database & Layout Foundation (P1) - 6 tasks
+### Phase 2: Database & Layout Foundation (P1)
 
 PostgreSQL models, Redis connection, Tailwind theme, app layout.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-2)
 
-```bash
-bd list --label phase-2
-```
-
-### Phase 3: Core APIs & Components (P2) - 11 tasks
+### Phase 3: Core APIs & Components (P2)
 
 Cameras API, system API, WebSocket hooks, API client, basic UI components.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3)
 
-```bash
-bd list --label phase-3
-```
-
-### Phase 4: AI Pipeline (P3/P4) - 13 tasks
+### Phase 4: AI Pipeline (P3/P4)
 
 File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-4)
 
-```bash
-bd list --label phase-4
-```
-
-### Phase 5: Events & Real-time (P4) - 9 tasks
+### Phase 5: Events & Real-time (P4)
 
 Events API, detections API, WebSocket channels, GPU monitor, cleanup service.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-5)
 
-```bash
-bd list --label phase-5
-```
-
-### Phase 6: Dashboard Components (P3) - 7 tasks
+### Phase 6: Dashboard Components (P3)
 
 Risk gauge, camera grid, live activity feed, GPU stats, EventCard.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-6)
 
-```bash
-bd list --label phase-6
-```
-
-### Phase 7: Pages & Modals (P4) - 6 tasks
+### Phase 7: Pages & Modals (P4)
 
 Main dashboard, event timeline, event detail modal, settings pages.
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-7)
 
-```bash
-bd list --label phase-7
-```
-
-### Phase 8: Integration & E2E (P4) - 8 tasks
+### Phase 8: Integration & E2E (P4)
 
 Unit tests, E2E tests, deployment verification, documentation.
-
-```bash
-bd list --label phase-8
-```
+[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-8)
 
 ## Post-MVP Roadmap (After MVP is Operational)
 
 After the MVP is **fully operational end-to-end** (Phases 1–8 complete, deployment verified, and tests passing),
-review `docs/ROADMAP.md` to identify post-MVP enhancements and create/claim new beads tasks accordingly.
+review `docs/ROADMAP.md` to identify post-MVP enhancements and create new Linear issues accordingly.
 
 ## TDD Approach
 
@@ -204,7 +189,7 @@ This project follows **Test-Driven Development (TDD)** for all feature implement
 
 Before writing any production code, complete this checklist:
 
-- [ ] Understand the acceptance criteria from the bead
+- [ ] Understand the acceptance criteria from the Linear issue
 - [ ] Identify the code layer(s) involved (API, service, component, E2E)
 - [ ] Write test stubs for each acceptance criterion
 - [ ] Run tests to confirm they fail (RED phase)
@@ -376,22 +361,19 @@ This skill will:
 3. Guide you through the RED-GREEN-REFACTOR cycle
 4. Ensure proper test coverage before completion
 
-### Integration with Beads
+### Integration with Linear
 
 Tasks labeled `tdd` are test-focused tasks that pair with feature tasks:
+[View TDD issues](https://linear.app/nemotron-v3-home-security/team/NEM/label/tdd)
 
-```bash
-bd list --label tdd
-```
-
-**Workflow for TDD-labeled beads:**
+**Workflow for TDD-labeled issues:**
 
 1. **Claim both tasks** - The feature task and its corresponding TDD task
-2. **Start with tests** - Implement tests from the TDD bead first
+2. **Start with tests** - Implement tests from the TDD issue first
 3. **Verify RED** - Run tests to confirm they fail appropriately
 4. **Implement feature** - Write code to make tests pass (GREEN)
 5. **Refactor** - Clean up while keeping tests green
-6. **Close TDD bead first** - Then close the feature bead
+6. **Close TDD issue first** - Then close the feature issue
 
 ### Test Coverage Requirements
 
@@ -699,28 +681,28 @@ docs/plans/            # Design and implementation docs
 
 ## Session Workflow
 
-1. Check available work: `bd ready`
-2. Filter by current phase: `bd list --label phase-N`
-3. Claim task: `bd update <id> --status in_progress`
+1. Check available work in [Linear Active view](https://linear.app/nemotron-v3-home-security/team/NEM/active)
+2. Filter by label (e.g., phase-1, backend, frontend)
+3. Claim task by assigning to yourself and setting status to "In Progress"
 4. Implement following TDD (test first for `tdd` labeled tasks)
 5. Validate before closing: run `./scripts/validate.sh`
-6. Close task: `bd close <id>`
-7. End session: `bd sync && git push`
+6. Close task by setting status to "Done" in Linear
+7. End session: `git push`
 
 ## One-Task-One-PR Policy
 
-Each bead should result in exactly one PR:
+Each Linear issue should result in exactly one PR:
 
-- **PR title format:** `<type>: <bead title> (<bead-id>)`
-- **Example:** `fix: resolve WebSocket broadcast error (yzuz.7)`
+- **PR title format:** `<type>: <issue title> (NEM-<id>)`
+- **Example:** `fix: resolve WebSocket broadcast error (NEM-123)`
 
 **Anti-patterns (do not do):**
 
-| Bad PR Title                        | Problem                   |
-| ----------------------------------- | ------------------------- |
-| "fix: resolve 9 beads"              | Split into 9 PRs          |
-| "fix: resolve 20 production issues" | Create 20 beads, 20 PRs   |
-| "feat: X AND Y"                     | Split into separate beads |
+| Bad PR Title                        | Problem                    |
+| ----------------------------------- | -------------------------- |
+| "fix: resolve 9 issues"             | Split into 9 PRs           |
+| "fix: resolve 20 production issues" | Create 20 issues, 20 PRs   |
+| "feat: X AND Y"                     | Split into separate issues |
 
 **Exceptions:**
 
@@ -734,9 +716,9 @@ Each bead should result in exactly one PR:
 - Better code review quality (smaller, focused diffs)
 - Regressions are easier to identify and bisect
 
-## Bead Closure Requirements
+## Issue Closure Requirements
 
-Before running `bd close <id>`, verify ALL of the following:
+Before marking an issue as "Done" in Linear, verify ALL of the following:
 
 ### Required Checklist
 
@@ -763,7 +745,7 @@ cd frontend && npx playwright test  # E2E tests (multi-browser)
 
 1. Ensure all code is committed and pushed
 2. Run validation: `./scripts/validate.sh`
-3. If all tests pass, close the bead: `bd close <id>`
+3. If all tests pass, mark the issue as "Done" in Linear
 4. If tests fail, fix the issue and re-run before closing
 
-**CRITICAL:** Do not close a bead if any validation fails. Fix the issue first.
+**CRITICAL:** Do not close an issue if any validation fails. Fix the issue first.
