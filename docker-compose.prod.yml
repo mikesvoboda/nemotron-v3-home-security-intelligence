@@ -33,7 +33,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -49,11 +49,7 @@ services:
     # environment:
     #   - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}",
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,7 +60,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2"
+          cpus: '2'
           memory: 1G
 
   ai-detector:
@@ -72,7 +68,7 @@ services:
       context: ./ai/rtdetr
       dockerfile: Dockerfile
     ports:
-      - "8090:8090"
+      - '8090:8090'
     volumes:
       - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
     environment:
@@ -81,9 +77,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "python",
-          "-c",
+          'CMD',
+          'python',
+          '-c',
           "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
         ]
       interval: 10s
@@ -106,14 +102,14 @@ services:
       context: ./ai/nemotron
       dockerfile: Dockerfile
     ports:
-      - "8091:8091"
+      - '8091:8091'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
       - GPU_LAYERS=${GPU_LAYERS:-35}
       - CTX_SIZE=${CTX_SIZE:-131072}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -135,13 +131,13 @@ services:
       context: ./ai/florence
       dockerfile: Dockerfile
     ports:
-      - "8092:8092"
+      - '8092:8092'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
     environment:
       - MODEL_PATH=/models/florence-2-large
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8092/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -163,13 +159,13 @@ services:
       context: ./ai/clip
       dockerfile: Dockerfile
     ports:
-      - "8093:8093"
+      - '8093:8093'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
     environment:
       - CLIP_MODEL_PATH=/models/clip-vit-l
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8093/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -191,7 +187,7 @@ services:
       context: ./ai/enrichment
       dockerfile: Dockerfile
     ports:
-      - "8094:8094"
+      - '8094:8094'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
@@ -203,7 +199,7 @@ services:
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8094/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -224,7 +220,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile.prod
     ports:
-      - "8000:8000"
+      - '8000:8000'
     volumes:
       # :U tells Podman to recursively chown the volume to match container user (appuser)
       # Docker ignores the :U flag, making this backward compatible
@@ -258,9 +254,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "python",
-          "-c",
+          'CMD',
+          'python',
+          '-c',
           "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
         ]
       interval: 10s
@@ -273,18 +269,18 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2"
+          cpus: '2'
           memory: 2G
 
   redis:
     image: redis:7.4-alpine3.21
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --appendfsync everysec
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 3
@@ -294,7 +290,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1"
+          cpus: '1'
           memory: 512M
 
   frontend:
@@ -302,7 +298,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - '${FRONTEND_PORT:-5173}:80'
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -311,15 +307,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:80",
-        ]
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -330,7 +318,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1"
+          cpus: '1'
           memory: 512M
 
   # =============================================================================
@@ -345,25 +333,18 @@ services:
     profiles:
       - monitoring
     ports:
-      - "9090:9090"
+      - '9090:9090'
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
-      - "--web.enable-lifecycle"
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
     healthcheck:
       test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:9090/-/healthy",
-        ]
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9090/-/healthy']
       interval: 15s
       timeout: 5s
       retries: 3
@@ -376,7 +357,7 @@ services:
     profiles:
       - monitoring
     ports:
-      - "3002:3000"
+      - '3002:3000'
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -393,14 +374,7 @@ services:
         condition: service_healthy
     healthcheck:
       test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3000/api/health",
-        ]
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/health']
       interval: 15s
       timeout: 5s
       retries: 3
@@ -413,7 +387,7 @@ services:
     profiles:
       - monitoring
     ports:
-      - "9121:9121"
+      - '9121:9121'
     environment:
       - REDIS_ADDR=redis://redis:6379
     depends_on:
@@ -421,14 +395,7 @@ services:
         condition: service_healthy
     healthcheck:
       test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:9121/metrics",
-        ]
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9121/metrics']
       interval: 15s
       timeout: 5s
       retries: 3
@@ -441,11 +408,11 @@ services:
     profiles:
       - monitoring
     ports:
-      - "7979:7979"
+      - '7979:7979'
     volumes:
       - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro
     command:
-      - "--config.file=/etc/json-exporter/config.yml"
+      - '--config.file=/etc/json-exporter/config.yml'
     restart: unless-stopped
     networks:
       - security-net

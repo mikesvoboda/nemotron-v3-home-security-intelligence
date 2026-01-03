@@ -364,9 +364,9 @@ podman-compose logs -f frontend
 5. **Test WebSocket directly:**
    ```javascript
    // Browser console
-   ws = new WebSocket("ws://localhost:8000/ws/events");
-   ws.onopen = () => console.log("Connected");
-   ws.onerror = (e) => console.error("Error", e);
+   ws = new WebSocket('ws://localhost:8000/ws/events');
+   ws.onopen = () => console.log('Connected');
+   ws.onerror = (e) => console.error('Error', e);
    ```
 
 ---

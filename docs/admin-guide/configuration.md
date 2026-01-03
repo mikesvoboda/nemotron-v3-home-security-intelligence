@@ -517,7 +517,7 @@ To change the production frontend port (default: 80), modify `docker-compose.pro
 services:
   frontend:
     ports:
-      - "${FRONTEND_PORT:-80}:80" # Use FRONTEND_PORT env var or default to 80
+      - '${FRONTEND_PORT:-80}:80' # Use FRONTEND_PORT env var or default to 80
 ```
 
 Then set the environment variable:

@@ -333,7 +333,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]
+              device_ids: ['0']
               capabilities: [gpu]
 ```
 

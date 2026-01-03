@@ -1165,7 +1165,7 @@ Create `frontend/src/services/logger.ts`:
  * batches them, and sends to the backend for storage.
  */
 
-type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
 
 interface LogEntry {
   level: LogLevel;
@@ -1185,7 +1185,7 @@ interface LoggerConfig {
 const defaultConfig: LoggerConfig = {
   batchSize: 10,
   flushIntervalMs: 5000,
-  endpoint: "/api/logs/frontend",
+  endpoint: '/api/logs/frontend',
   enabled: true,
 };
 
@@ -1212,7 +1212,7 @@ class Logger {
   private setupGlobalHandlers(): void {
     // Capture unhandled errors
     window.onerror = (message, source, lineno, colno, error) => {
-      this.error("Unhandled error", {
+      this.error('Unhandled error', {
         message: String(message),
         source,
         lineno,
@@ -1224,7 +1224,7 @@ class Logger {
 
     // Capture unhandled promise rejections
     window.onunhandledrejection = (event) => {
-      this.error("Unhandled promise rejection", {
+      this.error('Unhandled promise rejection', {
         reason: String(event.reason),
         stack: event.reason?.stack,
       });
@@ -1235,7 +1235,7 @@ class Logger {
     level: LogLevel,
     component: string,
     message: string,
-    extra?: Record<string, unknown>,
+    extra?: Record<string, unknown>
   ): void {
     const entry: LogEntry = {
       level,
@@ -1250,11 +1250,7 @@ class Logger {
 
     // Always log to console in development
     const consoleMethod =
-      level === "ERROR" || level === "CRITICAL"
-        ? "error"
-        : level === "WARNING"
-          ? "warn"
-          : "log";
+      level === 'ERROR' || level === 'CRITICAL' ? 'error' : level === 'WARNING' ? 'warn' : 'log';
     console[consoleMethod](`[${level}] ${component}: ${message}`, extra);
 
     if (!this.config.enabled) return;
@@ -1276,54 +1272,54 @@ class Logger {
       await Promise.all(
         entries.map((entry) =>
           fetch(this.config.endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               level: entry.level,
               component: entry.component,
               message: entry.message,
               extra: entry.extra,
             }),
-          }),
-        ),
+          })
+        )
       );
     } catch (err) {
       // Re-queue failed entries (but limit to prevent infinite growth)
       if (this.queue.length < 100) {
         this.queue.unshift(...entries);
       }
-      console.error("Failed to flush logs:", err);
+      console.error('Failed to flush logs:', err);
     }
   }
 
   debug(message: string, extra?: Record<string, unknown>): void {
-    this.log("DEBUG", "frontend", message, extra);
+    this.log('DEBUG', 'frontend', message, extra);
   }
 
   info(message: string, extra?: Record<string, unknown>): void {
-    this.log("INFO", "frontend", message, extra);
+    this.log('INFO', 'frontend', message, extra);
   }
 
   warn(message: string, extra?: Record<string, unknown>): void {
-    this.log("WARNING", "frontend", message, extra);
+    this.log('WARNING', 'frontend', message, extra);
   }
 
   error(message: string, extra?: Record<string, unknown>): void {
-    this.log("ERROR", "frontend", message, extra);
+    this.log('ERROR', 'frontend', message, extra);
   }
 
   /**
    * Log a user event (navigation, button click, etc.)
    */
   event(eventName: string, extra?: Record<string, unknown>): void {
-    this.log("INFO", "user_event", eventName, extra);
+    this.log('INFO', 'user_event', eventName, extra);
   }
 
   /**
    * Log an API error with details
    */
   apiError(endpoint: string, status: number, message: string): void {
-    this.log("ERROR", "api", `API error: ${endpoint}`, {
+    this.log('ERROR', 'api', `API error: ${endpoint}`, {
       endpoint,
       status,
       message,
@@ -1348,23 +1344,23 @@ class Logger {
 class ComponentLogger {
   constructor(
     private logger: Logger,
-    private component: string,
+    private component: string
   ) {}
 
   debug(message: string, extra?: Record<string, unknown>): void {
-    (this.logger as any).log("DEBUG", this.component, message, extra);
+    (this.logger as any).log('DEBUG', this.component, message, extra);
   }
 
   info(message: string, extra?: Record<string, unknown>): void {
-    (this.logger as any).log("INFO", this.component, message, extra);
+    (this.logger as any).log('INFO', this.component, message, extra);
   }
 
   warn(message: string, extra?: Record<string, unknown>): void {
-    (this.logger as any).log("WARNING", this.component, message, extra);
+    (this.logger as any).log('WARNING', this.component, message, extra);
   }
 
   error(message: string, extra?: Record<string, unknown>): void {
-    (this.logger as any).log("ERROR", this.component, message, extra);
+    (this.logger as any).log('ERROR', this.component, message, extra);
   }
 }
 
@@ -1449,27 +1445,25 @@ export interface LogsQueryParams {
   offset?: number;
 }
 
-export async function fetchLogs(
-  params: LogsQueryParams = {},
-): Promise<LogsResponse> {
+export async function fetchLogs(params: LogsQueryParams = {}): Promise<LogsResponse> {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined) searchParams.set(key, String(value));
   });
   const response = await fetch(`${API_BASE}/logs?${searchParams}`);
-  if (!response.ok) throw new Error("Failed to fetch logs");
+  if (!response.ok) throw new Error('Failed to fetch logs');
   return response.json();
 }
 
 export async function fetchLogStats(): Promise<LogStats> {
   const response = await fetch(`${API_BASE}/logs/stats`);
-  if (!response.ok) throw new Error("Failed to fetch log stats");
+  if (!response.ok) throw new Error('Failed to fetch log stats');
   return response.json();
 }
 
 export async function fetchLog(id: number): Promise<LogEntry> {
   const response = await fetch(`${API_BASE}/logs/${id}`);
-  if (!response.ok) throw new Error("Failed to fetch log");
+  if (!response.ok) throw new Error('Failed to fetch log');
   return response.json();
 }
 ```

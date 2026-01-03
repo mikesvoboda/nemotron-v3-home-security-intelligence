@@ -148,62 +148,62 @@ GRAFANA_URL=http://localhost:3002
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - '5432:5432'
 
   redis:
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
   backend:
     ports:
-      - "8000:8000"
+      - '8000:8000'
     volumes:
       - /export/foscam:/cameras:ro
       - ${AI_MODELS_PATH}/model-zoo:/models/model-zoo:ro
 
   ai-detector:
     ports:
-      - "8090:8090"
+      - '8090:8090'
 
   ai-llm:
     ports:
-      - "8091:8091"
+      - '8091:8091'
 
   ai-florence:
     ports:
-      - "8092:8092"
+      - '8092:8092'
 
   ai-clip:
     ports:
-      - "8093:8093"
+      - '8093:8093'
 
   ai-enrichment:
     ports:
-      - "8094:8094"
+      - '8094:8094'
 
   frontend:
     ports:
-      - "5173:80"
+      - '5173:80'
 
   grafana:
     ports:
-      - "3002:3000"
+      - '3002:3000'
 
   prometheus:
     ports:
-      - "9090:9090"
+      - '9090:9090'
 
   alertmanager:
     ports:
-      - "3000:9093"
+      - '3000:9093'
 
   redis-exporter:
     ports:
-      - "9121:9121"
+      - '9121:9121'
 
   json-exporter:
     ports:
-      - "7979:7979"
+      - '7979:7979'
 ```
 
 ## Technical Implementation
@@ -337,10 +337,10 @@ class ConfigResponse(BaseModel):
 
 ```typescript
 // Before:
-target: "http://localhost:8000";
+target: 'http://localhost:8000';
 
 // After:
-target: process.env.VITE_DEV_BACKEND_URL || "http://localhost:8000";
+target: process.env.VITE_DEV_BACKEND_URL || 'http://localhost:8000';
 ```
 
 ## Documentation Updates

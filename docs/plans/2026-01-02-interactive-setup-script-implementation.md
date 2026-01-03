@@ -262,7 +262,7 @@ Update `frontend/src/components/system/SystemMonitoringPage.tsx`:
 1. Add state for grafana URL:
 
 ```typescript
-const [grafanaUrl, setGrafanaUrl] = useState<string>("http://localhost:3002");
+const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
 ```
 
 2. Fetch config on mount:
@@ -271,7 +271,7 @@ const [grafanaUrl, setGrafanaUrl] = useState<string>("http://localhost:3002");
 useEffect(() => {
   const fetchConfig = async () => {
     try {
-      const response = await fetch("/api/system/config");
+      const response = await fetch('/api/system/config');
       if (response.ok) {
         const config = await response.json();
         if (config.grafana_url) {
@@ -279,7 +279,7 @@ useEffect(() => {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch config:", error);
+      console.error('Failed to fetch config:', error);
     }
   };
   fetchConfig();
@@ -290,7 +290,7 @@ useEffect(() => {
 
 ```typescript
 // Before:
-href = "http://localhost:3002";
+href = 'http://localhost:3002';
 
 // After:
 href = { grafanaUrl };
@@ -331,24 +331,24 @@ Update `frontend/vite.config.ts`:
 ```typescript
 export default defineConfig(({ mode }) => {
   // Load env file based on mode
-  const env = loadEnv(mode, process.cwd(), "");
+  const env = loadEnv(mode, process.cwd(), '');
 
-  const backendUrl = env.VITE_DEV_BACKEND_URL || "http://localhost:8000";
-  const wsBackendUrl = backendUrl.replace(/^http/, "ws");
+  const backendUrl = env.VITE_DEV_BACKEND_URL || 'http://localhost:8000';
+  const wsBackendUrl = backendUrl.replace(/^http/, 'ws');
 
   return {
     plugins: [react()],
-    cacheDir: ".vitest",
+    cacheDir: '.vitest',
     server: {
       port: 5173,
       strictPort: true,
       host: true,
       proxy: {
-        "/api": {
+        '/api': {
           target: backendUrl,
           changeOrigin: true,
         },
-        "/ws": {
+        '/ws': {
           target: wsBackendUrl,
           ws: true,
           changeOrigin: true,
@@ -363,7 +363,7 @@ export default defineConfig(({ mode }) => {
 **Step 3: Add import for loadEnv**
 
 ```typescript
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv } from 'vite';
 ```
 
 **Step 4: Verify configuration**

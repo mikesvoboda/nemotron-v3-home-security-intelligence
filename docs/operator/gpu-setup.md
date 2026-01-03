@@ -413,7 +413,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"] # Use GPU 0
+              device_ids: ['0'] # Use GPU 0
               capabilities: [gpu]
 
   ai-llm:
@@ -422,7 +422,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"] # Use GPU 1
+              device_ids: ['1'] # Use GPU 1
               capabilities: [gpu]
 ```
 

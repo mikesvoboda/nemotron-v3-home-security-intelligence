@@ -540,7 +540,7 @@ Use **WebSocket** connections for real-time, bidirectional communication.
 ```typescript
 // Client-side reconnection with exponential backoff
 const { isConnected, lastMessage } = useWebSocket({
-  url: "ws://localhost:8000/ws/events",
+  url: 'ws://localhost:8000/ws/events',
   reconnect: true,
   reconnectInterval: 3000,
   reconnectAttempts: 5,

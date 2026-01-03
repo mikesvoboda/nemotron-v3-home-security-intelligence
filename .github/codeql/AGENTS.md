@@ -75,8 +75,8 @@ To exclude additional paths from analysis:
 
 ```yaml
 paths-ignore:
-  - "**/*.test.ts"
-  - "**/fixtures/**" # Add new exclusion
+  - '**/*.test.ts'
+  - '**/fixtures/**' # Add new exclusion
 ```
 
 ## Best Practices

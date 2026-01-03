@@ -275,8 +275,8 @@ async def get_my_feature(
 
 ```typescript
 // frontend/src/hooks/useMyFeature.ts
-import { useState, useEffect } from "react";
-import { api } from "../services/api";
+import { useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 interface MyFeatureData {
   data: string;
@@ -290,10 +290,10 @@ export function useMyFeature() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await api.get("/my-feature");
+        const response = await api.get('/my-feature');
         setData(response.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
       }

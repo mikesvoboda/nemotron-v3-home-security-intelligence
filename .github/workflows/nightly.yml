@@ -2,7 +2,7 @@ name: Nightly Analysis
 
 on:
   schedule:
-    - cron: "0 7 * * *" # 2am EST / 7am UTC
+    - cron: '0 7 * * *' # 2am EST / 7am UTC
   workflow_dispatch:
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: '3.14'
 
       - name: Install wily
         run: pip install wily
@@ -85,13 +85,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: '3.14'
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Audit Python dependencies

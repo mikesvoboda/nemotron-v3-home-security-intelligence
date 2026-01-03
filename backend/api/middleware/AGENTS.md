@@ -120,13 +120,13 @@ When API key authentication is enabled, WebSocket connections must authenticate 
 **Query Parameter:**
 
 ```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/events?api_key=YOUR_KEY");
+const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
 ```
 
 **Sec-WebSocket-Protocol Header:**
 
 ```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/events", ["api-key.YOUR_KEY"]);
+const ws = new WebSocket('ws://localhost:8000/ws/events', ['api-key.YOUR_KEY']);
 ```
 
 Unauthenticated WebSocket connections are closed with code 1008 (Policy Violation).

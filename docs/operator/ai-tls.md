@@ -175,13 +175,13 @@ services:
   traefik:
     image: traefik:v2.10
     command:
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - '--entrypoints.websecure.address=:443'
+      - '--certificatesresolvers.letsencrypt.acme.tlschallenge=true'
     ports:
-      - "443:443"
+      - '443:443'
     labels:
-      - "traefik.http.routers.ai.rule=Host(`ai.yourdomain.com`)"
-      - "traefik.http.routers.ai.tls=true"
+      - 'traefik.http.routers.ai.rule=Host(`ai.yourdomain.com`)'
+      - 'traefik.http.routers.ai.tls=true'
 ```
 
 ---

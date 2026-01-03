@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.14"
-  NODE_VERSION: "20"
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
 
 jobs:
   # ============================================================================
@@ -29,7 +29,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -59,7 +59,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -98,7 +98,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -180,7 +180,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -234,7 +234,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -262,7 +262,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -275,7 +275,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
@@ -295,7 +295,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -320,7 +320,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -340,7 +340,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -384,7 +384,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -442,7 +442,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -581,7 +581,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
-      DEBUG: "false"
+      DEBUG: 'false'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -589,7 +589,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -639,7 +639,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
           cache: true
 
       - name: Set up Python
@@ -669,7 +669,7 @@ jobs:
       - name: Analyze test durations
         run: uv run python scripts/audit-test-durations.py test-results/
         env:
-          UNIT_TEST_THRESHOLD: "1.0"
-          INTEGRATION_TEST_THRESHOLD: "5.0"
-          E2E_TEST_THRESHOLD: "10.0"
-          WARN_THRESHOLD_PERCENT: "80"
+          UNIT_TEST_THRESHOLD: '1.0'
+          INTEGRATION_TEST_THRESHOLD: '5.0'
+          E2E_TEST_THRESHOLD: '10.0'
+          WARN_THRESHOLD_PERCENT: '80'
