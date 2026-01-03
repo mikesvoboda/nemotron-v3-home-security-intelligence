@@ -77,16 +77,18 @@ test.describe('Dashboard Risk Gauge', () => {
     dashboardPage = new DashboardPage(page);
   });
 
-  test('risk gauge section is visible', async () => {
+  test('risk score card is visible', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
+    await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 
-  test('risk gauge shows current risk level heading', async () => {
+  test('risk score card shows risk value', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.riskGaugeHeading).toHaveText(/Current Risk Level/i);
+    // Risk score is displayed in the StatsRow risk card
+    const riskScore = await dashboardPage.getRiskScoreText();
+    expect(riskScore).not.toBeNull();
   });
 });
 
@@ -148,7 +150,7 @@ test.describe('Dashboard Empty State', () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
     // Verify dashboard loads without crashing when there are no events
-    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
+    await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 });
 
