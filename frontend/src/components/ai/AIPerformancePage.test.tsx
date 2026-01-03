@@ -630,7 +630,9 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('Total Pipeline')).toBeInTheDocument();
+        // Use getAllByText since 'Total Pipeline' appears in dropdown and display
+        const elements = screen.getAllByText('Total Pipeline');
+        expect(elements.length).toBeGreaterThan(0);
       });
     });
   });
