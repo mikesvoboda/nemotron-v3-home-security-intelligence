@@ -2,6 +2,7 @@
  * Navigation Tests for Home Security Dashboard
  *
  * These tests verify that navigation between pages works correctly.
+ * All API calls are mocked, so navigation should be fast.
  */
 
 import { test, expect } from '@playwright/test';
@@ -15,11 +16,15 @@ import {
   SystemPage,
   SettingsPage,
 } from '../pages';
+import { BasePage } from '../pages/BasePage';
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
 
 test.describe('Navigation Tests', () => {
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
+    // Block images, fonts, and analytics to speed up navigation tests
+    const basePage = new BasePage(page);
+    await basePage.blockUnnecessaryResources();
   });
 
   test('can navigate to dashboard from root', async ({ page }) => {
@@ -116,13 +121,18 @@ test.describe('Navigation Tests', () => {
 
     // Go to dashboard first
     await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectHeaderVisible();
+    // Use parallel expects for faster validation
+    await Promise.all([
+      dashboardPage.waitForDashboardLoad(),
+      dashboardPage.expectHeaderVisible(),
+    ]);
 
     // Navigate to settings
     await settingsPage.goto();
-    await settingsPage.waitForSettingsLoad();
-    await settingsPage.expectHeaderVisible();
+    await Promise.all([
+      settingsPage.waitForSettingsLoad(),
+      settingsPage.expectHeaderVisible(),
+    ]);
   });
 
   test('sidebar persists across page transitions', async ({ page }) => {
@@ -130,22 +140,36 @@ test.describe('Navigation Tests', () => {
     const timelinePage = new TimelinePage(page);
 
     await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectSidebarVisible();
+    // Use parallel expects for faster validation
+    await Promise.all([
+      dashboardPage.waitForDashboardLoad(),
+      dashboardPage.expectSidebarVisible(),
+    ]);
 
     await timelinePage.goto();
-    await timelinePage.waitForTimelineLoad();
-    await timelinePage.expectSidebarVisible();
+    await Promise.all([
+      timelinePage.waitForTimelineLoad(),
+      timelinePage.expectSidebarVisible(),
+    ]);
   });
 });
 
 test.describe('All Routes Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
+    // Block images, fonts, and analytics to speed up navigation tests
+    const basePage = new BasePage(page);
+    await basePage.blockUnnecessaryResources();
   });
 
-  // Skip on Firefox/WebKit - this sequential 8-route test is too slow on secondary browsers
-  // Individual route tests already cover these pages on all browsers
+  /**
+   * Smoke test: Verifies all 8 routes load without error.
+   * This test navigates sequentially through all routes to catch any navigation failures.
+   * Routes are mocked, so reduced timeouts (5s/2s) are appropriate.
+   *
+   * Skip on Firefox/WebKit - individual route tests already cover these browsers,
+   * and sequential navigation is slower on secondary browsers.
+   */
   test('all 8 routes load without error', async ({ page, browserName }) => {
     test.skip(
       browserName === 'firefox' || browserName === 'webkit',
@@ -163,10 +187,12 @@ test.describe('All Routes Smoke Tests', () => {
       { path: '/settings', title: /Settings/i },
     ];
 
+    // With mocked APIs and blocked resources, navigation should be fast
+    // Use domcontentloaded instead of networkidle for faster page ready detection
     for (const route of routes) {
-      await page.goto(route.path, { timeout: 30000 });
+      await page.goto(route.path, { waitUntil: 'domcontentloaded', timeout: 5000 });
       await expect(page.getByRole('heading', { name: route.title }).first()).toBeVisible({
-        timeout: 15000,
+        timeout: 2000,
       });
     }
   });
