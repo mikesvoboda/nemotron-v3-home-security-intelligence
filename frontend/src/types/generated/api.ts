@@ -3881,6 +3881,20 @@ export interface components {
          *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
          *       "confidence": 0.95,
          *       "detected_at": "2025-12-23T12:00:00Z",
+         *       "enrichment_data": {
+         *         "person": {
+         *           "action": "walking",
+         *           "carrying": "backpack",
+         *           "clothing": "dark jacket",
+         *           "confidence": 0.95
+         *         },
+         *         "vehicle": {
+         *           "color": "blue",
+         *           "confidence": 0.92,
+         *           "damage": [],
+         *           "type": "sedan"
+         *         }
+         *       },
          *       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
          *       "file_type": "image/jpeg",
          *       "id": 1,
@@ -3977,6 +3991,13 @@ export interface components {
              * @description Video resolution height
              */
             video_height?: number | null;
+            /**
+             * Enrichment Data
+             * @description AI enrichment data including vehicle classification, pet identification, person attributes, license plates, weather, and image quality scores
+             */
+            enrichment_data?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * EntityAppearance

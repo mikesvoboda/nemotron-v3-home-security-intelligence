@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
+import EnrichmentPanel from './EnrichmentPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import {
   fetchEventDetections,
@@ -41,6 +42,7 @@ import DetectionImage from '../detection/DetectionImage';
 import VideoPlayer from '../video/VideoPlayer';
 
 import type { DetectionThumbnail } from './ThumbnailStrip';
+import type { EnrichmentData } from '../../types/enrichment';
 import type { Detection as ApiDetection } from '../../types/generated';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
@@ -49,6 +51,7 @@ export interface Detection {
   label: string;
   confidence: number;
   bbox?: { x: number; y: number; width: number; height: number };
+  enrichment_data?: EnrichmentData;
 }
 
 export interface Event {
@@ -677,6 +680,21 @@ export default function EventDetailModal({
                           );
                         })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* AI Enrichment Analysis */}
+                  {event.detections.some((d) => d.enrichment_data) && (
+                    <div className="mb-6">
+                      {event.detections
+                        .filter((d) => d.enrichment_data)
+                        .map((detection, index) => (
+                          <EnrichmentPanel
+                            key={`enrichment-${index}`}
+                            enrichment_data={detection.enrichment_data}
+                            className="mb-3"
+                          />
+                        ))}
                     </div>
                   )}
 
