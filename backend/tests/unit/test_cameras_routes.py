@@ -344,8 +344,8 @@ class TestCreateCamera:
         assert data["folder_path"] == camera_data["folder_path"]
         assert data["status"] == camera_data["status"]
         assert "id" in data
-        # Validate UUID format
-        uuid.UUID(data["id"])
+        # ID should be normalized camera name (e.g., "front_door_camera")
+        assert data["id"] == "front_door_camera"
 
     def test_create_camera_default_status(
         self, client: TestClient, mock_db_session: AsyncMock
@@ -448,10 +448,10 @@ class TestCreateCamera:
 
         assert response.status_code == 422  # Validation error
 
-    def test_create_camera_generates_uuid(
+    def test_create_camera_generates_normalized_id(
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
-        """Test that camera creation generates a valid UUID."""
+        """Test that camera creation generates a normalized ID from the camera name."""
         # Mock execute to return no existing cameras (no duplicates)
         mock_results = [MagicMock(), MagicMock()]
         mock_results[0].scalar_one_or_none.return_value = None  # No name match
@@ -473,9 +473,8 @@ class TestCreateCamera:
 
         assert response.status_code == 201
         data = response.json()
-        # Validate UUID format - this will raise if invalid
-        parsed_uuid = uuid.UUID(data["id"])
-        assert str(parsed_uuid) == data["id"]
+        # Validate normalized ID format - should match normalize_camera_id(name)
+        assert data["id"] == "test_camera"
 
     def test_create_camera_duplicate_name_returns_409(
         self, client: TestClient, mock_db_session: AsyncMock

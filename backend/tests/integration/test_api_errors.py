@@ -341,7 +341,7 @@ class TestCameras422:
     async def test_create_camera_missing_folder_path(self, client):
         """Test creating camera without folder_path returns 422."""
         camera_data = {
-            "name": "Test Camera",
+            "name": unique_id("Test Camera"),
         }
         response = await client.post("/api/cameras", json=camera_data)
         assert response.status_code == 422
@@ -360,7 +360,7 @@ class TestCameras422:
     async def test_create_camera_empty_folder_path(self, client):
         """Test creating camera with empty folder_path returns 422."""
         camera_data = {
-            "name": "Test Camera",
+            "name": unique_id("Test Camera"),
             "folder_path": "",
         }
         response = await client.post("/api/cameras", json=camera_data)
@@ -380,7 +380,7 @@ class TestCameras422:
     async def test_create_camera_folder_path_too_long(self, client):
         """Test creating camera with folder_path exceeding max length returns 422."""
         camera_data = {
-            "name": "Test Camera",
+            "name": unique_id("Test Camera"),
             "folder_path": "/export/foscam/" + "a" * 500,  # Exceeds 500 character limit
         }
         response = await client.post("/api/cameras", json=camera_data)

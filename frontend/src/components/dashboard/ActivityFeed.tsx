@@ -24,6 +24,7 @@ export interface ActivityFeedProps {
   onEventClick?: (eventId: string) => void;
   autoScroll?: boolean;
   className?: string;
+  showHeader?: boolean;
 }
 
 // ============================================================================
@@ -40,6 +41,7 @@ export default function ActivityFeed({
   onEventClick,
   autoScroll: initialAutoScroll = true,
   className,
+  showHeader = true,
 }: ActivityFeedProps) {
   const [autoScroll, setAutoScroll] = useState(initialAutoScroll);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -111,26 +113,28 @@ export default function ActivityFeed({
   return (
     <div className={clsx('flex h-full flex-col rounded-lg bg-gray-900 shadow-lg', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
-        <h3 className="text-lg font-semibold text-white">Live Activity</h3>
-        <button
-          onClick={toggleAutoScroll}
-          aria-label={autoScroll ? 'Pause auto-scroll' : 'Resume auto-scroll'}
-          className="flex items-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-white"
-        >
-          {autoScroll ? (
-            <>
-              <Pause className="h-4 w-4" />
-              <span>Pause</span>
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4" />
-              <span>Resume</span>
-            </>
-          )}
-        </button>
-      </div>
+      {showHeader && (
+        <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+          <h3 className="text-lg font-semibold text-white">Live Activity</h3>
+          <button
+            onClick={toggleAutoScroll}
+            aria-label={autoScroll ? 'Pause auto-scroll' : 'Resume auto-scroll'}
+            className="flex items-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-white"
+          >
+            {autoScroll ? (
+              <>
+                <Pause className="h-4 w-4" />
+                <span>Pause</span>
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                <span>Resume</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Event List */}
       <div

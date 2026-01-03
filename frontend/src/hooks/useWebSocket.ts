@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+import {
+  webSocketManager,
+  generateSubscriberId,
+  isHeartbeatMessage,
+  calculateBackoffDelay,
+} from './webSocketManager';
+
 export interface WebSocketOptions {
   url: string;
   /**
    * Sec-WebSocket-Protocol header values for authentication.
    * When API key authentication is enabled, use ["api-key.{key}"] format.
    * This is more secure than passing the API key in the URL query string.
+   * Note: protocols are not yet supported by the manager - this option is reserved for future use.
    */
   protocols?: string[];
   onMessage?: (data: unknown) => void;
@@ -40,59 +48,10 @@ export interface UseWebSocketReturn {
   lastHeartbeat: Date | null;
 }
 
-/**
- * Calculate exponential backoff delay with jitter
- * @param attempt - Current attempt number (0-indexed)
- * @param baseInterval - Base interval in ms
- * @param maxInterval - Maximum interval cap in ms
- * @returns Delay in ms with jitter
- */
-function calculateBackoffDelay(
-  attempt: number,
-  baseInterval: number,
-  maxInterval: number = 30000
-): number {
-  // Exponential backoff: baseInterval * 2^attempt
-  const exponentialDelay = baseInterval * Math.pow(2, attempt);
-  // Cap at maxInterval
-  const cappedDelay = Math.min(exponentialDelay, maxInterval);
-  // Add jitter (0-25% of delay) to prevent thundering herd
-  const jitter = Math.random() * 0.25 * cappedDelay;
-  return Math.floor(cappedDelay + jitter);
-}
-
-/**
- * Heartbeat message structure from the server.
- * The server sends {"type": "ping"} as heartbeat messages.
- */
-interface HeartbeatMessage {
-  type: 'ping';
-}
-
-/**
- * Pong response structure to send back to server.
- */
-interface PongMessage {
-  type: 'pong';
-}
-
-/**
- * Check if a message is a server heartbeat (ping) message.
- * @param data - The parsed message data
- * @returns True if the message is a heartbeat
- */
-function isHeartbeatMessage(data: unknown): data is HeartbeatMessage {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-  const msg = data as Record<string, unknown>;
-  return msg.type === 'ping';
-}
-
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const {
     url,
-    protocols,
+    // Note: protocols not yet supported by manager - may need to add later
     onMessage,
     onOpen,
     onClose,
@@ -100,9 +59,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     onMaxRetriesExhausted,
     onHeartbeat,
     reconnect = true,
-    reconnectInterval = 1000, // Base interval for exponential backoff
+    reconnectInterval = 1000,
     reconnectAttempts = 5,
-    connectionTimeout = 10000, // 10 second connection timeout
+    connectionTimeout = 10000,
     autoRespondToHeartbeat = true,
   } = options;
 
@@ -112,13 +71,10 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const [reconnectCount, setReconnectCount] = useState(0);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectCountRef = useRef(0);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shouldConnectRef = useRef(true);
+  const subscriberIdRef = useRef(generateSubscriberId());
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Store callbacks in refs to avoid stale closures during reconnection
+  // Store callbacks in refs to avoid stale closures
   const onMessageRef = useRef(onMessage);
   const onOpenRef = useRef(onOpen);
   const onCloseRef = useRef(onClose);
@@ -127,180 +83,87 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const onHeartbeatRef = useRef(onHeartbeat);
 
   // Update refs when callbacks change
-  onMessageRef.current = onMessage;
-  onOpenRef.current = onOpen;
-  onCloseRef.current = onClose;
-  onErrorRef.current = onError;
-  onMaxRetriesExhaustedRef.current = onMaxRetriesExhausted;
-  onHeartbeatRef.current = onHeartbeat;
-
-  const clearAllTimeouts = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    if (connectionTimeoutRef.current) {
-      clearTimeout(connectionTimeoutRef.current);
-      connectionTimeoutRef.current = null;
-    }
-  }, []);
-
-  const disconnect = useCallback(() => {
-    shouldConnectRef.current = false;
-    clearAllTimeouts();
-
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  }, [clearAllTimeouts]);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onOpenRef.current = onOpen;
+    onCloseRef.current = onClose;
+    onErrorRef.current = onError;
+    onMaxRetriesExhaustedRef.current = onMaxRetriesExhausted;
+    onHeartbeatRef.current = onHeartbeat;
+  });
 
   const connect = useCallback(() => {
-    // Check if WebSocket is available (SSR support)
-    if (typeof window === 'undefined' || !window.WebSocket) {
+    // Don't reconnect if already subscribed
+    if (unsubscribeRef.current) {
       return;
     }
 
-    // Don't create a new connection if already connected or connecting
-    if (
-      wsRef.current?.readyState === WebSocket.OPEN ||
-      wsRef.current?.readyState === WebSocket.CONNECTING
-    ) {
-      return;
-    }
-
-    shouldConnectRef.current = true;
-    // Reset exhausted state when manually connecting
     setHasExhaustedRetries(false);
 
-    try {
-      // Pass protocols to WebSocket constructor for Sec-WebSocket-Protocol header
-      // This is used for API key authentication without exposing the key in the URL
-      const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
-      wsRef.current = ws;
-
-      // Set connection timeout - if we don't connect within timeout, close and retry
-      if (connectionTimeout > 0) {
-        connectionTimeoutRef.current = setTimeout(() => {
-          if (ws.readyState === WebSocket.CONNECTING) {
-            console.warn(`WebSocket connection timeout after ${connectionTimeout}ms, retrying...`);
-            ws.close();
-          }
-        }, connectionTimeout);
-      }
-
-      ws.onopen = () => {
-        // Clear connection timeout
-        if (connectionTimeoutRef.current) {
-          clearTimeout(connectionTimeoutRef.current);
-          connectionTimeoutRef.current = null;
-        }
-
-        setIsConnected(true);
-        reconnectCountRef.current = 0;
-        setReconnectCount(0);
-        setHasExhaustedRetries(false);
-        // Use ref to get latest callback
-        onOpenRef.current?.();
-      };
-
-      ws.onclose = () => {
-        // Clear connection timeout
-        if (connectionTimeoutRef.current) {
-          clearTimeout(connectionTimeoutRef.current);
-          connectionTimeoutRef.current = null;
-        }
-
-        setIsConnected(false);
-        // Use ref to get latest callback
-        onCloseRef.current?.();
-
-        // Attempt reconnection if enabled and within retry limits
-        if (
-          shouldConnectRef.current &&
-          reconnect &&
-          reconnectCountRef.current < reconnectAttempts
-        ) {
-          const currentAttempt = reconnectCountRef.current;
-          reconnectCountRef.current += 1;
-          setReconnectCount(reconnectCountRef.current);
-
-          // Calculate delay with exponential backoff
-          const delay = calculateBackoffDelay(currentAttempt, reconnectInterval);
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        } else if (
-          shouldConnectRef.current &&
-          reconnect &&
-          reconnectCountRef.current >= reconnectAttempts
-        ) {
-          // Max retries exhausted
-          setHasExhaustedRetries(true);
-          // Use ref to get latest callback
-          onMaxRetriesExhaustedRef.current?.();
-        }
-      };
-
-      ws.onerror = (error: Event) => {
-        // Use ref to get latest callback
-        onErrorRef.current?.(error);
-      };
-
-      ws.onmessage = (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data as string) as unknown;
-
-          // Check if this is a server heartbeat message
-          if (isHeartbeatMessage(data)) {
-            // Update last heartbeat timestamp
-            setLastHeartbeat(new Date());
-
-            // Optionally respond with pong
-            if (autoRespondToHeartbeat && ws.readyState === WebSocket.OPEN) {
-              const pongMessage: PongMessage = { type: 'pong' };
-              ws.send(JSON.stringify(pongMessage));
-            }
-
-            // Call heartbeat callback if provided
-            onHeartbeatRef.current?.();
-
-            // Don't set lastMessage or call onMessage for heartbeat messages
-            // This prevents unnecessary re-renders in consuming components
-            return;
-          }
-
+    unsubscribeRef.current = webSocketManager.subscribe(
+      url,
+      {
+        id: subscriberIdRef.current,
+        onMessage: (data) => {
           setLastMessage(data);
-          // Use ref to get latest callback
           onMessageRef.current?.(data);
-        } catch {
-          // If parsing fails, pass the raw data
-          setLastMessage(event.data as unknown);
-          // Use ref to get latest callback
-          onMessageRef.current?.(event.data as unknown);
-        }
-      };
-    } catch (error) {
-      console.error('WebSocket connection error:', error);
-    }
-    // Reduced dependencies - callbacks are accessed via refs to avoid stale closures
-    // protocols is joined for stable comparison (array contents vs reference)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, protocols?.join(','), reconnect, reconnectInterval, reconnectAttempts, connectionTimeout, autoRespondToHeartbeat]);
+        },
+        onOpen: () => {
+          setIsConnected(true);
+          setReconnectCount(0);
+          setHasExhaustedRetries(false);
+          onOpenRef.current?.();
+        },
+        onClose: () => {
+          setIsConnected(false);
+          // Update reconnect count from manager state
+          const state = webSocketManager.getConnectionState(url);
+          setReconnectCount(state.reconnectCount);
+          onCloseRef.current?.();
+        },
+        onError: (error) => {
+          onErrorRef.current?.(error);
+        },
+        onHeartbeat: () => {
+          const state = webSocketManager.getConnectionState(url);
+          setLastHeartbeat(state.lastHeartbeat);
+          onHeartbeatRef.current?.();
+        },
+        onMaxRetriesExhausted: () => {
+          setHasExhaustedRetries(true);
+          onMaxRetriesExhaustedRef.current?.();
+        },
+      },
+      {
+        reconnect,
+        reconnectInterval,
+        maxReconnectAttempts: reconnectAttempts,
+        connectionTimeout,
+        autoRespondToHeartbeat,
+      }
+    );
+  }, [url, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout, autoRespondToHeartbeat]);
 
-  const send = useCallback((data: unknown) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const message = typeof data === 'string' ? data : JSON.stringify(data);
-      wsRef.current.send(message);
-    } else {
-      console.warn('WebSocket is not connected. Message not sent:', data);
+  const disconnect = useCallback(() => {
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
     }
+    setIsConnected(false);
   }, []);
 
+  const send = useCallback(
+    (data: unknown) => {
+      if (!webSocketManager.send(url, data)) {
+        console.warn('WebSocket is not connected. Message not sent:', data);
+      }
+    },
+    [url]
+  );
+
+  // Connect on mount, disconnect on unmount
   useEffect(() => {
     connect();
-
     return () => {
       disconnect();
     };
@@ -318,5 +181,5 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   };
 }
 
-// Export type guard and backoff function for testing
+// Export type guard and backoff function for testing and backward compatibility
 export { isHeartbeatMessage, calculateBackoffDelay };
