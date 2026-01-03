@@ -170,11 +170,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="300"
                 step="10"
                 value={editedConfig.batch_window_seconds}
-                onInput={(e) =>
-                  setEditedConfig({
-                    ...editedConfig,
-                    batch_window_seconds: parseInt((e.target as HTMLInputElement).value),
-                  })
+                onChange={(e) =>
+                  setEditedConfig((prev) =>
+                    prev ? { ...prev, batch_window_seconds: parseInt(e.target.value) } : prev
+                  )
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Batch window duration in seconds"
@@ -204,11 +203,12 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="120"
                 step="5"
                 value={editedConfig.batch_idle_timeout_seconds}
-                onInput={(e) =>
-                  setEditedConfig({
-                    ...editedConfig,
-                    batch_idle_timeout_seconds: parseInt((e.target as HTMLInputElement).value),
-                  })
+                onChange={(e) =>
+                  setEditedConfig((prev) =>
+                    prev
+                      ? { ...prev, batch_idle_timeout_seconds: parseInt(e.target.value) }
+                      : prev
+                  )
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Batch idle timeout in seconds"
@@ -238,11 +238,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="90"
                 step="1"
                 value={editedConfig.retention_days}
-                onInput={(e) =>
-                  setEditedConfig({
-                    ...editedConfig,
-                    retention_days: parseInt((e.target as HTMLInputElement).value),
-                  })
+                onChange={(e) =>
+                  setEditedConfig((prev) =>
+                    prev ? { ...prev, retention_days: parseInt(e.target.value) } : prev
+                  )
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Retention period in days"
@@ -272,11 +271,12 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="1"
                 step="0.01"
                 value={editedConfig.detection_confidence_threshold}
-                onInput={(e) =>
-                  setEditedConfig({
-                    ...editedConfig,
-                    detection_confidence_threshold: parseFloat((e.target as HTMLInputElement).value),
-                  })
+                onChange={(e) =>
+                  setEditedConfig((prev) =>
+                    prev
+                      ? { ...prev, detection_confidence_threshold: parseFloat(e.target.value) }
+                      : prev
+                  )
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Detection confidence threshold"

@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { useWebSocket } from './useWebSocket';
-import { buildWebSocketOptions } from '../services/api';
+import { buildWebSocketOptions, fetchHealth } from '../services/api';
 
 export interface SystemStatus {
   health: 'healthy' | 'degraded' | 'unhealthy';
@@ -63,10 +63,48 @@ function isBackendSystemStatus(data: unknown): data is BackendSystemStatus {
 
 export function useSystemStatus(): UseSystemStatusReturn {
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const hasReceivedWsMessageRef = useRef<boolean>(false);
+
+  // Fetch initial status via REST API to avoid "Unknown" state while waiting for WebSocket
+  // This fixes the race condition where mobile devices see "Unknown" because WebSocket
+  // connection takes longer to establish on slower networks.
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    async function fetchInitialStatus() {
+      try {
+        const health = await fetchHealth();
+        // Only set initial status if we haven't received a WebSocket message yet
+        // WebSocket data is more complete, so prefer it when available
+        if (isMountedRef.current && !hasReceivedWsMessageRef.current) {
+          setStatus({
+            health: health.status as 'healthy' | 'degraded' | 'unhealthy',
+            gpu_utilization: null,
+            gpu_temperature: null,
+            gpu_memory_used: null,
+            gpu_memory_total: null,
+            inference_fps: null,
+            active_cameras: 0, // Will be updated by WebSocket
+            last_update: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // Silently fail - WebSocket will provide the status eventually
+      }
+    }
+
+    void fetchInitialStatus();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleMessage = useCallback((data: unknown) => {
     // Check if message matches backend structure
     if (isBackendSystemStatus(data)) {
+      hasReceivedWsMessageRef.current = true;
       const systemStatus: SystemStatus = {
         health: data.data.health,
         gpu_utilization: data.data.gpu.utilization,
