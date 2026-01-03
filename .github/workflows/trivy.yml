@@ -28,19 +28,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Free disk space
+      - name: Free up disk space
         # Backend image includes heavy ML dependencies (PyTorch, transformers)
         # which require more disk space than default GitHub runners provide
-        run: |
-          echo "Disk space before cleanup:"
-          df -h /
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          docker system prune -af
-          echo "Disk space after cleanup:"
-          df -h /
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Build backend image
         id: build
