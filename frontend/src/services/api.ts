@@ -80,6 +80,20 @@ export type {
   AiAuditRecommendationItem,
 } from '../types/generated';
 
+// Circuit Breaker types (from generated types)
+export type { components } from '../types/generated';
+export type CircuitBreakerStateEnum = components['schemas']['CircuitBreakerStateEnum'];
+export type CircuitBreakerStatusResponse = components['schemas']['CircuitBreakerStatusResponse'];
+export type CircuitBreakerConfigResponse = components['schemas']['CircuitBreakerConfigResponse'];
+export type CircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
+export type CircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
+
+// Severity types (from generated types)
+export type SeverityEnum = components['schemas']['SeverityEnum'];
+export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
+export type SeverityThresholds = components['schemas']['SeverityThresholds'];
+export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
+
 // Import concrete types for use in this module
 import type {
   AiAuditEventAuditResponse,
@@ -99,6 +113,7 @@ import type {
   CameraListResponse as GeneratedCameraListResponse,
   CameraUpdate,
   CleanupResponse,
+  components,
   DetectionListResponse as GeneratedDetectionListResponse,
   DLQClearResponse as GeneratedDLQClearResponse,
   DLQJobsResponse as GeneratedDLQJobsResponse,
@@ -123,6 +138,11 @@ import type {
   ZoneListResponse as GeneratedZoneListResponse,
   ZoneUpdate,
 } from '../types/generated';
+
+// Circuit Breaker and Severity types used internally
+type GeneratedCircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
+type GeneratedCircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
+type GeneratedSeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -1640,4 +1660,60 @@ export async function fetchAuditRecommendations(
  */
 export async function fetchEventAudit(eventId: number): Promise<AiAuditEventAuditResponse> {
   return fetchApi<AiAuditEventAuditResponse>(`/api/ai-audit/events/${eventId}`);
+}
+
+// ============================================================================
+// Circuit Breaker Endpoints
+// ============================================================================
+
+/**
+ * Fetch status of all circuit breakers in the system.
+ *
+ * Returns the current state and metrics for each circuit breaker,
+ * which protect external services from cascading failures.
+ *
+ * @returns CircuitBreakersResponse with status of all circuit breakers
+ */
+export async function fetchCircuitBreakers(): Promise<GeneratedCircuitBreakersResponse> {
+  return fetchApi<GeneratedCircuitBreakersResponse>('/api/system/circuit-breakers');
+}
+
+/**
+ * Reset a specific circuit breaker to CLOSED state.
+ *
+ * Manually resets a circuit breaker, clearing failure counts
+ * and returning it to normal operation. Use this to recover from
+ * transient failures or after fixing an underlying issue.
+ *
+ * Requires API key authentication when api_key_enabled is True.
+ *
+ * @param name - Name of the circuit breaker to reset
+ * @returns CircuitBreakerResetResponse with reset confirmation
+ */
+export async function resetCircuitBreaker(
+  name: string
+): Promise<GeneratedCircuitBreakerResetResponse> {
+  return fetchApi<GeneratedCircuitBreakerResetResponse>(
+    `/api/system/circuit-breakers/${encodeURIComponent(name)}/reset`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
+// Severity Endpoints
+// ============================================================================
+
+/**
+ * Fetch severity level definitions and thresholds.
+ *
+ * Returns complete information about the severity taxonomy including:
+ * - All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)
+ * - Risk score thresholds for each level
+ * - Color codes for UI display
+ * - Human-readable labels and descriptions
+ *
+ * @returns SeverityMetadataResponse with all severity definitions and current thresholds
+ */
+export async function fetchSeverityMetadata(): Promise<GeneratedSeverityMetadataResponse> {
+  return fetchApi<GeneratedSeverityMetadataResponse>('/api/system/severity');
 }

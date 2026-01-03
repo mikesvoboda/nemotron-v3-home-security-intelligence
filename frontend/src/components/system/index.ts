@@ -45,3 +45,10 @@ export type {
   PipelineLatencies,
   ThroughputPoint,
 } from './PipelineMetricsPanel';
+
+// Circuit Breaker and Severity panels (NEM-500)
+export { default as CircuitBreakerPanel } from './CircuitBreakerPanel';
+export type { CircuitBreakerPanelProps } from './CircuitBreakerPanel';
+
+export { default as SeverityConfigPanel } from './SeverityConfigPanel';
+export type { SeverityConfigPanelProps } from './SeverityConfigPanel';

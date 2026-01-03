@@ -27,6 +27,7 @@ from typing import Any
 from PIL import Image
 
 from backend.core.logging import get_logger
+from backend.core.metrics import record_enrichment_model_call
 
 # Import enrichment client for remote HTTP service
 from backend.services.enrichment_client import (
@@ -1770,6 +1771,8 @@ class EnrichmentPipeline:
         try:
             async with self.model_manager.load("violence-detection") as model_data:
                 result = await classify_violence(model_data, image)
+                # Record semantic metric for enrichment model call
+                record_enrichment_model_call("violence-detection")
                 if result.is_violent:
                     logger.warning(f"Violence detected with {result.confidence:.0%} confidence")
                 return result
@@ -1814,6 +1817,9 @@ class EnrichmentPipeline:
                         # Classify clothing
                         classification = await classify_clothing(model_data, person_crop)
                         results[det_id] = classification
+
+                        # Record semantic metric for enrichment model call
+                        record_enrichment_model_call("fashion-clip")
 
                         logger.debug(
                             f"Person {det_id} clothing: {classification.raw_description} "
@@ -1873,6 +1879,9 @@ class EnrichmentPipeline:
                         segmentation = await segment_clothing(model, processor, person_crop)
                         results[det_id] = segmentation
 
+                        # Record semantic metric for enrichment model call
+                        record_enrichment_model_call("segformer-b2-clothes")
+
                         logger.debug(
                             f"Person {det_id} clothing items: {segmentation.clothing_items}, "
                             f"face_covered={segmentation.has_face_covered}, "
@@ -1926,6 +1935,9 @@ class EnrichmentPipeline:
                         # Classify vehicle type
                         classification = await classify_vehicle(model_data, vehicle_crop)
                         results[det_id] = classification
+
+                        # Record semantic metric for enrichment model call
+                        record_enrichment_model_call("vehicle-segment-classification")
 
                         logger.debug(
                             f"Vehicle {det_id} type: {classification.vehicle_type} "
@@ -1989,6 +2001,9 @@ class EnrichmentPipeline:
                         damage_result = await detect_vehicle_damage(model, vehicle_crop)
                         results[det_id] = damage_result
 
+                        # Record semantic metric for enrichment model call
+                        record_enrichment_model_call("vehicle-damage-detection")
+
                         if damage_result.has_damage:
                             logger.info(
                                 f"Vehicle {det_id} damage detected: "
@@ -2037,6 +2052,9 @@ class EnrichmentPipeline:
         try:
             async with self.model_manager.load("brisque-quality") as model_data:
                 result = await assess_image_quality(model_data, image)
+
+                # Record semantic metric for enrichment model call
+                record_enrichment_model_call("brisque-quality")
 
                 if result.is_low_quality:
                     camera_str = f" (camera: {camera_id})" if camera_id else ""
@@ -2099,6 +2117,9 @@ class EnrichmentPipeline:
                         # Classify pet
                         pet_result = await classify_pet(model_data, animal_crop)
                         results[det_id] = pet_result
+
+                        # Record semantic metric for enrichment model call
+                        record_enrichment_model_call("pet-classifier")
 
                         logger.debug(
                             f"Animal {det_id} classified as {pet_result.animal_type} "
