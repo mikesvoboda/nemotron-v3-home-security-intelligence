@@ -1578,6 +1578,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/health/websocket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Websocket Health
+         * @description Get health status of WebSocket broadcasters and their circuit breakers.
+         *
+         *     Returns the current state of circuit breakers for:
+         *     - Event broadcaster: Handles real-time security event distribution
+         *     - System broadcaster: Handles system status updates (GPU, cameras, queues)
+         *
+         *     Circuit breakers protect the system from cascading failures by:
+         *     - Opening after repeated connection failures
+         *     - Blocking recovery attempts while open to allow stabilization
+         *     - Gradually testing recovery in half-open state
+         *
+         *     Circuit breaker states:
+         *     - closed: Normal operation, WebSocket events flowing normally
+         *     - open: Failures detected, events may be delayed or unavailable
+         *     - half_open: Testing recovery, limited operations allowed
+         *
+         *     Returns:
+         *         WebSocketHealthResponse with circuit breaker status for both broadcasters
+         */
+        get: operations["get_websocket_health_api_system_health_websocket_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/gpu": {
         parameters: {
             query?: never;
@@ -5954,6 +5991,53 @@ export interface components {
             type: string;
         };
         /**
+         * WebSocketBroadcasterStatus
+         * @description Status of a WebSocket broadcaster's circuit breaker.
+         */
+        WebSocketBroadcasterStatus: {
+            /** @description Current circuit state: closed (normal), open (failing), half_open (testing) */
+            state: components["schemas"]["CircuitBreakerStateEnum"];
+            /**
+             * Failure Count
+             * @description Current consecutive failure count
+             */
+            failure_count: number;
+            /**
+             * Is Degraded
+             * @description Whether the broadcaster is in degraded mode
+             */
+            is_degraded: boolean;
+        };
+        /**
+         * WebSocketHealthResponse
+         * @description Response schema for WebSocket health endpoint.
+         * @example {
+         *       "event_broadcaster": {
+         *         "failure_count": 0,
+         *         "is_degraded": false,
+         *         "state": "closed"
+         *       },
+         *       "system_broadcaster": {
+         *         "failure_count": 0,
+         *         "is_degraded": false,
+         *         "state": "closed"
+         *       },
+         *       "timestamp": "2025-12-30T10:30:00Z"
+         *     }
+         */
+        WebSocketHealthResponse: {
+            /** @description Status of the event broadcaster circuit breaker */
+            event_broadcaster?: components["schemas"]["WebSocketBroadcasterStatus"] | null;
+            /** @description Status of the system broadcaster circuit breaker */
+            system_broadcaster?: components["schemas"]["WebSocketBroadcasterStatus"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of health check
+             */
+            timestamp: string;
+        };
+        /**
          * WebhookTestNotificationRequest
          * @description Schema for testing notification configuration.
          * @example {
@@ -8179,6 +8263,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    get_websocket_health_api_system_health_websocket_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebSocketHealthResponse"];
                 };
             };
         };
