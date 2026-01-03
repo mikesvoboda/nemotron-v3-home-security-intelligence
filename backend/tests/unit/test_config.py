@@ -552,15 +552,32 @@ class TestEnvFileAlignment:
 
         env_example_content = env_example_path.read_text()
 
+        # Docker Compose-only variables that aren't used by the Python backend.
+        # These are used by docker-compose.prod.yml to configure containers.
+        docker_compose_only_vars = {
+            "postgres_user",  # PostgreSQL container user
+            "postgres_password",  # PostgreSQL container password
+            "postgres_db",  # PostgreSQL container database name
+            "gpu_layers",  # ai-llm container GPU config
+            "ctx_size",  # ai-llm container context size
+            "rtdetr_model_path",  # ai-detector container model path
+            "hf_cache",  # HuggingFace cache directory mount
+        }
+
         # Extract env var names (exclude comments and VITE_* which are frontend-only)
         env_vars = set()
         for line in env_example_content.split("\n"):
             stripped = line.strip()
             if stripped and not stripped.startswith("#") and "=" in stripped:
                 var_name = stripped.split("=")[0].strip()
+                var_name_lower = var_name.lower()
                 # Skip VITE_* vars - they're frontend-only and not loaded by backend
-                if not var_name.startswith("VITE_"):
-                    env_vars.add(var_name.lower())
+                # Skip Docker Compose-only vars - they configure containers, not the app
+                if (
+                    not var_name.startswith("VITE_")
+                    and var_name_lower not in docker_compose_only_vars
+                ):
+                    env_vars.add(var_name_lower)
 
         # Get config field names
         config_fields = {name.lower() for name in Settings.model_fields}

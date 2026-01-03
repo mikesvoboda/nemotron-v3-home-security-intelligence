@@ -270,6 +270,12 @@ Validation agents should run the full test suite and report any failures. Fix al
 - `git push --no-verify`
 - Any flags that skip pre-commit hooks
 
+**Branch Protection (GitHub enforced):**
+
+- All CI jobs must pass before merge
+- Admin bypass is disabled
+- CODEOWNERS review required
+
 ## NEVER DISABLE TESTING
 
 > **⛔ ABSOLUTE RULE: Unit and integration tests must NEVER be disabled, removed, or bypassed.**
