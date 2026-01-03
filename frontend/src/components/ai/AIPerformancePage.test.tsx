@@ -54,9 +54,21 @@ vi.mock('../../hooks/useAIMetrics', () => ({
   })),
 }));
 
-// Mock the fetchConfig API
+// Mock the fetchConfig and fetchEventStats APIs
 vi.mock('../../services/api', () => ({
   fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: 'http://localhost:3002' })),
+  fetchEventStats: vi.fn(() =>
+    Promise.resolve({
+      total_events: 100,
+      events_by_risk_level: {
+        critical: 5,
+        high: 15,
+        medium: 30,
+        low: 50,
+      },
+      events_by_camera: [],
+    })
+  ),
 }));
 
 const renderWithRouter = () => {

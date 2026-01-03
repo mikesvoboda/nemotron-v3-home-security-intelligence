@@ -1,10 +1,9 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, Cpu, Settings as SettingsIcon, Shield } from 'lucide-react';
+import { Bell, Camera, Settings as SettingsIcon, Shield } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { SecureContextWarning } from '../common';
-import AIModelsSettings from './AIModelsSettings';
 import AlertRulesSettings from './AlertRulesSettings';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
@@ -13,12 +12,13 @@ import ProcessingSettings from './ProcessingSettings';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains five settings tabs:
+ * Contains four settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
- * - AI MODELS: AI model status and information
  * - NOTIFICATIONS: Email and webhook notification settings
+ *
+ * Note: AI model information is available on the dedicated AI Performance page (/ai)
  *
  * Features:
  * - Tab navigation with keyboard support (Headless UI)
@@ -45,12 +45,6 @@ export default function SettingsPage() {
       name: 'PROCESSING',
       icon: SettingsIcon,
       component: ProcessingSettings,
-    },
-    {
-      id: 'ai-models',
-      name: 'AI MODELS',
-      icon: Cpu,
-      component: AIModelsSettings,
     },
     {
       id: 'notifications',
