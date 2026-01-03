@@ -241,9 +241,9 @@ services:
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
       - FRONTEND_URL=http://frontend:80
-      - FOSCAM_BASE_PATH=/cameras
-      - DEBUG=false
-      - FAST_PATH_CONFIDENCE_THRESHOLD=1.0 # Disabled: requires 100% confidence
+      - FOSCAM_BASE_PATH=${FOSCAM_BASE_PATH:-/cameras}
+      - DEBUG=${DEBUG:-false}
+      - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
     depends_on:
       postgres:
         condition: service_healthy

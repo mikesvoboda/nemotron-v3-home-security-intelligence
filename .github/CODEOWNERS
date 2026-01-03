@@ -1,0 +1,8 @@
+# Default owner for all files
+* @mikesvoboda
+
+# Critical paths require explicit review
+backend/ @mikesvoboda
+frontend/ @mikesvoboda
+.github/ @mikesvoboda
+docker-compose*.yml @mikesvoboda
