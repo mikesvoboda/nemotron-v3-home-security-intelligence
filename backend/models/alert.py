@@ -22,7 +22,7 @@ Rule Evaluation:
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -30,17 +30,9 @@ from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Intege
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.core.time_utils import utc_now
+
 from .camera import Base
-
-
-def _utc_now() -> datetime:
-    """Return current UTC time as a timezone-aware datetime.
-
-    This replaces the deprecated datetime.utcnow() and returns a timezone-aware
-    datetime compatible with DateTime(timezone=True) columns.
-    """
-    return datetime.now(UTC)
-
 
 if TYPE_CHECKING:
     from .event import Event
@@ -103,10 +95,10 @@ class Alert(Base):
         default=AlertStatus.PENDING,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     channels: Mapped[list | None] = mapped_column(JSON, nullable=True)
@@ -211,10 +203,10 @@ class AlertRule(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
     # Relationships

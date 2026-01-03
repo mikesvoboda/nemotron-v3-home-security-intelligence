@@ -1,6 +1,7 @@
 """API routes for detections management."""
 
 import os
+import re
 from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
 from backend.api.schemas.enrichment import EnrichmentResponse
+from backend.api.validators import validate_date_range
 from backend.core.database import get_db
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
 from backend.models.detection import Detection
@@ -21,6 +23,97 @@ from backend.services.thumbnail_generator import ThumbnailGenerator
 from backend.services.video_processor import VideoProcessor
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
+
+# ============================================================================
+# Error Sanitization
+# ============================================================================
+# Security: Error messages from enrichment processing may contain sensitive
+# internal details. These patterns are used to sanitize errors before exposing
+# them via the API.
+
+# Known error categories that can be preserved in sanitized output
+_ERROR_CATEGORIES = [
+    "license plate detection",
+    "face detection",
+    "violence detection",
+    "clothing classification",
+    "clothing segmentation",
+    "vehicle damage detection",
+    "vehicle classification",
+    "image quality assessment",
+    "pet classification",
+    "vision extraction",
+    "re-identification",
+    "scene change detection",
+    "processing",
+]
+
+# Regex patterns for sensitive data that should be redacted
+_SENSITIVE_PATTERNS = [
+    # File paths (Unix and Windows)
+    re.compile(r"(?:/[a-zA-Z0-9._-]+)+(?:\.[a-zA-Z0-9]+)?"),
+    re.compile(r"[A-Za-z]:\\(?:[^\\/:*?\"<>|\r\n]+\\)*[^\\/:*?\"<>|\r\n]*"),
+    # IP addresses (IPv4)
+    re.compile(r"\b(?:10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b"),
+    re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
+    # Port numbers (standalone like :8080)
+    re.compile(r":\d{2,5}\b"),
+    # URLs with internal hostnames
+    re.compile(r"https?://[^\s]+"),
+    # Internal hostnames (*.internal, *.local, *.svc.cluster.local, etc.)
+    re.compile(r"\b[a-zA-Z0-9.-]+\.(?:internal|local|svc\.cluster\.local|company\.com)\b"),
+    # Stack trace elements
+    re.compile(r"Traceback \(most recent call last\):", re.IGNORECASE),
+    re.compile(r'File "[^"]+", line \d+'),
+    re.compile(r"line \d+", re.IGNORECASE),
+    # Python module paths
+    re.compile(r"\bbackend\.[a-zA-Z0-9_.]+"),
+    # Environment variable patterns
+    re.compile(r"[A-Z_]+=[^\s]+"),
+    # Database URLs
+    re.compile(r"postgresql://[^\s]+"),
+    re.compile(r"redis://[^\s]+"),
+    # API keys and secrets
+    re.compile(r"sk-[a-zA-Z0-9]+"),
+    re.compile(r"password[=:][^\s]+", re.IGNORECASE),
+]
+
+
+def _sanitize_errors(errors: list[str]) -> list[str]:
+    """Sanitize error messages to remove sensitive internal details.
+
+    Security: This function removes file paths, IP addresses, stack traces,
+    and other internal details from error messages before exposing them
+    via the API.
+
+    Args:
+        errors: List of raw error messages from enrichment processing
+
+    Returns:
+        List of sanitized error messages safe for API exposure
+    """
+    if not errors:
+        return []
+
+    sanitized = []
+    for error in errors:
+        # Extract the error category (e.g., "License plate detection")
+        category = None
+        error_lower = error.lower()
+        for cat in _ERROR_CATEGORIES:
+            if cat in error_lower:
+                category = cat.title()
+                break
+
+        # If we found a category, create a generic message
+        if category:
+            sanitized.append(f"{category} failed")
+        else:
+            # For unknown error types, use a completely generic message
+            sanitized.append("Enrichment processing error")
+
+    return sanitized
+
 
 # Rate limiter for detection media endpoints (images, videos, thumbnails)
 # These endpoints are exempt from auth but need rate limiting for abuse prevention
@@ -58,7 +151,13 @@ async def list_detections(
 
     Returns:
         DetectionListResponse containing filtered detections and pagination info
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
     """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     # Build base query
     query = select(Detection)
 
@@ -290,7 +389,8 @@ def _transform_enrichment_data(
         "image_quality": image_quality_response,
         "pet": pet_response,
         "processing_time_ms": enrichment_data.get("processing_time_ms"),
-        "errors": enrichment_data.get("errors", []),
+        # Security: Sanitize error messages to remove sensitive internal details
+        "errors": _sanitize_errors(enrichment_data.get("errors", [])),
     }
 
 

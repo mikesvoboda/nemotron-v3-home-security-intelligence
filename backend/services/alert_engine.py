@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -34,21 +34,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.logging import get_logger
+from backend.core.time_utils import utc_now_naive
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Event
 
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
 
 logger = get_logger(__name__)
-
-
-def _utc_now_naive() -> datetime:
-    """Get current UTC time as naive datetime for PostgreSQL compatibility.
-
-    PostgreSQL TIMESTAMP WITHOUT TIME ZONE columns cannot accept timezone-aware
-    datetimes from Python. This function ensures we always use naive UTC times.
-    """
-    return datetime.now(UTC).replace(tzinfo=None)
 
 
 # Severity priority for determining which rule takes precedence
@@ -127,7 +119,7 @@ class AlertRuleEngine:
             EvaluationResult with list of triggered rules and evaluation metadata
         """
         if current_time is None:
-            current_time = _utc_now_naive()
+            current_time = utc_now_naive()
 
         # Load detections if not provided
         if detections is None:
@@ -523,7 +515,7 @@ class AlertRuleEngine:
             List of test results with match status and details
         """
         if current_time is None:
-            current_time = _utc_now_naive()
+            current_time = utc_now_naive()
 
         # Batch load all detections in a single query to prevent N+1
         detections_by_event = await self._batch_load_detections_for_events(events)

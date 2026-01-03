@@ -111,13 +111,20 @@ For users who want Grafana, the recommended configuration:
 # grafana.ini
 [auth.anonymous]
 enabled = true
-org_role = Viewer
+org_role = Viewer  # IMPORTANT: Never use Admin for anonymous access
 
 [security]
 allow_embedding = true
+admin_user = admin
+admin_password = <strong-password>  # Change before network exposure
 ```
 
-**Note:** Only enable anonymous mode for localhost access. Do not expose to network without authentication.
+**Security Notes:**
+
+1. **Anonymous users must have Viewer role only** - Never set `org_role = Admin` for anonymous access as this allows anyone to modify dashboards, data sources, and settings.
+2. **Enable login form** - Keep `disable_login_form = false` so administrators can log in to make changes.
+3. **Set strong admin password** - Change the default `admin/admin` credentials via `GF_ADMIN_PASSWORD` environment variable before exposing to network.
+4. **Localhost only** - Only enable anonymous mode for localhost access. Do not expose to network without proper authentication.
 
 ## Consequences
 

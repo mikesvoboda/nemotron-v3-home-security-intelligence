@@ -1348,3 +1348,238 @@ class TestConstants:
     def test_embedding_dimension(self) -> None:
         """Test EMBEDDING_DIMENSION is 768 for CLIP ViT-L."""
         assert EMBEDDING_DIMENSION == 768
+
+
+# =============================================================================
+# Rate Limiting Tests (NEM-1072)
+# =============================================================================
+
+
+class TestRateLimitingConfiguration:
+    """Tests for rate limiting configuration in ReIdentificationService."""
+
+    def test_service_has_max_concurrent_requests_attribute(self) -> None:
+        """Test that service has configurable max_concurrent_requests."""
+        service = ReIdentificationService()
+        assert hasattr(service, "max_concurrent_requests")
+        # Default should be a reasonable value
+        assert service.max_concurrent_requests > 0
+
+    def test_service_accepts_custom_max_concurrent_requests(self) -> None:
+        """Test service can be initialized with custom concurrency limit."""
+        service = ReIdentificationService(max_concurrent_requests=5)
+        assert service.max_concurrent_requests == 5
+
+    def test_service_has_semaphore_for_rate_limiting(self) -> None:
+        """Test that service has an asyncio.Semaphore for rate limiting."""
+        service = ReIdentificationService(max_concurrent_requests=3)
+        assert hasattr(service, "_rate_limit_semaphore")
+        # Semaphore should be initialized with the configured limit
+        assert service._rate_limit_semaphore._value == 3
+
+
+class TestRateLimitingBehavior:
+    """Tests for rate limiting behavior in ReIdentificationService operations."""
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_respects_rate_limit(self) -> None:
+        """Test that generate_embedding operations are rate limited."""
+        import asyncio
+
+        mock_client = AsyncMock()
+
+        # Add a small delay to simulate processing time
+        async def slow_embed(image: Image.Image) -> list[float]:
+            await asyncio.sleep(0.1)
+            return [0.1] * EMBEDDING_DIMENSION
+
+        mock_client.embed.side_effect = slow_embed
+
+        # Create service with max 2 concurrent requests
+        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=2)
+        image = Image.new("RGB", (100, 100), color="red")
+
+        # Launch 5 concurrent requests
+        start_time = asyncio.get_event_loop().time()
+        tasks = [service.generate_embedding(image) for _ in range(5)]
+        await asyncio.gather(*tasks)
+        end_time = asyncio.get_event_loop().time()
+
+        # With max 2 concurrent and 5 requests at 0.1s each:
+        # First batch (2 concurrent): 0.1s
+        # Second batch (2 concurrent): 0.1s
+        # Third batch (1 remaining): 0.1s
+        # Total minimum: 0.3s (without rate limiting it would be ~0.1s)
+        elapsed = end_time - start_time
+        assert elapsed >= 0.25, f"Rate limiting not effective, elapsed: {elapsed}s"
+
+    @pytest.mark.asyncio
+    async def test_store_embedding_respects_rate_limit(self) -> None:
+        """Test that store_embedding operations are rate limited."""
+        import asyncio
+
+        mock_redis = AsyncMock()
+
+        # Add delay to storage operation
+        async def slow_setex(*args: object, **kwargs: object) -> None:
+            await asyncio.sleep(0.1)
+
+        mock_redis.get.return_value = None
+        mock_redis.setex.side_effect = slow_setex
+
+        service = ReIdentificationService(max_concurrent_requests=2)
+        now = datetime.now(UTC)
+
+        # Create multiple embeddings
+        embeddings = [
+            EntityEmbedding(
+                entity_type="person",
+                embedding=[0.1] * 10,
+                camera_id="front_door",
+                timestamp=now,
+                detection_id=f"det_{i}",
+            )
+            for i in range(5)
+        ]
+
+        start_time = asyncio.get_event_loop().time()
+        tasks = [service.store_embedding(mock_redis, emb) for emb in embeddings]
+        await asyncio.gather(*tasks)
+        end_time = asyncio.get_event_loop().time()
+
+        elapsed = end_time - start_time
+        # With rate limiting of 2, should take at least 0.25s for 5 operations
+        assert elapsed >= 0.25, f"Rate limiting not effective, elapsed: {elapsed}s"
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_respects_rate_limit(self) -> None:
+        """Test that find_matching_entities operations are rate limited."""
+        import asyncio
+
+        mock_redis = AsyncMock()
+
+        async def slow_get(key: str) -> str | None:
+            await asyncio.sleep(0.1)
+            return None
+
+        mock_redis.get.side_effect = slow_get
+
+        service = ReIdentificationService(max_concurrent_requests=2)
+
+        start_time = asyncio.get_event_loop().time()
+        tasks = [
+            service.find_matching_entities(mock_redis, [0.1] * EMBEDDING_DIMENSION)
+            for _ in range(4)
+        ]
+        await asyncio.gather(*tasks)
+        end_time = asyncio.get_event_loop().time()
+
+        elapsed = end_time - start_time
+        # With rate limiting of 2, should take at least 0.2s for 4 operations
+        assert elapsed >= 0.15, f"Rate limiting not effective, elapsed: {elapsed}s"
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_does_not_block_when_under_limit(self) -> None:
+        """Test that requests proceed immediately when under the rate limit."""
+        import asyncio
+
+        mock_client = AsyncMock()
+        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+
+        # High limit, should not block
+        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=100)
+        image = Image.new("RGB", (100, 100), color="blue")
+
+        start_time = asyncio.get_event_loop().time()
+        tasks = [service.generate_embedding(image) for _ in range(5)]
+        await asyncio.gather(*tasks)
+        end_time = asyncio.get_event_loop().time()
+
+        elapsed = end_time - start_time
+        # Should complete almost instantly since we're under the limit
+        assert elapsed < 0.5, f"Rate limiting incorrectly blocking, elapsed: {elapsed}s"
+
+
+class TestRateLimitingWithConfig:
+    """Tests for rate limiting configuration from Settings."""
+
+    @patch("backend.services.reid_service.get_settings")
+    def test_service_uses_settings_for_default_rate_limit(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that service uses Settings for default rate limit when not provided."""
+        mock_settings = MagicMock()
+        mock_settings.reid_max_concurrent_requests = 10
+        mock_get_settings.return_value = mock_settings
+
+        # Service created without explicit max_concurrent_requests should use settings
+        service = ReIdentificationService()
+        assert service.max_concurrent_requests == 10
+
+    def test_explicit_max_concurrent_overrides_settings(self) -> None:
+        """Test that explicit parameter overrides settings."""
+        # Even if settings has a different value, explicit parameter takes precedence
+        service = ReIdentificationService(max_concurrent_requests=7)
+        assert service.max_concurrent_requests == 7
+
+
+class TestRateLimitingEdgeCases:
+    """Tests for rate limiting edge cases and error handling."""
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_released_on_exception(self) -> None:
+        """Test that semaphore is released even when operation raises exception."""
+        import asyncio
+
+        mock_client = AsyncMock()
+        mock_client.embed.side_effect = RuntimeError("Test error")
+
+        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=1)
+        image = Image.new("RGB", (100, 100), color="green")
+
+        # First request should fail but release semaphore
+        with pytest.raises(RuntimeError):
+            await service.generate_embedding(image)
+
+        # Second request should not be blocked (semaphore was released)
+        mock_client.embed.side_effect = None
+        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+
+        # This should complete without hanging
+        async with asyncio.timeout(1.0):
+            result = await service.generate_embedding(image)
+            assert len(result) == EMBEDDING_DIMENSION
+
+    @pytest.mark.asyncio
+    async def test_concurrent_operations_stay_within_limit(self) -> None:
+        """Test that concurrent operations never exceed the configured limit."""
+        import asyncio
+
+        mock_client = AsyncMock()
+        concurrent_count = 0
+        max_observed_concurrent = 0
+        lock = asyncio.Lock()
+
+        async def tracking_embed(image: Image.Image) -> list[float]:
+            nonlocal concurrent_count, max_observed_concurrent
+            async with lock:
+                concurrent_count += 1
+                max_observed_concurrent = max(max_observed_concurrent, concurrent_count)
+            await asyncio.sleep(0.05)  # Simulate work
+            async with lock:
+                concurrent_count -= 1
+            return [0.1] * EMBEDDING_DIMENSION
+
+        mock_client.embed.side_effect = tracking_embed
+
+        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=3)
+        image = Image.new("RGB", (100, 100), color="yellow")
+
+        # Launch many concurrent requests
+        tasks = [service.generate_embedding(image) for _ in range(20)]
+        await asyncio.gather(*tasks)
+
+        # Should never have exceeded the limit
+        assert max_observed_concurrent <= 3, (
+            f"Exceeded rate limit: max concurrent was {max_observed_concurrent}"
+        )

@@ -16,6 +16,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
+from starlette.testclient import TestClient
 
 from backend.api.routes import system as system_routes
 from backend.api.schemas.system import (
@@ -3951,7 +3952,8 @@ async def test_get_pipeline_latency_history_empty() -> None:
     tracker = PipelineLatencyTracker()
 
     with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
-        response = await system_routes.get_pipeline_latency_history()
+        # Pass explicit values since Query defaults don't resolve when calling directly
+        response = await system_routes.get_pipeline_latency_history(since=60, bucket_seconds=60)
 
     assert isinstance(response, PipelineLatencyHistoryResponse)
     assert response.snapshots == []
@@ -4050,3 +4052,115 @@ async def test_get_pipeline_latency_history_stage_stats_format() -> None:
     assert watch_stats.p95_ms > 0
     assert watch_stats.p99_ms > 0
     assert watch_stats.sample_count == 5
+
+
+# =============================================================================
+# Pipeline Latency History Parameter Validation Tests (NEM-1063)
+# =============================================================================
+
+
+class TestPipelineLatencyHistoryParameterValidation:
+    """Tests for parameter validation bounds on pipeline-latency-history endpoint."""
+
+    @pytest.fixture
+    def client(self) -> TestClient:
+        """Create a test client."""
+        from backend.main import app
+
+        return TestClient(app)
+
+    # === since parameter validation ===
+
+    def test_since_below_minimum_returns_422(self, client: TestClient) -> None:
+        """Test that since=0 returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?since=0")
+        assert response.status_code == 422  # Validation error
+
+    def test_since_negative_returns_422(self, client: TestClient) -> None:
+        """Test that since=-1 returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?since=-1")
+        assert response.status_code == 422  # Validation error
+
+    def test_since_above_maximum_returns_422(self, client: TestClient) -> None:
+        """Test that since=1441 (above 1440 max) returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?since=1441")
+        assert response.status_code == 422  # Validation error
+
+    def test_since_way_above_maximum_returns_422(self, client: TestClient) -> None:
+        """Test that extremely large since value returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?since=999999999")
+        assert response.status_code == 422  # Validation error
+
+    def test_since_at_minimum_boundary_returns_200(self, client: TestClient) -> None:
+        """Test that since=1 (minimum valid) returns 200."""
+        response = client.get("/api/system/pipeline-latency/history?since=1")
+        assert response.status_code == 200
+
+    def test_since_at_maximum_boundary_returns_200(self, client: TestClient) -> None:
+        """Test that since=1440 (maximum valid) returns 200."""
+        response = client.get("/api/system/pipeline-latency/history?since=1440")
+        assert response.status_code == 200
+
+    def test_since_default_returns_200(self, client: TestClient) -> None:
+        """Test that default since parameter returns 200."""
+        response = client.get("/api/system/pipeline-latency/history")
+        assert response.status_code == 200
+
+    # === bucket_seconds parameter validation ===
+
+    def test_bucket_seconds_below_minimum_returns_422(self, client: TestClient) -> None:
+        """Test that bucket_seconds=9 (below 10 min) returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=9")
+        assert response.status_code == 422  # Validation error
+
+    def test_bucket_seconds_at_one_returns_422(self, client: TestClient) -> None:
+        """Test that bucket_seconds=1 returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=1")
+        assert response.status_code == 422  # Validation error
+
+    def test_bucket_seconds_negative_returns_422(self, client: TestClient) -> None:
+        """Test that bucket_seconds=-1 returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=-1")
+        assert response.status_code == 422  # Validation error
+
+    def test_bucket_seconds_above_maximum_returns_422(self, client: TestClient) -> None:
+        """Test that bucket_seconds=3601 (above 3600 max) returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=3601")
+        assert response.status_code == 422  # Validation error
+
+    def test_bucket_seconds_way_above_maximum_returns_422(self, client: TestClient) -> None:
+        """Test that extremely large bucket_seconds value returns 422 validation error."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=999999999")
+        assert response.status_code == 422  # Validation error
+
+    def test_bucket_seconds_at_minimum_boundary_returns_200(self, client: TestClient) -> None:
+        """Test that bucket_seconds=10 (minimum valid) returns 200."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=10")
+        assert response.status_code == 200
+
+    def test_bucket_seconds_at_maximum_boundary_returns_200(self, client: TestClient) -> None:
+        """Test that bucket_seconds=3600 (maximum valid) returns 200."""
+        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=3600")
+        assert response.status_code == 200
+
+    # === Combined parameter validation ===
+
+    def test_both_parameters_invalid_returns_422(self, client: TestClient) -> None:
+        """Test that both invalid since and bucket_seconds returns 422."""
+        response = client.get("/api/system/pipeline-latency/history?since=0&bucket_seconds=1")
+        assert response.status_code == 422  # Validation error
+
+    def test_both_parameters_valid_returns_200(self, client: TestClient) -> None:
+        """Test that valid since and bucket_seconds returns 200."""
+        response = client.get("/api/system/pipeline-latency/history?since=60&bucket_seconds=60")
+        assert response.status_code == 200
+
+    def test_valid_since_invalid_bucket_seconds_returns_422(self, client: TestClient) -> None:
+        """Test that valid since with invalid bucket_seconds returns 422."""
+        response = client.get("/api/system/pipeline-latency/history?since=60&bucket_seconds=1")
+        assert response.status_code == 422  # Validation error
+
+    def test_invalid_since_valid_bucket_seconds_returns_422(self, client: TestClient) -> None:
+        """Test that invalid since with valid bucket_seconds returns 422."""
+        response = client.get("/api/system/pipeline-latency/history?since=0&bucket_seconds=60")
+        assert response.status_code == 422  # Validation error

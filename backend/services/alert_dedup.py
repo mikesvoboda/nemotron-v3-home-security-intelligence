@@ -32,6 +32,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -39,6 +40,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus
+
+# Pattern for valid dedup_key: alphanumeric, underscore, hyphen, colon only
+# This prevents injection attacks via special characters
+DEDUP_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9_:\-]+$")
 
 
 @dataclass
@@ -105,13 +110,24 @@ class AlertDeduplicationService:
 
     @staticmethod
     def _validate_dedup_key(dedup_key: str) -> None:
-        """Validate that dedup_key is non-empty and well-formed.
+        """Validate that dedup_key is non-empty, well-formed, and uses only safe characters.
+
+        This validation prevents injection attacks by ensuring dedup_key contains
+        only alphanumeric characters, underscores, hyphens, and colons.
 
         Args:
             dedup_key: The deduplication key to validate
 
         Raises:
-            ValueError: If dedup_key is empty, whitespace-only, or malformed
+            ValueError: If dedup_key is empty, whitespace-only, malformed,
+                       or contains invalid characters
+
+        Security:
+            - Rejects SQL injection attempts (quotes, semicolons, comments)
+            - Rejects command injection attempts (backticks, pipes, etc.)
+            - Rejects path traversal attempts (slashes, dots)
+            - Rejects XSS vectors (angle brackets, etc.)
+            - Rejects non-ASCII unicode characters
         """
         if not dedup_key:
             raise ValueError("dedup_key cannot be empty or None")
@@ -119,6 +135,13 @@ class AlertDeduplicationService:
             raise ValueError("dedup_key cannot be whitespace-only")
         if dedup_key != dedup_key.strip():
             raise ValueError("dedup_key cannot have leading or trailing whitespace")
+
+        # Validate character pattern to prevent injection attacks
+        if not DEDUP_KEY_PATTERN.match(dedup_key):
+            raise ValueError(
+                "dedup_key contains invalid characters. "
+                "Only alphanumeric characters, underscores, hyphens, and colons are allowed."
+            )
 
     async def check_duplicate(
         self,

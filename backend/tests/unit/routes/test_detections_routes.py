@@ -927,6 +927,69 @@ async def test_list_detections_min_limit(
 
 
 # =============================================================================
+# Date Range Validation Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_detections_invalid_date_range_returns_400(
+    mock_db_session: AsyncMock,
+) -> None:
+    """Test that start_date after end_date returns HTTP 400."""
+    # start_date is after end_date
+    start_date = datetime(2025, 12, 31, 23, 59, 59)
+    end_date = datetime(2025, 1, 1, 0, 0, 0)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await detections_routes.list_detections(
+            camera_id=None,
+            object_type=None,
+            start_date=start_date,
+            end_date=end_date,
+            min_confidence=None,
+            limit=50,
+            offset=0,
+            db=mock_db_session,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "start_date" in exc_info.value.detail.lower()
+    assert "end_date" in exc_info.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_list_detections_equal_dates_is_valid(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test that start_date equals end_date is valid (edge case)."""
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection]
+    mock_result.scalars.return_value = mock_scalars
+
+    mock_count_result = MagicMock()
+    mock_count_result.scalar.return_value = 1
+
+    mock_db_session.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
+
+    # Same date for start and end should be valid
+    same_date = datetime(2025, 12, 23, 12, 0, 0)
+
+    result = await detections_routes.list_detections(
+        camera_id=None,
+        object_type=None,
+        start_date=same_date,
+        end_date=same_date,
+        min_confidence=None,
+        limit=50,
+        offset=0,
+        db=mock_db_session,
+    )
+
+    assert result["count"] == 1
+
+
+# =============================================================================
 # Integration with Module-Level Variables
 # =============================================================================
 

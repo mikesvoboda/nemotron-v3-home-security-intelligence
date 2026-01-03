@@ -203,6 +203,226 @@ class TestValidateDedupKey:
         # Should not raise
         service._validate_dedup_key("front_door:person:entry_zone")
 
+    # ==========================================================================
+    # Character pattern validation tests (NEM-1107)
+    # ==========================================================================
+
+    def test_valid_alphanumeric_key(self, mock_session: AsyncMock) -> None:
+        """Test that alphanumeric keys are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("camera1")
+        service._validate_dedup_key("frontDoor123")
+        service._validate_dedup_key("CAMERA01")
+
+    def test_valid_key_with_underscores(self, mock_session: AsyncMock) -> None:
+        """Test that keys with underscores are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("front_door")
+        service._validate_dedup_key("camera_01_front")
+        service._validate_dedup_key("a_b_c_d")
+
+    def test_valid_key_with_hyphens(self, mock_session: AsyncMock) -> None:
+        """Test that keys with hyphens are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("front-door")
+        service._validate_dedup_key("camera-01-front")
+        service._validate_dedup_key("a-b-c-d")
+
+    def test_valid_key_with_colons(self, mock_session: AsyncMock) -> None:
+        """Test that keys with colons (separators) are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("camera:person")
+        service._validate_dedup_key("front_door:person:zone1")
+        service._validate_dedup_key("cam-01:vehicle:entry-zone")
+
+    def test_valid_key_with_all_allowed_chars(self, mock_session: AsyncMock) -> None:
+        """Test that keys with all allowed characters are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise - mix of alphanumeric, underscore, hyphen, colon
+        service._validate_dedup_key("front_door-01:person:entry-zone_A")
+        service._validate_dedup_key("CAM_01-front:Person123:Zone-A_1")
+
+    def test_sql_injection_single_quote_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that SQL injection via single quotes is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera'; DROP TABLE alerts;--")
+
+    def test_sql_injection_double_quote_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that SQL injection via double quotes is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key('camera"; DROP TABLE alerts;--')
+
+    def test_command_injection_semicolon_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that command injection via semicolons is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera;rm -rf /")
+
+    def test_path_traversal_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that path traversal attempts are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera/../../../etc/passwd")
+
+    def test_newline_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that newline injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\nmalicious")
+
+    def test_carriage_return_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that carriage return injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\rmalicious")
+
+    def test_tab_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that tab injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\tmalicious")
+
+    def test_null_byte_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that null byte injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\x00malicious")
+
+    def test_angle_brackets_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that angle brackets (XSS vectors) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera<script>alert(1)</script>")
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera>test")
+
+    def test_curly_braces_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that curly braces are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera{test}")
+
+    def test_square_brackets_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that square brackets are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera[0]")
+
+    def test_parentheses_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that parentheses are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera(test)")
+
+    def test_dollar_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that dollar signs (variable expansion) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera$HOME")
+
+    def test_backtick_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that backticks (command substitution) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera`whoami`")
+
+    def test_pipe_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that pipe characters are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera|cat /etc/passwd")
+
+    def test_ampersand_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that ampersand characters are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera&rm -rf /")
+
+    def test_at_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that at signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera@example.com")
+
+    def test_exclamation_mark_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that exclamation marks are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera!test")
+
+    def test_percent_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that percent signs (URL encoding) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera%00malicious")
+
+    def test_asterisk_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that asterisks (glob patterns) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera*")
+
+    def test_question_mark_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that question marks are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera?test=1")
+
+    def test_equals_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that equals signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera=test")
+
+    def test_plus_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that plus signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera+test")
+
+    def test_hash_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that hash signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera#test")
+
+    def test_backslash_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that backslashes are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\\test")
+
+    def test_forward_slash_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that forward slashes are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera/test")
+
+    def test_unicode_characters_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that non-ASCII unicode characters are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        # Test zero-width space (invisible character)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\u200btest")
+        # Test fullwidth underscore character (U+FF3F)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\uff3ftest")
+        # Test emoji
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\U0001f4f7test")
+
+    def test_space_in_middle_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that spaces in the middle of keys are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("front door:person")
+
 
 # =============================================================================
 # AlertDeduplicationService.check_duplicate() Tests
@@ -801,16 +1021,14 @@ class TestEdgeCases:
         assert result.is_duplicate is False
 
     @pytest.mark.asyncio
-    async def test_unicode_in_dedup_key(self, mock_session: AsyncMock) -> None:
-        """Test handling of unicode characters in dedup key."""
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
-
+    async def test_unicode_in_dedup_key_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that unicode characters in dedup key are rejected (NEM-1107)."""
         service = AlertDeduplicationService(mock_session)
-        result = await service.check_duplicate("camera_1:person")
 
-        assert result.is_duplicate is False
+        # Unicode characters should be rejected by stricter validation
+        # Using escape sequence to ensure fullwidth underscore (U+FF3F) is preserved
+        with pytest.raises(ValueError, match="invalid characters"):
+            await service.check_duplicate("camera\uff3f1:person")
 
     @pytest.mark.asyncio
     async def test_negative_seconds_remaining_clamped_to_zero(

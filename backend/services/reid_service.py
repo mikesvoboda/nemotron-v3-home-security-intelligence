@@ -9,6 +9,11 @@ between different cameras, providing valuable context for risk analysis.
 The service now uses the ai-clip HTTP service for embedding generation,
 keeping the CLIP model in a dedicated container for better VRAM management.
 
+Rate Limiting:
+    The service implements concurrency-based rate limiting using asyncio.Semaphore
+    to prevent resource exhaustion from too many concurrent requests. This is
+    configurable via REID_MAX_CONCURRENT_REQUESTS setting (default: 10).
+
 Redis Storage Pattern:
     Key: entity_embeddings:{date}
     TTL: 24 hours (86400 seconds)
@@ -16,6 +21,7 @@ Redis Storage Pattern:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -23,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_clip_client
 
@@ -156,6 +163,13 @@ class ReIdentificationService:
     which runs the CLIP ViT-L model in a dedicated container for better VRAM
     management.
 
+    Rate Limiting:
+        All async operations (generate_embedding, store_embedding,
+        find_matching_entities, get_entity_history) are rate-limited using
+        an asyncio.Semaphore to prevent resource exhaustion. The limit is
+        configurable via `max_concurrent_requests` parameter or the
+        REID_MAX_CONCURRENT_REQUESTS setting.
+
     Usage:
         service = ReIdentificationService()
 
@@ -179,15 +193,44 @@ class ReIdentificationService:
         )
     """
 
-    def __init__(self, clip_client: CLIPClient | None = None) -> None:
+    def __init__(
+        self,
+        clip_client: CLIPClient | None = None,
+        max_concurrent_requests: int | None = None,
+    ) -> None:
         """Initialize the ReIdentificationService.
 
         Args:
             clip_client: Optional CLIPClient instance. If not provided,
                         the global client will be used.
+            max_concurrent_requests: Maximum concurrent re-identification
+                        operations. If not provided, uses the value from
+                        settings (REID_MAX_CONCURRENT_REQUESTS, default: 10).
         """
         self._clip_client = clip_client
-        logger.info("ReIdentificationService initialized")
+
+        # Set up rate limiting
+        if max_concurrent_requests is not None:
+            self._max_concurrent_requests = max_concurrent_requests
+        else:
+            settings = get_settings()
+            self._max_concurrent_requests = settings.reid_max_concurrent_requests
+
+        self._rate_limit_semaphore = asyncio.Semaphore(self._max_concurrent_requests)
+
+        logger.info(
+            "ReIdentificationService initialized with max_concurrent_requests=%d",
+            self._max_concurrent_requests,
+        )
+
+    @property
+    def max_concurrent_requests(self) -> int:
+        """Get the maximum concurrent requests limit.
+
+        Returns:
+            Maximum number of concurrent re-identification operations allowed.
+        """
+        return self._max_concurrent_requests
 
     @property
     def clip_client(self) -> CLIPClient:
@@ -211,6 +254,8 @@ class ReIdentificationService:
         Uses the ai-clip HTTP service to generate embeddings, keeping the
         CLIP model in a dedicated container for better VRAM management.
 
+        This method is rate-limited to prevent resource exhaustion.
+
         Args:
             image: PIL Image to generate embedding from
             bbox: Optional bounding box (x1, y1, x2, y2) to crop before embedding
@@ -229,24 +274,25 @@ class ReIdentificationService:
                 "ReIdentificationService now uses the ai-clip HTTP service."
             )
 
-        try:
-            # Crop to bounding box if provided
-            if bbox is not None:
-                x1, y1, x2, y2 = bbox
-                image = image.crop((x1, y1, x2, y2))
+        async with self._rate_limit_semaphore:
+            try:
+                # Crop to bounding box if provided
+                if bbox is not None:
+                    x1, y1, x2, y2 = bbox
+                    image = image.crop((x1, y1, x2, y2))
 
-            # Generate embedding via HTTP client
-            embedding = await self.clip_client.embed(image)
+                # Generate embedding via HTTP client
+                embedding = await self.clip_client.embed(image)
 
-            logger.debug(f"Generated embedding with dimension {len(embedding)}")
-            return embedding
+                logger.debug(f"Generated embedding with dimension {len(embedding)}")
+                return embedding
 
-        except CLIPUnavailableError:
-            # Re-raise CLIP unavailable errors as-is
-            raise
-        except Exception as e:
-            logger.error(f"Failed to generate embedding: {e}")
-            raise RuntimeError(f"Embedding generation failed: {e}") from e
+            except CLIPUnavailableError:
+                # Re-raise CLIP unavailable errors as-is
+                raise
+            except Exception as e:
+                logger.error(f"Failed to generate embedding: {e}")
+                raise RuntimeError(f"Embedding generation failed: {e}") from e
 
     async def store_embedding(
         self,
@@ -257,36 +303,39 @@ class ReIdentificationService:
 
         Embeddings are stored with 24-hour TTL for session-based tracking.
 
+        This method is rate-limited to prevent resource exhaustion.
+
         Args:
             redis_client: Redis client instance
             embedding: EntityEmbedding to store
         """
-        date_key = embedding.timestamp.strftime("%Y-%m-%d")
-        key = f"entity_embeddings:{date_key}"
+        async with self._rate_limit_semaphore:
+            date_key = embedding.timestamp.strftime("%Y-%m-%d")
+            key = f"entity_embeddings:{date_key}"
 
-        try:
-            # Get existing embeddings
-            existing = await redis_client.get(key)
-            data = json.loads(existing) if existing else {"persons": [], "vehicles": []}
+            try:
+                # Get existing embeddings
+                existing = await redis_client.get(key)
+                data = json.loads(existing) if existing else {"persons": [], "vehicles": []}
 
-            # Add new embedding
-            list_key = "persons" if embedding.entity_type == "person" else "vehicles"
-            data[list_key].append(embedding.to_dict())
+                # Add new embedding
+                list_key = "persons" if embedding.entity_type == "person" else "vehicles"
+                data[list_key].append(embedding.to_dict())
 
-            # Store with TTL
-            await redis_client.setex(
-                key,
-                EMBEDDING_TTL_SECONDS,
-                json.dumps(data),
-            )
+                # Store with TTL
+                await redis_client.setex(
+                    key,
+                    EMBEDDING_TTL_SECONDS,
+                    json.dumps(data),
+                )
 
-            logger.debug(
-                f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id}"
-            )
+                logger.debug(
+                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id}"
+                )
 
-        except Exception as e:
-            logger.error(f"Failed to store embedding: {e}")
-            raise
+            except Exception as e:
+                logger.error(f"Failed to store embedding: {e}")
+                raise
 
     async def find_matching_entities(
         self,
@@ -298,6 +347,8 @@ class ReIdentificationService:
     ) -> list[EntityMatch]:
         """Find entities matching the given embedding.
 
+        This method is rate-limited to prevent resource exhaustion.
+
         Args:
             redis_client: Redis client instance
             embedding: 768-dimensional embedding to match
@@ -308,59 +359,60 @@ class ReIdentificationService:
         Returns:
             List of EntityMatch objects sorted by similarity (highest first)
         """
-        matches: list[EntityMatch] = []
-        now = datetime.now(UTC)
+        async with self._rate_limit_semaphore:
+            matches: list[EntityMatch] = []
+            now = datetime.now(UTC)
 
-        try:
-            # Check today's and yesterday's embeddings
-            today = now.strftime("%Y-%m-%d")
-            yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+            try:
+                # Check today's and yesterday's embeddings
+                today = now.strftime("%Y-%m-%d")
+                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
 
-            # Use a set to avoid duplicates if today and yesterday are the same key
-            dates_to_check = list({today, yesterday})
+                # Use a set to avoid duplicates if today and yesterday are the same key
+                dates_to_check = list({today, yesterday})
 
-            for date_str in dates_to_check:
-                key = f"entity_embeddings:{date_str}"
-                data_raw = await redis_client.get(key)
+                for date_str in dates_to_check:
+                    key = f"entity_embeddings:{date_str}"
+                    data_raw = await redis_client.get(key)
 
-                if not data_raw:
-                    continue
-
-                data = json.loads(data_raw)
-                list_key = "persons" if entity_type == "person" else "vehicles"
-
-                for stored_data in data.get(list_key, []):
-                    # Skip if this is the same detection
-                    if (
-                        exclude_detection_id
-                        and stored_data.get("detection_id") == exclude_detection_id
-                    ):
+                    if not data_raw:
                         continue
 
-                    stored = EntityEmbedding.from_dict(stored_data)
-                    similarity = cosine_similarity(embedding, stored.embedding)
+                    data = json.loads(data_raw)
+                    list_key = "persons" if entity_type == "person" else "vehicles"
 
-                    if similarity >= threshold:
-                        time_gap = (now - stored.timestamp).total_seconds()
-                        matches.append(
-                            EntityMatch(
-                                entity=stored,
-                                similarity=similarity,
-                                time_gap_seconds=time_gap,
+                    for stored_data in data.get(list_key, []):
+                        # Skip if this is the same detection
+                        if (
+                            exclude_detection_id
+                            and stored_data.get("detection_id") == exclude_detection_id
+                        ):
+                            continue
+
+                        stored = EntityEmbedding.from_dict(stored_data)
+                        similarity = cosine_similarity(embedding, stored.embedding)
+
+                        if similarity >= threshold:
+                            time_gap = (now - stored.timestamp).total_seconds()
+                            matches.append(
+                                EntityMatch(
+                                    entity=stored,
+                                    similarity=similarity,
+                                    time_gap_seconds=time_gap,
+                                )
                             )
-                        )
 
-            # Sort by similarity (highest first)
-            matches.sort(key=lambda m: m.similarity, reverse=True)
+                # Sort by similarity (highest first)
+                matches.sort(key=lambda m: m.similarity, reverse=True)
 
-            logger.debug(
-                f"Found {len(matches)} matching {entity_type}(s) with threshold {threshold}"
-            )
-            return matches
+                logger.debug(
+                    f"Found {len(matches)} matching {entity_type}(s) with threshold {threshold}"
+                )
+                return matches
 
-        except Exception as e:
-            logger.error(f"Failed to find matching entities: {e}")
-            return []
+            except Exception as e:
+                logger.error(f"Failed to find matching entities: {e}")
+                return []
 
     async def get_entity_history(
         self,
@@ -370,6 +422,8 @@ class ReIdentificationService:
     ) -> list[EntityEmbedding]:
         """Get all stored embeddings for an entity type.
 
+        This method is rate-limited to prevent resource exhaustion.
+
         Args:
             redis_client: Redis client instance
             entity_type: Type of entity ("person" or "vehicle")
@@ -378,41 +432,42 @@ class ReIdentificationService:
         Returns:
             List of EntityEmbedding objects
         """
-        embeddings: list[EntityEmbedding] = []
-        now = datetime.now(UTC)
+        async with self._rate_limit_semaphore:
+            embeddings: list[EntityEmbedding] = []
+            now = datetime.now(UTC)
 
-        try:
-            # Check today's and yesterday's embeddings
-            today = now.strftime("%Y-%m-%d")
-            yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+            try:
+                # Check today's and yesterday's embeddings
+                today = now.strftime("%Y-%m-%d")
+                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
 
-            # Use a set to avoid duplicates if today and yesterday are the same key
-            dates_to_check = list({today, yesterday})
+                # Use a set to avoid duplicates if today and yesterday are the same key
+                dates_to_check = list({today, yesterday})
 
-            for date_str in dates_to_check:
-                key = f"entity_embeddings:{date_str}"
-                data_raw = await redis_client.get(key)
+                for date_str in dates_to_check:
+                    key = f"entity_embeddings:{date_str}"
+                    data_raw = await redis_client.get(key)
 
-                if not data_raw:
-                    continue
+                    if not data_raw:
+                        continue
 
-                data = json.loads(data_raw)
-                list_key = "persons" if entity_type == "person" else "vehicles"
+                    data = json.loads(data_raw)
+                    list_key = "persons" if entity_type == "person" else "vehicles"
 
-                for stored_data in data.get(list_key, []):
-                    entity = EntityEmbedding.from_dict(stored_data)
+                    for stored_data in data.get(list_key, []):
+                        entity = EntityEmbedding.from_dict(stored_data)
 
-                    # Filter by camera if specified
-                    if camera_id is None or entity.camera_id == camera_id:
-                        embeddings.append(entity)
+                        # Filter by camera if specified
+                        if camera_id is None or entity.camera_id == camera_id:
+                            embeddings.append(entity)
 
-            # Sort by timestamp (newest first)
-            embeddings.sort(key=lambda e: e.timestamp, reverse=True)
-            return embeddings
+                # Sort by timestamp (newest first)
+                embeddings.sort(key=lambda e: e.timestamp, reverse=True)
+                return embeddings
 
-        except Exception as e:
-            logger.error(f"Failed to get entity history: {e}")
-            return []
+            except Exception as e:
+                logger.error(f"Failed to get entity history: {e}")
+                return []
 
 
 # Global service instance

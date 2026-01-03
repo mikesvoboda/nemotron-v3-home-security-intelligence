@@ -205,12 +205,17 @@ class WebSocketCircuitBreaker:
         if self._state == WebSocketCircuitState.OPEN:
             if self._should_attempt_recovery():
                 self._transition_to_half_open()
+                # Increment counter for this first call in half-open state
+                self._half_open_calls += 1
                 return True
             return False
 
         if self._state == WebSocketCircuitState.HALF_OPEN:
             # Limit concurrent calls in half-open state
-            return self._half_open_calls < self._half_open_max_calls
+            if self._half_open_calls < self._half_open_max_calls:
+                self._half_open_calls += 1
+                return True
+            return False
 
         return False
 

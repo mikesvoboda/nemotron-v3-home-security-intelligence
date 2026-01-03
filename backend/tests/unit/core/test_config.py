@@ -840,3 +840,52 @@ class TestRedisSSLSettings:
         assert settings.redis_ssl_certfile == "/path/to/client.crt"
         assert settings.redis_ssl_keyfile == "/path/to/client.key"
         assert settings.redis_ssl_check_hostname is True
+
+
+class TestRedisPasswordSettings:
+    """Test Redis password authentication configuration settings (NEM-1089).
+
+    NOTE: S105/S106 are false positives - these are test fixtures, not real passwords.
+    """
+
+    def test_default_redis_password_is_none(self, clean_env):
+        """Test that Redis password is None by default (no auth required for local dev)."""
+        settings = Settings()
+        assert settings.redis_password is None
+
+    def test_redis_password_from_env(self, clean_env):
+        """Test that REDIS_PASSWORD can be set via environment variable."""
+        clean_env.setenv("REDIS_PASSWORD", "my_secure_password")
+        settings = Settings()
+        assert settings.redis_password == "my_secure_password"  # noqa: S105 - Test fixture
+
+    def test_redis_password_empty_string_is_preserved(self, clean_env):
+        """Test that empty string password is preserved as empty string."""
+        clean_env.setenv("REDIS_PASSWORD", "")
+        settings = Settings()
+        # Empty string should be preserved - the connection layer handles this
+        assert settings.redis_password == ""
+
+    def test_redis_password_special_characters(self, clean_env):
+        """Test that Redis password can contain special characters."""
+        special_password = "p@ss!w0rd#123$%^&*()"  # noqa: S105 - Test fixture
+        clean_env.setenv("REDIS_PASSWORD", special_password)
+        settings = Settings()
+        assert settings.redis_password == special_password
+
+    def test_redis_password_with_url_also_set(self, clean_env):
+        """Test that Redis password works alongside Redis URL."""
+        clean_env.setenv("REDIS_URL", "redis://redis-host:6379/0")
+        clean_env.setenv("REDIS_PASSWORD", "secure_password")
+        settings = Settings()
+        assert settings.redis_url == "redis://redis-host:6379/0"
+        assert settings.redis_password == "secure_password"  # noqa: S105 - Test fixture
+
+    def test_redis_password_with_ssl_settings(self, clean_env):
+        """Test that Redis password works alongside SSL settings."""
+        clean_env.setenv("REDIS_PASSWORD", "secure_password")
+        clean_env.setenv("REDIS_SSL_ENABLED", "true")
+        clean_env.setenv("REDIS_SSL_CERT_REQS", "none")
+        settings = Settings()
+        assert settings.redis_password == "secure_password"  # noqa: S105 - Test fixture
+        assert settings.redis_ssl_enabled is True

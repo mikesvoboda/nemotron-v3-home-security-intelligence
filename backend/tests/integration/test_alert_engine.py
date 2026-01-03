@@ -22,10 +22,11 @@ database, tests must be designed to work independently:
    by a specific test for assertion checking
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
+from backend.core.time_utils import utc_now_naive
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Camera, Detection, Event
 from backend.services.alert_engine import (
     DAY_NAMES,
@@ -35,12 +36,6 @@ from backend.services.alert_engine import (
     TriggeredRule,
 )
 from backend.tests.conftest import unique_id
-
-
-def utc_now_naive() -> datetime:
-    """Return current UTC time as a naive datetime (for DB compatibility)."""
-    return datetime.now(UTC).replace(tzinfo=None)
-
 
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup

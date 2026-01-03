@@ -348,16 +348,60 @@ class TestHalfOpenCallLimiting:
         with patch("time.monotonic") as mock_time:
             mock_time.return_value = low_threshold_breaker._opened_at + 10.0
 
-            # First call is permitted
+            # First call is permitted and increments counter
             assert low_threshold_breaker.is_call_permitted() is True
-            low_threshold_breaker._half_open_calls = 1
+            assert low_threshold_breaker._half_open_calls == 1
 
-            # Second call is permitted (half_open_max_calls=2)
+            # Second call is permitted (half_open_max_calls=2) and increments counter
             assert low_threshold_breaker.is_call_permitted() is True
-            low_threshold_breaker._half_open_calls = 2
+            assert low_threshold_breaker._half_open_calls == 2
 
-            # Third call is not permitted
+            # Third call is not permitted (reached max)
             assert low_threshold_breaker.is_call_permitted() is False
+            # Counter should NOT increment when call is rejected
+            assert low_threshold_breaker._half_open_calls == 2
+
+    def test_half_open_calls_counter_increments_on_permitted_call(
+        self, circuit_breaker: WebSocketCircuitBreaker
+    ) -> None:
+        """Test that half_open_calls counter is incremented when call is permitted in HALF_OPEN state."""
+        # Get to HALF_OPEN state
+        for _ in range(3):
+            circuit_breaker.record_failure()
+
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = circuit_breaker._opened_at + 35.0
+
+            # Initial half_open_calls should be 0 after transition
+            assert circuit_breaker._half_open_calls == 0
+
+            # First permitted call should increment the counter
+            assert circuit_breaker.is_call_permitted() is True
+            assert circuit_breaker._half_open_calls == 1
+
+            # Since half_open_max_calls=1, next call should be rejected
+            assert circuit_breaker.is_call_permitted() is False
+            # Counter should stay at 1 (not increment on rejection)
+            assert circuit_breaker._half_open_calls == 1
+
+    def test_half_open_calls_counter_reset_on_transition_to_open(
+        self, circuit_breaker: WebSocketCircuitBreaker
+    ) -> None:
+        """Test that half_open_calls counter is reset when transitioning back to OPEN."""
+        # Get to HALF_OPEN state
+        for _ in range(3):
+            circuit_breaker.record_failure()
+
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = circuit_breaker._opened_at + 35.0
+            assert circuit_breaker.is_call_permitted() is True
+            assert circuit_breaker._half_open_calls == 1
+
+        # Failure in HALF_OPEN transitions back to OPEN
+        circuit_breaker.record_failure()
+
+        assert circuit_breaker.get_state() == WebSocketCircuitState.OPEN
+        assert circuit_breaker._half_open_calls == 0
 
 
 # =============================================================================

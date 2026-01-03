@@ -63,6 +63,12 @@ class Settings(BaseSettings):
         default="redis://localhost:6379/0",
         description="Redis connection URL",
     )
+    redis_password: str | None = Field(
+        default=None,
+        description="Redis password for authentication. Optional for local development (no password). "
+        "Set via REDIS_PASSWORD environment variable for production deployments. "
+        "Must match the `requirepass` value configured in Redis.",
+    )
     redis_event_channel: str = Field(
         default="security_events",
         description="Redis pub/sub channel for security events",
@@ -357,6 +363,14 @@ class Settings(BaseSettings):
         le=168,
         description="Time-to-live for re-identification embeddings in Redis (hours)",
     )
+    reid_max_concurrent_requests: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum concurrent re-identification operations (embedding generation, "
+        "storage, and matching). Prevents resource exhaustion from too many simultaneous "
+        "CLIP/Redis operations. Recommended: 5-20 depending on hardware.",
+    )
     scene_change_threshold: float = Field(
         default=0.90,
         ge=0.5,
@@ -538,6 +552,14 @@ class Settings(BaseSettings):
         ge=1,
         le=1000,
         description="Maximum search requests per minute per client IP",
+    )
+    rate_limit_export_requests_per_minute: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum export requests per minute per client IP. "
+        "Lower limit to prevent abuse of CSV export functionality which "
+        "could overload the server or be used for data exfiltration.",
     )
     trusted_proxy_ips: list[str] = Field(
         default=["127.0.0.1", "::1"],

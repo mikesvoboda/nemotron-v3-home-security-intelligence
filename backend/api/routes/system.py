@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1540,8 +1540,18 @@ async def get_pipeline_latency(
 
 @router.get("/pipeline-latency/history", response_model=PipelineLatencyHistoryResponse)
 async def get_pipeline_latency_history(
-    since: int = 60,
-    bucket_seconds: int = 60,
+    since: int = Query(
+        default=60,
+        ge=1,
+        le=1440,
+        description="Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours)",
+    ),
+    bucket_seconds: int = Query(
+        default=60,
+        ge=10,
+        le=3600,
+        description="Size of each time bucket in seconds (10-3600, i.e., 10 seconds to 1 hour)",
+    ),
 ) -> PipelineLatencyHistoryResponse:
     """Get pipeline latency history for time-series visualization.
 
@@ -1549,8 +1559,8 @@ async def get_pipeline_latency_history(
     Each bucket contains aggregated statistics for all pipeline stages.
 
     Args:
-        since: Number of minutes of history to return (default 60)
-        bucket_seconds: Size of each time bucket in seconds (default 60 = 1 minute)
+        since: Number of minutes of history to return (1-1440, default 60)
+        bucket_seconds: Size of each time bucket in seconds (10-3600, default 60)
 
     Returns:
         PipelineLatencyHistoryResponse with chronologically ordered snapshots

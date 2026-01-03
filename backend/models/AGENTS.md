@@ -161,6 +161,7 @@ backend/models/
 - `idx_events_reviewed` - Single-column index on reviewed
 - `idx_events_batch_id` - Single-column index on batch_id
 - `idx_events_search_vector` - GIN index for full-text search
+- `idx_events_object_types_trgm` - GIN trigram index for LIKE/ILIKE queries on object_types (requires pg_trgm extension)
 
 **Additional Fields:**
 

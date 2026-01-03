@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.core.time_utils import utc_now
+
 from .camera import Base
 
 if TYPE_CHECKING:
     from .event import Event
-
-
-def _utc_now() -> datetime:
-    """Return current UTC time as a timezone-aware datetime."""
-    return datetime.now(UTC)
 
 
 class EventAudit(Base):
@@ -33,7 +30,7 @@ class EventAudit(Base):
         Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     audited_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utc_now
+        DateTime(timezone=True), nullable=False, default=utc_now
     )
 
     # Model contribution flags (captured real-time)
