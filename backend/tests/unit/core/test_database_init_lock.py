@@ -191,7 +191,7 @@ class TestInitDbAdvisoryLock:
 
             mock_conn.execute = track_execute
 
-            async def failing_run_sync(fn):
+            async def failing_run_sync(_fn):
                 nonlocal run_sync_call_count
                 run_sync_call_count += 1
                 if run_sync_call_count == 1:  # First call is create_all
@@ -262,7 +262,7 @@ class TestInitDbAdvisoryLock:
 
             mock_conn.execute = AsyncMock(return_value=mock_result)
 
-            async def track_run_sync(fn):
+            async def track_run_sync(_fn):
                 nonlocal run_sync_called
                 run_sync_called = True
 
