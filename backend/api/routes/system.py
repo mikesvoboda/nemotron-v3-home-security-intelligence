@@ -35,10 +35,12 @@ from backend.api.schemas.system import (
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthResponse,
+    LatencySample,
     ModelRegistryResponse,
     ModelStatusEnum,
     ModelStatusResponse,
     PipelineLatencies,
+    PipelineLatencyHistoryResponse,
     PipelineLatencyResponse,
     PipelineStageLatency,
     PipelineStatusResponse,
@@ -1530,6 +1532,43 @@ async def get_pipeline_latency(
         detect_to_batch=_stats_to_schema(summary.get("detect_to_batch", {})),
         batch_to_analyze=_stats_to_schema(summary.get("batch_to_analyze", {})),
         total_pipeline=_stats_to_schema(summary.get("total_pipeline", {})),
+        window_minutes=window_minutes,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.get("/pipeline-latency-history", response_model=PipelineLatencyHistoryResponse)
+async def get_pipeline_latency_history(
+    window_minutes: int = 60,
+    limit: int | None = 100,
+) -> PipelineLatencyHistoryResponse:
+    """Get raw pipeline latency samples for time-series visualization.
+
+    Returns individual latency samples for all pipeline stages, suitable for
+    creating time-series graphs. Samples are sorted by timestamp in descending
+    order (most recent first).
+
+    Args:
+        window_minutes: Time window for filtering samples (default 60 minutes)
+        limit: Maximum number of samples to return (default 100, None for all)
+
+    Returns:
+        PipelineLatencyHistoryResponse with list of latency samples
+    """
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    tracker = get_pipeline_latency_tracker()
+    samples = tracker.get_samples_history(window_minutes=window_minutes, limit=limit)
+
+    return PipelineLatencyHistoryResponse(
+        samples=[
+            LatencySample(
+                timestamp=sample["timestamp"],  # type: ignore[arg-type]
+                stage=str(sample["stage"]),
+                latency_ms=float(sample["latency_ms"]),
+            )
+            for sample in samples
+        ],
         window_minutes=window_minutes,
         timestamp=datetime.now(UTC),
     )

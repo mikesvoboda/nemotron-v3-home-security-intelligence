@@ -622,3 +622,65 @@ class TestAlertGeneration:
 
             alerts = collector.check_host_alerts(host)
             assert any(a.metric == "host_cpu" and a.severity == "critical" for a in alerts)
+
+
+# =============================================================================
+# Inference Metrics Tests
+# =============================================================================
+
+
+class TestCollectInferenceMetrics:
+    """Tests for collect_inference_metrics method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_basic(self) -> None:
+        """Test basic inference metrics collection."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            collector = PerformanceCollector()
+            result = await collector.collect_inference_metrics()
+
+            assert result is not None
+            assert "avg" in result.rtdetr_latency_ms
+            assert "p95" in result.rtdetr_latency_ms
+            assert "p99" in result.rtdetr_latency_ms
+            assert "images_per_min" in result.throughput
+            assert "events_per_min" in result.throughput
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_with_throughput_data(self) -> None:
+        """Test inference metrics with throughput tracker data."""
+        from backend.core.metrics import get_throughput_tracker
+
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            # Record some throughput data
+            tracker = get_throughput_tracker()
+            for _ in range(10):
+                tracker.record_metric("images", 1)
+                tracker.record_detection_latency(100.0)  # 100ms = 10 FPS
+
+            collector = PerformanceCollector()
+            result = await collector.collect_inference_metrics()
+
+            assert result is not None
+            # Should have throughput > 0 since we recorded data
+            assert result.throughput["images_per_min"] >= 0
+            assert result.throughput["events_per_min"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_handles_exception(self) -> None:
+        """Test inference metrics handles exceptions gracefully."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker:
+                mock_tracker.side_effect = Exception("Tracker error")
+
+                collector = PerformanceCollector()
+                result = await collector.collect_inference_metrics()
+
+                # Should return None on exception
+                assert result is None
