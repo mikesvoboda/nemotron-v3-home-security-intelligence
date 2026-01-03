@@ -34,6 +34,20 @@ export type EventsByCamera = components['schemas']['EventsByCamera'];
 export type Detection = components['schemas']['DetectionResponse'];
 export type DetectionListResponse = components['schemas']['DetectionListResponse'];
 
+// Enrichment types
+export type EnrichmentResponse = components['schemas']['EnrichmentResponse'];
+export type EventEnrichmentsResponse = components['schemas']['EventEnrichmentsResponse'];
+export type LicensePlateEnrichment = components['schemas']['LicensePlateEnrichment'];
+export type FaceEnrichment = components['schemas']['FaceEnrichment'];
+export type VehicleEnrichment = components['schemas']['VehicleEnrichment'];
+export type ClothingEnrichment = components['schemas']['ClothingEnrichment'];
+export type ViolenceEnrichment = components['schemas']['ViolenceEnrichment'];
+export type WeatherEnrichment = components['schemas']['WeatherEnrichment'];
+export type PoseEnrichment = components['schemas']['PoseEnrichment'];
+export type DepthEnrichment = components['schemas']['DepthEnrichment'];
+export type ImageQualityEnrichment = components['schemas']['ImageQualityEnrichment'];
+export type PetEnrichment = components['schemas']['PetEnrichment'];
+
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
 export type ServiceStatus = components['schemas']['ServiceStatus'];
@@ -100,6 +114,17 @@ export type ZoneUpdate = components['schemas']['ZoneUpdate'];
 export type ZoneListResponse = components['schemas']['ZoneListResponse'];
 export type ZoneShape = components['schemas']['ZoneShape'];
 export type ZoneType = components['schemas']['ZoneType'];
+
+// Severity types
+export type SeverityEnum = components['schemas']['SeverityEnum'];
+export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
+export type SeverityThresholds = components['schemas']['SeverityThresholds'];
+export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
+
+// Model Zoo types
+export type ModelStatusResponse = components['schemas']['ModelStatusResponse'];
+export type ModelRegistryResponse = components['schemas']['ModelRegistryResponse'];
+export type ModelStatusEnum = components['schemas']['ModelStatusEnum'];
 
 // AI Audit types (manually defined - pending OpenAPI type generation)
 // These match backend/api/schemas/ai_audit.py

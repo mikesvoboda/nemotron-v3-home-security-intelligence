@@ -4,10 +4,12 @@ This module provides PostgreSQL database connectivity using asyncpg,
 along with SQL utility functions like ILIKE pattern escaping.
 """
 
+import hashlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -17,6 +19,13 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from backend.core.config import get_settings
+
+# Advisory lock key for database schema initialization
+# This is a stable key derived from a namespace string to ensure all workers
+# attempting to initialize the same database use the same lock.
+# We use SHA256 truncated to 63 bits (PostgreSQL bigint safe) for the lock key.
+_INIT_DB_LOCK_NAMESPACE = "home_security_intelligence.init_db"
+_INIT_DB_LOCK_KEY = int(hashlib.sha256(_INIT_DB_LOCK_NAMESPACE.encode()).hexdigest()[:15], 16)
 
 
 def escape_ilike_pattern(value: str | None) -> str:
@@ -104,6 +113,11 @@ async def init_db() -> None:
     It creates the async engine with PostgreSQL connection pooling,
     and creates all tables defined in the Base metadata.
 
+    Uses a PostgreSQL advisory lock to prevent deadlocks when multiple
+    workers start simultaneously and all try to create indexes on the
+    same tables. Only one worker will actually create the schema; others
+    will skip schema creation if they cannot acquire the lock.
+
     Requires PostgreSQL with asyncpg driver (postgresql+asyncpg://).
     """
     global _engine, _async_session_factory  # noqa: PLW0603
@@ -148,12 +162,29 @@ async def init_db() -> None:
     # Import all models to ensure they're registered with Base.metadata
     from backend.models import Camera, Detection, Event, GPUStats, Zone  # noqa: F401
 
-    # Create all tables
+    # Create all tables with advisory lock to prevent deadlock on concurrent index creation
     # Use the Base from models, not the one defined in this module
     from backend.models.camera import Base as ModelsBase
 
     async with _engine.begin() as conn:
-        await conn.run_sync(ModelsBase.metadata.create_all)
+        # Try to acquire advisory lock - if another worker is already creating schema,
+        # this will return False and we skip schema creation.
+        # pg_try_advisory_lock returns true if lock was acquired, false otherwise.
+        # Note: _INIT_DB_LOCK_KEY is a module-level constant, not user input (safe from SQL injection)
+        lock_sql = text(f"SELECT pg_try_advisory_lock({_INIT_DB_LOCK_KEY})")  # nosemgrep
+        result = await conn.execute(lock_sql)
+        lock_acquired = result.scalar()
+
+        if lock_acquired:
+            try:
+                # We have the lock - proceed with schema creation
+                await conn.run_sync(ModelsBase.metadata.create_all)
+            finally:
+                # Always release the lock, even if schema creation fails
+                unlock_sql = text(f"SELECT pg_advisory_unlock({_INIT_DB_LOCK_KEY})")  # nosemgrep
+                await conn.execute(unlock_sql)
+        # If lock not acquired, another worker is handling schema creation
+        # The tables will be available after that worker completes
 
 
 async def close_db() -> None:

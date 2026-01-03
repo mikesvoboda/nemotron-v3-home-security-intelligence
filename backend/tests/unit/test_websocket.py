@@ -37,6 +37,7 @@ class MockEventBroadcaster:
     - disconnect(websocket) -> None
     - broadcast_event(event_data) -> int
     - broadcast_service_status(status_data) -> int
+    - broadcast_scene_change(scene_change_data) -> int
     - get_circuit_state() -> str
     """
 
@@ -154,6 +155,29 @@ class MockEventBroadcaster:
             True if broadcaster is in degraded mode, False otherwise
         """
         return getattr(self, "_is_degraded", False)
+
+    async def broadcast_scene_change(self, scene_change_data: dict[str, Any]) -> int:
+        """Broadcast a scene change message to all connected WebSocket clients.
+
+        Args:
+            scene_change_data: Scene change data dictionary containing detection details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in scene_change_data:
+            scene_change_data = {"type": "scene_change", "data": scene_change_data}
+
+        self.messages.append(scene_change_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(scene_change_data)
+                count += 1
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
+                pass
+        return count
 
     # Legacy test-only methods - NOT part of real EventBroadcaster interface
     # These are convenience methods used by existing tests in this file

@@ -18,6 +18,8 @@ from pydantic import ValidationError
 from backend.api.schemas.websocket import (
     WebSocketEventData,
     WebSocketEventMessage,
+    WebSocketSceneChangeData,
+    WebSocketSceneChangeMessage,
     WebSocketServiceStatusData,
     WebSocketServiceStatusMessage,
 )
@@ -310,6 +312,66 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast service status: {e}")
+            raise
+
+    async def broadcast_scene_change(self, scene_change_data: dict[str, Any]) -> int:
+        """Broadcast a scene change message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the scene change data against the WebSocketSceneChangeMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for scene change alerts.
+
+        Args:
+            scene_change_data: Scene change data dictionary containing detection details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example scene_change_data:
+            {
+                "type": "scene_change",
+                "data": {
+                    "id": 1,
+                    "camera_id": "front_door",
+                    "detected_at": "2026-01-03T10:30:00Z",
+                    "change_type": "view_blocked",
+                    "similarity_score": 0.23
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in scene_change_data:
+                scene_change_data = {"type": "scene_change", "data": scene_change_data}
+
+            # Validate message format before broadcasting
+            # This ensures all outgoing messages conform to the WebSocketSceneChangeMessage schema
+            try:
+                # Extract the data portion and validate it
+                data_dict = scene_change_data.get("data", {})
+                validated_data = WebSocketSceneChangeData.model_validate(data_dict)
+                validated_message = WebSocketSceneChangeMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Scene change message validation failed: {ve}")
+                raise ValueError(f"Invalid scene change message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Scene change broadcast to Redis: {broadcast_data.get('type')} "
+                f"(subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast scene change: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

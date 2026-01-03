@@ -216,13 +216,16 @@ async def _reset_db_schema() -> None:
     the current SQLAlchemy models. Uses create_all for new tables and
     explicit ALTER TABLE for missing columns.
 
-    Note: Advisory locks removed - integration tests now use module-scoped
-    containers which provide full isolation per test module.
+    Uses a PostgreSQL advisory lock to prevent deadlocks when multiple pytest-xdist
+    workers attempt to modify schema concurrently. The lock key is different from
+    the one used in init_db to avoid conflicts.
     """
     global _schema_reset_done  # noqa: PLW0603
 
     if _schema_reset_done:
         return
+
+    import hashlib
 
     from sqlalchemy import text
 
@@ -239,69 +242,86 @@ async def _reset_db_schema() -> None:
     # Mark as done FIRST to prevent re-entry from concurrent coroutines
     _schema_reset_done = True
 
+    # Advisory lock key for test schema reset (different from init_db lock key)
+    # This prevents concurrent DDL operations that could cause deadlocks
+    _TEST_SCHEMA_LOCK_NAMESPACE = "home_security_intelligence.test_schema_reset"
+    _TEST_SCHEMA_LOCK_KEY = int(
+        hashlib.sha256(_TEST_SCHEMA_LOCK_NAMESPACE.encode()).hexdigest()[:15], 16
+    )
+
     async with engine.begin() as conn:
-        # Create tables if they don't exist
-        await conn.run_sync(ModelsBase.metadata.create_all)
+        # Acquire advisory lock to serialize DDL operations across pytest-xdist workers
+        # Using pg_advisory_lock (blocking) to ensure all workers wait rather than skip
+        lock_sql = text(f"SELECT pg_advisory_lock({_TEST_SCHEMA_LOCK_KEY})")  # nosemgrep
+        await conn.execute(lock_sql)
 
-        # Add any missing columns that create_all doesn't handle
-        # This handles schema drift without dropping data
-        # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
-        await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
-        await conn.execute(
-            text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
-        )
+        try:
+            # Create tables if they don't exist
+            await conn.run_sync(ModelsBase.metadata.create_all)
 
-        # Add unique indexes for cameras table (migration adds these for production)
-        # First, clean up any duplicate cameras that might prevent index creation
-        # Delete duplicate cameras by name (keep oldest)
-        await conn.execute(
-            text(
-                """
-                DELETE FROM cameras
-                WHERE id IN (
-                    SELECT id FROM (
-                        SELECT id,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY name
-                                   ORDER BY created_at ASC, id ASC
-                               ) as rn
-                        FROM cameras
-                    ) ranked
-                    WHERE rn > 1
+            # Add any missing columns that create_all doesn't handle
+            # This handles schema drift without dropping data
+            # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
+            await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+            await conn.execute(
+                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+            )
+
+            # Add unique indexes for cameras table (migration adds these for production)
+            # First, clean up any duplicate cameras that might prevent index creation
+            # Delete duplicate cameras by name (keep oldest)
+            await conn.execute(
+                text(
+                    """
+                    DELETE FROM cameras
+                    WHERE id IN (
+                        SELECT id FROM (
+                            SELECT id,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY name
+                                       ORDER BY created_at ASC, id ASC
+                                   ) as rn
+                            FROM cameras
+                        ) ranked
+                        WHERE rn > 1
+                    )
+                    """
                 )
-                """
             )
-        )
 
-        # Delete duplicate cameras by folder_path (keep oldest)
-        await conn.execute(
-            text(
-                """
-                DELETE FROM cameras
-                WHERE id IN (
-                    SELECT id FROM (
-                        SELECT id,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY folder_path
-                                   ORDER BY created_at ASC, id ASC
-                               ) as rn
-                        FROM cameras
-                    ) ranked
-                    WHERE rn > 1
+            # Delete duplicate cameras by folder_path (keep oldest)
+            await conn.execute(
+                text(
+                    """
+                    DELETE FROM cameras
+                    WHERE id IN (
+                        SELECT id FROM (
+                            SELECT id,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY folder_path
+                                       ORDER BY created_at ASC, id ASC
+                                   ) as rn
+                            FROM cameras
+                        ) ranked
+                        WHERE rn > 1
+                    )
+                    """
                 )
-                """
             )
-        )
 
-        # Now create unique indexes (using IF NOT EXISTS for idempotency)
-        await conn.execute(
-            text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
-        )
-        await conn.execute(
-            text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
+            # Now create unique indexes (using IF NOT EXISTS for idempotency)
+            await conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
             )
-        )
+            await conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
+                )
+            )
+        finally:
+            # Always release the advisory lock
+            unlock_sql = text(f"SELECT pg_advisory_unlock({_TEST_SCHEMA_LOCK_KEY})")  # nosemgrep
+            await conn.execute(unlock_sql)
 
 
 async def _cleanup_test_cameras() -> None:
