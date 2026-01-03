@@ -2,8 +2,10 @@
  * SettingsPage - Page Object for the Settings page
  *
  * Provides selectors and interactions for:
- * - Tab navigation (Cameras, Processing, AI Models, Notifications)
+ * - Tab navigation (Cameras, Processing, Notifications)
  * - Settings forms within each tab
+ *
+ * Note: AI Models tab was moved to /ai page
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -19,7 +21,6 @@ export class SettingsPage extends BasePage {
   readonly tabList: Locator;
   readonly camerasTab: Locator;
   readonly processingTab: Locator;
-  readonly aiModelsTab: Locator;
   readonly notificationsTab: Locator;
 
   // Tab Panels
@@ -59,10 +60,10 @@ export class SettingsPage extends BasePage {
     this.pageSubtitle = page.getByText(/Configure your security monitoring system/i);
 
     // Tab Navigation - Headless UI renders tabs as buttons, not role="tab"
+    // Note: AI Models tab was moved to /ai page
     this.tabList = page.locator('[role="tablist"]');
     this.camerasTab = page.getByRole('tab', { name: /CAMERAS/i }).or(page.locator('button').filter({ hasText: 'CAMERAS' }));
     this.processingTab = page.getByRole('tab', { name: /PROCESSING/i }).or(page.locator('button').filter({ hasText: 'PROCESSING' }));
-    this.aiModelsTab = page.getByRole('tab', { name: /AI MODELS/i }).or(page.locator('button').filter({ hasText: 'AI MODELS' }));
     this.notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i }).or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
 
     // Tab Panels
@@ -126,14 +127,6 @@ export class SettingsPage extends BasePage {
   }
 
   /**
-   * Go to AI Models tab
-   */
-  async goToAiModelsTab(): Promise<void> {
-    await this.aiModelsTab.click();
-    await expect(this.aiModelsTab).toHaveAttribute('data-selected', 'true');
-  }
-
-  /**
    * Go to Notifications tab
    */
   async goToNotificationsTab(): Promise<void> {
@@ -144,11 +137,10 @@ export class SettingsPage extends BasePage {
   /**
    * Check if a tab is selected
    */
-  async isTabSelected(tab: 'cameras' | 'processing' | 'ai-models' | 'notifications'): Promise<boolean> {
+  async isTabSelected(tab: 'cameras' | 'processing' | 'notifications'): Promise<boolean> {
     const tabs: Record<string, Locator> = {
       cameras: this.camerasTab,
       processing: this.processingTab,
-      'ai-models': this.aiModelsTab,
       notifications: this.notificationsTab,
     };
     const attr = await tabs[tab].getAttribute('data-selected');
