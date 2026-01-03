@@ -685,6 +685,14 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     mock_cleanup_service = MagicMock()
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
+    mock_cleanup_service.running = False
+    mock_cleanup_service.get_cleanup_stats.return_value = {
+        "running": False,
+        "retention_days": 30,
+        "cleanup_time": "03:00",
+        "delete_images": False,
+        "next_cleanup": None,
+    }
 
     mock_file_watcher = MagicMock()
     mock_file_watcher.start = AsyncMock()

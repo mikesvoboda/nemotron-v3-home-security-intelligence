@@ -107,6 +107,11 @@ SLOW_TEST_PATTERNS = [
     # Performance collector container health tests - multiple HTTP health checks
     r"test_performance_collector.*TestCollectContainerHealth",
     r"test_performance_collector.*test_collect_container_health",
+    # Alert rules error state tests - API retry exhaustion (~10-11s)
+    r"alert-rules\.spec\.ts.*Error State.*try again",
+    r"alert-rules\.spec\.ts.*Error State.*button.*error",
+    # Re-identification tests - require Redis connection setup overhead
+    r"test_enrichment_pipeline.*test_run_reid_requires_redis",
 ]
 
 

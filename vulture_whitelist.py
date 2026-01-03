@@ -26,6 +26,7 @@ _.reset_redis_global_state
 _.mock_pil_image
 _.mock_pynvml_not_available
 _.mock_pynvml_no_gpu
+_.override_media_rate_limiter
 
 # Config fixtures
 _.cfg
