@@ -10,6 +10,10 @@ venv/
 .env
 .env.local
 
+# Secrets (Docker secrets directory)
+secrets/*
+!secrets/.gitkeep
+
 # IDE
 .idea/
 .vscode/

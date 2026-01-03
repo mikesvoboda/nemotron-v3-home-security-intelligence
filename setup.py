@@ -5,6 +5,11 @@ Generates .env and docker-compose.override.yml files for user environment.
 Supports two modes:
 - Quick mode (default): Accept defaults with Enter
 - Guided mode (--guided): Step-by-step with explanations
+
+Security features:
+- Generates cryptographically secure random passwords
+- Creates secrets directory with proper permissions
+- Warns about weak/default passwords
 """
 
 import argparse
@@ -12,6 +17,7 @@ import platform
 import secrets
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 from datetime import datetime
@@ -94,16 +100,113 @@ def prompt_with_default(prompt: str, default: str) -> str:
         return default
 
 
-def generate_password(length: int = 16) -> str:
+def generate_password(length: int = 32) -> str:
     """Generate a secure random password.
 
     Args:
-        length: Desired password length
+        length: Desired password length (default: 32 for security)
 
     Returns:
         URL-safe random string of specified length
     """
     return secrets.token_urlsafe(length)[:length]
+
+
+# Known weak/default passwords to warn about
+WEAK_PASSWORDS = {
+    "security_dev_password",
+    "password",
+    "postgres",
+    "admin",
+    "root",
+    "123456",
+    "changeme",
+    "secret",
+}
+
+
+def is_weak_password(password: str) -> bool:
+    """Check if a password is considered weak.
+
+    Args:
+        password: Password to check
+
+    Returns:
+        True if password is weak, False otherwise
+    """
+    if len(password) < 16:
+        return True
+    return password.lower() in WEAK_PASSWORDS
+
+
+def prompt_for_password(prompt_text: str, default: str | None = None) -> str:
+    """Prompt for a password with weak password warning.
+
+    Args:
+        prompt_text: Text to display when prompting
+        default: Default password (auto-generated if None)
+
+    Returns:
+        The password entered by the user
+    """
+    if default is None:
+        default = generate_password(32)
+
+    password = prompt_with_default(prompt_text, default)
+
+    # Warn and re-prompt if weak
+    if is_weak_password(password):
+        print()
+        print("! WARNING: This password appears weak!")
+        print("  - Minimum recommended length: 16 characters")
+        print("  - Avoid common words like 'password', 'admin', 'secret'")
+        print()
+        confirm = prompt_with_default("Use this weak password anyway?", "n")
+        if confirm.lower() not in ("y", "yes"):
+            print()
+            password = prompt_with_default(prompt_text, generate_password(32))
+
+    return password
+
+
+def create_secrets_directory(output_dir: str = ".") -> Path:
+    """Create the secrets directory with proper permissions.
+
+    Args:
+        output_dir: Base directory for secrets folder
+
+    Returns:
+        Path to the secrets directory
+    """
+    secrets_dir = Path(output_dir) / "secrets"
+    secrets_dir.mkdir(parents=True, exist_ok=True)
+
+    # Set directory permissions to 700 (owner only)
+    if platform.system() != "Windows":
+        secrets_dir.chmod(stat.S_IRWXU)
+
+    return secrets_dir
+
+
+def write_secret_file(secrets_dir: Path, filename: str, content: str) -> Path:
+    """Write a secret to a file with secure permissions.
+
+    Args:
+        secrets_dir: Directory to write the secret file
+        filename: Name of the secret file
+        content: Secret content to write
+
+    Returns:
+        Path to the created secret file
+    """
+    secret_path = secrets_dir / filename
+    secret_path.write_text(content)
+
+    # Set file permissions to 600 (owner read/write only)
+    if platform.system() != "Windows":
+        secret_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    return secret_path
 
 
 def generate_env_content(config: dict) -> str:
@@ -245,8 +348,9 @@ def run_quick_mode() -> dict:
 
     # Credentials
     print("-- Credentials " + "-" * 46)
-    postgres_password = prompt_with_default("Database password", generate_password())
-    ftp_password = prompt_with_default("FTP password", generate_password())
+    print("! SECURITY: Strong passwords are required for database access")
+    postgres_password = prompt_for_password("Database password")
+    ftp_password = prompt_with_default("FTP password", generate_password(32))
     print()
 
     # Ports (optional customization)
@@ -338,10 +442,14 @@ def run_guided_mode() -> dict:
     print("  Step 3 of 5: Security Credentials")
     print("=" * 60)
     print()
-    print("Strong passwords will be auto-generated if you press Enter.")
+    print("IMPORTANT: Database credentials are REQUIRED for the system to start.")
+    print("Strong 32-character passwords will be auto-generated if you press Enter.")
     print()
-    postgres_password = prompt_with_default("Database password", generate_password())
-    ftp_password = prompt_with_default("FTP password", generate_password())
+    print("! The old default password 'security_dev_password' has been removed")
+    print("  for security reasons. You MUST set a password.")
+    print()
+    postgres_password = prompt_for_password("Database password")
+    ftp_password = prompt_with_default("FTP password", generate_password(32))
     print()
 
     # Step 4: Port Configuration
@@ -387,15 +495,18 @@ def run_guided_mode() -> dict:
     }
 
 
-def write_config_files(config: dict[str, Any], output_dir: str = ".") -> tuple[Path, Path]:
+def write_config_files(
+    config: dict[str, Any], output_dir: str = ".", create_secret_files: bool = False
+) -> tuple[Path, Path, Path | None]:
     """Write configuration files to disk.
 
     Args:
         config: Configuration dictionary
         output_dir: Directory to write files to
+        create_secret_files: If True, also create Docker secrets files
 
     Returns:
-        Tuple of (env_path, override_path)
+        Tuple of (env_path, override_path, secrets_path or None)
     """
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -409,7 +520,21 @@ def write_config_files(config: dict[str, Any], output_dir: str = ".") -> tuple[P
     env_path.write_text(env_content)
     override_path.write_text(override_content)
 
-    return env_path, override_path
+    # Set .env file permissions to 600 (owner read/write only)
+    if platform.system() != "Windows":
+        env_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    # Optionally create Docker secrets files
+    secrets_path = None
+    if create_secret_files:
+        secrets_dir = create_secrets_directory(output_dir)
+        postgres_password = config.get("postgres_password", "")
+        if postgres_password:
+            secrets_path = write_secret_file(
+                secrets_dir, "postgres_password.txt", postgres_password
+            )
+
+    return env_path, override_path, secrets_path
 
 
 def configure_firewall(ports: list[int]) -> bool:
@@ -471,18 +596,37 @@ def main() -> None:
         default=".",
         help="Output directory for generated files (default: current directory)",
     )
+    parser.add_argument(
+        "--create-secrets",
+        action="store_true",
+        help="Also create Docker secrets files in secrets/ directory",
+    )
     args = parser.parse_args()
 
     try:
         config = run_guided_mode() if args.guided else run_quick_mode()
 
         # Write configuration files
-        env_path, override_path = write_config_files(config, args.output_dir)
+        env_path, override_path, secrets_path = write_config_files(
+            config, args.output_dir, create_secret_files=args.create_secrets
+        )
 
         print("=" * 60)
         print("Generated:")
         print(f"  - {env_path}")
         print(f"  - {override_path}")
+        if secrets_path:
+            print(f"  - {secrets_path}")
+        print()
+
+        # Security reminder
+        print("! SECURITY NOTES:")
+        print("  - .env file permissions set to 600 (owner only)")
+        print("  - POSTGRES_PASSWORD is required - containers will fail without it")
+        print("  - Never commit .env or secrets/ to version control")
+        if secrets_path:
+            print("  - Docker secrets file created with secure permissions (600)")
+            print("  - To use secrets, uncomment the secrets sections in docker-compose.prod.yml")
         print()
 
         # Offer firewall configuration on Linux
@@ -501,7 +645,7 @@ def main() -> None:
                     print("Could not configure firewall (may need sudo)")
 
         print()
-        print("Ready! Run: docker-compose -f docker-compose.prod.yml up -d")
+        print("Ready! Run: docker compose -f docker-compose.prod.yml up -d")
         print("=" * 60)
 
     except KeyboardInterrupt:

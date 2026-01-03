@@ -284,6 +284,13 @@ class Settings(BaseSettings):
         description="Grafana dashboard URL for frontend link",
     )
 
+    # Frontend URL for health checks (internal Docker network URL)
+    frontend_url: str = Field(
+        default="http://frontend:80",
+        description="Frontend container URL for health checks (Docker internal network). "
+        "Use 'http://frontend:80' for Docker/Podman, or 'http://localhost:5173' for local dev.",
+    )
+
     @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")
     @classmethod
     def validate_vision_service_urls(cls, v: Any) -> str:

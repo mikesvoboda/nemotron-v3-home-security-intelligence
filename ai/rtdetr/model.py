@@ -40,6 +40,99 @@ MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 # Base64 encoding increases size by ~33%, so pre-decode limit is ~13.3MB
 MAX_BASE64_SIZE_BYTES = int(MAX_IMAGE_SIZE_BYTES * 4 / 3) + 100  # ~13.3MB + padding
 
+# Supported image file extensions (case-insensitive)
+SUPPORTED_IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"})
+
+# Magic bytes for image format detection
+# These are the first few bytes that identify image file formats
+IMAGE_MAGIC_BYTES: dict[bytes, str] = {
+    b"\xff\xd8\xff": "JPEG",  # JPEG images
+    b"\x89PNG\r\n\x1a\n": "PNG",  # PNG images
+    b"GIF87a": "GIF",  # GIF87a
+    b"GIF89a": "GIF",  # GIF89a
+    b"BM": "BMP",  # BMP images
+    b"RIFF": "WEBP",  # WEBP (RIFF container, need to check for WEBP)
+}
+
+
+def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911, PLR0912
+    """Validate image data by checking magic bytes (file signature).
+
+    This provides an early check before passing to PIL, catching obvious
+    non-image files like text files, videos, or corrupted data.
+
+    Args:
+        image_bytes: Raw image file bytes
+
+    Returns:
+        Tuple of (is_valid, detected_format_or_error_message)
+    """
+    if not image_bytes:
+        return False, "Empty image data"
+
+    if len(image_bytes) < 8:
+        return False, "Image data too small to be a valid image"
+
+    # Check for known image magic bytes
+    for magic, fmt in IMAGE_MAGIC_BYTES.items():
+        if image_bytes.startswith(magic):
+            # Special case for WEBP: RIFF container must contain "WEBP"
+            if fmt == "WEBP":
+                if len(image_bytes) >= 12 and image_bytes[8:12] == b"WEBP":
+                    return True, "WEBP"
+                # It's a RIFF file but not WEBP (could be AVI, WAV, etc.)
+                continue
+            return True, fmt
+
+    # Check for common non-image file signatures to provide better errors
+    # Text files often start with common ASCII characters or BOM
+    if image_bytes[:3] in (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff"):  # UTF-8/16 BOM
+        return False, "Text file (BOM detected), not an image"
+
+    # Check if it looks like plain text (mostly printable ASCII)
+    sample = image_bytes[:256]
+    printable_count = sum(1 for b in sample if 32 <= b <= 126 or b in (9, 10, 13))
+    if printable_count > len(sample) * 0.85:
+        return False, "Text file detected, not an image"
+
+    # Common video format signatures
+    if image_bytes[:4] == b"\x00\x00\x00\x1c" or image_bytes[4:8] == b"ftyp":
+        return False, "Video file (MP4/MOV), not an image"
+    if image_bytes[:4] == b"\x1aE\xdf\xa3":  # EBML (Matroska/WebM)
+        return False, "Video file (MKV/WebM), not an image"
+    if image_bytes[:4] == b"RIFF" and len(image_bytes) >= 12:
+        if image_bytes[8:12] == b"AVI ":
+            return False, "Video file (AVI), not an image"
+        if image_bytes[8:12] == b"WAVE":
+            return False, "Audio file (WAV), not an image"
+
+    return False, "Unknown file format, not a recognized image type"
+
+
+def validate_file_extension(filename: str | None) -> tuple[bool, str]:
+    """Validate that the file extension indicates an image file.
+
+    Args:
+        filename: The filename to check (can be None)
+
+    Returns:
+        Tuple of (is_valid, error_message_or_empty)
+    """
+    if not filename:
+        return True, ""  # No filename to validate
+
+    ext = Path(filename).suffix.lower()
+    if not ext:
+        return True, ""  # No extension to validate
+
+    if ext not in SUPPORTED_IMAGE_EXTENSIONS:
+        return False, (
+            f"Unsupported file extension '{ext}'. "
+            f"Supported formats: {', '.join(sorted(SUPPORTED_IMAGE_EXTENSIONS))}"
+        )
+
+    return True, ""
+
 
 class BoundingBox(BaseModel):
     """Bounding box coordinates."""
@@ -328,7 +421,7 @@ async def health_check() -> HealthResponse:
 
 
 @app.post("/detect", response_model=DetectionResponse)
-async def detect_objects(
+async def detect_objects(  # noqa: PLR0912
     file: UploadFile = File(None), image_base64: str | None = None
 ) -> DetectionResponse:
     """Detect objects in an image.
@@ -354,6 +447,17 @@ async def detect_objects(
     try:
         # Load image from file or base64 with size validation
         if file:
+            # Validate file extension first
+            ext_valid, ext_error = validate_file_extension(file.filename)
+            if not ext_valid:
+                logger.warning(
+                    f"Invalid file extension for: {filename}. {ext_error}",
+                    extra={"source_file": filename, "error": ext_error},
+                )
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid file '{filename}': {ext_error}"
+                )
+
             image_bytes = await file.read()
             # Validate decoded image size
             if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
@@ -363,6 +467,20 @@ async def detect_objects(
                     f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
                     f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
                 )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes for: {filename}. {magic_result}",
+                    extra={"source_file": filename, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file '{filename}': {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
             image = Image.open(io.BytesIO(image_bytes))
         elif image_base64:
             # Validate base64 string size BEFORE decoding to prevent DoS
@@ -385,6 +503,20 @@ async def detect_objects(
                     f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
                     f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
                 )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes for: {filename}. {magic_result}",
+                    extra={"source_file": filename, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file '{filename}': {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
             image = Image.open(io.BytesIO(image_bytes))
         else:
             raise HTTPException(
@@ -411,7 +543,7 @@ async def detect_objects(
         logger.warning(
             f"Invalid image file received: {filename}. "
             f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
-            extra={"filename": filename, "error": str(e)},
+            extra={"source_file": filename, "error": str(e)},
         )
         raise HTTPException(
             status_code=400,
@@ -424,7 +556,7 @@ async def detect_objects(
         # This catches "image file is truncated" errors
         logger.warning(
             f"Corrupted image file received: {filename}. Error: {e}",
-            extra={"filename": filename, "error": str(e)},
+            extra={"source_file": filename, "error": str(e)},
         )
         raise HTTPException(
             status_code=400,
@@ -460,6 +592,18 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
         # Load all images with size validation
         images = []
         for idx, file in enumerate(files):
+            # Validate file extension first
+            ext_valid, ext_error = validate_file_extension(file.filename)
+            if not ext_valid:
+                logger.warning(
+                    f"Invalid file extension in batch: {file.filename} (index {idx}). {ext_error}",
+                    extra={"source_file": file.filename, "index": idx, "error": ext_error},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file at index {idx} ({file.filename}): {ext_error}",
+                )
+
             image_bytes = await file.read()
             # Validate each file's size
             if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
@@ -469,6 +613,20 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
                     f"exceeds maximum allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
                     f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
                 )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes in batch: {file.filename} (index {idx}). {magic_result}",
+                    extra={"source_file": file.filename, "index": idx, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file at index {idx} ({file.filename}): {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
             try:
                 image = Image.open(io.BytesIO(image_bytes))
                 images.append(image)
@@ -476,7 +634,7 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
                 logger.warning(
                     f"Invalid image file in batch: {file.filename} (index {idx}). "
                     f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
-                    extra={"filename": file.filename, "index": idx, "error": str(e)},
+                    extra={"source_file": file.filename, "index": idx, "error": str(e)},
                 )
                 raise HTTPException(
                     status_code=400,
@@ -487,7 +645,7 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
             except OSError as e:
                 logger.warning(
                     f"Corrupted image file in batch: {file.filename} (index {idx}). Error: {e}",
-                    extra={"filename": file.filename, "index": idx, "error": str(e)},
+                    extra={"source_file": file.filename, "index": idx, "error": str(e)},
                 )
                 raise HTTPException(
                     status_code=400,

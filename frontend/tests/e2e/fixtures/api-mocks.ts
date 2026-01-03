@@ -24,6 +24,9 @@ import {
   mockTelemetry,
   generateGPUHistory,
   transparentPngBase64,
+  zonesByCamera,
+  allAlertRules,
+  mockRuleTestResults,
 } from './test-data';
 
 /**
@@ -37,7 +40,7 @@ export interface ApiMockConfig {
   // Event data
   events?: typeof allEvents;
   eventsError?: boolean;
-  eventStats?: typeof mockEventStats.normal;
+  eventStats?: (typeof mockEventStats)[keyof typeof mockEventStats];
 
   // GPU data
   gpuStats?: typeof mockGPUStats.healthy;
@@ -69,6 +72,15 @@ export interface ApiMockConfig {
   telemetry?: typeof mockTelemetry.normal;
   telemetryError?: boolean;
 
+  // Zones
+  zones?: typeof zonesByCamera;
+  zonesError?: boolean;
+
+  // Alert rules
+  alertRules?: typeof allAlertRules;
+  alertRulesError?: boolean;
+  ruleTestResults?: typeof mockRuleTestResults.withMatches;
+
   // WebSocket behavior
   wsConnectionFail?: boolean;
 }
@@ -90,6 +102,9 @@ export const defaultMockConfig: ApiMockConfig = {
   auditLogs: mockAuditLogs.sample,
   auditStats: mockAuditStats.normal,
   telemetry: mockTelemetry.normal,
+  zones: zonesByCamera,
+  alertRules: allAlertRules,
+  ruleTestResults: mockRuleTestResults.withMatches,
   wsConnectionFail: true, // Default to failing WS in E2E tests
 };
 
@@ -104,6 +119,7 @@ export const errorMockConfig: ApiMockConfig = {
   logsError: true,
   auditError: true,
   telemetryError: true,
+  alertRulesError: true,
   wsConnectionFail: true,
 };
 
@@ -175,12 +191,138 @@ export async function setupApiMocks(
 
   // Camera snapshot endpoint (BEFORE /api/cameras)
   await page.route('**/api/cameras/*/snapshot*', async (route) => {
-    const transparentPng = Buffer.from(transparentPngBase64, 'base64');
+    // Convert base64 to binary using Uint8Array (works in both Node.js and browser)
+    const binaryString = atob(transparentPngBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     await route.fulfill({
       status: 200,
       contentType: 'image/png',
-      body: transparentPng,
+      body: bytes,
     });
+  });
+
+  // Zone endpoints (BEFORE /api/cameras to match specific zone routes)
+  // GET /api/cameras/:camera_id/zones
+  await page.route('**/api/cameras/*/zones', async (route) => {
+    if (route.request().method() === 'GET') {
+      if (mergedConfig.zonesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch zones' }),
+        });
+      } else {
+        // Extract camera_id from URL
+        const url = route.request().url();
+        const match = url.match(/\/api\/cameras\/([^/]+)\/zones/);
+        const cameraId = match?.[1] || '';
+        const zonesData = mergedConfig.zones || zonesByCamera;
+        const zones = zonesData[cameraId as keyof typeof zonesData] || [];
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            zones,
+            count: zones.length,
+          }),
+        });
+      }
+    } else if (route.request().method() === 'POST') {
+      // Create zone
+      if (mergedConfig.zonesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to create zone' }),
+        });
+      } else {
+        const body = route.request().postDataJSON();
+        const newZone = {
+          id: `zone-${Date.now()}`,
+          camera_id: body.camera_id || 'cam-1',
+          ...body,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(newZone),
+        });
+      }
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Individual zone operations: GET/PUT/DELETE /api/cameras/:camera_id/zones/:zone_id
+  await page.route('**/api/cameras/*/zones/*', async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+
+    // Skip if this is the zones list endpoint (handled above)
+    if (url.endsWith('/zones')) {
+      await route.continue();
+      return;
+    }
+
+    if (mergedConfig.zonesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Zone operation failed' }),
+      });
+      return;
+    }
+
+    if (method === 'GET') {
+      // Get single zone
+      const match = url.match(/\/api\/cameras\/([^/]+)\/zones\/([^/]+)/);
+      const cameraId = match?.[1] || '';
+      const zoneId = match?.[2] || '';
+      const zonesData = mergedConfig.zones || zonesByCamera;
+      const zones = zonesData[cameraId as keyof typeof zonesData] || [];
+      const zone = zones.find((z: { id: string }) => z.id === zoneId);
+
+      if (zone) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(zone),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Zone not found' }),
+        });
+      }
+    } else if (method === 'PUT') {
+      // Update zone
+      const body = route.request().postDataJSON();
+      const updatedZone = {
+        id: 'zone-updated',
+        ...body,
+        updated_at: new Date().toISOString(),
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(updatedZone),
+      });
+    } else if (method === 'DELETE') {
+      // Delete zone
+      await route.fulfill({
+        status: 204,
+        body: '',
+      });
+    } else {
+      await route.continue();
+    }
   });
 
   // Cameras endpoint
@@ -454,68 +596,141 @@ export async function setupApiMocks(
     });
   });
 
-  // Zones endpoint
-  await page.route('**/api/zones*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([
-        {
-          id: 'zone-1',
-          name: 'Front Door',
-          camera_id: 'cam-front',
-          type: 'entry_point',
-          coordinates: [[0.1, 0.1], [0.3, 0.1], [0.3, 0.3], [0.1, 0.3]],
-          enabled: true,
-          color: '#ef4444',
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 'zone-2',
-          name: 'Driveway',
-          camera_id: 'cam-front',
-          type: 'driveway',
-          coordinates: [[0.4, 0.5], [0.9, 0.5], [0.9, 0.9], [0.4, 0.9]],
-          enabled: true,
-          color: '#f59e0b',
-          created_at: new Date().toISOString(),
-        },
-      ]),
-    });
+  // Alert Rules test endpoint (BEFORE /api/alerts/rules)
+  await page.route('**/api/alerts/rules/*/test', async (route) => {
+    if (mergedConfig.alertRulesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to test rule' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.ruleTestResults || mockRuleTestResults.withMatches),
+      });
+    }
   });
 
-  // Alert Rules endpoint
-  await page.route('**/api/alert-rules*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([
-        {
-          id: 'rule-1',
-          name: 'Person at Entry Point',
-          enabled: true,
-          severity: 'high',
-          object_types: ['person'],
-          zone_ids: ['zone-1'],
-          schedule: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], start_time: '22:00', end_time: '06:00' },
-          channels: ['email', 'webhook'],
+  // Individual Alert Rule operations: GET/PUT/DELETE /api/alerts/rules/:rule_id
+  await page.route('**/api/alerts/rules/*', async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+
+    // Skip if this is the test endpoint or rules list endpoint
+    if (url.includes('/test') || url.endsWith('/rules')) {
+      await route.continue();
+      return;
+    }
+
+    if (mergedConfig.alertRulesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Alert rule operation failed' }),
+      });
+      return;
+    }
+
+    if (method === 'GET') {
+      // Get single rule
+      const match = url.match(/\/api\/alerts\/rules\/([^/]+)/);
+      const ruleId = match?.[1] || '';
+      const rules = mergedConfig.alertRules || allAlertRules;
+      const rule = rules.find((r: { id: string }) => r.id === ruleId);
+
+      if (rule) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(rule),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Alert rule not found' }),
+        });
+      }
+    } else if (method === 'PUT') {
+      // Update rule
+      const body = route.request().postDataJSON();
+      const match = url.match(/\/api\/alerts\/rules\/([^/]+)/);
+      const ruleId = match?.[1] || '';
+      const rules = mergedConfig.alertRules || allAlertRules;
+      const existingRule = rules.find((r: { id: string }) => r.id === ruleId);
+
+      const updatedRule = {
+        ...(existingRule || {}),
+        ...body,
+        id: ruleId,
+        updated_at: new Date().toISOString(),
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(updatedRule),
+      });
+    } else if (method === 'DELETE') {
+      // Delete rule
+      await route.fulfill({
+        status: 204,
+        body: '',
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Alert Rules list/create endpoint
+  await page.route('**/api/alerts/rules', async (route) => {
+    const method = route.request().method();
+
+    if (method === 'GET') {
+      if (mergedConfig.alertRulesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch alert rules' }),
+        });
+      } else {
+        const rules = mergedConfig.alertRules || allAlertRules;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            rules: rules,
+            count: rules.length,
+            limit: 50,
+            offset: 0,
+          }),
+        });
+      }
+    } else if (method === 'POST') {
+      if (mergedConfig.alertRulesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to create alert rule' }),
+        });
+      } else {
+        const body = route.request().postDataJSON();
+        const newRule = {
+          id: `rule-${Date.now()}`,
+          ...body,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        },
-        {
-          id: 'rule-2',
-          name: 'Vehicle Detection',
-          enabled: true,
-          severity: 'medium',
-          object_types: ['vehicle'],
-          zone_ids: ['zone-2'],
-          schedule: null,
-          channels: ['webhook'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]),
-    });
+        };
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(newRule),
+        });
+      }
+    } else {
+      await route.continue();
+    }
   });
 
   // WebSocket connections
