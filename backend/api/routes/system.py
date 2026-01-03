@@ -51,6 +51,8 @@ from backend.api.schemas.system import (
     StorageStatsResponse,
     SystemStatsResponse,
     TelemetryResponse,
+    WebSocketBroadcasterStatus,
+    WebSocketHealthResponse,
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
@@ -941,6 +943,60 @@ async def get_readiness(
         status=status,
         services=services,
         workers=workers,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.get("/health/websocket", response_model=WebSocketHealthResponse)
+async def get_websocket_health() -> WebSocketHealthResponse:
+    """Get health status of WebSocket broadcasters and their circuit breakers.
+
+    Returns the current state of circuit breakers for:
+    - Event broadcaster: Handles real-time security event distribution
+    - System broadcaster: Handles system status updates (GPU, cameras, queues)
+
+    Circuit breakers protect the system from cascading failures by:
+    - Opening after repeated connection failures
+    - Blocking recovery attempts while open to allow stabilization
+    - Gradually testing recovery in half-open state
+
+    Circuit breaker states:
+    - closed: Normal operation, WebSocket events flowing normally
+    - open: Failures detected, events may be delayed or unavailable
+    - half_open: Testing recovery, limited operations allowed
+
+    Returns:
+        WebSocketHealthResponse with circuit breaker status for both broadcasters
+    """
+    from backend.services.event_broadcaster import _broadcaster as event_broadcaster
+    from backend.services.system_broadcaster import (
+        _system_broadcaster as system_broadcaster,
+    )
+
+    event_status: WebSocketBroadcasterStatus | None = None
+    system_status: WebSocketBroadcasterStatus | None = None
+
+    # Get event broadcaster status
+    if event_broadcaster is not None:
+        circuit_state = event_broadcaster.get_circuit_state()
+        event_status = WebSocketBroadcasterStatus(
+            state=CircuitBreakerStateEnum(circuit_state.value),
+            failure_count=event_broadcaster.circuit_breaker.failure_count,
+            is_degraded=event_broadcaster.is_degraded(),
+        )
+
+    # Get system broadcaster status
+    if system_broadcaster is not None:
+        circuit_state = system_broadcaster.get_circuit_state()
+        system_status = WebSocketBroadcasterStatus(
+            state=CircuitBreakerStateEnum(circuit_state.value),
+            failure_count=system_broadcaster.circuit_breaker.failure_count,
+            is_degraded=not system_broadcaster._pubsub_listening,
+        )
+
+    return WebSocketHealthResponse(
+        event_broadcaster=event_status,
+        system_broadcaster=system_status,
         timestamp=datetime.now(UTC),
     )
 
