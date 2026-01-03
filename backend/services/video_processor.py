@@ -397,17 +397,22 @@ class VideoProcessor:
                 output_path = str(self.output_dir / f"{video_stem}_thumb.jpg")
 
             # Build ffmpeg command for thumbnail extraction
+            # Note: -ss is placed AFTER -i for accurate seeking (output seeking mode)
+            # This is more accurate than input seeking (-ss before -i) especially for
+            # videos with low frame rates or when seeking near the end of the video.
+            # The format=yuvj420p filter converts limited-range YUV to full-range,
+            # which is required for JPEG encoding to avoid "Non full-range YUV" errors.
             cmd = [
                 "ffmpeg",
                 "-y",  # Overwrite output file
-                "-ss",
-                str(validated_timestamp),  # Seek to timestamp (validated)
                 "-i",
                 str(validated_path),  # Input file
+                "-ss",
+                str(validated_timestamp),  # Seek to timestamp (output seeking)
                 "-vframes",
                 "1",  # Extract only 1 frame
                 "-vf",
-                f"scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease,pad={validated_size[0]}:{validated_size[1]}:(ow-iw)/2:(oh-ih)/2",  # Scale with padding (validated)
+                f"format=yuvj420p,scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease,pad={validated_size[0]}:{validated_size[1]}:(ow-iw)/2:(oh-ih)/2",  # Convert to full-range YUV, scale with padding
                 "-q:v",
                 "2",  # High quality JPEG
                 output_path,
@@ -526,37 +531,38 @@ class VideoProcessor:
 
             extracted_frames: list[str] = []
 
-            # Build scale filter if size is specified (using validated values)
-            scale_filter = ""
+            # Build video filter chain
+            # format=yuvj420p: Convert to full-range YUV for JPEG encoding
+            # This prevents "Non full-range YUV is non-standard" errors on some videos
+            video_filters = ["format=yuvj420p"]
             if validated_size:
-                scale_filter = f"-vf scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease"
+                video_filters.append(
+                    f"scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease"
+                )
+            vf_arg = ",".join(video_filters)
 
-            # Extract frames in parallel using ffmpeg
-            # Use a single ffmpeg command to extract all frames efficiently
+            # Extract frames using ffmpeg
+            # Note: -ss is placed AFTER -i for accurate seeking (output seeking mode)
+            # This is more reliable than input seeking (-ss before -i) especially for
+            # videos with low frame rates or when seeking near the end of the video.
             for idx, timestamp in enumerate(timestamps):
                 output_path = frames_dir / f"frame_{idx:04d}.jpg"
 
                 cmd = [
                     "ffmpeg",
                     "-y",  # Overwrite output file
-                    "-ss",
-                    str(timestamp),  # Seek to timestamp (already bounded by duration)
                     "-i",
                     str(validated_path),  # Input file
+                    "-ss",
+                    str(timestamp),  # Seek to timestamp (output seeking)
                     "-vframes",
                     "1",  # Extract only 1 frame
+                    "-vf",
+                    vf_arg,  # Video filters (format conversion + optional scaling)
+                    "-q:v",
+                    "2",  # High quality JPEG
+                    str(output_path),
                 ]
-
-                if scale_filter:
-                    cmd.extend(["-vf", scale_filter[4:]])  # Remove "-vf " prefix
-
-                cmd.extend(
-                    [
-                        "-q:v",
-                        "2",  # High quality JPEG
-                        str(output_path),
-                    ]
-                )
 
                 result = await asyncio.to_thread(
                     subprocess.run,

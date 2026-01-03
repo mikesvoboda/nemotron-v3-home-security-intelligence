@@ -113,11 +113,11 @@ describe('Header', () => {
     expect(screen.getByText('Nemotron v3 Nano Intelligence')).toBeInTheDocument();
   });
 
-  it('renders the NVIDIA logo', () => {
+  it('renders the NVIDIA eye icon', () => {
     render(<Header />);
     const logo = screen.getByAltText('NVIDIA');
     expect(logo).toBeInTheDocument();
-    expect(logo).toHaveAttribute('src', '/images/nvidia-logo-white.svg');
+    expect(logo).toHaveAttribute('src', '/images/nvidia-eye.svg');
   });
 
   it('displays Connecting status when disconnected', () => {

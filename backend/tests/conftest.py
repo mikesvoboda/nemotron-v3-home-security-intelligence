@@ -304,6 +304,67 @@ async def _reset_db_schema() -> None:
         )
 
 
+async def _cleanup_test_cameras() -> None:
+    """Delete all test camera data created by tests using isolated_db.
+
+    This helper function cleans up all camera-related data in correct order
+    (respecting foreign key constraints) to prevent orphaned entries from
+    accumulating in the database.
+
+    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine, get_session
+
+    try:
+        engine = get_engine()
+        if engine is None:
+            return
+
+        async with get_session() as session:
+            # Delete all test-related data in correct order (respecting FK constraints)
+            # Tables with foreign keys must be deleted before their parent tables
+            # Order: leaf tables first, parent tables last
+            #
+            # Dependency tree:
+            # - alerts -> alert_rules, events
+            # - audit_logs -> (standalone)
+            # - activity_baselines -> cameras
+            # - class_baselines -> cameras
+            # - detections -> cameras, events
+            # - events -> cameras
+            # - event_audits -> events
+            # - gpu_stats -> (standalone)
+            # - logs -> (standalone)
+            # - api_keys -> (standalone)
+            # - zones -> (standalone)
+            # - cameras -> (parent)
+
+            # First: Delete tables with foreign key references
+            await session.execute(text("DELETE FROM alerts"))
+            await session.execute(text("DELETE FROM event_audits"))
+            await session.execute(text("DELETE FROM detections"))
+            await session.execute(text("DELETE FROM activity_baselines"))
+            await session.execute(text("DELETE FROM class_baselines"))
+            await session.execute(text("DELETE FROM events"))
+
+            # Second: Delete tables without FK references (standalone)
+            await session.execute(text("DELETE FROM alert_rules"))
+            await session.execute(text("DELETE FROM audit_logs"))
+            await session.execute(text("DELETE FROM gpu_stats"))
+            await session.execute(text("DELETE FROM logs"))
+            await session.execute(text("DELETE FROM api_keys"))
+            await session.execute(text("DELETE FROM zones"))
+
+            # Last: Delete parent tables
+            await session.execute(text("DELETE FROM cameras"))
+
+            await session.commit()
+    except Exception:  # noqa: S110
+        pass
+
+
 @pytest.fixture(scope="function")
 async def isolated_db() -> AsyncGenerator[None]:
     """Create an isolated test database for each test.
@@ -314,7 +375,7 @@ async def isolated_db() -> AsyncGenerator[None]:
     - Clears the settings cache
     - Ensures tables exist (created once per worker, coordinated via advisory lock)
     - Yields control to the test
-    - Cleans up and restores the original state
+    - Cleans up test data and restores the original state
 
     Note: For true isolation in parallel tests, use the `session` fixture
     which provides transaction-based rollback isolation. Tests should use
@@ -350,7 +411,10 @@ async def isolated_db() -> AsyncGenerator[None]:
 
     yield
 
-    # Cleanup
+    # Clean up test data before closing database
+    await _cleanup_test_cameras()
+
+    # Close database connection
     await close_db()
 
     # Restore original state
@@ -487,7 +551,10 @@ async def test_db() -> AsyncGenerator[None]:
     # Return the get_session function as a callable
     yield get_session
 
-    # Cleanup
+    # Clean up test data before closing database
+    await _cleanup_test_cameras()
+
+    # Close database connection
     await close_db()
 
     # Restore original state
