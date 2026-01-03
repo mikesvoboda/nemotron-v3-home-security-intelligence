@@ -201,9 +201,10 @@ test.describe('System Error State', () => {
     // The page should still render even with errors
     // In error state, the page shows an error message with Reload Page button
     // Use .or() pattern for faster detection of either error indicator
+    // Timeout needs to be long enough for API retry exhaustion (~10s in CI)
     await expect(
       systemPage.errorMessage.or(systemPage.reloadButton)
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible({ timeout: 15000 });
   });
 });
 
