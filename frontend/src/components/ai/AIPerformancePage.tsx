@@ -15,6 +15,7 @@ import { Text, Callout } from '@tremor/react';
 import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import InsightsCharts from './InsightsCharts';
 import LatencyPanel from './LatencyPanel';
 import ModelStatusCards from './ModelStatusCards';
 import PipelineHealthPanel from './PipelineHealthPanel';
@@ -194,6 +195,11 @@ export default function AIPerformancePage() {
               pipelineErrors={data.pipelineErrors}
               queueOverflows={data.queueOverflows}
               dlqItems={data.dlqItems}
+            />
+
+            {/* Insights Charts */}
+            <InsightsCharts
+              totalDetections={data.totalDetections}
             />
 
             {/* Last Updated */}
