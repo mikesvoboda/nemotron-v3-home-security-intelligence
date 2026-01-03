@@ -709,6 +709,94 @@ class TestAIPipelineAuditServiceModelFlags:
 
 
 # =============================================================================
+# Audit Persistence Tests
+# =============================================================================
+
+
+class TestAuditPersistence:
+    """Tests for audit record persistence."""
+
+    def setup_method(self) -> None:
+        """Reset singleton before each test."""
+        reset_audit_service()
+
+    @pytest.mark.asyncio
+    async def test_persist_audit_record(self) -> None:
+        """Test persist_record persists the audit to the database."""
+        service = AIPipelineAuditService()
+
+        # Create a mock audit record
+        audit = service.create_partial_audit(
+            event_id=123,
+            llm_prompt="test prompt",
+            enriched_context=None,
+            enrichment_result=None,
+        )
+
+        # Create mock session
+        mock_session = AsyncMock()
+
+        # Call persist_record
+        result = await service.persist_record(audit, mock_session)
+
+        # Verify the audit was added to the session
+        mock_session.add.assert_called_once_with(audit)
+        # Verify commit was called
+        mock_session.commit.assert_awaited_once()
+        # Verify refresh was called on the audit
+        mock_session.refresh.assert_awaited_once_with(audit)
+        # Verify the result is the audit
+        assert result is audit
+
+    @pytest.mark.asyncio
+    async def test_persist_audit_record_returns_persisted_audit(self) -> None:
+        """Test persist_record returns the persisted audit."""
+        service = AIPipelineAuditService()
+
+        audit = service.create_partial_audit(
+            event_id=456,
+            llm_prompt="another prompt",
+            enriched_context=None,
+            enrichment_result=None,
+        )
+
+        mock_session = AsyncMock()
+
+        result = await service.persist_record(audit, mock_session)
+
+        # The returned audit should be the same instance
+        assert result.event_id == 456
+        assert result.prompt_length == len("another prompt")
+
+    @pytest.mark.asyncio
+    async def test_persist_audit_record_with_enrichment(self) -> None:
+        """Test persist_record works with enriched audit records."""
+        service = AIPipelineAuditService()
+
+        mock_result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            has_violence=True,
+        )
+
+        audit = service.create_partial_audit(
+            event_id=789,
+            llm_prompt="enriched prompt",
+            enriched_context=None,
+            enrichment_result=mock_result,  # type: ignore[arg-type]
+        )
+
+        mock_session = AsyncMock()
+
+        result = await service.persist_record(audit, mock_session)
+
+        # Verify enrichment flags are preserved
+        assert result.has_florence is True
+        assert result.has_violence is True
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_awaited_once()
+
+
+# =============================================================================
 # get_audit_logs Tests
 # =============================================================================
 

@@ -38,11 +38,14 @@ def test_prefix():
 
 @pytest.fixture
 async def test_camera(session, test_prefix):
-    """Create a test camera for use in dedup tests."""
+    """Create a test camera for use in dedup tests.
+
+    Uses unique names and folder paths to prevent conflicts with unique constraints.
+    """
     camera_id = f"{test_prefix}_front_door"
     camera = Camera(
         id=camera_id,
-        name="Front Door Camera",
+        name=f"Front Door Camera {camera_id[-8:]}",
         folder_path=f"/export/foscam/{camera_id}",
     )
     session.add(camera)

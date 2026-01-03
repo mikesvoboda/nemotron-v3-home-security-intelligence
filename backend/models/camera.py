@@ -6,7 +6,7 @@ import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -77,6 +77,10 @@ class Camera(Base):
     """
 
     __tablename__ = "cameras"
+    __table_args__ = (
+        Index("idx_cameras_name_unique", "name", unique=True),
+        Index("idx_cameras_folder_path_unique", "folder_path", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)

@@ -68,11 +68,14 @@ def _filter_skipped_rules_by_ids(
 
 @pytest.fixture
 async def test_camera(session):
-    """Create a test camera with unique ID."""
+    """Create a test camera with unique ID.
+
+    Uses unique names and folder paths to prevent conflicts with unique constraints.
+    """
     camera_id = unique_id("front_door")
     camera = Camera(
         id=camera_id,
-        name="Front Door Camera",
+        name=f"Front Door Camera {camera_id[-8:]}",
         folder_path=f"/export/foscam/{camera_id}",
     )
     session.add(camera)

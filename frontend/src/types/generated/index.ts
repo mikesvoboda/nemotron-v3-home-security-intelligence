@@ -85,5 +85,21 @@ export type AuditLogResponse = components['schemas']['AuditLogResponse'];
 export type AuditLogListResponse = components['schemas']['AuditLogListResponse'];
 export type AuditLogStats = components['schemas']['AuditLogStats'];
 
+// Alert Rule types
+export type AlertRule = components['schemas']['AlertRuleResponse'];
+export type AlertRuleCreate = components['schemas']['AlertRuleCreate'];
+export type AlertRuleUpdate = components['schemas']['AlertRuleUpdate'];
+export type AlertRuleListResponse = components['schemas']['AlertRuleListResponse'];
+export type AlertRuleSchedule = components['schemas']['AlertRuleSchedule'];
+export type AlertSeverity = components['schemas']['AlertSeverity'];
+
+// Zone types
+export type Zone = components['schemas']['ZoneResponse'];
+export type ZoneCreate = components['schemas']['ZoneCreate'];
+export type ZoneUpdate = components['schemas']['ZoneUpdate'];
+export type ZoneListResponse = components['schemas']['ZoneListResponse'];
+export type ZoneShape = components['schemas']['ZoneShape'];
+export type ZoneType = components['schemas']['ZoneType'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';
