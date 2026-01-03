@@ -454,6 +454,70 @@ export async function setupApiMocks(
     });
   });
 
+  // Zones endpoint
+  await page.route('**/api/zones*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'zone-1',
+          name: 'Front Door',
+          camera_id: 'cam-front',
+          type: 'entry_point',
+          coordinates: [[0.1, 0.1], [0.3, 0.1], [0.3, 0.3], [0.1, 0.3]],
+          enabled: true,
+          color: '#ef4444',
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 'zone-2',
+          name: 'Driveway',
+          camera_id: 'cam-front',
+          type: 'driveway',
+          coordinates: [[0.4, 0.5], [0.9, 0.5], [0.9, 0.9], [0.4, 0.9]],
+          enabled: true,
+          color: '#f59e0b',
+          created_at: new Date().toISOString(),
+        },
+      ]),
+    });
+  });
+
+  // Alert Rules endpoint
+  await page.route('**/api/alert-rules*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'rule-1',
+          name: 'Person at Entry Point',
+          enabled: true,
+          severity: 'high',
+          object_types: ['person'],
+          zone_ids: ['zone-1'],
+          schedule: { days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], start_time: '22:00', end_time: '06:00' },
+          channels: ['email', 'webhook'],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 'rule-2',
+          name: 'Vehicle Detection',
+          enabled: true,
+          severity: 'medium',
+          object_types: ['vehicle'],
+          zone_ids: ['zone-2'],
+          schedule: null,
+          channels: ['webhook'],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]),
+    });
+  });
+
   // WebSocket connections
   await page.route('**/ws/**', async (route) => {
     if (mergedConfig.wsConnectionFail) {
