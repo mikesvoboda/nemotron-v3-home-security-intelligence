@@ -1,4 +1,4 @@
-"""Unit tests for alert deduplication service.
+"""Integration tests for alert deduplication service.
 
 Tests use PostgreSQL via the isolated_db fixture since models use
 PostgreSQL-specific features.
@@ -16,8 +16,8 @@ from backend.services.alert_dedup import (
 )
 from backend.tests.conftest import unique_id
 
-# Mark all tests in this module as slow since they use real PostgreSQL
-pytestmark = pytest.mark.slow
+# Mark all tests in this module as integration (require PostgreSQL)
+pytestmark = [pytest.mark.slow, pytest.mark.integration]
 
 
 def _utcnow() -> datetime:

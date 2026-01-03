@@ -1,8 +1,10 @@
-"""Unit tests for cleanup service.
+"""Integration tests for cleanup service.
 
 Note: These tests use unique IDs for cameras to allow parallel test execution.
 Cleanup service assertions use >= instead of == for counts since the service
 operates on the entire database and parallel tests may create additional data.
+
+These tests require PostgreSQL via the session fixture.
 """
 
 import asyncio
@@ -20,6 +22,9 @@ from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.services.cleanup_service import CleanupService, CleanupStats
 from backend.tests.conftest import unique_id
+
+# Mark all tests in this module as integration tests (require PostgreSQL)
+pytestmark = pytest.mark.integration
 
 # Fixtures
 
