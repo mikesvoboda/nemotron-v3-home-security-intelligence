@@ -742,6 +742,7 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
         patch("backend.main.stop_broadcaster", AsyncMock()),
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         patch("backend.api.routes.system._file_watcher", mock_file_watcher_for_routes),
+        patch("backend.api.routes.system._cleanup_service", mock_cleanup_service),
     ):
         try:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
