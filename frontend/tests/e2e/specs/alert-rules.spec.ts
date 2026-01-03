@@ -113,7 +113,8 @@ test.describe('Alert Rules Error State', () => {
 
   test('displays try again button on error', async () => {
     await alertRulesPage.goto();
-    await expect(alertRulesPage.tryAgainButton).toBeVisible();
+    // Firefox needs longer timeout for error state to render
+    await expect(alertRulesPage.tryAgainButton).toBeVisible({ timeout: 10000 });
   });
 });
 
