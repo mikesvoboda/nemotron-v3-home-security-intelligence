@@ -13,3 +13,5 @@ export { LogsPage } from './LogsPage';
 export { AuditPage } from './AuditPage';
 export { SystemPage } from './SystemPage';
 export { SettingsPage } from './SettingsPage';
+export { ZonesPage } from './ZonesPage';
+export { AlertRulesPage } from './AlertRulesPage';
