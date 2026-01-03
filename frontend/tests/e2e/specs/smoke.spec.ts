@@ -60,7 +60,7 @@ test.describe('Dashboard Smoke Tests', () => {
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('dashboard shows stats row section', async () => {
+  test('dashboard shows active cameras stat', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
     // Dashboard displays StatsRow with Active Cameras, Events Today, Current Risk, System Status
