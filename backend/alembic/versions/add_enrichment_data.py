@@ -1,7 +1,7 @@
 """Add enrichment_data column to detections table
 
 Revision ID: add_enrichment_data
-Revises: add_llm_prompt
+Revises: add_camera_unique_constraints
 Create Date: 2026-01-03 12:00:00.000000
 
 This migration adds the enrichment_data JSONB column to the detections table.
@@ -22,7 +22,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_enrichment_data"
-down_revision: str | Sequence[str] | None = "add_llm_prompt"
+down_revision: str | Sequence[str] | None = "add_camera_unique_constraints"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
