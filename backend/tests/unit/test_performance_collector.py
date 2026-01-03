@@ -172,12 +172,25 @@ class TestHostMetrics:
 
     @pytest.mark.asyncio
     async def test_collect_host_metrics_failure(self, collector):
-        """Test host metrics returns None on failure."""
+        """Test host metrics returns fallback values on failure.
+
+        The collector now returns partial data with fallback values instead of None
+        to ensure the frontend always has something to display.
+        """
         with patch("backend.services.performance_collector.psutil") as mock_psutil:
             mock_psutil.cpu_percent.side_effect = Exception("psutil error")
+            mock_psutil.virtual_memory.side_effect = Exception("psutil error")
+            mock_psutil.disk_usage.side_effect = Exception("psutil error")
 
             metrics = await collector.collect_host_metrics()
-            assert metrics is None
+
+            # Should return fallback values, not None
+            assert metrics is not None
+            assert metrics.cpu_percent == 0.0
+            assert metrics.ram_used_gb == 0.0
+            assert metrics.ram_total_gb == 1.0  # Fallback to avoid division by zero
+            assert metrics.disk_used_gb == 0.0
+            assert metrics.disk_total_gb == 1.0  # Fallback to avoid division by zero
 
 
 class TestDatabaseMetrics:

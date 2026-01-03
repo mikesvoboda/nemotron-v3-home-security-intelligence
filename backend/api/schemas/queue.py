@@ -52,6 +52,10 @@ class DetectionQueuePayload(BaseModel):
         pattern=r"^[a-fA-F0-9]+$",
         description="Optional SHA256 hash of the file (hex encoded)",
     )
+    pipeline_start_time: str | None = Field(
+        default=None,
+        description="ISO format timestamp of when the file was first detected (for total pipeline latency tracking)",
+    )
 
     model_config = ConfigDict(
         extra="ignore",  # Ignore unexpected fields for forward compatibility
@@ -124,6 +128,10 @@ class AnalysisQueuePayload(BaseModel):
     detection_ids: list[int | str] | None = Field(
         default=None,
         description="List of detection IDs to analyze",
+    )
+    pipeline_start_time: str | None = Field(
+        default=None,
+        description="ISO format timestamp of when the first file in the batch was detected (for total pipeline latency tracking)",
     )
 
     model_config = ConfigDict(

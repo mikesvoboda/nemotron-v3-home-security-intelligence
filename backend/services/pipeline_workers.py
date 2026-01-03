@@ -29,6 +29,7 @@ Queue Flow:
 import asyncio
 import signal
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -330,6 +331,7 @@ class DetectionQueueWorker:
             camera_id = validated.camera_id
             file_path = validated.file_path
             media_type = validated.media_type
+            pipeline_start_time = validated.pipeline_start_time
         except ValueError as e:
             self._stats.errors += 1
             record_pipeline_error("invalid_detection_payload")
@@ -349,9 +351,9 @@ class DetectionQueueWorker:
 
         try:
             if media_type == "video":
-                await self._process_video_detection(camera_id, file_path, item)
+                await self._process_video_detection(camera_id, file_path, item, pipeline_start_time)
             else:
-                await self._process_image_detection(camera_id, file_path, item)
+                await self._process_image_detection(camera_id, file_path, item, pipeline_start_time)
 
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()
@@ -388,7 +390,11 @@ class DetectionQueueWorker:
             )
 
     async def _process_image_detection(
-        self, camera_id: str, file_path: str, job_data: dict[str, Any]
+        self,
+        camera_id: str,
+        file_path: str,
+        job_data: dict[str, Any],
+        pipeline_start_time: str | None = None,
     ) -> None:
         """Process a single image file for object detection.
 
@@ -399,6 +405,8 @@ class DetectionQueueWorker:
             camera_id: Camera identifier
             file_path: Path to the image file
             job_data: Original job data for DLQ tracking
+            pipeline_start_time: ISO timestamp when the file was first detected
+                (for total pipeline latency tracking)
         """
 
         async def _detect_with_session() -> list[Any]:
@@ -446,6 +454,7 @@ class DetectionQueueWorker:
                 _file_path=file_path,
                 confidence=detection.confidence,
                 object_type=detection.object_type,
+                pipeline_start_time=pipeline_start_time,
             )
 
         logger.debug(
@@ -459,7 +468,11 @@ class DetectionQueueWorker:
         )
 
     async def _process_video_detection(
-        self, camera_id: str, video_path: str, job_data: dict[str, Any]
+        self,
+        camera_id: str,
+        video_path: str,
+        job_data: dict[str, Any],
+        pipeline_start_time: str | None = None,
     ) -> None:
         """Process a video file by extracting frames and running detection on each.
 
@@ -473,6 +486,8 @@ class DetectionQueueWorker:
             camera_id: Camera identifier
             video_path: Path to the video file
             job_data: Original job data for DLQ tracking
+            pipeline_start_time: ISO timestamp when the file was first detected
+                (for total pipeline latency tracking)
         """
         logger.info(
             f"Processing video for detection: {video_path}",
@@ -551,6 +566,7 @@ class DetectionQueueWorker:
                                 _file_path=video_path,  # Use video path, not frame
                                 confidence=detection.confidence,
                                 object_type=detection.object_type,
+                                pipeline_start_time=pipeline_start_time,
                             )
 
                         total_detections += len(detections)
@@ -733,6 +749,7 @@ class AnalysisQueueWorker:
             batch_id = validated.batch_id
             camera_id = validated.camera_id
             detection_ids = validated.detection_ids
+            pipeline_start_time = validated.pipeline_start_time
         except ValueError as e:
             self._stats.errors += 1
             record_pipeline_error("invalid_analysis_payload")
@@ -768,6 +785,30 @@ class AnalysisQueueWorker:
             record_pipeline_stage_latency("batch_to_analyze", duration * 1000)
             # Record to Redis for /api/system/telemetry
             await record_stage_latency(self._redis, "analyze", duration * 1000)
+
+            # Record total pipeline latency (from file detection to event creation)
+            if pipeline_start_time:
+                try:
+                    # Parse the ISO timestamp (supports both with and without timezone)
+                    start_dt = datetime.fromisoformat(pipeline_start_time.replace("Z", "+00:00"))
+                    # Make start_dt timezone-aware if it isn't already
+                    if start_dt.tzinfo is None:
+                        start_dt = start_dt.replace(tzinfo=UTC)
+                    total_duration_ms = (datetime.now(UTC) - start_dt).total_seconds() * 1000
+                    record_pipeline_stage_latency("total_pipeline", total_duration_ms)
+                    logger.debug(
+                        f"Total pipeline latency for batch {batch_id}: {total_duration_ms:.1f}ms",
+                        extra={
+                            "batch_id": batch_id,
+                            "total_pipeline_ms": total_duration_ms,
+                            "pipeline_start_time": pipeline_start_time,
+                        },
+                    )
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        f"Failed to parse pipeline_start_time '{pipeline_start_time}': {e}",
+                        extra={"batch_id": batch_id, "pipeline_start_time": pipeline_start_time},
+                    )
 
             logger.info(
                 f"Created event {event.id} for batch {batch_id}: risk_score={event.risk_score}",

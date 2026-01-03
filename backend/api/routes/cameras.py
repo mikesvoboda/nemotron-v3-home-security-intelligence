@@ -1,6 +1,5 @@
 """API routes for camera management."""
 
-import uuid
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +19,7 @@ from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
-from backend.models.camera import Camera
+from backend.models.camera import Camera, normalize_camera_id
 from backend.services.audit import AuditService
 from backend.services.cache_service import (
     SHORT_TTL,
@@ -187,9 +186,12 @@ async def create_camera(
             f"(id: {existing_path_camera.id})",
         )
 
-    # Create camera with generated UUID
+    # Create camera using normalized ID from the name
+    # This ensures the camera ID matches what FileWatcher will use when processing files
+    # from this camera's folder_path. Without this, detector_client can't update last_seen_at.
+    camera_id = normalize_camera_id(camera_data.name)
     camera = Camera(
-        id=str(uuid.uuid4()),
+        id=camera_id,
         name=camera_data.name,
         folder_path=camera_data.folder_path,
         status=camera_data.status,

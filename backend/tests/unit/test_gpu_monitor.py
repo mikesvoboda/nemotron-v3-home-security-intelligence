@@ -799,36 +799,51 @@ def test_get_stats_real_generic_exception(mock_pynvml):
 
 
 def test_parse_rtdetr_response_full_data(mock_pynvml):
-    """Test parsing RT-DETRv2 response with all data."""
+    """Test parsing RT-DETRv2 response with all data including GPU metrics."""
     monitor = GPUMonitor()
 
-    data = {"vram_used_gb": 4.5, "device": "cuda:0"}
-    vram_mb, device = monitor._parse_rtdetr_response(data)
+    data = {
+        "vram_used_gb": 4.5,
+        "device": "cuda:0",
+        "gpu_utilization": 75.0,
+        "temperature": 65,
+        "power_watts": 150.0,
+    }
+    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
 
     assert vram_mb == 4.5 * 1024  # 4608 MB
     assert device == "cuda:0"
+    assert gpu_util == 75.0
+    assert temp == 65
+    assert power == 150.0
 
 
 def test_parse_rtdetr_response_no_vram(mock_pynvml):
     """Test parsing RT-DETRv2 response without VRAM data."""
     monitor = GPUMonitor()
 
-    data = {"device": "cuda:0"}
-    vram_mb, device = monitor._parse_rtdetr_response(data)
+    data = {"device": "cuda:0", "gpu_utilization": 50.0}
+    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
 
     assert vram_mb == 0.0
     assert device == "cuda:0"
+    assert gpu_util == 50.0
+    assert temp is None
+    assert power is None
 
 
 def test_parse_rtdetr_response_no_device(mock_pynvml):
     """Test parsing RT-DETRv2 response without device data."""
     monitor = GPUMonitor()
 
-    data = {"vram_used_gb": 2.0}
-    vram_mb, device = monitor._parse_rtdetr_response(data)
+    data = {"vram_used_gb": 2.0, "temperature": 55, "power_watts": 100.0}
+    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
 
     assert vram_mb == 2.0 * 1024
     assert device is None
+    assert gpu_util is None
+    assert temp == 55
+    assert power == 100.0
 
 
 def test_parse_rtdetr_response_empty(mock_pynvml):
@@ -836,10 +851,28 @@ def test_parse_rtdetr_response_empty(mock_pynvml):
     monitor = GPUMonitor()
 
     data = {}
-    vram_mb, device = monitor._parse_rtdetr_response(data)
+    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
 
     assert vram_mb == 0.0
     assert device is None
+    assert gpu_util is None
+    assert temp is None
+    assert power is None
+
+
+def test_parse_rtdetr_response_legacy_format(mock_pynvml):
+    """Test parsing RT-DETRv2 response in legacy format (no GPU metrics)."""
+    monitor = GPUMonitor()
+
+    # Simulate old response format that only had vram_used_gb and device
+    data = {"vram_used_gb": 3.0, "device": "cuda:0"}
+    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
+
+    assert vram_mb == 3.0 * 1024
+    assert device == "cuda:0"
+    assert gpu_util is None
+    assert temp is None
+    assert power is None
 
 
 # Test _parse_vram_metric_line
@@ -926,11 +959,81 @@ async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
         assert stats is not None
         assert stats["memory_used"] == int(3.5 * 1024)
         assert "cuda:0" in stats["gpu_name"]
-        # Verify default values are set instead of None
+        # Verify default values are set instead of None when not provided
         assert stats["gpu_utilization"] == 0.0
         assert stats["memory_total"] == 24576  # 24GB in MB
         assert stats["temperature"] == 0
         assert stats["power_usage"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_with_gpu_metrics(mock_pynvml):
+    """Test getting GPU stats from AI containers with full GPU metrics.
+
+    Tests that gpu_utilization, temperature, and power_watts are correctly
+    passed through from the RT-DETRv2 health endpoint.
+    """
+    monitor = GPUMonitor()
+
+    rtdetr_response = {
+        "vram_used_gb": 4.0,
+        "device": "cuda:0",
+        "gpu_utilization": 75.0,
+        "temperature": 65,
+        "power_watts": 150.0,
+    }
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        mock_rtdetr_resp = MagicMock()
+        mock_rtdetr_resp.status_code = 200
+        mock_rtdetr_resp.json.return_value = rtdetr_response
+
+        mock_client.get.return_value = mock_rtdetr_resp
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        assert stats is not None
+        assert stats["memory_used"] == int(4.0 * 1024)
+        assert "cuda:0" in stats["gpu_name"]
+        # Verify GPU metrics are passed through
+        assert stats["gpu_utilization"] == 75.0
+        assert stats["temperature"] == 65
+        assert stats["power_usage"] == 150.0
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_partial_metrics(mock_pynvml):
+    """Test getting GPU stats when only some GPU metrics are available."""
+    monitor = GPUMonitor()
+
+    # Only temperature is provided, others are None
+    rtdetr_response = {
+        "vram_used_gb": 2.5,
+        "device": "cuda:0",
+        "gpu_utilization": 50.0,
+        "temperature": None,  # Not available
+        "power_watts": 100.0,
+    }
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        mock_rtdetr_resp = MagicMock()
+        mock_rtdetr_resp.status_code = 200
+        mock_rtdetr_resp.json.return_value = rtdetr_response
+
+        mock_client.get.return_value = mock_rtdetr_resp
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        assert stats is not None
+        assert stats["gpu_utilization"] == 50.0
+        assert stats["temperature"] == 0  # Falls back to 0 when None
+        assert stats["power_usage"] == 100.0
 
 
 @pytest.mark.asyncio

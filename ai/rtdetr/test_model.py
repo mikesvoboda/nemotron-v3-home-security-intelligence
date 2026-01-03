@@ -26,8 +26,10 @@ from model import (  # noqa: E402
     BoundingBox,
     Detection,
     DetectionResponse,
+    HealthResponse,
     RTDETRv2Model,
     app,
+    get_gpu_metrics,
     validate_file_extension,
     validate_image_magic_bytes,
 )
@@ -730,3 +732,219 @@ class TestFileExtensionValidation:
         """Test that SUPPORTED_IMAGE_EXTENSIONS contains expected formats."""
         expected = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
         assert expected == SUPPORTED_IMAGE_EXTENSIONS
+
+
+class TestHealthResponse:
+    """Tests for HealthResponse model with GPU metrics fields."""
+
+    def test_health_response_includes_gpu_metrics_fields(self):
+        """Test that HealthResponse includes gpu_utilization, temperature, and power_watts fields."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+            model_name="/path/to/model",
+            vram_used_gb=3.5,
+            gpu_utilization=75.0,
+            temperature=65,
+            power_watts=150.0,
+        )
+        assert response.gpu_utilization == 75.0
+        assert response.temperature == 65
+        assert response.power_watts == 150.0
+
+    def test_health_response_gpu_metrics_optional(self):
+        """Test that GPU metrics fields are optional (None when unavailable)."""
+        response = HealthResponse(
+            status="degraded",
+            model_loaded=False,
+            device="cpu",
+            cuda_available=False,
+        )
+        assert response.gpu_utilization is None
+        assert response.temperature is None
+        assert response.power_watts is None
+
+    def test_health_response_partial_gpu_metrics(self):
+        """Test that GPU metrics can be partially provided."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+            vram_used_gb=4.0,
+            gpu_utilization=50.0,
+            temperature=None,  # Some metrics may fail individually
+            power_watts=120.0,
+        )
+        assert response.gpu_utilization == 50.0
+        assert response.temperature is None
+        assert response.power_watts == 120.0
+
+
+class TestGetGpuMetrics:
+    """Tests for get_gpu_metrics() function."""
+
+    def test_get_gpu_metrics_cuda_not_available(self):
+        """Test that get_gpu_metrics returns empty dict when CUDA not available."""
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
+            result = get_gpu_metrics()
+            assert result["gpu_utilization"] is None
+            assert result["temperature"] is None
+            assert result["power_watts"] is None
+
+    def test_get_gpu_metrics_pynvml_not_installed(self):
+        """Test that get_gpu_metrics returns None values when pynvml not installed."""
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True):
+            # Mock import to fail
+            import builtins
+
+            original_import = builtins.__import__
+
+            def mock_import(name, *args, **kwargs):
+                if name == "pynvml":
+                    raise ImportError("pynvml not installed")
+                return original_import(name, *args, **kwargs)
+
+            with patch.object(builtins, "__import__", side_effect=mock_import):
+                result = get_gpu_metrics()
+                assert result["gpu_utilization"] is None
+                assert result["temperature"] is None
+                assert result["power_watts"] is None
+
+    def test_get_gpu_metrics_with_pynvml(self):
+        """Test get_gpu_metrics when pynvml is available."""
+        mock_pynvml = MagicMock()
+        mock_handle = MagicMock()
+        mock_utilization = MagicMock()
+        mock_utilization.gpu = 75.0
+
+        mock_pynvml.nvmlDeviceGetHandleByIndex.return_value = mock_handle
+        mock_pynvml.nvmlDeviceGetUtilizationRates.return_value = mock_utilization
+        mock_pynvml.nvmlDeviceGetTemperature.return_value = 65
+        mock_pynvml.NVML_TEMPERATURE_GPU = 0
+        mock_pynvml.nvmlDeviceGetPowerUsage.return_value = 150000  # milliwatts
+        mock_pynvml.NVMLError = Exception
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch.dict("sys.modules", {"pynvml": mock_pynvml}),
+        ):
+            result = get_gpu_metrics()
+            assert result["gpu_utilization"] == 75.0
+            assert result["temperature"] == 65
+            assert result["power_watts"] == 150.0
+
+    def test_get_gpu_metrics_partial_failure(self):
+        """Test get_gpu_metrics when some pynvml calls fail."""
+        mock_pynvml = MagicMock()
+        mock_handle = MagicMock()
+        mock_utilization = MagicMock()
+        mock_utilization.gpu = 50.0
+
+        # Configure mock
+        mock_pynvml.nvmlDeviceGetHandleByIndex.return_value = mock_handle
+        mock_pynvml.nvmlDeviceGetUtilizationRates.return_value = mock_utilization
+        # Temperature fails
+        mock_pynvml.nvmlDeviceGetTemperature.side_effect = Exception("Temp error")
+        mock_pynvml.NVML_TEMPERATURE_GPU = 0
+        mock_pynvml.nvmlDeviceGetPowerUsage.return_value = 100000  # milliwatts
+        mock_pynvml.NVMLError = Exception
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch.dict("sys.modules", {"pynvml": mock_pynvml}),
+        ):
+            result = get_gpu_metrics()
+            assert result["gpu_utilization"] == 50.0
+            assert result["temperature"] is None  # Failed
+            assert result["power_watts"] == 100.0
+
+
+class TestHealthEndpointGpuMetrics:
+    """Tests for health endpoint returning GPU metrics."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    @pytest.fixture(autouse=True)
+    def mock_model(self):
+        """Mock the global model instance."""
+        mock_instance = MagicMock()
+        mock_instance.model_path = "/dummy/path"
+        mock_instance.model = MagicMock()
+        original_model = getattr(model_module, "model", None)
+        model_module.model = mock_instance
+        yield mock_instance
+        model_module.model = original_model
+
+    def test_health_endpoint_returns_gpu_metrics(self, client, _mock_model):
+        """Test health endpoint returns GPU metrics when CUDA available."""
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(
+                f"{MODEL_MODULE_PATH}.get_vram_usage",
+                return_value=3.5,
+            ),
+            patch(
+                f"{MODEL_MODULE_PATH}.get_gpu_metrics",
+                return_value={
+                    "gpu_utilization": 75.0,
+                    "temperature": 65,
+                    "power_watts": 150.0,
+                },
+            ),
+        ):
+            response = client.get("/health")
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify new GPU metric fields are present
+            assert "gpu_utilization" in data
+            assert "temperature" in data
+            assert "power_watts" in data
+
+            # Verify values
+            assert data["gpu_utilization"] == 75.0
+            assert data["temperature"] == 65
+            assert data["power_watts"] == 150.0
+
+    def test_health_endpoint_no_cuda_returns_null_metrics(self, client, _mock_model):
+        """Test health endpoint returns null GPU metrics when CUDA unavailable."""
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
+            response = client.get("/health")
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify fields are present but None
+            assert data["gpu_utilization"] is None
+            assert data["temperature"] is None
+            assert data["power_watts"] is None
+
+    def test_health_endpoint_partial_metrics(self, client, _mock_model):
+        """Test health endpoint returns partial GPU metrics when some fail."""
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(
+                f"{MODEL_MODULE_PATH}.get_vram_usage",
+                return_value=2.0,
+            ),
+            patch(
+                f"{MODEL_MODULE_PATH}.get_gpu_metrics",
+                return_value={
+                    "gpu_utilization": 50.0,
+                    "temperature": None,  # Failed
+                    "power_watts": 100.0,
+                },
+            ),
+        ):
+            response = client.get("/health")
+            assert response.status_code == 200
+            data = response.json()
+
+            assert data["gpu_utilization"] == 50.0
+            assert data["temperature"] is None
+            assert data["power_watts"] == 100.0

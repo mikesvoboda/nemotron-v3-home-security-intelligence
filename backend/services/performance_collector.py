@@ -175,11 +175,11 @@ class PerformanceCollector:
                 data = resp.json()
                 return {
                     "name": data.get("device", "Unknown GPU"),
-                    "utilization": 0,  # Not available from health
+                    "utilization": data.get("gpu_utilization", 0),
                     "vram_used_gb": data.get("vram_used_gb", 0),
                     "vram_total_gb": 24.0,  # Assume A5500
-                    "temperature": 0,
-                    "power_watts": 0,
+                    "temperature": data.get("temperature", 0),
+                    "power_watts": data.get("power_watts", 0),
                 }
         except Exception as e:
             logger.warning(f"GPU fallback failed: {e}")
@@ -222,69 +222,131 @@ class PerformanceCollector:
         return NemotronMetrics(status="unreachable", slots_active=0, slots_total=0, context_size=0)
 
     async def collect_host_metrics(self) -> HostMetrics | None:
-        """Collect host system metrics via psutil."""
+        """Collect host system metrics via psutil.
+
+        This method gracefully handles container environments where some
+        metrics may not be available (e.g., restricted /proc access).
+        """
         try:
+            # cpu_percent with interval=None uses the delta since last call
+            # First call may return 0.0 - this is expected behavior
             cpu = psutil.cpu_percent(interval=None)
-            mem = psutil.virtual_memory()
-            disk = psutil.disk_usage("/")
-            return HostMetrics(
-                cpu_percent=cpu,
-                ram_used_gb=mem.used / (1024**3),
-                ram_total_gb=mem.total / (1024**3),
-                disk_used_gb=disk.used / (1024**3),
-                disk_total_gb=disk.total / (1024**3),
-            )
+            logger.debug(f"Host CPU: {cpu}%")
         except Exception as e:
-            logger.warning(f"Host metrics failed: {e}")
-            return None
+            logger.warning(f"Host CPU metrics failed (may be container-restricted): {e}")
+            cpu = 0.0
+
+        try:
+            mem = psutil.virtual_memory()
+            ram_used_gb = mem.used / (1024**3)
+            ram_total_gb = mem.total / (1024**3)
+            logger.debug(f"Host RAM: {ram_used_gb:.2f}/{ram_total_gb:.2f} GB")
+        except Exception as e:
+            logger.warning(f"Host memory metrics failed (may be container-restricted): {e}")
+            ram_used_gb = 0.0
+            ram_total_gb = 0.0
+
+        try:
+            disk = psutil.disk_usage("/")
+            disk_used_gb = disk.used / (1024**3)
+            disk_total_gb = disk.total / (1024**3)
+            logger.debug(f"Host disk: {disk_used_gb:.2f}/{disk_total_gb:.2f} GB")
+        except Exception as e:
+            logger.warning(f"Host disk metrics failed (may be container-restricted): {e}")
+            disk_used_gb = 0.0
+            disk_total_gb = 0.0
+
+        # Return metrics even if some values are zero - partial data is better than no data
+        # Note: Schema requires ram_total_gb and disk_total_gb > 0, so use defaults if unavailable
+        return HostMetrics(
+            cpu_percent=cpu,
+            ram_used_gb=ram_used_gb,
+            ram_total_gb=ram_total_gb
+            if ram_total_gb > 0
+            else 1.0,  # Avoid division by zero in percent calc
+            disk_used_gb=disk_used_gb,
+            disk_total_gb=disk_total_gb
+            if disk_total_gb > 0
+            else 1.0,  # Avoid division by zero in percent calc
+        )
 
     async def collect_postgresql_metrics(self) -> DatabaseMetrics | None:
-        """Collect PostgreSQL metrics."""
+        """Collect PostgreSQL metrics.
+
+        Queries pg_stat_activity and pg_stat_database for connection and
+        performance statistics. Returns partial data on errors rather than None.
+        """
         try:
             from sqlalchemy import text
 
             from backend.core.database import get_session_factory
 
             session_factory = get_session_factory()
+            if session_factory is None:
+                logger.warning("PostgreSQL session factory is None - database not initialized")
+                return DatabaseMetrics(
+                    status="unreachable",
+                    connections_active=0,
+                    connections_max=30,
+                    cache_hit_ratio=0,
+                    transactions_per_min=0,
+                )
+
             async with session_factory() as session:
                 # Get active connection count
-                result = await session.execute(
-                    text("SELECT count(*) FROM pg_stat_activity WHERE state = 'active'")
-                )
-                active = result.scalar() or 0
+                try:
+                    result = await session.execute(
+                        text("SELECT count(*) FROM pg_stat_activity WHERE state = 'active'")
+                    )
+                    active = result.scalar() or 0
+                    logger.debug(f"PostgreSQL active connections: {active}")
+                except Exception as e:
+                    logger.warning(f"Failed to get PostgreSQL connection count: {e}")
+                    active = 0
 
                 # Get cache hit ratio
-                result = await session.execute(
-                    text("""
-                        SELECT
-                            CASE WHEN blks_hit + blks_read > 0
-                            THEN 100.0 * blks_hit / (blks_hit + blks_read)
-                            ELSE 100.0 END as ratio
-                        FROM pg_stat_database
-                        WHERE datname = current_database()
-                    """)
-                )
-                cache_hit = result.scalar() or 100.0
+                try:
+                    result = await session.execute(
+                        text("""
+                            SELECT
+                                CASE WHEN blks_hit + blks_read > 0
+                                THEN 100.0 * blks_hit / (blks_hit + blks_read)
+                                ELSE 100.0 END as ratio
+                            FROM pg_stat_database
+                            WHERE datname = current_database()
+                        """)
+                    )
+                    cache_hit = result.scalar() or 100.0
+                    logger.debug(f"PostgreSQL cache hit ratio: {cache_hit:.1f}%")
+                except Exception as e:
+                    logger.warning(f"Failed to get PostgreSQL cache hit ratio: {e}")
+                    cache_hit = 0.0
 
                 # Get transaction count
-                result = await session.execute(
-                    text("""
-                        SELECT xact_commit + xact_rollback
-                        FROM pg_stat_database
-                        WHERE datname = current_database()
-                    """)
-                )
-                txns = result.scalar() or 0
+                try:
+                    result = await session.execute(
+                        text("""
+                            SELECT xact_commit + xact_rollback
+                            FROM pg_stat_database
+                            WHERE datname = current_database()
+                        """)
+                    )
+                    txns = result.scalar() or 0
+                    logger.debug(f"PostgreSQL transactions: {txns}")
+                except Exception as e:
+                    logger.warning(f"Failed to get PostgreSQL transaction count: {e}")
+                    txns = 0
 
                 return DatabaseMetrics(
                     status="healthy",
                     connections_active=active,
-                    connections_max=30,  # Default pool size
+                    connections_max=self._settings.database_pool_size
+                    + self._settings.database_pool_overflow,
                     cache_hit_ratio=float(cache_hit),
                     transactions_per_min=float(txns),  # Simplified
                 )
         except Exception as e:
-            logger.warning(f"PostgreSQL metrics failed: {e}")
+            logger.error(f"PostgreSQL metrics collection failed: {e}", exc_info=True)
             return DatabaseMetrics(
                 status="unreachable",
                 connections_active=0,
@@ -294,12 +356,17 @@ class PerformanceCollector:
             )
 
     async def collect_redis_metrics(self) -> RedisMetrics | None:
-        """Collect Redis metrics."""
+        """Collect Redis metrics.
+
+        Uses the RedisClient wrapper's _ensure_connected() method to get the
+        underlying redis-py client, then calls info() for server statistics.
+        """
         try:
             from backend.core.redis import init_redis
 
             redis_client = await init_redis()
             if redis_client is None:
+                logger.warning("Redis client is None - cannot collect metrics")
                 return RedisMetrics(
                     status="unreachable",
                     connected_clients=0,
@@ -307,22 +374,48 @@ class PerformanceCollector:
                     hit_ratio=0,
                     blocked_clients=0,
                 )
+
             # Get the underlying redis-py client to access info()
-            raw_client = redis_client._ensure_connected()
+            # _ensure_connected() returns the Redis instance from redis-py
+            try:
+                raw_client = redis_client._ensure_connected()
+            except RuntimeError as e:
+                logger.warning(f"Redis not connected: {e}")
+                return RedisMetrics(
+                    status="unreachable",
+                    connected_clients=0,
+                    memory_mb=0,
+                    hit_ratio=0,
+                    blocked_clients=0,
+                )
+
+            # Call info() to get server statistics
             info = await raw_client.info()
+            logger.debug(f"Redis info keys: {list(info.keys())[:10]}...")
+
             hits = info.get("keyspace_hits", 0)
             misses = info.get("keyspace_misses", 0)
             hit_ratio = (hits / (hits + misses) * 100) if (hits + misses) > 0 else 0
 
+            connected_clients = info.get("connected_clients", 0)
+            used_memory = info.get("used_memory", 0)
+            blocked_clients = info.get("blocked_clients", 0)
+
+            logger.debug(
+                f"Redis metrics: clients={connected_clients}, "
+                f"memory={used_memory / (1024 * 1024):.2f}MB, "
+                f"hit_ratio={hit_ratio:.1f}%"
+            )
+
             return RedisMetrics(
                 status="healthy",
-                connected_clients=info.get("connected_clients", 0),
-                memory_mb=info.get("used_memory", 0) / (1024 * 1024),
+                connected_clients=connected_clients,
+                memory_mb=used_memory / (1024 * 1024),
                 hit_ratio=hit_ratio,
-                blocked_clients=info.get("blocked_clients", 0),
+                blocked_clients=blocked_clients,
             )
         except Exception as e:
-            logger.warning(f"Redis metrics failed: {e}")
+            logger.error(f"Redis metrics collection failed: {e}", exc_info=True)
             return RedisMetrics(
                 status="unreachable",
                 connected_clients=0,
@@ -335,39 +428,119 @@ class PerformanceCollector:
         """Collect health status of all containers.
 
         Uses the following health check endpoints:
-        - backend: GET /health (simple liveness probe)
+        - backend: GET /health (local check - always healthy if we're running)
         - frontend: GET /health (nginx health endpoint, configurable via FRONTEND_URL)
-        - postgres: None (checked via database metrics)
-        - redis: None (checked via redis ping)
+        - postgres: Checked via database metrics (status from collect_postgresql_metrics)
+        - redis: Checked via redis ping (status from collect_redis_metrics)
         - ai-detector: GET /health (RT-DETRv2 health endpoint)
         - ai-llm: GET /health (Nemotron/llama.cpp health endpoint)
+
+        Note: Backend is checked locally since we ARE the backend - if this code is
+        running, the backend is healthy. For Docker deployments, frontend/AI services
+        use Docker network hostnames configured in settings.
         """
-        # Build frontend health URL from configurable frontend_url setting
-        frontend_health_url = f"{self._settings.frontend_url.rstrip('/')}/health"
-        containers = [
-            ("backend", "http://localhost:8000/health"),
-            ("frontend", frontend_health_url),
-            ("postgres", None),  # Check via psql
-            ("redis", None),  # Check via ping
-            ("ai-detector", f"{self._settings.rtdetr_url}/health"),
-            ("ai-llm", f"{self._settings.nemotron_url}/health"),
-        ]
-        results = []
+        results: list[ContainerMetrics] = []
         client = await self._get_http_client()
 
-        for name, url in containers:
-            status = "running"
-            health = "healthy"
-            if url:
-                try:
-                    resp = await client.get(url, timeout=2.0)
-                    if resp.status_code != 200:
-                        health = "unhealthy"
-                except Exception:
-                    health = "unhealthy"
-            results.append(ContainerMetrics(name=name, status=status, health=health))
+        # Backend: We ARE the backend, so if this code runs, we're healthy
+        results.append(ContainerMetrics(name="backend", status="running", health="healthy"))
+
+        # Frontend: Use configurable frontend_url (e.g., http://frontend:80 in Docker)
+        frontend_health_url = f"{self._settings.frontend_url.rstrip('/')}/health"
+        frontend_health = await self._check_service_health(client, "frontend", frontend_health_url)
+        results.append(frontend_health)
+
+        # PostgreSQL: Check via database session (already done in collect_postgresql_metrics)
+        # We check if we can reach the database directly
+        postgres_health = await self._check_postgres_health()
+        results.append(postgres_health)
+
+        # Redis: Check via ping (already done in collect_redis_metrics)
+        redis_health = await self._check_redis_health()
+        results.append(redis_health)
+
+        # AI Detector (RT-DETRv2): Use configurable rtdetr_url
+        detector_health = await self._check_service_health(
+            client, "ai-detector", f"{self._settings.rtdetr_url}/health"
+        )
+        results.append(detector_health)
+
+        # AI LLM (Nemotron): Use configurable nemotron_url
+        llm_health = await self._check_service_health(
+            client, "ai-llm", f"{self._settings.nemotron_url}/health"
+        )
+        results.append(llm_health)
+
+        # Log summary of container health
+        healthy_count = sum(1 for r in results if r.health == "healthy")
+        logger.debug(f"Container health: {healthy_count}/{len(results)} healthy")
 
         return results
+
+    async def _check_service_health(
+        self, client: httpx.AsyncClient, name: str, url: str
+    ) -> ContainerMetrics:
+        """Check health of an HTTP service.
+
+        Args:
+            client: HTTP client to use
+            name: Service name for logging/metrics
+            url: Health check URL
+
+        Returns:
+            ContainerMetrics with health status
+        """
+        try:
+            resp = await client.get(url, timeout=2.0)
+            if resp.status_code == 200:
+                logger.debug(f"Service {name} healthy at {url}")
+                return ContainerMetrics(name=name, status="running", health="healthy")
+            else:
+                logger.warning(f"Service {name} unhealthy: HTTP {resp.status_code} from {url}")
+                return ContainerMetrics(name=name, status="running", health="unhealthy")
+        except httpx.ConnectError as e:
+            logger.warning(f"Service {name} unreachable: connection failed to {url}: {e}")
+            return ContainerMetrics(name=name, status="unknown", health="unhealthy")
+        except httpx.TimeoutException:
+            logger.warning(f"Service {name} unhealthy: timeout connecting to {url}")
+            return ContainerMetrics(name=name, status="running", health="unhealthy")
+        except Exception as e:
+            logger.warning(f"Service {name} health check failed: {e}")
+            return ContainerMetrics(name=name, status="unknown", health="unhealthy")
+
+    async def _check_postgres_health(self) -> ContainerMetrics:
+        """Check PostgreSQL health via a simple query."""
+        try:
+            from sqlalchemy import text
+
+            from backend.core.database import get_session_factory
+
+            session_factory = get_session_factory()
+            if session_factory is None:
+                return ContainerMetrics(name="postgres", status="unknown", health="unhealthy")
+
+            async with session_factory() as session:
+                await session.execute(text("SELECT 1"))
+                return ContainerMetrics(name="postgres", status="running", health="healthy")
+        except Exception as e:
+            logger.warning(f"PostgreSQL health check failed: {e}")
+            return ContainerMetrics(name="postgres", status="unknown", health="unhealthy")
+
+    async def _check_redis_health(self) -> ContainerMetrics:
+        """Check Redis health via ping."""
+        try:
+            from backend.core.redis import init_redis
+
+            redis_client = await init_redis()
+            if redis_client is None:
+                return ContainerMetrics(name="redis", status="unknown", health="unhealthy")
+
+            raw_client = redis_client._ensure_connected()
+            await raw_client.ping()  # type: ignore[misc]
+            return ContainerMetrics(name="redis", status="running", health="healthy")
+        except Exception as e:
+            logger.warning(f"Redis health check failed: {e}")
+            return ContainerMetrics(name="redis", status="unknown", health="unhealthy")
 
     async def collect_inference_metrics(self) -> InferenceMetrics | None:
         """Collect inference latency metrics from PipelineLatencyTracker."""

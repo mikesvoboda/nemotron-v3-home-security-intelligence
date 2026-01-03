@@ -25,9 +25,10 @@ async def clean_cameras(clean_tables, client):
 @pytest.mark.asyncio
 async def test_create_camera_success(client):
     """Test successful camera creation."""
+    unique_id = str(uuid.uuid4())[:8]
     camera_data = {
-        "name": "Front Door Camera",
-        "folder_path": "/export/foscam/front_door",
+        "name": f"Front Door Camera {unique_id}",
+        "folder_path": f"/export/foscam/front_door_{unique_id}",
         "status": "online",
     }
 
@@ -40,16 +41,17 @@ async def test_create_camera_success(client):
     assert data["status"] == camera_data["status"]
     assert "id" in data
     assert "created_at" in data
-    # UUID validation
-    uuid.UUID(data["id"])
+    # ID should be normalized camera name (e.g., "front_door_camera_abc12345")
+    assert data["id"] == f"front_door_camera_{unique_id}"
 
 
 @pytest.mark.asyncio
 async def test_create_camera_default_status(client):
     """Test camera creation with default status."""
+    unique_id = str(uuid.uuid4())[:8]
     camera_data = {
-        "name": "Back Door Camera",
-        "folder_path": "/export/foscam/back_door",
+        "name": f"Back Door Camera {unique_id}",
+        "folder_path": f"/export/foscam/back_door_{unique_id}",
     }
 
     response = await client.post("/api/cameras", json=camera_data)
@@ -74,8 +76,9 @@ async def test_create_camera_missing_name(client):
 @pytest.mark.asyncio
 async def test_create_camera_missing_folder_path(client):
     """Test camera creation fails without folder_path."""
+    unique_id = str(uuid.uuid4())[:8]
     camera_data = {
-        "name": "Test Camera",
+        "name": f"Test Camera {unique_id}",
     }
 
     response = await client.post("/api/cameras", json=camera_data)
@@ -99,8 +102,9 @@ async def test_create_camera_empty_name(client):
 @pytest.mark.asyncio
 async def test_create_camera_empty_folder_path(client):
     """Test camera creation fails with empty folder_path."""
+    unique_id = str(uuid.uuid4())[:8]
     camera_data = {
-        "name": "Test Camera",
+        "name": f"Test Camera {unique_id}",
         "folder_path": "",
     }
 
@@ -177,10 +181,12 @@ async def test_list_cameras_filter_by_status(client, clean_cameras):
 @pytest.mark.asyncio
 async def test_get_camera_by_id_success(client):
     """Test getting a specific camera by ID."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
+    camera_name = f"Test Camera {unique_id}"
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={"name": camera_name, "folder_path": f"/export/foscam/test_{unique_id}"},
     )
     camera_id = create_response.json()["id"]
 
@@ -190,7 +196,7 @@ async def test_get_camera_by_id_success(client):
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == camera_id
-    assert data["name"] == "Test Camera"
+    assert data["name"] == camera_name
 
 
 @pytest.mark.asyncio
@@ -554,8 +560,9 @@ async def test_create_camera_with_very_long_name(client):
 @pytest.mark.asyncio
 async def test_create_camera_with_very_long_folder_path(client):
     """Test camera creation with folder_path exceeding max length."""
+    unique_id = str(uuid.uuid4())[:8]
     camera_data = {
-        "name": "Test Camera",
+        "name": f"Test Camera {unique_id}",
         "folder_path": "/export/foscam/" + "a" * 500,  # Exceeds 500 character limit
     }
 
@@ -645,10 +652,14 @@ async def test_concurrent_camera_creation(client, clean_cameras):
 @pytest.mark.asyncio
 async def test_update_after_delete_fails(client):
     """Test that updating a deleted camera fails."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
     camera_id = create_response.json()["id"]
 
