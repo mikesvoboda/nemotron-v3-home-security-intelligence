@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import CameraGrid, { type CameraStatus } from './CameraGrid';
-import RiskGauge from './RiskGauge';
 import StatsRow from './StatsRow';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
@@ -20,7 +19,7 @@ import {
  * Main Dashboard Page Component
  *
  * Assembles Phase 6 components into a cohesive dashboard layout:
- * - Top row: RiskGauge (full width)
+ * - Top row: StatsRow with risk sparkline
  * - Bottom: CameraGrid (full width)
  *
  * Note: GPU Statistics and Pipeline Telemetry are available on the System page
@@ -195,9 +194,13 @@ export default function DashboardPage() {
             <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-800 md:h-10 md:w-64"></div>
           </div>
 
-          {/* Risk Gauge skeleton */}
+          {/* Stats Row skeleton */}
           <div className="mb-6 md:mb-8">
-            <div className="h-48 animate-pulse rounded-lg bg-gray-800 md:h-64"></div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-lg bg-gray-800"></div>
+              ))}
+            </div>
           </div>
 
           {/* Camera grid skeleton */}
@@ -229,31 +232,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats Row with integrated risk sparkline */}
         <div className="mb-6 md:mb-8">
           <StatsRow
             activeCameras={activeCamerasCount}
             eventsToday={eventsToday}
             currentRiskScore={currentRiskScore}
             systemStatus={systemHealth}
+            riskHistory={riskHistory.length > 0 ? riskHistory : undefined}
           />
-        </div>
-
-        {/* Risk Gauge - full width */}
-        <div className="mb-6 md:mb-8">
-          <div className="rounded-lg border border-gray-800 bg-[#1A1A1A] shadow-lg">
-            <div className="border-b border-gray-800 px-4 py-3 md:px-6 md:py-4">
-              <h2 className="text-lg font-semibold text-white md:text-xl">Current Risk Level</h2>
-            </div>
-            <div className="flex items-center justify-center py-6 md:py-8">
-              <RiskGauge
-                value={currentRiskScore}
-                history={riskHistory.length > 0 ? riskHistory : undefined}
-                size="lg"
-                showLabel={true}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Camera Grid */}

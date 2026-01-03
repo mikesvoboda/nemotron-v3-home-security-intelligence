@@ -41,10 +41,10 @@ test.describe('Dashboard Smoke Tests', () => {
     await expect(page).toHaveTitle(/Home Security/i);
   });
 
-  test('dashboard shows risk gauge section', async () => {
+  test('dashboard shows risk score card', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
+    await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 
   test('dashboard shows camera status section', async () => {

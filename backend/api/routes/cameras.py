@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware import RateLimiter, RateLimitTier
+from backend.api.schemas.baseline import AnomalyListResponse, BaselineSummaryResponse
 from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
@@ -21,6 +22,7 @@ from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.audit import AuditService
+from backend.services.baseline import get_baseline_service
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
@@ -402,22 +404,76 @@ async def get_camera_snapshot(
         # - Database has cameras from a different environment (Docker vs native)
         # - Container FOSCAM_BASE_PATH (/cameras) differs from dev path (/export/foscam)
         #
-        # Fallback: Try to find the camera folder by ID under the current base_path.
+        # Fallback strategy:
+        # 1. First, try to extract the folder name from the stored path and look for it
+        #    under base_path. This handles cases where the camera name differs from the
+        #    folder name (e.g., camera name "Den Camera" but folder is "den").
+        # 2. If that fails, try the camera_id directly (works when name == folder name).
+        #
         # This is safe because we only look within FOSCAM_BASE_PATH (no traversal).
-        # The camera ID is normalized from the folder name (e.g., "den" -> "den").
-        fallback_dir = base_root / camera_id
-        if fallback_dir.exists() and fallback_dir.is_dir():
-            # Found camera folder by ID - use it
+        # Extract folder name and validate it doesn't contain path traversal
+        stored_folder_name = Path(camera.folder_path).name
+        # Validate folder name doesn't contain path separators or traversal sequences
+        if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+            logger.warning(
+                "Invalid folder name detected, skipping fallback",
+                extra={
+                    "camera_id": camera_id,
+                    "folder_name": sanitize_log_value(stored_folder_name),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No snapshot available for this camera",
+            ) from None
+
+        # Construct fallback paths and verify they resolve within base_root
+        fallback_by_folder_name = (base_root / stored_folder_name).resolve()
+        fallback_by_camera_id = (base_root / camera_id).resolve()
+
+        # Security check: ensure resolved paths are within base_root
+        try:
+            fallback_by_folder_name.relative_to(base_root)
+        except ValueError:
+            fallback_by_folder_name = None  # type: ignore[assignment]
+        try:
+            fallback_by_camera_id.relative_to(base_root)
+        except ValueError:
+            fallback_by_camera_id = None  # type: ignore[assignment]
+
+        if (
+            fallback_by_folder_name
+            and fallback_by_folder_name.exists()
+            and fallback_by_folder_name.is_dir()
+        ):
+            # Found camera folder by stored folder name
             logger.debug(
-                "Using fallback camera path by ID",
+                "Using fallback camera path by folder name",
                 extra={
                     "camera_id": camera_id,
                     "stored_path": sanitize_log_value(camera.folder_path),
-                    "fallback_path": str(fallback_dir),
+                    "stored_folder_name": sanitize_log_value(stored_folder_name),
+                    "fallback_path": str(fallback_by_folder_name),
                     "base_path": str(base_root),
                 },
             )
-            camera_dir = fallback_dir
+            camera_dir = fallback_by_folder_name
+        elif (
+            fallback_by_camera_id
+            and fallback_by_camera_id.exists()
+            and fallback_by_camera_id.is_dir()
+        ):
+            # Found camera folder by camera ID
+            logger.debug(
+                "Using fallback camera path by camera ID",
+                extra={
+                    "camera_id": camera_id,
+                    "stored_path": sanitize_log_value(camera.folder_path),
+                    "fallback_path": str(fallback_by_camera_id),
+                    "base_path": str(base_root),
+                },
+            )
+            camera_dir = fallback_by_camera_id
         else:
             # No fallback available - return 404
             logger.debug(
@@ -426,7 +482,8 @@ async def get_camera_snapshot(
                     "camera_id": camera_id,
                     "folder_path": sanitize_log_value(camera.folder_path),
                     "base_path": str(base_root),
-                    "fallback_tried": str(fallback_dir),
+                    "fallback_by_folder_name_tried": str(fallback_by_folder_name),
+                    "fallback_by_camera_id_tried": str(fallback_by_camera_id),
                 },
             )
             raise HTTPException(
@@ -528,3 +585,109 @@ async def validate_camera_paths(
         "valid_cameras": valid_cameras,
         "invalid_cameras": invalid_cameras,
     }
+
+
+@router.get("/{camera_id}/baseline", response_model=BaselineSummaryResponse)
+async def get_camera_baseline(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> BaselineSummaryResponse:
+    """Get baseline activity data for a camera.
+
+    Returns comprehensive baseline statistics including:
+    - Hourly activity patterns (0-23 hours)
+    - Daily patterns (by day of week)
+    - Object-specific baselines
+    - Current deviation from baseline
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        BaselineSummaryResponse with all baseline data
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get baseline service and fetch data
+    baseline_service = get_baseline_service()
+
+    # Fetch all baseline data
+    summary = await baseline_service.get_camera_baseline_summary(camera_id, session=db)
+    hourly_patterns = await baseline_service.get_hourly_patterns(camera_id, session=db)
+    daily_patterns = await baseline_service.get_daily_patterns(camera_id, session=db)
+    object_baselines = await baseline_service.get_object_baselines(camera_id, session=db)
+    current_deviation = await baseline_service.get_current_deviation(camera_id, session=db)
+    baseline_established = await baseline_service.get_baseline_established_date(
+        camera_id, session=db
+    )
+
+    # Calculate total data points
+    data_points = summary["activity_baseline_count"] + summary["class_baseline_count"]
+
+    return BaselineSummaryResponse(
+        camera_id=camera_id,
+        camera_name=camera.name,
+        baseline_established=baseline_established,
+        data_points=data_points,
+        hourly_patterns=hourly_patterns,
+        daily_patterns=daily_patterns,
+        object_baselines=object_baselines,
+        current_deviation=current_deviation,
+    )
+
+
+@router.get("/{camera_id}/baseline/anomalies", response_model=AnomalyListResponse)
+async def get_camera_baseline_anomalies(
+    camera_id: str,
+    days: int = Query(default=7, ge=1, le=90, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db),
+) -> AnomalyListResponse:
+    """Get recent anomaly events for a camera.
+
+    Returns a list of anomaly events detected within the specified time period.
+    Anomalies are detections that significantly deviate from the established
+    baseline activity patterns.
+
+    Args:
+        camera_id: ID of the camera
+        days: Number of days to look back (default: 7, max: 90)
+        db: Database session
+
+    Returns:
+        AnomalyListResponse with list of anomaly events
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get baseline service and fetch anomalies
+    baseline_service = get_baseline_service()
+    anomalies = await baseline_service.get_recent_anomalies(camera_id, days=days, session=db)
+
+    return AnomalyListResponse(
+        camera_id=camera_id,
+        anomalies=anomalies,
+        count=len(anomalies),
+        period_days=days,
+    )

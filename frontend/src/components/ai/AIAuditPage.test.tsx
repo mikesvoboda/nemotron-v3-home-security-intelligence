@@ -3,10 +3,24 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import AIAuditPage from './AIAuditPage';
+
+// Mock the auditApi functions
+vi.mock('../../services/auditApi', () => ({
+  triggerBatchAudit: vi.fn(),
+  AuditApiError: class AuditApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+      this.name = 'AuditApiError';
+    }
+  },
+}));
 
 // Mock the API functions
 vi.mock('../../services/api', () => ({
@@ -175,6 +189,61 @@ describe('AIAuditPage quality metrics', () => {
     renderWithRouter();
     await waitFor(() => {
       expect(screen.getByTestId('evaluation-coverage-card')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('AIAuditPage batch audit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders trigger batch audit button', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByTestId('trigger-batch-audit-button')).toBeInTheDocument();
+    });
+  });
+
+  it('opens batch audit modal when button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    // Wait for page to load
+    await waitFor(() => {
+      expect(screen.getByTestId('trigger-batch-audit-button')).toBeInTheDocument();
+    });
+
+    // Click the trigger button
+    await user.click(screen.getByTestId('trigger-batch-audit-button'));
+
+    // Modal should be open
+    await waitFor(() => {
+      expect(screen.getByTestId('batch-audit-modal')).toBeInTheDocument();
+    });
+  });
+
+  it('closes batch audit modal when cancel is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter();
+
+    // Wait for page to load and open modal
+    await waitFor(() => {
+      expect(screen.getByTestId('trigger-batch-audit-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('trigger-batch-audit-button'));
+
+    // Modal should be open
+    await waitFor(() => {
+      expect(screen.getByTestId('batch-audit-modal')).toBeInTheDocument();
+    });
+
+    // Click cancel
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Modal should be closed
+    await waitFor(() => {
+      expect(screen.queryByTestId('batch-audit-modal')).not.toBeInTheDocument();
     });
   });
 });

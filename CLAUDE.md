@@ -117,6 +117,18 @@ Issues are organized with:
 - **Labels:** phase-1 through phase-8, backend, frontend, tdd, etc.
 - **Parent/sub-issues:** Epics contain sub-tasks
 
+### Linear Workflow State IDs (for MCP API)
+
+| State       | UUID                                   | Type      |
+| ----------- | -------------------------------------- | --------- |
+| Backlog     | `88b50a4e-75a1-4f34-a3b0-598bfd118aac` | backlog   |
+| Todo        | `50ef9730-7d5e-43d6-b5e0-d7cac07af58f` | unstarted |
+| In Progress | `b88c8ae2-2545-4c1b-b83a-bf2dde2c03e7` | started   |
+| In Review   | `ec90a3c4-c160-44fc-aa7e-82bdca77aa46` | started   |
+| Done        | `38267c1e-4458-4875-aa66-4b56381786e9` | completed |
+| Canceled    | `232ef160-e291-4cc6-a3d9-7b4da584a2b2` | canceled  |
+| Duplicate   | `3b4c9a4b-09ba-4b61-9dbb-fedbd31195ee` | canceled  |
+
 ## Task Execution Order
 
 Tasks are organized into 8 execution phases. **Always complete earlier phases before starting later ones.**

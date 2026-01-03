@@ -2,10 +2,9 @@
  * DashboardPage - Page Object for the main Dashboard
  *
  * Provides selectors and interactions for:
- * - Risk Gauge
+ * - Stats Row (with integrated risk sparkline)
  * - Camera Grid
  * - Activity Feed
- * - Stats Row
  *
  * Note: GPU Statistics are displayed on the System page, not the main Dashboard.
  */
@@ -25,11 +24,7 @@ export class DashboardPage extends BasePage {
   readonly eventsTodayStat: Locator;
   readonly riskScoreStat: Locator;
   readonly systemStatusStat: Locator;
-
-  // Risk Gauge Section
-  readonly riskGaugeSection: Locator;
-  readonly riskGaugeHeading: Locator;
-  readonly riskGauge: Locator;
+  readonly riskSparkline: Locator;
 
   // Camera Grid Section
   readonly cameraGridSection: Locator;
@@ -66,16 +61,11 @@ export class DashboardPage extends BasePage {
       .filter({ has: page.getByText(/Active Cameras/i) });
     this.activeCamerasStat = page.getByText(/Active Cameras/i);
     this.eventsTodayStat = page.getByText(/Events Today/i);
-    this.riskScoreStat = page.getByText(/Current Risk/i);
+    this.riskScoreStat = page.getByTestId('risk-card');
     this.systemStatusStat = page.getByText(/System Status/i);
 
-    // Risk Gauge Section
-    this.riskGaugeSection = page
-      .locator('div')
-      .filter({ has: page.getByRole('heading', { name: /Current Risk Level/i }) })
-      .first();
-    this.riskGaugeHeading = page.getByRole('heading', { name: /Current Risk Level/i });
-    this.riskGauge = page.locator('[class*="RiskGauge"], [data-testid="risk-gauge"]').first();
+    // Risk sparkline is now integrated in the StatsRow risk card
+    this.riskSparkline = page.locator('[data-testid="risk-sparkline"]');
 
     // Camera Grid Section
     this.cameraGridSection = page
@@ -120,7 +110,7 @@ export class DashboardPage extends BasePage {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
     // Wait for either dashboard content OR error state to appear
     await Promise.race([
-      this.riskGauge.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.statsRow.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
       this.errorHeading.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
     ]).catch(() => {
       // One should appear, but continue anyway if neither does
@@ -154,7 +144,7 @@ export class DashboardPage extends BasePage {
    */
   async expectAllSectionsVisible(): Promise<void> {
     await expect(this.pageTitle).toBeVisible();
-    await expect(this.riskGaugeHeading).toBeVisible();
+    await expect(this.statsRow).toBeVisible();
     await expect(this.cameraGridHeading).toBeVisible();
     // Note: activityFeedHeading is NOT on Dashboard - it's on Timeline page
   }
@@ -217,11 +207,11 @@ export class DashboardPage extends BasePage {
   }
 
   /**
-   * Get risk score value displayed
+   * Get risk score value displayed from StatsRow risk card
    */
   async getRiskScoreText(): Promise<string | null> {
-    const riskElement = this.page.locator('[class*="risk"], [data-testid*="risk"]').first();
-    return riskElement.textContent();
+    const riskScoreElement = this.page.locator('[data-testid="risk-score"]');
+    return riskScoreElement.textContent();
   }
 
   /**

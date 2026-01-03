@@ -558,6 +558,12 @@ class GPUMonitor:
             stats: Dictionary containing GPU statistics
         """
         try:
+            # Get inference FPS from ThroughputTracker
+            from backend.core.metrics import get_throughput_tracker
+
+            throughput_tracker = get_throughput_tracker()
+            inference_fps = throughput_tracker.get_inference_fps(window_minutes=5)
+
             async with get_session() as session:
                 gpu_stats = GPUStats(
                     recorded_at=stats["recorded_at"],
@@ -567,7 +573,7 @@ class GPUMonitor:
                     memory_total=stats["memory_total"],
                     temperature=stats["temperature"],
                     power_usage=stats["power_usage"],
-                    inference_fps=None,  # Will be updated by inference services
+                    inference_fps=inference_fps,
                 )
                 session.add(gpu_stats)
                 await session.commit()

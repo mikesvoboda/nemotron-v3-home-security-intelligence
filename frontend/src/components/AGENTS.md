@@ -11,7 +11,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **alerts/**    | Alert management page                            | AlertsPage                                                                                                                                     |
 | **audit/**     | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards                                                                      |
 | **common/**    | Shared UI components used across the application | RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox                                                                         |
-| **dashboard/** | Main dashboard page and monitoring widgets       | DashboardPage, RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow, PipelineQueues, PipelineTelemetry                                      |
+| **dashboard/** | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow (with integrated risk sparkline), PipelineQueues, PipelineTelemetry                |
 | **detection/** | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                         |
 | **entities/**  | Entity tracking page (WIP)                       | EntitiesPage                                                                                                                                   |
 | **events/**    | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                        |
@@ -33,8 +33,7 @@ App
 
 Routes:
 ├── / -> DashboardPage (dashboard/)
-│ ├── StatsRow
-│ ├── RiskGauge
+│ ├── StatsRow (with integrated risk sparkline)
 │ ├── GpuStats
 │ ├── CameraGrid
 │ ├── ActivityFeed
@@ -140,16 +139,13 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 - `DashboardPage.tsx` - Main dashboard page orchestrating all widgets
 - `DashboardPage.test.tsx` - Test suite for DashboardPage
-- `RiskGauge.tsx` - Circular SVG gauge for risk score with sparkline
-- `RiskGauge.test.tsx` - Test suite for RiskGauge
-- `RiskGauge.example.tsx` - Example usage for RiskGauge
 - `CameraGrid.tsx` - Responsive camera thumbnail grid with status indicators
 - `CameraGrid.test.tsx` - Test suite for CameraGrid
 - `ActivityFeed.tsx` - Scrolling event feed with auto-scroll
 - `ActivityFeed.test.tsx` - Test suite for ActivityFeed
 - `GpuStats.tsx` - GPU metrics display with utilization history chart
 - `GpuStats.test.tsx` - Test suite for GpuStats
-- `StatsRow.tsx` - Key metrics cards (cameras, events, risk, status)
+- `StatsRow.tsx` - Key metrics cards (cameras, events, risk with sparkline, status)
 - `StatsRow.test.tsx` - Test suite for StatsRow
 - `PipelineQueues.tsx` - AI pipeline queue depth display
 - `PipelineQueues.test.tsx` - Test suite for PipelineQueues

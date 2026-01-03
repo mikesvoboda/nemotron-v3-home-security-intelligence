@@ -133,8 +133,8 @@ test.describe('Empty State Handling', () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
     // Verify dashboard loads without crashing when there are no events
-    // Note: Activity Feed was moved to Timeline page in UI redesign
-    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
+    // Note: Risk display is now integrated in the StatsRow risk card
+    await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 
   test('timeline shows no events with empty data', async ({ page }) => {

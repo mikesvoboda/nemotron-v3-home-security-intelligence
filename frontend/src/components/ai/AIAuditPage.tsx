@@ -9,9 +9,10 @@
  */
 
 import { Text, Callout, Select, SelectItem } from '@tremor/react';
-import { ClipboardCheck, RefreshCw, AlertCircle, Calendar } from 'lucide-react';
+import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
+import BatchAuditModal from './BatchAuditModal';
 import ModelContributionChart from './ModelContributionChart';
 import ModelLeaderboard from './ModelLeaderboard';
 import QualityScoreTrends from './QualityScoreTrends';
@@ -27,6 +28,7 @@ import type {
   AiAuditLeaderboardResponse,
   AiAuditRecommendationsResponse,
 } from '../../services/api';
+import type { BatchAuditResponse } from '../../services/auditApi';
 
 /**
  * AIAuditPage - Main AI audit dashboard
@@ -44,6 +46,10 @@ export default function AIAuditPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState(7);
+
+  // Batch audit modal state
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchSuccess, setBatchSuccess] = useState<string | null>(null);
 
   // Load data
   const loadData = useCallback(async (showLoading = true) => {
@@ -85,6 +91,15 @@ export default function AIAuditPage() {
   // Handle period change
   const handlePeriodChange = (value: string) => {
     setPeriodDays(parseInt(value, 10));
+  };
+
+  // Handle batch audit success
+  const handleBatchAuditSuccess = (response: BatchAuditResponse) => {
+    setBatchSuccess(`Queued ${response.queued_count} events for evaluation`);
+    // Auto-dismiss success message after 5 seconds
+    setTimeout(() => setBatchSuccess(null), 5000);
+    // Refresh data to show updated stats
+    void loadData(false);
   };
 
   // Loading state
@@ -173,6 +188,16 @@ export default function AIAuditPage() {
               </Select>
             </div>
 
+            {/* Trigger Batch Audit Button */}
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
+              data-testid="trigger-batch-audit-button"
+            >
+              <Play className="h-4 w-4" />
+              Trigger Batch Audit
+            </button>
+
             {/* Refresh Button */}
             <button
               onClick={() => void handleRefresh()}
@@ -196,6 +221,19 @@ export default function AIAuditPage() {
             data-testid="error-banner"
           >
             <span className="text-sm">{error}. Showing cached data.</span>
+          </Callout>
+        )}
+
+        {/* Success Banner (for batch audit) */}
+        {batchSuccess && (
+          <Callout
+            title="Batch Audit Started"
+            icon={Play}
+            color="green"
+            className="mb-6"
+            data-testid="batch-success-banner"
+          >
+            <span className="text-sm">{batchSuccess}</span>
           </Callout>
         )}
 
@@ -240,6 +278,13 @@ export default function AIAuditPage() {
           </div>
         )}
       </div>
+
+      {/* Batch Audit Modal */}
+      <BatchAuditModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
+        onSuccess={handleBatchAuditSuccess}
+      />
     </div>
   );
 }
