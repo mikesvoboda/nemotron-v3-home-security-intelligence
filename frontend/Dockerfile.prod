@@ -18,7 +18,7 @@ RUN npm run build
 # Production stage with nginx
 # Use specific nginx stable Alpine version for latest security patches
 # nginx 1.28.1 released December 2025 with security fix (CVE-2025-53859)
-FROM nginx:1.28.1-alpine3.23
+FROM nginx:1.29.4-alpine3.23
 
 # Install wget for healthcheck
 RUN apk add --no-cache wget
