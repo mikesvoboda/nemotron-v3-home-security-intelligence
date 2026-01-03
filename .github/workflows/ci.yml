@@ -146,7 +146,6 @@ jobs:
     name: Integration Tests (API)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
     services:
       postgres:
         image: postgres:16-alpine
@@ -228,7 +227,6 @@ jobs:
     name: Integration Tests (WebSocket)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
     services:
       postgres:
         image: postgres:16-alpine
@@ -310,7 +308,6 @@ jobs:
     name: Integration Tests (Services)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
     services:
       postgres:
         image: postgres:16-alpine
@@ -392,7 +389,6 @@ jobs:
     name: Integration Tests (Models)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
     services:
       postgres:
         image: postgres:16-alpine
