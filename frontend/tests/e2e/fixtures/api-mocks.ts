@@ -27,6 +27,9 @@ import {
   zonesByCamera,
   allAlertRules,
   mockRuleTestResults,
+  mockAiAuditStats,
+  mockAiAuditLeaderboard,
+  mockAiAuditRecommendations,
 } from './test-data';
 
 /**
@@ -81,6 +84,12 @@ export interface ApiMockConfig {
   alertRulesError?: boolean;
   ruleTestResults?: typeof mockRuleTestResults.withMatches;
 
+  // AI Audit
+  aiAuditStats?: typeof mockAiAuditStats.normal;
+  aiAuditLeaderboard?: typeof mockAiAuditLeaderboard.normal;
+  aiAuditRecommendations?: typeof mockAiAuditRecommendations.normal;
+  aiAuditError?: boolean;
+
   // WebSocket behavior
   wsConnectionFail?: boolean;
 }
@@ -105,6 +114,9 @@ export const defaultMockConfig: ApiMockConfig = {
   zones: zonesByCamera,
   alertRules: allAlertRules,
   ruleTestResults: mockRuleTestResults.withMatches,
+  aiAuditStats: mockAiAuditStats.normal,
+  aiAuditLeaderboard: mockAiAuditLeaderboard.normal,
+  aiAuditRecommendations: mockAiAuditRecommendations.normal,
   wsConnectionFail: true, // Default to failing WS in E2E tests
 };
 
@@ -120,6 +132,7 @@ export const errorMockConfig: ApiMockConfig = {
   auditError: true,
   telemetryError: true,
   alertRulesError: true,
+  aiAuditError: true,
   wsConnectionFail: true,
 };
 
@@ -140,6 +153,9 @@ export const emptyMockConfig: ApiMockConfig = {
   auditLogs: [],
   auditStats: { ...mockAuditStats.normal, total: 0 },
   telemetry: mockTelemetry.normal,
+  aiAuditStats: mockAiAuditStats.empty,
+  aiAuditLeaderboard: mockAiAuditLeaderboard.empty,
+  aiAuditRecommendations: mockAiAuditRecommendations.empty,
   wsConnectionFail: true,
 };
 
@@ -514,6 +530,113 @@ export async function setupApiMocks(
       contentType: 'application/json',
       body: JSON.stringify(mergedConfig.auditStats || mockAuditStats.normal),
     });
+  });
+
+  // AI Audit Stats endpoint (BEFORE /api/ai-audit)
+  await page.route('**/api/ai-audit/stats*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI audit stats' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.aiAuditStats || mockAiAuditStats.normal),
+      });
+    }
+  });
+
+  // AI Audit Leaderboard endpoint
+  await page.route('**/api/ai-audit/leaderboard*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI audit leaderboard' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.aiAuditLeaderboard || mockAiAuditLeaderboard.normal),
+      });
+    }
+  });
+
+  // AI Audit Recommendations endpoint
+  await page.route('**/api/ai-audit/recommendations*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI audit recommendations' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.aiAuditRecommendations || mockAiAuditRecommendations.normal),
+      });
+    }
+  });
+
+  // AI Audit Event endpoint
+  await page.route('**/api/ai-audit/events/*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch event audit' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 1,
+          event_id: 1,
+          audited_at: new Date().toISOString(),
+          is_fully_evaluated: true,
+          contributions: {
+            rtdetr: true,
+            florence: true,
+            clip: false,
+            violence: false,
+            clothing: true,
+            vehicle: false,
+            pet: false,
+            weather: false,
+            image_quality: true,
+            zones: true,
+            baseline: true,
+            cross_camera: false,
+          },
+          prompt_length: 5000,
+          prompt_token_estimate: 1250,
+          enrichment_utilization: 0.5,
+          scores: {
+            context_usage: 4.2,
+            reasoning_coherence: 4.0,
+            risk_justification: 3.8,
+            consistency: 4.5,
+            overall: 4.1,
+          },
+          consistency_risk_score: 75,
+          consistency_diff: -5,
+          self_eval_critique: 'Good overall analysis with room for improvement in risk justification.',
+          improvements: {
+            missing_context: ['Add time since last motion'],
+            confusing_sections: [],
+            unused_data: ['Weather data'],
+            format_suggestions: [],
+            model_gaps: [],
+          },
+        }),
+      });
+    }
   });
 
   // Audit Logs endpoint

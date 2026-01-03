@@ -101,5 +101,99 @@ export type ZoneListResponse = components['schemas']['ZoneListResponse'];
 export type ZoneShape = components['schemas']['ZoneShape'];
 export type ZoneType = components['schemas']['ZoneType'];
 
+// AI Audit types (manually defined - pending OpenAPI type generation)
+// These match backend/api/schemas/ai_audit.py
+
+/** Model contribution flags */
+export interface AiAuditModelContributions {
+  rtdetr: boolean;
+  florence: boolean;
+  clip: boolean;
+  violence: boolean;
+  clothing: boolean;
+  vehicle: boolean;
+  pet: boolean;
+  weather: boolean;
+  image_quality: boolean;
+  zones: boolean;
+  baseline: boolean;
+  cross_camera: boolean;
+}
+
+/** Self-evaluation quality scores (1-5 scale) */
+export interface AiAuditQualityScores {
+  context_usage: number | null;
+  reasoning_coherence: number | null;
+  risk_justification: number | null;
+  consistency: number | null;
+  overall: number | null;
+}
+
+/** Prompt improvement suggestions from self-evaluation */
+export interface AiAuditPromptImprovements {
+  missing_context: string[];
+  confusing_sections: string[];
+  unused_data: string[];
+  format_suggestions: string[];
+  model_gaps: string[];
+}
+
+/** Full audit response for a single event */
+export interface AiAuditEventAuditResponse {
+  id: number;
+  event_id: number;
+  audited_at: string;
+  is_fully_evaluated: boolean;
+  contributions: AiAuditModelContributions;
+  prompt_length: number;
+  prompt_token_estimate: number;
+  enrichment_utilization: number;
+  scores: AiAuditQualityScores;
+  consistency_risk_score: number | null;
+  consistency_diff: number | null;
+  self_eval_critique: string | null;
+  improvements: AiAuditPromptImprovements;
+}
+
+/** Aggregate audit statistics */
+export interface AiAuditStatsResponse {
+  total_events: number;
+  audited_events: number;
+  fully_evaluated_events: number;
+  avg_quality_score: number | null;
+  avg_consistency_rate: number | null;
+  avg_enrichment_utilization: number | null;
+  model_contribution_rates: Record<string, number>;
+  audits_by_day: Array<Record<string, unknown>>;
+}
+
+/** Single entry in model leaderboard */
+export interface AiAuditModelLeaderboardEntry {
+  model_name: string;
+  contribution_rate: number;
+  quality_correlation: number | null;
+  event_count: number;
+}
+
+/** Model leaderboard response */
+export interface AiAuditLeaderboardResponse {
+  entries: AiAuditModelLeaderboardEntry[];
+  period_days: number;
+}
+
+/** Single recommendation item */
+export interface AiAuditRecommendationItem {
+  category: string;
+  suggestion: string;
+  frequency: number;
+  priority: 'high' | 'medium' | 'low';
+}
+
+/** Aggregated recommendations response */
+export interface AiAuditRecommendationsResponse {
+  recommendations: AiAuditRecommendationItem[];
+  total_events_analyzed: number;
+}
+
 // Import the components type for use in type aliases
 import type { components } from './api';
