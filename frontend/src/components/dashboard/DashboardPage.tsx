@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import CameraGrid, { type CameraStatus } from './CameraGrid';
@@ -34,7 +34,7 @@ import {
  * - NVIDIA dark theme (bg-[#121212])
  */
 export default function DashboardPage() {
-  // Navigation hook for camera card clicks
+// Navigation hook for camera card clicks
   const navigate = useNavigate();
 
   // State for REST API data
@@ -159,10 +159,13 @@ export default function DashboardPage() {
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
 
-  // Handle camera card click - navigate to timeline with camera filter
-  const handleCameraClick = (cameraId: string) => {
-    void navigate(`/timeline?camera=${cameraId}`);
-  };
+// Handle camera card click - navigate to timeline with camera filter
+  const handleCameraClick = useCallback(
+    (cameraId: string) => {
+      void navigate(`/timeline?camera=${cameraId}`);
+    },
+    [navigate]
+  );
 
   // Error state
   if (error && !loading) {

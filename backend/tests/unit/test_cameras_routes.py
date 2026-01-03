@@ -804,6 +804,48 @@ class TestGetCameraSnapshot:
         data = response.json()
         assert "no snapshot" in data["detail"].lower() or "not found" in data["detail"].lower()
 
+    def test_get_snapshot_folder_outside_base_path_with_fallback(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test snapshot endpoint uses fallback when stored path is outside base but folder exists by ID."""
+        # This tests the fix for im3c: when FOSCAM_BASE_PATH changes between environments
+        # (e.g., Docker /cameras vs native /export/foscam), the endpoint should fall back
+        # to looking for the camera folder by camera_id under the current base_path.
+
+        # Set up paths - camera stored with different environment's path
+        foscam_root = tmp_path / "foscam"
+        camera_id = "den"  # Camera ID matches folder name
+        camera_folder = foscam_root / camera_id
+        camera_folder.mkdir(parents=True)
+
+        # Create a test image in the fallback folder
+        test_image = camera_folder / "snapshot.jpg"
+        test_image.write_bytes(b"\xff\xd8\xff\xe0image data")  # Valid JPEG header
+
+        # Camera has wrong folder_path (from different environment like Docker /cameras)
+        camera = Camera(
+            id=camera_id,
+            name="Den",
+            folder_path="/cameras/den",  # Wrong path - different environment
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = camera
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        # Mock settings to use tmp_path/foscam as base (simulating native environment)
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get(f"/api/cameras/{camera_id}/snapshot")
+
+        # Should succeed using fallback path
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/jpeg"
+
     def test_get_snapshot_folder_does_not_exist(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
     ) -> None:
