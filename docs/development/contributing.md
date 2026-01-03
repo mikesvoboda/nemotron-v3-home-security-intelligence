@@ -62,6 +62,30 @@ bd show <id>
 bd update <id> --status in_progress
 ```
 
+### One Task Per PR
+
+**Each PR should address exactly ONE bead task.**
+
+- PR title must reference the bead ID: `fix: description (yzuz.7)`
+- If you discover multiple issues, create separate beads
+- Commit messages should reference the bead: `fix(yzuz.7): description`
+
+See [CLAUDE.md](../../CLAUDE.md) for the complete one-task-one-PR policy.
+
+### Closing a Task
+
+**Before closing any bead, run validation:**
+
+```bash
+# Quick validation (recommended)
+./scripts/validate.sh
+
+# If all tests pass, close the bead
+bd close <id>
+```
+
+If tests fail, fix the issue and re-run before closing. See [CLAUDE.md](../../CLAUDE.md) for the complete closure checklist.
+
 ### 2. Create a Feature Branch
 
 Branch naming convention:
@@ -183,6 +207,11 @@ Before submitting a PR:
 
 Brief description of changes (1-2 sentences).
 
+## Bead Reference
+
+- Bead ID: `yzuz.7` (or N/A for trivial fixes)
+- [ ] This PR addresses exactly ONE bead task
+
 ## Changes
 
 - Added camera pagination endpoint
@@ -194,6 +223,7 @@ Brief description of changes (1-2 sentences).
 - [ ] Unit tests pass: `pytest backend/tests/unit/ -v`
 - [ ] Integration tests pass: `pytest backend/tests/integration/ -v`
 - [ ] Frontend tests pass: `cd frontend && npm test`
+- [ ] Validation script passes: `./scripts/validate.sh`
 - [ ] Manual testing completed
 
 ## Screenshots (if UI changes)
