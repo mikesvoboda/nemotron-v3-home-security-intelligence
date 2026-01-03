@@ -1016,6 +1016,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Entities
+         * @description List tracked entities with optional filtering.
+         *
+         *     Returns a paginated list of entities that have been tracked via
+         *     re-identification. Entities are grouped by their embedding clusters.
+         *
+         *     Args:
+         *         entity_type: Filter by entity type ('person' or 'vehicle')
+         *         camera_id: Filter by camera ID
+         *         since: Filter entities seen since this timestamp
+         *         limit: Maximum number of results (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityListResponse with filtered entities and pagination info
+         */
+        get: operations["list_entities_api_entities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/{entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity
+         * @description Get detailed information about a specific entity.
+         *
+         *     Returns the entity's summary information along with all recorded appearances.
+         *
+         *     Args:
+         *         entity_id: Unique entity identifier (detection_id)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityDetail with full entity information
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found, 503 if Redis unavailable
+         */
+        get: operations["get_entity_api_entities__entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/{entity_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity History
+         * @description Get the appearance timeline for a specific entity.
+         *
+         *     Returns a chronological list of all appearances for the entity
+         *     across all cameras.
+         *
+         *     Args:
+         *         entity_id: Unique entity identifier (detection_id)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityHistoryResponse with appearance timeline
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found, 503 if Redis unavailable
+         */
+        get: operations["get_entity_history_api_entities__entity_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events": {
         parameters: {
             query?: never;
@@ -3877,6 +3976,297 @@ export interface components {
              * @description Video resolution height
              */
             video_height?: number | null;
+        };
+        /**
+         * EntityAppearance
+         * @description Schema for a single entity appearance at a specific time and camera.
+         *
+         *     Represents one sighting of an entity, including the detection it came from
+         *     and additional attributes extracted from the image.
+         * @example {
+         *       "attributes": {
+         *         "carrying": "backpack",
+         *         "clothing": "blue jacket"
+         *       },
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "detection_id": "det_abc123",
+         *       "similarity_score": 0.92,
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "timestamp": "2025-12-23T14:30:00Z"
+         *     }
+         */
+        EntityAppearance: {
+            /**
+             * Detection Id
+             * @description Detection ID from original detection
+             */
+            detection_id: string;
+            /**
+             * Camera Id
+             * @description Camera ID where entity was seen
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable camera name
+             */
+            camera_name?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the entity was detected
+             */
+            timestamp: string;
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image of this appearance
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Similarity Score
+             * @description Similarity score to the entity's reference embedding
+             */
+            similarity_score?: number | null;
+            /**
+             * Attributes
+             * @description Additional attributes extracted from the detection (clothing, carrying, etc.)
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * EntityDetail
+         * @description Schema for detailed entity information including appearance history.
+         *
+         *     Extends EntitySummary with the full list of appearances.
+         * @example {
+         *       "appearance_count": 3,
+         *       "appearances": [
+         *         {
+         *           "attributes": {
+         *             "clothing": "blue jacket"
+         *           },
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "detection_id": "det_001",
+         *           "similarity_score": 1,
+         *           "thumbnail_url": "/api/detections/1/image",
+         *           "timestamp": "2025-12-23T10:00:00Z"
+         *         },
+         *         {
+         *           "attributes": {
+         *             "carrying": "bag",
+         *             "clothing": "blue jacket"
+         *           },
+         *           "camera_id": "backyard",
+         *           "camera_name": "Backyard",
+         *           "detection_id": "det_002",
+         *           "similarity_score": 0.94,
+         *           "thumbnail_url": "/api/detections/2/image",
+         *           "timestamp": "2025-12-23T12:15:00Z"
+         *         }
+         *       ],
+         *       "cameras_seen": [
+         *         "front_door",
+         *         "backyard"
+         *       ],
+         *       "entity_type": "person",
+         *       "first_seen": "2025-12-23T10:00:00Z",
+         *       "id": "entity_abc123",
+         *       "last_seen": "2025-12-23T14:30:00Z",
+         *       "thumbnail_url": "/api/detections/123/image"
+         *     }
+         */
+        EntityDetail: {
+            /**
+             * Id
+             * @description Unique entity identifier
+             */
+            id: string;
+            /**
+             * Entity Type
+             * @description Type of entity: 'person' or 'vehicle'
+             */
+            entity_type: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Timestamp of first appearance
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Timestamp of most recent appearance
+             */
+            last_seen: string;
+            /**
+             * Appearance Count
+             * @description Total number of appearances
+             */
+            appearance_count: number;
+            /**
+             * Cameras Seen
+             * @description List of camera IDs where entity was detected
+             */
+            cameras_seen?: string[];
+            /**
+             * Thumbnail Url
+             * @description URL to the most recent thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Appearances
+             * @description List of all appearances for this entity
+             */
+            appearances?: components["schemas"]["EntityAppearance"][];
+        };
+        /**
+         * EntityHistoryResponse
+         * @description Schema for entity appearance history response.
+         * @example {
+         *       "appearances": [
+         *         {
+         *           "attributes": {},
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "detection_id": "det_001",
+         *           "similarity_score": 1,
+         *           "thumbnail_url": "/api/detections/1/image",
+         *           "timestamp": "2025-12-23T10:00:00Z"
+         *         }
+         *       ],
+         *       "count": 1,
+         *       "entity_id": "entity_abc123",
+         *       "entity_type": "person"
+         *     }
+         */
+        EntityHistoryResponse: {
+            /**
+             * Entity Id
+             * @description Entity identifier
+             */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @description Type of entity
+             */
+            entity_type: string;
+            /**
+             * Appearances
+             * @description List of appearances in chronological order
+             */
+            appearances: components["schemas"]["EntityAppearance"][];
+            /**
+             * Count
+             * @description Total number of appearances
+             */
+            count: number;
+        };
+        /**
+         * EntityListResponse
+         * @description Schema for paginated entity list response.
+         * @example {
+         *       "count": 1,
+         *       "entities": [
+         *         {
+         *           "appearance_count": 5,
+         *           "cameras_seen": [
+         *             "front_door",
+         *             "backyard"
+         *           ],
+         *           "entity_type": "person",
+         *           "first_seen": "2025-12-23T10:00:00Z",
+         *           "id": "entity_abc123",
+         *           "last_seen": "2025-12-23T14:30:00Z",
+         *           "thumbnail_url": "/api/detections/123/image"
+         *         }
+         *       ],
+         *       "limit": 50,
+         *       "offset": 0
+         *     }
+         */
+        EntityListResponse: {
+            /**
+             * Entities
+             * @description List of tracked entities
+             */
+            entities: components["schemas"]["EntitySummary"][];
+            /**
+             * Count
+             * @description Total number of entities matching filters
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
+         * EntitySummary
+         * @description Schema for entity summary in list responses.
+         *
+         *     Provides an overview of a tracked entity without the full appearance history.
+         * @example {
+         *       "appearance_count": 5,
+         *       "cameras_seen": [
+         *         "front_door",
+         *         "backyard",
+         *         "driveway"
+         *       ],
+         *       "entity_type": "person",
+         *       "first_seen": "2025-12-23T10:00:00Z",
+         *       "id": "entity_abc123",
+         *       "last_seen": "2025-12-23T14:30:00Z",
+         *       "thumbnail_url": "/api/detections/123/image"
+         *     }
+         */
+        EntitySummary: {
+            /**
+             * Id
+             * @description Unique entity identifier
+             */
+            id: string;
+            /**
+             * Entity Type
+             * @description Type of entity: 'person' or 'vehicle'
+             */
+            entity_type: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Timestamp of first appearance
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Timestamp of most recent appearance
+             */
+            last_seen: string;
+            /**
+             * Appearance Count
+             * @description Total number of appearances
+             */
+            appearance_count: number;
+            /**
+             * Cameras Seen
+             * @description List of camera IDs where entity was detected
+             */
+            cameras_seen?: string[];
+            /**
+             * Thumbnail Url
+             * @description URL to the most recent thumbnail image
+             */
+            thumbnail_url?: string | null;
         };
         /**
          * EventAuditResponse
@@ -7572,6 +7962,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DLQClearResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_entities_api_entities_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type: 'person' or 'vehicle' */
+                entity_type?: string | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter entities seen since this time */
+                since?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_entity_api_entities__entity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_entity_history_api_entities__entity_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityHistoryResponse"];
                 };
             };
             /** @description Validation Error */

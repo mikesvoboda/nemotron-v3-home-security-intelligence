@@ -12,6 +12,7 @@ export { AlertRulesPage } from './AlertRulesPage';
 export { EntitiesPage } from './EntitiesPage';
 export { LogsPage } from './LogsPage';
 export { AuditPage } from './AuditPage';
+export { AIAuditPage } from './AIAuditPage';
 export { SystemPage } from './SystemPage';
 export { SettingsPage } from './SettingsPage';
 export { ZonesPage } from './ZonesPage';
