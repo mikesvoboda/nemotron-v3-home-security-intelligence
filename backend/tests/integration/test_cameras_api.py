@@ -277,6 +277,50 @@ async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integra
     assert resp.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_get_den_camera_snapshot_success(client, integration_env, tmp_path):
+    """Test that Den camera snapshot works when folder_path is correctly configured.
+
+    This test validates the fix for bead im3c: Camera snapshot for 'Den' returns 404.
+
+    Root cause: In production, the Den camera's folder_path was configured outside
+    the FOSCAM_BASE_PATH (/export/foscam), causing the path security check to fail.
+
+    Fix: The Den camera's folder_path must be under FOSCAM_BASE_PATH.
+    Example: /export/foscam/den instead of an external path.
+    """
+    import os
+
+    from backend.core.config import get_settings
+
+    # Set up foscam root with a "den" subdirectory
+    foscam_root = tmp_path / "foscam"
+    den_dir = foscam_root / "den"
+    den_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a test image in the den directory
+    test_image = den_dir / "snapshot.jpg"
+    test_image.write_bytes(b"den_camera_image")
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    # Create Den camera with folder_path under foscam_base_path
+    create_resp = await client.post(
+        "/api/cameras",
+        json={"name": "Den", "folder_path": str(den_dir), "status": "online"},
+    )
+    assert create_resp.status_code == 201
+    camera_id = create_resp.json()["id"]
+    assert camera_id == "den"  # Normalized ID should be "den"
+
+    # Snapshot should succeed when folder_path is correctly under base_path
+    resp = await client.get(f"/api/cameras/{camera_id}/snapshot")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("image/")
+    assert resp.content == b"den_camera_image"
+
+
 # === UPDATE Tests ===
 
 

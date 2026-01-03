@@ -14,15 +14,31 @@ Security features:
 
 import argparse
 import platform
-import secrets
 import shutil
-import socket
 import stat
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypedDict
+
+# Import core utilities from the setup_lib package
+from setup_lib.core import (
+    WEAK_PASSWORDS,
+    check_port_available,
+    find_available_port,
+    generate_password,
+    is_weak_password,
+)
+
+# Re-export for backward compatibility
+__all__ = [
+    "WEAK_PASSWORDS",
+    "check_port_available",
+    "find_available_port",
+    "generate_password",
+    "is_weak_password",
+]
 
 
 class ServiceInfo(TypedDict):
@@ -52,36 +68,6 @@ SERVICES: dict[str, ServiceInfo] = {
 }
 
 
-def check_port_available(port: int) -> bool:
-    """Check if a port is available for binding.
-
-    Args:
-        port: Port number to check
-
-    Returns:
-        True if port is available, False if in use
-    """
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) != 0
-
-
-def find_available_port(start: int) -> int:
-    """Find the next available port starting from a given port.
-
-    Args:
-        start: Starting port number
-
-    Returns:
-        First available port >= start
-    """
-    port = start
-    while not check_port_available(port):
-        port += 1
-        if port > 65535:
-            raise RuntimeError(f"No available ports found starting from {start}")
-    return port
-
-
 def prompt_with_default(prompt: str, default: str) -> str:
     """Prompt user for input with a default value.
 
@@ -98,45 +84,6 @@ def prompt_with_default(prompt: str, default: str) -> str:
     except (EOFError, KeyboardInterrupt):
         print()
         return default
-
-
-def generate_password(length: int = 32) -> str:
-    """Generate a secure random password.
-
-    Args:
-        length: Desired password length (default: 32 for security)
-
-    Returns:
-        URL-safe random string of specified length
-    """
-    return secrets.token_urlsafe(length)[:length]
-
-
-# Known weak/default passwords to warn about
-WEAK_PASSWORDS = {
-    "security_dev_password",
-    "password",
-    "postgres",
-    "admin",
-    "root",
-    "123456",
-    "changeme",
-    "secret",
-}
-
-
-def is_weak_password(password: str) -> bool:
-    """Check if a password is considered weak.
-
-    Args:
-        password: Password to check
-
-    Returns:
-        True if password is weak, False otherwise
-    """
-    if len(password) < 16:
-        return True
-    return password.lower() in WEAK_PASSWORDS
 
 
 def prompt_for_password(prompt_text: str, default: str | None = None) -> str:

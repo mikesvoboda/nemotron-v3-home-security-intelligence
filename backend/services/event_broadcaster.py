@@ -24,6 +24,10 @@ from backend.api.schemas.websocket import (
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
+from backend.core.websocket_circuit_breaker import (
+    WebSocketCircuitBreaker,
+    WebSocketCircuitState,
+)
 
 if TYPE_CHECKING:
     from redis.asyncio.client import PubSub
@@ -85,10 +89,32 @@ class EventBroadcaster:
         self._listener_healthy = False
         self._is_degraded = False
 
+        # Circuit breaker for WebSocket connection resilience
+        self._circuit_breaker = WebSocketCircuitBreaker(
+            failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+            recovery_timeout=30.0,
+            half_open_max_calls=1,
+            success_threshold=1,
+            name="event_broadcaster",
+        )
+
     @property
     def channel_name(self) -> str:
         """Get the Redis channel name for this broadcaster instance."""
         return self._channel_name
+
+    @property
+    def circuit_breaker(self) -> WebSocketCircuitBreaker:
+        """Get the circuit breaker instance for this broadcaster."""
+        return self._circuit_breaker
+
+    def get_circuit_state(self) -> WebSocketCircuitState:
+        """Get current circuit breaker state.
+
+        Returns:
+            Current WebSocketCircuitState (CLOSED, OPEN, or HALF_OPEN)
+        """
+        return self._circuit_breaker.get_state()
 
     async def start(self) -> None:
         """Start listening for events from Redis pub/sub.
@@ -106,12 +132,14 @@ class EventBroadcaster:
             self._listener_healthy = True
             self._is_degraded = False  # Clear degraded mode on successful start
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
+            self._circuit_breaker.reset()  # Reset circuit breaker on successful start
             self._listener_task = asyncio.create_task(self._listen_for_events())
             # Start supervision task to monitor listener health
             self._supervisor_task = asyncio.create_task(self._supervise_listener())
             logger.info(f"Event broadcaster started, listening on channel: {self._channel_name}")
         except Exception as e:
             logger.error(f"Failed to start event broadcaster: {e}")
+            self._circuit_breaker.record_failure()
             raise
 
     async def stop(self) -> None:
@@ -332,8 +360,9 @@ class EventBroadcaster:
                 if not self._is_listening:
                     break
 
-                # Reset recovery attempts on successful message processing
+                # Reset recovery attempts and record success on message processing
                 self._recovery_attempts = 0
+                self._circuit_breaker.record_success()
 
                 # Extract the event data
                 event_data = message.get("data")
@@ -357,9 +386,25 @@ class EventBroadcaster:
             logger.info("Event listener cancelled")
         except Exception as e:
             logger.error(f"Error in event listener: {e}")
+            # Record failure in circuit breaker
+            self._circuit_breaker.record_failure()
+
             # Attempt to restart listener with bounded retry limit
+            # Check circuit breaker state before attempting recovery
             if self._is_listening:
                 self._recovery_attempts += 1
+
+                # Check if circuit breaker allows recovery attempt
+                if not self._circuit_breaker.is_call_permitted():
+                    logger.error(
+                        "Event listener circuit breaker is OPEN - "
+                        "recovery blocked to allow system stabilization"
+                    )
+                    self._enter_degraded_mode()
+                    # Broadcast degraded state to connected clients
+                    await self._broadcast_degraded_state()
+                    return
+
                 if self._recovery_attempts <= self.MAX_RECOVERY_ATTEMPTS:
                     # Exponential backoff: 1s, 2s, 4s, 8s, up to 30s max
                     backoff = min(2 ** (self._recovery_attempts - 1), 30)
@@ -377,6 +422,8 @@ class EventBroadcaster:
                         "attempts. Giving up - manual restart required."
                     )
                     self._enter_degraded_mode()
+                    # Broadcast degraded state to connected clients
+                    await self._broadcast_degraded_state()
 
     async def _send_to_all_clients(self, event_data: Any) -> None:
         """Send event data to all connected WebSocket clients.
@@ -406,6 +453,32 @@ class EventBroadcaster:
         if disconnected:
             logger.info(f"Cleaned up {len(disconnected)} disconnected clients")
 
+    async def _broadcast_degraded_state(self) -> None:
+        """Broadcast degraded state notification to all connected clients.
+
+        This method is called when the circuit breaker opens or when the broadcaster
+        enters degraded mode. It notifies connected clients that real-time events
+        may not be delivered reliably.
+        """
+        if not self._connections:
+            return
+
+        degraded_message = {
+            "type": "service_status",
+            "data": {
+                "service": "event_broadcaster",
+                "status": "degraded",
+                "message": "Real-time event broadcasting is degraded. Events may be delayed or unavailable.",
+                "circuit_state": self._circuit_breaker.get_state().value,
+            },
+        }
+
+        try:
+            await self._send_to_all_clients(degraded_message)
+            logger.info("Broadcast degraded state notification to connected clients")
+        except Exception as e:
+            logger.warning(f"Failed to broadcast degraded state: {e}")
+
     async def _supervise_listener(self) -> None:
         """Supervision task that monitors listener health and restarts if needed.
 
@@ -429,43 +502,12 @@ class EventBroadcaster:
                 # Check if listener task is still alive
                 listener_alive = self._listener_task is not None and not self._listener_task.done()
 
-                if not listener_alive and self._is_listening:
-                    # Listener died unexpectedly - attempt to restart
-                    logger.warning(
-                        "Listener task died unexpectedly. "
-                        f"Recovery attempts: {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}"
-                    )
-
-                    if self._recovery_attempts < self.MAX_RECOVERY_ATTEMPTS:
-                        self._recovery_attempts += 1
-                        logger.info(
-                            f"Supervisor restarting listener (attempt {self._recovery_attempts})"
-                        )
-                        # Re-subscribe if needed
-                        if self._pubsub is None:
-                            try:
-                                self._pubsub = await self._redis.subscribe(self._channel_name)
-                            except Exception as sub_error:
-                                logger.error(f"Failed to re-subscribe: {sub_error}")
-                                continue
-                        # Create new listener task
-                        self._listener_task = asyncio.create_task(self._listen_for_events())
-                        self._listener_healthy = True
-                        logger.info("Supervisor successfully restarted listener")
-                    else:
-                        logger.error(
-                            "Supervisor giving up - max recovery attempts reached. "
-                            "Manual intervention required."
-                        )
-                        self._enter_degraded_mode()
+                if listener_alive:
+                    await self._handle_healthy_listener()
+                elif self._is_listening:
+                    should_break = await self._handle_dead_listener()
+                    if should_break:
                         break
-                elif listener_alive:
-                    # Listener is healthy
-                    self._listener_healthy = True
-                    # Reset recovery attempts on healthy check
-                    if self._recovery_attempts > 0:
-                        logger.info("Listener recovered successfully, resetting recovery counter")
-                        self._recovery_attempts = 0
 
         except asyncio.CancelledError:
             logger.info("Listener supervision task cancelled")
@@ -473,6 +515,80 @@ class EventBroadcaster:
             logger.error(f"Unexpected error in supervisor task: {e}", exc_info=True)
         finally:
             logger.info("Listener supervision task stopped")
+
+    async def _handle_healthy_listener(self) -> None:
+        """Handle a healthy listener state during supervision.
+
+        Records success and resets recovery counters.
+        """
+        self._listener_healthy = True
+        self._circuit_breaker.record_success()
+        if self._recovery_attempts > 0:
+            logger.info("Listener recovered successfully, resetting recovery counter")
+            self._recovery_attempts = 0
+
+    async def _handle_dead_listener(self) -> bool:
+        """Handle a dead listener during supervision.
+
+        Attempts to restart the listener with circuit breaker protection.
+
+        Returns:
+            True if supervision loop should break, False to continue.
+        """
+        # Record failure and log
+        self._circuit_breaker.record_failure()
+        logger.warning(
+            "Listener task died unexpectedly. "
+            f"Recovery attempts: {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}"
+        )
+
+        # Check circuit breaker before attempting recovery
+        if not self._circuit_breaker.is_call_permitted():
+            logger.error(
+                "Supervisor: circuit breaker is OPEN - "
+                "recovery blocked to allow system stabilization"
+            )
+            self._enter_degraded_mode()
+            await self._broadcast_degraded_state()
+            return True
+
+        if self._recovery_attempts >= self.MAX_RECOVERY_ATTEMPTS:
+            logger.error(
+                "Supervisor giving up - max recovery attempts reached. "
+                "Manual intervention required."
+            )
+            self._enter_degraded_mode()
+            await self._broadcast_degraded_state()
+            return True
+
+        # Attempt recovery
+        self._recovery_attempts += 1
+        logger.info(f"Supervisor restarting listener (attempt {self._recovery_attempts})")
+
+        # Re-subscribe if needed
+        if self._pubsub is None and not await self._resubscribe_for_supervisor():
+            return False  # Continue loop to retry
+
+        # Create new listener task
+        self._listener_task = asyncio.create_task(self._listen_for_events())
+        self._listener_healthy = True
+        logger.info("Supervisor successfully restarted listener")
+        return False
+
+    async def _resubscribe_for_supervisor(self) -> bool:
+        """Attempt to resubscribe to Redis during supervisor recovery.
+
+        Returns:
+            True if successful, False if failed.
+        """
+        try:
+            self._pubsub = await self._redis.subscribe(self._channel_name)
+            self._circuit_breaker.record_success()
+            return True
+        except Exception as sub_error:
+            logger.error(f"Failed to re-subscribe: {sub_error}")
+            self._circuit_breaker.record_failure()
+            return False
 
     def is_listener_healthy(self) -> bool:
         """Check if the listener is currently healthy.
