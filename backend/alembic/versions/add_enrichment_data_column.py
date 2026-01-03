@@ -1,17 +1,20 @@
-"""Add enrichment_data column to detections table
+"""Add enrichment_data JSONB column to detections table
 
 Revision ID: add_enrichment_data
 Revises: add_camera_unique_constraints
-Create Date: 2026-01-03 12:00:00.000000
+Create Date: 2026-01-03 10:00:00.000000
 
 This migration adds the enrichment_data JSONB column to the detections table.
-The column stores AI enrichment data including:
-- Vehicle classification (type, color, damage)
-- Pet identification (type, breed)
-- Person attributes (clothing, action, carrying)
-- License plates (text, confidence)
-- Weather conditions
-- Image quality scores
+The column stores structured results from the 18+ vision models that run
+during the enrichment pipeline, enabling queryable access to:
+- License plate detection and OCR results
+- Face detection results
+- Vehicle classification and damage detection
+- Clothing analysis (FashionCLIP and SegFormer)
+- Violence detection
+- Weather classification
+- Image quality assessment
+- Pet classification
 """
 
 from collections.abc import Sequence
@@ -32,7 +35,16 @@ def upgrade() -> None:
     """Add enrichment_data JSONB column to detections table."""
     op.add_column("detections", sa.Column("enrichment_data", JSONB(), nullable=True))
 
+    # Add GIN index for JSONB queries (enables efficient path queries)
+    op.create_index(
+        "idx_detections_enrichment_data",
+        "detections",
+        ["enrichment_data"],
+        postgresql_using="gin",
+    )
+
 
 def downgrade() -> None:
     """Remove enrichment_data column from detections table."""
+    op.drop_index("idx_detections_enrichment_data", table_name="detections")
     op.drop_column("detections", "enrichment_data")

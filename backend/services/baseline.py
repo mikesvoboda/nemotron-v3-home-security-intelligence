@@ -37,6 +37,15 @@ from backend.models.baseline import ActivityBaseline, ClassBaseline
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from backend.api.schemas.baseline import (
+        AnomalyEvent,
+        CurrentDeviation,
+        DailyPattern,
+        DeviationInterpretation,
+        HourlyPattern,
+        ObjectBaseline,
+    )
+
 # Keep sanitize_error imported for future use, suppress unused import warning
 _ = sanitize_error
 
@@ -576,6 +585,385 @@ class BaselineService:
         else:
             async with get_session() as sess:
                 return await _do_get(sess)
+
+    async def get_hourly_patterns(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> dict[str, HourlyPattern]:
+        """Get hourly activity patterns for a camera.
+
+        Returns activity patterns aggregated by hour (0-23).
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            Dictionary mapping hour string to HourlyPattern objects.
+        """
+        from backend.api.schemas.baseline import HourlyPattern
+
+        async def _do_get(sess: AsyncSession) -> dict[str, HourlyPattern]:
+            activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
+            result = await sess.execute(activity_stmt)
+            baselines = result.scalars().all()
+
+            # Aggregate by hour across all days
+            hour_data: dict[int, list[ActivityBaseline]] = {}
+            for baseline in baselines:
+                if baseline.hour not in hour_data:
+                    hour_data[baseline.hour] = []
+                hour_data[baseline.hour].append(baseline)
+
+            patterns: dict[str, HourlyPattern] = {}
+            for hour, hour_baselines in hour_data.items():
+                avg_counts = [b.avg_count for b in hour_baselines]
+                avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 0.0
+                # Calculate standard deviation
+                if len(avg_counts) > 1:
+                    mean = avg_detections
+                    variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)
+                    std_dev = math.sqrt(variance)
+                else:
+                    std_dev = 0.0
+                total_samples = sum(b.sample_count for b in hour_baselines)
+
+                patterns[str(hour)] = HourlyPattern(
+                    avg_detections=round(avg_detections, 2),
+                    std_dev=round(std_dev, 2),
+                    sample_count=total_samples,
+                )
+
+            return patterns
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    async def get_daily_patterns(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> dict[str, DailyPattern]:
+        """Get daily activity patterns for a camera.
+
+        Returns activity patterns aggregated by day of week.
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            Dictionary mapping day name to DailyPattern objects.
+        """
+        from backend.api.schemas.baseline import DailyPattern
+
+        day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+        async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
+            activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
+            result = await sess.execute(activity_stmt)
+            baselines = result.scalars().all()
+
+            # Aggregate by day of week
+            day_data: dict[int, list[ActivityBaseline]] = {}
+            for baseline in baselines:
+                if baseline.day_of_week not in day_data:
+                    day_data[baseline.day_of_week] = []
+                day_data[baseline.day_of_week].append(baseline)
+
+            patterns: dict[str, DailyPattern] = {}
+            for day_num, day_baselines in day_data.items():
+                # Sum all activity for this day
+                total_activity = sum(b.avg_count for b in day_baselines)
+                total_samples = sum(b.sample_count for b in day_baselines)
+
+                # Find peak hour for this day
+                hour_activity: dict[int, float] = {}
+                for b in day_baselines:
+                    hour_activity[b.hour] = b.avg_count
+                if hour_activity:
+                    peak_hour = max(hour_activity.keys(), key=lambda h: hour_activity[h])
+                else:
+                    peak_hour = 12
+
+                if 0 <= day_num < len(day_names):
+                    patterns[day_names[day_num]] = DailyPattern(
+                        avg_detections=round(total_activity, 2),
+                        peak_hour=peak_hour,
+                        total_samples=total_samples,
+                    )
+
+            return patterns
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    async def get_object_baselines(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> dict[str, ObjectBaseline]:
+        """Get object-specific baseline statistics for a camera.
+
+        Returns baseline statistics for each detected object type.
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            Dictionary mapping object class to ObjectBaseline objects.
+        """
+        from backend.api.schemas.baseline import ObjectBaseline
+
+        async def _do_get(sess: AsyncSession) -> dict[str, ObjectBaseline]:
+            class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
+            result = await sess.execute(class_stmt)
+            baselines = result.scalars().all()
+
+            # Aggregate by class
+            class_data: dict[str, list[ClassBaseline]] = {}
+            for baseline in baselines:
+                if baseline.detection_class not in class_data:
+                    class_data[baseline.detection_class] = []
+                class_data[baseline.detection_class].append(baseline)
+
+            object_baselines: dict[str, ObjectBaseline] = {}
+            for detection_class, class_baselines in class_data.items():
+                # Calculate average hourly frequency
+                total_freq = sum(b.frequency for b in class_baselines)
+                hours_covered = len(class_baselines)
+                avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0
+
+                # Find peak hour for this class
+                hour_freq: dict[int, float] = {}
+                for b in class_baselines:
+                    hour_freq[b.hour] = b.frequency
+                peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12
+
+                # Total detections (sum of sample counts)
+                total_detections = sum(b.sample_count for b in class_baselines)
+
+                object_baselines[detection_class] = ObjectBaseline(
+                    avg_hourly=round(avg_hourly, 2),
+                    peak_hour=peak_hour,
+                    total_detections=total_detections,
+                )
+
+            return object_baselines
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    def _interpret_z_score(self, z_score: float) -> DeviationInterpretation:
+        """Convert z-score to deviation interpretation.
+
+        Args:
+            z_score: The z-score value.
+
+        Returns:
+            DeviationInterpretation enum value.
+        """
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        if z_score < -2.0:
+            return DeviationInterpretation.FAR_BELOW_NORMAL
+        if z_score < -1.0:
+            return DeviationInterpretation.BELOW_NORMAL
+        if z_score < 1.0:
+            return DeviationInterpretation.NORMAL
+        if z_score < 2.0:
+            return DeviationInterpretation.SLIGHTLY_ABOVE_NORMAL
+        if z_score < 3.0:
+            return DeviationInterpretation.ABOVE_NORMAL
+        return DeviationInterpretation.FAR_ABOVE_NORMAL
+
+    async def get_current_deviation(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> CurrentDeviation | None:
+        """Get current activity deviation from baseline for a camera.
+
+        Compares recent activity (current hour) against historical baseline.
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            CurrentDeviation object or None if insufficient data.
+        """
+        from backend.api.schemas.baseline import CurrentDeviation
+
+        now = datetime.now(UTC)
+        hour = now.hour
+        day_of_week = now.weekday()
+
+        async def _do_get(sess: AsyncSession) -> CurrentDeviation | None:
+            # Get baseline for current hour and day
+            activity_stmt = select(ActivityBaseline).where(
+                ActivityBaseline.camera_id == camera_id,
+                ActivityBaseline.hour == hour,
+                ActivityBaseline.day_of_week == day_of_week,
+            )
+            result = await sess.execute(activity_stmt)
+            baseline = result.scalar_one_or_none()
+
+            if baseline is None or baseline.sample_count < self.min_samples:
+                return None
+
+            # Get all baselines for this hour to calculate standard deviation
+            all_hour_stmt = select(ActivityBaseline).where(
+                ActivityBaseline.camera_id == camera_id,
+                ActivityBaseline.hour == hour,
+            )
+            all_result = await sess.execute(all_hour_stmt)
+            all_baselines = all_result.scalars().all()
+
+            if not all_baselines:
+                return None
+
+            # Calculate mean and std dev across all days for this hour
+            avg_counts = [b.avg_count for b in all_baselines]
+            mean = sum(avg_counts) / len(avg_counts)
+            if len(avg_counts) > 1:
+                variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)
+                std_dev = math.sqrt(variance)
+            else:
+                std_dev = mean * 0.1  # Assume 10% if only one sample
+
+            # Calculate deviation score (z-score)
+            current = baseline.avg_count
+            z_score = (current - mean) / std_dev if std_dev > 0 else 0.0
+
+            # Interpret the deviation using helper method
+            interpretation = self._interpret_z_score(z_score)
+
+            # Identify contributing factors
+            factors: list[str] = []
+            if z_score > 1.5:
+                # Check class baselines for elevated counts
+                class_stmt = select(ClassBaseline).where(
+                    ClassBaseline.camera_id == camera_id,
+                    ClassBaseline.hour == hour,
+                )
+                class_result = await sess.execute(class_stmt)
+                class_baselines = class_result.scalars().all()
+
+                for cb in class_baselines:
+                    if cb.frequency > 2.0:  # Above average frequency
+                        factors.append(f"{cb.detection_class}_count_elevated")
+
+            if abs(z_score) > 1.0 and len(factors) == 0:
+                factors.append("overall_activity_deviation")
+
+            return CurrentDeviation(
+                score=round(z_score, 2),
+                interpretation=interpretation,
+                contributing_factors=factors,
+            )
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    async def get_baseline_established_date(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> datetime | None:
+        """Get the earliest baseline update date for a camera.
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            Datetime of earliest baseline or None if no data.
+        """
+        from sqlalchemy import func
+
+        async def _do_get(sess: AsyncSession) -> datetime | None:
+            # Get earliest activity baseline
+            activity_stmt = select(func.min(ActivityBaseline.last_updated)).where(
+                ActivityBaseline.camera_id == camera_id
+            )
+            activity_result = await sess.execute(activity_stmt)
+            activity_min = activity_result.scalar()
+
+            # Get earliest class baseline
+            class_stmt = select(func.min(ClassBaseline.last_updated)).where(
+                ClassBaseline.camera_id == camera_id
+            )
+            class_result = await sess.execute(class_stmt)
+            class_min = class_result.scalar()
+
+            # Return earliest of the two
+            if activity_min is None and class_min is None:
+                return None
+            elif activity_min is None:
+                return class_min
+            elif class_min is None:
+                return activity_min
+            else:
+                return min(activity_min, class_min)
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    async def get_recent_anomalies(
+        self,
+        camera_id: str,  # noqa: ARG002 - Reserved for future anomaly table query
+        days: int = 7,  # noqa: ARG002 - Reserved for future anomaly table query
+        *,
+        session: AsyncSession | None = None,  # noqa: ARG002 - Reserved for future DB query
+    ) -> list[AnomalyEvent]:
+        """Get recent anomaly events for a camera.
+
+        Note: This method returns a list of recent anomaly events based on
+        stored detection data. In a full implementation, anomaly events
+        would be stored when detected. For now, this returns an empty list
+        as anomaly events are computed on-the-fly during detection.
+
+        Args:
+            camera_id: ID of the camera.
+            days: Number of days to look back (default: 7).
+            session: Optional database session.
+
+        Returns:
+            List of AnomalyEvent objects.
+        """
+        # Note: In a full implementation, we would store anomaly events
+        # in a dedicated table when they're detected. For now, return empty
+        # list as anomaly detection happens at detection time.
+        #
+        # Future implementation would query from an anomaly_events table:
+        # SELECT * FROM anomaly_events
+        # WHERE camera_id = :camera_id
+        #   AND timestamp > NOW() - INTERVAL ':days days'
+        # ORDER BY timestamp DESC
+        return []
 
 
 def get_baseline_service() -> BaselineService:
