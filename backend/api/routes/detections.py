@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
+from backend.api.schemas.enrichment import EnrichmentResponse
 from backend.core.database import get_db
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
 from backend.models.detection import Detection
@@ -124,6 +125,215 @@ async def get_detection(
 
     # Type is already narrowed by the None check above
     return detection
+
+
+def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract clothing data from enrichment into API response format."""
+    clothing_classifications = enrichment_data.get("clothing_classifications", {})
+    clothing_segmentation = enrichment_data.get("clothing_segmentation", {})
+
+    if not clothing_classifications and not clothing_segmentation:
+        return None
+
+    clothing_response: dict[str, Any] = {}
+    if clothing_classifications:
+        first_key = next(iter(clothing_classifications))
+        cc = clothing_classifications[first_key]
+        # Parse raw description to extract upper/lower
+        raw_desc = cc.get("raw_description", "")
+        parts = raw_desc.split(", ") if ", " in raw_desc else [cc.get("top_category")]
+        clothing_response["upper"] = parts[0] if parts else None
+        clothing_response["lower"] = parts[1] if len(parts) > 1 else None
+        clothing_response["is_suspicious"] = cc.get("is_suspicious")
+        clothing_response["is_service_uniform"] = cc.get("is_service_uniform")
+
+    if clothing_segmentation:
+        first_key = next(iter(clothing_segmentation))
+        cs = clothing_segmentation[first_key]
+        clothing_response["has_face_covered"] = cs.get("has_face_covered")
+        clothing_response["has_bag"] = cs.get("has_bag")
+        clothing_response["clothing_items"] = cs.get("clothing_items")
+
+    return clothing_response
+
+
+def _extract_vehicle_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract vehicle data from enrichment into API response format."""
+    vehicle_classifications = enrichment_data.get("vehicle_classifications", {})
+    if not vehicle_classifications:
+        return None
+
+    first_key = next(iter(vehicle_classifications))
+    vc = vehicle_classifications[first_key]
+    vehicle_response = {
+        "type": vc.get("vehicle_type"),
+        "color": None,  # Color not currently captured in enrichment
+        "confidence": vc.get("confidence"),
+        "is_commercial": vc.get("is_commercial"),
+        "damage_detected": None,
+        "damage_types": None,
+    }
+    # Add damage info if present for same detection
+    vehicle_damage = enrichment_data.get("vehicle_damage", {})
+    if first_key in vehicle_damage:
+        vd = vehicle_damage[first_key]
+        vehicle_response["damage_detected"] = vd.get("has_damage", False)
+        vehicle_response["damage_types"] = vd.get("damage_types", [])
+
+    return vehicle_response
+
+
+def _transform_enrichment_data(
+    detection_id: int,
+    enrichment_data: dict[str, Any] | None,
+    detected_at: datetime | None,
+) -> dict[str, Any]:
+    """Transform raw enrichment data from database to structured API response.
+
+    Args:
+        detection_id: Detection ID
+        enrichment_data: Raw JSONB data from the detection
+        detected_at: Detection timestamp (used as fallback for enriched_at)
+
+    Returns:
+        Dictionary matching EnrichmentResponse schema
+    """
+    empty_response: dict[str, Any] = {
+        "detection_id": detection_id,
+        "enriched_at": detected_at,
+        "license_plate": {"detected": False},
+        "face": {"detected": False, "count": 0},
+        "vehicle": None,
+        "clothing": None,
+        "violence": {"detected": False, "score": 0.0},
+        "weather": None,
+        "pose": None,
+        "depth": None,
+        "image_quality": None,
+        "pet": None,
+        "processing_time_ms": None,
+        "errors": [],
+    }
+
+    if enrichment_data is None:
+        return empty_response
+
+    # Extract license plate data
+    license_plates = enrichment_data.get("license_plates", [])
+    license_plate_response: dict[str, Any] = {"detected": False}
+    if license_plates:
+        plate = license_plates[0]  # Use first plate
+        license_plate_response = {
+            "detected": True,
+            "confidence": plate.get("confidence"),
+            "text": plate.get("text"),
+            "ocr_confidence": plate.get("ocr_confidence"),
+            "bbox": plate.get("bbox"),
+        }
+
+    # Extract face data
+    faces = enrichment_data.get("faces", [])
+    face_response: dict[str, Any] = {"detected": False, "count": 0}
+    if faces:
+        face_response = {
+            "detected": True,
+            "count": len(faces),
+            "confidence": max(f.get("confidence", 0) for f in faces),
+        }
+
+    # Extract violence data
+    violence_data = enrichment_data.get("violence_detection")
+    violence_response: dict[str, Any] = {"detected": False, "score": 0.0}
+    if violence_data:
+        violence_response = {
+            "detected": violence_data.get("is_violent", False),
+            "score": violence_data.get("confidence", 0.0),
+            "confidence": violence_data.get("confidence"),
+        }
+
+    # Extract image quality data
+    image_quality_response: dict[str, Any] | None = None
+    iq = enrichment_data.get("image_quality")
+    if iq:
+        image_quality_response = {
+            "score": iq.get("quality_score"),
+            "is_blurry": iq.get("is_blurry"),
+            "is_low_quality": iq.get("is_low_quality"),
+            "quality_issues": iq.get("quality_issues", []),
+            "quality_change_detected": enrichment_data.get("quality_change_detected"),
+        }
+
+    # Extract pet data
+    pet_response: dict[str, Any] | None = None
+    pet_classifications = enrichment_data.get("pet_classifications", {})
+    if pet_classifications:
+        first_key = next(iter(pet_classifications))
+        pc = pet_classifications[first_key]
+        pet_response = {
+            "detected": True,
+            "type": pc.get("animal_type"),
+            "confidence": pc.get("confidence"),
+            "is_household_pet": pc.get("is_household_pet"),
+        }
+
+    return {
+        "detection_id": detection_id,
+        "enriched_at": detected_at,
+        "license_plate": license_plate_response,
+        "face": face_response,
+        "vehicle": _extract_vehicle_from_enrichment(enrichment_data),
+        "clothing": _extract_clothing_from_enrichment(enrichment_data),
+        "violence": violence_response,
+        "weather": None,  # Placeholder - not currently in enrichment pipeline
+        "pose": None,  # Placeholder for future ViTPose
+        "depth": None,  # Placeholder for future Depth Anything V2
+        "image_quality": image_quality_response,
+        "pet": pet_response,
+        "processing_time_ms": enrichment_data.get("processing_time_ms"),
+        "errors": enrichment_data.get("errors", []),
+    }
+
+
+@router.get("/{detection_id}/enrichment", response_model=EnrichmentResponse)
+async def get_detection_enrichment(
+    detection_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get structured enrichment data for a detection.
+
+    Returns results from the 18+ vision models run during the enrichment pipeline:
+    - License plate detection and OCR
+    - Face detection
+    - Vehicle classification and damage detection
+    - Clothing analysis (FashionCLIP and SegFormer)
+    - Violence detection
+    - Image quality assessment
+    - Pet classification
+
+    Args:
+        detection_id: Detection ID
+        db: Database session
+
+    Returns:
+        EnrichmentResponse with structured vision model results
+
+    Raises:
+        HTTPException: 404 if detection not found
+    """
+    result = await db.execute(select(Detection).where(Detection.id == detection_id))
+    detection = result.scalar_one_or_none()
+
+    if not detection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Detection with id {detection_id} not found",
+        )
+
+    return _transform_enrichment_data(
+        detection_id=detection.id,
+        enrichment_data=detection.enrichment_data,
+        detected_at=detection.detected_at,
+    )
 
 
 @router.get(

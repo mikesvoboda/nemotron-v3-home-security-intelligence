@@ -687,6 +687,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/baseline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Baseline
+         * @description Get baseline activity data for a camera.
+         *
+         *     Returns comprehensive baseline statistics including:
+         *     - Hourly activity patterns (0-23 hours)
+         *     - Daily patterns (by day of week)
+         *     - Object-specific baselines
+         *     - Current deviation from baseline
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         BaselineSummaryResponse with all baseline data
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_baseline_api_cameras__camera_id__baseline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/baseline/anomalies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Baseline Anomalies
+         * @description Get recent anomaly events for a camera.
+         *
+         *     Returns a list of anomaly events detected within the specified time period.
+         *     Anomalies are detections that significantly deviate from the established
+         *     baseline activity patterns.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         days: Number of days to look back (default: 7, max: 90)
+         *         db: Database session
+         *
+         *     Returns:
+         *         AnomalyListResponse with list of anomaly events
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_baseline_anomalies_api_cameras__camera_id__baseline_anomalies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections": {
         parameters: {
             query?: never;
@@ -742,6 +813,45 @@ export interface paths {
          *         HTTPException: 404 if detection not found
          */
         get: operations["get_detection_api_detections__detection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/detections/{detection_id}/enrichment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Detection Enrichment
+         * @description Get structured enrichment data for a detection.
+         *
+         *     Returns results from the 18+ vision models run during the enrichment pipeline:
+         *     - License plate detection and OCR
+         *     - Face detection
+         *     - Vehicle classification and damage detection
+         *     - Clothing analysis (FashionCLIP and SegFormer)
+         *     - Violence detection
+         *     - Image quality assessment
+         *     - Pet classification
+         *
+         *     Args:
+         *         detection_id: Detection ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         EnrichmentResponse with structured vision model results
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection not found
+         */
+        get: operations["get_detection_enrichment_api_detections__detection_id__enrichment_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1340,6 +1450,46 @@ export interface paths {
          *         HTTPException: 404 if event not found
          */
         get: operations["get_event_detections_api_events__event_id__detections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{event_id}/enrichments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Enrichments
+         * @description Get enrichment data for all detections in an event.
+         *
+         *     Returns structured vision model results from the enrichment pipeline for
+         *     each detection in the event. Results include:
+         *     - License plate detection and OCR
+         *     - Face detection
+         *     - Vehicle classification and damage detection
+         *     - Clothing analysis (FashionCLIP and SegFormer)
+         *     - Violence detection
+         *     - Image quality assessment
+         *     - Pet classification
+         *
+         *     Args:
+         *         event_id: Event ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventEnrichmentsResponse with enrichment data for each detection
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        get: operations["get_event_enrichments_api_events__event_id__enrichments_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2163,6 +2313,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Zoo Registry
+         * @description Get the current status of all models in the Model Zoo.
+         *
+         *     Returns comprehensive information about all AI models available in the system,
+         *     including their VRAM requirements, loading status, and configuration.
+         *
+         *     **VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,
+         *     separate from the RT-DETRv2 detector and Nemotron LLM allocations.
+         *
+         *     **Loading Strategy**: Models are loaded sequentially (one at a time) to
+         *     prevent VRAM fragmentation and ensure stable operation.
+         *
+         *     **Model Categories**:
+         *     - detection: Object detection models (YOLO variants)
+         *     - recognition: Face and license plate recognition
+         *     - ocr: Optical character recognition
+         *     - embedding: Visual embedding models (CLIP)
+         *     - depth-estimation: Depth estimation models
+         *     - pose: Human pose estimation
+         *
+         *     Returns:
+         *         ModelRegistryResponse with VRAM stats and all model statuses
+         */
+        get: operations["get_models_api_system_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/models/{model_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Status
+         * @description Get detailed status information for a specific model.
+         *
+         *     Args:
+         *         model_name: Unique identifier of the model (e.g., 'yolo11-license-plate')
+         *
+         *     Returns:
+         *         ModelStatusResponse with detailed model information
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found in registry
+         */
+        get: operations["get_model_api_system_models__model_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/zones": {
         parameters: {
             query?: never;
@@ -2806,6 +3025,92 @@ export interface components {
          */
         AlertSeverity: "low" | "medium" | "high" | "critical";
         /**
+         * AnomalyEvent
+         * @description A single anomaly event detected for a camera.
+         * @example {
+         *       "anomaly_score": 0.95,
+         *       "detection_class": "vehicle",
+         *       "expected_frequency": 0.1,
+         *       "observed_frequency": 5,
+         *       "reason": "Vehicle detected at 2:30 AM when rarely seen at this hour",
+         *       "timestamp": "2026-01-03T02:30:00Z"
+         *     }
+         */
+        AnomalyEvent: {
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the anomaly was detected
+             */
+            timestamp: string;
+            /**
+             * Detection Class
+             * @description Object class that triggered the anomaly
+             */
+            detection_class: string;
+            /**
+             * Anomaly Score
+             * @description Anomaly score (0.0-1.0, higher is more anomalous)
+             */
+            anomaly_score: number;
+            /**
+             * Expected Frequency
+             * @description Expected frequency for this class at this time
+             */
+            expected_frequency: number;
+            /**
+             * Observed Frequency
+             * @description Observed frequency that triggered the anomaly
+             */
+            observed_frequency: number;
+            /**
+             * Reason
+             * @description Human-readable explanation of why this is anomalous
+             */
+            reason: string;
+        };
+        /**
+         * AnomalyListResponse
+         * @description Response schema for camera anomaly list endpoint.
+         * @example {
+         *       "anomalies": [
+         *         {
+         *           "anomaly_score": 0.95,
+         *           "detection_class": "vehicle",
+         *           "expected_frequency": 0.1,
+         *           "observed_frequency": 5,
+         *           "reason": "Vehicle detected at 2:30 AM when rarely seen",
+         *           "timestamp": "2026-01-03T02:30:00Z"
+         *         }
+         *       ],
+         *       "camera_id": "front_door",
+         *       "count": 1,
+         *       "period_days": 7
+         *     }
+         */
+        AnomalyListResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Anomalies
+             * @description List of recent anomaly events
+             */
+            anomalies?: components["schemas"]["AnomalyEvent"][];
+            /**
+             * Count
+             * @description Total number of anomalies returned
+             */
+            count: number;
+            /**
+             * Period Days
+             * @description Number of days covered by this query
+             */
+            period_days: number;
+        };
+        /**
          * AuditLogListResponse
          * @description Schema for paginated audit log response.
          */
@@ -2957,6 +3262,100 @@ export interface components {
             audits_by_day: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * BaselineSummaryResponse
+         * @description Response schema for camera baseline summary endpoint.
+         *
+         *     Provides comprehensive baseline data for a camera including:
+         *     - Hourly activity patterns (0-23 hours)
+         *     - Daily patterns (by day of week)
+         *     - Object-specific baselines
+         *     - Current deviation from baseline
+         * @example {
+         *       "baseline_established": "2026-01-01T00:00:00Z",
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "current_deviation": {
+         *         "contributing_factors": [
+         *           "person_count_elevated"
+         *         ],
+         *         "interpretation": "slightly_above_normal",
+         *         "score": 1.8
+         *       },
+         *       "daily_patterns": {
+         *         "monday": {
+         *           "avg_detections": 45,
+         *           "peak_hour": 17,
+         *           "total_samples": 24
+         *         }
+         *       },
+         *       "data_points": 720,
+         *       "hourly_patterns": {
+         *         "0": {
+         *           "avg_detections": 0.5,
+         *           "sample_count": 30,
+         *           "std_dev": 0.3
+         *         },
+         *         "17": {
+         *           "avg_detections": 5.2,
+         *           "sample_count": 30,
+         *           "std_dev": 1.1
+         *         }
+         *       },
+         *       "object_baselines": {
+         *         "person": {
+         *           "avg_hourly": 2.3,
+         *           "peak_hour": 17,
+         *           "total_detections": 550
+         *         }
+         *       }
+         *     }
+         */
+        BaselineSummaryResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable camera name
+             */
+            camera_name: string;
+            /**
+             * Baseline Established
+             * @description When baseline data collection started (null if no data)
+             */
+            baseline_established?: string | null;
+            /**
+             * Data Points
+             * @description Total number of data points in baseline
+             */
+            data_points: number;
+            /**
+             * Hourly Patterns
+             * @description Activity patterns by hour (0-23)
+             */
+            hourly_patterns?: {
+                [key: string]: components["schemas"]["HourlyPattern"];
+            };
+            /**
+             * Daily Patterns
+             * @description Activity patterns by day of week (monday-sunday)
+             */
+            daily_patterns?: {
+                [key: string]: components["schemas"]["DailyPattern"];
+            };
+            /**
+             * Object Baselines
+             * @description Baseline statistics by object type
+             */
+            object_baselines?: {
+                [key: string]: components["schemas"]["ObjectBaseline"];
+            };
+            /** @description Current deviation from baseline (null if insufficient data) */
+            current_deviation?: components["schemas"]["CurrentDeviation"] | null;
         };
         /**
          * BatchAggregatorStatusResponse
@@ -3498,6 +3897,55 @@ export interface components {
             detections_cleared: number;
         };
         /**
+         * ClothingEnrichment
+         * @description Clothing classification and segmentation results.
+         * @example {
+         *       "has_bag": true,
+         *       "has_face_covered": false,
+         *       "is_service_uniform": false,
+         *       "is_suspicious": false,
+         *       "lower": "blue jeans",
+         *       "upper": "red t-shirt"
+         *     }
+         */
+        ClothingEnrichment: {
+            /**
+             * Upper
+             * @description Upper body clothing description
+             */
+            upper?: string | null;
+            /**
+             * Lower
+             * @description Lower body clothing description
+             */
+            lower?: string | null;
+            /**
+             * Is Suspicious
+             * @description Whether clothing is flagged as suspicious
+             */
+            is_suspicious?: boolean | null;
+            /**
+             * Is Service Uniform
+             * @description Whether wearing service uniform
+             */
+            is_service_uniform?: boolean | null;
+            /**
+             * Has Face Covered
+             * @description Whether face is covered (hat/sunglasses/mask)
+             */
+            has_face_covered?: boolean | null;
+            /**
+             * Has Bag
+             * @description Whether person is carrying a bag
+             */
+            has_bag?: boolean | null;
+            /**
+             * Clothing Items
+             * @description List of detected clothing items
+             */
+            clothing_items?: string[] | null;
+        };
+        /**
          * ConfigResponse
          * @description Response schema for configuration endpoint.
          *
@@ -3576,6 +4024,32 @@ export interface components {
              * @description Minimum confidence threshold for detections (0.0-1.0)
              */
             detection_confidence_threshold?: number | null;
+        };
+        /**
+         * CurrentDeviation
+         * @description Current activity deviation from established baseline.
+         * @example {
+         *       "contributing_factors": [
+         *         "person_count_elevated",
+         *         "unusual_hour"
+         *       ],
+         *       "interpretation": "slightly_above_normal",
+         *       "score": 1.8
+         *     }
+         */
+        CurrentDeviation: {
+            /**
+             * Score
+             * @description Deviation score (standard deviations from mean, can be negative)
+             */
+            score: number;
+            /** @description Human-readable interpretation of the deviation */
+            interpretation: components["schemas"]["DeviationInterpretation"];
+            /**
+             * Contributing Factors
+             * @description Factors contributing to current deviation
+             */
+            contributing_factors?: string[];
         };
         /**
          * DLQClearResponse
@@ -3757,6 +4231,32 @@ export interface components {
             total_count: number;
         };
         /**
+         * DailyPattern
+         * @description Activity pattern for a specific day of the week.
+         * @example {
+         *       "avg_detections": 45,
+         *       "peak_hour": 17,
+         *       "total_samples": 168
+         *     }
+         */
+        DailyPattern: {
+            /**
+             * Avg Detections
+             * @description Average number of detections for this day
+             */
+            avg_detections: number;
+            /**
+             * Peak Hour
+             * @description Hour with most activity (0-23)
+             */
+            peak_hour: number;
+            /**
+             * Total Samples
+             * @description Total samples for this day
+             */
+            total_samples: number;
+        };
+        /**
          * DegradationModeEnum
          * @description System degradation modes.
          * @enum {string}
@@ -3822,6 +4322,26 @@ export interface components {
              * @description Features available in current degradation mode
              */
             available_features?: string[];
+        };
+        /**
+         * DepthEnrichment
+         * @description Depth estimation results (placeholder for future Depth Anything V2).
+         * @example {
+         *       "confidence": 0.78,
+         *       "estimated_distance_m": 4.2
+         *     }
+         */
+        DepthEnrichment: {
+            /**
+             * Estimated Distance M
+             * @description Estimated distance in meters
+             */
+            estimated_distance_m?: number | null;
+            /**
+             * Confidence
+             * @description Estimation confidence
+             */
+            confidence?: number | null;
         };
         /**
          * DetectionListResponse
@@ -3998,6 +4518,147 @@ export interface components {
             enrichment_data?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * DeviationInterpretation
+         * @description Interpretation of current deviation from baseline.
+         * @enum {string}
+         */
+        DeviationInterpretation: "far_below_normal" | "below_normal" | "normal" | "slightly_above_normal" | "above_normal" | "far_above_normal";
+        /**
+         * EnrichmentResponse
+         * @description Structured enrichment data for a single detection.
+         *
+         *     Contains results from all vision models run during the enrichment pipeline.
+         * @example {
+         *       "clothing": {
+         *         "lower": "blue jeans",
+         *         "upper": "red t-shirt"
+         *       },
+         *       "detection_id": 12345,
+         *       "enriched_at": "2026-01-03T10:30:00Z",
+         *       "errors": [],
+         *       "face": {
+         *         "confidence": 0.88,
+         *         "count": 1,
+         *         "detected": true
+         *       },
+         *       "image_quality": {
+         *         "is_blurry": false,
+         *         "score": 0.85
+         *       },
+         *       "license_plate": {
+         *         "confidence": 0.92,
+         *         "detected": true,
+         *         "text": "ABC-1234"
+         *       },
+         *       "processing_time_ms": 125.5,
+         *       "vehicle": {
+         *         "color": "silver",
+         *         "confidence": 0.91,
+         *         "type": "sedan"
+         *       },
+         *       "violence": {
+         *         "detected": false,
+         *         "score": 0.12
+         *       },
+         *       "weather": {
+         *         "condition": "clear",
+         *         "confidence": 0.95
+         *       }
+         *     }
+         */
+        EnrichmentResponse: {
+            /**
+             * Detection Id
+             * @description Detection ID
+             */
+            detection_id: number;
+            /**
+             * Enriched At
+             * @description Timestamp when enrichment was performed
+             */
+            enriched_at?: string | null;
+            /**
+             * License Plate
+             * @description License plate detection results
+             */
+            license_plate?: components["schemas"]["LicensePlateEnrichment"] | {
+                [key: string]: unknown;
+            };
+            /**
+             * Face
+             * @description Face detection results
+             */
+            face?: components["schemas"]["FaceEnrichment"] | {
+                [key: string]: unknown;
+            };
+            /**
+             * Vehicle
+             * @description Vehicle classification results
+             */
+            vehicle?: components["schemas"]["VehicleEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Clothing
+             * @description Clothing analysis results
+             */
+            clothing?: components["schemas"]["ClothingEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Violence
+             * @description Violence detection results
+             */
+            violence?: components["schemas"]["ViolenceEnrichment"] | {
+                [key: string]: unknown;
+            };
+            /**
+             * Weather
+             * @description Weather classification results
+             */
+            weather?: components["schemas"]["WeatherEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Pose
+             * @description Pose estimation results
+             */
+            pose?: components["schemas"]["PoseEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Depth
+             * @description Depth estimation results
+             */
+            depth?: components["schemas"]["DepthEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Image Quality
+             * @description Image quality assessment
+             */
+            image_quality?: components["schemas"]["ImageQualityEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Pet
+             * @description Pet classification results
+             */
+            pet?: components["schemas"]["PetEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Processing Time Ms
+             * @description Enrichment processing time in milliseconds
+             */
+            processing_time_ms?: number | null;
+            /**
+             * Errors
+             * @description Errors encountered during enrichment
+             */
+            errors?: string[];
         };
         /**
          * EntityAppearance
@@ -4323,6 +4984,64 @@ export interface components {
             improvements: components["schemas"]["PromptImprovements"];
         };
         /**
+         * EventEnrichmentsResponse
+         * @description Enrichment data for all detections in an event.
+         * @example {
+         *       "count": 2,
+         *       "enrichments": [
+         *         {
+         *           "detection_id": 1,
+         *           "enriched_at": "2026-01-03T10:30:00Z",
+         *           "face": {
+         *             "count": 0,
+         *             "detected": false
+         *           },
+         *           "license_plate": {
+         *             "detected": true,
+         *             "text": "ABC-1234"
+         *           },
+         *           "violence": {
+         *             "detected": false,
+         *             "score": 0
+         *           }
+         *         },
+         *         {
+         *           "detection_id": 2,
+         *           "enriched_at": "2026-01-03T10:30:05Z",
+         *           "face": {
+         *             "count": 1,
+         *             "detected": true
+         *           },
+         *           "license_plate": {
+         *             "detected": false
+         *           },
+         *           "violence": {
+         *             "detected": false,
+         *             "score": 0
+         *           }
+         *         }
+         *       ],
+         *       "event_id": 100
+         *     }
+         */
+        EventEnrichmentsResponse: {
+            /**
+             * Event Id
+             * @description Event ID
+             */
+            event_id: number;
+            /**
+             * Enrichments
+             * @description Enrichment data per detection
+             */
+            enrichments: components["schemas"]["EnrichmentResponse"][];
+            /**
+             * Count
+             * @description Number of detections with enrichment data
+             */
+            count: number;
+        };
+        /**
          * EventListResponse
          * @description Schema for event list response with pagination.
          * @example {
@@ -4598,6 +5317,34 @@ export interface components {
             low: number;
         };
         /**
+         * FaceEnrichment
+         * @description Face detection results.
+         * @example {
+         *       "confidence": 0.88,
+         *       "count": 1,
+         *       "detected": true
+         *     }
+         */
+        FaceEnrichment: {
+            /**
+             * Detected
+             * @description Whether faces were detected
+             * @default false
+             */
+            detected: boolean;
+            /**
+             * Count
+             * @description Number of faces detected
+             * @default 0
+             */
+            count: number;
+            /**
+             * Confidence
+             * @description Highest face confidence
+             */
+            confidence?: number | null;
+        };
+        /**
          * FileWatcherStatusResponse
          * @description Status information for the FileWatcher service.
          * @example {
@@ -4836,6 +5583,69 @@ export interface components {
             timestamp: string;
         };
         /**
+         * HourlyPattern
+         * @description Activity pattern for a specific hour.
+         * @example {
+         *       "avg_detections": 2.5,
+         *       "sample_count": 30,
+         *       "std_dev": 0.8
+         *     }
+         */
+        HourlyPattern: {
+            /**
+             * Avg Detections
+             * @description Average number of detections during this hour
+             */
+            avg_detections: number;
+            /**
+             * Std Dev
+             * @description Standard deviation of detection count
+             */
+            std_dev: number;
+            /**
+             * Sample Count
+             * @description Number of samples used for this calculation
+             */
+            sample_count: number;
+        };
+        /**
+         * ImageQualityEnrichment
+         * @description Image quality assessment results.
+         * @example {
+         *       "is_blurry": false,
+         *       "is_low_quality": false,
+         *       "quality_issues": [],
+         *       "score": 0.85
+         *     }
+         */
+        ImageQualityEnrichment: {
+            /**
+             * Score
+             * @description Quality score (0-100)
+             */
+            score?: number | null;
+            /**
+             * Is Blurry
+             * @description Whether image is blurry
+             */
+            is_blurry?: boolean | null;
+            /**
+             * Is Low Quality
+             * @description Whether image has low quality
+             */
+            is_low_quality?: boolean | null;
+            /**
+             * Quality Issues
+             * @description List of detected quality issues
+             */
+            quality_issues?: string[] | null;
+            /**
+             * Quality Change Detected
+             * @description Whether sudden quality change was detected
+             */
+            quality_change_detected?: boolean | null;
+        };
+        /**
          * LeaderboardResponse
          * @description Model leaderboard response.
          */
@@ -4844,6 +5654,50 @@ export interface components {
             entries: components["schemas"]["ModelLeaderboardEntry"][];
             /** Period Days */
             period_days: number;
+        };
+        /**
+         * LicensePlateEnrichment
+         * @description License plate detection and OCR results.
+         * @example {
+         *       "bbox": [
+         *         100,
+         *         200,
+         *         300,
+         *         250
+         *       ],
+         *       "confidence": 0.92,
+         *       "detected": true,
+         *       "ocr_confidence": 0.88,
+         *       "text": "ABC-1234"
+         *     }
+         */
+        LicensePlateEnrichment: {
+            /**
+             * Detected
+             * @description Whether a license plate was detected
+             * @default false
+             */
+            detected: boolean;
+            /**
+             * Confidence
+             * @description Detection confidence
+             */
+            confidence?: number | null;
+            /**
+             * Text
+             * @description OCR-extracted plate text
+             */
+            text?: string | null;
+            /**
+             * Ocr Confidence
+             * @description OCR confidence
+             */
+            ocr_confidence?: number | null;
+            /**
+             * Bbox
+             * @description Bounding box [x1, y1, x2, y2]
+             */
+            bbox?: number[] | null;
         };
         /**
          * LogEntry
@@ -5090,6 +5944,149 @@ export interface components {
             event_count: number;
         };
         /**
+         * ModelRegistryResponse
+         * @description Response schema for model registry endpoint.
+         *
+         *     Returns comprehensive information about all models in the Model Zoo
+         *     including VRAM budget, current usage, and individual model statuses.
+         * @example {
+         *       "loading_strategy": "sequential",
+         *       "max_concurrent_models": 1,
+         *       "models": [
+         *         {
+         *           "available": true,
+         *           "category": "detection",
+         *           "display_name": "YOLO11 License Plate",
+         *           "enabled": true,
+         *           "load_count": 1,
+         *           "name": "yolo11-license-plate",
+         *           "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
+         *           "status": "loaded",
+         *           "vram_mb": 300
+         *         },
+         *         {
+         *           "available": false,
+         *           "category": "detection",
+         *           "display_name": "YOLO11 Face Detection",
+         *           "enabled": true,
+         *           "load_count": 0,
+         *           "name": "yolo11-face",
+         *           "path": "/models/model-zoo/yolo11-face-detection/model.pt",
+         *           "status": "unloaded",
+         *           "vram_mb": 200
+         *         }
+         *       ],
+         *       "vram_available_mb": 1350,
+         *       "vram_budget_mb": 1650,
+         *       "vram_used_mb": 300
+         *     }
+         */
+        ModelRegistryResponse: {
+            /**
+             * Vram Budget Mb
+             * @description Total VRAM budget available for Model Zoo models (excludes Nemotron and RT-DETRv2)
+             */
+            vram_budget_mb: number;
+            /**
+             * Vram Used Mb
+             * @description Currently used VRAM by loaded models
+             */
+            vram_used_mb: number;
+            /**
+             * Vram Available Mb
+             * @description Available VRAM for loading additional models
+             */
+            vram_available_mb: number;
+            /**
+             * Models
+             * @description List of all models in the registry with their status
+             */
+            models: components["schemas"]["ModelStatusResponse"][];
+            /**
+             * Loading Strategy
+             * @description Model loading strategy (sequential = one at a time)
+             * @default sequential
+             */
+            loading_strategy: string;
+            /**
+             * Max Concurrent Models
+             * @description Maximum number of models that can be loaded concurrently
+             * @default 1
+             */
+            max_concurrent_models: number;
+        };
+        /**
+         * ModelStatusEnum
+         * @description Model loading status.
+         * @enum {string}
+         */
+        ModelStatusEnum: "loaded" | "unloaded" | "disabled" | "loading" | "error";
+        /**
+         * ModelStatusResponse
+         * @description Status information for a single model in the Model Zoo.
+         *
+         *     Provides detailed information about a model including:
+         *     - Identity: name, display_name, category
+         *     - Configuration: vram_mb, enabled, available, path
+         *     - Runtime status: status, load_count
+         * @example {
+         *       "available": false,
+         *       "category": "detection",
+         *       "display_name": "YOLO11 License Plate",
+         *       "enabled": true,
+         *       "load_count": 0,
+         *       "name": "yolo11-license-plate",
+         *       "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
+         *       "status": "unloaded",
+         *       "vram_mb": 300
+         *     }
+         */
+        ModelStatusResponse: {
+            /**
+             * Name
+             * @description Unique identifier for the model (e.g., 'yolo11-license-plate')
+             */
+            name: string;
+            /**
+             * Display Name
+             * @description Human-readable display name for the model
+             */
+            display_name: string;
+            /**
+             * Vram Mb
+             * @description Estimated VRAM usage in megabytes when loaded
+             */
+            vram_mb: number;
+            /** @description Current loading status: loaded, unloaded, disabled, loading, error */
+            status: components["schemas"]["ModelStatusEnum"];
+            /**
+             * Category
+             * @description Model category (detection, recognition, ocr, embedding, etc.)
+             */
+            category: string;
+            /**
+             * Enabled
+             * @description Whether the model is enabled for use
+             */
+            enabled: boolean;
+            /**
+             * Available
+             * @description Whether the model has been successfully loaded at least once
+             */
+            available: boolean;
+            /**
+             * Path
+             * @description HuggingFace repo path or local file path for the model
+             */
+            path: string;
+            /**
+             * Load Count
+             * @description Current reference count for loaded model (0 if not loaded)
+             * @default 0
+             */
+            load_count: number;
+        };
+        /**
          * NotificationChannel
          * @description Notification channel types.
          * @enum {string}
@@ -5179,6 +6176,65 @@ export interface components {
              * @description Default email recipients
              */
             default_email_recipients?: string[];
+        };
+        /**
+         * ObjectBaseline
+         * @description Baseline statistics for a specific object class.
+         * @example {
+         *       "avg_hourly": 2.3,
+         *       "peak_hour": 17,
+         *       "total_detections": 550
+         *     }
+         */
+        ObjectBaseline: {
+            /**
+             * Avg Hourly
+             * @description Average hourly detection count for this object type
+             */
+            avg_hourly: number;
+            /**
+             * Peak Hour
+             * @description Hour with most detections of this type (0-23)
+             */
+            peak_hour: number;
+            /**
+             * Total Detections
+             * @description Total detections of this type in the baseline period
+             */
+            total_detections: number;
+        };
+        /**
+         * PetEnrichment
+         * @description Pet classification results for false positive reduction.
+         * @example {
+         *       "confidence": 0.94,
+         *       "detected": true,
+         *       "is_household_pet": true,
+         *       "type": "dog"
+         *     }
+         */
+        PetEnrichment: {
+            /**
+             * Detected
+             * @description Whether a pet was detected
+             * @default false
+             */
+            detected: boolean;
+            /**
+             * Type
+             * @description Pet type (cat, dog)
+             */
+            type?: string | null;
+            /**
+             * Confidence
+             * @description Classification confidence
+             */
+            confidence?: number | null;
+            /**
+             * Is Household Pet
+             * @description Whether classified as household pet
+             */
+            is_household_pet?: boolean | null;
         };
         /**
          * PipelineLatencies
@@ -5416,6 +6472,43 @@ export interface components {
              * @description Timestamp of status snapshot
              */
             timestamp: string;
+        };
+        /**
+         * PoseEnrichment
+         * @description Pose estimation results (placeholder for future ViTPose integration).
+         * @example {
+         *       "action": "walking",
+         *       "confidence": 0.82,
+         *       "keypoints": [
+         *         [
+         *           100,
+         *           150,
+         *           0.9
+         *         ],
+         *         [
+         *           120,
+         *           160,
+         *           0.85
+         *         ]
+         *       ]
+         *     }
+         */
+        PoseEnrichment: {
+            /**
+             * Keypoints
+             * @description Body keypoints [[x, y, conf], ...]
+             */
+            keypoints?: number[][] | null;
+            /**
+             * Action
+             * @description Recognized action (walking, running, etc.)
+             */
+            action?: string | null;
+            /**
+             * Confidence
+             * @description Action confidence
+             */
+            confidence?: number | null;
         };
         /**
          * PromptImprovements
@@ -6408,6 +7501,96 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VehicleEnrichment
+         * @description Vehicle classification results.
+         * @example {
+         *       "color": "silver",
+         *       "confidence": 0.91,
+         *       "is_commercial": false,
+         *       "type": "sedan"
+         *     }
+         */
+        VehicleEnrichment: {
+            /**
+             * Type
+             * @description Vehicle type (sedan, suv, truck, etc.)
+             */
+            type?: string | null;
+            /**
+             * Color
+             * @description Vehicle color (if detected)
+             */
+            color?: string | null;
+            /**
+             * Confidence
+             * @description Classification confidence
+             */
+            confidence?: number | null;
+            /**
+             * Is Commercial
+             * @description Whether vehicle is commercial/delivery
+             */
+            is_commercial?: boolean | null;
+            /**
+             * Damage Detected
+             * @description Whether vehicle damage was detected
+             */
+            damage_detected?: boolean | null;
+            /**
+             * Damage Types
+             * @description Types of damage detected
+             */
+            damage_types?: string[] | null;
+        };
+        /**
+         * ViolenceEnrichment
+         * @description Violence detection results.
+         * @example {
+         *       "confidence": 0.88,
+         *       "detected": false,
+         *       "score": 0.12
+         *     }
+         */
+        ViolenceEnrichment: {
+            /**
+             * Detected
+             * @description Whether violence was detected
+             * @default false
+             */
+            detected: boolean;
+            /**
+             * Score
+             * @description Violence probability score
+             * @default 0
+             */
+            score: number;
+            /**
+             * Confidence
+             * @description Model confidence
+             */
+            confidence?: number | null;
+        };
+        /**
+         * WeatherEnrichment
+         * @description Weather classification results.
+         * @example {
+         *       "condition": "clear",
+         *       "confidence": 0.95
+         *     }
+         */
+        WeatherEnrichment: {
+            /**
+             * Condition
+             * @description Weather condition (clear, rain, fog, etc.)
+             */
+            condition?: string | null;
+            /**
+             * Confidence
+             * @description Classification confidence
+             */
+            confidence?: number | null;
         };
         /**
          * WebSocketBroadcasterStatus
@@ -7595,6 +8778,71 @@ export interface operations {
             };
         };
     };
+    get_camera_baseline_api_cameras__camera_id__baseline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaselineSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_camera_baseline_anomalies_api_cameras__camera_id__baseline_anomalies_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to look back */
+                days?: number;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_detections_api_detections_get: {
         parameters: {
             query?: {
@@ -7657,6 +8905,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_detection_enrichment_api_detections__detection_id__enrichment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrichmentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -8365,6 +9644,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetectionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_enrichments_api_events__event_id__enrichments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventEnrichmentsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -9148,6 +10458,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PipelineStatusResponse"];
+                };
+            };
+        };
+    };
+    get_models_api_system_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelRegistryResponse"];
+                };
+            };
+        };
+    };
+    get_model_api_system_models__model_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

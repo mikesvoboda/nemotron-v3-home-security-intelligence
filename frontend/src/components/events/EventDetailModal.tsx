@@ -7,6 +7,7 @@ import {
   Download,
   Film,
   Flag,
+  RefreshCw,
   Save,
   Timer,
   TrendingUp,
@@ -22,6 +23,7 @@ import {
   getDetectionVideoThumbnailUrl,
   getDetectionVideoUrl,
 } from '../../services/api';
+import { triggerEvaluation, AuditApiError } from '../../services/auditApi';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -122,11 +124,18 @@ export default function EventDetailModal({
   const [thumbnailLightboxOpen, setThumbnailLightboxOpen] = useState<boolean>(false);
   const [thumbnailLightboxIndex, setThumbnailLightboxIndex] = useState<number>(0);
 
-  // Initialize notes text when event changes
+  // State for re-evaluate AI analysis
+  const [isReEvaluating, setIsReEvaluating] = useState<boolean>(false);
+  const [reEvaluateError, setReEvaluateError] = useState<string | null>(null);
+  const [reEvaluateSuccess, setReEvaluateSuccess] = useState<boolean>(false);
+
+  // Initialize notes text and reset re-evaluate state when event changes
   useEffect(() => {
     if (event) {
       setNotesText(event.notes || '');
       setNotesSaved(false);
+      setReEvaluateError(null);
+      setReEvaluateSuccess(false);
     }
   }, [event]);
 
@@ -233,6 +242,37 @@ export default function EventDetailModal({
       console.error('Failed to download media:', error);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  // Handle re-evaluate AI analysis
+  const handleReEvaluate = async () => {
+    if (!event) return;
+
+    const eventId = parseInt(event.id, 10);
+    if (isNaN(eventId)) {
+      console.error('Invalid event ID for re-evaluation:', event.id);
+      return;
+    }
+
+    setIsReEvaluating(true);
+    setReEvaluateError(null);
+    setReEvaluateSuccess(false);
+
+    try {
+      await triggerEvaluation(eventId, false);
+      setReEvaluateSuccess(true);
+      // Auto-dismiss success indicator after 3 seconds
+      setTimeout(() => setReEvaluateSuccess(false), 3000);
+    } catch (error) {
+      if (error instanceof AuditApiError) {
+        setReEvaluateError(error.message);
+      } else {
+        setReEvaluateError('Failed to re-evaluate event');
+      }
+      console.error('Failed to re-evaluate event:', error);
+    } finally {
+      setIsReEvaluating(false);
     }
   };
 
@@ -576,9 +616,33 @@ export default function EventDetailModal({
 
                   {/* AI Summary */}
                   <div className="mb-6">
-                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                      AI Summary
-                    </h3>
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                        AI Summary
+                      </h3>
+                      <button
+                        onClick={() => void handleReEvaluate()}
+                        disabled={isReEvaluating}
+                        className="flex items-center gap-1.5 rounded-md bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="Re-evaluate AI analysis"
+                        data-testid="re-evaluate-button"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isReEvaluating ? 'animate-spin' : ''}`} />
+                        {isReEvaluating ? 'Re-evaluating...' : 'Re-evaluate'}
+                      </button>
+                    </div>
+                    {/* Re-evaluate feedback */}
+                    {reEvaluateError && (
+                      <div className="mb-2 rounded-md bg-red-900/20 px-3 py-2 text-xs text-red-400" data-testid="re-evaluate-error">
+                        {reEvaluateError}
+                      </div>
+                    )}
+                    {reEvaluateSuccess && (
+                      <div className="mb-2 flex items-center gap-1.5 rounded-md bg-green-900/20 px-3 py-2 text-xs text-green-400" data-testid="re-evaluate-success">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Re-evaluation triggered successfully
+                      </div>
+                    )}
                     <p className="text-base leading-relaxed text-gray-200">{event.summary}</p>
                   </div>
 

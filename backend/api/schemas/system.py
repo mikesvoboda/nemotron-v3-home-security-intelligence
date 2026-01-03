@@ -1648,3 +1648,156 @@ class PipelineStatusResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Model Zoo Schemas
+# =============================================================================
+
+
+class ModelStatusEnum(str, Enum):
+    """Model loading status."""
+
+    LOADED = "loaded"
+    UNLOADED = "unloaded"
+    DISABLED = "disabled"
+    LOADING = "loading"
+    ERROR = "error"
+
+
+class ModelStatusResponse(BaseModel):
+    """Status information for a single model in the Model Zoo.
+
+    Provides detailed information about a model including:
+    - Identity: name, display_name, category
+    - Configuration: vram_mb, enabled, available, path
+    - Runtime status: status, load_count
+    """
+
+    name: str = Field(
+        ...,
+        description="Unique identifier for the model (e.g., 'yolo11-license-plate')",
+    )
+    display_name: str = Field(
+        ...,
+        description="Human-readable display name for the model",
+    )
+    vram_mb: int = Field(
+        ...,
+        description="Estimated VRAM usage in megabytes when loaded",
+        ge=0,
+    )
+    status: ModelStatusEnum = Field(
+        ...,
+        description="Current loading status: loaded, unloaded, disabled, loading, error",
+    )
+    category: str = Field(
+        ...,
+        description="Model category (detection, recognition, ocr, embedding, etc.)",
+    )
+    enabled: bool = Field(
+        ...,
+        description="Whether the model is enabled for use",
+    )
+    available: bool = Field(
+        ...,
+        description="Whether the model has been successfully loaded at least once",
+    )
+    path: str = Field(
+        ...,
+        description="HuggingFace repo path or local file path for the model",
+    )
+    load_count: int = Field(
+        default=0,
+        description="Current reference count for loaded model (0 if not loaded)",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "yolo11-license-plate",
+                "display_name": "YOLO11 License Plate",
+                "vram_mb": 300,
+                "status": "unloaded",
+                "category": "detection",
+                "enabled": True,
+                "available": False,
+                "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
+                "load_count": 0,
+            }
+        }
+    )
+
+
+class ModelRegistryResponse(BaseModel):
+    """Response schema for model registry endpoint.
+
+    Returns comprehensive information about all models in the Model Zoo
+    including VRAM budget, current usage, and individual model statuses.
+    """
+
+    vram_budget_mb: int = Field(
+        ...,
+        description="Total VRAM budget available for Model Zoo models (excludes Nemotron and RT-DETRv2)",
+        ge=0,
+    )
+    vram_used_mb: int = Field(
+        ...,
+        description="Currently used VRAM by loaded models",
+        ge=0,
+    )
+    vram_available_mb: int = Field(
+        ...,
+        description="Available VRAM for loading additional models",
+        ge=0,
+    )
+    models: list[ModelStatusResponse] = Field(
+        ...,
+        description="List of all models in the registry with their status",
+    )
+    loading_strategy: str = Field(
+        default="sequential",
+        description="Model loading strategy (sequential = one at a time)",
+    )
+    max_concurrent_models: int = Field(
+        default=1,
+        description="Maximum number of models that can be loaded concurrently",
+        ge=1,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "vram_budget_mb": 1650,
+                "vram_used_mb": 300,
+                "vram_available_mb": 1350,
+                "models": [
+                    {
+                        "name": "yolo11-license-plate",
+                        "display_name": "YOLO11 License Plate",
+                        "vram_mb": 300,
+                        "status": "loaded",
+                        "category": "detection",
+                        "enabled": True,
+                        "available": True,
+                        "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
+                        "load_count": 1,
+                    },
+                    {
+                        "name": "yolo11-face",
+                        "display_name": "YOLO11 Face Detection",
+                        "vram_mb": 200,
+                        "status": "unloaded",
+                        "category": "detection",
+                        "enabled": True,
+                        "available": False,
+                        "path": "/models/model-zoo/yolo11-face-detection/model.pt",
+                        "load_count": 0,
+                    },
+                ],
+                "loading_strategy": "sequential",
+                "max_concurrent_models": 1,
+            }
+        }
+    )

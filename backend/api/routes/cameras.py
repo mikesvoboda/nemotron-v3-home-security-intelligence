@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware import RateLimiter, RateLimitTier
+from backend.api.schemas.baseline import AnomalyListResponse, BaselineSummaryResponse
 from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
@@ -21,6 +22,7 @@ from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.audit import AuditService
+from backend.services.baseline import get_baseline_service
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
@@ -528,3 +530,109 @@ async def validate_camera_paths(
         "valid_cameras": valid_cameras,
         "invalid_cameras": invalid_cameras,
     }
+
+
+@router.get("/{camera_id}/baseline", response_model=BaselineSummaryResponse)
+async def get_camera_baseline(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> BaselineSummaryResponse:
+    """Get baseline activity data for a camera.
+
+    Returns comprehensive baseline statistics including:
+    - Hourly activity patterns (0-23 hours)
+    - Daily patterns (by day of week)
+    - Object-specific baselines
+    - Current deviation from baseline
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        BaselineSummaryResponse with all baseline data
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get baseline service and fetch data
+    baseline_service = get_baseline_service()
+
+    # Fetch all baseline data
+    summary = await baseline_service.get_camera_baseline_summary(camera_id, session=db)
+    hourly_patterns = await baseline_service.get_hourly_patterns(camera_id, session=db)
+    daily_patterns = await baseline_service.get_daily_patterns(camera_id, session=db)
+    object_baselines = await baseline_service.get_object_baselines(camera_id, session=db)
+    current_deviation = await baseline_service.get_current_deviation(camera_id, session=db)
+    baseline_established = await baseline_service.get_baseline_established_date(
+        camera_id, session=db
+    )
+
+    # Calculate total data points
+    data_points = summary["activity_baseline_count"] + summary["class_baseline_count"]
+
+    return BaselineSummaryResponse(
+        camera_id=camera_id,
+        camera_name=camera.name,
+        baseline_established=baseline_established,
+        data_points=data_points,
+        hourly_patterns=hourly_patterns,
+        daily_patterns=daily_patterns,
+        object_baselines=object_baselines,
+        current_deviation=current_deviation,
+    )
+
+
+@router.get("/{camera_id}/baseline/anomalies", response_model=AnomalyListResponse)
+async def get_camera_baseline_anomalies(
+    camera_id: str,
+    days: int = Query(default=7, ge=1, le=90, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db),
+) -> AnomalyListResponse:
+    """Get recent anomaly events for a camera.
+
+    Returns a list of anomaly events detected within the specified time period.
+    Anomalies are detections that significantly deviate from the established
+    baseline activity patterns.
+
+    Args:
+        camera_id: ID of the camera
+        days: Number of days to look back (default: 7, max: 90)
+        db: Database session
+
+    Returns:
+        AnomalyListResponse with list of anomaly events
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get baseline service and fetch anomalies
+    baseline_service = get_baseline_service()
+    anomalies = await baseline_service.get_recent_anomalies(camera_id, days=days, session=db)
+
+    return AnomalyListResponse(
+        camera_id=camera_id,
+        anomalies=anomalies,
+        count=len(anomalies),
+        period_days=days,
+    )

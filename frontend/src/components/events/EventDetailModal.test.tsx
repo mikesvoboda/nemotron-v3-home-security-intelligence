@@ -4,6 +4,20 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import EventDetailModal, { type Event, type EventDetailModalProps } from './EventDetailModal';
 import * as api from '../../services/api';
+import * as auditApi from '../../services/auditApi';
+
+// Mock the audit API
+vi.mock('../../services/auditApi', () => ({
+  triggerEvaluation: vi.fn(),
+  AuditApiError: class AuditApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+      this.name = 'AuditApiError';
+    }
+  },
+}));
 
 // Mock the API
 vi.mock('../../services/api', async () => {
@@ -1623,6 +1637,207 @@ describe('EventDetailModal', () => {
       await waitFor(() => {
         expect(api.getDetectionImageUrl).toHaveBeenCalledWith(2);
       });
+    });
+  });
+
+  describe('re-evaluate AI analysis', () => {
+    // Use numeric event ID for re-evaluate tests
+    const mockEventWithNumericId: Event = {
+      ...mockEvent,
+      id: '123',
+    };
+
+    const mockReEvalProps: EventDetailModalProps = {
+      ...mockProps,
+      event: mockEventWithNumericId,
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('renders re-evaluate button', () => {
+      render(<EventDetailModal {...mockReEvalProps} />);
+      expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+    });
+
+    it('renders re-evaluate button with correct label', () => {
+      render(<EventDetailModal {...mockReEvalProps} />);
+      expect(screen.getByRole('button', { name: 'Re-evaluate AI analysis' })).toBeInTheDocument();
+    });
+
+    it('calls triggerEvaluation when re-evaluate button is clicked', async () => {
+      const user = userEvent.setup();
+      vi.mocked(auditApi.triggerEvaluation).mockResolvedValue({
+        id: 1,
+        event_id: 123,
+        audited_at: '2024-01-15T10:30:00Z',
+        is_fully_evaluated: true,
+        contributions: {
+          rtdetr: true,
+          florence: false,
+          clip: false,
+          violence: false,
+          clothing: false,
+          vehicle: false,
+          pet: false,
+          weather: false,
+          image_quality: false,
+          zones: false,
+          baseline: false,
+          cross_camera: false,
+        },
+        prompt_length: 1000,
+        prompt_token_estimate: 250,
+        enrichment_utilization: 0.75,
+        scores: {
+          context_usage: 4,
+          reasoning_coherence: 4,
+          risk_justification: 4,
+          consistency: 4,
+          overall: 4,
+        },
+        consistency_risk_score: 65,
+        consistency_diff: 0,
+        self_eval_critique: 'Good analysis',
+        improvements: {
+          missing_context: [],
+          confusing_sections: [],
+          unused_data: [],
+          format_suggestions: [],
+          model_gaps: [],
+        },
+      });
+
+      render(<EventDetailModal {...mockReEvalProps} />);
+
+      const reEvalButton = screen.getByTestId('re-evaluate-button');
+      await user.click(reEvalButton);
+
+      await waitFor(() => {
+        expect(auditApi.triggerEvaluation).toHaveBeenCalledWith(123, false);
+      });
+    });
+
+    it('shows loading state while re-evaluating', async () => {
+      const user = userEvent.setup();
+      let resolveEval: () => void;
+      const evalPromise = new Promise<void>((resolve) => {
+        resolveEval = () => resolve();
+      });
+      vi.mocked(auditApi.triggerEvaluation).mockReturnValue(evalPromise as never);
+
+      render(<EventDetailModal {...mockReEvalProps} />);
+
+      const reEvalButton = screen.getByTestId('re-evaluate-button');
+      await user.click(reEvalButton);
+
+      expect(screen.getByText('Re-evaluating...')).toBeInTheDocument();
+      expect(reEvalButton).toBeDisabled();
+
+      resolveEval!();
+    });
+
+    it('shows success message after successful re-evaluation', async () => {
+      const user = userEvent.setup();
+      vi.mocked(auditApi.triggerEvaluation).mockResolvedValue({
+        id: 1,
+        event_id: 123,
+        audited_at: '2024-01-15T10:30:00Z',
+        is_fully_evaluated: true,
+        contributions: {
+          rtdetr: true,
+          florence: false,
+          clip: false,
+          violence: false,
+          clothing: false,
+          vehicle: false,
+          pet: false,
+          weather: false,
+          image_quality: false,
+          zones: false,
+          baseline: false,
+          cross_camera: false,
+        },
+        prompt_length: 1000,
+        prompt_token_estimate: 250,
+        enrichment_utilization: 0.75,
+        scores: {
+          context_usage: 4,
+          reasoning_coherence: 4,
+          risk_justification: 4,
+          consistency: 4,
+          overall: 4,
+        },
+        consistency_risk_score: 65,
+        consistency_diff: 0,
+        self_eval_critique: 'Good analysis',
+        improvements: {
+          missing_context: [],
+          confusing_sections: [],
+          unused_data: [],
+          format_suggestions: [],
+          model_gaps: [],
+        },
+      });
+
+      render(<EventDetailModal {...mockReEvalProps} />);
+
+      const reEvalButton = screen.getByTestId('re-evaluate-button');
+      await user.click(reEvalButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-success')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Re-evaluation triggered successfully/)).toBeInTheDocument();
+    });
+
+    it('shows error message on re-evaluation failure', async () => {
+      const user = userEvent.setup();
+      vi.mocked(auditApi.triggerEvaluation).mockRejectedValue(
+        new auditApi.AuditApiError(500, 'Server error')
+      );
+
+      render(<EventDetailModal {...mockReEvalProps} />);
+
+      const reEvalButton = screen.getByTestId('re-evaluate-button');
+      await user.click(reEvalButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-error')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Server error/)).toBeInTheDocument();
+    });
+
+    it('clears error and success state when event changes', async () => {
+      const user = userEvent.setup();
+      vi.mocked(auditApi.triggerEvaluation).mockRejectedValue(
+        new auditApi.AuditApiError(500, 'Server error')
+      );
+
+      const { rerender } = render(<EventDetailModal {...mockReEvalProps} />);
+
+      // Trigger an error
+      const reEvalButton = screen.getByTestId('re-evaluate-button');
+      await user.click(reEvalButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-error')).toBeInTheDocument();
+      });
+
+      // Change the event
+      const newEvent = { ...mockEventWithNumericId, id: '456' };
+      rerender(<EventDetailModal {...mockReEvalProps} event={newEvent} />);
+
+      // Error should be cleared
+      expect(screen.queryByTestId('re-evaluate-error')).not.toBeInTheDocument();
+    });
+
+    it('has correct aria-label for accessibility', () => {
+      render(<EventDetailModal {...mockReEvalProps} />);
+
+      const reEvalButton = screen.getByTestId('re-evaluate-button');
+      expect(reEvalButton).toHaveAttribute('aria-label', 'Re-evaluate AI analysis');
     });
   });
 });
