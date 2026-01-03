@@ -1,23 +1,25 @@
-"""Unit tests for AlertRuleEngine class.
+"""Tests for AlertRuleEngine class.
 
-Tests use PostgreSQL via the isolated_db/session fixtures since models use
-PostgreSQL-specific features (JSON columns, UUID primary keys).
+Tests are split into two categories:
+1. Unit tests (TestAlertRuleEngineInit, TestTriggeredRule, TestEvaluationResult,
+   TestSeverityPriority) - use mocks, run without database
+2. Integration tests (all others) - require PostgreSQL via session fixture
 
-Since the AlertRuleEngine fetches ALL enabled rules from the database,
-tests use a TestableAlertRuleEngine subclass that only evaluates rules
-passed explicitly to each test, ensuring test isolation.
+Integration tests use PostgreSQL because models use PostgreSQL-specific features
+(JSON columns, UUID primary keys). They use a TestableAlertRuleEngine subclass
+that only evaluates rules passed explicitly to each test, ensuring test isolation.
 
 Coverage includes:
-- AlertRuleEngine initialization
-- Rule evaluation logic with various conditions
-- Severity threshold matching
-- Camera/zone filtering
-- Time-based rule constraints (schedule)
-- Edge cases: empty rules, invalid conditions, None values
-- Cooldown checking
-- Alert creation
-- Batch detection loading
-- Rule testing against historical events
+- AlertRuleEngine initialization (unit)
+- Rule evaluation logic with various conditions (integration)
+- Severity threshold matching (integration)
+- Camera/zone filtering (integration)
+- Time-based rule constraints (schedule) (integration)
+- Edge cases: empty rules, invalid conditions, None values (integration)
+- Cooldown checking (integration)
+- Alert creation (integration)
+- Batch detection loading (integration)
+- Rule testing against historical events (integration)
 """
 
 from __future__ import annotations
@@ -180,31 +182,47 @@ async def alert_engine(session):
 
 
 class TestAlertRuleEngineInit:
-    """Tests for AlertRuleEngine initialization."""
+    """Tests for AlertRuleEngine initialization.
 
-    def test_init_with_session_only(self, session):
+    Note: These tests use mock objects because __init__ just stores
+    references without performing database operations.
+    """
+
+    def test_init_with_session_only(self):
         """Test initialization with session only."""
-        engine = AlertRuleEngine(session)
-        assert engine.session is session
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        engine = AlertRuleEngine(mock_session)
+        assert engine.session is mock_session
         assert engine.redis_client is None
 
-    def test_init_with_redis_client(self, session, mock_redis):
+    def test_init_with_redis_client(self, mock_redis):
         """Test initialization with Redis client."""
-        engine = AlertRuleEngine(session, redis_client=mock_redis)
-        assert engine.session is session
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        engine = AlertRuleEngine(mock_session, redis_client=mock_redis)
+        assert engine.session is mock_session
         assert engine.redis_client is mock_redis
 
     @pytest.mark.asyncio
-    async def test_get_alert_engine_factory(self, session):
+    async def test_get_alert_engine_factory(self):
         """Test the get_alert_engine convenience function."""
-        engine = await get_alert_engine(session)
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        engine = await get_alert_engine(mock_session)
         assert isinstance(engine, AlertRuleEngine)
-        assert engine.session is session
+        assert engine.session is mock_session
 
     @pytest.mark.asyncio
-    async def test_get_alert_engine_with_redis(self, session, mock_redis):
+    async def test_get_alert_engine_with_redis(self, mock_redis):
         """Test get_alert_engine with Redis client."""
-        engine = await get_alert_engine(session, redis_client=mock_redis)
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        engine = await get_alert_engine(mock_session, redis_client=mock_redis)
         assert engine.redis_client is mock_redis
 
 
@@ -287,6 +305,7 @@ class TestSeverityPriority:
             assert severity in SEVERITY_PRIORITY
 
 
+@pytest.mark.integration
 class TestRuleEvaluationBasic:
     """Tests for basic rule evaluation logic."""
 
@@ -339,6 +358,7 @@ class TestRuleEvaluationBasic:
         assert result.has_triggers is False
 
 
+@pytest.mark.integration
 class TestRiskThresholdCondition:
     """Tests for risk_threshold condition evaluation."""
 
@@ -431,6 +451,7 @@ class TestRiskThresholdCondition:
         assert result.has_triggers is False
 
 
+@pytest.mark.integration
 class TestCameraIdCondition:
     """Tests for camera_ids condition evaluation."""
 
@@ -494,6 +515,7 @@ class TestCameraIdCondition:
         assert result.has_triggers is True
 
 
+@pytest.mark.integration
 class TestObjectTypesCondition:
     """Tests for object_types condition evaluation."""
 
@@ -575,6 +597,7 @@ class TestObjectTypesCondition:
         assert result.has_triggers is False
 
 
+@pytest.mark.integration
 class TestMinConfidenceCondition:
     """Tests for min_confidence condition evaluation."""
 
@@ -647,6 +670,7 @@ class TestMinConfidenceCondition:
         assert result.has_triggers is False
 
 
+@pytest.mark.integration
 class TestScheduleCondition:
     """Tests for schedule (time-based) condition evaluation."""
 
@@ -865,6 +889,7 @@ class TestScheduleCondition:
         assert result.has_triggers is True
 
 
+@pytest.mark.integration
 class TestMultipleConditions:
     """Tests for rules with multiple conditions (AND logic)."""
 
@@ -913,6 +938,7 @@ class TestMultipleConditions:
         assert result.has_triggers is False
 
 
+@pytest.mark.integration
 class TestMultipleRules:
     """Tests for evaluating multiple rules."""
 
@@ -1000,6 +1026,7 @@ class TestMultipleRules:
         assert result.highest_severity == AlertSeverity.HIGH
 
 
+@pytest.mark.integration
 class TestCooldownBehavior:
     """Tests for cooldown checking."""
 
@@ -1070,6 +1097,7 @@ class TestCooldownBehavior:
         assert result.has_triggers is True
 
 
+@pytest.mark.integration
 class TestDedupKeyBuilding:
     """Tests for dedup key template building."""
 
@@ -1135,6 +1163,7 @@ class TestDedupKeyBuilding:
         assert result.triggered_rules[0].dedup_key == expected_key
 
 
+@pytest.mark.integration
 class TestLoadDetections:
     """Tests for loading detections from database."""
 
@@ -1210,6 +1239,7 @@ class TestLoadDetections:
         assert result.has_triggers is False
 
 
+@pytest.mark.integration
 class TestCreateAlertsForEvent:
     """Tests for creating alert records."""
 
@@ -1273,6 +1303,7 @@ class TestCreateAlertsForEvent:
         assert len(alerts) == 2
 
 
+@pytest.mark.integration
 class TestBatchLoadDetections:
     """Tests for batch detection loading."""
 
@@ -1329,6 +1360,7 @@ class TestBatchLoadDetections:
         assert result == {}
 
 
+@pytest.mark.integration
 class TestTestRuleAgainstEvents:
     """Tests for testing rules against historical events."""
 
@@ -1367,6 +1399,7 @@ class TestTestRuleAgainstEvents:
         assert results[2]["matches"] is True  # risk_score=80
 
 
+@pytest.mark.integration
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
