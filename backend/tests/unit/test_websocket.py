@@ -37,6 +37,7 @@ class MockEventBroadcaster:
     - disconnect(websocket) -> None
     - broadcast_event(event_data) -> int
     - broadcast_service_status(status_data) -> int
+    - get_circuit_state() -> str
     """
 
     CHANNEL_NAME = "security_events"  # Matches real implementation default
@@ -127,7 +128,16 @@ class MockEventBroadcaster:
                 count += 1
             except Exception:  # noqa: S110 - Intentionally ignore send failures
                 pass
+
         return count
+
+    def get_circuit_state(self) -> str:
+        """Get the current circuit breaker state.
+
+        Returns:
+            Circuit breaker state string (e.g., "closed", "open", "half_open")
+        """
+        return "closed"  # Mock always returns healthy state
 
     def is_listener_healthy(self) -> bool:
         """Check if the listener is currently healthy.
@@ -197,6 +207,7 @@ class MockSystemBroadcaster:
     - broadcast_performance() -> None
     - start_broadcasting(interval=5.0) -> None
     - stop_broadcasting() -> None
+    - get_circuit_state() -> str
     """
 
     def __init__(
@@ -301,6 +312,14 @@ class MockSystemBroadcaster:
     async def stop_broadcasting(self) -> None:
         """Stop periodic broadcasting of system status."""
         self._running = False
+
+    def get_circuit_state(self) -> str:
+        """Get the current circuit breaker state.
+
+        Returns:
+            Circuit breaker state string (e.g., "closed", "open", "half_open")
+        """
+        return "closed"  # Mock always returns healthy state
 
     # ==========================================================================
     # Test-only methods below - NOT part of the real SystemBroadcaster interface

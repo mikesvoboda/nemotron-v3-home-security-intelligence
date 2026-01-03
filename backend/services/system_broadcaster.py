@@ -33,6 +33,10 @@ from backend.core import get_session
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
+from backend.core.websocket_circuit_breaker import (
+    WebSocketCircuitBreaker,
+    WebSocketCircuitState,
+)
 from backend.models import Camera, GPUStats
 
 # Timeout for AI service health checks in seconds
@@ -106,6 +110,15 @@ class SystemBroadcaster:
         # Unique instance ID to filter out messages from self in pub/sub
         self._instance_id = str(uuid.uuid4())
 
+        # Circuit breaker for WebSocket connection resilience
+        self._circuit_breaker = WebSocketCircuitBreaker(
+            failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+            recovery_timeout=30.0,
+            half_open_max_calls=1,
+            success_threshold=1,
+            name="system_broadcaster",
+        )
+
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
 
@@ -142,6 +155,19 @@ class SystemBroadcaster:
             collector: PerformanceCollector instance or None
         """
         self._performance_collector = collector
+
+    @property
+    def circuit_breaker(self) -> WebSocketCircuitBreaker:
+        """Get the circuit breaker instance for this broadcaster."""
+        return self._circuit_breaker
+
+    def get_circuit_state(self) -> WebSocketCircuitState:
+        """Get current circuit breaker state.
+
+        Returns:
+            Current WebSocketCircuitState (CLOSED, OPEN, or HALF_OPEN)
+        """
+        return self._circuit_breaker.get_state()
 
     async def connect(self, websocket: WebSocket) -> None:
         """Add a WebSocket connection to the broadcaster.
@@ -281,6 +307,32 @@ class SystemBroadcaster:
                 f"Active connections: {len(self.connections)}"
             )
 
+    async def _broadcast_degraded_state(self) -> None:
+        """Broadcast degraded state notification to all connected clients.
+
+        This method is called when the circuit breaker opens or when the broadcaster
+        enters a failed state. It notifies connected clients that system status
+        updates may not be delivered reliably.
+        """
+        if not self.connections:
+            return
+
+        degraded_message = {
+            "type": "service_status",
+            "data": {
+                "service": "system_broadcaster",
+                "status": "degraded",
+                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+                "circuit_state": self._circuit_breaker.get_state().value,
+            },
+        }
+
+        try:
+            await self._send_to_local_clients(degraded_message)
+            logger.info("Broadcast degraded state notification to connected clients")
+        except Exception as e:
+            logger.warning(f"Failed to broadcast degraded state: {e}")
+
     async def _start_pubsub_listener(self) -> None:
         """Start the Redis pub/sub listener for receiving system status updates.
 
@@ -312,6 +364,7 @@ class SystemBroadcaster:
             )
             self._pubsub_listening = True
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
+            self._circuit_breaker.reset()  # Reset circuit breaker on successful start
             self._listener_task = asyncio.create_task(self._listen_for_updates())
             logger.info(
                 f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
@@ -319,6 +372,7 @@ class SystemBroadcaster:
             )
         except Exception as e:
             logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
+            self._circuit_breaker.record_failure()
 
     async def _stop_pubsub_listener(self) -> None:
         """Stop the Redis pub/sub listener and close dedicated connection."""
@@ -406,8 +460,9 @@ class SystemBroadcaster:
                 if not self._pubsub_listening:
                     break
 
-                # Reset recovery attempts on successful message processing
+                # Reset recovery attempts and record success on message processing
                 self._recovery_attempts = 0
+                self._circuit_breaker.record_success()
 
                 # Extract the wrapped message data
                 wrapped_data = message.get("data")
@@ -440,6 +495,8 @@ class SystemBroadcaster:
             logger.info("Pub/sub listener cancelled")
         except Exception as e:
             logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
+            # Record failure in circuit breaker
+            self._circuit_breaker.record_failure()
             await self._attempt_listener_recovery()
 
     async def _attempt_listener_recovery(self) -> None:
@@ -447,18 +504,33 @@ class SystemBroadcaster:
 
         This helper method is extracted to reduce branch complexity in
         _listen_for_updates(). Recovery is bounded to MAX_RECOVERY_ATTEMPTS
-        to prevent unbounded recursion and stack overflow.
+        to prevent unbounded recursion and stack overflow. Also checks
+        circuit breaker state before attempting recovery.
         """
         if not self._pubsub_listening:
             return
 
         self._recovery_attempts += 1
+
+        # Check circuit breaker before attempting recovery
+        if not self._circuit_breaker.is_call_permitted():
+            logger.error(
+                "Pub/sub listener circuit breaker is OPEN - "
+                "recovery blocked to allow system stabilization"
+            )
+            self._pubsub_listening = False
+            # Broadcast degraded state to connected clients
+            await self._broadcast_degraded_state()
+            return
+
         if self._recovery_attempts > self.MAX_RECOVERY_ATTEMPTS:
             logger.error(
                 f"Pub/sub listener recovery failed after {self.MAX_RECOVERY_ATTEMPTS} "
                 "attempts. Giving up - manual restart required."
             )
             self._pubsub_listening = False
+            # Broadcast degraded state to connected clients
+            await self._broadcast_degraded_state()
             return
 
         logger.info(
@@ -473,10 +545,13 @@ class SystemBroadcaster:
         # Clean up old pubsub and create fresh subscription
         await self._reset_pubsub_connection()
         if self._pubsub:
+            self._circuit_breaker.record_success()
             self._listener_task = asyncio.create_task(self._listen_for_updates())
         else:
             logger.error("Failed to re-establish pub/sub connection")
+            self._circuit_breaker.record_failure()
             self._pubsub_listening = False
+            await self._broadcast_degraded_state()
 
     async def _get_system_status(self) -> dict:
         """Gather current system status data.
