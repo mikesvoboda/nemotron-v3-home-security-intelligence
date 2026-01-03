@@ -25,7 +25,7 @@ from typing import Any
 
 import torch
 from fastapi import FastAPI, HTTPException
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 # Configure logging
@@ -37,6 +37,71 @@ logger = logging.getLogger(__name__)
 # Size limits for image uploads (10MB is reasonable for security camera images)
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 MAX_BASE64_SIZE_BYTES = int(MAX_IMAGE_SIZE_BYTES * 4 / 3) + 100  # ~13.3MB + padding
+
+# Magic bytes for image format detection
+# These are the first few bytes that identify image file formats
+IMAGE_MAGIC_BYTES: dict[bytes, str] = {
+    b"\xff\xd8\xff": "JPEG",  # JPEG images
+    b"\x89PNG\r\n\x1a\n": "PNG",  # PNG images
+    b"GIF87a": "GIF",  # GIF87a
+    b"GIF89a": "GIF",  # GIF89a
+    b"BM": "BMP",  # BMP images
+    b"RIFF": "WEBP",  # WEBP (RIFF container, need to check for WEBP)
+}
+
+
+def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911, PLR0912
+    """Validate image data by checking magic bytes (file signature).
+
+    This provides an early check before passing to PIL, catching obvious
+    non-image files like text files, videos, or corrupted data.
+
+    Args:
+        image_bytes: Raw image file bytes
+
+    Returns:
+        Tuple of (is_valid, detected_format_or_error_message)
+    """
+    if not image_bytes:
+        return False, "Empty image data"
+
+    if len(image_bytes) < 8:
+        return False, "Image data too small to be a valid image"
+
+    # Check for known image magic bytes
+    for magic, fmt in IMAGE_MAGIC_BYTES.items():
+        if image_bytes.startswith(magic):
+            # Special case for WEBP: RIFF container must contain "WEBP"
+            if fmt == "WEBP":
+                if len(image_bytes) >= 12 and image_bytes[8:12] == b"WEBP":
+                    return True, "WEBP"
+                # It's a RIFF file but not WEBP (could be AVI, WAV, etc.)
+                continue
+            return True, fmt
+
+    # Check for common non-image file signatures to provide better errors
+    # Text files often start with common ASCII characters or BOM
+    if image_bytes[:3] in (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff"):  # UTF-8/16 BOM
+        return False, "Text file (BOM detected), not an image"
+
+    # Check if it looks like plain text (mostly printable ASCII)
+    sample = image_bytes[:256]
+    printable_count = sum(1 for b in sample if 32 <= b <= 126 or b in (9, 10, 13))
+    if printable_count > len(sample) * 0.85:
+        return False, "Text file detected, not an image"
+
+    # Common video format signatures
+    if image_bytes[:4] == b"\x00\x00\x00\x1c" or image_bytes[4:8] == b"ftyp":
+        return False, "Video file (MP4/MOV), not an image"
+    if image_bytes[:4] == b"\x1aE\xdf\xa3":  # EBML (Matroska/WebM)
+        return False, "Video file (MKV/WebM), not an image"
+    if image_bytes[:4] == b"RIFF" and len(image_bytes) >= 12:
+        if image_bytes[8:12] == b"AVI ":
+            return False, "Video file (AVI), not an image"
+        if image_bytes[8:12] == b"WAVE":
+            return False, "Audio file (WAV), not an image"
+
+    return False, "Unknown file format, not a recognized image type"
 
 
 # =============================================================================
@@ -1000,10 +1065,27 @@ def decode_and_crop_image(
             f"({MAX_IMAGE_SIZE_BYTES} bytes)"
         )
 
-    # Open image
+    # Validate magic bytes before passing to PIL
+    magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+    if not magic_valid:
+        logger.warning(f"Invalid image magic bytes: {magic_result}")
+        raise ValueError(
+            f"Invalid image data: {magic_result}. Supported formats: JPEG, PNG, GIF, BMP, WEBP."
+        )
+
+    # Open image with explicit error handling
     try:
         image = Image.open(io.BytesIO(image_bytes))
+    except UnidentifiedImageError as e:
+        logger.warning(f"PIL could not identify image: {e}")
+        raise ValueError(
+            "Invalid image data: Cannot identify image format. File may be corrupted or truncated."
+        ) from e
+    except OSError as e:
+        logger.warning(f"PIL error loading image: {e}")
+        raise ValueError(f"Corrupted image data: {e!s}") from e
     except Exception as e:
+        logger.error(f"Unexpected error loading image: {e}", exc_info=True)
         raise ValueError(f"Invalid image data: {e}") from e
 
     # Convert to RGB if needed

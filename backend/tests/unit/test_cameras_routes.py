@@ -1626,3 +1626,206 @@ class TestFolderPathAPIValidation:
 
         assert response.status_code == 200
         assert response.json()["folder_path"] == "/export/foscam/valid_path"
+
+
+class TestValidateCameraPaths:
+    """Tests for the camera path validation endpoint."""
+
+    def test_validate_paths_empty_database(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test validation endpoint with no cameras in database."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 0
+        assert data["valid_count"] == 0
+        assert data["invalid_count"] == 0
+        assert data["valid_cameras"] == []
+        assert data["invalid_cameras"] == []
+
+    def test_validate_paths_all_valid(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when all cameras have valid paths."""
+        foscam_root = tmp_path / "foscam"
+        camera_folder = foscam_root / "front_door"
+        camera_folder.mkdir(parents=True)
+        # Create an image file
+        (camera_folder / "test.jpg").write_bytes(b"fake image")
+
+        camera = Camera(
+            id="front_door",
+            name="Front Door",
+            folder_path=str(camera_folder),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 1
+        assert data["valid_count"] == 1
+        assert data["invalid_count"] == 0
+        assert len(data["valid_cameras"]) == 1
+        assert data["valid_cameras"][0]["id"] == "front_door"
+
+    def test_validate_paths_invalid_base_path(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when camera path is outside base path."""
+        foscam_root = tmp_path / "foscam"
+        foscam_root.mkdir(parents=True)
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir(parents=True)
+        (outside_dir / "test.jpg").write_bytes(b"fake image")
+
+        camera = Camera(
+            id="bad_camera",
+            name="Bad Camera",
+            folder_path=str(outside_dir),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 1
+        assert data["valid_count"] == 0
+        assert data["invalid_count"] == 1
+        assert len(data["invalid_cameras"]) == 1
+        assert data["invalid_cameras"][0]["id"] == "bad_camera"
+        assert "folder_path not under base_path" in data["invalid_cameras"][0]["issues"][0]
+
+    def test_validate_paths_directory_not_exists(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when camera directory doesn't exist."""
+        foscam_root = tmp_path / "foscam"
+        foscam_root.mkdir(parents=True)
+        # Don't create the camera folder - it doesn't exist
+
+        camera = Camera(
+            id="missing_camera",
+            name="Missing Camera",
+            folder_path=str(foscam_root / "nonexistent"),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["invalid_count"] == 1
+        assert "directory does not exist" in data["invalid_cameras"][0]["issues"]
+
+    def test_validate_paths_no_images(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation when camera directory has no images."""
+        foscam_root = tmp_path / "foscam"
+        camera_folder = foscam_root / "empty_camera"
+        camera_folder.mkdir(parents=True)
+        # Create non-image file
+        (camera_folder / "readme.txt").write_text("not an image")
+
+        camera = Camera(
+            id="empty_camera",
+            name="Empty Camera",
+            folder_path=str(camera_folder),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["invalid_count"] == 1
+        assert "no image files found" in data["invalid_cameras"][0]["issues"]
+
+    def test_validate_paths_mixed_valid_invalid(
+        self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
+    ) -> None:
+        """Test validation with mix of valid and invalid cameras."""
+        foscam_root = tmp_path / "foscam"
+        valid_folder = foscam_root / "valid_camera"
+        valid_folder.mkdir(parents=True)
+        (valid_folder / "test.jpg").write_bytes(b"fake image")
+
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir(parents=True)
+
+        valid_camera = Camera(
+            id="valid_camera",
+            name="Valid Camera",
+            folder_path=str(valid_folder),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        invalid_camera = Camera(
+            id="invalid_camera",
+            name="Invalid Camera",
+            folder_path=str(outside_dir),
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [valid_camera, invalid_camera]
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(foscam_root)
+
+        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+            response = client.get("/api/cameras/validation/paths")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_cameras"] == 2
+        assert data["valid_count"] == 1
+        assert data["invalid_count"] == 1

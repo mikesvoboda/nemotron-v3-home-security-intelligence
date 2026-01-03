@@ -482,7 +482,11 @@ class TestAuthenticateWebsocket:
 
     @pytest.mark.asyncio
     async def test_returns_false_and_closes_on_failed_auth(self):
-        """Test that failed authentication returns False and closes connection."""
+        """Test that failed authentication returns False and closes connection.
+
+        Note: The WebSocket must be accepted before closing to properly send the
+        close frame with the policy violation code.
+        """
         os.environ["API_KEY_ENABLED"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
         get_settings.cache_clear()
@@ -490,16 +494,22 @@ class TestAuthenticateWebsocket:
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.query_params = {"api_key": "invalid_key"}
         mock_websocket.headers = {}
+        mock_websocket.accept = AsyncMock()  # Must be AsyncMock since we now call accept()
         mock_websocket.close = AsyncMock()
 
         result = await authenticate_websocket(mock_websocket)
 
         assert result is False
+        mock_websocket.accept.assert_awaited_once()  # Verify accept was called first
         mock_websocket.close.assert_awaited_once_with(code=status.WS_1008_POLICY_VIOLATION)
 
     @pytest.mark.asyncio
     async def test_closes_with_policy_violation_code(self):
-        """Test that connection is closed with correct status code."""
+        """Test that connection is closed with correct status code.
+
+        Note: The WebSocket must be accepted before closing to properly send the
+        close frame with the policy violation code.
+        """
         os.environ["API_KEY_ENABLED"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
         get_settings.cache_clear()
@@ -507,10 +517,13 @@ class TestAuthenticateWebsocket:
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.query_params = {}
         mock_websocket.headers = {}
+        mock_websocket.accept = AsyncMock()  # Must be AsyncMock since we now call accept()
         mock_websocket.close = AsyncMock()
 
         await authenticate_websocket(mock_websocket)
 
+        # Verify accept was called first
+        mock_websocket.accept.assert_awaited_once()
         # WS_1008_POLICY_VIOLATION is 1008
         mock_websocket.close.assert_awaited_once_with(code=1008)
 

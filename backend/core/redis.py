@@ -1045,7 +1045,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         value = await client.get(key)
-        if value:
+        if value is not None:
             try:
                 return json.loads(value)
             except json.JSONDecodeError:
@@ -1057,14 +1057,15 @@ class RedisClient:
 
         Args:
             key: Cache key
-            value: Value to store (will be JSON-serialized if not a string)
+            value: Value to store (will be JSON-serialized)
             expire: Expiration time in seconds (optional)
 
         Returns:
             True if successful
         """
         client = self._ensure_connected()
-        serialized = json.dumps(value) if not isinstance(value, str) else value
+        # Always JSON-serialize for consistent deserialization in get()
+        serialized = json.dumps(value)
         return cast("bool", await client.set(key, serialized, ex=expire))
 
     async def delete(self, *keys: str) -> int:

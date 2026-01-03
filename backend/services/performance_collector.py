@@ -336,15 +336,17 @@ class PerformanceCollector:
 
         Uses the following health check endpoints:
         - backend: GET /health (simple liveness probe)
-        - frontend: GET /health (nginx health endpoint, port 80 in prod)
+        - frontend: GET /health (nginx health endpoint, configurable via FRONTEND_URL)
         - postgres: None (checked via database metrics)
         - redis: None (checked via redis ping)
         - ai-detector: GET /health (RT-DETRv2 health endpoint)
         - ai-llm: GET /health (Nemotron/llama.cpp health endpoint)
         """
+        # Build frontend health URL from configurable frontend_url setting
+        frontend_health_url = f"{self._settings.frontend_url.rstrip('/')}/health"
         containers = [
             ("backend", "http://localhost:8000/health"),
-            ("frontend", "http://frontend:80/health"),  # nginx health endpoint on port 80
+            ("frontend", frontend_health_url),
             ("postgres", None),  # Check via psql
             ("redis", None),  # Check via ping
             ("ai-detector", f"{self._settings.rtdetr_url}/health"),

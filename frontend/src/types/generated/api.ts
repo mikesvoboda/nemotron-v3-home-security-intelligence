@@ -657,6 +657,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/validation/paths": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Validate Camera Paths
+         * @description Validate all camera folder paths against the configured base path.
+         *
+         *     This endpoint checks each camera's folder_path to determine:
+         *     1. Whether the path is under the configured FOSCAM_BASE_PATH
+         *     2. Whether the directory exists on disk
+         *     3. Whether the directory contains any images
+         *
+         *     Use this to diagnose cameras that show "No snapshot available" errors.
+         *
+         *     Returns:
+         *         Dictionary with validation results for all cameras
+         */
+        get: operations["validate_camera_paths_api_cameras_validation_paths_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections": {
         parameters: {
             query?: never;
@@ -7037,6 +7067,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    validate_camera_paths_api_cameras_validation_paths_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
