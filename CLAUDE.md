@@ -183,11 +183,266 @@ review `docs/ROADMAP.md` to identify post-MVP enhancements and create/claim new 
 
 ## TDD Approach
 
-Tasks labeled `tdd` are test tasks that should be completed alongside their feature tasks:
+This project follows **Test-Driven Development (TDD)** for all feature implementation. Tests are not an afterthought; they drive the design and ensure correctness from the start.
+
+### The TDD Cycle: RED-GREEN-REFACTOR
+
+1. **RED** - Write a failing test that defines the expected behavior
+2. **GREEN** - Write the minimum code necessary to make the test pass
+3. **REFACTOR** - Improve the code while keeping tests green
+
+```
+┌─────────┐     ┌─────────┐     ┌──────────┐
+│   RED   │ ──▶ │  GREEN  │ ──▶ │ REFACTOR │
+│  (fail) │     │ (pass)  │     │ (improve)│
+└─────────┘     └─────────┘     └──────────┘
+      ▲                               │
+      └───────────────────────────────┘
+```
+
+### Pre-Implementation Checklist
+
+Before writing any production code, complete this checklist:
+
+- [ ] Understand the acceptance criteria from the bead
+- [ ] Identify the code layer(s) involved (API, service, component, E2E)
+- [ ] Write test stubs for each acceptance criterion
+- [ ] Run tests to confirm they fail (RED phase)
+- [ ] Only then begin implementation
+
+### Test Patterns by Layer
+
+#### Backend API Routes (pytest + httpx)
+
+```python
+# backend/tests/unit/api/routes/test_cameras.py
+import pytest
+from httpx import AsyncClient
+from backend.main import app
+
+@pytest.mark.asyncio
+async def test_get_camera_returns_camera_data(async_client: AsyncClient):
+    """RED: Write this test first, then implement the endpoint."""
+    response = await async_client.get("/api/cameras/front_door")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "front_door"
+    assert "status" in data
+    assert "last_seen" in data
+
+@pytest.mark.asyncio
+async def test_get_camera_not_found_returns_404(async_client: AsyncClient):
+    """Test error handling for missing cameras."""
+    response = await async_client.get("/api/cameras/nonexistent")
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+```
+
+#### Backend Services (pytest + mocking)
+
+```python
+# backend/tests/unit/services/test_detection_service.py
+import pytest
+from unittest.mock import AsyncMock, patch
+from backend.services.detection import DetectionService
+
+@pytest.mark.asyncio
+async def test_process_image_calls_rtdetr_client():
+    """RED: Test that service integrates with RT-DETR correctly."""
+    mock_rtdetr = AsyncMock()
+    mock_rtdetr.detect.return_value = [
+        {"label": "person", "confidence": 0.95, "bbox": [100, 200, 300, 400]}
+    ]
+
+    service = DetectionService(rtdetr_client=mock_rtdetr)
+    result = await service.process_image("/path/to/image.jpg")
+
+    mock_rtdetr.detect.assert_called_once_with("/path/to/image.jpg")
+    assert len(result.detections) == 1
+    assert result.detections[0].label == "person"
+
+@pytest.mark.asyncio
+async def test_process_image_handles_rtdetr_timeout():
+    """Test graceful handling of AI service timeouts."""
+    mock_rtdetr = AsyncMock()
+    mock_rtdetr.detect.side_effect = TimeoutError("RT-DETR timeout")
+
+    service = DetectionService(rtdetr_client=mock_rtdetr)
+
+    with pytest.raises(DetectionError) as exc_info:
+        await service.process_image("/path/to/image.jpg")
+
+    assert "timeout" in str(exc_info.value).lower()
+```
+
+#### Frontend Components (Vitest + React Testing Library)
+
+```typescript
+// frontend/src/components/RiskGauge.test.tsx
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { RiskGauge } from './RiskGauge';
+
+describe('RiskGauge', () => {
+  it('displays low risk styling for scores under 30', () => {
+    // RED: Write test first, then implement component
+    render(<RiskGauge score={25} />);
+
+    const gauge = screen.getByRole('meter');
+    expect(gauge).toHaveAttribute('aria-valuenow', '25');
+    expect(gauge).toHaveClass('risk-low');
+  });
+
+  it('displays high risk styling for scores over 70', () => {
+    render(<RiskGauge score={85} />);
+
+    const gauge = screen.getByRole('meter');
+    expect(gauge).toHaveClass('risk-high');
+    expect(screen.getByText(/high risk/i)).toBeInTheDocument();
+  });
+
+  it('updates in real-time when score changes', async () => {
+    const { rerender } = render(<RiskGauge score={20} />);
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '20');
+
+    rerender(<RiskGauge score={80} />);
+    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '80');
+  });
+});
+```
+
+#### E2E Tests (Playwright)
+
+```typescript
+// frontend/tests/e2e/dashboard.spec.ts
+import { test, expect } from "@playwright/test";
+
+test.describe("Dashboard", () => {
+  test("displays live camera feeds on load", async ({ page }) => {
+    // RED: Write E2E test first to define user journey
+    await page.goto("/");
+
+    // Wait for WebSocket connection
+    await expect(page.locator('[data-testid="ws-status"]')).toHaveText(
+      "Connected",
+    );
+
+    // Verify camera grid loads
+    const cameraCards = page.locator('[data-testid="camera-card"]');
+    await expect(cameraCards).toHaveCount(4);
+
+    // Verify each camera shows status
+    for (const card of await cameraCards.all()) {
+      await expect(card.locator(".camera-status")).toBeVisible();
+    }
+  });
+
+  test("risk gauge updates when new detection arrives", async ({ page }) => {
+    await page.goto("/");
+
+    // Initial state
+    const gauge = page.locator('[data-testid="risk-gauge"]');
+    await expect(gauge).toHaveAttribute("aria-valuenow", "0");
+
+    // Simulate detection via API (or mock WebSocket)
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent("test:detection", {
+          detail: { risk_score: 75 },
+        }),
+      );
+    });
+
+    // Verify gauge updates
+    await expect(gauge).toHaveAttribute("aria-valuenow", "75");
+  });
+});
+```
+
+### Using the TDD Skill
+
+For complex features, invoke the TDD skill to guide your workflow:
+
+```bash
+/test-driven-development
+```
+
+This skill will:
+
+1. Help identify test cases from requirements
+2. Generate test stubs for each layer
+3. Guide you through the RED-GREEN-REFACTOR cycle
+4. Ensure proper test coverage before completion
+
+### Integration with Beads
+
+Tasks labeled `tdd` are test-focused tasks that pair with feature tasks:
 
 ```bash
 bd list --label tdd
 ```
+
+**Workflow for TDD-labeled beads:**
+
+1. **Claim both tasks** - The feature task and its corresponding TDD task
+2. **Start with tests** - Implement tests from the TDD bead first
+3. **Verify RED** - Run tests to confirm they fail appropriately
+4. **Implement feature** - Write code to make tests pass (GREEN)
+5. **Refactor** - Clean up while keeping tests green
+6. **Close TDD bead first** - Then close the feature bead
+
+### Test Coverage Requirements
+
+This project enforces strict coverage thresholds:
+
+| Test Type   | Minimum Coverage | Enforcement   |
+| ----------- | ---------------- | ------------- |
+| Unit        | 92%              | CI gate       |
+| Integration | 50%              | CI gate       |
+| Combined    | 90%              | CI gate       |
+| E2E         | Critical paths   | Manual review |
+
+**Coverage Commands:**
+
+```bash
+# Backend coverage report
+uv run pytest backend/tests/unit/ --cov=backend --cov-report=term-missing
+
+# Frontend coverage report
+cd frontend && npm test -- --coverage
+
+# Full coverage report
+./scripts/validate.sh --coverage
+```
+
+### Never Disable Testing
+
+See the **[NEVER DISABLE TESTING](#never-disable-testing)** section below. This is an absolute rule:
+
+- Do NOT skip tests to pass CI
+- Do NOT lower coverage thresholds
+- Do NOT comment out failing tests
+- FIX the code or FIX the test
+
+### PR Checklist for TDD Verification
+
+Before creating a PR, verify:
+
+- [ ] All new code has corresponding tests
+- [ ] Tests were written BEFORE implementation (TDD)
+- [ ] Tests cover happy path AND error cases
+- [ ] Coverage thresholds are met (92% unit, 50% integration)
+- [ ] No tests were skipped or disabled
+- [ ] E2E tests pass for UI changes
+
+### Testing Resources
+
+- **Test Infrastructure:** See `backend/tests/AGENTS.md`
+- **Fixtures and Factories:** See `backend/tests/conftest.py`
+- **E2E Test Patterns:** See `frontend/tests/e2e/README.md`
+- **Coverage Reports:** Generated in `coverage/` directory after test runs
 
 ## Testing Requirements
 
