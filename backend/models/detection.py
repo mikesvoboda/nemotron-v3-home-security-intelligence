@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -55,8 +55,10 @@ class Detection(Base):
     video_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     video_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # AI enrichment data (vehicle classification, pet identification, etc.)
-    enrichment_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Enrichment pipeline results (JSONB for structured vision model outputs)
+    # Contains results from 18+ vision models: license plate, face, vehicle,
+    # clothing, violence, weather, image quality, pet classification, etc.
+    enrichment_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")

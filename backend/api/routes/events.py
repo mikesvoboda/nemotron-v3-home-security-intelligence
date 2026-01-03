@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.detections import DetectionListResponse
+from backend.api.schemas.enrichment import EventEnrichmentsResponse
 from backend.api.schemas.events import (
     EventListResponse,
     EventResponse,
@@ -777,4 +778,78 @@ async def get_event_detections(
         "count": total_count,
         "limit": limit,
         "offset": offset,
+    }
+
+
+@router.get("/{event_id}/enrichments", response_model=EventEnrichmentsResponse)
+async def get_event_enrichments(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get enrichment data for all detections in an event.
+
+    Returns structured vision model results from the enrichment pipeline for
+    each detection in the event. Results include:
+    - License plate detection and OCR
+    - Face detection
+    - Vehicle classification and damage detection
+    - Clothing analysis (FashionCLIP and SegFormer)
+    - Violence detection
+    - Image quality assessment
+    - Pet classification
+
+    Args:
+        event_id: Event ID
+        db: Database session
+
+    Returns:
+        EventEnrichmentsResponse with enrichment data for each detection
+
+    Raises:
+        HTTPException: 404 if event not found
+    """
+    # Import transform function from detections route
+    from backend.api.routes.detections import _transform_enrichment_data
+
+    # Get event to verify it exists and get detection_ids
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found",
+        )
+
+    # Parse detection_ids using helper function
+    detection_ids = parse_detection_ids(event.detection_ids)
+
+    # If no detections, return empty list
+    if not detection_ids:
+        return {
+            "event_id": event.id,
+            "enrichments": [],
+            "count": 0,
+        }
+
+    # Get all detections for this event
+    query = select(Detection).where(Detection.id.in_(detection_ids))
+    query = query.order_by(Detection.detected_at.asc())
+    det_result = await db.execute(query)
+    detections = det_result.scalars().all()
+
+    # Transform each detection's enrichment data
+    enrichments = [
+        _transform_enrichment_data(
+            detection_id=det.id,
+            enrichment_data=det.enrichment_data,
+            detected_at=det.detected_at,
+        )
+        for det in detections
+    ]
+
+    return {
+        "event_id": event.id,
+        "enrichments": enrichments,
+        "count": len(enrichments),
     }
