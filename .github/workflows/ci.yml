@@ -628,17 +628,11 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Run tests with coverage (shard ${{ matrix.shard }}/4)
+      - name: Run tests (shard ${{ matrix.shard }}/4)
         # Shard tests across 4 runners for faster execution
+        # Coverage thresholds disabled for shards (each shard only has partial coverage)
         # --teardownTimeout ensures vitest exits even if cleanup hangs
-        run: cd frontend && npm run test:coverage -- --run --shard=${{ matrix.shard }}/4 --teardownTimeout=5000
-
-      - name: Upload frontend coverage
-        uses: codecov/codecov-action@v5
-        with:
-          files: frontend/coverage/lcov.info
-          flags: frontend-shard-${{ matrix.shard }}
-          fail_ci_if_error: false
+        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/4 --teardownTimeout=5000
 
   api-coverage:
     name: API Endpoint Coverage
