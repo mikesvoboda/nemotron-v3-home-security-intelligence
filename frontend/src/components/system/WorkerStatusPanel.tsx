@@ -1,6 +1,6 @@
 import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
-import { CheckCircle, XCircle, Cpu, AlertTriangle, Star } from 'lucide-react';
+import { CheckCircle, XCircle, Cpu, AlertTriangle, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import { fetchReadiness, type WorkerStatus } from '../../services/api';
@@ -13,6 +13,10 @@ export interface WorkerStatusPanelProps {
   pollingInterval?: number;
   /** Optional callback when worker status changes */
   onStatusChange?: (workers: WorkerStatus[]) => void;
+  /** Whether the panel starts expanded (default: false for dense mode) */
+  defaultExpanded?: boolean;
+  /** Whether to show in compact mode (default: false) */
+  compact?: boolean;
 }
 
 /**
@@ -142,17 +146,21 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
  * - Essential workers (detection_worker, analysis_worker) with special highlighting
  * - Running/stopped indicators with appropriate icons
  * - Error messages for stopped workers
+ * - Collapsible design with summary badge (e.g., "8/8 Running")
  *
  * Fetches data from GET /api/system/health/ready endpoint.
  */
 export default function WorkerStatusPanel({
   pollingInterval = 10000,
   onStatusChange,
+  defaultExpanded = false,
+  compact = false,
 }: WorkerStatusPanelProps) {
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const fetchWorkerStatus = useCallback(async () => {
     try {
@@ -197,6 +205,12 @@ export default function WorkerStatusPanel({
     return a.name.localeCompare(b.name);
   });
 
+  // Check for any stopped essential workers
+  const essentialStopped = workers.filter(
+    (w) => !w.running && isEssentialWorker(w.name)
+  );
+  const hasEssentialStopped = essentialStopped.length > 0;
+
   // Loading state
   if (loading) {
     return (
@@ -234,16 +248,36 @@ export default function WorkerStatusPanel({
   }
 
   return (
-    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="worker-status-panel">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+    <Card
+      className={clsx(
+        'border-gray-800 bg-[#1A1A1A] shadow-lg',
+        hasEssentialStopped && 'border-red-500/50'
+      )}
+      data-testid="worker-status-panel"
+    >
+      {/* Collapsible Header */}
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setIsExpanded(!isExpanded)}
+        data-testid="worker-panel-toggle"
+        aria-expanded={isExpanded}
+        aria-controls="worker-list-content"
+      >
         <Title className="flex items-center gap-2 text-white">
           <Cpu className="h-5 w-5 text-[#76B900]" />
           Background Workers
+          {hasEssentialStopped && (
+            <AlertTriangle
+              className="h-4 w-4 text-red-500"
+              data-testid="essential-worker-warning"
+              aria-label="Essential worker stopped"
+            />
+          )}
         </Title>
 
-        {/* Summary Badge */}
         <div className="flex items-center gap-2">
+          {/* Summary Badges */}
           {stoppedCount > 0 && (
             <Badge color="red" size="sm" data-testid="stopped-count-badge">
               {stoppedCount} Stopped
@@ -256,40 +290,60 @@ export default function WorkerStatusPanel({
           >
             {runningCount}/{workers.length} Running
           </Badge>
+          {/* Expand/Collapse Icon */}
+          {isExpanded ? (
+            <ChevronUp className="h-5 w-5 text-gray-400" data-testid="collapse-icon" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-gray-400" data-testid="expand-icon" />
+          )}
         </div>
-      </div>
+      </button>
 
-      {/* Status Summary */}
-      <div className="mb-4 flex items-center justify-center gap-6 rounded-lg bg-gray-800/30 p-3">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500"></div>
-          <Text className="text-sm text-gray-300">
-            <span className="font-bold text-white">{runningCount}</span> Running
-          </Text>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-red-500"></div>
-          <Text className="text-sm text-gray-300">
-            <span className="font-bold text-white">{stoppedCount}</span> Stopped
-          </Text>
-        </div>
-      </div>
+      {/* Collapsible Content */}
+      <div
+        id="worker-list-content"
+        className={clsx(
+          'overflow-hidden transition-all duration-300 ease-in-out',
+          isExpanded ? 'mt-4 max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+        )}
+        data-testid="worker-list-content"
+      >
+        {/* Compact Status Summary */}
+        {!compact && (
+          <div className="mb-4 flex items-center justify-center gap-6 rounded-lg bg-gray-800/30 p-3">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              <Text className="text-sm text-gray-300">
+                <span className="font-bold text-white">{runningCount}</span> Running
+              </Text>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-red-500"></div>
+              <Text className="text-sm text-gray-300">
+                <span className="font-bold text-white">{stoppedCount}</span> Stopped
+              </Text>
+            </div>
+          </div>
+        )}
 
-      {/* Workers List */}
-      <div className="space-y-2" data-testid="workers-list">
-        {sortedWorkers.length > 0 ? (
-          sortedWorkers.map((worker) => <WorkerStatusRow key={worker.name} worker={worker} />)
-        ) : (
-          <Text className="py-4 text-center text-gray-500">No worker status available</Text>
+        {/* Workers List */}
+        <div className={clsx('space-y-2', compact && 'space-y-1')} data-testid="workers-list">
+          {sortedWorkers.length > 0 ? (
+            sortedWorkers.map((worker) => (
+              <WorkerStatusRow key={worker.name} worker={worker} />
+            ))
+          ) : (
+            <Text className="py-4 text-center text-gray-500">No worker status available</Text>
+          )}
+        </div>
+
+        {/* Last Updated */}
+        {lastUpdated && (
+          <Text className="mt-4 text-xs text-gray-500" data-testid="last-updated">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </Text>
         )}
       </div>
-
-      {/* Last Updated */}
-      {lastUpdated && (
-        <Text className="mt-4 text-xs text-gray-500" data-testid="last-updated">
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </Text>
-      )}
     </Card>
   );
 }
