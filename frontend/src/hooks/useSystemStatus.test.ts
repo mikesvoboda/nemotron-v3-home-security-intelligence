@@ -1,8 +1,9 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { useSystemStatus } from './useSystemStatus';
 import * as useWebSocketModule from './useWebSocket';
+import * as apiModule from '../services/api';
 
 describe('useSystemStatus', () => {
   const mockWebSocketReturn = {
@@ -48,12 +49,25 @@ describe('useSystemStatus', () => {
     timestamp,
   });
 
+  // Mock REST API response
+  const mockHealthResponse = {
+    status: 'healthy' as const,
+    timestamp: '2025-12-23T10:00:00Z',
+    services: {
+      postgresql: { status: 'healthy' as const, latency_ms: 5 },
+      redis: { status: 'healthy' as const, latency_ms: 1 },
+    },
+  };
+
   beforeEach(() => {
     // Mock useWebSocket to capture the onMessage callback
     vi.spyOn(useWebSocketModule, 'useWebSocket').mockImplementation((options) => {
       onMessageCallback = options.onMessage;
       return mockWebSocketReturn;
     });
+
+    // Mock fetchHealth API call
+    vi.spyOn(apiModule, 'fetchHealth').mockResolvedValue(mockHealthResponse);
   });
 
   afterEach(() => {
@@ -61,9 +75,13 @@ describe('useSystemStatus', () => {
     onMessageCallback = undefined;
   });
 
-  it('should initialize with null status', () => {
+  it('should initialize with null status before REST API responds', () => {
+    // Make REST API never resolve to test initial state
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
+    // Before any data arrives, status should be null
     expect(result.current.status).toBeNull();
     expect(result.current.isConnected).toBe(true);
   });
@@ -558,5 +576,133 @@ describe('useSystemStatus', () => {
 
     expect(result.current.isConnected).toBe(true);
     expect(result.current.status?.health).toBe('healthy');
+  });
+
+  describe('REST API initial fetch', () => {
+    it('should fetch initial status from REST API on mount', async () => {
+      renderHook(() => useSystemStatus());
+
+      await waitFor(() => {
+        expect(apiModule.fetchHealth).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should set initial status from REST API while waiting for WebSocket', async () => {
+      const { result } = renderHook(() => useSystemStatus());
+
+      // Wait for the REST API fetch to complete
+      await waitFor(() => {
+        expect(result.current.status).not.toBeNull();
+      });
+
+      // Should have status from REST API with health but null GPU values
+      expect(result.current.status?.health).toBe('healthy');
+      expect(result.current.status?.gpu_utilization).toBeNull();
+      expect(result.current.status?.gpu_temperature).toBeNull();
+      expect(result.current.status?.active_cameras).toBe(0);
+    });
+
+    it('should prefer WebSocket data over REST API initial data', async () => {
+      const { result } = renderHook(() => useSystemStatus());
+
+      // Wait for initial REST fetch
+      await waitFor(() => {
+        expect(result.current.status).not.toBeNull();
+      });
+
+      expect(result.current.status?.health).toBe('healthy');
+      expect(result.current.status?.gpu_utilization).toBeNull();
+
+      // Now receive WebSocket message with full data
+      const wsMessage = createBackendMessage('degraded', 75, 70, 5);
+
+      act(() => {
+        onMessageCallback?.(wsMessage);
+      });
+
+      // WebSocket data should replace REST API data
+      expect(result.current.status?.health).toBe('degraded');
+      expect(result.current.status?.gpu_utilization).toBe(75);
+      expect(result.current.status?.gpu_temperature).toBe(70);
+      expect(result.current.status?.active_cameras).toBe(5);
+    });
+
+    it('should not override WebSocket data with REST API data', async () => {
+      // This test ensures that if WebSocket message arrives before REST fetch completes,
+      // the WebSocket data is not overwritten by the slower REST response
+
+      // Make REST API slow to respond
+      let resolveApiCall: (value: typeof mockHealthResponse) => void;
+      const slowApiPromise = new Promise<typeof mockHealthResponse>((resolve) => {
+        resolveApiCall = resolve;
+      });
+      vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(slowApiPromise);
+
+      const { result } = renderHook(() => useSystemStatus());
+
+      // WebSocket message arrives first with 'degraded' status
+      const wsMessage = createBackendMessage('degraded', 80, 75, 4);
+      act(() => {
+        onMessageCallback?.(wsMessage);
+      });
+
+      expect(result.current.status?.health).toBe('degraded');
+      expect(result.current.status?.gpu_utilization).toBe(80);
+
+      // Now REST API finally responds with 'healthy' status
+      await act(async () => {
+        resolveApiCall!(mockHealthResponse);
+        await Promise.resolve(); // Let the promise resolve
+      });
+
+      // Status should still be from WebSocket (degraded), not REST API (healthy)
+      expect(result.current.status?.health).toBe('degraded');
+      expect(result.current.status?.gpu_utilization).toBe(80);
+    });
+
+    it('should handle REST API fetch error gracefully', async () => {
+      vi.spyOn(apiModule, 'fetchHealth').mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useSystemStatus());
+
+      // Wait a bit for the async operation
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+
+      // Status should remain null (waiting for WebSocket)
+      // Error is silently caught - WebSocket will provide status eventually
+      expect(result.current.status).toBeNull();
+    });
+
+    it('should handle degraded status from REST API', async () => {
+      vi.spyOn(apiModule, 'fetchHealth').mockResolvedValue({
+        ...mockHealthResponse,
+        status: 'degraded',
+      });
+
+      const { result } = renderHook(() => useSystemStatus());
+
+      await waitFor(() => {
+        expect(result.current.status).not.toBeNull();
+      });
+
+      expect(result.current.status?.health).toBe('degraded');
+    });
+
+    it('should handle unhealthy status from REST API', async () => {
+      vi.spyOn(apiModule, 'fetchHealth').mockResolvedValue({
+        ...mockHealthResponse,
+        status: 'unhealthy',
+      });
+
+      const { result } = renderHook(() => useSystemStatus());
+
+      await waitFor(() => {
+        expect(result.current.status).not.toBeNull();
+      });
+
+      expect(result.current.status?.health).toBe('unhealthy');
+    });
   });
 });

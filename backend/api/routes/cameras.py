@@ -396,30 +396,43 @@ async def get_camera_snapshot(
     camera_dir = Path(camera.folder_path).resolve()
     try:
         camera_dir.relative_to(base_root)
-    except ValueError as err:
-        # Return 404 instead of 403 - semantically the snapshot is "not found"
-        # because the folder_path is misconfigured. The frontend handles 404
-        # gracefully by showing a placeholder icon, avoiding console errors.
-        # Security: We still block path traversal attempts, just with a less
-        # alarming error code that doesn't imply a permissions issue.
+    except ValueError:
+        # Stored folder_path is outside the current FOSCAM_BASE_PATH.
+        # This commonly happens when:
+        # - Database has cameras from a different environment (Docker vs native)
+        # - Container FOSCAM_BASE_PATH (/cameras) differs from dev path (/export/foscam)
         #
-        # Log at DEBUG level to reduce noise - this is expected when:
-        # - Container FOSCAM_BASE_PATH differs from development path
-        # - Database has cameras from a different environment
-        # - Test/demo data with hardcoded paths
-        # Use /api/cameras/validation endpoint for admin visibility.
-        logger.debug(
-            "Camera folder_path outside base_path - snapshot unavailable",
-            extra={
-                "camera_id": camera_id,
-                "folder_path": sanitize_log_value(camera.folder_path),
-                "base_path": str(base_root),
-            },
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No snapshot available for this camera",
-        ) from err
+        # Fallback: Try to find the camera folder by ID under the current base_path.
+        # This is safe because we only look within FOSCAM_BASE_PATH (no traversal).
+        # The camera ID is normalized from the folder name (e.g., "den" -> "den").
+        fallback_dir = base_root / camera_id
+        if fallback_dir.exists() and fallback_dir.is_dir():
+            # Found camera folder by ID - use it
+            logger.debug(
+                "Using fallback camera path by ID",
+                extra={
+                    "camera_id": camera_id,
+                    "stored_path": sanitize_log_value(camera.folder_path),
+                    "fallback_path": str(fallback_dir),
+                    "base_path": str(base_root),
+                },
+            )
+            camera_dir = fallback_dir
+        else:
+            # No fallback available - return 404
+            logger.debug(
+                "Camera folder_path outside base_path and no fallback found",
+                extra={
+                    "camera_id": camera_id,
+                    "folder_path": sanitize_log_value(camera.folder_path),
+                    "base_path": str(base_root),
+                    "fallback_tried": str(fallback_dir),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No snapshot available for this camera",
+            ) from None
 
     if not camera_dir.exists() or not camera_dir.is_dir():
         raise HTTPException(
