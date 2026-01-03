@@ -17,10 +17,6 @@ vi.mock('./ProcessingSettings', () => ({
   default: () => <div data-testid="processing-settings">Processing Settings</div>,
 }));
 
-vi.mock('./AIModelsSettings', () => ({
-  default: () => <div data-testid="ai-models-settings">AI Models Settings</div>,
-}));
-
 vi.mock('./NotificationSettings', () => ({
   default: () => <div data-testid="notification-settings">Notification Settings</div>,
 }));
@@ -33,13 +29,12 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all five tabs', () => {
+  it('should render all four tabs', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /rules/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /processing/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /ai models/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /notifications/i })).toBeInTheDocument();
   });
 
@@ -68,17 +63,6 @@ describe('SettingsPage', () => {
     await user.click(processingTab);
 
     expect(screen.getByTestId('processing-settings')).toBeInTheDocument();
-    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
-  });
-
-  it('should switch to ai models settings when tab is clicked', async () => {
-    const user = userEvent.setup();
-    render(<SettingsPage />);
-
-    const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
-    await user.click(aiModelsTab);
-
-    expect(screen.getByTestId('ai-models-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
