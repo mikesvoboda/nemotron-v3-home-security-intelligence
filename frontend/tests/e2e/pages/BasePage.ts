@@ -31,7 +31,9 @@ export class BasePage {
   readonly navSettings: Locator;
 
   // Common timeout for page loads
-  readonly pageLoadTimeout = 5000;
+  // Increased from 5000ms to 10000ms for webkit browser compatibility
+  // (webkit has slower modal animations and element stability checks)
+  readonly pageLoadTimeout = 10000;
 
   constructor(page: Page) {
     this.page = page;
