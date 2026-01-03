@@ -3,6 +3,7 @@ import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from '
 import { useEffect, useState } from 'react';
 
 import DlqMonitor from './DlqMonitor';
+import SeverityThresholds from './SeverityThresholds';
 import StorageDashboard from './StorageDashboard';
 import {
   fetchConfig,
@@ -358,6 +359,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
           </div>
         )}
       </Card>
+
+      {/* Severity Thresholds - Display risk score thresholds */}
+      <SeverityThresholds className="mt-6" />
 
       {/* DLQ Monitor - Always visible below config card */}
       <DlqMonitor className="mt-6" />

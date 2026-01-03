@@ -11,6 +11,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.schemas.clips import (
+    ClipGenerateRequest,
+    ClipGenerateResponse,
+    ClipInfoResponse,
+)
 from backend.api.schemas.detections import DetectionListResponse
 from backend.api.schemas.enrichment import EventEnrichmentsResponse
 from backend.api.schemas.events import (
@@ -853,3 +858,212 @@ async def get_event_enrichments(
         "enrichments": enrichments,
         "count": len(enrichments),
     }
+
+
+@router.get("/{event_id}/clip", response_model=ClipInfoResponse)
+async def get_event_clip(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> ClipInfoResponse:
+    """Get clip information for a specific event.
+
+    Returns information about whether a video clip is available for the event,
+    and if so, provides the URL to access it along with metadata.
+
+    Args:
+        event_id: Event ID
+        db: Database session
+
+    Returns:
+        ClipInfoResponse with clip availability and metadata
+
+    Raises:
+        HTTPException: 404 if event not found
+    """
+    from pathlib import Path
+
+    # Get event
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found",
+        )
+
+    # Check if clip exists
+    if not event.clip_path:
+        return ClipInfoResponse(
+            event_id=event.id,
+            clip_available=False,
+            clip_url=None,
+            duration_seconds=None,
+            generated_at=None,
+            file_size_bytes=None,
+        )
+
+    # Check if clip file actually exists on disk
+    clip_path = Path(event.clip_path)
+    if not clip_path.exists():
+        logger.warning(f"Clip path in DB but file missing: {event.clip_path}")
+        return ClipInfoResponse(
+            event_id=event.id,
+            clip_available=False,
+            clip_url=None,
+            duration_seconds=None,
+            generated_at=None,
+            file_size_bytes=None,
+        )
+
+    # Get file stats
+    file_stat = clip_path.stat()
+    file_size = file_stat.st_size
+    generated_at = datetime.fromtimestamp(file_stat.st_mtime, tz=UTC)
+
+    # Calculate duration from event timestamps
+    duration_seconds = None
+    if event.started_at and event.ended_at:
+        duration_seconds = int((event.ended_at - event.started_at).total_seconds())
+
+    # Build clip URL using the clip filename
+    clip_filename = clip_path.name
+    clip_url = f"/api/media/clips/{clip_filename}"
+
+    return ClipInfoResponse(
+        event_id=event.id,
+        clip_available=True,
+        clip_url=clip_url,
+        duration_seconds=duration_seconds,
+        generated_at=generated_at,
+        file_size_bytes=file_size,
+    )
+
+
+@router.post("/{event_id}/clip/generate", response_model=ClipGenerateResponse)
+async def generate_event_clip(
+    event_id: int,
+    request: ClipGenerateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ClipGenerateResponse:
+    """Trigger video clip generation for an event.
+
+    If a clip already exists and force=False, returns the existing clip info.
+    If force=True, regenerates the clip even if one exists.
+
+    Clip generation uses detection images to create a video sequence, or
+    extracts from existing video if available.
+
+    Args:
+        event_id: Event ID
+        request: Clip generation parameters
+        db: Database session
+
+    Returns:
+        ClipGenerateResponse with generation status and clip info
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 400 if event has no detections to generate clip from
+    """
+    from pathlib import Path
+
+    from backend.api.schemas.clips import ClipGenerateResponse, ClipStatus
+    from backend.services.clip_generator import get_clip_generator
+
+    # Get event
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found",
+        )
+
+    # Check if clip already exists and force is False
+    if event.clip_path and not request.force:
+        clip_path = Path(event.clip_path)
+        if clip_path.exists():
+            file_stat = clip_path.stat()
+            generated_at = datetime.fromtimestamp(file_stat.st_mtime, tz=UTC)
+            clip_filename = clip_path.name
+            clip_url = f"/api/media/clips/{clip_filename}"
+
+            return ClipGenerateResponse(
+                event_id=event.id,
+                status=ClipStatus.COMPLETED,
+                clip_url=clip_url,
+                generated_at=generated_at,
+                message="Clip already exists",
+            )
+
+    # Check if event has detections
+    detection_ids = parse_detection_ids(event.detection_ids)
+    if not detection_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate clip: event has no detections",
+        )
+
+    # Get detection file paths
+    det_query = select(Detection.file_path).where(Detection.id.in_(detection_ids))
+    det_result = await db.execute(det_query)
+    file_paths = [row[0] for row in det_result.all() if row[0]]
+
+    if not file_paths:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate clip: no detection images available",
+        )
+
+    # Delete existing clip if force regeneration
+    clip_generator = get_clip_generator()
+    if request.force and event.clip_path:
+        clip_generator.delete_clip(event.id)
+
+    # Generate clip from detection images
+    try:
+        generated_clip_path = await clip_generator.generate_clip_from_images(
+            event=event,
+            image_paths=file_paths,
+            fps=2,  # Default 2 FPS for image sequence
+            output_format="mp4",
+        )
+
+        if generated_clip_path:
+            # Update event with clip path
+            event.clip_path = str(generated_clip_path)
+            await db.commit()
+            await db.refresh(event)
+
+            file_stat = generated_clip_path.stat()
+            generated_at = datetime.fromtimestamp(file_stat.st_mtime, tz=UTC)
+            clip_filename = generated_clip_path.name
+            clip_url = f"/api/media/clips/{clip_filename}"
+
+            return ClipGenerateResponse(
+                event_id=event.id,
+                status=ClipStatus.COMPLETED,
+                clip_url=clip_url,
+                generated_at=generated_at,
+                message="Clip generated successfully",
+            )
+        else:
+            return ClipGenerateResponse(
+                event_id=event.id,
+                status=ClipStatus.FAILED,
+                clip_url=None,
+                generated_at=None,
+                message="Clip generation failed - check server logs",
+            )
+
+    except Exception as e:
+        logger.error(f"Clip generation failed for event {event_id}: {e}", exc_info=True)
+        return ClipGenerateResponse(
+            event_id=event.id,
+            status=ClipStatus.FAILED,
+            clip_url=None,
+            generated_at=None,
+            message=f"Clip generation failed: {e!s}",
+        )

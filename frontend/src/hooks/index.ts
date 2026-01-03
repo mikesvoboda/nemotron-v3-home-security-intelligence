@@ -52,3 +52,16 @@ export type {
   UseAIMetricsResult,
   UseAIMetricsOptions,
 } from './useAIMetrics';
+
+export { useDetectionEnrichment } from './useDetectionEnrichment';
+export type {
+  UseDetectionEnrichmentOptions,
+  UseDetectionEnrichmentReturn,
+} from './useDetectionEnrichment';
+
+export { useModelZooStatus } from './useModelZooStatus';
+export type {
+  VRAMStats,
+  UseModelZooStatusOptions,
+  UseModelZooStatusReturn,
+} from './useModelZooStatus';

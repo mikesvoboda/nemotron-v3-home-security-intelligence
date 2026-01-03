@@ -1717,3 +1717,145 @@ export async function resetCircuitBreaker(
 export async function fetchSeverityMetadata(): Promise<GeneratedSeverityMetadataResponse> {
   return fetchApi<GeneratedSeverityMetadataResponse>('/api/system/severity');
 }
+
+// Alias for backward compatibility - use existing SeverityMetadataResponse type
+export const fetchSeverityConfig = fetchSeverityMetadata;
+
+// ============================================================================
+// Enrichment Endpoints
+// ============================================================================
+
+/**
+ * License plate detection result
+ */
+export interface LicensePlateResult {
+  detected: boolean;
+  confidence?: number;
+  text?: string;
+  ocr_confidence?: number;
+  bbox?: number[];
+}
+
+/**
+ * Face detection result
+ */
+export interface FaceResult {
+  detected: boolean;
+  count: number;
+  confidence?: number;
+}
+
+/**
+ * Vehicle detection result
+ */
+export interface VehicleResult {
+  type?: string;
+  color?: string;
+  confidence?: number;
+  is_commercial?: boolean;
+  damage_detected?: boolean;
+  damage_types?: string[];
+}
+
+/**
+ * Clothing detection result
+ */
+export interface ClothingResult {
+  upper?: string;
+  lower?: string;
+  is_suspicious?: boolean;
+  is_service_uniform?: boolean;
+  has_face_covered?: boolean;
+  has_bag?: boolean;
+  clothing_items?: string[];
+}
+
+/**
+ * Violence detection result
+ */
+export interface ViolenceResult {
+  detected: boolean;
+  score: number;
+  confidence?: number;
+}
+
+/**
+ * Image quality assessment result
+ */
+export interface ImageQualityResult {
+  score: number;
+  is_blurry: boolean;
+  is_low_quality: boolean;
+  quality_issues: string[];
+  quality_change_detected?: boolean;
+}
+
+/**
+ * Response from the enrichment API - contains results from 18+ vision models
+ */
+export interface EnrichmentResponse {
+  detection_id: number;
+  enriched_at: string | null;
+  license_plate?: LicensePlateResult | null;
+  face?: FaceResult | null;
+  vehicle?: VehicleResult | null;
+  clothing?: ClothingResult | null;
+  violence?: ViolenceResult | null;
+  weather?: unknown;
+  pose?: unknown;
+  depth?: unknown;
+  image_quality?: ImageQualityResult | null;
+  pet?: unknown;
+  processing_time_ms?: number | null;
+  errors?: string[];
+}
+
+/**
+ * Fetch enrichment data for a specific detection.
+ *
+ * @param detectionId - The ID of the detection to get enrichment for
+ * @returns EnrichmentResponse with AI-generated context about the detection
+ */
+export async function fetchDetectionEnrichment(detectionId: number): Promise<EnrichmentResponse> {
+  return fetchApi<EnrichmentResponse>(`/api/enrichment/${detectionId}`);
+}
+
+// ============================================================================
+// Model Zoo Endpoints
+// ============================================================================
+
+/**
+ * Status information for a single AI model in the Model Zoo
+ */
+export interface ModelStatusResponse {
+  name: string;
+  display_name: string;
+  vram_mb: number;
+  status: 'loaded' | 'unloaded' | 'loading' | 'error' | 'disabled';
+  category: string;
+  enabled: boolean;
+  available: boolean;
+  path?: string;
+  load_count?: number;
+}
+
+/**
+ * Response from the model zoo status API
+ */
+export interface ModelRegistryResponse {
+  models: ModelStatusResponse[];
+  vram_budget_mb: number;
+  vram_used_mb: number;
+  vram_available_mb: number;
+  loading_strategy?: string;
+  max_concurrent_models?: number;
+}
+
+/**
+ * Fetch model zoo status including all loaded models and memory usage.
+ *
+ * @returns ModelRegistryResponse with information about all registered AI models
+ */
+export async function fetchModelZooStatus(): Promise<ModelRegistryResponse> {
+  return fetchApi<ModelRegistryResponse>('/api/system/models');
+}

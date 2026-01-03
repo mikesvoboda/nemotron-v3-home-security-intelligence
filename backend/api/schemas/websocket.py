@@ -422,3 +422,81 @@ class WebSocketServiceStatusMessage(BaseModel):
             }
         }
     )
+
+
+class WebSocketSceneChangeData(BaseModel):
+    """Data payload for scene change messages broadcast to /ws/events clients.
+
+    This schema defines the contract for scene change data sent from the backend
+    to WebSocket clients when a camera view change is detected.
+
+    Fields:
+        id: Unique scene change identifier
+        camera_id: UUID of the camera where change was detected
+        detected_at: ISO 8601 timestamp when the change was detected
+        change_type: Type of change (view_blocked, angle_changed, view_tampered, unknown)
+        similarity_score: SSIM score (0-1, lower means more different from baseline)
+    """
+
+    id: int = Field(..., description="Unique scene change identifier")
+    camera_id: str = Field(..., description="UUID of the camera where change was detected")
+    detected_at: str = Field(..., description="ISO 8601 timestamp when the change was detected")
+    change_type: str = Field(
+        ..., description="Type of change (view_blocked, angle_changed, view_tampered, unknown)"
+    )
+    similarity_score: float = Field(
+        ..., ge=0.0, le=1.0, description="SSIM score (0-1, lower means more different)"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "camera_id": "front_door",
+                "detected_at": "2026-01-03T10:30:00Z",
+                "change_type": "view_blocked",
+                "similarity_score": 0.23,
+            }
+        }
+    )
+
+
+class WebSocketSceneChangeMessage(BaseModel):
+    """Complete scene change message envelope sent to /ws/events clients.
+
+    This is the canonical format for scene change messages broadcast via WebSocket.
+    The message wraps scene change data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "scene_change",
+            "data": {
+                "id": 1,
+                "camera_id": "front_door",
+                "detected_at": "2026-01-03T10:30:00Z",
+                "change_type": "view_blocked",
+                "similarity_score": 0.23
+            }
+        }
+    """
+
+    type: Literal["scene_change"] = Field(
+        default="scene_change",
+        description="Message type, always 'scene_change' for scene change messages",
+    )
+    data: WebSocketSceneChangeData = Field(..., description="Scene change data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "scene_change",
+                "data": {
+                    "id": 1,
+                    "camera_id": "front_door",
+                    "detected_at": "2026-01-03T10:30:00Z",
+                    "change_type": "view_blocked",
+                    "similarity_score": 0.23,
+                },
+            }
+        }
+    )

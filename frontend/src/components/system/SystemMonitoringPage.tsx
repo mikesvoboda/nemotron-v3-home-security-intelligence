@@ -17,12 +17,14 @@ import CircuitBreakerPanel from './CircuitBreakerPanel';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
+import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
 import SeverityConfigPanel from './SeverityConfigPanel';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
+import { useModelZooStatus } from '../../hooks/useModelZooStatus';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 import {
   fetchStats,
@@ -139,6 +141,15 @@ export default function SystemMonitoringPage() {
     timeRange,
     setTimeRange,
   } = usePerformanceMetrics();
+
+  // Use Model Zoo status hook for AI Model Zoo panel
+  const {
+    models: modelZooModels,
+    vramStats: modelZooVramStats,
+    isLoading: modelZooLoading,
+    error: modelZooError,
+    refresh: refreshModelZoo,
+  } = useModelZooStatus({ pollingInterval: 10000 });
 
   // Transform performance history for GPU stats based on selected time range
   const gpuHistoryData: GpuMetricDataPoint[] = (performanceHistory[timeRange] || [])
@@ -581,11 +592,23 @@ export default function SystemMonitoringPage() {
             data-testid="gpu-stats"
           />
 
-          {/* Row 1: AI Models (all models in one card) */}
+          {/* Row 1: AI Models (core inference engines) */}
           <div className="xl:col-span-2">
             <AiModelsPanel
               aiModels={aiModelsData}
               data-testid="ai-models-panel-section"
+            />
+          </div>
+
+          {/* Row 2: Model Zoo (enrichment models with VRAM tracking) */}
+          <div className="xl:col-span-2">
+            <ModelZooPanel
+              models={modelZooModels}
+              vramStats={modelZooVramStats}
+              isLoading={modelZooLoading}
+              error={modelZooError}
+              onRefresh={() => void refreshModelZoo()}
+              data-testid="model-zoo-panel-section"
             />
           </div>
 
@@ -625,7 +648,16 @@ export default function SystemMonitoringPage() {
             />
           </div>
 
-          {/* Row 3: Containers (grid of status badges) */}
+          {/* Row 3: Circuit Breakers (service protection status) */}
+          <div className="xl:col-span-2">
+            <CircuitBreakerPanel
+              pollingInterval={10000}
+              defaultExpanded={false}
+              data-testid="circuit-breaker-panel-section"
+            />
+          </div>
+
+          {/* Row 4: Containers (grid of status badges) */}
           <div className="xl:col-span-2">
             <ContainersPanel
               containers={containerMetrics}
