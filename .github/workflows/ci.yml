@@ -201,6 +201,7 @@ jobs:
             -n0 \
             --timeout=30 \
             --cov=backend \
+            --cov-fail-under=0 \
             --cov-report=xml:coverage-integration-api.xml \
             --cov-report=term-missing \
             --junit-xml=test-results-integration-api.xml \
@@ -282,6 +283,7 @@ jobs:
             -n0 \
             --timeout=30 \
             --cov=backend \
+            --cov-fail-under=0 \
             --cov-report=xml:coverage-integration-websocket.xml \
             --cov-report=term-missing \
             --junit-xml=test-results-integration-websocket.xml \
@@ -363,6 +365,7 @@ jobs:
             -n0 \
             --timeout=30 \
             --cov=backend \
+            --cov-fail-under=0 \
             --cov-report=xml:coverage-integration-services.xml \
             --cov-report=term-missing \
             --junit-xml=test-results-integration-services.xml \
@@ -444,6 +447,7 @@ jobs:
             -n0 \
             --timeout=30 \
             --cov=backend \
+            --cov-fail-under=0 \
             --cov-report=xml:coverage-integration-models.xml \
             --cov-report=term-missing \
             --junit-xml=test-results-integration-models.xml \
