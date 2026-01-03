@@ -1082,7 +1082,8 @@ class TestEnrichmentPipelineInit:
             assert pipeline.clothing_segmentation_enabled is True
             assert pipeline.vehicle_damage_detection_enabled is True
             assert pipeline.vehicle_classification_enabled is True
-            assert pipeline.image_quality_enabled is True
+            # image_quality_enabled defaults to False via config (pyiqa incompatible with NumPy 2.0)
+            assert pipeline.image_quality_enabled is False
             assert pipeline.pet_classification_enabled is True
             assert pipeline.use_enrichment_service is False
 

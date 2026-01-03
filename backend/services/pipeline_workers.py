@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from backend.api.routes.system import record_stage_latency
 from backend.api.schemas.queue import (
     AnalysisQueuePayload,
     DetectionQueuePayload,
@@ -45,6 +46,7 @@ from backend.core.logging import get_logger
 from backend.core.metrics import (
     observe_stage_duration,
     record_pipeline_error,
+    record_pipeline_stage_latency,
     set_queue_depth,
 )
 from backend.core.redis import RedisClient
@@ -354,9 +356,13 @@ class DetectionQueueWorker:
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()
 
-            # Record detect stage duration
+            # Record detect stage duration (Prometheus + in-memory tracker)
             duration = time.time() - start_time
             observe_stage_duration("detect", duration)
+            # Record to in-memory tracker for /api/system/pipeline-latency
+            record_pipeline_stage_latency("detect_to_batch", duration * 1000)
+            # Record to Redis for /api/system/telemetry
+            await record_stage_latency(self._redis, "detect", duration * 1000)
 
         except DetectorUnavailableError as e:
             # This is expected when detector is down and retries exhausted
@@ -719,6 +725,8 @@ class AnalysisQueueWorker:
         """
         import time
 
+        start_time = time.time()
+
         # Security: Validate payload using Pydantic schema
         try:
             validated: AnalysisQueuePayload = validate_analysis_payload(item)
@@ -753,6 +761,13 @@ class AnalysisQueueWorker:
 
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()
+
+            # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
+            duration = time.time() - start_time
+            # Record to in-memory tracker for /api/system/pipeline-latency
+            record_pipeline_stage_latency("batch_to_analyze", duration * 1000)
+            # Record to Redis for /api/system/telemetry
+            await record_stage_latency(self._redis, "analyze", duration * 1000)
 
             logger.info(
                 f"Created event {event.id} for batch {batch_id}: risk_score={event.risk_score}",
@@ -890,9 +905,13 @@ class BatchTimeoutWorker:
                     self._stats.items_processed += len(closed_batches)
                     self._stats.last_processed_at = time.time()
 
-                    # Record batch stage duration
+                    # Record batch stage duration (Prometheus + in-memory tracker + Redis)
                     duration = time.time() - start_time
                     observe_stage_duration("batch", duration)
+                    # Record to in-memory tracker for /api/system/pipeline-latency
+                    record_pipeline_stage_latency("detect_to_batch", duration * 1000)
+                    # Record to Redis for /api/system/telemetry
+                    await record_stage_latency(self._redis, "batch", duration * 1000)
 
                     logger.info(
                         f"Closed {len(closed_batches)} timed-out batches",

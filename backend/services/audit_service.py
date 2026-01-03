@@ -7,7 +7,6 @@ and aggregation of statistics.
 from __future__ import annotations
 
 import json
-import re
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
@@ -16,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
+from backend.core.json_utils import extract_json_from_llm_response
 from backend.core.logging import get_logger
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
@@ -165,6 +165,26 @@ class AuditService:
             prompt_token_estimate=self._estimate_tokens(llm_prompt),
             enrichment_utilization=self._calc_utilization(enriched_context, enrichment_result),
         )
+        return audit
+
+    async def persist_record(
+        self,
+        audit: EventAudit,
+        session: AsyncSession,
+    ) -> EventAudit:
+        """Persist an audit record to the database.
+
+        Args:
+            audit: The EventAudit record to persist.
+            session: The database session to use for persistence.
+
+        Returns:
+            The persisted EventAudit with its ID populated.
+        """
+        session.add(audit)
+        await session.commit()
+        await session.refresh(audit)
+        logger.debug(f"Persisted audit {audit.id} for event {audit.event_id}")
         return audit
 
     def _has_florence(self, result: EnrichmentResult | None) -> bool:
@@ -355,12 +375,13 @@ class AuditService:
             )
             response = await self._call_llm(prompt)
 
-            # Parse JSON from response
-            json_match = re.search(r"\{[^}]+\}", response, re.DOTALL)
-            if json_match:
-                parsed: dict[str, float] = json.loads(json_match.group())
+            # Parse JSON from response using robust extraction
+            try:
+                parsed: dict[str, float] = extract_json_from_llm_response(response)
                 return parsed
-            return {}
+            except ValueError:
+                logger.warning(f"Could not extract JSON from rubric eval for event {event.id}")
+                return {}
         except Exception as e:
             logger.error(f"Rubric eval failed for event {event.id}: {e}")
             return {}
@@ -376,11 +397,15 @@ class AuditService:
             prompt = CONSISTENCY_CHECK_PROMPT.format(llm_prompt_clean=clean_prompt)
             response = await self._call_llm(prompt)
 
-            json_match = re.search(r"\{[^}]+\}", response, re.DOTALL)
-            if json_match:
-                parsed: dict[str, Any] = json.loads(json_match.group())
+            # Parse JSON from response using robust extraction
+            try:
+                parsed: dict[str, Any] = extract_json_from_llm_response(response)
                 return parsed
-            return {}
+            except ValueError:
+                logger.warning(
+                    f"Could not extract JSON from consistency check for event {event.id}"
+                )
+                return {}
         except Exception as e:
             logger.error(f"Consistency check failed for event {event.id}: {e}")
             return {}
@@ -395,11 +420,15 @@ class AuditService:
             )
             response = await self._call_llm(prompt)
 
-            json_match = re.search(r"\{[^}]+\}", response, re.DOTALL)
-            if json_match:
-                parsed: dict[str, list[str]] = json.loads(json_match.group())
+            # Parse JSON from response using robust extraction
+            try:
+                parsed: dict[str, list[str]] = extract_json_from_llm_response(response)
                 return parsed
-            return {}
+            except ValueError:
+                logger.warning(
+                    f"Could not extract JSON from prompt improvement for event {event.id}"
+                )
+                return {}
         except Exception as e:
             logger.error(f"Prompt improvement failed for event {event.id}: {e}")
             return {}

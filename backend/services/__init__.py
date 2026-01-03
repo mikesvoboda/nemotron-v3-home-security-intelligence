@@ -71,7 +71,12 @@ from .face_detector import (
     detect_faces,
     is_person_class,
 )
-from .file_watcher import FileWatcher, is_image_file, is_valid_image
+from .file_watcher import (
+    MIN_IMAGE_FILE_SIZE,
+    FileWatcher,
+    is_image_file,
+    is_valid_image,
+)
 from .florence_extractor import (
     EnvironmentContext,
     FlorenceExtractor,
@@ -185,6 +190,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "EMBEDDING_DIMENSION",
     "EMBEDDING_TTL_SECONDS",
     "LONG_TTL",
+    "MIN_IMAGE_FILE_SIZE",
     "MODEL_ZOO",
     "PERSON_CLASS",
     "SEVERITY_COLORS",

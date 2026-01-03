@@ -24,15 +24,18 @@ from backend.services.detector_client import DetectorClient, DetectorUnavailable
 
 @pytest.fixture
 async def sample_camera(integration_db):
-    """Create a sample camera in the database for foreign key requirements."""
+    """Create a sample camera in the database for foreign key requirements.
+
+    Uses unique names and folder paths to prevent conflicts with unique constraints.
+    """
     from backend.core.database import get_session
 
     camera_id = f"test_camera_{uuid.uuid4().hex[:8]}"
     async with get_session() as db:
         camera = Camera(
             id=camera_id,
-            name="Test Camera",
-            folder_path="/export/foscam/test_camera",
+            name=f"Test Camera {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
             status="online",
         )
         db.add(camera)
@@ -43,11 +46,23 @@ async def sample_camera(integration_db):
 
 @pytest.fixture
 def temp_image_file():
-    """Create a temporary image file for testing."""
+    """Create a temporary image file for testing.
+
+    Creates a valid JPEG image that passes all validation checks,
+    including minimum file size requirements (>10KB).
+    """
+    from PIL import Image
+
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
-        # Write minimal JPEG-like content
-        f.write(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00")
-        f.flush()
+        # Create a valid image that's large enough to pass validation
+        # Using 640x480 with gradient ensures file size > 10KB
+        img = Image.new("RGB", (640, 480), color="red")
+        pixels = img.load()
+        if pixels is not None:
+            for y in range(480):
+                for x in range(640):
+                    pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+        img.save(f.name, "JPEG", quality=95)
         yield f.name
     # Cleanup happens after test
     Path(f.name).unlink(missing_ok=True)
@@ -141,6 +156,8 @@ class TestDetectObjectsStoresInDatabase:
         self, integration_db, sample_camera, detector_client
     ):
         """Test that file type is correctly stored as MIME type."""
+        from PIL import Image
+
         from backend.core.database import get_session
 
         # Map of extensions to expected MIME types
@@ -150,10 +167,29 @@ class TestDetectObjectsStoresInDatabase:
             ".png": "image/png",
         }
 
-        # Create temp files with different extensions
+        # Create temp files with different extensions using valid images
         for ext, expected_mime in extension_to_mime.items():
             with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
-                f.write(b"fake image data")
+                # Create a valid image large enough to pass validation
+                # Use larger size for PNG since it compresses better than JPEG
+                size = (800, 600)
+                img = Image.new("RGB", size, color="blue")
+                # Add noise pattern to prevent compression from shrinking file too much
+                import random
+
+                random.seed(42)  # Reproducible randomness
+                pixels = img.load()
+                if pixels is not None:
+                    for y in range(size[1]):
+                        for x in range(size[0]):
+                            # Add random noise to prevent PNG compression from being too effective
+
+                            r = (x + random.randint(0, 50)) % 256  # noqa: S311
+                            g = (y + random.randint(0, 50)) % 256  # noqa: S311
+                            b = ((x + y) + random.randint(0, 50)) % 256  # noqa: S311
+                            pixels[x, y] = (r, g, b)
+                format_name = "JPEG" if ext in (".jpg", ".jpeg") else "PNG"
+                img.save(f.name, format_name, quality=95 if format_name == "JPEG" else None)
                 temp_path = f.name
 
             try:

@@ -64,7 +64,12 @@ def mock_pynvml():
 
 @pytest.fixture
 def mock_pynvml_not_available():
-    """Mock pynvml module not being available (ImportError)."""
+    """Mock pynvml module not being available (ImportError).
+
+    Note: This fixture only mocks pynvml. On systems with nvidia-smi available,
+    the GPUMonitor will fall back to using nvidia-smi.
+    Use mock_no_gpu_access for tests that need to force mock data mode.
+    """
     # Save original if it exists
     original_pynvml = sys.modules.get("pynvml")
 
@@ -90,6 +95,44 @@ def mock_pynvml_not_available():
         del sys.modules["pynvml"]
 
     yield
+
+    # Restore
+    builtins.__import__ = original_import
+    if original_pynvml is not None:
+        sys.modules["pynvml"] = original_pynvml
+    elif "pynvml" in sys.modules:
+        del sys.modules["pynvml"]
+
+
+@pytest.fixture
+def mock_no_gpu_access():
+    """Mock both pynvml not available AND nvidia-smi not in PATH.
+
+    This fixture ensures the GPUMonitor falls back to mock data mode.
+    Use this for tests that expect mock GPU data.
+    """
+    # Save original if it exists
+    original_pynvml = sys.modules.get("pynvml")
+
+    # Make the import itself fail by replacing with None
+    import builtins
+
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "pynvml":
+            raise ImportError("pynvml not installed")
+        return original_import(name, *args, **kwargs)
+
+    builtins.__import__ = mock_import
+
+    # Remove from sys.modules if present
+    if "pynvml" in sys.modules:
+        del sys.modules["pynvml"]
+
+    # Also mock shutil.which to return None for nvidia-smi
+    with patch("shutil.which", return_value=None):
+        yield
 
     # Restore
     builtins.__import__ = original_import
@@ -161,12 +204,14 @@ def test_gpu_monitor_init_with_gpu(mock_pynvml):
     assert monitor.running is False
 
 
-def test_gpu_monitor_init_without_pynvml(mock_pynvml_not_available):
-    """Test GPUMonitor initialization when pynvml is not installed."""
+@pytest.mark.usefixtures("mock_no_gpu_access")
+def test_gpu_monitor_init_without_pynvml():
+    """Test GPUMonitor initialization when pynvml is not installed and nvidia-smi unavailable."""
     monitor = GPUMonitor(poll_interval=5.0)
 
     assert monitor._gpu_available is False
     assert monitor._nvml_initialized is False
+    assert monitor._nvidia_smi_available is False
     assert monitor._gpu_name is None
     assert monitor.running is False
 
@@ -205,11 +250,13 @@ def test_get_current_stats_real_gpu(mock_pynvml):
     assert isinstance(stats["recorded_at"], datetime)
 
 
-def test_get_current_stats_mock_gpu(mock_pynvml_not_available):
+@pytest.mark.usefixtures("mock_no_gpu_access")
+def test_get_current_stats_mock_gpu():
     """Test getting current GPU stats when GPU is not available.
 
     The mock mode now provides simulated values (varying slightly over time)
     instead of all nulls, to enable meaningful display in development environments.
+    This test requires both pynvml and nvidia-smi to be unavailable to reach mock mode.
     """
     monitor = GPUMonitor()
     stats = monitor.get_current_stats()
@@ -239,6 +286,91 @@ def test_get_current_stats_handles_pynvml_errors(mock_pynvml):
         # Should fall back to mock data with simulated values
         assert stats["gpu_name"] == "Mock GPU (Development Mode)"
         assert isinstance(stats["gpu_utilization"], float)
+
+
+# Test nvidia-smi Fallback
+
+
+def test_nvidia_smi_fallback_when_pynvml_unavailable(mock_pynvml_not_available):
+    """Test that nvidia-smi is used as fallback when pynvml is not available.
+
+    This test runs on systems with nvidia-smi available, verifying the fallback works.
+    """
+    monitor = GPUMonitor()
+
+    # When pynvml is not available but nvidia-smi is, we should use nvidia-smi
+    if monitor._nvidia_smi_available:
+        stats = monitor.get_current_stats()
+
+        # Should get real data from nvidia-smi, not mock data
+        assert stats["gpu_name"] != "Mock GPU (Development Mode)"
+        # Temperature should be reasonable (not 0 like AI container fallback)
+        assert stats["temperature"] is None or stats["temperature"] > 0
+        # Power should be non-zero when GPU is powered on
+        assert stats["power_usage"] is None or stats["power_usage"] > 0
+    else:
+        # On systems without nvidia-smi, this test is a no-op
+        pass
+
+
+def test_nvidia_smi_stats_parsing():
+    """Test parsing of nvidia-smi output format."""
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    # Mock subprocess.run to return known values
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"
+
+    with patch("subprocess.run", return_value=mock_result):
+        stats = monitor._get_gpu_stats_nvidia_smi()
+
+        assert stats["temperature"] == 39.0
+        assert stats["power_usage"] == 29.61
+        assert stats["gpu_utilization"] == 35.0
+        assert stats["memory_used"] == 175
+        assert stats["memory_total"] == 24576
+        assert stats["gpu_name"] == "NVIDIA RTX A5500"
+
+
+def test_nvidia_smi_handles_na_values():
+    """Test that nvidia-smi parsing handles [N/A] values gracefully."""
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    # Mock subprocess.run with N/A values
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "[N/A], [N/A], 35, 175, 24576, NVIDIA RTX A5500"
+
+    with patch("subprocess.run", return_value=mock_result):
+        stats = monitor._get_gpu_stats_nvidia_smi()
+
+        assert stats["temperature"] is None
+        assert stats["power_usage"] is None
+        assert stats["gpu_utilization"] == 35.0
+        assert stats["memory_used"] == 175
+
+
+def test_nvidia_smi_timeout_handling():
+    """Test that nvidia-smi timeout is handled properly."""
+    import subprocess
+
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    with (
+        patch("subprocess.run", side_effect=subprocess.TimeoutExpired("nvidia-smi", 5)),
+        pytest.raises(RuntimeError, match="nvidia-smi timed out"),
+    ):
+        monitor._get_gpu_stats_nvidia_smi()
 
 
 # Test Stats History
@@ -872,8 +1004,12 @@ async def test_get_current_stats_async_with_gpu(mock_pynvml):
 
 
 @pytest.mark.asyncio
-async def test_get_current_stats_async_ai_container_fallback(mock_pynvml_not_available):
-    """Test async stats retrieval falls back to AI containers."""
+@pytest.mark.usefixtures("mock_no_gpu_access")
+async def test_get_current_stats_async_ai_container_fallback():
+    """Test async stats retrieval falls back to AI containers.
+
+    Requires both pynvml and nvidia-smi to be unavailable so AI containers are tried.
+    """
     monitor = GPUMonitor()
 
     # Mock AI container response
@@ -891,8 +1027,12 @@ async def test_get_current_stats_async_ai_container_fallback(mock_pynvml_not_ava
 
 
 @pytest.mark.asyncio
-async def test_get_current_stats_async_mock_fallback(mock_pynvml_not_available):
-    """Test async stats retrieval falls back to mock when AI containers fail."""
+@pytest.mark.usefixtures("mock_no_gpu_access")
+async def test_get_current_stats_async_mock_fallback():
+    """Test async stats retrieval falls back to mock when AI containers fail.
+
+    Requires both pynvml and nvidia-smi to be unavailable to reach mock mode.
+    """
     monitor = GPUMonitor()
 
     # Mock AI containers returning None

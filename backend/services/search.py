@@ -267,7 +267,11 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
         else:
             tsquery = func.websearch_to_tsquery(cast("english", REGCONFIG), query)
 
-        rank = func.ts_rank(Event.search_vector, tsquery)
+        # ts_rank returns values typically in range 0.0-0.1
+        # Normalize to 0.0-1.0 range for frontend percentage display
+        # Multiply by 10 and cap at 1.0: ts_rank 0.1 -> 1.0 (100%), 0.05 -> 0.5 (50%)
+        raw_rank = func.ts_rank(Event.search_vector, tsquery)
+        rank = func.least(raw_rank * 10, cast(1.0, Float))
 
         # Escape the query for ILIKE pattern matching to prevent injection
         safe_query = escape_ilike_pattern(query)

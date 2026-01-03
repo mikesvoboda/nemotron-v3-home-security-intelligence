@@ -46,10 +46,11 @@ async def clean_full_stack(integration_db):
 async def test_create_camera(integration_db, clean_full_stack):
     """Test creating a camera in the database."""
     camera_id = unique_id("front_door")
+    camera_name = f"Front Door Camera {camera_id[-8:]}"
     async with get_session() as session:
         camera = Camera(
             id=camera_id,
-            name="Front Door Camera",
+            name=camera_name,
             folder_path=f"/export/foscam/{camera_id}",
             status="online",
             created_at=datetime.now(UTC),
@@ -63,7 +64,7 @@ async def test_create_camera(integration_db, clean_full_stack):
 
         assert saved_camera is not None
         assert saved_camera.id == camera_id
-        assert saved_camera.name == "Front Door Camera"
+        assert saved_camera.name == camera_name
         assert saved_camera.folder_path == f"/export/foscam/{camera_id}"
         assert saved_camera.status == "online"
 

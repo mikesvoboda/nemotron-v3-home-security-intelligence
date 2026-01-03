@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
+import { AIPerformancePage } from './components/ai';
 import AlertsPage from './components/alerts/AlertsPage';
 import { AuditLogPage } from './components/audit';
 import { ErrorBoundary } from './components/common';
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/entities" element={<EntitiesPage />} />
             <Route path="/logs" element={<LogsDashboard />} />
             <Route path="/audit" element={<AuditLogPage />} />
+            <Route path="/ai" element={<AIPerformancePage />} />
             <Route path="/system" element={<SystemMonitoringPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
