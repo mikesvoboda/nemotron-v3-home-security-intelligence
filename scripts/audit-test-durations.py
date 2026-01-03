@@ -107,11 +107,8 @@ SLOW_TEST_PATTERNS = [
     # Performance collector container health tests - multiple HTTP health checks
     r"test_performance_collector.*TestCollectContainerHealth",
     r"test_performance_collector.*test_collect_container_health",
-    # Alert rules error state tests - API retry exhaustion (~10-11s)
-    r"alert-rules\.spec\.ts.*Error State.*try again",
-    r"alert-rules\.spec\.ts.*Error State.*button.*error",
-    # Alert rules notification channels tests - UI interactions (~10s in CI)
-    r"alert-rules\.spec\.ts.*Notification Channels",
+    # Alert rules E2E tests - UI-heavy interactions take 8-12s in CI
+    r"alert-rules\.spec\.ts.*",
     # Re-identification tests - require Redis connection setup overhead
     r"test_enrichment_pipeline.*test_run_reid_requires_redis",
     # Accessibility tests - axe-core analysis takes 15-25s per page in CI
