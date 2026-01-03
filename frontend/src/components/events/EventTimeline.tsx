@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
@@ -94,6 +95,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [searchOffset, setSearchOffset] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // URL search params for deep-linking (e.g., /timeline?camera=cam-1)
+  const [searchParams] = useSearchParams();
+
+  // Initialize camera filter from URL query parameter
+  // Updates when searchParams changes (e.g., navigating from dashboard camera click)
+  useEffect(() => {
+    const cameraParam = searchParams.get('camera');
+    if (cameraParam) {
+      setFilters((prev) => ({
+        ...prev,
+        camera_id: cameraParam,
+        offset: 0,
+      }));
+      // Show filters panel when coming from dashboard camera click
+      setShowFilters(true);
+    }
+  }, [searchParams]);
 
   // Create a memoized camera name lookup map that updates when cameras change
   // This ensures the component re-renders with correct camera names when cameras load

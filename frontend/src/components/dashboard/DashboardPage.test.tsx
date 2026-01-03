@@ -1,10 +1,20 @@
-import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import DashboardPage from './DashboardPage';
 import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as useSystemStatusHook from '../../hooks/useSystemStatus';
 import * as api from '../../services/api';
+import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
+
+// Mock useNavigate from react-router-dom
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 // Mock the API and hooks
 vi.mock('../../services/api');
@@ -47,14 +57,24 @@ vi.mock('./RiskGauge', () => ({
 vi.mock('./CameraGrid', () => ({
   default: ({
     cameras,
+    onCameraClick,
   }: {
     cameras: Array<{ id: string; name: string; thumbnail_url?: string }>;
+    onCameraClick?: (cameraId: string) => void;
   }) => (
-    <div data-testid="camera-grid" data-camera-count={cameras.length}>
+    <div
+      data-testid="camera-grid"
+      data-camera-count={cameras.length}
+      data-has-click-handler={onCameraClick ? 'true' : 'false'}
+    >
       {cameras.map((camera) => (
-        <div key={camera.id} data-thumbnail-url={camera.thumbnail_url}>
+        <button
+          key={camera.id}
+          data-thumbnail-url={camera.thumbnail_url}
+          onClick={() => onCameraClick?.(camera.id)}
+        >
           {camera.name}
-        </div>
+        </button>
       ))}
     </div>
   ),
@@ -164,6 +184,7 @@ describe('DashboardPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockClear();
 
     // Setup default mock implementations
     (api.fetchCameras as Mock).mockResolvedValue(mockCameras);
@@ -193,7 +214,7 @@ describe('DashboardPage', () => {
       // Make API call hang
       (api.fetchCameras as Mock).mockImplementation(() => new Promise(() => {}));
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       // Check for loading skeletons
       const skeletons = screen
@@ -205,7 +226,7 @@ describe('DashboardPage', () => {
     it('loading state has correct background color', () => {
       (api.fetchCameras as Mock).mockImplementation(() => new Promise(() => {}));
 
-      const { container } = render(<DashboardPage />);
+      const { container } = renderWithProviders(<DashboardPage />);
       const wrapper = container.firstChild as HTMLElement;
       expect(wrapper).toHaveClass('bg-[#121212]');
     });
@@ -216,7 +237,7 @@ describe('DashboardPage', () => {
       const errorMessage = 'Failed to fetch cameras';
       (api.fetchCameras as Mock).mockRejectedValue(new Error(errorMessage));
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Error Loading Dashboard')).toBeInTheDocument();
@@ -228,7 +249,7 @@ describe('DashboardPage', () => {
     it('renders reload button in error state', async () => {
       (api.fetchCameras as Mock).mockRejectedValue(new Error('API Error'));
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
@@ -245,7 +266,7 @@ describe('DashboardPage', () => {
         writable: true,
       });
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
@@ -260,7 +281,7 @@ describe('DashboardPage', () => {
     it('error state has correct styling', async () => {
       (api.fetchCameras as Mock).mockRejectedValue(new Error('API Error'));
 
-      const { container } = render(<DashboardPage />);
+      const { container } = renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const errorContainer = container.querySelector('.bg-red-500\\/10');
@@ -271,7 +292,7 @@ describe('DashboardPage', () => {
 
   describe('Successful Render', () => {
     it('renders dashboard header', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /security dashboard/i })).toBeInTheDocument();
@@ -279,7 +300,7 @@ describe('DashboardPage', () => {
     });
 
     it('renders subtitle with correct text', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(
@@ -289,7 +310,7 @@ describe('DashboardPage', () => {
     });
 
     it('renders all child components', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByTestId('stats-row')).toBeInTheDocument();
@@ -299,7 +320,7 @@ describe('DashboardPage', () => {
     });
 
     it('passes correct props to StatsRow', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const statsRow = screen.getByTestId('stats-row');
@@ -315,7 +336,7 @@ describe('DashboardPage', () => {
     });
 
     it('passes correct props to RiskGauge', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const riskGauge = screen.getByTestId('risk-gauge');
@@ -324,7 +345,7 @@ describe('DashboardPage', () => {
     });
 
     it('passes risk history to RiskGauge', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const riskGauge = screen.getByTestId('risk-gauge');
@@ -336,7 +357,7 @@ describe('DashboardPage', () => {
     });
 
     it('passes correct camera count to CameraGrid', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const cameraGrid = screen.getByTestId('camera-grid');
@@ -345,7 +366,7 @@ describe('DashboardPage', () => {
     });
 
     it('converts camera status correctly', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
@@ -354,7 +375,7 @@ describe('DashboardPage', () => {
     });
 
     it('passes thumbnail_url to CameraGrid using getCameraSnapshotUrl', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const frontDoor = screen.getByText('Front Door');
@@ -367,12 +388,52 @@ describe('DashboardPage', () => {
     });
 
     it('renders section headers', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /current risk level/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /camera status/i })).toBeInTheDocument();
       });
+    });
+
+    it('passes onCameraClick handler to CameraGrid', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const cameraGrid = screen.getByTestId('camera-grid');
+        // Verify the click handler is provided
+        expect(cameraGrid).toHaveAttribute('data-has-click-handler', 'true');
+      });
+    });
+
+    it('navigates to timeline with camera filter when camera card is clicked', async () => {
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
+      });
+
+      // Click on the Front Door camera card
+      const frontDoorButton = screen.getByRole('button', { name: 'Front Door' });
+      await user.click(frontDoorButton);
+
+      // Check that navigate was called with the correct path
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?camera=cam1');
+    });
+
+    it('navigates to timeline with correct camera ID for each camera', async () => {
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
+      });
+
+      // Click on the Back Yard camera card
+      const backYardButton = screen.getByRole('button', { name: 'Back Yard' });
+      await user.click(backYardButton);
+
+      // Check that navigate was called with the correct camera ID
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?camera=cam2');
     });
   });
 
@@ -390,7 +451,7 @@ describe('DashboardPage', () => {
         isConnected: false,
       });
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/disconnected/i)).toBeInTheDocument();
@@ -398,7 +459,7 @@ describe('DashboardPage', () => {
     });
 
     it('does not show disconnected indicator when connected', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
@@ -422,7 +483,7 @@ describe('DashboardPage', () => {
         offset: 0,
       });
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const riskGauge = screen.getByTestId('risk-gauge');
@@ -433,7 +494,7 @@ describe('DashboardPage', () => {
     it('renders with empty camera list', async () => {
       (api.fetchCameras as Mock).mockResolvedValue([]);
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const cameraGrid = screen.getByTestId('camera-grid');
@@ -460,7 +521,7 @@ describe('DashboardPage', () => {
         clearEvents: vi.fn(),
       });
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const statsRow = screen.getByTestId('stats-row');
@@ -471,7 +532,7 @@ describe('DashboardPage', () => {
 
   describe('Data Fetching', () => {
     it('fetches cameras, events, and event stats on mount', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(api.fetchCameras).toHaveBeenCalledTimes(1);
@@ -481,7 +542,7 @@ describe('DashboardPage', () => {
     });
 
     it('fetches events with limit parameter', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 50 });
@@ -489,7 +550,7 @@ describe('DashboardPage', () => {
     });
 
     it('fetches event stats with start_date for today', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(api.fetchEventStats).toHaveBeenCalledWith(
@@ -522,7 +583,7 @@ describe('DashboardPage', () => {
       (api.fetchEvents as Mock).mockReturnValue(eventsPromise);
       (api.fetchEventStats as Mock).mockReturnValue(statsPromise);
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       // Resolve all
       camerasResolve!();
@@ -556,7 +617,7 @@ describe('DashboardPage', () => {
         clearEvents: vi.fn(),
       });
 
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const statsRow = screen.getByTestId('stats-row');
@@ -565,7 +626,7 @@ describe('DashboardPage', () => {
     });
 
     it('uses latest event risk score from merged events for risk gauge', async () => {
-      render(<DashboardPage />);
+      renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         const riskGauge = screen.getByTestId('risk-gauge');
@@ -577,7 +638,7 @@ describe('DashboardPage', () => {
 
   describe('Styling and Layout', () => {
     it('has correct dashboard structure and styling', async () => {
-      const { container } = render(<DashboardPage />);
+      const { container } = renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /security dashboard/i })).toBeInTheDocument();

@@ -1,10 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import EventTimeline from './EventTimeline';
 import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as api from '../../services/api';
+import { renderWithProviders, screen, waitFor, userEvent } from '../../test-utils/renderWithProviders';
 
 import type { Camera, Event, EventListResponse } from '../../services/api';
 
@@ -135,7 +135,7 @@ describe('EventTimeline', () => {
 
   describe('Rendering', () => {
     it('renders the timeline header', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       expect(screen.getByText('Event Timeline')).toBeInTheDocument();
       expect(
@@ -149,7 +149,7 @@ describe('EventTimeline', () => {
     });
 
     it('renders the Live Activity feed', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe('EventTimeline', () => {
     });
 
     it('renders Live Activity with WebSocket events', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         const activityFeed = screen.getByTestId('activity-feed');
@@ -176,7 +176,7 @@ describe('EventTimeline', () => {
         clearEvents: vi.fn(),
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText(/disconnected/i)).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe('EventTimeline', () => {
     });
 
     it('does not show disconnected indicator when WebSocket is connected', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.queryByText(/Loading events.../)).not.toBeInTheDocument();
@@ -194,7 +194,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays loading state initially', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       expect(screen.getByText('Loading events...')).toBeInTheDocument();
 
@@ -205,7 +205,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays events after loading', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays result count', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Showing 1-3 of 3 events')).toBeInTheDocument();
@@ -224,7 +224,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays pagination controls', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
@@ -238,7 +238,7 @@ describe('EventTimeline', () => {
   describe('Filtering', () => {
     it('shows filter button and toggles filter panel', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -263,7 +263,7 @@ describe('EventTimeline', () => {
 
     it('filters events by camera', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -281,7 +281,7 @@ describe('EventTimeline', () => {
 
     it('filters events by risk level', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('EventTimeline', () => {
 
     it('filters events by reviewed status', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -317,7 +317,7 @@ describe('EventTimeline', () => {
 
     it('filters events by date range', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -342,7 +342,7 @@ describe('EventTimeline', () => {
 
     it('clears all filters', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -369,7 +369,7 @@ describe('EventTimeline', () => {
 
     it('shows active filter indicator', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -392,7 +392,7 @@ describe('EventTimeline', () => {
 
     it('filters events by object type', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -410,7 +410,7 @@ describe('EventTimeline', () => {
 
     it('displays object type filter dropdown with all options', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -436,7 +436,7 @@ describe('EventTimeline', () => {
 
     it('clears object type filter with clear all filters button', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -463,7 +463,7 @@ describe('EventTimeline', () => {
 
     it('combines object type filter with other filters', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -492,7 +492,7 @@ describe('EventTimeline', () => {
   describe('Search', () => {
     it('filters events by search query', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -512,7 +512,7 @@ describe('EventTimeline', () => {
 
     it('clears search query', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -537,7 +537,7 @@ describe('EventTimeline', () => {
 
     it('shows no results message when search has no matches', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -580,7 +580,7 @@ describe('EventTimeline', () => {
 
     it('navigates to next page', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
@@ -623,7 +623,7 @@ describe('EventTimeline', () => {
         });
 
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for initial load
       await waitFor(() => {
@@ -648,7 +648,7 @@ describe('EventTimeline', () => {
     });
 
     it('disables previous button on first page', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
@@ -685,7 +685,7 @@ describe('EventTimeline', () => {
         });
 
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for initial load (page 1)
       await waitFor(() => {
@@ -740,7 +740,7 @@ describe('EventTimeline', () => {
         });
 
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for initial load (page 1)
       await waitFor(() => {
@@ -781,7 +781,7 @@ describe('EventTimeline', () => {
         clearEvents: vi.fn(),
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for error state to be displayed after async fetch fails
       await waitFor(
@@ -806,7 +806,7 @@ describe('EventTimeline', () => {
         clearEvents: vi.fn(),
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Should still load events
       await waitFor(() => {
@@ -835,7 +835,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -847,7 +847,7 @@ describe('EventTimeline', () => {
     it('shows filtered empty state when filters match no events', async () => {
       const user = userEvent.setup();
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -881,7 +881,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -900,7 +900,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -918,7 +918,7 @@ describe('EventTimeline', () => {
       const handleViewDetails = vi.fn();
       const user = userEvent.setup();
 
-      render(<EventTimeline onViewEventDetails={handleViewDetails} />);
+      renderWithProviders(<EventTimeline onViewEventDetails={handleViewDetails} />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -937,7 +937,7 @@ describe('EventTimeline', () => {
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for events to load first
       await waitFor(() => {
@@ -978,7 +978,7 @@ describe('EventTimeline', () => {
 
       vi.mocked(api.fetchEvents).mockResolvedValue(eventsWithUnknownCamera);
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Unknown Camera')).toBeInTheDocument();
@@ -988,7 +988,7 @@ describe('EventTimeline', () => {
 
   describe('Bulk Actions', () => {
     it('displays bulk action controls when events are loaded', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1000,7 +1000,7 @@ describe('EventTimeline', () => {
 
     it('toggles selection for individual events', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1024,7 +1024,7 @@ describe('EventTimeline', () => {
 
     it('selects all events when clicking select all', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1042,7 +1042,7 @@ describe('EventTimeline', () => {
 
     it('deselects all events when clicking select all again', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1078,7 +1078,7 @@ describe('EventTimeline', () => {
         failed: [],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1140,7 +1140,7 @@ describe('EventTimeline', () => {
           )
       );
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1187,7 +1187,7 @@ describe('EventTimeline', () => {
         failed: [{ id: 2, error: 'Network error' }],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1217,7 +1217,7 @@ describe('EventTimeline', () => {
     });
 
     it('does not show bulk action button when no events selected', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1230,7 +1230,7 @@ describe('EventTimeline', () => {
 
     it('clears selection when toggling individual checkbox off', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1256,7 +1256,7 @@ describe('EventTimeline', () => {
 
     it('shows Mark Not Reviewed button when events are selected', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1288,7 +1288,7 @@ describe('EventTimeline', () => {
         failed: [],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1350,7 +1350,7 @@ describe('EventTimeline', () => {
           )
       );
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1397,7 +1397,7 @@ describe('EventTimeline', () => {
         failed: [{ id: 2, error: 'Network error' }],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1427,7 +1427,7 @@ describe('EventTimeline', () => {
     });
 
     it('does not show Mark Not Reviewed button when no events selected', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1441,7 +1441,7 @@ describe('EventTimeline', () => {
 
   describe('Risk Summary Badges', () => {
     it('displays risk summary badges with correct counts', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1475,7 +1475,7 @@ describe('EventTimeline', () => {
         },
       ];
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1494,19 +1494,17 @@ describe('EventTimeline', () => {
       const riskSelect = screen.getByLabelText('Risk Level');
       await user.selectOptions(riskSelect, 'high');
 
-      // Should only show high risk count
+      // Should only show high risk count - wait for critical badge to disappear
       await waitFor(() => {
         expect(screen.getByText('1', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
+        expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
+        expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument(); // Low
       });
-
-      // Should not show other risk levels
-      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
-      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument(); // Low
     });
 
     it('updates risk summary badges with search query', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1543,7 +1541,7 @@ describe('EventTimeline', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Should show loading state
       expect(screen.getByText('Loading events...')).toBeInTheDocument();
@@ -1567,7 +1565,7 @@ describe('EventTimeline', () => {
         clearEvents: vi.fn(),
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
@@ -1588,7 +1586,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -1637,7 +1635,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected')).toBeInTheDocument();
@@ -1702,7 +1700,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Critical event 1')).toBeInTheDocument();
@@ -1750,7 +1748,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Event with explicit level')).toBeInTheDocument();
@@ -1766,7 +1764,7 @@ describe('EventTimeline', () => {
   describe('Event Detail Modal', () => {
     it('opens modal when clicking on event card', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1785,7 +1783,7 @@ describe('EventTimeline', () => {
 
     it('closes modal when close button is clicked', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1809,7 +1807,7 @@ describe('EventTimeline', () => {
     });
 
     it('event cards are clickable with cursor-pointer', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1825,7 +1823,7 @@ describe('EventTimeline', () => {
     it('View Details button calls onViewEventDetails when provided', async () => {
       const user = userEvent.setup();
       const handleViewDetails = vi.fn();
-      render(<EventTimeline onViewEventDetails={handleViewDetails} />);
+      renderWithProviders(<EventTimeline onViewEventDetails={handleViewDetails} />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
