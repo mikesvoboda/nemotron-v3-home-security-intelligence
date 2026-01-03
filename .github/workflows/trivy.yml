@@ -1,5 +1,8 @@
 name: Trivy Container Scan
 
+# Only run on push to main (post-merge) to avoid disk space issues on PR checks.
+# The backend image includes heavy ML dependencies (PyTorch, transformers) that
+# exhaust GitHub runner disk space when building + scanning during PR workflows.
 on:
   push:
     branches: [main]
@@ -8,13 +11,8 @@ on:
       - 'backend/requirements.txt'
       - 'backend/requirements-prod.txt'
       - 'frontend/package.json'
-  pull_request:
-    branches: [main]
-    paths:
-      - '**/Dockerfile*'
-      - 'backend/requirements.txt'
-      - 'backend/requirements-prod.txt'
-      - 'frontend/package.json'
+      - 'pyproject.toml'
+      - 'uv.lock'
 
 permissions:
   contents: read
