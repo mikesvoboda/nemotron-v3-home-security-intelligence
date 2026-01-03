@@ -109,6 +109,9 @@ export default defineConfig({
         // WebKit can be slower - increase action timeout
         actionTimeout: 8000,
       },
+      // WebKit needs longer test timeout for complex workflows
+      // (CRUD operations, waitForResponse, etc.)
+      timeout: 30000,
     },
     // Mobile viewports (only run locally, not in CI parallel jobs)
     {
