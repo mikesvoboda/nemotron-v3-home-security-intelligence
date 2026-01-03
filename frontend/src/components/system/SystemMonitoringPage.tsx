@@ -10,7 +10,7 @@ import {
   BarChart2,
   ExternalLink,
 } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
 import ContainersPanel from './ContainersPanel';
@@ -250,11 +250,11 @@ export default function SystemMonitoringPage() {
 
   // Throughput history for PipelineMetricsPanel
   const [throughputHistory, setThroughputHistory] = useState<ThroughputPoint[]>([]);
-  const [prevTelemetryRef, setPrevTelemetryRef] = useState<TelemetryResponse | null>(null);
-  const [prevTimestampRef, setPrevTimestampRef] = useState<number | null>(null);
+  const prevTelemetryRef = useRef<TelemetryResponse | null>(null);
+  const prevTimestampRef = useRef<number | null>(null);
 
   // Calculate throughput from telemetry changes
-  useMemo(() => {
+  useEffect(() => {
     if (!telemetry) return;
 
     const now = Date.now();
@@ -264,18 +264,18 @@ export default function SystemMonitoringPage() {
       second: '2-digit',
     });
 
-    if (prevTelemetryRef && prevTimestampRef) {
-      const timeDiffMs = now - prevTimestampRef;
+    if (prevTelemetryRef.current && prevTimestampRef.current) {
+      const timeDiffMs = now - prevTimestampRef.current;
       const timeDiffMin = timeDiffMs / 60000;
 
       if (timeDiffMin > 0) {
         const detectionsPerMin = Math.max(
           0,
-          Math.round(((prevTelemetryRef.queues.detection_queue - telemetry.queues.detection_queue) / timeDiffMin) * 60)
+          Math.round(((prevTelemetryRef.current.queues.detection_queue - telemetry.queues.detection_queue) / timeDiffMin) * 60)
         );
         const analysesPerMin = Math.max(
           0,
-          Math.round(((prevTelemetryRef.queues.analysis_queue - telemetry.queues.analysis_queue) / timeDiffMin) * 60)
+          Math.round(((prevTelemetryRef.current.queues.analysis_queue - telemetry.queues.analysis_queue) / timeDiffMin) * 60)
         );
 
         setThroughputHistory((prev) => {
@@ -289,9 +289,9 @@ export default function SystemMonitoringPage() {
       }
     }
 
-    setPrevTelemetryRef(telemetry);
-    setPrevTimestampRef(now);
-  }, [telemetry, prevTelemetryRef, prevTimestampRef]);
+    prevTelemetryRef.current = telemetry;
+    prevTimestampRef.current = now;
+  }, [telemetry]);
 
   // Fetch Grafana URL from config API
   useEffect(() => {
