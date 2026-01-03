@@ -417,24 +417,58 @@ async def get_camera_snapshot(
         # 2. If that fails, try the camera_id directly (works when name == folder name).
         #
         # This is safe because we only look within FOSCAM_BASE_PATH (no traversal).
+        # Extract folder name and validate it doesn't contain path traversal
         stored_folder_name = Path(camera.folder_path).name
-        fallback_by_folder_name = base_root / stored_folder_name
-        fallback_by_camera_id = base_root / camera_id
+        # Validate folder name doesn't contain path separators or traversal sequences
+        if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+            logger.warning(
+                "Invalid folder name detected, skipping fallback",
+                extra={
+                    "camera_id": camera_id,
+                    "folder_name": sanitize_log_value(stored_folder_name),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No snapshot available for this camera",
+            ) from None
 
-        if fallback_by_folder_name.exists() and fallback_by_folder_name.is_dir():
+        # Construct fallback paths and verify they resolve within base_root
+        fallback_by_folder_name = (base_root / stored_folder_name).resolve()
+        fallback_by_camera_id = (base_root / camera_id).resolve()
+
+        # Security check: ensure resolved paths are within base_root
+        try:
+            fallback_by_folder_name.relative_to(base_root)
+        except ValueError:
+            fallback_by_folder_name = None  # type: ignore[assignment]
+        try:
+            fallback_by_camera_id.relative_to(base_root)
+        except ValueError:
+            fallback_by_camera_id = None  # type: ignore[assignment]
+
+        if (
+            fallback_by_folder_name
+            and fallback_by_folder_name.exists()
+            and fallback_by_folder_name.is_dir()
+        ):
             # Found camera folder by stored folder name
             logger.debug(
                 "Using fallback camera path by folder name",
                 extra={
                     "camera_id": camera_id,
                     "stored_path": sanitize_log_value(camera.folder_path),
-                    "stored_folder_name": stored_folder_name,
+                    "stored_folder_name": sanitize_log_value(stored_folder_name),
                     "fallback_path": str(fallback_by_folder_name),
                     "base_path": str(base_root),
                 },
             )
             camera_dir = fallback_by_folder_name
-        elif fallback_by_camera_id.exists() and fallback_by_camera_id.is_dir():
+        elif (
+            fallback_by_camera_id
+            and fallback_by_camera_id.exists()
+            and fallback_by_camera_id.is_dir()
+        ):
             # Found camera folder by camera ID
             logger.debug(
                 "Using fallback camera path by camera ID",
