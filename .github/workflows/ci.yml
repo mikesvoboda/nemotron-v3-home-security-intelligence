@@ -607,9 +607,13 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest)
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 4
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -624,16 +628,16 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Run tests with coverage
-        # Use vmThreads pool for better isolation and cleanup in CI
+      - name: Run tests with coverage (shard ${{ matrix.shard }}/4)
+        # Shard tests across 4 runners for faster execution
         # --teardownTimeout ensures vitest exits even if cleanup hangs
-        run: cd frontend && npm run test:coverage -- --run --pool=vmThreads --teardownTimeout=5000
+        run: cd frontend && npm run test:coverage -- --run --shard=${{ matrix.shard }}/4 --teardownTimeout=5000
 
       - name: Upload frontend coverage
         uses: codecov/codecov-action@v5
         with:
           files: frontend/coverage/lcov.info
-          flags: frontend
+          flags: frontend-shard-${{ matrix.shard }}
           fail_ci_if_error: false
 
   api-coverage:
