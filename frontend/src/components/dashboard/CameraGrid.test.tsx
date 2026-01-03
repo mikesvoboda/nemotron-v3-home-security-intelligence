@@ -37,7 +37,7 @@ describe('CameraGrid', () => {
     it('should render all cameras in a grid', () => {
       render(<CameraGrid cameras={mockCameras} />);
 
-      expect(screen.getByRole('list', { name: 'Camera grid' })).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Camera grid' })).toBeInTheDocument();
       expect(screen.getByText('Front Door')).toBeInTheDocument();
       expect(screen.getByText('Backyard')).toBeInTheDocument();
       expect(screen.getByText('Garage')).toBeInTheDocument();
@@ -204,10 +204,10 @@ describe('CameraGrid', () => {
       expect(screen.getByLabelText('Camera Side Gate, status: Unknown')).toBeInTheDocument();
     });
 
-    it('should mark grid container as list with proper label', () => {
+    it('should mark grid container as group with proper label', () => {
       render(<CameraGrid cameras={mockCameras} />);
 
-      const grid = screen.getByRole('list', { name: 'Camera grid' });
+      const grid = screen.getByRole('group', { name: 'Camera grid' });
       expect(grid).toBeInTheDocument();
     });
 
