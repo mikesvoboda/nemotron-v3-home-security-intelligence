@@ -775,11 +775,6 @@ jobs:
     needs:
       - lint
       - typecheck
-      - unit-tests
-      - integration-tests-api
-      - integration-tests-websocket
-      - integration-tests-services
-      - integration-tests-models
     steps:
       - name: Checkout
         uses: actions/checkout@v4
