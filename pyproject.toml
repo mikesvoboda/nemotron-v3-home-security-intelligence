@@ -21,7 +21,7 @@ dependencies = [
     # Image processing
     "pillow>=11.0.0",
     # GPU monitoring
-    "pynvml>=11.5.0",
+    "nvidia-ml-py>=12.560.30",
     # Host system monitoring
     "psutil>=5.9.0",
     # HTTP client (for AI services)
