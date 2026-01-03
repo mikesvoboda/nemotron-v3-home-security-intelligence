@@ -72,16 +72,19 @@ test.describe('System Overview Card', () => {
     await expect(page.getByText(/Uptime/i).first()).toBeVisible();
   });
 
-  test('shows total cameras metric', async ({ page }) => {
-    await expect(page.getByText(/Total Cameras/i)).toBeVisible();
+  test('shows cameras metric', async ({ page }) => {
+    // Redesigned dashboard uses shortened labels in compact grid
+    await expect(page.getByText(/Cameras/i).first()).toBeVisible();
   });
 
-  test('shows total events metric', async ({ page }) => {
-    await expect(page.getByText(/Total Events/i)).toBeVisible();
+  test('shows events metric', async ({ page }) => {
+    // Redesigned dashboard uses shortened labels in compact grid
+    await expect(page.getByText(/Events/i).first()).toBeVisible();
   });
 
-  test('shows total detections metric', async ({ page }) => {
-    await expect(page.getByText(/Total Detections/i)).toBeVisible();
+  test('shows detections metric', async ({ page }) => {
+    // Redesigned dashboard uses shortened labels in compact grid
+    await expect(page.getByText(/Detections/i).first()).toBeVisible();
   });
 });
 
@@ -159,7 +162,7 @@ test.describe('GPU Stats', () => {
   });
 });
 
-test.describe('Pipeline Queues', () => {
+test.describe('Pipeline Metrics Panel', () => {
   let systemPage: SystemPage;
 
   test.beforeEach(async ({ page }) => {
@@ -169,24 +172,19 @@ test.describe('Pipeline Queues', () => {
     await systemPage.waitForSystemLoad();
   });
 
-  test('pipeline queues card is visible', async () => {
-    await expect(systemPage.pipelineQueuesCard).toBeVisible();
-  });
-});
-
-test.describe('Latency Stats', () => {
-  let systemPage: SystemPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-    systemPage = new SystemPage(page);
-    await systemPage.goto();
-    await systemPage.waitForSystemLoad();
+  test('pipeline metrics panel is visible', async () => {
+    // Redesigned dashboard combines queues + latency + throughput into one panel
+    await expect(systemPage.pipelineMetricsPanel).toBeVisible();
   });
 
-  test('latency stats card is visible', async () => {
-    const hasLatency = await systemPage.hasLatencyStats();
-    expect(hasLatency).toBe(true);
+  test('shows queue information', async ({ page }) => {
+    // Pipeline metrics panel includes queue depths
+    await expect(page.getByText(/Queue/i).first()).toBeVisible();
+  });
+
+  test('shows latency information', async ({ page }) => {
+    // Pipeline metrics panel includes latency stats
+    await expect(page.getByText(/Latency|ms/i).first()).toBeVisible();
   });
 });
 
