@@ -752,6 +752,67 @@ class PipelineLatencyResponse(BaseModel):
     )
 
 
+class LatencySample(BaseModel):
+    """A single latency sample for time-series visualization."""
+
+    timestamp: float = Field(
+        ...,
+        description="Unix timestamp when the sample was recorded",
+    )
+    stage: str = Field(
+        ...,
+        description="Pipeline stage name (watch_to_detect, detect_to_batch, etc.)",
+    )
+    latency_ms: float = Field(
+        ...,
+        description="Latency in milliseconds",
+        ge=0,
+    )
+
+
+class PipelineLatencyHistoryResponse(BaseModel):
+    """Response schema for pipeline latency history endpoint.
+
+    Provides raw latency samples for time-series visualization.
+    Samples are sorted by timestamp in descending order (most recent first).
+    """
+
+    samples: list[LatencySample] = Field(
+        default_factory=list,
+        description="List of latency samples for time-series visualization",
+    )
+    window_minutes: int = Field(
+        ...,
+        description="Time window used for filtering samples",
+        ge=1,
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of response",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "samples": [
+                    {
+                        "timestamp": 1735393800.0,
+                        "stage": "watch_to_detect",
+                        "latency_ms": 50.0,
+                    },
+                    {
+                        "timestamp": 1735393795.0,
+                        "stage": "detect_to_batch",
+                        "latency_ms": 100.0,
+                    },
+                ],
+                "window_minutes": 60,
+                "timestamp": "2025-12-28T10:30:00Z",
+            }
+        }
+    )
+
+
 class CleanupResponse(BaseModel):
     """Response schema for data cleanup endpoint.
 

@@ -2061,6 +2061,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/pipeline-latency-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline Latency History
+         * @description Get raw pipeline latency samples for time-series visualization.
+         *
+         *     Returns individual latency samples for all pipeline stages, suitable for
+         *     creating time-series graphs. Samples are sorted by timestamp in descending
+         *     order (most recent first).
+         *
+         *     Args:
+         *         window_minutes: Time window for filtering samples (default 60 minutes)
+         *         limit: Maximum number of samples to return (default 100, None for all)
+         *
+         *     Returns:
+         *         PipelineLatencyHistoryResponse with list of latency samples
+         */
+        get: operations["get_pipeline_latency_history_api_system_pipeline_latency_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/cleanup": {
         parameters: {
             query?: never;
@@ -5646,6 +5677,27 @@ export interface components {
             quality_change_detected?: boolean | null;
         };
         /**
+         * LatencySample
+         * @description A single latency sample for time-series visualization.
+         */
+        LatencySample: {
+            /**
+             * Timestamp
+             * @description Unix timestamp when the sample was recorded
+             */
+            timestamp: number;
+            /**
+             * Stage
+             * @description Pipeline stage name (watch_to_detect, detect_to_batch, etc.)
+             */
+            stage: string;
+            /**
+             * Latency Ms
+             * @description Latency in milliseconds
+             */
+            latency_ms: number;
+        };
+        /**
          * LeaderboardResponse
          * @description Model leaderboard response.
          */
@@ -6293,6 +6345,47 @@ export interface components {
             batch?: components["schemas"]["StageLatency"] | null;
             /** @description LLM analysis stage latency (Nemotron inference) */
             analyze?: components["schemas"]["StageLatency"] | null;
+        };
+        /**
+         * PipelineLatencyHistoryResponse
+         * @description Response schema for pipeline latency history endpoint.
+         *
+         *     Provides raw latency samples for time-series visualization.
+         *     Samples are sorted by timestamp in descending order (most recent first).
+         * @example {
+         *       "samples": [
+         *         {
+         *           "latency_ms": 50,
+         *           "stage": "watch_to_detect",
+         *           "timestamp": 1735393800
+         *         },
+         *         {
+         *           "latency_ms": 100,
+         *           "stage": "detect_to_batch",
+         *           "timestamp": 1735393795
+         *         }
+         *       ],
+         *       "timestamp": "2025-12-28T10:30:00Z",
+         *       "window_minutes": 60
+         *     }
+         */
+        PipelineLatencyHistoryResponse: {
+            /**
+             * Samples
+             * @description List of latency samples for time-series visualization
+             */
+            samples?: components["schemas"]["LatencySample"][];
+            /**
+             * Window Minutes
+             * @description Time window used for filtering samples
+             */
+            window_minutes: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of response
+             */
+            timestamp: string;
         };
         /**
          * PipelineLatencyResponse
@@ -10283,6 +10376,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PipelineLatencyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pipeline_latency_history_api_system_pipeline_latency_history_get: {
+        parameters: {
+            query?: {
+                window_minutes?: number;
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineLatencyHistoryResponse"];
                 };
             };
             /** @description Validation Error */
