@@ -829,3 +829,171 @@ class TestEventsAPIValidation:
         """Test validation of boolean parameter."""
         response = await async_client.get("/api/events?reviewed=maybe")
         assert response.status_code == 422  # Validation error
+
+
+class TestEnrichmentDataInEventDetections:
+    """Tests for enrichment_data in event detections API responses."""
+
+    async def test_event_detections_includes_enrichment_data(
+        self, async_client, sample_event, sample_camera
+    ):
+        """Test that GET /api/events/{id}/detections includes enrichment_data."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        # Sample enrichment data structure
+        enrichment_data = {
+            "vehicle": {
+                "type": "sedan",
+                "color": "blue",
+                "damage": [],
+                "confidence": 0.92,
+            },
+            "license_plate": {
+                "text": "ABC123",
+                "confidence": 0.91,
+            },
+        }
+
+        # Create detection with enrichment data
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/enrichment_test.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="car",
+                confidence=0.92,
+                bbox_x=300,
+                bbox_y=200,
+                bbox_width=400,
+                bbox_height=300,
+                enrichment_data=enrichment_data,
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+
+            # Update event to reference this detection
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([detection.id])
+            await db.commit()
+
+        # Test API response
+        response = await async_client.get(f"/api/events/{sample_event.id}/detections")
+        assert response.status_code == 200
+        data = response.json()
+        assert "detections" in data
+        assert len(data["detections"]) == 1
+        assert "enrichment_data" in data["detections"][0]
+        assert data["detections"][0]["enrichment_data"] == enrichment_data
+
+    async def test_event_detections_null_enrichment_data(
+        self, async_client, sample_event, sample_detection
+    ):
+        """Test that detections without enrichment data return null."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Update event to reference the detection (which has no enrichment_data)
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([sample_detection.id])
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/detections")
+        assert response.status_code == 200
+        data = response.json()
+        assert "detections" in data
+        assert len(data["detections"]) == 1
+        # enrichment_data should be None/null for detections without enrichment
+        assert "enrichment_data" in data["detections"][0]
+        assert data["detections"][0]["enrichment_data"] is None
+
+    async def test_event_detections_mixed_enrichment_data(
+        self, async_client, sample_event, sample_camera
+    ):
+        """Test detections with and without enrichment data."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        enrichment_data = {
+            "person": {
+                "clothing": "dark jacket",
+                "action": "walking",
+                "carrying": "backpack",
+                "confidence": 0.95,
+            },
+        }
+
+        async with get_session() as db:
+            # Detection with enrichment
+            detection1 = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/person_enriched.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                enrichment_data=enrichment_data,
+            )
+            # Detection without enrichment
+            detection2 = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/unknown.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 30),
+                object_type="unknown",
+                confidence=0.60,
+                bbox_x=50,
+                bbox_y=50,
+                bbox_width=100,
+                bbox_height=100,
+                enrichment_data=None,
+            )
+            db.add(detection1)
+            db.add(detection2)
+            await db.commit()
+            await db.refresh(detection1)
+            await db.refresh(detection2)
+
+            # Update event
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([detection1.id, detection2.id])
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/detections")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["detections"]) == 2
+
+        # Find the enriched detection
+        enriched = next((d for d in data["detections"] if d["object_type"] == "person"), None)
+        assert enriched is not None
+        assert enriched["enrichment_data"] == enrichment_data
+
+        # Find the unenriched detection
+        unenriched = next((d for d in data["detections"] if d["object_type"] == "unknown"), None)
+        assert unenriched is not None
+        assert unenriched["enrichment_data"] is None

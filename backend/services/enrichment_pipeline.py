@@ -655,6 +655,112 @@ class EnrichmentResult:
 
         return flags
 
+    def get_enrichment_for_detection(self, detection_id: int) -> dict[str, Any] | None:
+        """Get enrichment data for a specific detection.
+
+        Aggregates all enrichment results that apply to the given detection ID.
+        Returns None if no enrichment data is available for this detection.
+
+        Args:
+            detection_id: The detection ID to get enrichment for
+
+        Returns:
+            Dictionary with detection-specific enrichment data, or None if no data
+        """
+        enrichment: dict[str, Any] = {}
+        det_id_str = str(detection_id)
+
+        # Vehicle classification
+        if det_id_str in self.vehicle_classifications:
+            vc = self.vehicle_classifications[det_id_str]
+            enrichment["vehicle"] = {
+                "type": vc.vehicle_type,
+                "color": None,  # Color extraction not implemented in current classifier
+                "damage": [],  # Will be filled from vehicle_damage if present
+                "confidence": vc.confidence,
+            }
+
+        # Vehicle damage
+        if det_id_str in self.vehicle_damage:
+            vd = self.vehicle_damage[det_id_str]
+            if "vehicle" not in enrichment:
+                enrichment["vehicle"] = {
+                    "type": None,
+                    "color": None,
+                    "damage": [],
+                    "confidence": None,
+                }
+            enrichment["vehicle"]["damage"] = [
+                {"type": d.damage_type, "confidence": d.confidence} for d in vd.detections
+            ]
+
+        # Pet classification
+        if det_id_str in self.pet_classifications:
+            pc = self.pet_classifications[det_id_str]
+            enrichment["pet"] = {
+                "type": pc.animal_type,
+                "breed": None,  # Breed extraction not implemented in current classifier
+                "confidence": pc.confidence,
+            }
+
+        # Person: clothing classification and segmentation
+        if det_id_str in self.clothing_classifications:
+            cc = self.clothing_classifications[det_id_str]
+            enrichment["person"] = {
+                "clothing": cc.top_category,
+                "action": None,  # Future: from action recognition
+                "carrying": None,  # Future: from pose estimation
+                "confidence": cc.confidence,
+            }
+
+        # Person: clothing segmentation (adds additional attributes)
+        if det_id_str in self.clothing_segmentation:
+            cs = self.clothing_segmentation[det_id_str]
+            if "person" not in enrichment:
+                enrichment["person"] = {
+                    "clothing": None,
+                    "action": None,
+                    "carrying": None,
+                    "confidence": None,
+                }
+            enrichment["person"]["face_covered"] = cs.has_face_covered
+
+        # License plates associated with this detection
+        detection_plates = [
+            lp for lp in self.license_plates if lp.source_detection_id == detection_id
+        ]
+        if detection_plates:
+            # Take the highest confidence plate
+            best_plate = max(detection_plates, key=lambda p: p.ocr_confidence or 0.0)
+            enrichment["license_plate"] = {
+                "text": best_plate.text,
+                "confidence": best_plate.ocr_confidence or best_plate.confidence,
+            }
+
+        # Faces associated with this detection
+        detection_faces = [f for f in self.faces if f.source_detection_id == detection_id]
+        if detection_faces:
+            enrichment["face_detected"] = True
+            enrichment["face_count"] = len(detection_faces)
+
+        # Shared/global enrichment data (applies to all detections in the batch)
+        if self.weather_classification:
+            enrichment["weather"] = {
+                "condition": self.weather_classification.condition,
+                "confidence": self.weather_classification.confidence,
+            }
+
+        if self.image_quality:
+            enrichment["image_quality"] = {
+                "score": self.image_quality.quality_score,
+                "issues": list(self.image_quality.quality_issues)
+                if self.image_quality.quality_issues
+                else [],
+            }
+
+        # Return None if no enrichment data was collected
+        return enrichment if enrichment else None
+
 
 @dataclass
 class DetectionInput:
