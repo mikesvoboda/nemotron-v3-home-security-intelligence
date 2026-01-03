@@ -609,6 +609,7 @@ jobs:
   frontend-tests:
     name: Frontend Tests (Vitest)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -624,7 +625,8 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Run tests with coverage
-        run: cd frontend && npm run test:coverage -- --run
+        # --teardownTimeout ensures vitest exits even if cleanup hangs
+        run: cd frontend && npm run test:coverage -- --run --teardownTimeout=5000
 
       - name: Upload frontend coverage
         uses: codecov/codecov-action@v5
