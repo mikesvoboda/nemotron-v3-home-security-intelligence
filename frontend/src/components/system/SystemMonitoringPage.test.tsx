@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import SystemMonitoringPage from './SystemMonitoringPage';
 import * as useHealthStatusHook from '../../hooks/useHealthStatus';
+import * as useModelZooStatusHook from '../../hooks/useModelZooStatus';
 import * as usePerformanceMetricsHook from '../../hooks/usePerformanceMetrics';
 import * as api from '../../services/api';
 
@@ -10,6 +11,7 @@ import * as api from '../../services/api';
 vi.mock('../../services/api');
 vi.mock('../../hooks/useHealthStatus');
 vi.mock('../../hooks/usePerformanceMetrics');
+vi.mock('../../hooks/useModelZooStatus');
 
 // Mock child components
 vi.mock('../dashboard/GpuStats', () => ({
@@ -96,6 +98,21 @@ vi.mock('./ContainersPanel', () => ({
 
 vi.mock('./CircuitBreakerPanel', () => ({
   default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
+}));
+
+// Mock SystemSummaryRow to avoid rendering actual component
+vi.mock('./SystemSummaryRow', () => ({
+  default: () => <div data-testid="system-summary-row">System Summary Row</div>,
+}));
+
+// Mock PipelineFlowVisualization to avoid rendering actual component
+vi.mock('./PipelineFlowVisualization', () => ({
+  default: () => <div data-testid="pipeline-flow-visualization">Pipeline Flow Visualization</div>,
+}));
+
+// Mock InfrastructureStatusGrid to avoid rendering actual component
+vi.mock('./InfrastructureStatusGrid', () => ({
+  default: () => <div data-testid="infrastructure-status-grid">Infrastructure Status Grid</div>,
 }));
 
 // SeverityConfigPanel was moved to Settings page (NEM-1142)
@@ -235,6 +252,15 @@ describe('SystemMonitoringPage', () => {
       isConnected: true,
       timeRange: '5m',
       setTimeRange: vi.fn(),
+    });
+
+    // Setup mock for useModelZooStatus
+    (useModelZooStatusHook.useModelZooStatus as Mock).mockReturnValue({
+      models: [],
+      vramStats: null,
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
     });
   });
 
