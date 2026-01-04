@@ -1,7 +1,7 @@
 ---
 title: AI Pipeline Architecture
-description: Detection, batching, and analysis flow with RT-DETRv2 and Nemotron LLM integration
-last_updated: 2025-12-30
+description: Detection, batching, and analysis flow with RT-DETRv2 and NVIDIA Nemotron LLM integration
+last_updated: 2026-01-04
 source_refs:
   - backend/services/file_watcher.py:FileWatcher:34
   - backend/services/file_watcher.py:is_image_file
@@ -463,70 +463,74 @@ When a batch closes, it's pushed to the analysis queue:
 
 ---
 
-## Nemotron Analysis
+## NVIDIA Nemotron Analysis
 
-Nemotron (via llama.cpp server) is the LLM that analyzes detections and generates risk assessments with natural language explanations.
+[NVIDIA Nemotron](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) (via llama.cpp server) is the LLM that analyzes detections and generates risk assessments with natural language explanations.
 
-In practice, deployments may use different model sizes/quantizations. Treat model choice as an operator concern
-(see `docker-compose.prod.yml` and `docs/RUNTIME_CONFIG.md`).
+### Model Options
+
+| Deployment      | Model                                                                                        | VRAM     | Context |
+| --------------- | -------------------------------------------------------------------------------------------- | -------- | ------- |
+| **Production**  | [NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | ~14.7 GB | 131,072 |
+| **Development** | [Nemotron Mini 4B Instruct](https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF) | ~3 GB    | 4,096   |
+
+See `docker-compose.prod.yml` and `docs/RUNTIME_CONFIG.md` for deployment configuration.
 
 ### Source Files
 
+- `/ai/nemotron/AGENTS.md` - Comprehensive model documentation
 - `/ai/nemotron/` - Model files and configuration
 - `/backend/services/nemotron_analyzer.py` - Analysis service
-- `/backend/services/prompts.py` - Prompt templates
+- `/backend/services/prompts.py` - Prompt templates (5 tiers)
 
 ### What It Does
 
 1. Receives batch of detections with context (camera name, time window)
-2. Formats a structured prompt with detection details
-3. Generates a risk assessment as JSON
-4. Validates and normalizes the response
-5. Creates an Event record in the database
-6. Broadcasts via WebSocket for real-time updates
+2. Enriches context with zone analysis, baselines, cross-camera data (when available)
+3. Formats a ChatML-structured prompt with detection details
+4. Generates a risk assessment as JSON
+5. Strips `<think>...</think>` reasoning blocks and validates response
+6. Creates an Event record in the database
+7. Broadcasts via WebSocket for real-time updates
 
-### Prompt Structure
+### Prompt Structure (ChatML Format)
 
-The prompt template is defined in `/backend/services/prompts.py`:
+NVIDIA Nemotron uses ChatML format for message structuring:
 
-```python
-RISK_ANALYSIS_PROMPT = """You are a home security AI analyst. Analyze the following detections from security cameras and provide a risk assessment.
-
-Camera: {camera_name}
-Time Window: {start_time} to {end_time}
-Detections:
-{detections_list}
-
-Respond in JSON format:
-{{
-  "risk_score": <0-100>,
-  "risk_level": "<low|medium|high|critical>",
-  "summary": "<brief 1-2 sentence summary>",
-  "reasoning": "<detailed explanation>"
-}}
-
-Risk guidelines (see docs/reference/config/risk-levels.md for details):
-- Low (0-29): Normal activity (pets, known vehicles, delivery persons)
-- Medium (30-59): Unusual but not alarming (unknown person during day, unfamiliar vehicle)
-- High (60-84): Concerning activity (person at odd hours, multiple unknowns, loitering)
-- Critical (85-100): Immediate attention (forced entry attempt, multiple persons at night, suspicious behavior)
-"""
 ```
+<|im_start|>system
+{system message}
+<|im_end|>
+<|im_start|>user
+{user message with detection context}
+<|im_end|>
+<|im_start|>assistant
+{model response begins here}
+```
+
+The backend uses 5 prompt templates with increasing sophistication (see `/backend/services/prompts.py`):
+
+| Template        | When Used                                  |
+| --------------- | ------------------------------------------ |
+| `basic`         | Fallback when no enrichment available      |
+| `enriched`      | Zone/baseline/cross-camera context         |
+| `full_enriched` | Enriched + license plates/faces            |
+| `vision`        | Florence-2 extraction + context enrichment |
+| `model_zoo`     | Full model zoo (violence, weather, etc.)   |
 
 ### Context Provided to LLM
 
-The formatted prompt includes:
+The formatted prompt includes (depending on template):
 
-1. **Camera Name**: Human-readable camera identifier (e.g., "Front Door", "Backyard")
+**Basic Context:**
 
+1. **Camera Name**: Human-readable camera identifier (e.g., "Front Door")
 2. **Time Window**: ISO format timestamps for batch start and end
+3. **Detection List**: Timestamps, object types, confidence scores
 
-3. **Detection List**: Formatted as:
-   ```
-   1. 14:30:00 - person (confidence: 0.95)
-   2. 14:30:15 - person (confidence: 0.92)
-   3. 14:30:30 - car (confidence: 0.87)
-   ```
+**Enriched Context Additions:** 4. **Zone Analysis**: Entry points, high-security areas 5. **Baseline Comparison**: Expected vs. actual activity patterns 6. **Deviation Score**: Statistical anomaly measure (0=normal, 1=unusual) 7. **Cross-Camera Activity**: Correlated detections across cameras
+
+**Model Zoo Context Additions:** 8. **Violence Detection**: ViT violence classifier alerts 9. **Weather/Visibility**: Environmental conditions 10. **Clothing Analysis**: FashionCLIP + SegFormer (suspicious attire, face coverings) 11. **Vehicle/Pet Classification**: Type identification, false positive filtering
 
 ### LLM API Call
 
@@ -536,10 +540,11 @@ The formatted prompt includes:
 
 ```json
 {
-  "prompt": "<formatted prompt>",
+  "prompt": "<ChatML formatted prompt>",
   "temperature": 0.7,
-  "max_tokens": 500,
-  "stop": ["\n\n"]
+  "top_p": 0.95,
+  "max_tokens": 1536,
+  "stop": ["<|im_end|>", "<|im_start|>"]
 }
 ```
 
@@ -547,12 +552,14 @@ The formatted prompt includes:
 
 ```json
 {
-  "content": "{\n  \"risk_score\": 65,\n  \"risk_level\": \"high\",\n  \"summary\": \"Unknown person detected approaching front door at night\",\n  \"reasoning\": \"Single person detection at 2:15 AM is unusual. The person appeared to be approaching the entrance. Time of day and approach pattern warrant elevated concern.\"\n}",
-  "model": "nemotron-mini-4b-instruct-q4_k_m.gguf",
-  "tokens_predicted": 87,
-  "tokens_evaluated": 245
+  "content": "<think>Analyzing detection patterns...</think>{\"risk_score\": 65, \"risk_level\": \"high\", ...}",
+  "model": "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
+  "tokens_predicted": 287,
+  "tokens_evaluated": 1245
 }
 ```
+
+**Note:** NVIDIA Nemotron-3-Nano outputs `<think>...</think>` reasoning blocks before the JSON response. The backend strips these before parsing.
 
 ### Output Format
 
@@ -563,20 +570,23 @@ The LLM produces JSON with these fields:
   "risk_score": 65,
   "risk_level": "high",
   "summary": "Unknown person detected approaching front door at night",
-  "reasoning": "Single person detection at 2:15 AM is unusual. The person appeared to be approaching the entrance. Time of day and approach pattern warrant elevated concern."
+  "reasoning": "Single person detection at 2:15 AM is unusual. The person appeared to be approaching the entrance. Time of day and approach pattern warrant elevated concern.",
+  "recommended_action": "Review camera footage and verify identity"
 }
 ```
 
 ### Performance Characteristics
 
-| Metric              | Value                       |
-| ------------------- | --------------------------- |
-| Inference time      | 2-5 seconds per batch       |
-| Token generation    | ~50-100 tokens/second (GPU) |
-| Context processing  | ~1000 tokens/second         |
-| Concurrent requests | 2 (configured)              |
-| VRAM usage          | ~3GB (Q4_K_M quantization)  |
-| Context window      | 4096 tokens                 |
+| Metric              | Production (30B)      | Development (4B)       |
+| ------------------- | --------------------- | ---------------------- |
+| Inference time      | 2-5 seconds per batch | 1-3 seconds per batch  |
+| Token generation    | ~50-100 tokens/second | ~100-200 tokens/second |
+| Context processing  | ~1000 tokens/second   | ~2000 tokens/second    |
+| Concurrent requests | 1-2 (configured)      | 2-4 (configurable)     |
+| VRAM usage          | ~14.7 GB              | ~3 GB                  |
+| Context window      | 131,072 tokens (128K) | 4,096 tokens           |
+
+The production 30B model's 128K context enables analyzing hours of detection history in a single prompt.
 
 ---
 
@@ -815,13 +825,13 @@ flowchart TB
 
 ### AI Service Ports
 
-| Service    | Port | Protocol | Description        |
-| ---------- | ---- | -------- | ------------------ |
-| RT-DETRv2  | 8090 | HTTP     | Object detection   |
-| Nemotron   | 8091 | HTTP     | LLM risk analysis  |
-| Florence   | 8092 | HTTP     | Vision-language    |
-| CLIP       | 8093 | HTTP     | Embeddings / re-ID |
-| Enrichment | 8094 | HTTP     | Enrichment helpers |
+| Service         | Port | Protocol | Description        |
+| --------------- | ---- | -------- | ------------------ |
+| RT-DETRv2       | 8090 | HTTP     | Object detection   |
+| NVIDIA Nemotron | 8091 | HTTP     | LLM risk analysis  |
+| Florence        | 8092 | HTTP     | Vision-language    |
+| CLIP            | 8093 | HTTP     | Embeddings / re-ID |
+| Enrichment      | 8094 | HTTP     | Enrichment helpers |
 
 ### VRAM Requirements
 
@@ -837,7 +847,7 @@ flowchart TB
     subgraph "Host Machine"
         subgraph "GPU (RTX A5500 24GB)"
             RT[RT-DETRv2 Server<br/>Port 8090<br/>~4GB VRAM]
-            NEM[Nemotron llama.cpp<br/>Port 8091<br/>~3GB VRAM]
+            NEM[NVIDIA Nemotron llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*]
         end
 
         subgraph "Docker Containers"
@@ -853,8 +863,7 @@ flowchart TB
     BE -->|POST /detect<br/>multipart image| RT
     RT -->|JSON detections| BE
 
-    BE -->|POST /completion<br/>JSON prompt| NEM
-    NEM -->|JSON risk assessment| NEM
+    BE -->|POST /completion<br/>ChatML prompt| NEM
     NEM -->|JSON risk assessment| BE
 
     BE <-->|Queue & Cache| RD
@@ -863,6 +872,8 @@ flowchart TB
     style RT fill:#76B900
     style NEM fill:#76B900
 ```
+
+\*Production uses NVIDIA Nemotron-3-Nano-30B-A3B (~14.7GB); development uses Nemotron Mini 4B (~3GB).
 
 ---
 
@@ -882,7 +893,7 @@ Technical documentation diagram showing an AI-powered security camera processing
 3. Arrow to a CPU/server icon labeled "File Watcher"
 4. Arrow to a GPU chip icon with "RT-DETRv2" label showing green glow
 5. Arrow to stacked rectangles representing "Batch Queue"
-6. Arrow to a brain/neural network icon with "Nemotron LLM" label showing green glow
+6. Arrow to a brain/neural network icon with "NVIDIA Nemotron" label showing green glow
 7. Arrow to a database cylinder icon
 8. Arrow to a monitor/dashboard icon
 
@@ -951,7 +962,7 @@ Left column (Input):
 
 Center:
 - Large brain/AI icon with circuit patterns
-- "Nemotron LLM" label
+- "NVIDIA Nemotron" label
 - Subtle green (#76B900) glow effect
 - Thought bubble containing "Analyzing patterns..."
 

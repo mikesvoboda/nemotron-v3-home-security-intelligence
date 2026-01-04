@@ -26,7 +26,7 @@ Be respectful, professional, and constructive in all interactions. Focus on the 
 ```
 flowchart TB
     subgraph "Development Flow"
-        CLAIM["Claim task<br/>bd update <id> --status in_progress"]
+        CLAIM["Claim task<br/>Set to In Progress in Linear"]
         BRANCH["Create feature branch"]
         CODE["Implement feature"]
         TEST["Write/run tests"]
@@ -46,42 +46,45 @@ flowchart TB
 
 ### 1. Claim a Task
 
-This project uses `bd` (beads) for issue tracking:
+This project uses **Linear** for issue tracking:
+
+- **Workspace:** [nemotron-v3-home-security](https://linear.app/nemotron-v3-home-security)
+- **Team:** NEM
+- **Issue format:** NEM-123
 
 ```bash
 # Find available work
-bd ready
+# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/active
 
 # Filter by phase
-bd list --label phase-3
+# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3
 
-# View task details
-bd show <id>
-
-# Claim work
-bd update <id> --status in_progress
+# View and claim tasks via Linear web interface or MCP tools
+# Use mcp__linear__get_issue(issueId="NEM-123") to view details
+# Use mcp__linear__update_issue(issueId="NEM-123", status="<In Progress UUID>") to claim
 ```
 
 ### One Task Per PR
 
-**Each PR should address exactly ONE bead task.**
+**Each PR should address exactly ONE Linear issue.**
 
-- PR title must reference the bead ID: `fix: description (yzuz.7)`
-- If you discover multiple issues, create separate beads
-- Commit messages should reference the bead: `fix(yzuz.7): description`
+- PR title must reference the issue ID: `fix: description (NEM-123)`
+- If you discover multiple issues, create separate Linear issues
+- Commit messages should reference the issue: `fix(NEM-123): description`
 
 See [CLAUDE.md](../../CLAUDE.md) for the complete one-task-one-PR policy.
 
 ### Closing a Task
 
-**Before closing any bead, run validation:**
+**Before closing any issue, run validation:**
 
 ```bash
 # Quick validation (recommended)
 ./scripts/validate.sh
 
-# If all tests pass, close the bead
-bd close <id>
+# If all tests pass, mark as Done in Linear
+# Use Linear web interface or MCP tools:
+# mcp__linear__update_issue(issueId="NEM-123", status="38267c1e-4458-4875-aa66-4b56381786e9")
 ```
 
 If tests fail, fix the issue and re-run before closing. See [CLAUDE.md](../../CLAUDE.md) for the complete closure checklist.
@@ -207,10 +210,10 @@ Before submitting a PR:
 
 Brief description of changes (1-2 sentences).
 
-## Bead Reference
+## Linear Issue Reference
 
-- Bead ID: `yzuz.7` (or N/A for trivial fixes)
-- [ ] This PR addresses exactly ONE bead task
+- Issue ID: `NEM-123` (or N/A for trivial fixes)
+- [ ] This PR addresses exactly ONE Linear issue
 
 ## Changes
 
@@ -362,16 +365,26 @@ frontend/
 
 ## Task Management
 
-### Using Beads (bd)
+### Using Linear
 
 ```bash
 # Session workflow
-bd ready                              # Find available work
-bd list --label phase-N               # Filter by phase
-bd update <id> --status in_progress   # Claim task
-# ... implement feature ...
-bd close <id>                         # Complete task
-bd sync && git push                   # Sync and push
+# 1. Find available work:
+#    https://linear.app/nemotron-v3-home-security/team/NEM/active
+
+# 2. Filter by phase:
+#    https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-N
+
+# 3. Claim task (set to "In Progress"):
+#    Use Linear web interface or MCP tools
+
+# 4. Implement feature...
+
+# 5. Complete task (set to "Done"):
+#    Use Linear web interface or MCP tools
+
+# 6. Push changes:
+git push
 ```
 
 ### Task Labels

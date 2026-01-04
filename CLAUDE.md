@@ -716,7 +716,7 @@ Every directory contains an `AGENTS.md` file that documents:
 find . -name "AGENTS.md" -type f | head -20
 ```
 
-### AGENTS.md Locations (34 files)
+### AGENTS.md Locations (98 files)
 
 | Directory                            | Purpose                           |
 | ------------------------------------ | --------------------------------- |

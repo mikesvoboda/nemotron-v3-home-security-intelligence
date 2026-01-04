@@ -23,9 +23,9 @@ an **enrichment layer** that adds context (attributes, captions, re-ID, and othe
 **Technology:**
 
 - PyTorch + HuggingFace Transformers (GPU accelerated)
-- Typical VRAM usage depends on model + runtime (plan ~3–4GB; see `ai/AGENTS.md`)
+- Typical VRAM usage depends on model + runtime (plan ~3-4GB; see `ai/AGENTS.md`)
 
-### Nemotron LLM Server (Port 8091)
+### NVIDIA Nemotron LLM Server (Port 8091)
 
 **Purpose:** Risk reasoning and natural language generation
 
@@ -35,10 +35,20 @@ an **enrichment layer** that adds context (attributes, captions, re-ID, and othe
 
 **Technology:**
 
-- llama.cpp server with quantized GGUF models
-- Model size differs by deployment:
-  - Dev/host runs often use Nemotron Mini 4B (low VRAM)
-  - Production may run larger models (higher VRAM)
+- llama.cpp server with NVIDIA Nemotron GGUF models
+- ChatML format with `<|im_start|>` / `<|im_end|>` message delimiters
+- Model options by deployment:
+
+| Deployment      | Model                                                                                        | VRAM     | Context |
+| --------------- | -------------------------------------------------------------------------------------------- | -------- | ------- |
+| **Production**  | [NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | ~14.7 GB | 128K    |
+| **Development** | [Nemotron Mini 4B Instruct](https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF) | ~3 GB    | 4K      |
+
+The production 30B model with 128K context enables:
+
+- Analyzing all detections across extended time windows (hours of activity)
+- Rich historical baseline comparisons
+- Cross-camera activity correlation in a single prompt
 
 ## Enrichment Services (Ports 8092–8094)
 
@@ -62,11 +72,11 @@ These services feed into the backend’s enrichment pipeline and ultimately impr
 +----------------------------------------------+
 |                                              |
 |  +------------------+   +------------------+ |
-|  |  RT-DETRv2       |   |  Nemotron LLM    | |
+|  |  RT-DETRv2       |   |  NVIDIA Nemotron | |
 |  |  Detection       |   |  Risk Analysis   | |
 |  |                  |   |                  | |
 |  |  Port: 8090      |   |  Port: 8091      | |
-|  |  VRAM: ~4GB      |   |  VRAM: ~3GB      | |
+|  |  VRAM: ~4GB      |   |  VRAM: 3-15GB*   | |
 |  |  Latency: 30-50ms|   |  Latency: 2-5s   | |
 |  +------------------+   +------------------+ |
 |         ^                       ^            |
@@ -80,16 +90,24 @@ These services feed into the backend’s enrichment pipeline and ultimately impr
     | Client     |         | Analyzer    |
     | (FastAPI)  |         | (FastAPI)   |
     +------------+         +-------------+
+
+* Nemotron VRAM: ~3GB (4B dev) or ~14.7GB (30B production)
 ```
 
 ## Resource Requirements
 
 VRAM depends heavily on which services/models are enabled.
 
-| Profile                  | Typical VRAM | Notes                                               |
-| ------------------------ | ------------ | --------------------------------------------------- |
-| **Minimal (dev)**        | ~8–12GB      | RT-DETRv2 + Nemotron Mini 4B                        |
-| **Full AI stack (prod)** | ~22GB        | RT-DETRv2 + Nemotron + Florence + CLIP + Enrichment |
+| Profile                  | Typical VRAM | Notes                                                    |
+| ------------------------ | ------------ | -------------------------------------------------------- |
+| **Minimal (dev)**        | ~8-12GB      | RT-DETRv2 (~4GB) + Nemotron Mini 4B (~3GB)               |
+| **Full AI stack (prod)** | ~22-24GB     | RT-DETRv2 + Nemotron 30B (~14.7GB) + Enrichment services |
+
+**Production Breakdown (24GB GPU):**
+
+- RT-DETRv2: ~4GB
+- NVIDIA Nemotron-3-Nano-30B-A3B (Q4_K_M): ~14.7GB
+- Florence-2 / CLIP / Enrichment: ~4-5GB shared
 
 ## Deployment Model
 
@@ -103,15 +121,15 @@ AI services can run either:
 
 ## Service Endpoints
 
-| Service    | Endpoint      | Method | Purpose                     |
-| ---------- | ------------- | ------ | --------------------------- |
-| RT-DETRv2  | `/health`     | GET    | Health check                |
-| RT-DETRv2  | `/detect`     | POST   | Object detection (image)    |
-| Nemotron   | `/health`     | GET    | Health check                |
-| Nemotron   | `/completion` | POST   | Risk analysis (JSON prompt) |
-| Florence-2 | `/health`     | GET    | Health check                |
-| CLIP       | `/health`     | GET    | Health check                |
-| Enrichment | `/health`     | GET    | Health check                |
+| Service         | Endpoint      | Method | Purpose                              |
+| --------------- | ------------- | ------ | ------------------------------------ |
+| RT-DETRv2       | `/health`     | GET    | Health check                         |
+| RT-DETRv2       | `/detect`     | POST   | Object detection (image)             |
+| NVIDIA Nemotron | `/health`     | GET    | Health check                         |
+| NVIDIA Nemotron | `/completion` | POST   | Risk analysis (ChatML prompt + JSON) |
+| Florence-2      | `/health`     | GET    | Health check                         |
+| CLIP            | `/health`     | GET    | Health check                         |
+| Enrichment      | `/health`     | GET    | Health check                         |
 
 ---
 

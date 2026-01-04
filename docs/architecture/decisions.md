@@ -17,6 +17,7 @@ This document captures the key architectural decisions made during the developme
 9. [ADR-009: WebSocket for Real-time Updates](#adr-009-websocket-for-real-time-updates)
 10. [ADR-010: LLM-Determined Risk Scoring](#adr-010-llm-determined-risk-scoring)
 11. [ADR-011: Native Tremor Charts over Grafana Embeds](#adr-011-native-tremor-charts-over-grafana-embeds)
+12. [ADR-012: WebSocket Circuit Breaker Pattern](#adr-012-websocket-circuit-breaker-pattern)
 
 ---
 
@@ -655,6 +656,100 @@ import { AreaChart } from '@tremor/react';
   colors={["blue", "cyan"]}
 />
 ```
+
+---
+
+## ADR-012: WebSocket Circuit Breaker Pattern
+
+**Status:** Accepted
+**Date:** 2025-01-03
+
+### Context
+
+The EventBroadcaster and SystemBroadcaster services maintain persistent connections to Redis pub/sub channels and WebSocket clients. When Redis experiences failures or network issues, broadcasters can enter a failure cascade where repeated connection attempts exhaust resources and delay recovery.
+
+The existing service-level circuit breaker (`backend/services/circuit_breaker.py`) is designed for external service calls (RT-DETRv2, Nemotron), not for the specific patterns of WebSocket connection management and pub/sub subscription recovery.
+
+### Decision
+
+Implement a dedicated **WebSocket Circuit Breaker** (`backend/core/websocket_circuit_breaker.py`) specifically designed for broadcaster services with:
+
+- Lower failure threshold (3 vs 5) for faster failure detection
+- 30-second recovery timeout for gradual recovery testing
+- Single test call in half-open state to avoid overwhelming recovering services
+- Integration with `is_degraded()` method for graceful degradation signaling
+- Metrics tracking for monitoring and alerting
+
+### Alternatives Considered
+
+| Alternative                       | Pros                                           | Cons                                       |
+| --------------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| **Dedicated WS Circuit Breaker**  | Tailored for WebSocket patterns, degraded mode | Additional class to maintain               |
+| **Reuse existing CircuitBreaker** | Single implementation                          | Generic config not optimal for WS recovery |
+| **No circuit breaker**            | Simpler code                                   | Cascading failures, resource exhaustion    |
+| **Exponential backoff only**      | Simple retry logic                             | No state tracking, no coordinated recovery |
+
+### Consequences
+
+**Positive:**
+
+- Fast failure detection (3 consecutive failures opens circuit)
+- Coordinated recovery via half-open state
+- Graceful degradation signaling to clients via `is_degraded()` method
+- Metrics for monitoring circuit breaker state
+- Thread-safe with asyncio Lock
+
+**Negative:**
+
+- Additional class to maintain alongside service-level circuit breaker
+- Different configuration from service circuit breaker (intentional but may cause confusion)
+
+### Implementation
+
+```python
+from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
+
+class SystemBroadcaster:
+    def __init__(self, ...):
+        self._circuit_breaker = WebSocketCircuitBreaker(
+            failure_threshold=3,      # Open after 3 failures
+            recovery_timeout=30.0,    # Wait 30s before testing
+            half_open_max_calls=1,    # Single test call
+            success_threshold=1,      # Close after 1 success
+            name="system_broadcaster",
+        )
+
+    def is_degraded(self) -> bool:
+        """Check if broadcaster is in degraded mode."""
+        return self._is_degraded
+```
+
+### Circuit Breaker States
+
+```
+CLOSED (Normal) --[3 failures]--> OPEN (Blocking)
+                                    |
+                                    | (30s timeout)
+                                    v
+                              HALF_OPEN (Testing)
+                                    |
+              +---------------------+---------------------+
+              |                                           |
+         [success]                                   [failure]
+              |                                           |
+              v                                           v
+           CLOSED                                       OPEN
+```
+
+### Metrics Available
+
+| Metric            | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `state`           | Current circuit state (closed/open/half_open) |
+| `failure_count`   | Consecutive failures since last success       |
+| `total_failures`  | Total failures recorded                       |
+| `total_successes` | Total successes recorded                      |
+| `opened_at`       | Timestamp when circuit was last opened        |
 
 ---
 

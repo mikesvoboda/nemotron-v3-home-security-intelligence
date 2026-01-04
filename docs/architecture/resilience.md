@@ -705,6 +705,120 @@ No text overlays
 
 ---
 
+## WebSocket Circuit Breaker
+
+The system includes a dedicated WebSocket circuit breaker specifically designed for the EventBroadcaster and SystemBroadcaster services. This provides resilience for real-time WebSocket connections when Redis pub/sub experiences failures.
+
+### WebSocket Circuit Breaker States
+
+| State         | Description                                             | Behavior                                         |
+| ------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| **CLOSED**    | Normal operation, WebSocket operations proceed normally | All broadcasts pass through                      |
+| **OPEN**      | Too many failures, operations blocked to allow recovery | Broadcasts are rejected immediately              |
+| **HALF_OPEN** | Testing recovery, limited operations allowed            | Single test operation allowed per recovery cycle |
+
+### Configuration
+
+The [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) uses the following default configuration:
+
+| Parameter             | Default | Description                                    |
+| --------------------- | ------- | ---------------------------------------------- |
+| `failure_threshold`   | 3       | Consecutive failures before opening circuit    |
+| `recovery_timeout`    | 30.0s   | Wait time before transitioning to HALF_OPEN    |
+| `half_open_max_calls` | 1       | Max calls allowed in HALF_OPEN state           |
+| `success_threshold`   | 1       | Successes needed in HALF_OPEN to close circuit |
+
+### State Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED: Initial State
+
+    CLOSED --> OPEN: failures >= 3
+    OPEN --> HALF_OPEN: recovery_timeout (30s) elapsed
+    HALF_OPEN --> CLOSED: success_threshold met
+    HALF_OPEN --> OPEN: any failure
+
+    CLOSED: Normal Operation
+    CLOSED: WebSocket broadcasts pass through
+    CLOSED: Track consecutive failures
+
+    OPEN: Circuit Tripped
+    OPEN: Broadcasts rejected immediately
+    OPEN: Waiting for recovery timeout
+
+    HALF_OPEN: Recovery Testing
+    HALF_OPEN: Single test operation allowed
+    HALF_OPEN: Track success/failure
+```
+
+### Integration with Broadcasters
+
+Both EventBroadcaster and SystemBroadcaster integrate the WebSocketCircuitBreaker:
+
+```python
+from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
+
+class SystemBroadcaster:
+    def __init__(self, ...):
+        self._circuit_breaker = WebSocketCircuitBreaker(
+            failure_threshold=3,
+            recovery_timeout=30.0,
+            name="system_broadcaster",
+        )
+        self._is_degraded = False
+
+    def is_degraded(self) -> bool:
+        """Check if the broadcaster is in degraded mode.
+
+        Degraded mode is entered when all recovery attempts have been exhausted.
+        In this state, the broadcaster cannot reliably broadcast real-time updates
+        but may still accept WebSocket connections.
+        """
+        return self._is_degraded
+```
+
+### Degraded Mode
+
+When the circuit breaker opens and recovery fails, the broadcaster enters degraded mode:
+
+1. **`is_degraded()` method** - Returns `True` when all recovery attempts are exhausted
+2. **Client notification** - Connected clients receive a `service_status` message indicating degraded state
+3. **Graceful handling** - WebSocket connections are still accepted, but real-time broadcasts may be delayed or unavailable
+
+### Usage Pattern
+
+```python
+# Check if operation is permitted before attempting broadcast
+if self._circuit_breaker.is_call_permitted():
+    try:
+        await self._broadcast_to_clients(message)
+        self._circuit_breaker.record_success()
+    except Exception:
+        self._circuit_breaker.record_failure()
+else:
+    # Circuit is open, handle degraded mode
+    logger.warning("Circuit breaker open, broadcast skipped")
+```
+
+### Metrics and Monitoring
+
+The circuit breaker tracks metrics for observability:
+
+| Metric              | Description                              |
+| ------------------- | ---------------------------------------- |
+| `failure_count`     | Consecutive failures since last success  |
+| `success_count`     | Consecutive successes in HALF_OPEN state |
+| `total_failures`    | Total failures recorded                  |
+| `total_successes`   | Total successes recorded                 |
+| `last_failure_time` | Timestamp of last failure (monotonic)    |
+| `last_state_change` | Timestamp of last state transition       |
+| `opened_at`         | Timestamp when circuit was last opened   |
+
+Access metrics via `get_metrics()` or `get_status()` for API responses.
+
+---
+
 ## Related Documentation
 
 | Document                                              | Purpose                            |

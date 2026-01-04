@@ -285,17 +285,13 @@ else
 fi
 print_success "pip upgraded"
 
-# Install backend dependencies
+# Install backend dependencies using uv
 print_step "Installing backend dependencies..."
-if [ -f "backend/requirements.txt" ]; then
-    if check_command uv; then
-        uv pip install -r backend/requirements.txt
-    else
-        pip install -r backend/requirements.txt --quiet
-    fi
+if check_command uv; then
+    uv sync --extra dev
     print_success "Backend dependencies installed"
 else
-    print_error "backend/requirements.txt not found"
+    print_error "uv not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 fi
 

@@ -915,6 +915,338 @@ if (newHistory.length > maxDataPoints) {
 
 ---
 
+### usePerformanceMetrics
+
+**Purpose**: Real-time system performance metrics via WebSocket (`/ws/system` endpoint), filtering for `performance_update` messages.
+
+**Source**: `frontend/src/hooks/usePerformanceMetrics.ts`
+
+**Features**:
+
+- Subscribes to `/ws/system` WebSocket and filters for `performance_update` messages
+- Maintains circular buffers for historical data at different time resolutions (5m, 15m, 60m)
+- Downsampling strategy: 5m buffer samples every update, 15m every 3rd, 60m every 12th
+- Provides GPU metrics, AI model status, inference latency, and database metrics
+- Tracks active alerts from the backend
+- Uses `buildWebSocketOptions()` for URL construction
+
+**Type Definitions**:
+
+```typescript
+interface PerformanceUpdate {
+  timestamp: string;
+  gpu: GpuMetrics | null;
+  ai_models: Record<string, AiModelMetrics | NemotronMetrics>;
+  nemotron: NemotronMetrics | null;
+  inference: InferenceMetrics | null;
+  databases: Record<string, DatabaseMetrics | RedisMetrics>;
+  host: HostMetrics | null;
+  containers: ContainerMetrics[];
+  alerts: PerformanceAlert[];
+}
+
+interface UsePerformanceMetricsReturn {
+  current: PerformanceUpdate | null;
+  history: PerformanceHistory;
+  alerts: PerformanceAlert[];
+  isConnected: boolean;
+  timeRange: TimeRange;
+  setTimeRange: (range: TimeRange) => void;
+}
+```
+
+**Example**:
+
+```typescript
+const { current, history, alerts, isConnected, timeRange, setTimeRange } = usePerformanceMetrics();
+
+// Display current GPU utilization
+if (current?.gpu) {
+  console.log(`GPU: ${current.gpu.utilization}%`);
+  console.log(`VRAM: ${current.gpu.vram_used_gb}/${current.gpu.vram_total_gb} GB`);
+}
+
+// Get historical data for selected time range
+const historicalData = history[timeRange];
+```
+
+---
+
+### useAIMetrics
+
+**Purpose**: Fetches AI performance metrics from multiple REST endpoints and combines them into a unified state.
+
+**Source**: `frontend/src/hooks/useAIMetrics.ts`
+
+**Features**:
+
+- Polls multiple endpoints: `/api/metrics`, `/api/system/telemetry`, `/api/system/health`, `/api/system/pipeline-latency`
+- Combines data from Prometheus metrics, health checks, and pipeline latency API
+- Configurable polling interval (default: 5000ms)
+- Provides RT-DETR and Nemotron model status
+- Tracks detection/analysis latency percentiles
+- Mount-safe state updates
+
+**Type Definitions**:
+
+```typescript
+interface AIPerformanceState {
+  rtdetr: AIModelStatus;
+  nemotron: AIModelStatus;
+  detectionLatency: AILatencyMetrics | null;
+  analysisLatency: AILatencyMetrics | null;
+  pipelineLatency: PipelineLatencyResponse | null;
+  totalDetections: number;
+  totalEvents: number;
+  detectionQueueDepth: number;
+  analysisQueueDepth: number;
+  pipelineErrors: Record<string, number>;
+  queueOverflows: Record<string, number>;
+  dlqItems: Record<string, number>;
+  lastUpdated: string | null;
+}
+
+interface UseAIMetricsResult {
+  data: AIPerformanceState;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+}
+```
+
+**Example**:
+
+```typescript
+const { data, isLoading, error, refresh } = useAIMetrics({
+  pollingInterval: 5000,
+});
+
+if (data.rtdetr.status === 'healthy') {
+  console.log(`RT-DETR latency P95: ${data.detectionLatency?.p95}ms`);
+}
+```
+
+---
+
+### useServiceStatus
+
+**Purpose**: Tracks individual service health status via WebSocket (`/ws/events` endpoint), listening for `service_status` messages.
+
+**Source**: `frontend/src/hooks/useServiceStatus.ts`
+
+**Features**:
+
+- Subscribes to `/ws/events` and filters for `service_status` messages
+- Tracks status for each monitored service (rtdetr, nemotron, redis)
+- Provides derived flags: `hasUnhealthy`, `isAnyRestarting`
+- Service status types: healthy, unhealthy, restarting, restart_failed, failed
+- Uses `buildWebSocketOptions()` for URL construction
+
+**Type Definitions**:
+
+```typescript
+type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+type ServiceStatusType = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+
+interface ServiceStatus {
+  service: ServiceName;
+  status: ServiceStatusType;
+  message?: string;
+  timestamp: string;
+}
+
+interface UseServiceStatusResult {
+  services: Record<ServiceName, ServiceStatus | null>;
+  hasUnhealthy: boolean;
+  isAnyRestarting: boolean;
+  getServiceStatus: (name: ServiceName) => ServiceStatus | null;
+}
+```
+
+**Example**:
+
+```typescript
+const { services, hasUnhealthy, isAnyRestarting, getServiceStatus } = useServiceStatus();
+
+if (hasUnhealthy) {
+  console.log('Warning: One or more services are unhealthy');
+}
+
+const rtdetrStatus = getServiceStatus('rtdetr');
+if (rtdetrStatus?.status === 'restarting') {
+  console.log(`RT-DETR is restarting: ${rtdetrStatus.message}`);
+}
+```
+
+---
+
+### useDetectionEnrichment
+
+**Purpose**: Fetches enrichment data for a specific detection from the backend enrichment endpoint.
+
+**Source**: `frontend/src/hooks/useDetectionEnrichment.ts`
+
+**Features**:
+
+- Fetches structured enrichment results from `/api/detections/{id}/enrichment`
+- Contains results from 18+ vision models run during detection processing
+- Conditional fetching based on `enabled` option
+- Manual refetch capability
+- Handles loading, error, and null states
+
+**Type Definitions**:
+
+```typescript
+interface UseDetectionEnrichmentOptions {
+  enabled?: boolean;
+}
+
+interface UseDetectionEnrichmentReturn {
+  data: EnrichmentResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+```
+
+**Example**:
+
+```typescript
+const { data, isLoading, error, refetch } = useDetectionEnrichment(detectionId);
+
+if (isLoading) return <Spinner />;
+if (error) return <ErrorMessage error={error} />;
+if (data) {
+  // Display enrichment results from vision models
+  return <EnrichmentPanel enrichment_data={data} />;
+}
+```
+
+---
+
+### useModelZooStatus
+
+**Purpose**: Fetches and polls Model Zoo status from `/api/system/models` endpoint.
+
+**Source**: `frontend/src/hooks/useModelZooStatus.ts`
+
+**Features**:
+
+- Polls Model Zoo registry at configurable intervals (default: 10000ms)
+- Provides list of all AI models in the registry
+- Calculates VRAM statistics (budget, used, available, percentage)
+- Manual refresh capability
+- Handles loading and error states
+
+**Type Definitions**:
+
+```typescript
+interface VRAMStats {
+  budget_mb: number;
+  used_mb: number;
+  available_mb: number;
+  usage_percent: number;
+}
+
+interface UseModelZooStatusOptions {
+  pollingInterval?: number;
+}
+
+interface UseModelZooStatusReturn {
+  models: ModelStatusResponse[];
+  vramStats: VRAMStats | null;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+}
+```
+
+**Example**:
+
+```typescript
+const { models, vramStats, isLoading, error, refresh } = useModelZooStatus({
+  pollingInterval: 10000,
+});
+
+if (vramStats) {
+  console.log(`VRAM Usage: ${vramStats.usage_percent.toFixed(1)}%`);
+  console.log(`${vramStats.used_mb}MB / ${vramStats.budget_mb}MB`);
+}
+
+// List loaded models
+models
+  .filter((m) => m.status === 'loaded')
+  .forEach((m) => {
+    console.log(`${m.name}: ${m.vram_mb}MB`);
+  });
+```
+
+---
+
+### useSavedSearches
+
+**Purpose**: Manages saved event searches in localStorage for the Events page.
+
+**Source**: `frontend/src/hooks/useSavedSearches.ts`
+
+**Features**:
+
+- Persists searches to localStorage (key: `hsi_saved_searches`)
+- Limits to 10 most recent searches
+- Provides CRUD operations (save, delete, load, clearAll)
+- Cross-tab synchronization via `storage` event listener
+- Handles localStorage errors gracefully (quota exceeded, unavailable)
+
+**Type Definitions**:
+
+```typescript
+interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  filters: SearchFilters;
+  createdAt: string;
+}
+
+interface LoadedSearch {
+  query: string;
+  filters: SearchFilters;
+}
+
+interface UseSavedSearchesReturn {
+  savedSearches: SavedSearch[];
+  saveSearch: (name: string, query: string, filters: SearchFilters) => void;
+  deleteSearch: (id: string) => void;
+  loadSearch: (id: string) => LoadedSearch | null;
+  clearAll: () => void;
+}
+```
+
+**Example**:
+
+```typescript
+const { savedSearches, saveSearch, deleteSearch, loadSearch, clearAll } = useSavedSearches();
+
+// Save a new search
+saveSearch('High Risk Events', 'suspicious person', { severity: 'high' });
+
+// Load a saved search
+const search = loadSearch('search-123');
+if (search) {
+  setQuery(search.query);
+  setFilters(search.filters);
+}
+
+// Render saved searches dropdown
+savedSearches.map(s => (
+  <MenuItem key={s.id} onClick={() => loadSearch(s.id)}>
+    {s.name}
+  </MenuItem>
+));
+```
+
+---
+
 ## Future Enhancements
 
 Potential improvements for the hooks architecture:

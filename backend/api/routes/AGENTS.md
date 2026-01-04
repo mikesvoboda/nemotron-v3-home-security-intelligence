@@ -441,6 +441,104 @@ Development-only admin endpoints for seeding test data.
 - Weighted risk distribution (50% low, 35% medium, 15% high)
 - Auto-generates detections with random bounding boxes
 
+### `ai_audit.py`
+
+AI pipeline audit management for model performance, quality scoring, and recommendations.
+
+**Router prefix:** `/api/ai-audit`
+
+**Endpoints:**
+
+| Method | Path                                       | Purpose                                            |
+| ------ | ------------------------------------------ | -------------------------------------------------- |
+| GET    | `/api/ai-audit/events/{event_id}`          | Get audit info for a specific event                |
+| POST   | `/api/ai-audit/events/{event_id}/evaluate` | Trigger full evaluation for an event               |
+| GET    | `/api/ai-audit/stats`                      | Get aggregate AI audit statistics                  |
+| GET    | `/api/ai-audit/leaderboard`                | Get model leaderboard by contribution rate         |
+| GET    | `/api/ai-audit/recommendations`            | Get aggregated prompt improvement recommendations  |
+| POST   | `/api/ai-audit/batch`                      | Trigger batch audit processing for multiple events |
+
+**Query Parameters:**
+
+- `days` - Number of days to include (1-90, default 7)
+- `camera_id` - Filter by camera ID (stats endpoint)
+- `force` - Force re-evaluation even if already evaluated (evaluate endpoint)
+- `min_risk_score` - Minimum risk score filter (batch endpoint)
+- `limit` - Maximum events to process (batch endpoint)
+
+**Key Features:**
+
+- Model contribution tracking (RT-DETR, Florence, CLIP, violence, clothing, vehicle, pet, weather, etc.)
+- Quality scoring (context usage, reasoning coherence, risk justification, consistency)
+- Prompt improvement suggestions (missing context, confusing sections, unused data, format suggestions)
+- Model leaderboard with quality correlation
+- Batch evaluation for historical events
+
+### `entities.py`
+
+Entity re-identification tracking across multiple cameras using CLIP embeddings.
+
+**Router prefix:** `/api/entities`
+
+**Endpoints:**
+
+| Method | Path                                | Purpose                               |
+| ------ | ----------------------------------- | ------------------------------------- |
+| GET    | `/api/entities`                     | List tracked entities with filtering  |
+| GET    | `/api/entities/{entity_id}`         | Get detailed info for an entity       |
+| GET    | `/api/entities/{entity_id}/history` | Get appearance timeline for an entity |
+
+**Query Parameters (List):**
+
+- `entity_type` - Filter by type ('person' or 'vehicle')
+- `camera_id` - Filter by camera ID
+- `since` - Filter entities seen since this timestamp
+- `limit` / `offset` - Pagination (default: 50, max: 1000)
+
+**Key Features:**
+
+- Cross-camera entity tracking using CLIP embeddings stored in Redis
+- Appearance history with timestamps and camera locations
+- Thumbnail URLs for each entity appearance
+- Entity summaries with appearance counts and cameras seen
+- Graceful degradation when Redis is unavailable
+
+### `prompt_management.py`
+
+Prompt configuration management for AI models with versioning, testing, and import/export.
+
+**Router prefix:** `/api/ai-audit/prompts`
+
+**Endpoints:**
+
+| Method | Path                                         | Purpose                                 |
+| ------ | -------------------------------------------- | --------------------------------------- |
+| GET    | `/api/ai-audit/prompts`                      | Get all prompt configurations           |
+| GET    | `/api/ai-audit/prompts/export`               | Export all prompts as JSON              |
+| GET    | `/api/ai-audit/prompts/history`              | Get prompt version history              |
+| POST   | `/api/ai-audit/prompts/test`                 | Test a modified prompt against an event |
+| POST   | `/api/ai-audit/prompts/import`               | Import prompt configurations            |
+| POST   | `/api/ai-audit/prompts/import/preview`       | Preview import changes without applying |
+| POST   | `/api/ai-audit/prompts/history/{version_id}` | Restore a specific prompt version       |
+| GET    | `/api/ai-audit/prompts/{model}`              | Get prompt for a specific model         |
+| PUT    | `/api/ai-audit/prompts/{model}`              | Update prompt for a specific model      |
+
+**Supported Models:**
+
+- `nemotron` - System prompt for risk analysis
+- `florence2` - Scene analysis queries
+- `yolo_world` - Custom object classes and confidence threshold
+- `xclip` - Action recognition classes
+- `fashion_clip` - Clothing categories
+
+**Key Features:**
+
+- Full version history with change descriptions
+- Export/import for backup and sharing configurations
+- Import preview with diff computation
+- A/B testing prompts against events or images
+- Restore previous versions while preserving history
+
 ## Common Patterns
 
 ### Async Database Access

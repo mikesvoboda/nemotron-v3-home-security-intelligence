@@ -502,13 +502,92 @@ Sent when service health changes:
 }
 ```
 
+### Performance Update Message
+
+Sent periodically with detailed system performance metrics:
+
+```json
+{
+  "type": "performance_update",
+  "data": {
+    "timestamp": "2024-01-15T10:30:00.000000",
+    "gpu": {
+      "name": "NVIDIA RTX A5500",
+      "utilization": 45.2,
+      "vram_used_gb": 7.5,
+      "vram_total_gb": 24.0,
+      "temperature": 65,
+      "power_watts": 125.5
+    },
+    "ai_models": {
+      "rtdetr": {
+        "status": "loaded",
+        "vram_gb": 4.2,
+        "model": "RT-DETRv2-L",
+        "device": "cuda:0"
+      }
+    },
+    "nemotron": {
+      "status": "running",
+      "slots_active": 1,
+      "slots_total": 4,
+      "context_size": 4096
+    },
+    "inference": {
+      "rtdetr_latency_ms": { "p50": 35, "p95": 52, "p99": 68 },
+      "nemotron_latency_ms": { "p50": 2100, "p95": 3500, "p99": 4200 },
+      "pipeline_latency_ms": { "avg": 2500, "p95": 4000 },
+      "throughput": { "detections_per_min": 45, "events_per_hour": 12 },
+      "queues": { "detection_queue": 3, "analysis_queue": 1 }
+    },
+    "databases": {
+      "postgresql": {
+        "status": "healthy",
+        "connections_active": 5,
+        "connections_max": 100,
+        "cache_hit_ratio": 0.98,
+        "transactions_per_min": 120
+      },
+      "redis": {
+        "status": "healthy",
+        "connected_clients": 3,
+        "memory_mb": 128,
+        "hit_ratio": 0.95,
+        "blocked_clients": 0
+      }
+    },
+    "host": {
+      "cpu_percent": 25.5,
+      "ram_used_gb": 12.5,
+      "ram_total_gb": 64.0,
+      "disk_used_gb": 250.0,
+      "disk_total_gb": 1000.0
+    },
+    "containers": [
+      { "name": "backend", "status": "running", "health": "healthy" },
+      { "name": "rtdetr", "status": "running", "health": "healthy" }
+    ],
+    "alerts": [
+      {
+        "severity": "warning",
+        "metric": "gpu_temperature",
+        "value": 82,
+        "threshold": 80,
+        "message": "GPU temperature above threshold"
+      }
+    ]
+  }
+}
+```
+
 ### Message Type Summary
 
-| Type             | Source            | Trigger        | Content                      |
-| ---------------- | ----------------- | -------------- | ---------------------------- |
-| `event`          | NemotronAnalyzer  | Event creation | Security event details       |
-| `system_status`  | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health |
-| `service_status` | HealthMonitor     | Status change  | Service name and status      |
+| Type                 | Source            | Trigger        | Content                                  |
+| -------------------- | ----------------- | -------------- | ---------------------------------------- |
+| `event`              | NemotronAnalyzer  | Event creation | Security event details                   |
+| `system_status`      | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health             |
+| `service_status`     | HealthMonitor     | Status change  | Service name and status                  |
+| `performance_update` | SystemBroadcaster | Every 5s       | Detailed GPU, AI, database, host metrics |
 
 ---
 

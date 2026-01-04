@@ -24,12 +24,12 @@ These control the startup script (`scripts/start-ai.sh`):
 | Variable        | Description                         | Default |
 | --------------- | ----------------------------------- | ------- |
 | `RTDETR_PORT`   | Port for RT-DETRv2 detection server | `8090`  |
-| `NEMOTRON_PORT` | Port for Nemotron LLM server        | `8091`  |
+| `NEMOTRON_PORT` | Port for NVIDIA Nemotron LLM server | `8091`  |
 
 **Note:** Log file paths are hardcoded:
 
 - RT-DETRv2: `/tmp/rtdetr-detector.log`
-- Nemotron: `/tmp/nemotron-llm.log`
+- NVIDIA Nemotron: `/tmp/nemotron-llm.log`
 
 ### RT-DETRv2 Detection Server
 
@@ -42,25 +42,36 @@ Configuration for `ai/rtdetr/model.py`:
 | `PORT`              | Server port (direct execution) | `8090`                                         |
 | `HOST`              | Bind address                   | `0.0.0.0`                                      |
 
-### Nemotron LLM Server
+### NVIDIA Nemotron LLM Server
 
-Configuration for `ai/start_llm.sh`:
+Configuration for `ai/start_llm.sh` (development) and `ai/start_nemotron.sh` (production):
 
-| Variable              | Description             | Default                                                           |
+| Variable              | Description             | Default (Dev)                                                     |
 | --------------------- | ----------------------- | ----------------------------------------------------------------- |
 | `NEMOTRON_MODEL_PATH` | Path to GGUF model file | `$PROJECT_ROOT/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
 | `NEMOTRON_PORT`       | Server port             | `8091`                                                            |
+| `GPU_LAYERS`          | Layers offloaded to GPU | `35`                                                              |
+| `CTX_SIZE`            | Context window size     | `131072` (128K)                                                   |
+
+**Model Options:**
+
+| Deployment      | Model                                                                                        | File                                    | VRAM     | Context |
+| --------------- | -------------------------------------------------------------------------------------------- | --------------------------------------- | -------- | ------- |
+| **Production**  | [NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`   | ~14.7 GB | 131,072 |
+| **Development** | [Nemotron Mini 4B Instruct](https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF) | `nemotron-mini-4b-instruct-q4_k_m.gguf` | ~3 GB    | 4,096   |
+
+For comprehensive NVIDIA Nemotron documentation, see `/ai/nemotron/AGENTS.md`.
 
 ### Backend Configuration
 
 These configure how the backend connects to AI services (`backend/core/config.py`):
 
-| Variable           | Description                          | Default                 |
-| ------------------ | ------------------------------------ | ----------------------- |
-| `RTDETR_URL`       | Full URL to RT-DETRv2 service        | `http://localhost:8090` |
-| `NEMOTRON_URL`     | Full URL to Nemotron service         | `http://localhost:8091` |
-| `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication | (none)                  |
-| `NEMOTRON_API_KEY` | API key for Nemotron authentication  | (none)                  |
+| Variable           | Description                                | Default                 |
+| ------------------ | ------------------------------------------ | ----------------------- |
+| `RTDETR_URL`       | Full URL to RT-DETRv2 service              | `http://localhost:8090` |
+| `NEMOTRON_URL`     | Full URL to NVIDIA Nemotron service        | `http://localhost:8091` |
+| `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication       | (none)                  |
+| `NEMOTRON_API_KEY` | API key for NVIDIA Nemotron authentication | (none)                  |
 
 ---
 
