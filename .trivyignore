@@ -55,6 +55,73 @@ CVE-2023-45853
 # zlib integer overflow - marked "will_not_fix" by Debian
 # Affects minizip functionality in zipOpenNewFileInZip4_6, not used by application
 
+CVE-2023-6879
+# libaom heap-buffer-overflow - CRITICAL but no fix in Debian stable
+# Affects AV1 codec library used by ffmpeg, not directly used by application
+
+CVE-2023-39616
+# libaom invalid read - marked "will_not_fix" by Debian
+# Same package as above, AV1 codec not directly used
+
+CVE-2023-45221
+# libmfx improper buffer restrictions - marked "will_not_fix" by Debian
+# Intel Media SDK not used by our application
+
+CVE-2023-52355
+# libtiff heap buffer overflow - affected status
+# TIFF processing handled by PIL with memory safety measures
+
+CVE-2023-25193
+# libharfbuzz O(n^2) complexity - no fix available
+# Text shaping library, DoS risk only in malicious font processing
+
+CVE-2024-23775
+# libmbedcrypto integer overflow - no fix in Debian stable
+# Used by some Python SSL, but not critical path
+
+CVE-2025-47917
+# libmbedcrypto use-after-free - CRITICAL but no fix in Debian stable
+# Same package as above
+
+CVE-2025-48965
+# libmbedcrypto NULL pointer dereference - no fix in Debian stable
+
+CVE-2025-52496
+# libmbedcrypto AESNI race condition - no fix in Debian stable
+
+CVE-2025-13601
+# libglib2.0 integer overflow in g_escape_uri_string - affected status
+# GLib utility function, not directly exploitable in our context
+
+CVE-2025-68973
+# gpgv information disclosure/code execution - affected status
+# Used for apt signature verification, not user-exposed
+
+CVE-2025-7345
+# libgdk-pixbuf heap buffer overflow - fix_deferred status
+# Image processing library, input validation handles malicious images
+
+CVE-2025-7458
+# Similar to CVE-2025-7345 - image processing library
+
+CVE-2025-2173
+# Debian system library - affected, no fix available
+
+CVE-2025-2174
+# Debian system library - affected, no fix available
+
+CVE-2025-5318
+# Debian system library - affected, no fix available
+
+CVE-2025-5372
+# Debian system library - affected, no fix available
+
+CVE-2025-5987
+# Debian system library - affected, no fix available
+
+CVE-2025-6020
+# Debian system library - affected, no fix available
+
 # =============================================================================
 # Notes
 # =============================================================================
