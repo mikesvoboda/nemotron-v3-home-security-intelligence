@@ -2,15 +2,18 @@
 
 This module provides endpoints for auditing AI pipeline performance,
 including model contributions, quality scores, and recommendations.
+It also includes the Prompt Playground API for managing AI model configurations.
 """
 
 import json
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.ai_audit import (
+    AllPromptsResponse,
     AuditStatsResponse,
     BatchAuditRequest,
     BatchAuditResponse,
@@ -18,7 +21,21 @@ from backend.api.schemas.ai_audit import (
     LeaderboardResponse,
     ModelContributions,
     ModelLeaderboardEntry,
+    ModelPromptResponse,
+    PromptExportResponse,
+    PromptHistoryEntry,
+    PromptHistoryResponse,
+    PromptImportRequest,
+    PromptImportResponse,
     PromptImprovements,
+    PromptRestoreRequest,
+    PromptRestoreResponse,
+    PromptTestRequest,
+    PromptTestResponse,
+    PromptTestResultAfter,
+    PromptTestResultBefore,
+    PromptUpdateRequest,
+    PromptUpdateResponse,
     QualityScores,
     RecommendationItem,
     RecommendationsResponse,
@@ -27,6 +44,7 @@ from backend.core.database import get_db
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 from backend.services.audit_service import get_audit_service
+from backend.services.prompt_storage import SUPPORTED_MODELS, get_prompt_storage
 
 router = APIRouter(prefix="/api/ai-audit", tags=["ai-audit"])
 
@@ -376,4 +394,419 @@ async def trigger_batch_audit(
     return BatchAuditResponse(
         queued_count=queued_count,
         message=f"Successfully processed {queued_count} events for audit evaluation",
+    )
+
+
+# =============================================================================
+# Prompt Playground Endpoints
+# =============================================================================
+
+
+def _validate_model_name(model: str) -> None:
+    """Validate that a model name is supported.
+
+    Args:
+        model: Model name to validate
+
+    Raises:
+        HTTPException: 404 if model is not supported
+    """
+    if model not in SUPPORTED_MODELS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model}' not found. Supported models: {sorted(SUPPORTED_MODELS)}",
+        )
+
+
+@router.get("/prompts", response_model=AllPromptsResponse)
+async def get_all_prompts() -> AllPromptsResponse:
+    """Get current prompt configurations for all AI models.
+
+    Returns configurations for nemotron, florence2, yolo_world, xclip,
+    and fashion_clip models with their current versions.
+
+    Returns:
+        AllPromptsResponse containing all model configurations
+    """
+    storage = get_prompt_storage()
+    all_configs = storage.get_all_configs()
+
+    prompts = {}
+    for model_name, data in all_configs.items():
+        prompts[model_name] = ModelPromptResponse(
+            model_name=model_name,
+            config=data.get("config", {}),
+            version=data.get("version", 1),
+            updated_at=datetime.fromisoformat(
+                data.get("updated_at", datetime.now(UTC).isoformat())
+            ),
+        )
+
+    return AllPromptsResponse(prompts=prompts)
+
+
+# NOTE: Static routes must be defined BEFORE dynamic routes like /prompts/{model}
+# to prevent FastAPI from matching "history", "export", "test" as model names.
+
+
+@router.post("/prompts/test", response_model=PromptTestResponse)
+async def test_prompt(
+    request: PromptTestRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PromptTestResponse:
+    """Test a modified prompt configuration against a specific event.
+
+    Runs inference with both the current and modified configurations,
+    returning a comparison of the results to help evaluate changes.
+
+    Note: This currently returns mock results. In production, it would
+    call the actual AI services with the modified configuration.
+
+    Args:
+        request: Test request with model name, config, and event ID
+        db: Database session
+
+    Returns:
+        PromptTestResponse with before/after comparison
+
+    Raises:
+        HTTPException: 404 if model or event not found, 400 if config invalid
+    """
+    _validate_model_name(request.model)
+
+    # Verify the event exists
+    event_result = await db.execute(select(Event).where(Event.id == request.event_id))
+    event = event_result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event {request.event_id} not found",
+        )
+
+    storage = get_prompt_storage()
+
+    # Run mock test
+    try:
+        results = storage.run_mock_test(
+            model_name=request.model,
+            config=request.config,
+            event_id=request.event_id,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    return PromptTestResponse(
+        before=PromptTestResultBefore(
+            score=results["before"]["score"],
+            risk_level=results["before"]["risk_level"],
+            summary=results["before"]["summary"],
+        ),
+        after=PromptTestResultAfter(
+            score=results["after"]["score"],
+            risk_level=results["after"]["risk_level"],
+            summary=results["after"]["summary"],
+        ),
+        improved=results["improved"],
+        inference_time_ms=results["inference_time_ms"],
+    )
+
+
+@router.get("/prompts/history", response_model=dict[str, PromptHistoryResponse])
+async def get_all_prompts_history(
+    limit: int = Query(10, ge=1, le=100, description="Max versions per model"),
+) -> dict[str, PromptHistoryResponse]:
+    """Get version history for all AI models.
+
+    Returns the most recent versions for each supported model.
+
+    Args:
+        limit: Maximum number of versions to return per model (1-100, default 10)
+
+    Returns:
+        Dict mapping model names to their version histories
+    """
+    storage = get_prompt_storage()
+    result = {}
+
+    for model_name in sorted(SUPPORTED_MODELS):
+        versions = storage.get_history(model_name, limit=limit)
+        total = storage.get_total_versions(model_name)
+
+        result[model_name] = PromptHistoryResponse(
+            model_name=model_name,
+            versions=[
+                PromptHistoryEntry(
+                    version=v.version,
+                    config=v.config,
+                    created_at=v.created_at,
+                    created_by=v.created_by,
+                    description=v.description,
+                )
+                for v in versions
+            ],
+            total_versions=total,
+        )
+
+    return result
+
+
+@router.get("/prompts/export", response_model=PromptExportResponse)
+async def export_prompts() -> PromptExportResponse:
+    """Export all AI model configurations as JSON.
+
+    Returns all current configurations in a format suitable for
+    backup or transfer to another instance.
+
+    Returns:
+        PromptExportResponse with all configurations
+    """
+    storage = get_prompt_storage()
+    export_data = storage.export_all()
+
+    return PromptExportResponse(
+        exported_at=datetime.fromisoformat(export_data["exported_at"]),
+        version=export_data["version"],
+        prompts=export_data["prompts"],
+    )
+
+
+@router.post("/prompts/import", response_model=PromptImportResponse)
+async def import_prompts(request: PromptImportRequest) -> PromptImportResponse:
+    """Import AI model configurations from JSON.
+
+    Imports configurations for multiple models at once. By default,
+    existing configurations are not overwritten unless overwrite=true.
+
+    Args:
+        request: Import request with configurations and overwrite flag
+
+    Returns:
+        PromptImportResponse with import results
+    """
+    storage = get_prompt_storage()
+
+    # Validate all configurations first
+    errors: list[str] = []
+    for model_name, config in request.prompts.items():
+        if model_name not in SUPPORTED_MODELS:
+            errors.append(f"{model_name}: Unsupported model")
+            continue
+
+        validation_errors = storage.validate_config(model_name, config)
+        if validation_errors:
+            errors.append(f"{model_name}: {'; '.join(validation_errors)}")
+
+    # If there are validation errors and we're overwriting, fail early
+    if errors and request.overwrite:
+        return PromptImportResponse(
+            imported_count=0,
+            skipped_count=0,
+            errors=errors,
+            message="Import failed due to validation errors",
+        )
+
+    # Perform the import
+    results = storage.import_configs(
+        configs=request.prompts,
+        overwrite=request.overwrite,
+        created_by="import",
+    )
+
+    imported_models = results["imported"].split(", ") if results["imported"] != "none" else []
+    skipped_models = results["skipped"].split(", ") if results["skipped"] != "none" else []
+    error_list = results["errors"].split("; ") if results["errors"] != "none" else []
+
+    # Combine validation errors with import errors
+    all_errors = errors + error_list if error_list != ["none"] else errors
+
+    imported_count = len(imported_models) if imported_models != ["none"] else 0
+    skipped_count = len(skipped_models) if skipped_models != ["none"] else 0
+
+    message = f"Imported {imported_count} model(s)"
+    if skipped_count > 0:
+        message += f", skipped {skipped_count} (already exist)"
+    if all_errors:
+        message += f", {len(all_errors)} error(s)"
+
+    return PromptImportResponse(
+        imported_count=imported_count,
+        skipped_count=skipped_count,
+        errors=all_errors,
+        message=message,
+    )
+
+
+# Dynamic routes with path parameters must come AFTER static routes
+
+
+@router.get("/prompts/{model}", response_model=ModelPromptResponse)
+async def get_model_prompt(model: str) -> ModelPromptResponse:
+    """Get current prompt configuration for a specific AI model.
+
+    Args:
+        model: Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)
+
+    Returns:
+        ModelPromptResponse with current configuration
+
+    Raises:
+        HTTPException: 404 if model not found
+    """
+    _validate_model_name(model)
+
+    storage = get_prompt_storage()
+    data = storage.get_config_with_metadata(model)
+
+    return ModelPromptResponse(
+        model_name=model,
+        config=data.get("config", {}),
+        version=data.get("version", 1),
+        updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now(UTC).isoformat())),
+    )
+
+
+@router.put("/prompts/{model}", response_model=PromptUpdateResponse)
+async def update_model_prompt(
+    model: str,
+    request: PromptUpdateRequest,
+) -> PromptUpdateResponse:
+    """Update prompt configuration for a specific AI model.
+
+    Creates a new version of the configuration with the provided changes.
+    The previous version is preserved in history.
+
+    Args:
+        model: Model name to update
+        request: New configuration and optional description
+
+    Returns:
+        PromptUpdateResponse with new version info
+
+    Raises:
+        HTTPException: 404 if model not found, 400 if configuration invalid
+    """
+    _validate_model_name(model)
+
+    storage = get_prompt_storage()
+
+    # Validate the configuration
+    validation_errors = storage.validate_config(model, request.config)
+    if validation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid configuration: {'; '.join(validation_errors)}",
+        )
+
+    # Update the configuration
+    version = storage.update_config(
+        model_name=model,
+        config=request.config,
+        created_by="user",
+        description=request.description,
+    )
+
+    return PromptUpdateResponse(
+        model_name=model,
+        version=version.version,
+        message=f"Configuration updated to version {version.version}",
+        config=version.config,
+    )
+
+
+@router.get("/prompts/history/{model}", response_model=PromptHistoryResponse)
+async def get_model_history(
+    model: str,
+    limit: int = Query(50, ge=1, le=100, description="Max versions to return"),
+    offset: int = Query(0, ge=0, description="Number of versions to skip"),
+) -> PromptHistoryResponse:
+    """Get version history for a specific AI model.
+
+    Returns all versions of the model's configuration, newest first,
+    with pagination support.
+
+    Args:
+        model: Model name to get history for
+        limit: Maximum versions to return (1-100, default 50)
+        offset: Number of versions to skip (default 0)
+
+    Returns:
+        PromptHistoryResponse with version list
+
+    Raises:
+        HTTPException: 404 if model not found
+    """
+    _validate_model_name(model)
+
+    storage = get_prompt_storage()
+    versions = storage.get_history(model, limit=limit, offset=offset)
+    total = storage.get_total_versions(model)
+
+    return PromptHistoryResponse(
+        model_name=model,
+        versions=[
+            PromptHistoryEntry(
+                version=v.version,
+                config=v.config,
+                created_at=v.created_at,
+                created_by=v.created_by,
+                description=v.description,
+            )
+            for v in versions
+        ],
+        total_versions=total,
+    )
+
+
+@router.post("/prompts/history/{version}", response_model=PromptRestoreResponse)
+async def restore_prompt_version(
+    version: int,
+    model: str = Query(..., description="Model name to restore version for"),
+    request: PromptRestoreRequest | None = None,
+) -> PromptRestoreResponse:
+    """Restore a specific version of a model's prompt configuration.
+
+    Creates a new version with the configuration from the specified version.
+    The restore action is recorded in the version history.
+
+    Args:
+        version: Version number to restore
+        model: Model name to restore version for
+        request: Optional restore request with description
+
+    Returns:
+        PromptRestoreResponse with restore details
+
+    Raises:
+        HTTPException: 404 if model or version not found
+    """
+    _validate_model_name(model)
+
+    storage = get_prompt_storage()
+
+    # Check if version exists
+    old_version = storage.get_version(model, version)
+    if old_version is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Version {version} not found for model {model}",
+        )
+
+    # Restore the version
+    description = request.description if request else None
+    new_version = storage.restore_version(
+        model_name=model,
+        version=version,
+        created_by="user",
+        description=description,
+    )
+
+    return PromptRestoreResponse(
+        model_name=model,
+        restored_version=version,
+        new_version=new_version.version,
+        message=f"Restored version {version} as new version {new_version.version}",
     )

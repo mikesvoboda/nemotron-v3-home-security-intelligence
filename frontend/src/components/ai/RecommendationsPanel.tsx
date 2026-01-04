@@ -7,7 +7,7 @@
 
 import { Card, Title, Badge, Text, Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Lightbulb, AlertTriangle, Info } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Info, ArrowRight } from 'lucide-react';
 
 import type { AiAuditRecommendationItem } from '../../services/api';
 
@@ -18,6 +18,8 @@ export interface RecommendationsPanelProps {
   totalEventsAnalyzed: number;
   /** Additional CSS classes */
   className?: string;
+  /** Callback when a recommendation's explore button is clicked */
+  onExploreRecommendation?: (recommendation: AiAuditRecommendationItem) => void;
 }
 
 /**
@@ -87,6 +89,7 @@ export default function RecommendationsPanel({
   recommendations,
   totalEventsAnalyzed,
   className,
+  onExploreRecommendation,
 }: RecommendationsPanelProps) {
   const groupedRecommendations = groupByCategory(recommendations);
   const hasRecommendations = recommendations.length > 0;
@@ -171,13 +174,23 @@ export default function RecommendationsPanel({
                             <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
                             <span className="text-sm text-gray-300">{item.suggestion}</span>
                           </div>
-                          <div className="flex flex-shrink-0 items-center gap-2">
+                          <div className="flex flex-shrink-0 items-center gap-3">
                             <Badge color={getPriorityColor(item.priority)} size="xs">
                               {item.priority}
                             </Badge>
                             <Text className="text-xs text-gray-500">
                               {item.frequency}x
                             </Text>
+                            {onExploreRecommendation && (
+                              <button
+                                onClick={() => onExploreRecommendation(item)}
+                                className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
+                                data-testid={`explore-recommendation-${category}-${index}`}
+                                title="Open in Prompt Playground"
+                              >
+                                <ArrowRight className="h-3 w-3" />
+                              </button>
+                            )}
                           </div>
                         </li>
                       ))}
