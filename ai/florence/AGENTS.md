@@ -28,12 +28,20 @@ FastAPI server implementation using HuggingFace Transformers AutoModelForCausalL
 
 **Classes:**
 
-| Class             | Description                                       |
-| ----------------- | ------------------------------------------------- |
-| `ExtractRequest`  | Request: image (base64), prompt (Florence-2 task) |
-| `ExtractResponse` | Response: result, prompt_used, inference_time_ms  |
-| `HealthResponse`  | Health: status, model, device, vram_used_gb       |
-| `Florence2Model`  | Model wrapper with load_model(), extract()        |
+| Class                    | Description                                                    |
+| ------------------------ | -------------------------------------------------------------- |
+| `ExtractRequest`         | Request: image (base64), prompt (Florence-2 task)              |
+| `ExtractResponse`        | Response: result, prompt_used, inference_time_ms               |
+| `ImageRequest`           | Request: image (base64) - for endpoints needing only an image  |
+| `OCRResponse`            | Response: text, inference_time_ms                              |
+| `OCRRegion`              | A text region with bounding box coordinates                    |
+| `OCRWithRegionsResponse` | Response: regions (list of OCRRegion), inference_time_ms       |
+| `Detection`              | A detected object with label, bbox, score                      |
+| `DetectResponse`         | Response: detections (list), inference_time_ms                 |
+| `CaptionedRegion`        | A region with caption and bbox                                 |
+| `DenseCaptionResponse`   | Response: regions (list of CaptionedRegion), inference_time_ms |
+| `HealthResponse`         | Health: status, model, device, vram_used_gb                    |
+| `Florence2Model`         | Model wrapper with load_model(), extract(), extract_raw()      |
 
 **Key Functions in Florence2Model:**
 
@@ -42,7 +50,10 @@ def load_model(self) -> None:
     """Load model via AutoModelForCausalLM.from_pretrained() with trust_remote_code=True"""
 
 def extract(self, image: Image.Image, prompt: str) -> tuple[str, float]:
-    """Run Florence-2 inference, returns (result, inference_time_ms)"""
+    """Run Florence-2 inference, returns (result as string, inference_time_ms)"""
+
+def extract_raw(self, image: Image.Image, prompt: str) -> tuple[Any, float]:
+    """Run Florence-2 inference, returns (raw parsed result, inference_time_ms)"""
 ```
 
 **Supported Prompts:**
@@ -58,6 +69,9 @@ SUPPORTED_PROMPTS = {
     "<OCR>",                  # Text recognition
     "<OCR_WITH_REGION>",      # OCR with bounding boxes
 }
+
+# VQA (Visual Question Answering) prompts use format: "<VQA>question text"
+VQA_PROMPT_PREFIX = "<VQA>"
 ```
 
 ### `Dockerfile`
@@ -82,7 +96,7 @@ timm>=0.9.0        # Required by Florence-2
 pillow>=10.0.0
 numpy>=1.24.0
 pydantic>=2.4.0
-pynvml>=11.5.0
+nvidia-ml-py>=12.560.30  # GPU monitoring
 ```
 
 ## API Endpoints
@@ -132,6 +146,85 @@ Extract information using a Florence-2 prompt.
   "result": "{'<OD>': {'bboxes': [[100,150,300,400]], 'labels': ['person']}}",
   "prompt_used": "<OD>",
   "inference_time_ms": 180.5
+}
+```
+
+### POST /ocr
+
+Extract all text from an image.
+
+**Request:**
+
+```json
+{ "image": "<base64-encoded-image>" }
+```
+
+**Response:**
+
+```json
+{
+  "text": "LICENSE PLATE ABC123",
+  "inference_time_ms": 120.3
+}
+```
+
+### POST /ocr-with-regions
+
+Extract text with quadrilateral bounding boxes.
+
+**Request:**
+
+```json
+{ "image": "<base64-encoded-image>" }
+```
+
+**Response:**
+
+```json
+{
+  "regions": [{ "text": "ABC123", "bbox": [100, 150, 200, 150, 200, 180, 100, 180] }],
+  "inference_time_ms": 135.2
+}
+```
+
+### POST /detect
+
+Detect objects with bounding boxes.
+
+**Request:**
+
+```json
+{ "image": "<base64-encoded-image>" }
+```
+
+**Response:**
+
+```json
+{
+  "detections": [{ "label": "person", "bbox": [100, 150, 300, 400], "score": 1.0 }],
+  "inference_time_ms": 145.8
+}
+```
+
+### POST /dense-caption
+
+Generate captions for all regions in an image.
+
+**Request:**
+
+```json
+{ "image": "<base64-encoded-image>" }
+```
+
+**Response:**
+
+```json
+{
+  "regions": [
+    { "caption": "a person wearing a blue jacket", "bbox": [100, 150, 300, 400] },
+    { "caption": "a white delivery van", "bbox": [400, 200, 600, 350] }
+  ],
+  "inference_time_ms": 210.5
 }
 ```
 

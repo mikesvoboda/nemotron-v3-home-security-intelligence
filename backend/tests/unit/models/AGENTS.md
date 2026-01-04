@@ -4,19 +4,48 @@
 
 The `backend/tests/unit/models/` directory contains unit tests for SQLAlchemy ORM models in `backend/models/`. Tests verify model field definitions, relationships, constraints, and enumerations.
 
-## Test Files (10 files)
+## Directory Structure
 
-| File                         | Tests For                  | Test Count |
-| ---------------------------- | -------------------------- | ---------- |
-| `test_camera.py`             | Camera model               | ~20 tests  |
-| `test_detection.py`          | Detection model            | ~25 tests  |
-| `test_event.py`              | Event model                | ~30 tests  |
-| `test_alert.py`              | Alert and AlertRule models | ~40 tests  |
-| `test_zone.py`               | Zone model                 | ~25 tests  |
-| `test_gpu_stats.py`          | GPUStats model             | ~15 tests  |
-| `test_api_key.py`            | APIKey model               | ~10 tests  |
-| `test_enums.py`              | Severity and other enums   | ~15 tests  |
-| `test_hypothesis_example.py` | Property-based tests       | ~10 tests  |
+```
+backend/tests/unit/models/
+├── AGENTS.md                  # This file
+├── __init__.py                # Package initialization
+├── test_alert.py              # Alert and AlertRule models
+├── test_api_key.py            # APIKey model
+├── test_audit_log.py          # AuditLog model
+├── test_baseline.py           # Baseline models
+├── test_camera.py             # Camera model
+├── test_detection.py          # Detection model
+├── test_enums.py              # Severity and other enums
+├── test_event_audit.py        # EventAudit model
+├── test_event.py              # Event model
+├── test_gpu_stats.py          # GPUStats model
+├── test_hypothesis_example.py # Hypothesis property tests example
+├── test_log_model.py          # Log model
+├── test_models_hypothesis.py  # Comprehensive property-based tests
+├── test_prompt_version.py     # PromptVersion model
+└── test_zone.py               # Zone model
+```
+
+## Test Files (16 files)
+
+| File                         | Tests For                    |
+| ---------------------------- | ---------------------------- |
+| `test_alert.py`              | Alert and AlertRule models   |
+| `test_api_key.py`            | APIKey model                 |
+| `test_audit_log.py`          | AuditLog model               |
+| `test_baseline.py`           | Baseline models              |
+| `test_camera.py`             | Camera model                 |
+| `test_detection.py`          | Detection model              |
+| `test_enums.py`              | Severity and other enums     |
+| `test_event_audit.py`        | EventAudit model             |
+| `test_event.py`              | Event model                  |
+| `test_gpu_stats.py`          | GPUStats model               |
+| `test_hypothesis_example.py` | Hypothesis property tests    |
+| `test_log_model.py`          | Log model                    |
+| `test_models_hypothesis.py`  | Comprehensive property tests |
+| `test_prompt_version.py`     | PromptVersion model          |
+| `test_zone.py`               | Zone model                   |
 
 ## Test Categories
 

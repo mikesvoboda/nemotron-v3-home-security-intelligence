@@ -8,37 +8,66 @@ This directory contains development, testing, deployment, and maintenance script
 
 ```
 scripts/
-  AGENTS.md                    # This file
-  README.md                    # Quick reference for all scripts
-  AI_STARTUP_README.md         # Quick reference for AI services
-  setup.sh                     # Main setup script (Linux/macOS)
-  setup.ps1                    # Main setup script (Windows)
-  setup-hooks.sh               # Legacy setup script
-  setup-systemd.sh             # Systemd service setup (Linux)
-  setup-launchd.sh             # launchd service setup (macOS)
-  setup-windows.ps1            # Windows Task Scheduler setup
-  dev.sh                       # Development server management
-  start-ai.sh                  # AI services management
-  start_redis.sh               # Redis startup script
-  validate.sh                  # Full validation (lint, type, test)
-  test-runner.sh               # Test suite runner with coverage
-  test-fast.sh                 # Fast parallel test runner
-  test-docker.sh               # Docker Compose deployment testing
-  test-prod-connectivity.sh    # Production connectivity tests
-  smoke-test.sh                # End-to-end pipeline smoke test
-  seed-cameras.py              # Database seeding script
-  seed-mock-events.py          # Mock events seeding script
-  db-migrate.sh                # Database migration script
-  migrate-sqlite-to-postgres.py # SQLite to PostgreSQL migration
-  migrate-file-types.py        # File type migration utility
-  generate-types.sh            # TypeScript API type generation
-  generate_certs.py            # SSL certificate generation
-  setup-gpu-runner.sh          # GitHub Actions GPU runner setup
-  find-slow-tests.sh           # Test performance debugging
-  audit-test-durations.py      # CI test duration auditing
-  check-test-mocks.py          # Pre-commit: mock validation
-  check-test-timeouts.py       # Pre-commit: timeout validation
-  github-models-examples.py    # GitHub Models API examples
+  AGENTS.md                          # This file
+  README.md                          # Quick reference for all scripts
+  AI_STARTUP_README.md               # Quick reference for AI services
+
+  # Setup Scripts
+  setup.sh                           # Main setup script (Linux/macOS)
+  setup.ps1                          # Main setup script (Windows)
+  setup-hooks.sh                     # Pre-commit and pre-push hook setup
+  setup-systemd.sh                   # Systemd service setup (Linux)
+  setup-launchd.sh                   # launchd service setup (macOS)
+  setup-windows.ps1                  # Windows Task Scheduler setup
+  setup-gpu-runner.sh                # GitHub Actions GPU runner setup
+
+  # Service Management
+  dev.sh                             # Development server management
+  restart-all.sh                     # Full stack restart (all containers)
+  redeploy.sh                        # Stop, destroy volumes, redeploy fresh
+
+  # Validation & Testing
+  validate.sh                        # Full validation (lint, type, test)
+  test-runner.sh                     # Test suite runner with coverage
+  test-fast.sh                       # Fast parallel test runner
+  test-docker.sh                     # Docker Compose deployment testing
+  test-prod-connectivity.sh          # Production connectivity tests
+  test-in-container.sh               # Container-first integration testing
+  smoke-test.sh                      # End-to-end pipeline smoke test
+  find-slow-tests.sh                 # Test performance debugging
+  audit-test-durations.py            # CI test duration auditing
+  audit-summary.sh                   # Local weekly audit runner
+
+  # Database & Seeding
+  seed-cameras.py                    # Database seeding script
+  seed-mock-events.py                # Mock events seeding script
+  db-migrate.sh                      # Database migration script
+  migrate-sqlite-to-postgres.py      # SQLite to PostgreSQL migration
+  migrate-file-types.py              # File type migration utility
+  cleanup_orphaned_test_cameras.py   # Remove orphaned test data
+
+  # Code Generation & Certs
+  generate-types.sh                  # TypeScript API type generation
+  generate_certs.py                  # SSL certificate generation
+
+  # AI Pipeline Scripts
+  benchmark_model_zoo.py             # Model Zoo performance benchmarks
+  download-model-zoo.py              # Download AI model zoo models
+  test_ai_pipeline_e2e.py            # AI pipeline end-to-end test
+  test_context_window.py             # 32K context window test
+  test_model_outputs.py              # Quick AI model output test
+  test_model_outputs_comprehensive.py # Full AI model output test
+  trigger-filewatcher.sh             # Trigger file watcher with images
+
+  # Pre-commit Hooks
+  check-test-mocks.py                # Pre-commit: mock validation
+  check-test-timeouts.py             # Pre-commit: timeout validation
+  check-api-coverage.sh              # API endpoint coverage check
+  pre-push-rebase.sh                 # Auto-rebase before push
+
+  # Utilities
+  github-models-examples.py          # GitHub Models API examples
+  migrate_beads_to_linear.py         # Migrate beads to Linear (one-time)
 ```
 
 ## Key Scripts
@@ -186,42 +215,40 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 - PID files: `.pids/backend.pid`, `.pids/frontend.pid`
 - Log files: `logs/backend.log`, `logs/frontend.log`
 
-#### start-ai.sh
+#### restart-all.sh
 
-**Purpose:** Manage AI inference services (RT-DETRv2 and Nemotron LLM).
+**Purpose:** Full stack restart for all containerized services.
 
 **Commands:**
 
-| Command   | Description                  |
-| --------- | ---------------------------- |
-| `start`   | Start both AI services       |
-| `stop`    | Stop both AI services        |
-| `restart` | Restart both AI services     |
-| `status`  | Show status, PIDs, GPU usage |
-| `health`  | Test health endpoints        |
+| Command   | Description          |
+| --------- | -------------------- |
+| `start`   | Start all services   |
+| `stop`    | Stop all services    |
+| `restart` | Restart all services |
+| `status`  | Show service status  |
 
-**Service Configuration:**
+**Services Managed:**
 
-| Service   | Port | VRAM | Description              |
-| --------- | ---- | ---- | ------------------------ |
-| RT-DETRv2 | 8090 | ~4GB | Object detection server  |
-| Nemotron  | 8091 | ~3GB | LLM risk analysis server |
+- Core: postgres, redis, backend, frontend
+- AI: ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+- Monitoring: prometheus, grafana, redis-exporter, json-exporter
 
-**Log Files:**
+#### redeploy.sh
 
-- RT-DETRv2: `/tmp/rtdetr-detector.log`
-- Nemotron: `/tmp/nemotron-llm.log`
+**Purpose:** Stop all containers, destroy volumes, and redeploy fresh.
 
-#### start_redis.sh
+**Options:**
 
-**Purpose:** Redis server startup with auto-recovery support.
-
-**Features:**
-
-- Checks if Redis is already running
-- Attempts systemd start if available
-- Falls back to direct `redis-server` start
-- Configurable via `REDIS_PORT` and `REDIS_HOST` environment variables
+| Option            | Description                              |
+| ----------------- | ---------------------------------------- |
+| `--help`          | Show help message                        |
+| `--dry-run`       | Show what would be done                  |
+| `--keep-volumes`  | Preserve volumes (default destroys them) |
+| `--ghcr`          | Use pre-built GHCR images                |
+| `--tag TAG`       | Image tag for GHCR mode                  |
+| `--skip-ci-check` | Skip CI build status check               |
+| `--no-seed`       | Skip database seeding                    |
 
 ### Testing Scripts
 
@@ -296,6 +323,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ./scripts/test-prod-connectivity.sh --backend    # Test backend only
 ./scripts/test-prod-connectivity.sh --ai         # Test AI services only
 ```
+
+#### test-in-container.sh
+
+**Purpose:** Container-first integration testing with postgres-test and redis-test.
+
+**Usage:**
+
+```bash
+./scripts/test-in-container.sh                     # Run integration tests
+./scripts/test-in-container.sh backend/tests/unit/ # Run specific tests
+```
+
+**What it does:**
+
+1. Starts postgres-test and redis-test containers from `docker-compose.test.yml`
+2. Waits for services to be healthy
+3. Runs pytest with containerized database URLs
+4. Uses port 5433 for postgres-test, 6380 for redis-test
 
 #### smoke-test.sh
 
@@ -477,6 +522,83 @@ python scripts/generate_certs.py --days 365         # Custom validity period
 - NVIDIA RTX A5500 or compatible GPU
 - CUDA drivers installed
 - sudo access for service installation
+
+### AI Pipeline Scripts
+
+#### benchmark_model_zoo.py
+
+**Purpose:** Benchmark Model Zoo performance - loading time, VRAM, inference latency.
+
+**Usage:**
+
+```bash
+python scripts/benchmark_model_zoo.py                        # Benchmark all
+python scripts/benchmark_model_zoo.py --models yolo11,clip   # Specific models
+python scripts/benchmark_model_zoo.py --output results.md    # Custom output
+```
+
+#### download-model-zoo.py
+
+**Purpose:** Download AI models for on-demand enrichment pipeline.
+
+**Usage:**
+
+```bash
+./scripts/download-model-zoo.py                  # Download Phase 1 models
+./scripts/download-model-zoo.py --phase 2        # Download Phase 2
+./scripts/download-model-zoo.py --all            # Download all phases
+./scripts/download-model-zoo.py --list           # List available models
+```
+
+#### test_ai_pipeline_e2e.py
+
+**Purpose:** End-to-end test for all AI services in sequence.
+
+**Services Tested:**
+
+1. RT-DETRv2 (port 8090) - object detection
+2. Florence-2 (port 8092) - dense captioning
+3. CLIP (port 8093) - entity embeddings
+4. Enrichment (port 8094) - vehicle/pet/clothing
+5. Nemotron (port 8091) - risk analysis
+
+#### trigger-filewatcher.sh
+
+**Purpose:** Touch real image files to trigger file watcher processing.
+
+**Usage:**
+
+```bash
+./scripts/trigger-filewatcher.sh                   # Touch 100 images
+./scripts/trigger-filewatcher.sh --count 50        # Touch 50 images
+./scripts/trigger-filewatcher.sh --camera kitchen  # Specific camera
+./scripts/trigger-filewatcher.sh --dry-run         # Preview only
+```
+
+### Maintenance Scripts
+
+#### cleanup_orphaned_test_cameras.py
+
+**Purpose:** One-time cleanup of orphaned 'Test Camera' entries from database.
+
+**Usage:**
+
+```bash
+python scripts/cleanup_orphaned_test_cameras.py --dry-run  # Preview
+python scripts/cleanup_orphaned_test_cameras.py            # Delete
+```
+
+#### audit-summary.sh
+
+**Purpose:** Run weekly-audit.yml checks locally to preview findings.
+
+**What it runs:**
+
+- Semgrep security scan
+- pip-audit dependency check
+- Vulture dead code detection
+- Radon complexity analysis
+- Knip frontend dead code
 
 ## Usage Patterns
 

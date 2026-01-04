@@ -10,13 +10,37 @@ This directory contains developer-focused documentation for the Home Security In
 - Engineers extending the system with new features
 - Technical team members debugging or reviewing code
 
+## Directory Contents
+
+```
+developer/
+  AGENTS.md              # This file
+  alerts.md              # Alert system for developers
+  batching-logic.md      # Batch aggregation details
+  codebase-tour.md       # Directory structure and key file navigation
+  data-model.md          # Database schema for developers
+  detection-service.md   # Detection service details
+  hooks.md               # Pre-commit hook configuration
+  local-setup.md         # Quick development environment setup
+  pipeline-overview.md   # AI pipeline for developers
+  risk-analysis.md       # Risk analysis service details
+  video.md               # Video processing details
+```
+
 ## Key Files
 
-| File               | Purpose                                           |
-| ------------------ | ------------------------------------------------- |
-| `local-setup.md`   | Quick development environment setup               |
-| `codebase-tour.md` | Directory structure and key file navigation       |
-| `hooks.md`         | Pre-commit hook configuration and troubleshooting |
+| File                   | Purpose                                           |
+| ---------------------- | ------------------------------------------------- |
+| `local-setup.md`       | Quick development environment setup               |
+| `codebase-tour.md`     | Directory structure and key file navigation       |
+| `hooks.md`             | Pre-commit hook configuration and troubleshooting |
+| `alerts.md`            | Alert system implementation for developers        |
+| `batching-logic.md`    | Batch aggregation timing and logic                |
+| `data-model.md`        | Database schema documentation                     |
+| `detection-service.md` | Detection service implementation                  |
+| `pipeline-overview.md` | AI pipeline overview for developers               |
+| `risk-analysis.md`     | Risk analysis service implementation              |
+| `video.md`             | Video processing implementation                   |
 
 ## Related Documentation
 

@@ -17,6 +17,7 @@ ai/clip/
 ├── AGENTS.md          # This file
 ├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
 ├── model.py           # FastAPI embedding server
+├── test_model.py      # Unit tests (pytest)
 └── requirements.txt   # Python dependencies
 ```
 
@@ -28,14 +29,20 @@ FastAPI server implementation using HuggingFace Transformers CLIPModel.
 
 **Classes:**
 
-| Class                  | Description                                            |
-| ---------------------- | ------------------------------------------------------ |
-| `EmbedRequest`         | Request: image (base64)                                |
-| `EmbedResponse`        | Response: embedding[768], inference_time_ms            |
-| `AnomalyScoreRequest`  | Request: image (base64), baseline_embedding[768]       |
-| `AnomalyScoreResponse` | Response: anomaly_score, similarity, inference_time_ms |
-| `HealthResponse`       | Health: status, model, device, embedding_dimension     |
-| `CLIPEmbeddingModel`   | Model wrapper with load_model(), extract_embedding()   |
+| Class                     | Description                                            |
+| ------------------------- | ------------------------------------------------------ |
+| `EmbedRequest`            | Request: image (base64)                                |
+| `EmbedResponse`           | Response: embedding[768], inference_time_ms            |
+| `AnomalyScoreRequest`     | Request: image (base64), baseline_embedding[768]       |
+| `AnomalyScoreResponse`    | Response: anomaly_score, similarity, inference_time_ms |
+| `ClassifyRequest`         | Request: image (base64), labels (list of text)         |
+| `ClassifyResponse`        | Response: scores (dict), top_label, inference_time_ms  |
+| `SimilarityRequest`       | Request: image (base64), text (description)            |
+| `SimilarityResponse`      | Response: similarity score, inference_time_ms          |
+| `BatchSimilarityRequest`  | Request: image (base64), texts (list of descriptions)  |
+| `BatchSimilarityResponse` | Response: similarities (dict), inference_time_ms       |
+| `HealthResponse`          | Health: status, model, device, embedding_dimension     |
+| `CLIPEmbeddingModel`      | Model wrapper with load_model(), extract_embedding()   |
 
 **Key Functions in CLIPEmbeddingModel:**
 
@@ -66,6 +73,15 @@ Container build configuration:
 - **Health check**: 60s start period
 - **HuggingFace cache**: `/cache/huggingface`
 
+### `test_model.py`
+
+Unit tests covering:
+
+- BatchSimilarityRequest batch size validation (NEM-1101 security requirement)
+- Division by zero protection in anomaly score calculation (NEM-1100)
+- Request model validation
+- API endpoint behavior
+
 ### `requirements.txt`
 
 ```
@@ -77,7 +93,7 @@ transformers>=4.35.0
 pillow>=10.0.0
 numpy>=1.24.0
 pydantic>=2.4.0
-pynvml>=11.5.0
+nvidia-ml-py>=12.560.30
 ```
 
 ## API Endpoints
@@ -137,6 +153,73 @@ Compare image to baseline embedding for anomaly detection.
   "anomaly_score": 0.35, // 0=identical to baseline, 1=completely different
   "similarity_to_baseline": 0.65, // cosine similarity (-1 to 1)
   "inference_time_ms": 28.1
+}
+```
+
+### POST /classify
+
+Zero-shot classification against a list of text labels.
+
+**Request:**
+
+```json
+{
+  "image": "<base64-encoded-image>",
+  "labels": ["person walking", "delivery driver", "suspicious activity"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "scores": { "person walking": 0.75, "delivery driver": 0.2, "suspicious activity": 0.05 },
+  "top_label": "person walking",
+  "inference_time_ms": 32.5
+}
+```
+
+### POST /similarity
+
+Compute image-text similarity score.
+
+**Request:**
+
+```json
+{
+  "image": "<base64-encoded-image>",
+  "text": "person wearing dark hoodie"
+}
+```
+
+**Response:**
+
+```json
+{
+  "similarity": 0.72,
+  "inference_time_ms": 15.3
+}
+```
+
+### POST /batch-similarity
+
+Batch image-text similarity comparison (limited to MAX_BATCH_TEXTS_SIZE=100).
+
+**Request:**
+
+```json
+{
+  "image": "<base64-encoded-image>",
+  "texts": ["delivery person", "suspicious individual", "resident"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "similarities": { "delivery person": 0.65, "suspicious individual": 0.15, "resident": 0.45 },
+  "inference_time_ms": 45.2
 }
 ```
 
@@ -223,5 +306,6 @@ async def get_embedding(image_base64: str) -> list[float]:
 ## Entry Points
 
 1. **Main server**: `model.py` - Start here for understanding the API
-2. **Dockerfile**: Container build configuration
-3. **Requirements**: `requirements.txt` - Python dependencies
+2. **Tests**: `test_model.py` - For API contracts and validation
+3. **Dockerfile**: Container build configuration
+4. **Requirements**: `requirements.txt` - Python dependencies

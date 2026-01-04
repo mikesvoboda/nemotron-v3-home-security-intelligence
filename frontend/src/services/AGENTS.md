@@ -6,12 +6,18 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 
 ## Key Files
 
-| File             | Purpose                                                       |
-| ---------------- | ------------------------------------------------------------- |
-| `api.ts`         | Complete API client with typed methods for all REST endpoints |
-| `api.test.ts`    | Comprehensive test coverage for API client                    |
-| `logger.ts`      | Frontend logging service with batched backend sync            |
-| `logger.test.ts` | Tests for logger functionality                                |
+| File                     | Purpose                                                       |
+| ------------------------ | ------------------------------------------------------------- |
+| `api.ts`                 | Complete API client with typed methods for all REST endpoints |
+| `api.test.ts`            | Comprehensive test coverage for API client                    |
+| `api.abort.test.ts`      | Tests for request cancellation and AbortController usage      |
+| `auditApi.ts`            | AI pipeline audit API client (model contributions, stats)     |
+| `auditApi.test.ts`       | Tests for audit API client                                    |
+| `logger.ts`              | Frontend logging service with batched backend sync            |
+| `logger.test.ts`         | Tests for logger functionality                                |
+| `metricsParser.ts`       | Prometheus text format parser for AI performance metrics      |
+| `metricsParser.test.ts`  | Tests for Prometheus metrics parsing                          |
+| `.gitkeep`               | Placeholder file                                              |
 
 ## API Client Structure (`api.ts`)
 
@@ -411,6 +417,64 @@ if (stats.total > 0) {
   const jobs = await fetchDlqJobs('dlq:detection_queue');
   // Inspect failed jobs, then requeue
   await requeueAllDlqJobs('dlq:detection_queue');
+}
+```
+
+## Audit API Client (`auditApi.ts`)
+
+Specialized API client for AI pipeline audit endpoints. Provides typed fetch wrappers for:
+
+- Event audit data (model contributions, confidence scores)
+- Audit statistics and summaries
+- Model leaderboards (accuracy, usage rankings)
+- AI recommendation endpoints
+
+**Key Types:**
+
+```typescript
+interface ModelContributions {
+  rtdetr: boolean;
+  florence: boolean;
+  clip: boolean;
+  violence: boolean;
+  clothing: boolean;
+  vehicle: boolean;
+  pet: boolean;
+  weather: boolean;
+}
+
+// Custom error class
+class AuditApiError extends Error {
+  status: number;
+  data?: unknown;
+}
+```
+
+## Prometheus Metrics Parser (`metricsParser.ts`)
+
+Parses Prometheus text exposition format for AI performance metrics from `/api/metrics`.
+
+**Features:**
+
+- Parses gauge and histogram metrics
+- Extracts labels and values
+- Calculates percentiles from histogram buckets (p50, p95, p99)
+- Computes average latency from histogram sum/count
+
+**Key Types:**
+
+```typescript
+interface ParsedMetric {
+  name: string;
+  labels: Record<string, string>;
+  value: number;
+}
+
+interface AILatencyMetrics {
+  avg_ms: number | null;
+  p50_ms: number | null;
+  p95_ms: number | null;
+  p99_ms: number | null;
 }
 ```
 

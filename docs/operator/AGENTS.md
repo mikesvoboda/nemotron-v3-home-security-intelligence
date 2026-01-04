@@ -28,6 +28,26 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 | `gpu-setup.md`          | NVIDIA driver and container toolkit setup        |
 | `redis.md`              | Redis configuration and authentication           |
 
+## Directory Contents
+
+```
+operator/
+  AGENTS.md               # This file
+  ai-configuration.md     # AI service environment variables
+  ai-ghcr-deployment.md   # GHCR deployment for AI services
+  ai-installation.md      # AI prerequisites and model downloads
+  ai-overview.md          # AI pipeline architecture
+  ai-performance.md       # AI performance tuning
+  ai-services.md          # AI service management
+  ai-tls.md               # AI service TLS configuration
+  ai-troubleshooting.md   # AI troubleshooting guide
+  backup.md               # Backup and recovery procedures
+  database.md             # PostgreSQL configuration
+  deployment-modes.md     # Deployment mode decision table
+  gpu-setup.md            # NVIDIA driver and container toolkit setup
+  redis.md                # Redis configuration and authentication
+```
+
 ## Migration Status
 
 The documentation is being restructured into a hub-and-spoke architecture. Some content currently resides in other locations and will be migrated or consolidated here:

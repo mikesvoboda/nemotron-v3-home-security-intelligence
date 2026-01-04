@@ -6,11 +6,15 @@ Contains the core application layout components that provide consistent structur
 
 ## Files
 
-| File          | Purpose                                        |
-| ------------- | ---------------------------------------------- |
-| `Layout.tsx`  | Main layout wrapper composing Header + Sidebar |
-| `Header.tsx`  | Top navigation with branding and status        |
-| `Sidebar.tsx` | Left navigation menu with route links          |
+| File               | Purpose                                        |
+| ------------------ | ---------------------------------------------- |
+| `Layout.tsx`       | Main layout wrapper composing Header + Sidebar |
+| `Layout.test.tsx`  | Test suite for Layout                          |
+| `Header.tsx`       | Top navigation with branding and status        |
+| `Header.test.tsx`  | Test suite for Header                          |
+| `Sidebar.tsx`      | Left navigation menu with route links          |
+| `Sidebar.test.tsx` | Test suite for Sidebar                         |
+| `.gitkeep`         | Placeholder file                               |
 
 ## Key Components
 
@@ -117,15 +121,18 @@ On hover, displays per-service status breakdown (redis, rtdetr, nemotron, etc.) 
 
 **Navigation Routes:**
 
-| ID        | Label     | Icon       | Path        | Badge |
-| --------- | --------- | ---------- | ----------- | ----- |
-| dashboard | Dashboard | Home       | `/`         | -     |
-| timeline  | Timeline  | Clock      | `/timeline` | -     |
-| entities  | Entities  | Users      | `/entities` | WIP   |
-| alerts    | Alerts    | Bell       | `/alerts`   | -     |
-| logs      | Logs      | ScrollText | `/logs`     | -     |
-| system    | System    | Server     | `/system`   | -     |
-| settings  | Settings  | Settings   | `/settings` | -     |
+| ID          | Label          | Icon           | Path         | Badge |
+| ----------- | -------------- | -------------- | ------------ | ----- |
+| dashboard   | Dashboard      | Home           | `/`          | -     |
+| timeline    | Timeline       | Clock          | `/timeline`  | -     |
+| entities    | Entities       | Users          | `/entities`  | WIP   |
+| alerts      | Alerts         | Bell           | `/alerts`    | -     |
+| logs        | Logs           | ScrollText     | `/logs`      | -     |
+| audit       | Audit Log      | Shield         | `/audit`     | -     |
+| ai          | AI Performance | Brain          | `/ai`        | -     |
+| ai-audit    | AI Audit       | ClipboardCheck | `/ai-audit`  | -     |
+| system      | System         | Server         | `/system`    | -     |
+| settings    | Settings       | Settings       | `/settings`  | -     |
 
 **NavItem Interface:**
 
@@ -154,7 +161,14 @@ interface NavItem {
 >
 ```
 
-**No props** - Uses React Router's NavLink which handles active state internally
+**Mobile Responsiveness:**
+
+- Hidden by default on mobile (slides in from left)
+- Controlled by `useSidebarContext` hook
+- Close button on mobile to dismiss menu
+- Auto-closes when navigation link is clicked
+
+**No props** - Uses React Router's NavLink and useSidebarContext hook
 
 ## Important Patterns
 
@@ -229,11 +243,12 @@ Layout
 
 ## Dependencies
 
-- `lucide-react` - Activity, Home, Clock, Users, Bell, ScrollText, Server, Settings icons
+- `lucide-react` - Activity, Home, Clock, Users, Bell, ScrollText, Server, Settings, Shield, Brain, ClipboardCheck, X icons
 - `react` - useState, useRef, useEffect, ReactNode
 - `react-router-dom` - NavLink for client-side routing
 - `../../hooks/useSystemStatus` - WebSocket system status
 - `../../hooks/useHealthStatus` - REST API health status
+- `../../hooks/useSidebarContext` - Mobile sidebar state management
 
 ## Entry Points
 

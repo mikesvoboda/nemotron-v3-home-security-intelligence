@@ -9,6 +9,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 ```
 .github/
   AGENTS.md                   # This file
+  CODEOWNERS                  # Code ownership for PR reviews
   dependabot.yml              # Automated dependency updates
   copilot-instructions.md     # GitHub Copilot context
   codeql/                     # CodeQL configuration
@@ -28,9 +29,19 @@ This directory contains GitHub-specific configuration files for the Home Securit
     codeql.yml                # CodeQL security analysis
     gitleaks.yml              # Secret detection scanning
     trivy.yml                 # Container vulnerability scanning
+    weekly-audit.yml          # Weekly security and code quality audits
 ```
 
 ## Key Files
+
+### CODEOWNERS
+
+**Purpose:** Defines code ownership for automatic review assignment.
+
+**Owners:**
+
+- `@mikesvoboda` - Default owner for all files
+- Critical paths (`backend/`, `frontend/`, `.github/`, `docker-compose*.yml`) require explicit review
 
 ### dependabot.yml
 
@@ -109,7 +120,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Environment:**
 
-- Python 3.14
+- Python 3.14 (using uv for package management)
 - Node.js 20
 - PostgreSQL 16 (service container)
 - Redis 7 (service container for integration tests)
@@ -133,12 +144,13 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 ### Security Workflows
 
-| Workflow     | Tool            | Trigger              | Purpose                   |
-| ------------ | --------------- | -------------------- | ------------------------- |
-| sast.yml     | Bandit, Semgrep | Push/PR              | Python security + OWASP   |
-| codeql.yml   | CodeQL          | Push/PR/Weekly       | Deep code analysis        |
-| gitleaks.yml | Gitleaks        | Push/PR              | Secret detection          |
-| trivy.yml    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities |
+| Workflow         | Tool            | Trigger              | Purpose                   |
+| ---------------- | --------------- | -------------------- | ------------------------- |
+| sast.yml         | Bandit, Semgrep | Push/PR              | Python security + OWASP   |
+| codeql.yml       | CodeQL          | Push/PR/Weekly       | Deep code analysis        |
+| gitleaks.yml     | Gitleaks        | Push/PR              | Secret detection          |
+| trivy.yml        | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities |
+| weekly-audit.yml | Multiple        | Weekly (Monday 9 AM) | Security + code quality   |
 
 ### GPU Tests (gpu-tests.yml)
 

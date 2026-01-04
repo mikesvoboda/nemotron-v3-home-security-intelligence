@@ -2,93 +2,145 @@
 
 ## Purpose
 
-The `backend/tests/unit/core/` directory contains unit tests for the core infrastructure components in `backend/core/`. These tests validate database connection management, session handling, ILIKE pattern escaping, and error handling for uninitialized state.
+The `backend/tests/unit/core/` directory contains unit tests for the core infrastructure components in `backend/core/`. These tests validate configuration, database management, Redis operations, logging, middleware, security, and WebSocket functionality.
 
-## Test Files
+## Directory Structure
 
-| File               | Tests For                                                       | Test Count |
-| ------------------ | --------------------------------------------------------------- | ---------- |
-| `test_database.py` | Database initialization, sessions, transactions, ILIKE escaping | 18 tests   |
+```
+backend/tests/unit/core/
+├── AGENTS.md                         # This file
+├── __init__.py                       # Package initialization
+├── test_auth_middleware.py           # Authentication middleware
+├── test_config.py                    # Settings and configuration
+├── test_database_init_lock.py        # Database initialization locking
+├── test_database_pool.py             # Connection pool management
+├── test_database.py                  # Database operations
+├── test_database_utils.py            # Database utilities
+├── test_dockerfile_config.py         # Docker configuration validation
+├── test_health_monitor.py            # Health monitoring service
+├── test_json_utils.py                # JSON serialization utilities
+├── test_logging.py                   # Structured logging
+├── test_logging_sanitization.py      # Log sanitization (PII removal)
+├── test_metrics.py                   # Metrics collection
+├── test_middleware.py                # Request/response middleware
+├── test_mime_types.py                # MIME type detection
+├── test_query_optimization.py        # Query optimization utilities
+├── test_rate_limit.py                # Rate limiting middleware
+├── test_redis.py                     # Redis client operations
+├── test_redis_retry.py               # Redis retry logic
+├── test_sanitization.py              # Input sanitization
+├── test_security_headers.py          # Security header middleware
+├── test_tls.py                       # TLS/SSL configuration
+├── test_url_validation.py            # URL validation utilities
+├── test_websocket_circuit_breaker.py # WebSocket circuit breaker
+├── test_websocket.py                 # WebSocket core functionality
+├── test_websocket_timeout.py         # WebSocket timeout handling
+└── test_websocket_validation.py      # WebSocket message validation
+```
 
-## `test_database.py`
+## Test Files (28 files)
 
-**Tests:** `backend/core/database.py`
+### Configuration and Settings
 
-### Test Classes
+| File                        | Tests For                                 |
+| --------------------------- | ----------------------------------------- |
+| `test_config.py`            | Settings loading, env vars, type coercion |
+| `test_dockerfile_config.py` | Docker configuration validation           |
 
-| Class                    | Tests | Description                                             |
-| ------------------------ | ----- | ------------------------------------------------------- |
-| `TestEscapeIlikePattern` | 9     | SQL ILIKE pattern escaping for `%`, `_`, `\` characters |
-| `TestGetEngine`          | 1     | RuntimeError when engine not initialized                |
-| `TestGetSessionFactory`  | 1     | RuntimeError when session factory not initialized       |
-| `TestInitDb`             | 1     | URL validation (must be `postgresql+asyncpg://`)        |
-| `TestCloseDb`            | 4     | Engine disposal, None handling, greenlet error handling |
-| `TestGetSession`         | 2     | Commit on success, rollback on exception                |
-| `TestGetDb`              | 2     | FastAPI dependency commit/rollback behavior             |
+### Database
 
-### Coverage Details
+| File                         | Tests For                                |
+| ---------------------------- | ---------------------------------------- |
+| `test_database.py`           | Initialization, sessions, ILIKE escaping |
+| `test_database_init_lock.py` | Database initialization locking          |
+| `test_database_pool.py`      | Connection pool management               |
+| `test_database_utils.py`     | Database utility functions               |
+| `test_query_optimization.py` | Query optimization utilities             |
 
-**ILIKE Pattern Escaping (`TestEscapeIlikePattern`)**
+### Redis
 
-- Escapes `%` (wildcard) → `\%`
-- Escapes `_` (single char wildcard) → `\_`
-- Escapes `\` (escape char) → `\\`
-- Handles empty strings, consecutive special chars, unicode
+| File                  | Tests For                    |
+| --------------------- | ---------------------------- |
+| `test_redis.py`       | Redis client operations      |
+| `test_redis_retry.py` | Redis retry and reconnection |
 
-**Engine/Factory Initialization (`TestGetEngine`, `TestGetSessionFactory`)**
+### Logging and Monitoring
 
-- Verifies `RuntimeError` raised when accessing uninitialized globals
-- Uses module patching to temporarily set `_engine = None`
+| File                           | Tests For                     |
+| ------------------------------ | ----------------------------- |
+| `test_logging.py`              | Structured logging            |
+| `test_logging_sanitization.py` | PII removal from logs         |
+| `test_metrics.py`              | Prometheus metrics collection |
+| `test_health_monitor.py`       | Health check service          |
 
-**Database Lifecycle (`TestInitDb`, `TestCloseDb`)**
+### Middleware and Security
 
-- Validates database URL must use `postgresql+asyncpg://` driver
-- Tests `close_db()` disposal of engine and session factory
-- Handles greenlet-related `ValueError` gracefully (common in async contexts)
+| File                       | Tests For                          |
+| -------------------------- | ---------------------------------- |
+| `test_auth_middleware.py`  | Authentication middleware          |
+| `test_middleware.py`       | Request/response processing        |
+| `test_rate_limit.py`       | Rate limiting middleware           |
+| `test_security_headers.py` | Security headers (CSP, HSTS, etc.) |
+| `test_tls.py`              | TLS/SSL configuration              |
+| `test_sanitization.py`     | Input sanitization                 |
+| `test_url_validation.py`   | URL validation and sanitization    |
 
-**Session Management (`TestGetSession`, `TestGetDb`)**
+### Utilities
 
-- `get_session()` context manager commits on success, rolls back on exception
-- `get_db()` FastAPI dependency properly closes session in finally block
+| File                 | Tests For                    |
+| -------------------- | ---------------------------- |
+| `test_json_utils.py` | JSON serialization utilities |
+| `test_mime_types.py` | MIME type detection          |
+
+### WebSocket
+
+| File                                | Tests For                    |
+| ----------------------------------- | ---------------------------- |
+| `test_websocket.py`                 | WebSocket core functionality |
+| `test_websocket_circuit_breaker.py` | Circuit breaker pattern      |
+| `test_websocket_timeout.py`         | Timeout handling             |
+| `test_websocket_validation.py`      | Message validation           |
 
 ## Running Tests
 
 ```bash
-# Run all core unit tests
+# All core unit tests
 uv run pytest backend/tests/unit/core/ -v
 
-# Run specific test file
-uv run pytest backend/tests/unit/core/test_database.py -v
+# Database tests only
+uv run pytest backend/tests/unit/core/test_database*.py -v
 
-# Run with coverage
+# Redis tests only
+uv run pytest backend/tests/unit/core/test_redis*.py -v
+
+# WebSocket tests only
+uv run pytest backend/tests/unit/core/test_websocket*.py -v
+
+# With coverage
 uv run pytest backend/tests/unit/core/ -v --cov=backend/core
 
-# Run specific test class
-uv run pytest backend/tests/unit/core/test_database.py::TestEscapeIlikePattern -v
-
-# Run single test
-uv run pytest backend/tests/unit/core/test_database.py::TestCloseDb::test_close_db_handles_greenlet_error -v
+# Single test
+uv run pytest backend/tests/unit/core/test_config.py::TestSettings -v
 ```
 
 ## Fixtures Used
 
 From `backend/tests/conftest.py`:
 
-| Fixture                | Scope              | Description                                                         |
-| ---------------------- | ------------------ | ------------------------------------------------------------------- |
-| `reset_settings_cache` | function (autouse) | Clears settings cache before/after each test, sets default env vars |
-| `isolated_db`          | function           | Full PostgreSQL instance with schema, for tests needing real DB     |
-| `session`              | function           | Transaction-isolated session with savepoint rollback                |
-| `test_db`              | function           | Callable session factory for manual session management              |
-| `mock_redis`           | function           | Mock Redis client for tests not needing real Redis                  |
+| Fixture                | Scope              | Description                                  |
+| ---------------------- | ------------------ | -------------------------------------------- |
+| `reset_settings_cache` | function (autouse) | Clears settings cache before/after each test |
+| `isolated_db`          | function           | Full PostgreSQL instance with schema         |
+| `session`              | function           | Transaction-isolated session with rollback   |
+| `mock_redis`           | function           | Mock Redis client                            |
 
 **Helper Functions:**
 
-- `unique_id(prefix)` - Generates unique IDs like `test_abc12345` for parallel test isolation
+- `unique_id(prefix)` - Generates unique IDs for parallel test isolation
 
 ## Test Patterns
 
-**State Isolation Pattern:**
+### State Isolation Pattern
 
 ```python
 # Save original state
@@ -100,7 +152,7 @@ finally:
     db_module._engine = original_engine  # Restore
 ```
 
-**Async Mock Pattern:**
+### Async Mock Pattern
 
 ```python
 mock_session = AsyncMock()
@@ -108,10 +160,18 @@ mock_session.commit = AsyncMock()
 mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
 ```
 
+### Environment Variable Pattern
+
+```python
+def test_config_from_env(clean_env):
+    os.environ["DATABASE_URL"] = "postgresql+asyncpg://..."
+    settings = get_settings()
+    assert settings.database_url == "postgresql+asyncpg://..."
+```
+
 ## Related Documentation
 
 - `/backend/core/AGENTS.md` - Core infrastructure documentation
-- `/backend/core/database.py` - Source code being tested
 - `/backend/tests/conftest.py` - Shared fixtures and helpers
 - `/backend/tests/unit/AGENTS.md` - Unit test patterns
 - `/backend/tests/AGENTS.md` - Test infrastructure overview

@@ -4,6 +4,24 @@
 
 Contains components for viewing, filtering, and analyzing system logs from both backend services and frontend components. Provides a centralized logging dashboard with statistics, filtering, and detailed log inspection.
 
+## Files
+
+| File                       | Purpose                                   |
+| -------------------------- | ----------------------------------------- |
+| `LogsDashboard.tsx`        | Main logs page assembling all components  |
+| `LogsDashboard.test.tsx`   | Test suite for LogsDashboard              |
+| `LogsTable.tsx`            | Paginated table of log entries            |
+| `LogsTable.test.tsx`       | Test suite for LogsTable                  |
+| `LogFilters.tsx`           | Filtering controls for logs               |
+| `LogFilters.test.tsx`      | Test suite for LogFilters                 |
+| `LogDetailModal.tsx`       | Full log entry detail modal               |
+| `LogDetailModal.test.tsx`  | Test suite for LogDetailModal             |
+| `LogStatsCards.tsx`        | Log statistics summary cards              |
+| `LogStatsCards.test.tsx`   | Test suite for LogStatsCards              |
+| `AGENTS.md`                | This documentation file                   |
+
+**Note:** No `index.ts` barrel export - import components directly.
+
 ## Key Components
 
 ### LogsDashboard.tsx

@@ -8,17 +8,23 @@ This directory stores runtime data for the Home Security Intelligence applicatio
 
 ```
 data/
-  AGENTS.md           # This file
+  AGENTS.md           # This file (only file in version control)
+```
+
+### Runtime Directories (created on first use)
+
+The following directories are created at runtime when the application runs:
+
+```
   clips/              # Video clips (runtime, created as needed)
   logs/               # Application log files
     security.log      # Current log file
     security.log.N    # Rotated log files (1-6)
     test.log          # Test log file
-  security.db         # Legacy SQLite database (see migration note below)
   thumbnails/         # Cached image thumbnails (runtime, created as needed)
 ```
 
-Note: The `thumbnails/` and `clips/` directories are created at runtime when events are processed. Additional subdirectories may be created as needed.
+**Note:** Only `AGENTS.md` is tracked in version control. All other files and directories are created at runtime and excluded via `.gitignore`.
 
 **DATABASE MIGRATION NOTE**
 
@@ -207,21 +213,22 @@ cleanup = CleanupService(retention_days=30)
 await cleanup.cleanup_old_events()
 ```
 
-## Directory Structure
+## Directory Structure (at runtime)
 
 ```
 data/
-├── AGENTS.md           # This file
+├── AGENTS.md           # This file (only version-controlled file)
 ├── clips/              # Video clips (created at runtime)
-├── logs/               # Application log files
+├── logs/               # Application log files (created at runtime)
 │   ├── security.log    # Current log file
 │   ├── security.log.1  # Rotated logs
 │   └── test.log        # Test log file
-├── security.db         # Legacy SQLite database (pre-migration)
 └── thumbnails/         # Cached image thumbnails (created at runtime)
     ├── {event_id}.jpg
     └── ...
 ```
+
+**Note:** All subdirectories and files except AGENTS.md are created at runtime and excluded from version control.
 
 ## Git Ignore Rules
 

@@ -18,6 +18,7 @@ Package initialization with public exports:
 - `check_websocket_rate_limit` - WebSocket connection rate limiting
 - `get_client_ip` - Extract client IP from request
 - `rate_limit_default`, `rate_limit_media`, `rate_limit_search` - Convenience dependencies
+- `SecurityHeadersMiddleware` - Security headers middleware (CSP, X-Frame-Options, etc.)
 
 ### `auth.py`
 
@@ -69,6 +70,31 @@ Redis-based sliding window rate limiting for API endpoints.
 | `rate_limit_default()`       | Get default rate limiter dependency        |
 | `rate_limit_media()`         | Get media rate limiter dependency          |
 | `rate_limit_search()`        | Get search rate limiter dependency         |
+
+### `security_headers.py`
+
+Security headers middleware for HTTP responses.
+
+**Classes:**
+
+| Class                       | Purpose                                     |
+| --------------------------- | ------------------------------------------- |
+| `SecurityHeadersMiddleware` | Adds security headers to all HTTP responses |
+
+**Security Headers Applied:**
+
+| Header                    | Default Value                                    | Purpose                            |
+| ------------------------- | ------------------------------------------------ | ---------------------------------- |
+| `X-Content-Type-Options`  | `nosniff`                                        | Prevents MIME type sniffing        |
+| `X-Frame-Options`         | `DENY`                                           | Prevents clickjacking attacks      |
+| `X-XSS-Protection`        | `1; mode=block`                                  | Enables browser XSS filtering      |
+| `Referrer-Policy`         | `strict-origin-when-cross-origin`                | Controls referrer information      |
+| `Content-Security-Policy` | Allows self, inline styles, data URIs, WebSocket | Restricts resource loading sources |
+| `Permissions-Policy`      | Restricts camera, mic, geolocation, etc.         | Controls browser feature access    |
+
+**Configuration:**
+
+All headers are configurable via constructor parameters but have secure defaults.
 
 ---
 

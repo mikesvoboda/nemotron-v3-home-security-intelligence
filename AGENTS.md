@@ -23,33 +23,41 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Configuration Files
 
-| File                      | Purpose                                                                   |
-| ------------------------- | ------------------------------------------------------------------------- |
-| `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings      |
-| `pytest.ini`              | Pytest configuration (asyncio mode, markers for unit/integration tests)   |
-| `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)         |
-| `.coveragerc`             | Coverage.py configuration                                                 |
-| `docker-compose.yml`      | Development Docker services (backend, redis, frontend) with health checks |
-| `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits    |
-| `docker-compose.ghcr.yml` | GitHub Container Registry Docker configuration                            |
-| `.env.example`            | Environment variable template                                             |
-| `semgrep.yml`             | Semgrep security scanning configuration                                   |
+| File                      | Purpose                                                                |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings   |
+| `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)      |
+| `.coveragerc`             | Coverage.py configuration                                              |
+| `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits |
+| `docker-compose.ghcr.yml` | GitHub Container Registry Docker configuration                         |
+| `docker-compose.test.yml` | Test containers (postgres-test, redis-test) for CI                     |
+| `.env.example`            | Environment variable template                                          |
+| `semgrep.yml`             | Semgrep security scanning configuration                                |
+| `vulture_whitelist.py`    | False positive suppressions for Vulture dead code detection            |
 
 ### Documentation
 
-| File        | Purpose                                |
-| ----------- | -------------------------------------- |
-| `README.md` | Project overview and quick start guide |
-| `LICENSE`   | Mozilla Public License 2.0             |
+| File           | Purpose                                  |
+| -------------- | ---------------------------------------- |
+| `README.md`    | Project overview and quick start guide   |
+| `LICENSE`      | Mozilla Public License 2.0               |
+| `CHANGELOG.md` | Release history and notable changes      |
+| `llms.txt`     | LLM-readable project documentation index |
 
 > **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
 
 ### Build Files
 
-| File                | Purpose                                    |
-| ------------------- | ------------------------------------------ |
-| `package.json`      | Root-level Node.js configuration (minimal) |
-| `package-lock.json` | Node.js lockfile                           |
+| File                | Purpose                                       |
+| ------------------- | --------------------------------------------- |
+| `pyproject.toml`    | Python project metadata (uv/pip dependencies) |
+| `uv.lock`           | uv lockfile for reproducible Python builds    |
+| `.python-version`   | Python version (3.14)                         |
+| `package.json`      | Root-level Node.js configuration (minimal)    |
+| `package-lock.json` | Node.js lockfile                              |
+| `setup.sh`          | Interactive environment setup (Linux/macOS)   |
+| `setup.bat`         | Environment setup launcher (Windows)          |
+| `setup.py`          | Python setup script with interactive prompts  |
 
 ### Git Configuration
 
@@ -77,9 +85,10 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── models/           # SQLAlchemy ORM models
 │   ├── services/         # Business logic (file watcher, detector, batch aggregator)
 │   └── tests/            # Unit and integration tests
-├── data/                 # Runtime data directory
-│   ├── logs/             # Application log files
-│   └── thumbnails/       # Generated image thumbnails
+├── custom/               # Custom FTP server configuration
+│   └── vsftpd/           # Project-specific vsftpd overrides
+├── data/                 # Runtime data directory (gitignored)
+│   └── .gitkeep          # Ensures directory exists
 ├── docs/                 # Documentation
 │   ├── architecture/     # Technical architecture documentation
 │   ├── user-guide/       # End-user documentation
@@ -96,6 +105,10 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ├── monitoring/           # Prometheus + Grafana configuration
 │   └── grafana/          # Grafana dashboards
 ├── scripts/              # Development and deployment scripts
+├── secrets/              # Docker secrets directory (gitignored except .gitkeep)
+├── setup_lib/            # Python utilities for setup.py
+├── tests/                # Root-level test fixtures
+├── vsftpd/               # vsftpd FTP server container configuration
 ├── .beads/               # Legacy issue tracking data (deprecated)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
@@ -142,7 +155,10 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 ### 1. Environment Setup
 
 ```bash
-# Install dependencies and pre-commit hooks
+# Run interactive setup (creates .env, installs dependencies, hooks)
+./setup.sh
+
+# Or install just the pre-commit hooks
 ./scripts/setup-hooks.sh
 
 # Activate Python environment

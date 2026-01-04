@@ -26,9 +26,9 @@ backend/tests/e2e/
 ├── conftest.py                    # E2E-specific fixtures
 ├── __init__.py                    # Package initialization
 ├── README.md                      # E2E test documentation
-├── TEST_SUMMARY.md                # Test results summary
-├── test_gpu_pipeline.py           # GPU pipeline E2E tests
-└── test_pipeline_integration.py   # Mocked pipeline E2E tests
+├── TEST_SUMMARY.md                # Test execution summary
+├── test_gpu_pipeline.py           # GPU pipeline E2E tests (36KB)
+└── test_pipeline_integration.py   # Mocked pipeline E2E tests (24KB)
 ```
 
 ## Running Tests

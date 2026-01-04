@@ -10,7 +10,9 @@ This directory contains developer documentation for contributing to the Home Sec
 development/
   AGENTS.md              # This file
   AGENT_COORDINATION.md  # Parallel agent coordination protocol
+  code-quality.md        # Code quality tooling and standards
   contributing.md        # Contribution guidelines
+  hooks.md               # Git hooks configuration
   patterns.md            # Code patterns and conventions
   setup.md               # Development environment setup
   testing.md             # Testing guide
@@ -35,6 +37,21 @@ development/
 
 **When to use:** Before dispatching parallel agents, during multi-agent sessions, after parallel work completes.
 
+### code-quality.md
+
+**Purpose:** Code quality tooling and standards.
+
+**Topics Covered:**
+
+- Linting and formatting (ruff, eslint, prettier)
+- Static analysis (mypy, TypeScript)
+- Dead code detection (vulture, knip)
+- Complexity analysis (radon)
+- Security scanning (semgrep, hadolint)
+- API coverage checking
+
+**When to use:** Understanding code quality tools, running quality checks locally.
+
 ### contributing.md
 
 **Purpose:** Guide for contributing to the project.
@@ -49,6 +66,20 @@ development/
 - Branch naming conventions
 
 **When to use:** Before making your first contribution, understanding project workflow.
+
+### hooks.md
+
+**Purpose:** Git hooks configuration and troubleshooting.
+
+**Topics Covered:**
+
+- Pre-commit hook setup
+- Pre-push hook setup
+- Available hooks and their purposes
+- Troubleshooting hook failures
+- Skipping hooks (when appropriate)
+
+**When to use:** Setting up development environment, troubleshooting pre-commit issues.
 
 ### patterns.md
 

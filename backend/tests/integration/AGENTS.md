@@ -33,60 +33,100 @@ backend/tests/integration/
 ├── .gitkeep                               # Directory placeholder
 ├── COVERAGE.md                            # Coverage documentation
 ├── README.md                              # Integration test documentation
-└── test_*.py                              # Test files (30 total)
+└── test_*.py                              # Test files (55 total)
 ```
 
-## Test Files (30 total)
+## Test Files (55 total)
 
-### API Endpoint Tests
+### API Endpoint Tests (21 files)
 
-| File                     | Endpoints Tested                 |
-| ------------------------ | -------------------------------- |
-| `test_api.py`            | `/`, `/health`, CORS, lifecycle  |
-| `test_admin_api.py`      | `/api/admin/*` admin operations  |
-| `test_cameras_api.py`    | `/api/cameras/*` CRUD operations |
-| `test_events_api.py`     | `/api/events/*` with filtering   |
-| `test_detections_api.py` | `/api/detections/*`              |
-| `test_system_api.py`     | `/api/system/*`                  |
-| `test_logs_api.py`       | `/api/logs/*`                    |
-| `test_media_api.py`      | `/api/media/*` file serving      |
-| `test_search_api.py`     | `/api/search/*`                  |
-| `test_audit_api.py`      | `/api/audit/*`                   |
-| `test_websocket.py`      | `/ws/events`, `/ws/system`       |
+| File                          | Endpoints Tested                 |
+| ----------------------------- | -------------------------------- |
+| `test_api.py`                 | `/`, `/health`, CORS, lifecycle  |
+| `test_admin_api.py`           | `/api/admin/*` admin operations  |
+| `test_ai_audit_api.py`        | `/api/ai-audit/*` AI audit ops   |
+| `test_alerts_api.py`          | `/api/alerts/*` alert rules      |
+| `test_audit_api.py`           | `/api/audit/*` audit logs        |
+| `test_cameras_api.py`         | `/api/cameras/*` CRUD operations |
+| `test_detections_api.py`      | `/api/detections/*`              |
+| `test_dlq_api.py`             | `/api/dlq/*` dead letter queue   |
+| `test_entities_api.py`        | `/api/entities/*` entity mgmt    |
+| `test_events_api.py`          | `/api/events/*` with filtering   |
+| `test_logs_api.py`            | `/api/logs/*`                    |
+| `test_media_api.py`           | `/api/media/*` file serving      |
+| `test_metrics_api.py`         | `/api/metrics/*` metrics data    |
+| `test_notification_api.py`    | `/api/notifications/*`           |
+| `test_search_api.py`          | `/api/search/*`                  |
+| `test_system_api.py`          | `/api/system/*`                  |
+| `test_zones_api.py`           | `/api/zones/*` zone CRUD         |
+| `test_websocket.py`           | `/ws/events`, `/ws/system`       |
+| `test_websocket_auth.py`      | WebSocket authentication         |
+| `test_websocket_broadcast.py` | WebSocket broadcasting           |
 
-### Service Integration Tests
+### Service Integration Tests (12 files)
 
 | File                                    | Service Tested             |
 | --------------------------------------- | -------------------------- |
 | `test_batch_aggregator_integration.py`  | BatchAggregator            |
+| `test_cache_service_integration.py`     | CacheService               |
+| `test_cleanup_service.py`               | CleanupService             |
 | `test_detector_client_integration.py`   | DetectorClient             |
+| `test_dlq_retry_handler_integration.py` | DLQRetryHandler            |
+| `test_file_watcher_filesystem.py`       | FileWatcher filesystem     |
 | `test_file_watcher_integration.py`      | FileWatcher                |
 | `test_health_monitor_integration.py`    | HealthMonitor              |
 | `test_nemotron_analyzer_integration.py` | NemotronAnalyzer           |
 | `test_nemotron_analyzer.py`             | NemotronAnalyzer (focused) |
-| `test_cleanup_service.py`               | CleanupService             |
 | `test_system_broadcaster.py`            | SystemBroadcaster          |
+| `test_video_streaming.py`               | VideoStreaming             |
 
-### Model and Database Tests
+### Model and Database Tests (8 files)
 
-| File                   | Coverage                |
-| ---------------------- | ----------------------- |
-| `test_models.py`       | SQLAlchemy model tests  |
-| `test_database.py`     | Database operations     |
-| `test_audit.py`        | Audit logging           |
-| `test_baseline.py`     | Baseline calculations   |
-| `test_alert_dedup.py`  | Alert deduplication     |
-| `test_alert_engine.py` | Alert engine processing |
-| `test_alert_models.py` | Alert model operations  |
+| File                     | Coverage                |
+| ------------------------ | ----------------------- |
+| `test_alert_dedup.py`    | Alert deduplication     |
+| `test_alert_engine.py`   | Alert engine processing |
+| `test_alert_models.py`   | Alert model operations  |
+| `test_audit.py`          | Audit logging           |
+| `test_baseline.py`       | Baseline calculations   |
+| `test_database.py`       | Database operations     |
+| `test_model_cascades.py` | Model cascade deletes   |
+| `test_models.py`         | SQLAlchemy model tests  |
 
-### Full Stack Tests
+### Error Handling Tests (4 files)
 
-| File                         | Coverage                               |
-| ---------------------------- | -------------------------------------- |
-| `test_full_stack.py`         | Camera -> Detection -> Event workflows |
-| `test_pipeline_e2e.py`       | Complete AI pipeline flow              |
-| `test_alembic_migrations.py` | Database migration validation          |
-| `test_github_workflows.py`   | CI/CD workflow validation              |
+| File                           | Coverage                   |
+| ------------------------------ | -------------------------- |
+| `test_api_error_scenarios.py`  | API error scenarios        |
+| `test_api_errors.py`           | API error handling         |
+| `test_http_error_codes.py`     | HTTP error code validation |
+| `test_transaction_rollback.py` | Transaction rollback       |
+
+### Pipeline and Full Stack Tests (7 files)
+
+| File                                 | Coverage                          |
+| ------------------------------------ | --------------------------------- |
+| `test_circuit_breaker.py`            | Circuit breaker pattern           |
+| `test_enrichment_pipeline.py`        | Enrichment pipeline               |
+| `test_event_search.py`               | Event search functionality        |
+| `test_full_stack.py`                 | Camera->Detection->Event workflow |
+| `test_pipeline_e2e.py`               | Complete AI pipeline flow         |
+| `test_redis_pubsub.py`               | Redis pub/sub                     |
+| `test_vision_extraction_pipeline.py` | Vision extraction pipeline        |
+
+### Infrastructure Tests (3 files)
+
+| File                              | Coverage                      |
+| --------------------------------- | ----------------------------- |
+| `test_alembic_migrations.py`      | Database migration validation |
+| `test_github_workflows.py`        | CI/CD workflow validation     |
+| `test_object_types_trgm_index.py` | Trigram index tests           |
+
+### Security Tests (1 file)
+
+| File                     | Coverage                |
+| ------------------------ | ----------------------- |
+| `test_media_security.py` | Media endpoint security |
 
 ## Fixtures
 

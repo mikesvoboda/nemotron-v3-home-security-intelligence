@@ -16,15 +16,16 @@ Note: The application uses PostgreSQL for the database, not SQLite. Database fil
 backend/data/
 ├── .gitkeep              # Ensures directory exists in git
 ├── AGENTS.md             # This file
-├── cameras/              # Sample camera image directories
+├── cameras/              # Sample camera image directories (see cameras/AGENTS.md)
+│   ├── AGENTS.md         # Camera test data documentation
 │   ├── backyard/         # Backyard camera sample images
 │   ├── driveway/         # Driveway camera sample images
 │   └── front_door/       # Front door camera sample images
-├── security.db           # SQLite database (legacy/development only)
-├── thumbnails/           # Generated detection thumbnails (runtime)
-└── logs/                 # Log files (runtime, not in git)
-    └── security.log      # Rotating application log
+└── thumbnails/           # Generated detection thumbnails (runtime)
+    └── .gitkeep          # Ensures directory exists in git
 ```
+
+Note: The application uses PostgreSQL for the database (external to this directory). Log files are configured via `LOG_FILE_PATH` setting and are not stored in this directory by default.
 
 ## Sample Camera Directories
 
@@ -70,13 +71,7 @@ These files are created at runtime and are not tracked in version control:
 - Includes bounding box overlays for detected objects
 - Served via `/api/media/thumbnails/{filename}` endpoint
 
-### Log Files
-
-**`logs/security.log`** - Rotating application log file
-
-- Configured via `LOG_FILE_PATH` setting
-- Default max size: 10MB
-- Default backup count: 7
+Note: Log files are configured via `LOG_FILE_PATH` environment variable and stored externally.
 
 ## Configuration References
 
