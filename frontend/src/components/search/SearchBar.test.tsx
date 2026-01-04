@@ -23,11 +23,30 @@
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SearchBar from './SearchBar';
 
 import type { Camera } from '../../services/api';
+
+/**
+ * Mock useSavedSearches hook to prevent test hang.
+ *
+ * The real hook adds a window.addEventListener('storage', ...) listener that
+ * doesn't get cleaned up properly in jsdom, keeping the Node.js event loop alive
+ * and causing vitest to hang after tests complete.
+ *
+ * See: NEM-1236 - Fix frontend zombie test processes
+ */
+vi.mock('../../hooks/useSavedSearches', () => ({
+  useSavedSearches: () => ({
+    savedSearches: [],
+    saveSearch: () => {},
+    deleteSearch: () => {},
+    loadSearch: () => null,
+    clearAll: () => {},
+  }),
+}));
 
 describe('SearchBar', () => {
   const mockOnQueryChange = vi.fn();
@@ -70,6 +89,13 @@ describe('SearchBar', () => {
 
   afterEach(() => {
     console.error = originalConsoleError;
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    // Force cleanup of any remaining event listeners to prevent vitest hang
+    vi.restoreAllMocks();
     cleanup();
   });
 
