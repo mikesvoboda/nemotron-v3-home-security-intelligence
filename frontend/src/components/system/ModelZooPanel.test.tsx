@@ -167,6 +167,7 @@ describe('ModelZooPanel', () => {
           isLoading={false}
           error={null}
           onRefresh={mockRefresh}
+          defaultShowAll={true}
         />
       );
 
@@ -184,6 +185,7 @@ describe('ModelZooPanel', () => {
           isLoading={false}
           error={null}
           onRefresh={mockRefresh}
+          defaultShowAll={true}
         />
       );
 
@@ -215,6 +217,7 @@ describe('ModelZooPanel', () => {
           isLoading={false}
           error={null}
           onRefresh={mockRefresh}
+          defaultShowAll={true}
         />
       );
 
@@ -247,6 +250,7 @@ describe('ModelZooPanel', () => {
           isLoading={false}
           error={null}
           onRefresh={mockRefresh}
+          defaultShowAll={true}
         />
       );
 
@@ -261,6 +265,7 @@ describe('ModelZooPanel', () => {
           isLoading={false}
           error={null}
           onRefresh={mockRefresh}
+          defaultShowAll={true}
         />
       );
 
@@ -357,6 +362,7 @@ describe('ModelZooPanel', () => {
           isLoading={false}
           error={null}
           onRefresh={mockRefresh}
+          defaultShowAll={true}
         />
       );
 
@@ -364,6 +370,149 @@ describe('ModelZooPanel', () => {
       expect(screen.getByText('Status')).toBeInTheDocument();
       expect(screen.getByText('VRAM')).toBeInTheDocument();
       expect(screen.getByText('Inferences')).toBeInTheDocument();
+    });
+  });
+
+  describe('show all toggle', () => {
+    it('renders show all toggle button', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      expect(screen.getByTestId('model-zoo-show-all-toggle')).toBeInTheDocument();
+    });
+
+    it('shows only loaded models by default', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      // Only CLIP ViT-L/14 is loaded
+      expect(screen.getByText('CLIP ViT-L/14')).toBeInTheDocument();
+      // Unloaded models should not be visible by default
+      expect(screen.queryByText('YOLO11 Face')).not.toBeInTheDocument();
+      expect(screen.queryByText('FashionCLIP')).not.toBeInTheDocument();
+    });
+
+    it('shows all models when toggle clicked', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      // Click show all toggle
+      fireEvent.click(screen.getByTestId('model-zoo-show-all-toggle'));
+
+      // All models should now be visible
+      expect(screen.getByText('CLIP ViT-L/14')).toBeInTheDocument();
+      expect(screen.getByText('YOLO11 Face')).toBeInTheDocument();
+      expect(screen.getByText('FashionCLIP')).toBeInTheDocument();
+      expect(screen.getByText('ViTPose Small')).toBeInTheDocument();
+    });
+
+    it('respects defaultShowAll prop', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+          defaultShowAll={true}
+        />
+      );
+
+      // All models should be visible
+      expect(screen.getByText('CLIP ViT-L/14')).toBeInTheDocument();
+      expect(screen.getByText('YOLO11 Face')).toBeInTheDocument();
+      expect(screen.getByText('FashionCLIP')).toBeInTheDocument();
+      expect(screen.getByText('ViTPose Small')).toBeInTheDocument();
+    });
+
+    it('shows unloaded models count in summary', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      // Should show summary of unloaded models
+      expect(screen.getByTestId('unloaded-models-summary')).toBeInTheDocument();
+      expect(screen.getByText(/3 models unloaded/)).toBeInTheDocument();
+    });
+
+    it('hides unloaded models summary when showing all', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      // Click show all toggle
+      fireEvent.click(screen.getByTestId('model-zoo-show-all-toggle'));
+
+      // Summary should be hidden when showing all
+      expect(screen.queryByTestId('unloaded-models-summary')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('VRAM inline summary', () => {
+    it('displays inline VRAM summary in header', () => {
+      render(
+        <ModelZooPanel
+          models={mockModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      expect(screen.getByTestId('vram-inline-summary')).toBeInTheDocument();
+      expect(screen.getByText(/VRAM:.*0\.4\/2GB/)).toBeInTheDocument();
+    });
+  });
+
+  describe('no active models state', () => {
+    it('shows no active models state when all models unloaded', () => {
+      const unloadedModels = mockModels.filter(m => m.status !== 'loaded');
+      render(
+        <ModelZooPanel
+          models={unloadedModels}
+          vramStats={mockVramStats}
+          isLoading={false}
+          error={null}
+          onRefresh={mockRefresh}
+        />
+      );
+
+      expect(screen.getByTestId('model-zoo-no-active')).toBeInTheDocument();
+      expect(screen.getByText('No active models')).toBeInTheDocument();
     });
   });
 });
