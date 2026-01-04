@@ -20,9 +20,13 @@ docs/
   GITHUB_MODELS.md                # GitHub Models integration guide
   SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
   LINK_AUDIT.md                   # Documentation link audit results
+  LINEAR_SETUP_PROMPT.md          # Linear issue tracking setup prompt
+  METRICS_ENDPOINT_HARDENING.md   # Metrics endpoint security hardening
+  PEER_DEPS_CONFLICT.md           # NPM peer dependency conflict resolution
+  SECURITY_API_KEYS.md            # API key security documentation
   developer-hub.md                # Developer documentation hub
   operator-hub.md                 # Operator documentation hub
-  user-hub.md                     # User documentation hub
+  user-hub.md                     # User documentation hub (placeholder - empty)
 
   admin-guide/                    # System administrator documentation
     AGENTS.md                     # Admin guide directory guide
@@ -32,15 +36,25 @@ docs/
     storage-retention.md          # Data storage and retention policies
     troubleshooting.md            # Admin troubleshooting guide
 
-  api-reference/                  # API documentation (legacy location)
+  api-reference/                  # API documentation (canonical location)
     AGENTS.md                     # API reference directory guide
     overview.md                   # API overview
+    ai-audit.md                   # AI audit API (placeholder - empty)
     alerts.md                     # Alerts API reference
+    audit.md                      # Audit logging API reference
     cameras.md                    # Cameras API reference
     detections.md                 # Detections API reference
-    events.md                     # Events API reference
+    dlq.md                        # Dead Letter Queue API reference
+    enrichment.md                 # Prompt enrichment API reference
+    entities.md                   # Entity tracking API reference
+    events.md                     # Events API reference (placeholder - empty)
+    logs.md                       # Logs API reference
+    media.md                      # Media serving API reference
+    model-zoo.md                  # Model Zoo API (placeholder - empty)
+    prompts.md                    # Prompt management API reference
     system.md                     # System API reference
     websocket.md                  # WebSocket API reference
+    zones.md                      # Zones API reference
 
   architecture/                   # Technical architecture documentation
     AGENTS.md                     # Architecture directory guide
@@ -50,7 +64,8 @@ docs/
     decisions.md                  # Architecture decisions
     frontend-hooks.md             # Frontend React hooks documentation
     real-time.md                  # Real-time communication architecture
-    resilience.md                 # Resilience patterns documentation
+    resilience.md                 # Resilience patterns (placeholder - empty)
+    system-page-pipeline-visualization.md  # System page pipeline viz (placeholder - empty)
 
   benchmarks/                     # Performance benchmark results
     AGENTS.md                     # Benchmarks directory guide
@@ -157,8 +172,12 @@ docs/
 
   user/                           # End-user documentation (hub-and-spoke)
     AGENTS.md                     # User directory guide
+    ai-audit.md                   # AI audit trail viewer guide
+    ai-enrichment.md              # AI enrichment features guide
+    ai-performance.md             # AI performance monitoring guide
     dashboard-basics.md           # Dashboard layout and components
     dashboard-settings.md         # Settings configuration
+    system-monitoring.md          # System monitoring page guide
     understanding-alerts.md       # Risk levels and responses
     viewing-events.md             # Event viewing and interaction
 

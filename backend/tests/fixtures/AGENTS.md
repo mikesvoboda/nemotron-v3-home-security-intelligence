@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/tests/fixtures/` directory contains test fixture files used by automated tests. These include sample images, configuration files, and other static test data.
+The `backend/tests/fixtures/` directory contains test fixture files used by automated tests. These include sample images for pipeline testing.
 
 ## Directory Structure
 
@@ -10,38 +10,40 @@ The `backend/tests/fixtures/` directory contains test fixture files used by auto
 backend/tests/fixtures/
 ├── AGENTS.md                 # This file
 └── images/                   # Test images
-    └── pipeline_test/        # Pipeline integration test images
+    └── pipeline_test/        # Pipeline integration test images (14 files)
 ```
 
 ## Fixture Files
 
-### `images/pipeline_test/`
+### `images/pipeline_test/` (14 JPEG images)
 
 Contains test images for pipeline integration tests:
 
 **Person Detection Images:**
 
-- `test_person_house_front.jpg` - Person in front of house
-- `test_person_porch_1.jpg` - Person on porch
-- `test_person_porch_cat.jpg` - Person with cat on porch
-- `test_person_walking_dog.jpg` - Person walking a dog
+- `test_person_house_front.jpg` - Person in front of house (110KB)
+- `test_person_porch_1.jpg` - Person on porch (167KB)
+- `test_person_porch_cat.jpg` - Person with cat on porch (151KB)
+- `test_person_walking_dog.jpg` - Person walking a dog (792KB)
 
 **Pet Detection Images:**
 
-- `test_pet_cat_porch_tabby.jpg` - Tabby cat on porch
-- `test_pet_dog_grass_brown.jpg` - Brown dog on grass
-- `test_pet_dog_yard_labrador.jpg` - Labrador in yard
+- `test_pet_cat_porch_tabby.jpg` - Tabby cat on porch (156KB)
+- `test_pet_dog_grass_brown.jpg` - Brown dog on grass (412KB)
+- `test_pet_dog_yard_labrador.jpg` - Labrador in yard (183KB)
 
 **Vehicle Detection Images:**
 
-- `test_vehicle_car_house.jpg` - Car near house
-- `test_vehicle_compact_building.jpg` - Compact car near building
-- `test_vehicle_sedan_road.jpg` - Sedan on road
+- `test_vehicle_car_house.jpg` - Car near house (256KB)
+- `test_vehicle_compact_building.jpg` - Compact car near building (345KB)
+- `test_vehicle_sedan_road.jpg` - Sedan on road (97KB)
 
-**Motion Detection Images (HMD/MD Alarm):**
+**Motion Detection Alarm Images:**
 
-- `HMDAlarm_*.jpg` - Human motion detection alarm images
-- `MDAlarm_*.jpg` - Motion detection alarm images
+- `HMDAlarm_20260101-103424.jpg` - Human motion alarm (298KB)
+- `HMDAlarm_20260101-171020.jpg` - Human motion alarm (151KB)
+- `MDAlarm_20250805-220848.jpg` - Motion detection alarm (124KB)
+- `MDAlarm_20260101-143519.jpg` - Motion detection alarm (333KB)
 
 ## Usage in Tests
 

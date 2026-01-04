@@ -2,76 +2,38 @@
 
 ## Purpose
 
-This directory contains components for the AI Audit page's Prompt Playground feature, which allows users to test and refine AI model configurations.
+This directory is a placeholder for future AI Audit-specific components. Currently, all AI Audit components live in the `../ai/` directory alongside AI Performance components.
 
-## Key Components
+## Files
 
-| Component              | Purpose                                             |
-| ---------------------- | --------------------------------------------------- |
-| `PromptPlayground.tsx` | Slide-out panel for testing and editing AI prompts  |
+| File       | Purpose                             |
+| ---------- | ----------------------------------- |
+| `index.ts` | Barrel exports (currently empty)    |
+| `AGENTS.md`| This documentation file             |
 
-## Component Details
+## Current Status
 
-### PromptPlayground
+The `index.ts` file contains TODOs for future component exports:
 
-A slide-out panel (80% viewport width) that provides editors for all configurable AI models:
-
-**Features:**
-- Nemotron: Full text editor for risk analysis system prompt
-- Florence-2: Query list editor for scene analysis
-- YOLO-World: Tag input for custom object classes + confidence threshold slider
-- X-CLIP: Tag input for action recognition classes
-- Fashion-CLIP: Tag input for clothing categories
-
-**Interaction:**
-- Opens when clicking `[->]` button on a recommendation in RecommendationsPanel
-- Keyboard shortcuts: `Ctrl+S` (save), `Ctrl+Enter` (run test), `Escape` (close)
-- Before/after comparison when testing prompts
-- Export/import JSON configuration
-
-**Dependencies:**
-- Headless UI for Dialog, Transition, and Disclosure components
-- lucide-react for icons
-- Backend API for prompt test endpoint (NEM-1140)
-
-## Testing
-
-```bash
-# Run component tests
-cd frontend && npm test -- PromptPlayground
-
-# Run with coverage
-cd frontend && npm test -- --coverage PromptPlayground
+```typescript
+// TODO: Add PromptPlayground export when implementation is complete
+// TODO: Add VersionHistory export when implementation is complete
 ```
 
-## Integration
+## Note on PromptPlayground
 
-The PromptPlayground is designed to be opened from the RecommendationsPanel component in the AI Audit page:
-
-```tsx
-import PromptPlayground from '../ai-audit/PromptPlayground';
-
-// In parent component
-<PromptPlayground
-  isOpen={isPlaygroundOpen}
-  onClose={() => setIsPlaygroundOpen(false)}
-  recommendation={selectedRecommendation}
-  sourceEvent={sourceEvent}
-  recentEvents={recentEvents}
-  onSave={handleSaveConfig}
-/>
-```
-
-## File Inventory
-
-| File                         | Description                       |
-| ---------------------------- | --------------------------------- |
-| `PromptPlayground.tsx`       | Main slide-out panel component    |
-| `PromptPlayground.test.tsx`  | Test suite                        |
-| `AGENTS.md`                  | This documentation file           |
-| `index.ts`                   | Barrel exports                    |
+The `PromptPlayground` component mentioned in plans is implemented in the `../ai/` directory as `../ai/PromptPlayground.tsx`. It is exported from `../ai/index.ts` along with other AI components.
 
 ## Related Components
 
-- `../ai/RecommendationsPanel.tsx` - Parent component that triggers playground opening
-- `../ai/AIAuditPage.tsx` - Main page that hosts the recommendations panel
+All AI Audit functionality is currently implemented in:
+
+- `../ai/AIAuditPage.tsx` - Main AI audit dashboard
+- `../ai/PromptPlayground.tsx` - Slide-out panel for prompt editing
+- `../ai/QualityScoreTrends.tsx` - Quality score metrics
+- `../ai/RecommendationsPanel.tsx` - Prompt improvement suggestions
+- `../ai/BatchAuditModal.tsx` - Batch audit trigger dialog
+- `../ai/ModelLeaderboard.tsx` - Model contribution rankings
+- `../ai/ModelContributionChart.tsx` - Contribution bar chart
+
+See `../ai/AGENTS.md` for full documentation of these components.

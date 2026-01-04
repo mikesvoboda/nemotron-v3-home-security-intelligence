@@ -7,7 +7,7 @@ HTTP server hosting multiple classification models for enriching RT-DETRv2 detec
 ## Port and Resources
 
 - **Port**: 8094 (configurable via `PORT`)
-- **Expected VRAM**: ~6 GB total (with all models loaded)
+- **Expected VRAM**: ~2.65 GB total (per model.py docstring)
 
 | Model                  | VRAM    | Purpose                         |
 | ---------------------- | ------- | ------------------------------- |
@@ -15,7 +15,8 @@ HTTP server hosting multiple classification models for enriching RT-DETRv2 detec
 | Pet Classifier         | ~200 MB | Cat/dog classification          |
 | FashionCLIP            | ~800 MB | Clothing attributes             |
 | Depth Anything V2      | ~150 MB | Distance estimation             |
-| ViTPose+ Small         | ~1.5 GB | Human pose analysis             |
+
+**Note**: ViTPose+ Small is loaded on-demand via `vitpose.py` module.
 
 ## Directory Contents
 
@@ -122,9 +123,11 @@ open_clip_torch>=2.24.0    # FashionCLIP
 pillow>=10.0.0
 numpy>=1.24.0
 pydantic>=2.4.0
-pynvml>=11.5.0
+nvidia-ml-py>=12.560.30    # GPU monitoring
 safetensors>=0.4.0
 ```
+
+**Note**: torch and torchvision come from the base Docker image (pytorch/pytorch:2.4.0-cuda12.4).
 
 ## API Endpoints
 

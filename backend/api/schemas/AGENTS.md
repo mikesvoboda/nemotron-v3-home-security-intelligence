@@ -10,16 +10,28 @@ The `backend/api/schemas/` directory contains Pydantic models for request/respon
 
 Package initialization with public exports. Exports schemas from:
 
-- `alerts.py` - AlertCreate, AlertResponse, AlertRuleCreate, AlertRuleResponse, etc.
-- `camera.py` - CameraCreate, CameraResponse, CameraUpdate, CameraListResponse
-- `notification.py` - NotificationChannel, SendNotificationRequest, etc.
+- `alerts.py` - AlertCreate, AlertResponse, AlertRuleCreate, AlertRuleResponse, AlertSeverity, AlertStatus, etc.
+- `baseline.py` - AnomalyEvent, AnomalyListResponse, BaselineSummaryResponse, CurrentDeviation, etc.
+- `camera.py` - CameraCreate, CameraResponse, CameraUpdate, CameraListResponse, CameraStatus
+- `clips.py` - ClipGenerateRequest, ClipGenerateResponse, ClipInfoResponse, ClipStatus
+- `detections.py` - EnrichmentDataSchema, PersonEnrichmentData, PetEnrichmentData, VehicleEnrichmentData
+- `enrichment.py` - EnrichmentResponse, EventEnrichmentsResponse, LicensePlateEnrichment, VehicleEnrichment, etc.
+- `llm_response.py` - LLMRawResponse, LLMRiskResponse, RiskLevel (as LLMRiskLevel)
+- `notification.py` - NotificationChannel, SendNotificationRequest, TestNotificationRequest, etc.
+- `scene_change.py` - SceneChangeResponse, SceneChangeListResponse, SceneChangeType
 - `search.py` - SearchRequest, SearchResponse, SearchResult
-- `websocket.py` - WebSocketMessage, WebSocketErrorResponse, etc.
+- `websocket.py` - WebSocketMessage, WebSocketErrorResponse, WebSocketEventMessage, ServiceStatus, RiskLevel, etc.
 - `zone.py` - ZoneCreate, ZoneResponse, ZoneUpdate, ZoneListResponse
 
 ### `camera.py`
 
 Pydantic schemas for camera management endpoints.
+
+**Enums:**
+
+| Enum           | Purpose                                                |
+| -------------- | ------------------------------------------------------ |
+| `CameraStatus` | Camera status values (online, offline, error, unknown) |
 
 **Schemas:**
 
@@ -47,14 +59,18 @@ Pydantic schemas for event management and statistics endpoints.
 
 ### `detections.py`
 
-Pydantic schemas for detection listing endpoints.
+Pydantic schemas for detection endpoints and enrichment data validation.
 
 **Schemas:**
 
-| Schema                  | Purpose                                    |
-| ----------------------- | ------------------------------------------ |
-| `DetectionResponse`     | Serialize detection with bounding box data |
-| `DetectionListResponse` | Serialize paginated detection list         |
+| Schema                  | Purpose                                             |
+| ----------------------- | --------------------------------------------------- |
+| `VehicleEnrichmentData` | Vehicle enrichment data (type, color, damage, etc.) |
+| `PersonEnrichmentData`  | Person enrichment data (clothing, action, carrying) |
+| `PetEnrichmentData`     | Pet enrichment data (type, breed)                   |
+| `EnrichmentDataSchema`  | Composite enrichment_data JSONB field schema        |
+| `DetectionResponse`     | Serialize detection with bounding box data          |
+| `DetectionListResponse` | Serialize paginated detection list                  |
 
 ### `logs.py`
 
@@ -1025,7 +1041,7 @@ Pydantic schemas for entity re-identification API endpoints - tracking persons/v
 
 ### LLM Schemas (`llm.py`)
 
-Pydantic schemas for LLM (Nemotron) response validation with automatic coercion.
+Pydantic schemas for comprehensive LLM (Nemotron) response validation with entities, flags, and detailed confidence factors.
 
 **Enums:**
 
@@ -1056,6 +1072,37 @@ Pydantic schemas for LLM (Nemotron) response validation with automatic coercion.
 | ----------------------------- | ------------------------------------ |
 | `validate_llm_response`       | Validate and parse LLM response data |
 | `infer_risk_level_from_score` | Infer risk level from numeric score  |
+
+---
+
+### LLM Response Schemas (`llm_response.py`)
+
+Simpler Pydantic schemas for LLM response validation focusing on core risk assessment fields.
+
+**Enums:**
+
+| Enum        | Purpose                                                           |
+| ----------- | ----------------------------------------------------------------- |
+| `RiskLevel` | Risk levels with severity thresholds (0-29, 30-59, 60-84, 85-100) |
+
+**Schemas:**
+
+| Schema            | Purpose                                           |
+| ----------------- | ------------------------------------------------- |
+| `LLMRiskResponse` | Validated risk assessment with strict constraints |
+| `LLMRawResponse`  | Lenient parsing for raw LLM JSON output           |
+
+**Functions:**
+
+| Function                      | Purpose                             |
+| ----------------------------- | ----------------------------------- |
+| `infer_risk_level_from_score` | Infer risk level from numeric score |
+
+**Notes:**
+
+- `LLMRawResponse` is used for initial parsing of LLM output with flexible coercion
+- `LLMRiskResponse` is used after normalization for strict validation
+- Both are exported via `__init__.py` for use in services
 
 ---
 

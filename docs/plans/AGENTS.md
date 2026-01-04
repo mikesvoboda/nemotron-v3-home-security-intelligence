@@ -18,10 +18,14 @@ decision-making.
 ```
 plans/
 ├── AGENTS.md                                        # This file
+├── prompt-enrichment-tasks.md                       # Prompt enrichment task list
+│
 ├── 2024-12-21-dashboard-mvp-design.md               # MVP design specification
 ├── 2024-12-22-mvp-implementation-plan.md            # Task breakdown and phases
 ├── 2024-12-24-logging-system-design.md              # Logging architecture spec
 ├── 2024-12-24-logging-implementation-plan.md        # Logging implementation tasks
+│
+├── 2025-01-01-testing-reliability-design.md         # Testing reliability design
 ├── 2025-12-26-github-cicd-design.md                 # CI/CD pipeline design
 ├── 2025-12-26-github-cicd-implementation.md         # CI/CD implementation tasks
 ├── 2025-12-26-readme-redesign.md                    # README restructuring plan
@@ -30,9 +34,22 @@ plans/
 ├── 2025-12-30-ai-containerization-design.md         # AI service containerization design
 ├── 2025-12-30-documentation-restructure-design.md   # Documentation restructure design
 ├── 2025-12-30-test-performance-implementation.md    # Test performance implementation
-├── 2025-12-30-test-performance-optimization-design.md   # Test performance design
+├── 2025-12-30-test-performance-optimization-design.md  # Test performance design
+├── 2025-12-31-documentation-overhaul-design.md      # Documentation overhaul design
 ├── 2025-12-31-system-performance-design.md          # System performance optimization design
-└── 2025-12-31-system-performance-plan.md            # System performance implementation plan
+├── 2025-12-31-system-performance-plan.md            # System performance implementation plan
+│
+├── 2026-01-01-claude-code-tooling-design.md         # Claude Code tooling design
+├── 2026-01-01-prompt-enrichment-design.md           # Prompt enrichment design
+├── 2026-01-01-vision-extraction-design.md           # Vision extraction design
+├── 2026-01-02-ai-performance-audit.md               # AI performance audit design
+├── 2026-01-02-ai-performance-audit-implementation.md # AI performance audit implementation
+├── 2026-01-02-interactive-setup-script-design.md    # Interactive setup script design
+├── 2026-01-02-interactive-setup-script-implementation.md # Interactive setup implementation
+├── 2026-01-03-websocket-deduplication-design.md     # WebSocket deduplication design
+├── 2026-01-04-ai-audit-redesign.md                  # AI audit page redesign
+├── 2026-01-04-ai-performance-page-redesign.md       # AI performance page redesign
+└── 2026-01-04-system-page-redesign.md               # System page redesign
 ```
 
 ## Key Files

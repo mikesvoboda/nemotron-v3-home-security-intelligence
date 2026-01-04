@@ -1,16 +1,51 @@
-# AI Performance Components
+# AI Performance and Audit Components
 
-This directory contains components for the AI Performance page (`/ai`), which provides
-detailed monitoring of AI model performance and pipeline health.
+This directory contains components for the AI Performance page (`/ai`) and AI Audit page (`/ai/audit`),
+which provide detailed monitoring of AI model performance, pipeline health, and prompt quality.
 
 ## Overview
 
-The AI Performance page consolidates AI-related metrics into a dedicated view:
+The AI pages consolidate AI-related metrics into dedicated views:
 
 - Model status for RT-DETRv2 (object detection) and Nemotron (LLM risk analysis)
 - Latency statistics with percentile breakdowns
 - Pipeline queue depths and throughput
 - Error tracking and DLQ status
+- AI quality scoring and prompt improvement recommendations
+- Prompt Playground for testing and refining AI configurations
+
+## Files
+
+| File                             | Purpose                                            |
+| -------------------------------- | -------------------------------------------------- |
+| `AIPerformancePage.tsx`          | Main AI performance dashboard                      |
+| `AIPerformancePage.test.tsx`     | Test suite for AIPerformancePage                   |
+| `AIAuditPage.tsx`                | AI quality metrics and recommendations dashboard   |
+| `AIAuditPage.test.tsx`           | Test suite for AIAuditPage                         |
+| `BatchAuditModal.tsx`            | Modal for triggering batch AI audit                |
+| `BatchAuditModal.test.tsx`       | Test suite for BatchAuditModal                     |
+| `InsightsCharts.tsx`             | Detection and risk distribution charts             |
+| `InsightsCharts.test.tsx`        | Test suite for InsightsCharts                      |
+| `LatencyPanel.tsx`               | Latency metrics with percentile breakdowns         |
+| `LatencyPanel.test.tsx`          | Test suite for LatencyPanel                        |
+| `ModelContributionChart.tsx`     | Horizontal bar chart of model contributions        |
+| `ModelContributionChart.test.tsx`| Test suite for ModelContributionChart              |
+| `ModelLeaderboard.tsx`           | Sortable table ranking AI models                   |
+| `ModelLeaderboard.test.tsx`      | Test suite for ModelLeaderboard                    |
+| `ModelStatusCards.tsx`           | RT-DETRv2 and Nemotron status cards                |
+| `ModelStatusCards.test.tsx`      | Test suite for ModelStatusCards                    |
+| `ModelZooSection.tsx`            | Model Zoo status cards with latency chart          |
+| `ModelZooSection.test.tsx`       | Test suite for ModelZooSection                     |
+| `PipelineHealthPanel.tsx`        | Queue depths, throughput, error monitoring         |
+| `PipelineHealthPanel.test.tsx`   | Test suite for PipelineHealthPanel                 |
+| `PromptPlayground.tsx`           | Slide-out panel for prompt editing and testing     |
+| `PromptPlayground.test.tsx`      | Test suite for PromptPlayground                    |
+| `QualityScoreTrends.tsx`         | Quality score stat cards with progress indicators  |
+| `QualityScoreTrends.test.tsx`    | Test suite for QualityScoreTrends                  |
+| `RecommendationsPanel.tsx`       | Grouped prompt improvement suggestions             |
+| `RecommendationsPanel.test.tsx`  | Test suite for RecommendationsPanel                |
+| `index.ts`                       | Barrel exports                                     |
+| `AGENTS.md`                      | This documentation file                            |
 
 ## Components
 
@@ -137,6 +172,29 @@ Queue depths, throughput, and error monitoring.
 - Queue overflow counts
 - Dead Letter Queue items
 
+### PromptPlayground.tsx
+
+Slide-out panel (80% viewport width) for editing, testing, and refining AI model prompts.
+
+**Features:**
+
+- Model-specific editors:
+  - Nemotron: Full text editor for risk analysis system prompt
+  - Florence-2: Query list editor for scene analysis
+  - YOLO-World: Tag input for custom object classes + confidence threshold
+  - X-CLIP: Tag input for action recognition classes
+  - Fashion-CLIP: Tag input for clothing categories
+- Test functionality with before/after comparison
+- Save, Export, and Import capabilities
+- Keyboard shortcuts (Escape to close)
+
+**Interaction:**
+
+- Opens from RecommendationsPanel via recommendation click
+- Fetches current prompts via `fetchAllPrompts()` API
+- Tests prompts via `testPrompt()` API
+- Saves via `updateModelPrompt()` API
+
 ### QualityScoreTrends.tsx
 
 Displays AI quality score metrics as stat cards with visual progress indicators.
@@ -168,6 +226,7 @@ Displays grouped prompt improvement suggestions from AI audit analysis.
 - Priority badges (high/medium/low)
 - Frequency counts
 - Expandable accordion sections
+- Click handler to open PromptPlayground with selected recommendation
 
 ## Data Flow
 

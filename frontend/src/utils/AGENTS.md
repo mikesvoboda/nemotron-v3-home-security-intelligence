@@ -6,14 +6,17 @@ Utility functions for common operations across the frontend application, includi
 
 ## Key Files
 
-| File                 | Purpose                                    |
-| -------------------- | ------------------------------------------ |
-| `risk.ts`            | Risk scoring utilities for security events |
-| `risk.test.ts`       | Tests for risk utilities                   |
-| `confidence.ts`      | Detection confidence level utilities       |
-| `confidence.test.ts` | Tests for confidence utilities             |
-| `time.ts`            | Time and duration formatting utilities     |
-| `time.test.ts`       | Tests for time utilities                   |
+| File                  | Purpose                                              |
+| --------------------- | ---------------------------------------------------- |
+| `index.ts`            | Barrel export for all utility modules                |
+| `risk.ts`             | Risk scoring utilities for security events           |
+| `risk.test.ts`        | Tests for risk utilities                             |
+| `confidence.ts`       | Detection confidence level utilities                 |
+| `confidence.test.ts`  | Tests for confidence utilities                       |
+| `time.ts`             | Time and duration formatting utilities               |
+| `time.test.ts`        | Tests for time utilities                             |
+| `webcodecs.ts`        | WebCodecs API feature detection and fallback helpers |
+| `webcodecs.test.ts`   | Tests for WebCodecs utilities                        |
 
 ## Risk Utilities (`risk.ts`)
 
@@ -336,6 +339,56 @@ formatDuration('2024-01-01T10:00:00Z', '2024-01-01T09:00:00Z'); // Returns "0s" 
 - Ongoing event detection uses 5-minute threshold for "ongoing" vs duration display
 - Confidence utilities are for detection confidence (0.0-1.0), not risk scores (0-100)
 
+## WebCodecs Utilities (`webcodecs.ts`)
+
+Feature detection and fallback utilities for the WebCodecs API, which requires a secure context (HTTPS, localhost, or file://).
+
+### Functions
+
+#### `isSecureContext(): boolean`
+
+Checks if the current browsing context is secure (HTTPS, localhost, 127.0.0.1, or file://).
+
+#### `isVideoDecoderSupported(): boolean`
+
+Checks if the VideoDecoder API is available (requires secure context).
+
+#### `isVideoEncoderSupported(): boolean`
+
+Checks if the VideoEncoder API is available (requires secure context).
+
+#### `isAudioDecoderSupported(): boolean`
+
+Checks if the AudioDecoder API is available (requires secure context).
+
+#### `isAudioEncoderSupported(): boolean`
+
+Checks if the AudioEncoder API is available (requires secure context).
+
+#### `isWebCodecsSupported(): boolean`
+
+Checks if the full WebCodecs API is available (all decoder/encoder APIs).
+
+#### `getWebCodecsCapabilities(): WebCodecsCapabilities`
+
+Returns an object with boolean flags for each WebCodecs API capability.
+
+```typescript
+interface WebCodecsCapabilities {
+  secureContext: boolean;
+  videoDecoder: boolean;
+  videoEncoder: boolean;
+  audioDecoder: boolean;
+  audioEncoder: boolean;
+}
+```
+
+**Use Cases:**
+
+- Graceful degradation for video playback features
+- Feature detection before using WebCodecs for video processing
+- Fallback to alternative video handling methods in non-secure contexts
+
 ## Entry Points
 
 For AI agents exploring this codebase:
@@ -343,4 +396,5 @@ For AI agents exploring this codebase:
 1. **Risk utilities**: `risk.ts` - Score-to-level conversion with configurable thresholds, colors, labels
 2. **Confidence utilities**: `confidence.ts` - Detection confidence levels, colors, Tailwind classes, array helpers
 3. **Time utilities**: `time.ts` - Duration formatting, ongoing event detection
-4. **Tests**: Each utility has a `.test.ts` file with comprehensive examples
+4. **WebCodecs utilities**: `webcodecs.ts` - Browser API feature detection for secure context requirements
+5. **Tests**: Each utility has a `.test.ts` file with comprehensive examples

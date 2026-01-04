@@ -22,6 +22,7 @@ Contains all components for the main security dashboard page, including risk vis
 | `PipelineQueues.test.tsx`    | Test suite for PipelineQueues                            |
 | `PipelineTelemetry.tsx`      | Pipeline latency and throughput metrics                  |
 | `PipelineTelemetry.test.tsx` | Test suite for PipelineTelemetry                         |
+| `.gitkeep`                   | Placeholder file                                         |
 
 ## Key Components
 

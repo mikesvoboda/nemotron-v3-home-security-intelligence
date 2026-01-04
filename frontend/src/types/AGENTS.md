@@ -18,10 +18,11 @@ frontend/src/types/
 
 ## Key Files
 
-| File             | Purpose                                        |
-| ---------------- | ---------------------------------------------- |
-| `performance.ts` | Performance alert and AI model metrics types   |
-| `generated/`     | Auto-generated types from backend OpenAPI spec |
+| File             | Purpose                                                        |
+| ---------------- | -------------------------------------------------------------- |
+| `performance.ts` | Performance alert and AI model metrics types                   |
+| `enrichment.ts`  | Detection enrichment types (vehicle, pet, person, weather)     |
+| `generated/`     | Auto-generated types from backend OpenAPI spec                 |
 
 ## Performance Types (`performance.ts`)
 
@@ -58,6 +59,55 @@ type TimeRange = '5m' | '15m' | '60m';
 ```
 
 **Note:** These types are manually maintained (not auto-generated) because they support the real-time WebSocket performance monitoring feature.
+
+## Enrichment Types (`enrichment.ts`)
+
+Manual type definitions for AI-powered detection enrichment data. These types represent additional AI analysis computed by the backend enrichment pipeline.
+
+```typescript
+// Vehicle classification
+interface VehicleEnrichment {
+  type: string;       // sedan, SUV, pickup, van, truck
+  color: string;
+  damage?: string[];  // cracks, dents, glass_shatter, etc.
+  commercial?: boolean;
+  confidence: number;
+}
+
+// Pet identification
+interface PetEnrichment {
+  type: 'cat' | 'dog';
+  breed?: string;
+  confidence: number;
+}
+
+// Person attributes
+interface PersonEnrichment {
+  clothing?: string;
+  action?: string;           // walking, standing, crouching
+  carrying?: string;         // backpack, package
+  suspicious_attire?: boolean;
+  service_uniform?: boolean;
+  confidence: number;
+}
+
+// Additional enrichment types
+interface LicensePlateEnrichment { text: string; confidence: number; }
+interface WeatherEnrichment { condition: string; confidence: number; }
+interface ImageQualityEnrichment { score: number; issues: string[]; }
+
+// Combined enrichment data (all fields optional)
+interface EnrichmentData {
+  vehicle?: VehicleEnrichment;
+  pet?: PetEnrichment;
+  person?: PersonEnrichment;
+  license_plate?: LicensePlateEnrichment;
+  weather?: WeatherEnrichment;
+  image_quality?: ImageQualityEnrichment;
+}
+```
+
+**Note:** These types correspond to backend `backend/services/enrichment_service.py`.
 
 ## Generated Types
 

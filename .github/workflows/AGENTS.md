@@ -18,6 +18,7 @@ workflows/
   codeql.yml             # CodeQL security analysis
   gitleaks.yml           # Secret detection scanning
   trivy.yml              # Container vulnerability scanning
+  weekly-audit.yml       # Weekly security and code quality audits
 ```
 
 ## Workflow Files
@@ -201,6 +202,29 @@ workflows/
 
 **Output:** SARIF format uploaded to GitHub Security tab
 
+### weekly-audit.yml - Weekly Audit
+
+**Trigger:** Monday 9 AM UTC (cron: `0 9 * * 1`) + manual dispatch
+
+**Purpose:** Weekly comprehensive security and code quality audit.
+
+**Jobs:**
+
+| Job              | Runner        | Purpose                          |
+| ---------------- | ------------- | -------------------------------- |
+| security-audit   | ubuntu-latest | Semgrep security scan, pip-audit |
+| code-quality     | ubuntu-latest | Vulture, Radon complexity        |
+| frontend-quality | ubuntu-latest | Knip dead code detection         |
+| audit-summary    | ubuntu-latest | Generate summary report          |
+
+**Tools Used:**
+
+- Semgrep (security patterns)
+- pip-audit (Python dependency vulnerabilities)
+- Vulture (Python dead code)
+- Radon (cyclomatic complexity)
+- Knip (TypeScript/JS dead code)
+
 ## Common Patterns
 
 ### Caching Dependencies
@@ -210,9 +234,9 @@ workflows/
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    python-version: '3.12'
+    python-version: '3.14'
     cache: 'pip'
-    cache-dependency-path: backend/requirements*.txt
+    cache-dependency-path: pyproject.toml
 ```
 
 **Node.js:**
