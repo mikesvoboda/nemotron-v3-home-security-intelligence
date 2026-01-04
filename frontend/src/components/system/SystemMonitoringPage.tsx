@@ -17,9 +17,12 @@ import CircuitBreakerPanel from './CircuitBreakerPanel';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
+import InfrastructureStatusGrid from './InfrastructureStatusGrid';
 import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
+import PipelineFlowVisualization from './PipelineFlowVisualization';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
+import SystemSummaryRow from './SystemSummaryRow';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
@@ -39,6 +42,8 @@ import {
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 
+import type { InfrastructureCardId, InfrastructureData } from './InfrastructureStatusGrid';
+import type { PipelineStageData, BackgroundWorkerStatus, TotalLatency } from './PipelineFlowVisualization';
 import type { ThroughputPoint } from './PipelineMetricsPanel';
 import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
 
@@ -128,6 +133,9 @@ export default function SystemMonitoringPage() {
   const [circuitBreakers, setCircuitBreakers] = useState<CircuitBreakersResponse | null>(null);
   const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
   const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
+
+  // State for infrastructure grid expanded card
+  const [expandedInfraCard, setExpandedInfraCard] = useState<InfrastructureCardId | null>(null);
 
   // Use the health status hook for service health
   const {
@@ -272,6 +280,144 @@ export default function SystemMonitoringPage() {
   const [throughputHistory, setThroughputHistory] = useState<ThroughputPoint[]>([]);
   const prevTelemetryRef = useRef<TelemetryResponse | null>(null);
   const prevTimestampRef = useRef<number | null>(null);
+
+  // Build PipelineFlowVisualization data
+  const pipelineStages: PipelineStageData[] = [
+    {
+      id: 'files',
+      name: 'Files',
+      icon: 'folder',
+      metrics: {
+        pending: telemetry?.queues.detection_queue ?? 0,
+      },
+    },
+    {
+      id: 'detect',
+      name: 'Detect',
+      icon: 'search',
+      metrics: {
+        queueDepth: telemetry?.queues.detection_queue ?? 0,
+        avgLatency: telemetry?.latencies?.detect?.avg_ms ?? null,
+        p95Latency: telemetry?.latencies?.detect?.p95_ms ?? null,
+      },
+    },
+    {
+      id: 'batch',
+      name: 'Batch',
+      icon: 'package',
+      metrics: {
+        queueDepth: telemetry?.queues.analysis_queue ?? 0,
+      },
+    },
+    {
+      id: 'analyze',
+      name: 'Analyze',
+      icon: 'brain',
+      metrics: {
+        queueDepth: telemetry?.queues.analysis_queue ?? 0,
+        avgLatency: telemetry?.latencies?.analyze?.avg_ms ?? null,
+        p95Latency: telemetry?.latencies?.analyze?.p95_ms ?? null,
+      },
+    },
+  ];
+
+  // Build background workers data for PipelineFlowVisualization
+  // We use container status as a proxy for worker status
+  const backgroundWorkers: BackgroundWorkerStatus[] = containerMetrics.map((container) => ({
+    id: container.name,
+    name: container.name.replace(/-/g, ' ').replace(/^\w/, (c) => c.toUpperCase()),
+    status: container.status === 'running' && container.health !== 'unhealthy'
+      ? 'running'
+      : container.status === 'running'
+      ? 'degraded'
+      : 'stopped',
+  }));
+
+  // Build total latency data for PipelineFlowVisualization
+  const totalLatency: TotalLatency = {
+    avg: (telemetry?.latencies?.detect?.avg_ms ?? 0) + (telemetry?.latencies?.analyze?.avg_ms ?? 0),
+    p95: (telemetry?.latencies?.detect?.p95_ms ?? 0) + (telemetry?.latencies?.analyze?.p95_ms ?? 0),
+    p99: (telemetry?.latencies?.detect?.p99_ms ?? 0) + (telemetry?.latencies?.analyze?.p99_ms ?? 0),
+  };
+
+  // Build InfrastructureStatusGrid data
+  const infrastructureData: InfrastructureData = {
+    postgresql: postgresMetrics
+      ? {
+          status: (postgresMetrics.status === 'healthy' || postgresMetrics.status === 'connected')
+            ? 'healthy'
+            : postgresMetrics.status === 'degraded'
+            ? 'degraded'
+            : 'unhealthy',
+          latency_ms: 0, // Not available from current API
+          pool_active: postgresMetrics.connections_active,
+          pool_max: postgresMetrics.connections_max,
+          active_queries: 0, // Not available from current API
+          db_size_gb: 0, // Not available from current API
+        }
+      : null,
+    redis: redisMetrics
+      ? {
+          status: (redisMetrics.status === 'healthy' || redisMetrics.status === 'connected')
+            ? 'healthy'
+            : redisMetrics.status === 'degraded'
+            ? 'degraded'
+            : 'unhealthy',
+          ops_per_sec: 0, // Not available from current API
+          memory_mb: redisMetrics.memory_mb,
+          connected_clients: redisMetrics.connected_clients,
+          hit_rate: redisMetrics.hit_ratio,
+        }
+      : null,
+    containers: containerMetrics.length > 0
+      ? {
+          status: containerMetrics.every((c) => c.status === 'running' && c.health !== 'unhealthy')
+            ? 'healthy'
+            : containerMetrics.some((c) => c.status === 'running')
+            ? 'degraded'
+            : 'unhealthy',
+          running: containerMetrics.filter((c) => c.status === 'running').length,
+          total: containerMetrics.length,
+          containers: containerMetrics.map((c) => ({
+            name: c.name,
+            status: c.status === 'running' ? 'running' : 'stopped',
+            cpu_percent: 0, // Not available from current API
+            memory_mb: 0, // Not available from current API
+            restart_count: 0, // Not available from current API
+          })),
+        }
+      : null,
+    host: hostMetrics
+      ? {
+          status: hostMetrics.cpu_percent < 90 &&
+            (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) < 0.9 &&
+            (hostMetrics.disk_used_gb / hostMetrics.disk_total_gb) < 0.9
+            ? 'healthy'
+            : hostMetrics.cpu_percent > 95 ||
+              (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) > 0.95 ||
+              (hostMetrics.disk_used_gb / hostMetrics.disk_total_gb) > 0.95
+            ? 'unhealthy'
+            : 'degraded',
+          cpu_percent: hostMetrics.cpu_percent,
+          memory_used_gb: hostMetrics.ram_used_gb,
+          memory_total_gb: hostMetrics.ram_total_gb,
+          disk_used_gb: hostMetrics.disk_used_gb,
+          disk_total_gb: hostMetrics.disk_total_gb,
+        }
+      : null,
+    circuits: circuitBreakers
+      ? {
+          status: circuitBreakers.open_count === 0 ? 'healthy' : 'unhealthy',
+          healthy: circuitBreakers.total_count - circuitBreakers.open_count,
+          total: circuitBreakers.total_count,
+          breakers: Object.values(circuitBreakers.circuit_breakers).map((cb) => ({
+            name: cb.name,
+            state: cb.state,
+            failure_count: cb.failure_count,
+          })),
+        }
+      : null,
+  };
 
   // Calculate throughput from telemetry changes
   useEffect(() => {
@@ -522,6 +668,36 @@ export default function SystemMonitoringPage() {
             data-testid="system-performance-alerts"
           />
         )}
+
+        {/* System Summary Row - Quick health overview with clickable indicators */}
+        <SystemSummaryRow
+          className="mb-6"
+          data-testid="system-summary-row"
+        />
+
+        {/* Pipeline Flow Visualization - Shows pipeline stages and workers */}
+        <div className="mb-6">
+          <PipelineFlowVisualization
+            stages={pipelineStages}
+            workers={backgroundWorkers}
+            totalLatency={totalLatency}
+            isLoading={loading}
+            error={error}
+            data-testid="pipeline-flow-visualization"
+          />
+        </div>
+
+        {/* Infrastructure Status Grid - Quick overview of all infrastructure */}
+        <div className="mb-6">
+          <InfrastructureStatusGrid
+            data={infrastructureData}
+            loading={loading}
+            error={error}
+            onCardClick={setExpandedInfraCard}
+            expandedCard={expandedInfraCard}
+            data-testid="infrastructure-status-grid"
+          />
+        </div>
 
         {/*
           Dense Grid Layout - Grafana-style dashboard

@@ -145,7 +145,8 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
       await waitFor(() => {
         expect(screen.getByTestId('rtdetr-status-card')).toBeInTheDocument();
-        expect(screen.getByText('RT-DETRv2')).toBeInTheDocument();
+        // Multiple RT-DETRv2 texts exist (summary row + status card)
+        expect(screen.getAllByText('RT-DETRv2').length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -153,7 +154,8 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
       await waitFor(() => {
         expect(screen.getByTestId('nemotron-status-card')).toBeInTheDocument();
-        expect(screen.getByText('Nemotron')).toBeInTheDocument();
+        // Multiple Nemotron texts exist (summary row + status card)
+        expect(screen.getAllByText('Nemotron').length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -182,6 +184,48 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
       await waitFor(() => {
         expect(screen.getByTestId('insights-charts')).toBeInTheDocument();
+      });
+    });
+
+    it('renders AI summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-summary-row')).toBeInTheDocument();
+      });
+    });
+
+    it('renders RT-DETRv2 indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('rtdetr-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Nemotron indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('nemotron-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders queues indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('queues-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders throughput indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('throughput-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders errors indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('errors-indicator')).toBeInTheDocument();
       });
     });
 
@@ -1026,8 +1070,9 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         // formatMs uses toFixed(1) for seconds: 5000ms -> 5.0s
-        expect(screen.getByText('5.0s')).toBeInTheDocument();
-        expect(screen.getByText('12.0s')).toBeInTheDocument();
+        // Multiple instances may exist (summary row + latency panel)
+        expect(screen.getAllByText('5.0s').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('12.0s').length).toBeGreaterThanOrEqual(1);
       });
     });
 

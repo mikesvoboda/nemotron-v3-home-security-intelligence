@@ -98,6 +98,64 @@ vi.mock('./CircuitBreakerPanel', () => ({
   default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
 }));
 
+// Mock new integrated components (NEM-1146)
+vi.mock('./SystemSummaryRow', () => ({
+  default: ({ className }: { className?: string }) => (
+    <div data-testid="system-summary-row" className={className}>
+      System Summary Row
+    </div>
+  ),
+}));
+
+vi.mock('./PipelineFlowVisualization', () => ({
+  default: ({
+    stages,
+    workers,
+    totalLatency,
+    isLoading,
+  }: {
+    stages: unknown[];
+    workers: unknown[];
+    totalLatency: { avg: number; p95: number; p99: number };
+    isLoading?: boolean;
+  }) => (
+    <div
+      data-testid="pipeline-flow-visualization"
+      data-stages-count={stages.length}
+      data-workers-count={workers.length}
+      data-total-latency-avg={totalLatency.avg}
+      data-is-loading={isLoading}
+    >
+      Pipeline Flow Visualization
+    </div>
+  ),
+}));
+
+vi.mock('./InfrastructureStatusGrid', () => ({
+  default: ({
+    data,
+    loading,
+    expandedCard,
+    onCardClick,
+  }: {
+    data: Record<string, unknown>;
+    loading: boolean;
+    expandedCard: string | null;
+    onCardClick: (cardId: string | null) => void;
+  }) => (
+    <div
+      data-testid="infrastructure-status-grid"
+      data-loading={loading}
+      data-expanded-card={expandedCard}
+      data-has-postgresql={data.postgresql !== null}
+      data-has-redis={data.redis !== null}
+    >
+      <button onClick={() => onCardClick('postgresql')}>Click PostgreSQL</button>
+      Infrastructure Status Grid
+    </div>
+  ),
+}));
+
 // SeverityConfigPanel was moved to Settings page (NEM-1142)
 // PipelineTelemetry was removed in favor of PipelineMetricsPanel
 
@@ -817,6 +875,138 @@ describe('SystemMonitoringPage', () => {
       await waitFor(() => {
         const maxWidthContainer = container.querySelector('.max-w-\\[1920px\\]');
         expect(maxWidthContainer).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('New Integrated Components (NEM-1146)', () => {
+    describe('SystemSummaryRow', () => {
+      it('renders SystemSummaryRow component', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          expect(screen.getByTestId('system-summary-row')).toBeInTheDocument();
+        });
+      });
+
+      it('renders SystemSummaryRow with correct styling class', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          const summaryRow = screen.getByTestId('system-summary-row');
+          expect(summaryRow).toHaveClass('mb-6');
+        });
+      });
+    });
+
+    describe('PipelineFlowVisualization', () => {
+      it('renders PipelineFlowVisualization component', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          expect(screen.getByTestId('pipeline-flow-visualization')).toBeInTheDocument();
+        });
+      });
+
+      it('passes correct number of pipeline stages', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          const pipelineFlow = screen.getByTestId('pipeline-flow-visualization');
+          // Should have 4 stages: files, detect, batch, analyze
+          expect(pipelineFlow).toHaveAttribute('data-stages-count', '4');
+        });
+      });
+
+      it('calculates total latency correctly', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          const pipelineFlow = screen.getByTestId('pipeline-flow-visualization');
+          // mockTelemetry has detect avg_ms=200 and analyze avg_ms=1500
+          // Total avg = 200 + 1500 = 1700
+          expect(pipelineFlow).toHaveAttribute('data-total-latency-avg', '1700');
+        });
+      });
+    });
+
+    describe('InfrastructureStatusGrid', () => {
+      it('renders InfrastructureStatusGrid component', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+        });
+      });
+
+      it('builds infrastructure data from performance metrics', async () => {
+        // Setup mocks with database metrics
+        (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+          current: {
+            timestamp: '2025-01-01T12:00:00Z',
+            gpu: {
+              name: 'NVIDIA RTX A5500',
+              utilization: 75,
+              vram_used_gb: 8,
+              vram_total_gb: 24,
+              temperature: 65,
+              power_watts: 200,
+            },
+            ai_models: {},
+            nemotron: null,
+            inference: null,
+            databases: {
+              postgresql: {
+                status: 'healthy',
+                connections_active: 5,
+                connections_max: 100,
+                cache_hit_ratio: 0.95,
+                transactions_per_min: 1000,
+              },
+              redis: {
+                status: 'healthy',
+                connected_clients: 10,
+                memory_mb: 256,
+                hit_ratio: 0.98,
+                blocked_clients: 0,
+              },
+            },
+            host: null,
+            containers: [],
+            alerts: [],
+          },
+          history: {
+            '5m': [],
+            '15m': [],
+            '60m': [],
+          },
+          alerts: [],
+          isConnected: true,
+          timeRange: '5m',
+          setTimeRange: vi.fn(),
+        });
+
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          const infraGrid = screen.getByTestId('infrastructure-status-grid');
+          expect(infraGrid).toHaveAttribute('data-has-postgresql', 'true');
+          expect(infraGrid).toHaveAttribute('data-has-redis', 'true');
+        });
+      });
+
+      it('starts with no expanded card', async () => {
+        render(<SystemMonitoringPage />);
+
+        await waitFor(() => {
+          const infraGrid = screen.getByTestId('infrastructure-status-grid');
+          // null values are converted to empty string in data attributes
+          // or the component just doesn't include the attribute when null
+          expect(infraGrid).toBeInTheDocument();
+          // The expandedCard is null initially, which renders as empty string in data attr
+          const expandedAttr = infraGrid.getAttribute('data-expanded-card');
+          expect(expandedAttr === '' || expandedAttr === null).toBe(true);
+        });
       });
     });
   });

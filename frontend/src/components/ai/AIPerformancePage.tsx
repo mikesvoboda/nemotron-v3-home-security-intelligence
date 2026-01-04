@@ -14,8 +14,9 @@
 
 import { Text, Callout, Title } from '@tremor/react';
 import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2, Layers } from 'lucide-react';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
+import { AIPerformanceSummaryRow, type SectionRefs } from '../ai-performance';
 import InsightsCharts from './InsightsCharts';
 import LatencyPanel from './LatencyPanel';
 import ModelContributionChart from './ModelContributionChart';
@@ -50,6 +51,22 @@ export default function AIPerformancePage() {
   // Model Zoo data state
   const [auditStats, setAuditStats] = useState<AiAuditStatsResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<AiAuditLeaderboardResponse | null>(null);
+
+  // Section refs for click-to-scroll functionality
+  const modelStatusRef = useRef<HTMLDivElement>(null);
+  const latencyRef = useRef<HTMLDivElement>(null);
+  const pipelineHealthRef = useRef<HTMLDivElement>(null);
+
+  const sectionRefs: SectionRefs = {
+    rtdetr: modelStatusRef,
+    nemotron: modelStatusRef,
+    queues: pipelineHealthRef,
+    throughput: pipelineHealthRef,
+    errors: pipelineHealthRef,
+  };
+
+  // Calculate total errors for summary row
+  const totalErrors = Object.values(data.pipelineErrors).reduce((sum, count) => sum + count, 0);
 
   // Load Model Zoo data (contribution rates and leaderboard)
   const loadModelZooData = useCallback(async () => {
@@ -203,31 +220,51 @@ export default function AIPerformancePage() {
         {/* Main Content */}
         {hasData && (
           <div className="space-y-6">
-            {/* Model Status Cards */}
-            <ModelStatusCards
+            {/* Summary Row */}
+            <AIPerformanceSummaryRow
               rtdetr={data.rtdetr}
               nemotron={data.nemotron}
               detectionLatency={data.detectionLatency}
               analysisLatency={data.analysisLatency}
-            />
-
-            {/* Latency Panel */}
-            <LatencyPanel
-              detectionLatency={data.detectionLatency}
-              analysisLatency={data.analysisLatency}
-              pipelineLatency={data.pipelineLatency}
-            />
-
-            {/* Pipeline Health Panel */}
-            <PipelineHealthPanel
               detectionQueueDepth={data.detectionQueueDepth}
               analysisQueueDepth={data.analysisQueueDepth}
               totalDetections={data.totalDetections}
               totalEvents={data.totalEvents}
-              pipelineErrors={data.pipelineErrors}
-              queueOverflows={data.queueOverflows}
-              dlqItems={data.dlqItems}
+              totalErrors={totalErrors}
+              sectionRefs={sectionRefs}
             />
+
+            {/* Model Status Cards */}
+            <div ref={modelStatusRef}>
+              <ModelStatusCards
+                rtdetr={data.rtdetr}
+                nemotron={data.nemotron}
+                detectionLatency={data.detectionLatency}
+                analysisLatency={data.analysisLatency}
+              />
+            </div>
+
+            {/* Latency Panel */}
+            <div ref={latencyRef}>
+              <LatencyPanel
+                detectionLatency={data.detectionLatency}
+                analysisLatency={data.analysisLatency}
+                pipelineLatency={data.pipelineLatency}
+              />
+            </div>
+
+            {/* Pipeline Health Panel */}
+            <div ref={pipelineHealthRef}>
+              <PipelineHealthPanel
+                detectionQueueDepth={data.detectionQueueDepth}
+                analysisQueueDepth={data.analysisQueueDepth}
+                totalDetections={data.totalDetections}
+                totalEvents={data.totalEvents}
+                pipelineErrors={data.pipelineErrors}
+                queueOverflows={data.queueOverflows}
+                dlqItems={data.dlqItems}
+              />
+            </div>
 
             {/* Insights Charts */}
             <InsightsCharts
