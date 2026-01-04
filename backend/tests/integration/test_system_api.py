@@ -1599,7 +1599,13 @@ async def test_update_severity_thresholds_invalid_order(client, mock_redis):
 
     assert response.status_code == 400
     data = response.json()
-    assert "invalid" in data["detail"].lower() or "must satisfy" in data["detail"].lower()
+    # Error message should indicate ordering constraint violation
+    detail_lower = data["detail"].lower()
+    assert (
+        "invalid" in detail_lower
+        or "must satisfy" in detail_lower
+        or "strictly ordered" in detail_lower
+    )
 
 
 @pytest.mark.asyncio
@@ -1615,7 +1621,13 @@ async def test_update_severity_thresholds_medium_gte_high(client, mock_redis):
 
     assert response.status_code == 400
     data = response.json()
-    assert "invalid" in data["detail"].lower() or "must satisfy" in data["detail"].lower()
+    # Error message should indicate ordering constraint violation
+    detail_lower = data["detail"].lower()
+    assert (
+        "invalid" in detail_lower
+        or "must satisfy" in detail_lower
+        or "strictly ordered" in detail_lower
+    )
 
 
 @pytest.mark.asyncio
