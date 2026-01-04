@@ -1159,7 +1159,7 @@ async def test_get_queue_pressure_timeout_on_slow_redis(redis_client, mock_redis
     """Test get_queue_pressure raises TimeoutError when Redis is slow."""
 
     async def slow_llen(*args, **kwargs):
-        await asyncio.sleep(1.0)  # Simulate slow Redis
+        await asyncio.sleep(0.1)  # Longer than 0.01s timeout
         return 50
 
     mock_redis_client.llen = slow_llen

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
 /**
  * Fix HeadlessUI focus issue with jsdom
@@ -46,7 +46,43 @@ beforeAll(() => {
   };
 });
 
-// Cleanup after each test
+/**
+ * Comprehensive cleanup after each test to prevent zombie processes.
+ * This addresses common causes of hanging tests:
+ * - Unclosed mock timers (setTimeout/setInterval)
+ * - Leftover mock state
+ * - Uncleared global stubs
+ * - React component cleanup
+ */
 afterEach(() => {
+  // Clean up React Testing Library rendered components
   cleanup();
+
+  // Clear all mock function calls and instances
+  vi.clearAllMocks();
+
+  // Clear all pending fake timers (setTimeout, setInterval, etc.)
+  vi.clearAllTimers();
+
+  // Reset timers to real timers if fake timers were used
+  // This prevents timer state from leaking between tests
+  vi.useRealTimers();
+
+  // Unstub all global mocks (fetch, WebSocket, etc.)
+  vi.unstubAllGlobals();
+});
+
+/**
+ * Final cleanup after all tests in a file complete.
+ * Ensures any remaining state is properly cleaned up.
+ */
+afterAll(() => {
+  // Final reset of all mocks
+  vi.resetAllMocks();
+
+  // Ensure real timers are restored
+  vi.useRealTimers();
+
+  // Clear any remaining global stubs
+  vi.unstubAllGlobals();
 });

@@ -476,7 +476,7 @@ async def test_system_broadcaster_stop_pubsub_listener_with_task():
 
     # Create a long-running task that will be cancelled
     async def long_running():
-        await asyncio.sleep(100)  # cancelled
+        await asyncio.sleep(0.5)  # cancelled
 
     broadcaster._listener_task = asyncio.create_task(long_running())
     mock_pubsub = AsyncMock()

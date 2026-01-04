@@ -5,10 +5,12 @@ Tests cover:
 - RetryHandler.with_retry() success and failure scenarios
 - DLQ operations (move, get, clear, requeue)
 - Integration with Redis client
+- DLQ circuit breaker functionality
+- Error handling and edge cases
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -22,6 +24,10 @@ from backend.services.retry_handler import (
     get_retry_handler,
     reset_retry_handler,
 )
+
+# =============================================================================
+# RetryConfig Tests
+# =============================================================================
 
 
 class TestRetryConfig:
@@ -107,6 +113,11 @@ class TestRetryConfig:
         assert config.get_delay(3) == 4.5
 
 
+# =============================================================================
+# JobFailure Tests
+# =============================================================================
+
+
 class TestJobFailure:
     """Tests for JobFailure dataclass."""
 
@@ -143,6 +154,74 @@ class TestJobFailure:
         assert failure.error == "Timeout"
         assert failure.attempt_count == 2
         assert failure.queue_name == "analysis_queue"
+
+
+# =============================================================================
+# DLQStats Tests
+# =============================================================================
+
+
+class TestDLQStats:
+    """Tests for DLQStats dataclass."""
+
+    def test_default_values(self) -> None:
+        """Test default stats values."""
+        stats = DLQStats()
+        assert stats.detection_queue_count == 0
+        assert stats.analysis_queue_count == 0
+        assert stats.total_count == 0
+
+    def test_custom_values(self) -> None:
+        """Test custom stats values."""
+        stats = DLQStats(
+            detection_queue_count=5,
+            analysis_queue_count=3,
+            total_count=8,
+        )
+        assert stats.detection_queue_count == 5
+        assert stats.analysis_queue_count == 3
+        assert stats.total_count == 8
+
+
+# =============================================================================
+# RetryResult Tests
+# =============================================================================
+
+
+class TestRetryResult:
+    """Tests for RetryResult dataclass."""
+
+    def test_success_result(self) -> None:
+        """Test successful result."""
+        result = RetryResult(
+            success=True,
+            result={"data": "value"},
+            attempts=1,
+        )
+        assert result.success is True
+        assert result.result == {"data": "value"}
+        assert result.error is None
+        assert result.attempts == 1
+        assert result.moved_to_dlq is False
+
+    def test_failure_result(self) -> None:
+        """Test failure result."""
+        result = RetryResult(
+            success=False,
+            error="Connection refused",
+            attempts=3,
+            moved_to_dlq=True,
+        )
+        assert result.success is False
+        assert result.result is None
+        assert result.error == "Connection refused"
+        assert result.attempts == 3
+        assert result.moved_to_dlq is True
+
+
+# =============================================================================
+# RetryHandler Tests
+# =============================================================================
 
 
 class TestRetryHandler:
@@ -191,6 +270,12 @@ class TestRetryHandler:
         assert handler._get_dlq_name("analysis_queue") == "dlq:analysis_queue"
         # Already has prefix
         assert handler._get_dlq_name("dlq:detection_queue") == "dlq:detection_queue"
+
+    def test_config_property(self, handler: RetryHandler) -> None:
+        """Test config property returns the configuration."""
+        config = handler.config
+        assert config.max_retries == 3
+        assert config.base_delay_seconds == 0.01
 
     @pytest.mark.asyncio
     async def test_with_retry_success_first_attempt(self, handler: RetryHandler) -> None:
@@ -319,6 +404,19 @@ class TestRetryHandler:
         assert stats.total_count == 0
 
     @pytest.mark.asyncio
+    async def test_get_dlq_stats_exception(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test DLQ stats returns empty stats on exception."""
+        mock_redis.get_queue_length = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        stats = await handler.get_dlq_stats()
+
+        assert stats.detection_queue_count == 0
+        assert stats.analysis_queue_count == 0
+        assert stats.total_count == 0
+
+    @pytest.mark.asyncio
     async def test_get_dlq_jobs(self, handler: RetryHandler, mock_redis: MagicMock) -> None:
         """Test getting jobs from DLQ."""
         mock_redis.peek_queue = AsyncMock(
@@ -350,10 +448,32 @@ class TestRetryHandler:
         assert jobs[1].original_job == {"camera_id": "cam2"}
 
     @pytest.mark.asyncio
+    async def test_get_dlq_jobs_with_range(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test getting jobs from DLQ with start and end range."""
+        mock_redis.peek_queue = AsyncMock(return_value=[])
+
+        await handler.get_dlq_jobs("dlq:detection_queue", start=5, end=10)
+
+        mock_redis.peek_queue.assert_called_once_with("dlq:detection_queue", 5, 10)
+
+    @pytest.mark.asyncio
     async def test_get_dlq_jobs_no_redis(self) -> None:
         """Test getting DLQ jobs without Redis returns empty list."""
         handler = RetryHandler(redis_client=None)
         jobs = await handler.get_dlq_jobs("dlq:detection_queue")
+        assert jobs == []
+
+    @pytest.mark.asyncio
+    async def test_get_dlq_jobs_exception(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test DLQ jobs returns empty list on exception."""
+        mock_redis.peek_queue = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        jobs = await handler.get_dlq_jobs("dlq:detection_queue")
+
         assert jobs == []
 
     @pytest.mark.asyncio
@@ -387,6 +507,24 @@ class TestRetryHandler:
         assert job is None
 
     @pytest.mark.asyncio
+    async def test_requeue_dlq_job_no_redis(self) -> None:
+        """Test requeuing DLQ job without Redis returns None."""
+        handler = RetryHandler(redis_client=None)
+        job = await handler.requeue_dlq_job("dlq:detection_queue")
+        assert job is None
+
+    @pytest.mark.asyncio
+    async def test_requeue_dlq_job_exception(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test requeue_dlq_job returns None on exception."""
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        job = await handler.requeue_dlq_job("dlq:detection_queue")
+
+        assert job is None
+
+    @pytest.mark.asyncio
     async def test_clear_dlq(self, handler: RetryHandler, mock_redis: MagicMock) -> None:
         """Test clearing a DLQ."""
         mock_redis.clear_queue = AsyncMock(return_value=True)
@@ -401,6 +539,15 @@ class TestRetryHandler:
         """Test clearing DLQ without Redis returns False."""
         handler = RetryHandler(redis_client=None)
         success = await handler.clear_dlq("dlq:detection_queue")
+        assert success is False
+
+    @pytest.mark.asyncio
+    async def test_clear_dlq_exception(self, handler: RetryHandler, mock_redis: MagicMock) -> None:
+        """Test clear_dlq returns False on exception."""
+        mock_redis.clear_queue = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        success = await handler.clear_dlq("dlq:detection_queue")
+
         assert success is False
 
     @pytest.mark.asyncio
@@ -439,6 +586,111 @@ class TestRetryHandler:
         success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
 
         assert success is False
+
+    @pytest.mark.asyncio
+    async def test_move_dlq_job_to_queue_no_redis(self) -> None:
+        """Test moving DLQ job without Redis returns False."""
+        handler = RetryHandler(redis_client=None)
+        success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
+        assert success is False
+
+    @pytest.mark.asyncio
+    async def test_move_dlq_job_to_queue_add_fails(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test move_dlq_job_to_queue returns False when add_to_queue_safe fails."""
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
+            return_value={
+                "original_job": {"camera_id": "cam1"},
+                "error": "Error",
+                "attempt_count": 3,
+                "first_failed_at": "2025-12-23T10:00:00",
+                "last_failed_at": "2025-12-23T10:00:15",
+                "queue_name": "detection_queue",
+            }
+        )
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=False, queue_length=10000, error="Queue is full")
+        )
+
+        success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
+
+        assert success is False
+
+    @pytest.mark.asyncio
+    async def test_move_dlq_job_to_queue_with_backpressure(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test move_dlq_job_to_queue logs warning on backpressure."""
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
+            return_value={
+                "original_job": {"camera_id": "cam1"},
+                "error": "Error",
+                "attempt_count": 3,
+                "first_failed_at": "2025-12-23T10:00:00",
+                "last_failed_at": "2025-12-23T10:00:15",
+                "queue_name": "detection_queue",
+            }
+        )
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(
+                success=True,
+                queue_length=9000,
+                moved_to_dlq_count=5,  # This triggers had_backpressure
+            )
+        )
+
+        with patch("backend.services.retry_handler.logger") as mock_logger:
+            success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
+
+            assert success is True
+            # Verify warning was logged due to backpressure
+            warning_calls = mock_logger.warning.call_args_list
+            found_backpressure_warning = any(
+                "backpressure" in str(call).lower() for call in warning_calls
+            )
+            assert found_backpressure_warning, f"Expected backpressure warning: {warning_calls}"
+
+    @pytest.mark.asyncio
+    async def test_move_dlq_job_to_queue_exception_in_requeue(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test move_dlq_job_to_queue returns False on exception in requeue."""
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
+
+        assert success is False
+
+    @pytest.mark.asyncio
+    async def test_move_dlq_job_to_queue_exception_in_add(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test move_dlq_job_to_queue returns False on exception during add_to_queue_safe."""
+        # First make requeue succeed
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
+            return_value={
+                "original_job": {"camera_id": "cam1"},
+                "error": "Error",
+                "attempt_count": 3,
+                "first_failed_at": "2025-12-23T10:00:00",
+                "last_failed_at": "2025-12-23T10:00:15",
+                "queue_name": "detection_queue",
+            }
+        )
+        # Then make add_to_queue_safe raise an exception
+        mock_redis.add_to_queue_safe = AsyncMock(
+            side_effect=RuntimeError("Redis connection lost during add")
+        )
+
+        success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
+
+        assert success is False
+
+
+# =============================================================================
+# Global Handler Functions Tests
+# =============================================================================
 
 
 class TestRetryHandlerGlobal:
@@ -480,6 +732,11 @@ class TestRetryHandlerGlobal:
         reset_retry_handler()
         handler2 = get_retry_handler()
         assert handler1 is not handler2
+
+
+# =============================================================================
+# Backoff Timing Tests
+# =============================================================================
 
 
 class TestRetryHandlerBackoffTiming:
@@ -529,57 +786,9 @@ class TestRetryHandlerBackoffTiming:
         assert total_time >= 0.14
 
 
-class TestDLQStats:
-    """Tests for DLQStats dataclass."""
-
-    def test_default_values(self) -> None:
-        """Test default stats values."""
-        stats = DLQStats()
-        assert stats.detection_queue_count == 0
-        assert stats.analysis_queue_count == 0
-        assert stats.total_count == 0
-
-    def test_custom_values(self) -> None:
-        """Test custom stats values."""
-        stats = DLQStats(
-            detection_queue_count=5,
-            analysis_queue_count=3,
-            total_count=8,
-        )
-        assert stats.detection_queue_count == 5
-        assert stats.analysis_queue_count == 3
-        assert stats.total_count == 8
-
-
-class TestRetryResult:
-    """Tests for RetryResult dataclass."""
-
-    def test_success_result(self) -> None:
-        """Test successful result."""
-        result = RetryResult(
-            success=True,
-            result={"data": "value"},
-            attempts=1,
-        )
-        assert result.success is True
-        assert result.result == {"data": "value"}
-        assert result.error is None
-        assert result.attempts == 1
-        assert result.moved_to_dlq is False
-
-    def test_failure_result(self) -> None:
-        """Test failure result."""
-        result = RetryResult(
-            success=False,
-            error="Connection refused",
-            attempts=3,
-            moved_to_dlq=True,
-        )
-        assert result.success is False
-        assert result.result is None
-        assert result.error == "Connection refused"
-        assert result.attempts == 3
-        assert result.moved_to_dlq is True
+# =============================================================================
+# DLQ Circuit Breaker Tests
+# =============================================================================
 
 
 class TestDLQCircuitBreaker:
@@ -811,8 +1020,6 @@ class TestDLQCircuitBreaker:
 
     def test_default_circuit_breaker_uses_settings(self, mock_redis: MagicMock) -> None:
         """Test that default circuit breaker uses settings configuration."""
-        from unittest.mock import patch
-
         mock_settings = MagicMock()
         mock_settings.dlq_circuit_breaker_failure_threshold = 10
         mock_settings.dlq_circuit_breaker_recovery_timeout = 120.0
@@ -828,6 +1035,11 @@ class TestDLQCircuitBreaker:
         assert config["recovery_timeout"] == 120.0
         assert config["half_open_max_calls"] == 5
         assert config["success_threshold"] == 3
+
+
+# =============================================================================
+# DLQ Job Loss Logging Tests
+# =============================================================================
 
 
 class TestDLQJobLossLogging:
@@ -873,7 +1085,6 @@ class TestDLQJobLossLogging:
         self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
     ) -> None:
         """Test that job loss logs error with full job context when circuit is open."""
-        from unittest.mock import patch
 
         async def always_fail() -> str:
             raise ConnectionError("Service unavailable")
@@ -925,7 +1136,6 @@ class TestDLQJobLossLogging:
         self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
     ) -> None:
         """Test that job loss log includes the job data in extras for audit."""
-        from unittest.mock import patch
 
         # Trip the circuit breaker
         async def always_fail() -> str:
@@ -956,3 +1166,80 @@ class TestDLQJobLossLogging:
                 "lost_job_data" in str(call) or "cam_lost" in str(call) for call in error_calls
             )
             assert has_job_data_in_extra, f"Job data not found in error logs: {error_calls}"
+
+
+# =============================================================================
+# _move_to_dlq Edge Cases Tests
+# =============================================================================
+
+
+class TestMoveToDlqEdgeCases:
+    """Tests for _move_to_dlq edge cases that were previously uncovered."""
+
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        """Create a mock Redis client."""
+        redis = MagicMock()
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
+        return redis
+
+    @pytest.mark.asyncio
+    async def test_move_to_dlq_no_redis_logs_warning(self) -> None:
+        """Test _move_to_dlq logs warning when Redis is not initialized."""
+        handler = RetryHandler(redis_client=None)
+
+        with patch("backend.services.retry_handler.logger") as mock_logger:
+            result = await handler._move_to_dlq(
+                job_data={"camera_id": "cam1"},
+                error="Test error",
+                attempt_count=3,
+                first_failed_at="2025-12-23T10:00:00",
+                queue_name="detection_queue",
+            )
+
+            assert result is False
+            # Verify warning was logged
+            warning_calls = mock_logger.warning.call_args_list
+            found_warning = any(
+                "Redis client not initialized" in str(call) for call in warning_calls
+            )
+            assert found_warning, f"Expected warning not found: {warning_calls}"
+
+    @pytest.mark.asyncio
+    async def test_move_to_dlq_success(self, mock_redis: MagicMock) -> None:
+        """Test successful _move_to_dlq operation."""
+        handler = RetryHandler(redis_client=mock_redis)
+
+        result = await handler._move_to_dlq(
+            job_data={"camera_id": "cam1"},
+            error="Test error",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            queue_name="detection_queue",
+        )
+
+        assert result is True
+        mock_redis.add_to_queue_safe.assert_called_once()
+
+
+# =============================================================================
+# DLQ Constants Tests
+# =============================================================================
+
+
+class TestDLQConstants:
+    """Tests for DLQ constant exports."""
+
+    def test_dlq_prefix_constant(self) -> None:
+        """Test DLQ_PREFIX constant is exported."""
+        assert RetryHandler.DLQ_PREFIX == "dlq:"
+
+    def test_dlq_detection_queue_constant(self) -> None:
+        """Test DLQ_DETECTION_QUEUE constant is exported."""
+        assert RetryHandler.DLQ_DETECTION_QUEUE == "dlq:detection_queue"
+
+    def test_dlq_analysis_queue_constant(self) -> None:
+        """Test DLQ_ANALYSIS_QUEUE constant is exported."""
+        assert RetryHandler.DLQ_ANALYSIS_QUEUE == "dlq:analysis_queue"
