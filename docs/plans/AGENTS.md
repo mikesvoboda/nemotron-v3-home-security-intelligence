@@ -60,7 +60,7 @@ Complete MVP design specification. This is the primary reference for architectur
 
 **2024-12-22-mvp-implementation-plan.md**
 
-Task breakdown organized into 8 execution phases with bd (beads) issue tracking.
+Task breakdown organized into 8 execution phases with Linear issue tracking.
 
 | Phase | Label   | Tasks | Focus Area                                           |
 | ----- | ------- | ----- | ---------------------------------------------------- |

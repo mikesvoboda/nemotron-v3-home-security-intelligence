@@ -939,3 +939,4 @@ Dimensions: 1200x700 pixels, suitable for README.
 | 2024-12-21 | 1.0     | Initial architecture decisions documented                |
 | 2024-12-27 | 1.1     | Added ADR-011 (Grafana integration decision)             |
 | 2025-12-28 | 1.2     | Consolidated all ADRs into single document with diagrams |
+| 2025-01-03 | 1.3     | Added ADR-012 (WebSocket Circuit Breaker pattern)        |

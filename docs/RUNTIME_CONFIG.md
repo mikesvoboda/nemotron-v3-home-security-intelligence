@@ -619,8 +619,9 @@ NEMOTRON_URL=http://host.docker.internal:8091
 ### Production
 
 ```bash
-# .env
-DATABASE_URL=postgresql+asyncpg://security:your_secure_password@postgres:5432/security
+# .env (run ./setup.sh to generate with secure credentials)
+# IMPORTANT: Use a strong, randomly generated password - never use default or example passwords
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -629,7 +630,7 @@ LOG_LEVEL=INFO
 RETENTION_DAYS=30
 DETECTION_CONFIDENCE_THRESHOLD=0.6
 API_KEY_ENABLED=true
-API_KEYS=["your-secure-api-key-here"]
+API_KEYS=["<your-secure-api-key>"]
 ```
 
 ## Validation

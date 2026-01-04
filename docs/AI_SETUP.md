@@ -306,14 +306,14 @@ Build time: ~5-10 minutes depending on CPU.
 #### 4. Python Dependencies (RT-DETRv2)
 
 ```bash
-cd "$PROJECT_ROOT/ai/rtdetr"
+cd "$PROJECT_ROOT"
 
-# Create and activate virtual environment (optional but recommended)
-python3 -m venv venv
-source venv/bin/activate
+# Install dependencies using uv (recommended - 10-100x faster than pip)
+# Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --extra dev
 
-# Install dependencies
-pip install -r requirements.txt
+# This creates .venv and installs all dependencies from pyproject.toml
+# The RT-DETRv2 dependencies are included in the main project
 ```
 
 Key dependencies:
@@ -607,8 +607,8 @@ tail -f /tmp/rtdetr-detector.log
    - **Solution**:
 
    ```bash
-   cd ai/rtdetr
-   pip install -r requirements.txt
+   cd "$PROJECT_ROOT"
+   uv sync --extra dev
    ```
 
 ### Nemotron LLM Won't Start

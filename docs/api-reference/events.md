@@ -4,9 +4,11 @@ description: REST API endpoints for security event management
 source_refs:
   - backend/api/routes/events.py
   - backend/api/schemas/events.py
+  - backend/api/schemas/clips.py
   - backend/api/schemas/search.py
   - backend/models/event.py
   - backend/services/search.py
+  - backend/services/clip_generator.py
 ---
 
 # Events API
@@ -15,16 +17,18 @@ The Events API provides endpoints for managing security events. Events are aggre
 
 ## Endpoints Overview
 
-| Method | Endpoint                             | Description                            |
-| ------ | ------------------------------------ | -------------------------------------- |
-| GET    | `/api/events`                        | List events with filtering             |
-| GET    | `/api/events/stats`                  | Get aggregated event statistics        |
-| GET    | `/api/events/search`                 | Full-text search events                |
-| GET    | `/api/events/export`                 | Export events as CSV                   |
-| GET    | `/api/events/{event_id}`             | Get event by ID                        |
-| PATCH  | `/api/events/{event_id}`             | Update event (review status, notes)    |
-| GET    | `/api/events/{event_id}/detections`  | Get detections for event               |
-| GET    | `/api/events/{event_id}/enrichments` | Get enrichment data for all detections |
+| Method | Endpoint                               | Description                            |
+| ------ | -------------------------------------- | -------------------------------------- |
+| GET    | `/api/events`                          | List events with filtering             |
+| GET    | `/api/events/stats`                    | Get aggregated event statistics        |
+| GET    | `/api/events/search`                   | Full-text search events                |
+| GET    | `/api/events/export`                   | Export events as CSV                   |
+| GET    | `/api/events/{event_id}`               | Get event by ID                        |
+| PATCH  | `/api/events/{event_id}`               | Update event (review status, notes)    |
+| GET    | `/api/events/{event_id}/detections`    | Get detections for event               |
+| GET    | `/api/events/{event_id}/enrichments`   | Get enrichment data for all detections |
+| GET    | `/api/events/{event_id}/clip`          | Get video clip info for event          |
+| POST   | `/api/events/{event_id}/clip/generate` | Generate video clip for event          |
 
 > **Note:** For detailed enrichment documentation, see [Enrichment API](enrichment.md).
 
@@ -464,6 +468,180 @@ curl http://localhost:8000/api/events/1/detections
 
 ---
 
+## GET /api/events/{event_id}/clip
+
+Get video clip information for a specific event.
+
+**Source:** [`get_event_clip`](../../backend/api/routes/events.py:951)
+
+**Parameters:**
+
+| Name       | Type    | In   | Required | Description |
+| ---------- | ------- | ---- | -------- | ----------- |
+| `event_id` | integer | path | Yes      | Event ID    |
+
+**Response:** `200 OK`
+
+Returns information about whether a video clip is available for the event.
+
+```json
+{
+  "event_id": 123,
+  "clip_available": true,
+  "clip_url": "/api/media/clips/123_clip.mp4",
+  "duration_seconds": 30,
+  "generated_at": "2026-01-03T10:30:00Z",
+  "file_size_bytes": 5242880
+}
+```
+
+**Response when clip is not available:**
+
+```json
+{
+  "event_id": 123,
+  "clip_available": false,
+  "clip_url": null,
+  "duration_seconds": null,
+  "generated_at": null,
+  "file_size_bytes": null
+}
+```
+
+**Errors:**
+
+| Code | Description                       |
+| ---- | --------------------------------- |
+| 404  | Event with specified ID not found |
+
+**Example Request:**
+
+```bash
+# Check if clip exists for event
+curl http://localhost:8000/api/events/123/clip
+```
+
+---
+
+## POST /api/events/{event_id}/clip/generate
+
+Trigger video clip generation for an event.
+
+**Source:** [`generate_event_clip`](../../backend/api/routes/events.py:1031)
+
+**Parameters:**
+
+| Name       | Type    | In   | Required | Description |
+| ---------- | ------- | ---- | -------- | ----------- |
+| `event_id` | integer | path | Yes      | Event ID    |
+
+**Request Body:**
+
+```json
+{
+  "start_offset_seconds": -15,
+  "end_offset_seconds": 30,
+  "force": false
+}
+```
+
+**Request Fields:**
+
+| Field                  | Type    | Required | Default | Description                                       |
+| ---------------------- | ------- | -------- | ------- | ------------------------------------------------- |
+| `start_offset_seconds` | integer | No       | -15     | Seconds before event start to include (-300 to 0) |
+| `end_offset_seconds`   | integer | No       | 30      | Seconds after event end to include (0 to 300)     |
+| `force`                | boolean | No       | false   | Force regeneration even if clip already exists    |
+
+**Response:** `200 OK`
+
+```json
+{
+  "event_id": 123,
+  "status": "completed",
+  "clip_url": "/api/media/clips/123_clip.mp4",
+  "generated_at": "2026-01-03T10:30:00Z",
+  "message": "Clip generated successfully"
+}
+```
+
+**Status Values:**
+
+| Status      | Description                          |
+| ----------- | ------------------------------------ |
+| `pending`   | Clip generation is in progress       |
+| `completed` | Clip was successfully generated      |
+| `failed`    | Clip generation failed (see message) |
+
+**Response when clip already exists (force=false):**
+
+```json
+{
+  "event_id": 123,
+  "status": "completed",
+  "clip_url": "/api/media/clips/123_clip.mp4",
+  "generated_at": "2026-01-03T09:00:00Z",
+  "message": "Clip already exists"
+}
+```
+
+**Errors:**
+
+| Code | Description                              |
+| ---- | ---------------------------------------- |
+| 400  | Event has no detections to generate clip |
+| 400  | No detection images available            |
+| 404  | Event with specified ID not found        |
+
+**Example Requests:**
+
+```bash
+# Generate clip with default settings
+curl -X POST http://localhost:8000/api/events/123/clip/generate \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Generate clip with custom time window
+curl -X POST http://localhost:8000/api/events/123/clip/generate \
+  -H "Content-Type: application/json" \
+  -d '{"start_offset_seconds": -30, "end_offset_seconds": 60}'
+
+# Force regenerate existing clip
+curl -X POST http://localhost:8000/api/events/123/clip/generate \
+  -H "Content-Type: application/json" \
+  -d '{"force": true}'
+```
+
+**Notes:**
+
+- Clips are generated from detection images as a video sequence (default 2 FPS)
+- If a clip already exists and `force=false`, returns the existing clip info
+- If `force=true`, deletes the existing clip and regenerates
+- Generated clips are served via `/api/media/clips/{filename}`
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant G as Clip Generator
+    participant DB as PostgreSQL
+    participant FS as File System
+
+    C->>A: POST /api/events/{id}/clip/generate
+    A->>DB: Get event and detections
+    DB-->>A: Event with detection IDs
+    A->>DB: Get detection file paths
+    DB-->>A: Image paths
+    A->>G: generate_clip_from_images()
+    G->>FS: Read detection images
+    G->>FS: Write MP4 clip
+    G-->>A: Clip path
+    A->>DB: Update event.clip_path
+    A-->>C: 200 OK with ClipGenerateResponse
+```
+
+---
+
 ## Data Models
 
 ### EventResponse
@@ -520,6 +698,47 @@ Search result with relevance score.
 | `camera_name`            | string        | Camera display name          |
 | `object_types`           | array[string] | Detected object types        |
 | `relevance_score`        | float         | Search relevance score (0-1) |
+
+### ClipInfoResponse
+
+Response model for clip information.
+
+**Source:** [`ClipInfoResponse`](../../backend/api/schemas/clips.py:17)
+
+| Field              | Type     | Description                                      |
+| ------------------ | -------- | ------------------------------------------------ |
+| `event_id`         | integer  | Event ID                                         |
+| `clip_available`   | boolean  | Whether a clip is available for this event       |
+| `clip_url`         | string   | URL to access the clip (null if not available)   |
+| `duration_seconds` | integer  | Duration of the clip in seconds (nullable)       |
+| `generated_at`     | datetime | Timestamp when the clip was generated (nullable) |
+| `file_size_bytes`  | integer  | File size of the clip in bytes (nullable)        |
+
+### ClipGenerateRequest
+
+Request model for clip generation.
+
+**Source:** [`ClipGenerateRequest`](../../backend/api/schemas/clips.py:41)
+
+| Field                  | Type    | Required | Default | Description                            |
+| ---------------------- | ------- | -------- | ------- | -------------------------------------- |
+| `start_offset_seconds` | integer | No       | -15     | Seconds before event start (-300 to 0) |
+| `end_offset_seconds`   | integer | No       | 30      | Seconds after event end (0 to 300)     |
+| `force`                | boolean | No       | false   | Force regeneration even if clip exists |
+
+### ClipGenerateResponse
+
+Response model for clip generation.
+
+**Source:** [`ClipGenerateResponse`](../../backend/api/schemas/clips.py:69)
+
+| Field          | Type       | Description                                    |
+| -------------- | ---------- | ---------------------------------------------- |
+| `event_id`     | integer    | Event ID                                       |
+| `status`       | ClipStatus | Status: `pending`, `completed`, or `failed`    |
+| `clip_url`     | string     | URL to access the clip (null if not completed) |
+| `generated_at` | datetime   | Timestamp when clip was generated (nullable)   |
+| `message`      | string     | Status message or error details (nullable)     |
 
 ---
 

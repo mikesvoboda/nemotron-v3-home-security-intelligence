@@ -7,9 +7,8 @@ source_refs:
   - scripts/setup-hooks.sh:54-67
   - scripts/setup-hooks.sh:71-82
   - ai/download_models.sh:1
-  - ai/download_models.sh:19-87
-  - ai/download_models.sh:91-162
-  - docker-compose.yml:1
+  - ai/download_models.sh:90-167
+  - ai/download_models.sh:169-253
   - docker-compose.prod.yml:1
 ---
 
@@ -140,10 +139,10 @@ The model download script ([`ai/download_models.sh`](../../ai/download_models.sh
 
 ### Models Downloaded
 
-| Model                | Size   | Purpose           | Location                                                       |
-| -------------------- | ------ | ----------------- | -------------------------------------------------------------- |
-| **Nemotron Mini 4B** | ~2.5GB | Risk analysis LLM | `ai/nemotron/` ([lines 19-87](../../ai/download_models.sh:19)) |
-| **RT-DETRv2**        | varies | Object detection  | HuggingFace cache (`HF_HOME`), pulled by the detector service  |
+| Model                | Size   | Purpose           | Location                                                        |
+| -------------------- | ------ | ----------------- | --------------------------------------------------------------- |
+| **Nemotron Mini 4B** | ~2.5GB | Risk analysis LLM | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
+| **RT-DETRv2**        | varies | Object detection  | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
 
 ### Using Pre-downloaded Models
 

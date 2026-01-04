@@ -29,6 +29,10 @@ This document details the real-time communication architecture of the Home Secur
 3. [Redis Pub/Sub Backbone](#redis-pubsub-backbone)
 4. [Event Broadcasting](#event-broadcasting)
 5. [System Status Broadcasting](#system-status-broadcasting)
+   - [SystemBroadcaster Features](#systembroadcaster-features)
+   - [Circuit Breaker Integration](#circuit-breaker-integration)
+   - [Degraded Mode](#degraded-mode)
+   - [Performance Broadcasting](#performance-broadcasting)
 6. [Message Formats](#message-formats)
 7. [Frontend Integration](#frontend-integration)
 8. [Connection Management](#connection-management)
@@ -375,7 +379,18 @@ async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
 
 ## System Status Broadcasting
 
-The SystemBroadcaster periodically sends system status updates to all connected clients.
+The [SystemBroadcaster](../../backend/services/system_broadcaster.py) periodically sends system status updates to all connected clients. It provides real-time system health information including GPU statistics, camera status, queue depths, and AI service health.
+
+### SystemBroadcaster Features
+
+| Feature                      | Description                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------- |
+| **Periodic broadcasting**    | Sends `system_status` messages every 5 seconds (configurable)                      |
+| **Performance broadcasting** | Sends `performance_update` messages with detailed metrics via PerformanceCollector |
+| **Circuit breaker**          | Protects against cascading failures with automatic recovery                        |
+| **Degraded mode**            | Gracefully handles failures when Redis pub/sub is unavailable                      |
+| **Multi-instance support**   | Uses Redis pub/sub to synchronize status across multiple backend instances         |
+| **Local-first delivery**     | Always sends to local clients first, then publishes to Redis for remote instances  |
 
 ### Status Update Content
 
@@ -427,6 +442,221 @@ class SystemBroadcaster:
         self._interval = broadcast_interval
         # ...
 ```
+
+### Circuit Breaker Integration
+
+The SystemBroadcaster integrates with a [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) to protect against cascading failures when the Redis pub/sub connection becomes unreliable.
+
+#### Circuit Breaker States
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED: Initialize
+    CLOSED --> OPEN: failure_count >= threshold (5)
+    OPEN --> HALF_OPEN: recovery_timeout elapsed (30s)
+    HALF_OPEN --> CLOSED: success recorded
+    HALF_OPEN --> OPEN: failure recorded
+    OPEN --> CLOSED: manual reset()
+```
+
+| State         | Description                                                                   |
+| ------------- | ----------------------------------------------------------------------------- |
+| **CLOSED**    | Normal operation. Redis pub/sub listener is active and broadcasting normally. |
+| **OPEN**      | Too many failures. Recovery blocked to allow system stabilization.            |
+| **HALF_OPEN** | Testing recovery after timeout. Limited operations allowed.                   |
+
+#### Circuit Breaker Configuration
+
+The SystemBroadcaster's circuit breaker uses these default settings:
+
+| Parameter             | Value | Description                                    |
+| --------------------- | ----- | ---------------------------------------------- |
+| `failure_threshold`   | 5     | Consecutive failures before opening circuit    |
+| `recovery_timeout`    | 30.0s | Time to wait before attempting recovery        |
+| `half_open_max_calls` | 1     | Maximum calls allowed while testing recovery   |
+| `success_threshold`   | 1     | Successes needed in half-open to close circuit |
+
+#### Accessing Circuit Breaker State
+
+```python
+from backend.services.system_broadcaster import get_system_broadcaster
+
+broadcaster = get_system_broadcaster()
+
+# Get current circuit breaker state
+state = broadcaster.get_circuit_state()  # Returns WebSocketCircuitState enum
+
+# Access circuit breaker directly for detailed metrics
+cb = broadcaster.circuit_breaker
+status = cb.get_status()  # Returns dict with state, counters, config
+```
+
+### Degraded Mode
+
+The SystemBroadcaster enters **degraded mode** when it cannot reliably broadcast real-time updates to clients. This is a graceful degradation strategy that maintains service availability even when the Redis pub/sub backbone is unavailable.
+
+#### When Degraded Mode is Activated
+
+Degraded mode (`is_degraded() returns True`) is activated when ANY of these conditions occur:
+
+1. **Circuit breaker opens**: The pub/sub listener circuit breaker transitions to OPEN state after recording `failure_threshold` (default: 5) consecutive failures.
+
+2. **Recovery attempts exhausted**: The broadcaster has attempted `MAX_RECOVERY_ATTEMPTS` (default: 5) reconnection attempts without success.
+
+3. **Pub/sub connection fails to re-establish**: After a connection reset, if the new subscription cannot be created.
+
+```python
+# Check if broadcaster is in degraded mode
+from backend.services.system_broadcaster import get_system_broadcaster
+
+broadcaster = get_system_broadcaster()
+if broadcaster.is_degraded():
+    # Real-time updates may be delayed or unavailable
+    # Consider showing a warning to users
+    pass
+```
+
+#### Behavior in Degraded Mode
+
+When degraded mode is active:
+
+| Capability                   | Status                                                  |
+| ---------------------------- | ------------------------------------------------------- |
+| **WebSocket connections**    | Still accepted - clients can connect                    |
+| **Local client updates**     | Working - direct sends still occur                      |
+| **Redis pub/sub listener**   | Stopped - no cross-instance synchronization             |
+| **Multi-instance sync**      | Unavailable - instances operate independently           |
+| **System status collection** | Working - metrics still gathered from DB/Redis          |
+| **Performance collection**   | Working - PerformanceCollector continues gathering data |
+
+#### Degraded State Notification
+
+When entering degraded mode, the broadcaster sends a `service_status` message to all connected clients:
+
+```json
+{
+  "type": "service_status",
+  "data": {
+    "service": "system_broadcaster",
+    "status": "degraded",
+    "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+    "circuit_state": "open"
+  }
+}
+```
+
+Frontend applications can listen for this message to show appropriate warnings to users.
+
+#### Recovery from Degraded Mode
+
+The broadcaster automatically recovers from degraded mode when:
+
+1. The circuit breaker transitions from OPEN to HALF_OPEN (after `recovery_timeout`)
+2. A successful pub/sub reconnection occurs
+3. The circuit breaker transitions to CLOSED
+
+```python
+# Manual recovery (restart pub/sub listener)
+# This is typically done by restarting the broadcaster
+from backend.services.system_broadcaster import stop_system_broadcaster, get_system_broadcaster_async
+
+await stop_system_broadcaster()
+broadcaster = await get_system_broadcaster_async(redis_client=redis)
+# Degraded mode is automatically cleared on successful start
+```
+
+#### Degraded Mode Flow
+
+```mermaid
+flowchart TB
+    subgraph Normal["Normal Operation"]
+        BROADCAST[Broadcasting via<br/>Redis Pub/Sub]
+    end
+
+    subgraph Failure["Failure Detection"]
+        F1[Pub/Sub Error]
+        F2[Record Failure]
+        F3{Failures >= 5?}
+    end
+
+    subgraph Recovery["Recovery Attempts"]
+        R1[Wait 1 second]
+        R2[Reset Pub/Sub Connection]
+        R3{Attempts < 5?}
+    end
+
+    subgraph Degraded["Degraded Mode"]
+        D1[_is_degraded = True]
+        D2[Stop Pub/Sub Listener]
+        D3[Broadcast Degraded<br/>State to Clients]
+        D4[Local-only Updates]
+    end
+
+    BROADCAST --> F1
+    F1 --> F2
+    F2 --> F3
+    F3 -->|No| R1
+    F3 -->|Yes| D1
+    R1 --> R2
+    R2 --> R3
+    R3 -->|Yes| BROADCAST
+    R3 -->|No| D1
+    D1 --> D2
+    D2 --> D3
+    D3 --> D4
+
+    style D1 fill:#E74856,color:#fff
+    style D4 fill:#F59E0B,color:#fff
+```
+
+### Performance Broadcasting
+
+The SystemBroadcaster can broadcast detailed performance metrics through its `broadcast_performance()` method. This requires a [PerformanceCollector](../../backend/services/performance_collector.py) to be configured.
+
+#### Enabling Performance Broadcasting
+
+```python
+from backend.services.system_broadcaster import get_system_broadcaster
+from backend.services.performance_collector import PerformanceCollector
+
+# Get or create the broadcaster
+broadcaster = get_system_broadcaster()
+
+# Create and configure the performance collector
+collector = PerformanceCollector(redis_client=redis, db_session_factory=get_session)
+
+# Enable performance broadcasting
+broadcaster.set_performance_collector(collector)
+```
+
+#### Performance Broadcast Flow
+
+When enabled, performance metrics are automatically broadcast in the same loop as system status updates:
+
+```python
+async def _broadcast_loop(self, interval: float) -> None:
+    while self._running:
+        if self.connections:
+            # Broadcast system status
+            status_data = await self._get_system_status()
+            await self.broadcast_status(status_data)
+
+            # Also broadcast detailed performance metrics
+            await self.broadcast_performance()
+
+        await asyncio.sleep(interval)
+```
+
+#### Redis Channels
+
+The SystemBroadcaster uses two Redis pub/sub channels:
+
+| Channel              | Message Type         | Purpose                                      |
+| -------------------- | -------------------- | -------------------------------------------- |
+| `system_status`      | `system_status`      | Basic health information (GPU, cameras, etc) |
+| `performance_update` | `performance_update` | Detailed performance metrics                 |
+
+Both channels support multi-instance deployments where any backend can publish and all instances forward to their local WebSocket clients.
 
 ---
 

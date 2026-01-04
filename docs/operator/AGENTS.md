@@ -26,6 +26,7 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 | `database.md`           | PostgreSQL configuration                         |
 | `deployment-modes.md`   | Deployment mode decision table and AI networking |
 | `gpu-setup.md`          | NVIDIA driver and container toolkit setup        |
+| `redis.md`              | Redis configuration and authentication           |
 
 ## Migration Status
 

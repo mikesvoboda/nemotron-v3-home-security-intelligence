@@ -328,7 +328,7 @@ Configuration for `start_nemotron.sh`:
 
 - Port: 8091 (configurable via `NEMOTRON_PORT`)
 - Context: 12288 (configurable via `NEMOTRON_CONTEXT_SIZE`)
-- GPU layers: 45 (configurable via `NEMOTRON_GPU_LAYERS`)
+- GPU layers: 35 (configurable via `NEMOTRON_GPU_LAYERS`)
 - Startup timeout: 90 seconds
 - Log file: `/tmp/nemotron.log`
 

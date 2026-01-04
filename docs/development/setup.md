@@ -6,7 +6,7 @@ source_refs:
   - scripts/validate.sh:1
   - pyproject.toml:1
   - .pre-commit-config.yaml:1
-  - backend/requirements.txt:1
+  - uv.lock:1
   - frontend/package.json:1
 ---
 

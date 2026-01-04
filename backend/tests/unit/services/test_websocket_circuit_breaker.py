@@ -7,7 +7,7 @@ WebSocket broadcaster services by implementing the circuit breaker pattern.
 from __future__ import annotations
 
 import asyncio
-import time
+from unittest.mock import patch
 
 import pytest
 
@@ -85,16 +85,22 @@ class TestStateTransitions:
             recovery_timeout=0.1,  # Short timeout for testing
         )
 
-        # Open the circuit
-        breaker.record_failure()
-        assert breaker.get_state() == WebSocketCircuitState.OPEN
+        # Use mocked time to control recovery timeout
+        mock_time = 1000.0  # Starting time
 
-        # Wait for recovery timeout
-        time.sleep(0.15)
+        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = mock_time
 
-        # Check if call is permitted - this should transition to half-open
-        assert breaker.is_call_permitted() is True
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+            # Open the circuit
+            breaker.record_failure()
+            assert breaker.get_state() == WebSocketCircuitState.OPEN
+
+            # Advance time past the recovery timeout
+            mock_monotonic.return_value = mock_time + 0.15
+
+            # Check if call is permitted - this should transition to half-open
+            assert breaker.is_call_permitted() is True
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
 
     def test_half_open_to_closed_on_success(self) -> None:
         """Test circuit closes after success in half-open state."""
@@ -102,20 +108,26 @@ class TestStateTransitions:
             failure_threshold=1, recovery_timeout=0.1, success_threshold=1
         )
 
-        # Open the circuit
-        breaker.record_failure()
-        assert breaker.get_state() == WebSocketCircuitState.OPEN
+        # Use mocked time to control recovery timeout
+        mock_time = 1000.0  # Starting time
 
-        # Wait for recovery timeout
-        time.sleep(0.15)
+        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = mock_time
 
-        # Transition to half-open
-        assert breaker.is_call_permitted() is True
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+            # Open the circuit
+            breaker.record_failure()
+            assert breaker.get_state() == WebSocketCircuitState.OPEN
 
-        # Record success to close
-        breaker.record_success()
-        assert breaker.get_state() == WebSocketCircuitState.CLOSED
+            # Advance time past the recovery timeout
+            mock_monotonic.return_value = mock_time + 0.15
+
+            # Transition to half-open
+            assert breaker.is_call_permitted() is True
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+
+            # Record success to close
+            breaker.record_success()
+            assert breaker.get_state() == WebSocketCircuitState.CLOSED
 
     def test_half_open_to_open_on_failure(self) -> None:
         """Test circuit reopens after failure in half-open state."""
@@ -123,20 +135,26 @@ class TestStateTransitions:
             failure_threshold=1, recovery_timeout=0.1, success_threshold=2
         )
 
-        # Open the circuit
-        breaker.record_failure()
-        assert breaker.get_state() == WebSocketCircuitState.OPEN
+        # Use mocked time to control recovery timeout
+        mock_time = 1000.0  # Starting time
 
-        # Wait for recovery timeout
-        time.sleep(0.15)
+        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = mock_time
 
-        # Transition to half-open
-        assert breaker.is_call_permitted() is True
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+            # Open the circuit
+            breaker.record_failure()
+            assert breaker.get_state() == WebSocketCircuitState.OPEN
 
-        # Record failure to reopen
-        breaker.record_failure()
-        assert breaker.get_state() == WebSocketCircuitState.OPEN
+            # Advance time past the recovery timeout
+            mock_monotonic.return_value = mock_time + 0.15
+
+            # Transition to half-open
+            assert breaker.is_call_permitted() is True
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+
+            # Record failure to reopen
+            breaker.record_failure()
+            assert breaker.get_state() == WebSocketCircuitState.OPEN
 
 
 class TestIsCallPermitted:
@@ -164,19 +182,27 @@ class TestIsCallPermitted:
             failure_threshold=1, recovery_timeout=0.1, half_open_max_calls=1
         )
 
-        # Open and wait for half-open
-        breaker.record_failure()
-        time.sleep(0.15)
+        # Use mocked time to control recovery timeout
+        mock_time = 1000.0  # Starting time
 
-        # First call should transition to half-open and be permitted
-        assert breaker.is_call_permitted() is True
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = mock_time
 
-        # Simulate a call being made (increment half_open_calls internally)
-        breaker._half_open_calls = 1
+            # Open the circuit
+            breaker.record_failure()
 
-        # Second call should not be permitted
-        assert breaker.is_call_permitted() is False
+            # Advance time past the recovery timeout
+            mock_monotonic.return_value = mock_time + 0.15
+
+            # First call should transition to half-open and be permitted
+            assert breaker.is_call_permitted() is True
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+
+            # Simulate a call being made (increment half_open_calls internally)
+            breaker._half_open_calls = 1
+
+            # Second call should not be permitted
+            assert breaker.is_call_permitted() is False
 
 
 class TestReset:
@@ -388,15 +414,21 @@ class TestRecoveryBehavior:
             recovery_timeout=0.05,  # Very short timeout
         )
 
-        breaker.record_failure()
-        assert breaker.get_state() == WebSocketCircuitState.OPEN
+        # Use mocked time to control recovery timeout
+        mock_time = 1000.0  # Starting time
 
-        # Wait for timeout
-        time.sleep(0.1)
+        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = mock_time
 
-        # Should transition to half-open
-        assert breaker.is_call_permitted() is True
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+            breaker.record_failure()
+            assert breaker.get_state() == WebSocketCircuitState.OPEN
+
+            # Advance time past the recovery timeout
+            mock_monotonic.return_value = mock_time + 0.1
+
+            # Should transition to half-open
+            assert breaker.is_call_permitted() is True
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
 
     def test_multiple_successes_needed_in_half_open(self) -> None:
         """Test that multiple successes are needed to close from half-open."""
@@ -404,22 +436,30 @@ class TestRecoveryBehavior:
             failure_threshold=1, recovery_timeout=0.05, success_threshold=3
         )
 
-        # Open the circuit
-        breaker.record_failure()
-        time.sleep(0.1)
+        # Use mocked time to control recovery timeout
+        mock_time = 1000.0  # Starting time
 
-        # Transition to half-open
-        assert breaker.is_call_permitted() is True
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = mock_time
 
-        # First success - still half-open
-        breaker.record_success()
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+            # Open the circuit
+            breaker.record_failure()
 
-        # Second success - still half-open
-        breaker.record_success()
-        assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+            # Advance time past the recovery timeout
+            mock_monotonic.return_value = mock_time + 0.1
 
-        # Third success - now closed
-        breaker.record_success()
-        assert breaker.get_state() == WebSocketCircuitState.CLOSED
+            # Transition to half-open
+            assert breaker.is_call_permitted() is True
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+
+            # First success - still half-open
+            breaker.record_success()
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+
+            # Second success - still half-open
+            breaker.record_success()
+            assert breaker.get_state() == WebSocketCircuitState.HALF_OPEN
+
+            # Third success - now closed
+            breaker.record_success()
+            assert breaker.get_state() == WebSocketCircuitState.CLOSED

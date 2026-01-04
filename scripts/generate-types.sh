@@ -12,7 +12,7 @@
 #
 # Requirements:
 #   - Python 3.14+ with backend dependencies installed
-#   - Node.js 18+ with frontend dependencies installed
+#   - Node.js 20.19+ or 22.12+ with frontend dependencies installed
 #   - Virtual environment at .venv/
 #
 
@@ -89,7 +89,7 @@ The script will:
 
 Requirements:
     Backend:  Python 3.14+, .venv with backend dependencies
-    Frontend: Node.js 18+, npm with openapi-typescript installed
+    Frontend: Node.js 20.19+/22.12+, npm with openapi-typescript installed
 
 EOF
     exit 0
@@ -170,7 +170,7 @@ fi
 # Step 2: Check for Node.js and frontend dependencies
 print_step "Checking Node.js and frontend dependencies..."
 if ! check_command node; then
-    print_error "Node.js not found. Install Node.js 18+."
+    print_error "Node.js not found. Install Node.js 20.19+ or 22.12+."
     exit 1
 fi
 

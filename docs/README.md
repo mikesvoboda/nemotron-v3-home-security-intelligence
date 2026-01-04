@@ -75,7 +75,7 @@ Design plans, architectural decisions, and future roadmap.
 
 - **Getting Started**: [Main README](../README.md#quick-start-60-seconds)
 - **API Reference**: `http://localhost:8000/docs` (Swagger UI when running)
-- **Issue Tracking**: Use `bd ready` to find available work
+- **Issue Tracking**: Use [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) to find available work
 - **AGENTS.md Files**: Every directory contains an `AGENTS.md` explaining its purpose
 
 ---

@@ -428,7 +428,7 @@ test.describe('Dashboard', () => {
 For complex features, invoke the TDD skill to guide your workflow:
 
 ```bash
-/test-driven-development
+/superpowers:test-driven-development
 ```
 
 This skill will:
