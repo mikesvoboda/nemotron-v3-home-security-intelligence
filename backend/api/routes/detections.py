@@ -13,7 +13,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
+from backend.api.schemas.detections import (
+    DetectionListResponse,
+    DetectionResponse,
+    DetectionStatsResponse,
+)
 from backend.api.schemas.enrichment import EnrichmentResponse
 from backend.api.validators import validate_date_range
 from backend.core.database import get_db
@@ -193,6 +197,58 @@ async def list_detections(
         "count": total_count,
         "limit": limit,
         "offset": offset,
+    }
+
+
+@router.get("/stats", response_model=DetectionStatsResponse)
+async def get_detection_stats(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get aggregate detection statistics including class distribution.
+
+    Returns:
+    - Total detection count
+    - Detection counts grouped by object class (person, car, truck, etc.)
+    - Average confidence score across all detections
+
+    Used by the AI Performance page to display detection class distribution charts.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DetectionStatsResponse with aggregate detection statistics
+    """
+    # Get total count
+    total_query = select(func.count()).select_from(Detection)
+    total_result = await db.execute(total_query)
+    total_detections = total_result.scalar() or 0
+
+    # Get counts by object class using GROUP BY
+    class_query = (
+        select(Detection.object_type, func.count().label("count"))
+        .where(Detection.object_type.isnot(None))
+        .group_by(Detection.object_type)
+        .order_by(func.count().desc())
+    )
+    class_result = await db.execute(class_query)
+    class_rows = class_result.all()
+
+    # Build detections_by_class dict
+    detections_by_class: dict[str, int] = {}
+    for object_type, count in class_rows:
+        if object_type:
+            detections_by_class[object_type] = count
+
+    # Get average confidence
+    avg_query = select(func.avg(Detection.confidence)).where(Detection.confidence.isnot(None))
+    avg_result = await db.execute(avg_query)
+    avg_confidence = avg_result.scalar()
+
+    return {
+        "total_detections": total_detections,
+        "detections_by_class": detections_by_class,
+        "average_confidence": float(avg_confidence) if avg_confidence else None,
     }
 
 

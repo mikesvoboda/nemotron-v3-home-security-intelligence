@@ -1525,3 +1525,178 @@ async def test_system_monitoring_endpoints_json_content_type(client, mock_redis)
         response = await client.get(endpoint)
         assert response.status_code == 200
         assert "application/json" in response.headers["content-type"]
+
+
+# =============================================================================
+# Severity Thresholds Update Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_success(client, mock_redis):
+    """Test PUT /api/system/severity successfully updates thresholds."""
+    payload = {
+        "low_max": 20,
+        "medium_max": 50,
+        "high_max": 80,
+    }
+
+    response = await client.put("/api/system/severity", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify updated thresholds
+    assert data["thresholds"]["low_max"] == 20
+    assert data["thresholds"]["medium_max"] == 50
+    assert data["thresholds"]["high_max"] == 80
+
+    # Verify definitions are updated with new ranges
+    definitions = {d["severity"]: d for d in data["definitions"]}
+    assert definitions["low"]["max_score"] == 20
+    assert definitions["medium"]["min_score"] == 21
+    assert definitions["medium"]["max_score"] == 50
+    assert definitions["high"]["min_score"] == 51
+    assert definitions["high"]["max_score"] == 80
+    assert definitions["critical"]["min_score"] == 81
+    assert definitions["critical"]["max_score"] == 100
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_persists(client, mock_redis):
+    """Test that updated severity thresholds persist across GET requests."""
+    # Update thresholds
+    payload = {
+        "low_max": 25,
+        "medium_max": 55,
+        "high_max": 85,
+    }
+
+    put_response = await client.put("/api/system/severity", json=payload)
+    assert put_response.status_code == 200
+
+    # Verify GET returns updated values
+    get_response = await client.get("/api/system/severity")
+    assert get_response.status_code == 200
+    data = get_response.json()
+
+    assert data["thresholds"]["low_max"] == 25
+    assert data["thresholds"]["medium_max"] == 55
+    assert data["thresholds"]["high_max"] == 85
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_invalid_order(client, mock_redis):
+    """Test PUT /api/system/severity rejects invalid threshold ordering."""
+    # low_max >= medium_max
+    payload = {
+        "low_max": 50,
+        "medium_max": 40,
+        "high_max": 80,
+    }
+
+    response = await client.put("/api/system/severity", json=payload)
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "invalid" in data["detail"].lower() or "must satisfy" in data["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_medium_gte_high(client, mock_redis):
+    """Test PUT /api/system/severity rejects medium_max >= high_max."""
+    payload = {
+        "low_max": 20,
+        "medium_max": 80,
+        "high_max": 60,
+    }
+
+    response = await client.put("/api/system/severity", json=payload)
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "invalid" in data["detail"].lower() or "must satisfy" in data["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_missing_fields(client, mock_redis):
+    """Test PUT /api/system/severity rejects partial updates."""
+    # Missing high_max
+    payload = {
+        "low_max": 20,
+        "medium_max": 50,
+    }
+
+    response = await client.put("/api/system/severity", json=payload)
+
+    # Should return 422 Unprocessable Entity for validation error
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_out_of_range(client, mock_redis):
+    """Test PUT /api/system/severity validates range constraints."""
+    # low_max below minimum (1)
+    payload = {
+        "low_max": 0,
+        "medium_max": 50,
+        "high_max": 80,
+    }
+
+    response = await client.put("/api/system/severity", json=payload)
+
+    # Should return 422 for pydantic validation failure
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_extreme_values(client, mock_redis):
+    """Test PUT /api/system/severity accepts extreme but valid values."""
+    # Minimal range for each severity
+    payload = {
+        "low_max": 1,
+        "medium_max": 2,
+        "high_max": 3,
+    }
+
+    response = await client.put("/api/system/severity", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify all severities have valid ranges
+    definitions = {d["severity"]: d for d in data["definitions"]}
+    assert definitions["low"]["min_score"] == 0
+    assert definitions["low"]["max_score"] == 1
+    assert definitions["critical"]["min_score"] == 4
+    assert definitions["critical"]["max_score"] == 100
+
+
+@pytest.mark.asyncio
+async def test_update_severity_thresholds_concurrent_updates(client, mock_redis):
+    """Test concurrent severity threshold updates don't cause issues."""
+    import asyncio
+
+    # Multiple concurrent updates with different values
+    payloads = [
+        {"low_max": 25, "medium_max": 55, "high_max": 85},
+        {"low_max": 30, "medium_max": 60, "high_max": 90},
+        {"low_max": 20, "medium_max": 50, "high_max": 80},
+    ]
+
+    tasks = [client.put("/api/system/severity", json=p) for p in payloads]
+    responses = await asyncio.gather(*tasks)
+
+    # All should succeed
+    for response in responses:
+        assert response.status_code == 200
+
+    # Final GET should return one of the valid configurations
+    get_response = await client.get("/api/system/severity")
+    assert get_response.status_code == 200
+    data = get_response.json()
+
+    # Thresholds should be from one of the updates
+    thresholds = data["thresholds"]
+    valid_low_max = [25, 30, 20]
+    assert thresholds["low_max"] in valid_low_max

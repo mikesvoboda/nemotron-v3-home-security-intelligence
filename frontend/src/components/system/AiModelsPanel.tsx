@@ -283,8 +283,10 @@ export default function AiModelsPanel({
   aiModels,
   className,
 }: AiModelsPanelProps) {
-  // If no models provided, show empty state with known models
-  const models = aiModels ?? { rtdetr: null, nemotron: null };
+  // If no models provided OR empty object, show empty state with known models
+  // Check both null/undefined AND empty object cases
+  const hasModels = aiModels && Object.keys(aiModels).length > 0;
+  const models = hasModels ? aiModels : { rtdetr: null, nemotron: null };
 
   // Sort entries to ensure consistent ordering (rtdetr first, then others alphabetically)
   const sortedEntries = Object.entries(models).sort(([a], [b]) => {

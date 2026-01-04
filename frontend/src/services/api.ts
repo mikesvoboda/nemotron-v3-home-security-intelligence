@@ -755,6 +755,30 @@ export async function fetchEventDetections(
   return fetchApi<GeneratedDetectionListResponse>(endpoint);
 }
 
+/**
+ * Detection statistics response from /api/detections/stats
+ */
+export interface DetectionStatsResponse {
+  /** Total number of detections */
+  total_detections: number;
+  /** Detection counts grouped by object class (e.g., person, car, truck) */
+  detections_by_class: Record<string, number>;
+  /** Average confidence score across all detections */
+  average_confidence: number | null;
+}
+
+/**
+ * Fetch detection statistics including class distribution.
+ *
+ * Returns aggregate statistics about detections including counts by object class.
+ * Used by the AI Performance page to display detection class distribution charts.
+ *
+ * @returns DetectionStatsResponse with detection statistics
+ */
+export async function fetchDetectionStats(): Promise<DetectionStatsResponse> {
+  return fetchApi<DetectionStatsResponse>('/api/detections/stats');
+}
+
 // ============================================================================
 // Media URLs
 // ============================================================================
@@ -1710,6 +1734,28 @@ export async function fetchSeverityMetadata(): Promise<GeneratedSeverityMetadata
 
 // Alias for backward compatibility - use existing SeverityMetadataResponse type
 export const fetchSeverityConfig = fetchSeverityMetadata;
+
+/**
+ * Update severity threshold configuration.
+ *
+ * Allows customization of the risk score boundaries for each severity level.
+ * The thresholds must satisfy: low_max < medium_max < high_max
+ * to ensure contiguous, non-overlapping severity ranges.
+ *
+ * @param thresholds - New threshold values
+ * @returns Updated SeverityMetadataResponse with new definitions
+ * @throws ApiError 400 if thresholds are invalid or overlap
+ */
+export async function updateSeverityThresholds(thresholds: {
+  low_max: number;
+  medium_max: number;
+  high_max: number;
+}): Promise<GeneratedSeverityMetadataResponse> {
+  return fetchApi<GeneratedSeverityMetadataResponse>('/api/system/severity', {
+    method: 'PUT',
+    body: JSON.stringify(thresholds),
+  });
+}
 
 // ============================================================================
 // Enrichment Endpoints
