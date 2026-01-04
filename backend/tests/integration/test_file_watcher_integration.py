@@ -91,7 +91,7 @@ class TestFileWatcherDetectsNewImage:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -138,7 +138,7 @@ class TestFileWatcherDetectsNewImage:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -180,7 +180,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -214,7 +214,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -245,7 +245,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -276,7 +276,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -319,7 +319,7 @@ class TestFileWatcherMultipleCameras:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -363,7 +363,7 @@ class TestFileWatcherMultipleCameras:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -401,7 +401,7 @@ class TestFileWatcherStartStopLifecycle:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -424,7 +424,7 @@ class TestFileWatcherStartStopLifecycle:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -445,7 +445,7 @@ class TestFileWatcherStartStopLifecycle:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -462,7 +462,7 @@ class TestFileWatcherStartStopLifecycle:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -501,7 +501,7 @@ class TestFileWatcherStartStopLifecycle:
         watcher = FileWatcher(
             camera_root=str(nonexistent_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -530,7 +530,7 @@ class TestFileWatcherRapidFileCreation:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -641,7 +641,7 @@ class TestFileWatcherRapidFileCreation:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -684,7 +684,7 @@ class TestFileWatcherEdgeCases:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -717,7 +717,7 @@ class TestFileWatcherEdgeCases:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -751,7 +751,7 @@ class TestFileWatcherEdgeCases:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=None,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -782,7 +782,7 @@ class TestFileWatcherEdgeCases:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -845,7 +845,7 @@ class TestFileWatcherEdgeCases:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -875,7 +875,7 @@ class TestFileWatcherFileTypes:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -909,7 +909,7 @@ class TestFileWatcherFileTypes:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -943,7 +943,7 @@ class TestFileWatcherFileTypes:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
@@ -974,7 +974,7 @@ class TestFileWatcherFileTypes:
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
             redis_client=mock_redis_client,
-            debounce_delay=0.1,
+            debounce_delay=0.05,  # Very short debounce for fast tests
             stability_time=0,  # Disable stability check for fast integration tests
         )
 
