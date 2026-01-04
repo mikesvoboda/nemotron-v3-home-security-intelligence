@@ -73,9 +73,11 @@ def _clean_llm_response(text: str) -> str:
             cleaned = cleaned[json_start:]
 
     # Remove markdown code blocks
-    # Handle ```json ... ``` format
-    cleaned = re.sub(r"```(?:json)?\s*", "", cleaned)
-    cleaned = re.sub(r"```\s*$", "", cleaned)
+    # Handle ```json ... ``` format - only at line boundaries to avoid corrupting JSON content
+    # Opening fence: start of line, optional whitespace, ```, optional "json", end of line
+    cleaned = re.sub(r"^[ \t]*```(?:json)?[ \t]*\n?", "", cleaned, flags=re.MULTILINE)
+    # Closing fence: start of line, optional whitespace, ```, optional whitespace, end of line/string
+    cleaned = re.sub(r"^[ \t]*```[ \t]*$", "", cleaned, flags=re.MULTILINE)
 
     return cleaned.strip()
 
