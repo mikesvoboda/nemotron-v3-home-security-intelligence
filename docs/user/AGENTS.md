@@ -18,6 +18,7 @@ This directory contains end-user documentation for the Home Security Intelligenc
 ```
 user/
   AGENTS.md                  # This file
+  ai-audit.md                # AI Audit Dashboard and quality metrics
   ai-enrichment.md           # AI enrichment data in event details
   dashboard-basics.md        # Main dashboard layout and components
   dashboard-settings.md      # Settings configuration
@@ -26,6 +27,39 @@ user/
 ```
 
 ## Key Files
+
+### ai-audit.md
+
+**Purpose:** Understanding the AI Audit Dashboard and quality metrics.
+
+**Read Time:** ~8 minutes
+
+**Prerequisites:** dashboard-basics.md, ai-enrichment.md
+
+**Topics Covered:**
+
+- AI Audit Dashboard overview
+- Accessing the dashboard
+- Quality score metrics:
+  - **Average Quality Score** - AI performance on 1-5 scale
+  - **Consistency Rate** - How consistent AI evaluations are
+  - **Enrichment Utilization** - Percentage of AI models contributing
+  - **Evaluation Coverage** - Percentage of events evaluated
+- Prompt improvement recommendations:
+  - **Missing Context** - Information needed for better assessments
+  - **Unused Data** - Data that was not useful
+  - **Model Gaps** - AI models that should have contributed
+  - **Format Suggestions** - Prompt structure improvements
+  - **Confusing Sections** - Unclear parts of prompts
+- Reading recommendation priority and frequency
+- Changing the time period (24h to 90 days)
+- Triggering batch audits (limit, min risk score, force re-evaluate)
+- Refreshing data
+- Interpreting results (good performance vs areas for improvement)
+
+**Screenshot Placeholders:** AI Audit Dashboard, quality score cards, recommendations panel, batch audit modal
+
+**When to use:** Monitoring AI quality, reviewing improvement recommendations, triggering re-evaluations.
 
 ### ai-enrichment.md
 
@@ -60,7 +94,7 @@ user/
 
 **Purpose:** Understanding the main security dashboard layout and components.
 
-**Read Time:** ~8 minutes
+**Read Time:** ~10 minutes
 
 **Topics Covered:**
 
@@ -70,13 +104,16 @@ user/
 - System health indicator (green/yellow/red)
 - Sidebar navigation (Dashboard, Timeline, Entities, Alerts, Logs, System, Settings)
 - Quick stats row (Active Cameras, Events Today, Current Risk Score, System Status)
+- **Clickable stat cards** - Each card navigates to its detailed view (Settings, Timeline, Alerts, System)
+- **Sparkline visualization** - Mini line charts showing risk score trends
+- Understanding sparklines (data source, reading patterns, when they appear)
 - Risk gauge (0-100 scale, color coding, reading the gauge)
 - Camera grid (card contents, status badges, interacting with cameras)
 - GPU statistics panel
 
 **Screenshot Placeholders:** Multiple screenshots needed for UI elements
 
-**When to use:** First-time orientation, learning dashboard layout.
+**When to use:** First-time orientation, learning dashboard layout, understanding sparkline trends.
 
 ### dashboard-settings.md
 
@@ -215,12 +252,12 @@ User documentation follows these conventions:
 
 ## Target Audiences
 
-| Audience           | Technical Level | Primary Documents                          |
-| ------------------ | --------------- | ------------------------------------------ |
-| **Homeowners**     | Low             | All files                                  |
-| **Family Members** | Low             | dashboard-basics.md                        |
-| **Daily Users**    | Low-Medium      | viewing-events.md, understanding-alerts.md |
-| **Power Users**    | Medium          | dashboard-settings.md                      |
+| Audience           | Technical Level | Primary Documents                                    |
+| ------------------ | --------------- | ---------------------------------------------------- |
+| **Homeowners**     | Low             | All files                                            |
+| **Family Members** | Low             | dashboard-basics.md                                  |
+| **Daily Users**    | Low-Medium      | viewing-events.md, understanding-alerts.md           |
+| **Power Users**    | Medium          | dashboard-settings.md, ai-audit.md, ai-enrichment.md |
 
 ## Navigation Path
 

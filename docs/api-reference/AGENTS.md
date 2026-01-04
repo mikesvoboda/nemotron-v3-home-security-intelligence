@@ -14,11 +14,15 @@ This directory contains comprehensive API documentation for the Home Security In
 api-reference/
   AGENTS.md        # This file
   overview.md      # API overview and conventions
+  ai-audit.md      # AI Audit API reference (pipeline performance auditing)
   alerts.md        # Alerts API reference
+  audit.md         # Audit API reference (system audit logs)
   cameras.md       # Cameras API reference
   detections.md    # Detections API reference
   enrichment.md    # Enrichment API reference (vision model results)
   events.md        # Events API reference
+  logs.md          # Logs API reference
+  media.md         # Media API reference (file serving)
   model-zoo.md     # Model Zoo API reference (AI model management)
   system.md        # System API reference
   websocket.md     # WebSocket API reference
@@ -41,6 +45,29 @@ api-reference/
 - Rate limiting
 
 **When to use:** Starting to use any API, understanding common patterns.
+
+### ai-audit.md
+
+**Purpose:** AI Audit API reference - AI pipeline performance auditing.
+
+**Endpoints:**
+
+- `GET /api/ai-audit/events/{event_id}` - Get audit for a specific event
+- `POST /api/ai-audit/events/{event_id}/evaluate` - Trigger full evaluation for an event
+- `GET /api/ai-audit/stats` - Get aggregate audit statistics
+- `GET /api/ai-audit/leaderboard` - Get model leaderboard by contribution
+- `GET /api/ai-audit/recommendations` - Get aggregated prompt recommendations
+- `POST /api/ai-audit/batch` - Trigger batch audit processing
+
+**Topics Covered:**
+
+- Model contribution tracking (RT-DETR, Florence, CLIP, etc.)
+- Self-evaluation quality scores (1-5 scale)
+- Prompt improvement recommendations
+- Consistency checking
+- Batch processing for historical events
+
+**When to use:** Monitoring AI pipeline performance, improving prompt templates, analyzing model contributions.
 
 ### alerts.md
 
@@ -127,6 +154,27 @@ api-reference/
 
 **When to use:** Querying security events and their associated data.
 
+### media.md
+
+**Purpose:** Media API reference - secure file serving for images, videos, and thumbnails.
+
+**Endpoints:**
+
+- `GET /api/media/cameras/{camera_id}/{filename}` - Serve camera image or video
+- `GET /api/media/thumbnails/{filename}` - Serve detection thumbnail
+- `GET /api/media/detections/{detection_id}` - Serve image for a detection
+- `GET /api/media/clips/{filename}` - Serve event video clip
+- `GET /api/media/{path}` - Compatibility route (legacy support)
+
+**Topics Covered:**
+
+- Path traversal protection
+- File type allowlist (jpg, png, gif, mp4, avi, webm)
+- Rate limiting (MEDIA tier)
+- Directory containment validation
+
+**When to use:** Serving media files to the frontend, accessing camera images, detection thumbnails, or video clips.
+
 ### model-zoo.md
 
 **Purpose:** Model Zoo API reference - AI model status and latency monitoring.
@@ -165,12 +213,13 @@ api-reference/
 - `PATCH /api/system/config` - Update config (requires API key when enabled)
 - `GET /api/system/telemetry` - Pipeline telemetry
 - `GET /api/system/pipeline-latency` - Pipeline latency percentiles
+- `GET /api/system/pipeline-latency/history` - Pipeline latency time series
+- `GET /api/system/pipeline` - Pipeline status (FileWatcher, BatchAggregator, Degradation)
 - `POST /api/system/cleanup` - Trigger cleanup (requires API key when enabled)
+- `GET /api/system/cleanup/status` - Cleanup job status
 - `GET /api/system/severity` - Severity definitions
 - `GET /api/system/storage` - Storage stats
 - `GET /api/system/circuit-breakers` - Circuit breaker status
-- `GET /api/system/pipeline` - Pipeline status
-- `GET /api/system/cleanup/status` - Cleanup job status
 
 **When to use:** Monitoring system health, managing configuration.
 

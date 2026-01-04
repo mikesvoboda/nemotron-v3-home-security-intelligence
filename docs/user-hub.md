@@ -33,6 +33,7 @@ These guides help you understand what you see when you open the app.
 | [Dashboard Basics](user/dashboard-basics.md)         | Layout, header, sidebar, quick stats   | ~8 min  |
 | [Viewing Events](user/viewing-events.md)             | Activity feed, timeline, event details | ~10 min |
 | [AI Enrichment Data](user/ai-enrichment.md)          | Advanced AI analysis in event details  | ~8 min  |
+| [AI Audit Dashboard](user/ai-audit.md)               | AI quality metrics and recommendations | ~8 min  |
 | [Understanding Alerts](user/understanding-alerts.md) | Risk levels and how to respond         | ~8 min  |
 | [Dashboard Settings](user/dashboard-settings.md)     | Configuration and quick reference      | ~5 min  |
 
@@ -190,6 +191,7 @@ Complete list of guides for using the system:
 | [Event Timeline](user-guide/event-timeline.md)               | Browsing and filtering events     |
 | [Full-Text Search](user-guide/search.md)                     | Finding specific events           |
 | [Settings](user-guide/settings.md)                           | Configuring the system            |
+| [AI Audit Dashboard](user/ai-audit.md)                       | AI quality metrics and auditing   |
 | [Risk Levels Reference](reference/config/risk-levels.md)     | Official risk score definitions   |
 
 ---

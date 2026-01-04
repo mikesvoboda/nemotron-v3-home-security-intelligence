@@ -111,29 +111,37 @@ The current page is highlighted in bright green.
 
 ## Quick Stats Row
 
-Four cards showing key numbers at a glance:
+Four cards showing key numbers at a glance. **Each card is clickable** - click any card to navigate directly to its detailed view.
 
 <!-- SCREENSHOT: Quick Stats Row
 Location: Below the page title on the main dashboard
-Shows: Four stat cards in a row: "Active Cameras" (with camera icon and count), "Events Today" (with count), "Current Risk Score" (with risk level badge), and "System Status" (with status dot)
+Shows: Four stat cards in a row: "Active Cameras" (with camera icon and count), "Events Today" (with count), "Current Risk Score" (with risk level badge and sparkline), and "System Status" (with status dot)
 Size: 1200x150 pixels (8:1 aspect ratio)
-Alt text: Four quick stat cards showing active cameras count, events today count, current risk score with colored badge, and system status indicator
+Alt text: Four quick stat cards showing active cameras count, events today count, current risk score with colored badge and sparkline, and system status indicator
 -->
 <!-- Screenshot: Quick stats row with Active Cameras, Events Today, Current Risk Score, and System Status cards -->
 
-_Caption: Quick stats give you key numbers at a glance._
+_Caption: Quick stats give you key numbers at a glance. Each card is clickable for quick navigation._
 
 ### Active Cameras
 
 How many cameras are online and working. Camera icon appears next to the count.
 
+**Click behavior:** Opens the Settings page where you can view and manage camera configurations.
+
 ### Events Today
 
 Total security events detected since midnight. Helps understand how busy cameras have been.
 
+**Click behavior:** Opens the Timeline page showing all today's events for detailed review.
+
 ### Current Risk Score
 
 Risk score from the most recent event with a shield icon. Color changes based on risk level.
+
+This card also displays a **sparkline mini-chart** showing risk score trends from recent events.
+
+**Click behavior:** Opens the Alerts page to review high-priority security events.
 
 ### System Status
 
@@ -143,6 +151,48 @@ Overall system health:
 - **Degraded** (yellow dot) - Some issues
 - **Offline** (red dot) - Needs attention
 - **Unknown** (gray dot) - Cannot determine status
+
+**Click behavior:** Opens the System page showing detailed performance metrics, AI model status, and infrastructure health.
+
+---
+
+## Understanding Sparklines
+
+The Current Risk Score card includes a **sparkline** - a tiny line chart that visualizes risk score trends at a glance.
+
+<!-- SCREENSHOT: Risk Sparkline Close-up
+Location: Current Risk Score stat card on main dashboard
+Shows: Close-up of the risk score card showing the number (e.g., 35), the sparkline chart next to it, and the risk level label below
+Size: 400x150 pixels (2.7:1 aspect ratio)
+Alt text: Risk score card with sparkline showing recent risk trend
+-->
+<!-- Screenshot: Risk score card with sparkline visualization -->
+
+_Caption: The sparkline shows how risk has changed over your last 10 security events._
+
+### What the Sparkline Shows
+
+- **Data source:** Last 10 security events' risk scores
+- **Time order:** Left side is older, right side is most recent
+- **Height:** Higher points indicate higher risk scores
+- **Color:** Matches the current risk level (green, yellow, orange, or red)
+- **Filled area:** Light shading beneath the line for easier reading
+
+### Reading the Sparkline
+
+| Pattern            | Meaning                                  |
+| ------------------ | ---------------------------------------- |
+| **Flat low line**  | Consistent low-risk activity (normal)    |
+| **Rising trend**   | Risk increasing over recent events       |
+| **Falling trend**  | Risk decreasing - situation improving    |
+| **Spiky pattern**  | Mixed activity with varying risk levels  |
+| **Flat high line** | Sustained high-risk period - investigate |
+
+### When Sparklines Appear
+
+The sparkline only appears when there are at least 2 recent events to compare. If you only have one event or no events yet, you will see just the risk score number without the sparkline.
+
+> **Tip:** A rising sparkline with increasing risk scores may indicate developing security concerns worth investigating, even if the current score is still moderate.
 
 ---
 

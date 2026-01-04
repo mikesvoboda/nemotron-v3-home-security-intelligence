@@ -1,18 +1,24 @@
 ---
 title: Resilience Architecture
 description: Circuit breakers, retry logic, dead-letter queues, health monitoring, and graceful degradation patterns
-last_updated: 2025-12-30
+last_updated: 2026-01-04
 source_refs:
   - backend/services/circuit_breaker.py:CircuitBreaker:127
   - backend/services/circuit_breaker.py:CircuitBreakerConfig:47
   - backend/services/circuit_breaker.py:CircuitBreakerRegistry:491
   - backend/services/circuit_breaker.py:CircuitState:39
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker:82
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitState:34
+  - backend/services/system_broadcaster.py:SystemBroadcaster:62
+  - backend/services/event_broadcaster.py:EventBroadcaster:49
   - backend/services/retry_handler.py:RetryHandler:128
   - backend/services/retry_handler.py:RetryConfig:38
   - backend/services/retry_handler.py:DLQStats:120
   - backend/services/health_monitor.py:ServiceHealthMonitor:25
   - backend/services/degradation_manager.py:DegradationManager
   - backend/services/service_managers.py:ServiceManager
+  - frontend/src/hooks/useWebSocket.ts
+  - frontend/src/hooks/webSocketManager.ts
 ---
 
 # Resilience Architecture
@@ -32,6 +38,7 @@ This document details the resilience patterns implemented in the Home Security I
 7. [Recovery Strategies](#recovery-strategies)
 8. [Configuration Reference](#configuration-reference)
 9. [Image Generation Prompts](#image-generation-prompts)
+10. [WebSocket Circuit Breaker and Degraded Mode](#websocket-circuit-breaker-and-degraded-mode)
 
 ---
 
@@ -705,11 +712,50 @@ No text overlays
 
 ---
 
-## WebSocket Circuit Breaker
+## WebSocket Circuit Breaker and Degraded Mode
 
-The system includes a dedicated WebSocket circuit breaker specifically designed for the EventBroadcaster and SystemBroadcaster services. This provides resilience for real-time WebSocket connections when Redis pub/sub experiences failures.
+The system includes a dedicated WebSocket circuit breaker pattern for real-time connection resilience. This provides automatic recovery when Redis pub/sub experiences failures and graceful degradation when recovery fails.
+
+### Architecture Overview
+
+```mermaid
+flowchart TB
+    subgraph Backend["Backend Services"]
+        SB[SystemBroadcaster<br/>Port: /ws/system]
+        EB[EventBroadcaster<br/>Port: /ws/events]
+        CB1[WebSocketCircuitBreaker<br/>system_broadcaster]
+        CB2[WebSocketCircuitBreaker<br/>event_broadcaster]
+    end
+
+    subgraph Redis["Redis Pub/Sub"]
+        CH1[system_status channel]
+        CH2[security_events channel]
+    end
+
+    subgraph Frontend["Frontend Clients"]
+        WS[useWebSocket Hook]
+        WSM[WebSocketManager<br/>Connection Deduplication]
+    end
+
+    SB --> CB1
+    EB --> CB2
+    CB1 --> CH1
+    CB2 --> CH2
+    CH1 -.->|Subscribe| SB
+    CH2 -.->|Subscribe| EB
+
+    SB -->|Broadcast| WS
+    EB -->|Broadcast| WS
+    WS --> WSM
+
+    style CB1 fill:#FFB800,color:#000
+    style CB2 fill:#FFB800,color:#000
+    style WSM fill:#3B82F6,color:#fff
+```
 
 ### WebSocket Circuit Breaker States
+
+The [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) implements the circuit breaker pattern specifically for WebSocket broadcaster services.
 
 | State         | Description                                             | Behavior                                         |
 | ------------- | ------------------------------------------------------- | ------------------------------------------------ |
@@ -717,116 +763,431 @@ The system includes a dedicated WebSocket circuit breaker specifically designed 
 | **OPEN**      | Too many failures, operations blocked to allow recovery | Broadcasts are rejected immediately              |
 | **HALF_OPEN** | Testing recovery, limited operations allowed            | Single test operation allowed per recovery cycle |
 
-### Configuration
-
-The [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) uses the following default configuration:
-
-| Parameter             | Default | Description                                    |
-| --------------------- | ------- | ---------------------------------------------- |
-| `failure_threshold`   | 3       | Consecutive failures before opening circuit    |
-| `recovery_timeout`    | 30.0s   | Wait time before transitioning to HALF_OPEN    |
-| `half_open_max_calls` | 1       | Max calls allowed in HALF_OPEN state           |
-| `success_threshold`   | 1       | Successes needed in HALF_OPEN to close circuit |
-
 ### State Diagram
 
 ```mermaid
 stateDiagram-v2
     [*] --> CLOSED: Initial State
 
-    CLOSED --> OPEN: failures >= 3
+    CLOSED --> OPEN: failures >= threshold (5)
     OPEN --> HALF_OPEN: recovery_timeout (30s) elapsed
-    HALF_OPEN --> CLOSED: success_threshold met
+    HALF_OPEN --> CLOSED: success_threshold (1) met
     HALF_OPEN --> OPEN: any failure
 
     CLOSED: Normal Operation
     CLOSED: WebSocket broadcasts pass through
     CLOSED: Track consecutive failures
+    CLOSED: Reset failure count on success
 
     OPEN: Circuit Tripped
     OPEN: Broadcasts rejected immediately
     OPEN: Waiting for recovery timeout
+    OPEN: Degraded mode notification sent
 
     HALF_OPEN: Recovery Testing
     HALF_OPEN: Single test operation allowed
     HALF_OPEN: Track success/failure
+    HALF_OPEN: Careful service probing
 ```
 
-### Integration with Broadcasters
+### Configuration
 
-Both EventBroadcaster and SystemBroadcaster integrate the WebSocketCircuitBreaker:
+Both [SystemBroadcaster](../../backend/services/system_broadcaster.py) and [EventBroadcaster](../../backend/services/event_broadcaster.py) use the following circuit breaker configuration:
+
+| Parameter             | Default                   | Description                                    |
+| --------------------- | ------------------------- | ---------------------------------------------- |
+| `failure_threshold`   | 5 (MAX_RECOVERY_ATTEMPTS) | Consecutive failures before opening circuit    |
+| `recovery_timeout`    | 30.0s                     | Wait time before transitioning to HALF_OPEN    |
+| `half_open_max_calls` | 1                         | Max calls allowed in HALF_OPEN state           |
+| `success_threshold`   | 1                         | Successes needed in HALF_OPEN to close circuit |
+
+### Backend: Broadcaster Integration
+
+Both EventBroadcaster and SystemBroadcaster integrate the WebSocketCircuitBreaker for pub/sub listener resilience:
 
 ```python
+# backend/services/system_broadcaster.py
 from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
 
 class SystemBroadcaster:
+    MAX_RECOVERY_ATTEMPTS = 5
+
     def __init__(self, ...):
         self._circuit_breaker = WebSocketCircuitBreaker(
-            failure_threshold=3,
+            failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
             recovery_timeout=30.0,
+            half_open_max_calls=1,
+            success_threshold=1,
             name="system_broadcaster",
         )
         self._is_degraded = False
 
     def is_degraded(self) -> bool:
-        """Check if the broadcaster is in degraded mode.
-
-        Degraded mode is entered when all recovery attempts have been exhausted.
-        In this state, the broadcaster cannot reliably broadcast real-time updates
-        but may still accept WebSocket connections.
-        """
+        """Check if the broadcaster is in degraded mode."""
         return self._is_degraded
+
+    def get_circuit_state(self) -> WebSocketCircuitState:
+        """Get current circuit breaker state."""
+        return self._circuit_breaker.get_state()
 ```
 
 ### Degraded Mode
 
-When the circuit breaker opens and recovery fails, the broadcaster enters degraded mode:
+When the circuit breaker opens and recovery fails, the broadcaster enters **degraded mode**:
 
-1. **`is_degraded()` method** - Returns `True` when all recovery attempts are exhausted
-2. **Client notification** - Connected clients receive a `service_status` message indicating degraded state
-3. **Graceful handling** - WebSocket connections are still accepted, but real-time broadcasts may be delayed or unavailable
+```mermaid
+sequenceDiagram
+    participant Redis as Redis Pub/Sub
+    participant CB as Circuit Breaker
+    participant SB as SystemBroadcaster
+    participant WS as WebSocket Clients
 
-### Usage Pattern
+    Note over Redis: Redis connection fails
 
-```python
-# Check if operation is permitted before attempting broadcast
-if self._circuit_breaker.is_call_permitted():
-    try:
-        await self._broadcast_to_clients(message)
-        self._circuit_breaker.record_success()
-    except Exception:
-        self._circuit_breaker.record_failure()
-else:
-    # Circuit is open, handle degraded mode
-    logger.warning("Circuit breaker open, broadcast skipped")
+    loop Recovery Attempts (1-5)
+        SB->>Redis: Attempt reconnect
+        Redis--xSB: Connection failed
+        SB->>CB: record_failure()
+        CB->>CB: failure_count++
+    end
+
+    CB->>CB: failure_count >= 5
+    CB->>SB: is_call_permitted() = false
+    SB->>SB: Enter degraded mode
+    SB->>WS: Broadcast service_status: degraded
+
+    Note over SB: Manual restart required
 ```
 
-### Metrics and Monitoring
+#### Degraded Mode Behavior
 
-The circuit breaker tracks metrics for observability:
+1. **`is_degraded()` method** - Returns `True` when all recovery attempts are exhausted
+2. **Client notification** - Connected clients receive a `service_status` message:
+   ```json
+   {
+     "type": "service_status",
+     "data": {
+       "service": "system_broadcaster",
+       "status": "degraded",
+       "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+       "circuit_state": "open"
+     }
+   }
+   ```
+3. **Graceful handling** - WebSocket connections are still accepted, but real-time broadcasts may be delayed or unavailable
+4. **CRITICAL logging** - Operator alert logged for manual intervention
 
-| Metric              | Description                              |
-| ------------------- | ---------------------------------------- |
-| `failure_count`     | Consecutive failures since last success  |
-| `success_count`     | Consecutive successes in HALF_OPEN state |
-| `total_failures`    | Total failures recorded                  |
-| `total_successes`   | Total successes recorded                 |
-| `last_failure_time` | Timestamp of last failure (monotonic)    |
-| `last_state_change` | Timestamp of last state transition       |
-| `opened_at`         | Timestamp when circuit was last opened   |
+### Recovery Sequence
 
-Access metrics via `get_metrics()` or `get_status()` for API responses.
+The broadcaster attempts automatic recovery with exponential backoff:
+
+```mermaid
+flowchart TB
+    subgraph Failure["Failure Detection"]
+        F1[Redis Connection Error]
+        F2[Pub/Sub Listener Dies]
+    end
+
+    subgraph Recovery["Recovery Attempts"]
+        R1{Attempt < 5?}
+        R2[Record Failure]
+        R3[Exponential Backoff<br/>1s, 2s, 4s, 8s...]
+        R4[Reset Pub/Sub Connection]
+        R5[Restart Listener Task]
+    end
+
+    subgraph CircuitBreaker["Circuit Breaker Check"]
+        CB{is_call_permitted?}
+        CB_BLOCK[Block Recovery<br/>Circuit OPEN]
+    end
+
+    subgraph Outcome["Outcome"]
+        SUCCESS[Recovery Success<br/>Reset Counters]
+        DEGRADED[Enter Degraded Mode<br/>Broadcast Status]
+    end
+
+    F1 --> R2
+    F2 --> R2
+    R2 --> CB
+
+    CB -->|Yes| R1
+    CB -->|No| CB_BLOCK --> DEGRADED
+
+    R1 -->|Yes| R3 --> R4 --> R5
+    R1 -->|No| DEGRADED
+
+    R5 -->|Success| SUCCESS
+    R5 -->|Failure| R2
+
+    style DEGRADED fill:#E74856,color:#fff
+    style SUCCESS fill:#76B900,color:#fff
+    style CB_BLOCK fill:#FFB800,color:#000
+```
+
+### Frontend: Client-Side Reconnection
+
+The frontend implements its own reconnection logic with exponential backoff, independent of the backend circuit breaker.
+
+#### WebSocket Manager Architecture
+
+The [WebSocketManager](../../frontend/src/hooks/webSocketManager.ts) provides connection deduplication and automatic reconnection:
+
+```mermaid
+flowchart TB
+    subgraph Components["React Components"]
+        C1[Dashboard]
+        C2[EventFeed]
+        C3[SystemStatus]
+    end
+
+    subgraph Hook["useWebSocket Hook"]
+        H[useWebSocket<br/>Options & Callbacks]
+    end
+
+    subgraph Manager["WebSocketManager Singleton"]
+        M[Connection Pool]
+        SUB[Subscribers Map<br/>Reference Counting]
+    end
+
+    subgraph Connection["Managed Connection"]
+        WS[WebSocket Instance]
+        RT[Reconnect Logic<br/>Exponential Backoff]
+        HB[Heartbeat Handler<br/>Ping/Pong]
+    end
+
+    C1 & C2 & C3 --> H
+    H --> M
+    M --> SUB --> WS
+    WS --> RT
+    WS --> HB
+
+    style M fill:#3B82F6,color:#fff
+```
+
+#### Client Reconnection Configuration
+
+```typescript
+// frontend/src/hooks/useWebSocket.ts
+export interface WebSocketOptions {
+  url: string;
+  reconnect?: boolean; // Default: true
+  reconnectInterval?: number; // Default: 1000ms (base interval)
+  reconnectAttempts?: number; // Default: 5 (max attempts)
+  connectionTimeout?: number; // Default: 10000ms
+  autoRespondToHeartbeat?: boolean; // Default: true
+  onMaxRetriesExhausted?: () => void; // Called when max attempts reached
+}
+```
+
+#### Exponential Backoff with Jitter
+
+```typescript
+// frontend/src/hooks/webSocketManager.ts
+function calculateBackoffDelay(
+  attempt: number,
+  baseInterval: number,
+  maxInterval: number = 30000
+): number {
+  const exponentialDelay = baseInterval * Math.pow(2, attempt);
+  const cappedDelay = Math.min(exponentialDelay, maxInterval);
+  const jitter = Math.random() * 0.25 * cappedDelay;
+  return Math.floor(cappedDelay + jitter);
+}
+```
+
+| Attempt | Base Delay | Exponential | Capped  | With Jitter (0-25%) |
+| ------- | ---------- | ----------- | ------- | ------------------- |
+| 0       | 1000ms     | 1000ms      | 1000ms  | 1000-1250ms         |
+| 1       | 1000ms     | 2000ms      | 2000ms  | 2000-2500ms         |
+| 2       | 1000ms     | 4000ms      | 4000ms  | 4000-5000ms         |
+| 3       | 1000ms     | 8000ms      | 8000ms  | 8000-10000ms        |
+| 4       | 1000ms     | 16000ms     | 16000ms | 16000-20000ms       |
+| 5+      | 1000ms     | 32000ms+    | 30000ms | 30000-37500ms       |
+
+#### Client State Tracking
+
+The `useWebSocket` hook exposes reconnection state:
+
+```typescript
+export interface UseWebSocketReturn {
+  isConnected: boolean; // Current connection status
+  hasExhaustedRetries: boolean; // True if max attempts reached
+  reconnectCount: number; // Current retry attempt count
+  lastHeartbeat: Date | null; // Timestamp of last server heartbeat
+  connect: () => void; // Manual reconnect trigger
+  disconnect: () => void; // Manual disconnect
+}
+```
+
+### End-to-End Resilience Flow
+
+```mermaid
+sequenceDiagram
+    participant Client as Frontend Client
+    participant WSM as WebSocketManager
+    participant Backend as Backend (FastAPI)
+    participant SB as SystemBroadcaster
+    participant CB as Circuit Breaker
+    participant Redis as Redis
+
+    Note over Redis: Redis goes offline
+
+    SB->>Redis: Pub/Sub subscribe
+    Redis--xSB: Connection lost
+    SB->>CB: record_failure()
+
+    loop Recovery (up to 5 attempts)
+        SB->>Redis: Reconnect attempt
+        Redis--xSB: Still unavailable
+        SB->>CB: record_failure()
+    end
+
+    CB->>SB: is_call_permitted() = false
+    SB->>SB: _is_degraded = true
+    SB->>Backend: Broadcast degraded status
+    Backend->>Client: service_status: degraded
+
+    Note over Client: Client shows degraded banner
+
+    Client->>WSM: Connection lost
+    WSM->>WSM: Start reconnection
+
+    loop Client Reconnection (up to 5 attempts)
+        WSM->>Backend: WebSocket connect
+        Backend-->>WSM: Connection established
+        Note over WSM: onClose triggered (backend may drop)
+        WSM->>WSM: Exponential backoff
+    end
+
+    alt Max Retries Exceeded
+        WSM->>Client: onMaxRetriesExhausted()
+        Note over Client: Show "Connection lost" UI
+    else Redis Recovers
+        Redis->>SB: Connection restored
+        SB->>CB: record_success()
+        CB->>SB: is_call_permitted() = true
+        SB->>SB: _is_degraded = false
+        SB->>Backend: Resume broadcasting
+        Backend->>Client: service_status: healthy
+    end
+```
+
+### Monitoring and Observability
+
+#### Backend Metrics
+
+The circuit breaker tracks metrics via `get_metrics()` and `get_status()`:
+
+| Metric              | Description                              | API Endpoint                    |
+| ------------------- | ---------------------------------------- | ------------------------------- |
+| `failure_count`     | Consecutive failures since last success  | `GET /api/system/health/ready`  |
+| `success_count`     | Consecutive successes in HALF_OPEN state | Internal monitoring             |
+| `total_failures`    | Total failures recorded                  | Prometheus metrics (if enabled) |
+| `total_successes`   | Total successes recorded                 | Prometheus metrics (if enabled) |
+| `last_failure_time` | Timestamp of last failure (monotonic)    | Circuit breaker status          |
+| `last_state_change` | Timestamp of last state transition       | Circuit breaker status          |
+| `opened_at`         | Timestamp when circuit was last opened   | Circuit breaker status          |
+
+#### Health Check Integration
+
+```python
+# Check broadcaster health in health endpoints
+broadcaster = get_system_broadcaster_sync()
+if broadcaster.is_degraded():
+    return {"status": "degraded", "reason": "WebSocket broadcasting unavailable"}
+```
+
+#### Client-Side Monitoring
+
+```typescript
+// React component monitoring example
+const { isConnected, hasExhaustedRetries, reconnectCount, lastHeartbeat } = useWebSocket({
+  url: '/ws/system',
+  onMaxRetriesExhausted: () => {
+    console.error('WebSocket connection failed after max retries');
+    showConnectionErrorBanner();
+  },
+  onHeartbeat: () => {
+    updateLastHeartbeatIndicator();
+  },
+});
+```
+
+### Supervisor Task (EventBroadcaster)
+
+The EventBroadcaster includes an additional supervision layer that monitors listener health:
+
+```python
+# backend/services/event_broadcaster.py
+async def _supervise_listener(self) -> None:
+    """Supervision task that monitors listener health and restarts if needed."""
+    while self._is_listening:
+        await asyncio.sleep(self.SUPERVISION_INTERVAL)  # 30 seconds
+
+        listener_alive = self._listener_task is not None and not self._listener_task.done()
+
+        if listener_alive:
+            self._circuit_breaker.record_success()
+            self._recovery_attempts = 0
+        elif self._is_listening:
+            # Listener died - attempt recovery
+            if self._circuit_breaker.is_call_permitted():
+                await self._restart_listener()
+            else:
+                self._enter_degraded_mode()
+```
+
+### Configuration Summary
+
+| Component      | Setting                 | Default | Description                      |
+| -------------- | ----------------------- | ------- | -------------------------------- |
+| **Backend CB** | `failure_threshold`     | 5       | Failures before circuit opens    |
+| **Backend CB** | `recovery_timeout`      | 30s     | Wait before HALF_OPEN transition |
+| **Backend**    | `SUPERVISION_INTERVAL`  | 30s     | Listener health check interval   |
+| **Frontend**   | `reconnectAttempts`     | 5       | Max client reconnection attempts |
+| **Frontend**   | `reconnectInterval`     | 1000ms  | Base backoff interval            |
+| **Frontend**   | `connectionTimeout`     | 10000ms | Connection establishment timeout |
+| **Frontend**   | `maxInterval` (backoff) | 30000ms | Maximum backoff delay            |
+
+### Manual Recovery
+
+When the system enters degraded mode, manual intervention is required:
+
+```bash
+# Check container health
+docker compose -f docker-compose.prod.yml ps
+
+# Check Redis connectivity
+docker compose -f docker-compose.prod.yml exec redis redis-cli ping
+
+# Restart the backend service
+docker compose -f docker-compose.prod.yml restart backend
+
+# View broadcaster logs
+docker compose -f docker-compose.prod.yml logs backend | grep -i "broadcaster\|circuit"
+```
+
+Look for these log patterns:
+
+| Log Level    | Pattern                                        | Meaning                             |
+| ------------ | ---------------------------------------------- | ----------------------------------- |
+| **CRITICAL** | `EventBroadcaster has entered DEGRADED MODE`   | Requires manual restart             |
+| **WARNING**  | `Circuit breaker is OPEN`                      | Recovery blocked, waiting for reset |
+| **INFO**     | `Restarting pub/sub listener (attempt N/5)`    | Auto-recovery in progress           |
+| **INFO**     | `transitioned HALF_OPEN -> CLOSED (recovered)` | Service successfully recovered      |
 
 ---
 
 ## Related Documentation
 
-| Document                                              | Purpose                            |
-| ----------------------------------------------------- | ---------------------------------- |
-| [AI Pipeline](ai-pipeline.md)                         | Detection and analysis flow        |
-| [Real-Time](real-time.md)                             | WebSocket and pub/sub architecture |
-| [Data Model](data-model.md)                           | Database schema and relationships  |
-| [Backend AGENTS.md](../../backend/services/AGENTS.md) | Service implementation details     |
+| Document                                              | Purpose                             |
+| ----------------------------------------------------- | ----------------------------------- |
+| [AI Pipeline](ai-pipeline.md)                         | Detection and analysis flow         |
+| [Real-Time](real-time.md)                             | WebSocket and pub/sub architecture  |
+| [Data Model](data-model.md)                           | Database schema and relationships   |
+| [Backend AGENTS.md](../../backend/services/AGENTS.md) | Service implementation details      |
+| [Frontend Hooks](frontend-hooks.md)                   | React hooks including useWebSocket  |
+| [Backend Core](../../backend/core/AGENTS.md)          | Core infrastructure including Redis |
 
 ---
 
