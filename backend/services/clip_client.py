@@ -51,6 +51,10 @@ DEFAULT_CLIP_URL = "http://ai-clip:8093"
 # CLIP ViT-L embedding dimension
 EMBEDDING_DIMENSION = 768
 
+# Maximum batch size for batch_similarity to prevent resource exhaustion
+# Requests with more texts should be split into multiple batches by the caller
+MAX_BATCH_SIZE = 100
+
 
 class CLIPUnavailableError(Exception):
     """Raised when the CLIP service is unavailable.
@@ -742,17 +746,29 @@ class CLIPClient:
 
         Args:
             image: PIL Image to compare
-            texts: List of text descriptions to compare against
+            texts: List of text descriptions to compare against (max 100 items)
 
         Returns:
             Dictionary mapping each text to its similarity score
 
         Raises:
             CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
-            ValueError: If texts list is empty
+            ValueError: If texts list is empty or exceeds MAX_BATCH_SIZE (100)
+
+        Note:
+            The batch size is limited to MAX_BATCH_SIZE (100) to prevent memory
+            exhaustion and request timeouts on the AI container. For larger batches,
+            split the texts into chunks of 100 or fewer and call this method multiple
+            times.
         """
         if not texts:
             raise ValueError("Texts list cannot be empty")
+
+        if len(texts) > MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(texts)} exceeds maximum of {MAX_BATCH_SIZE}. "
+                f"Split the texts into smaller batches of {MAX_BATCH_SIZE} or fewer."
+            )
 
         start_time = time.time()
 
