@@ -630,8 +630,9 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        // Multiple elements may have "Total Pipeline" text (option, span, p)
-        expect(screen.getAllByText('Total Pipeline').length).toBeGreaterThan(0);
+        // Use getAllByText since 'Total Pipeline' appears in dropdown and display
+        const elements = screen.getAllByText('Total Pipeline');
+        expect(elements.length).toBeGreaterThan(0);
       });
     });
   });

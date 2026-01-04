@@ -6343,30 +6343,7 @@ export interface components {
          * @example {
          *       "loading_strategy": "sequential",
          *       "max_concurrent_models": 1,
-         *       "models": [
-         *         {
-         *           "available": true,
-         *           "category": "detection",
-         *           "display_name": "YOLO11 License Plate",
-         *           "enabled": true,
-         *           "load_count": 1,
-         *           "name": "yolo11-license-plate",
-         *           "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
-         *           "status": "loaded",
-         *           "vram_mb": 300
-         *         },
-         *         {
-         *           "available": false,
-         *           "category": "detection",
-         *           "display_name": "YOLO11 Face Detection",
-         *           "enabled": true,
-         *           "load_count": 0,
-         *           "name": "yolo11-face",
-         *           "path": "/models/model-zoo/yolo11-face-detection/model.pt",
-         *           "status": "unloaded",
-         *           "vram_mb": 200
-         *         }
-         *       ],
+         *       "models": [],
          *       "vram_available_mb": 1350,
          *       "vram_budget_mb": 1650,
          *       "vram_used_mb": 300
