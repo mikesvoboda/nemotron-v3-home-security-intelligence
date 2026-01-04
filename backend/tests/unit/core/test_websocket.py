@@ -232,6 +232,7 @@ class MockSystemBroadcaster:
     - start_broadcasting(interval=5.0) -> None
     - stop_broadcasting() -> None
     - get_circuit_state() -> str
+    - is_degraded() -> bool
     """
 
     def __init__(
@@ -344,6 +345,14 @@ class MockSystemBroadcaster:
             Circuit breaker state string (e.g., "closed", "open", "half_open")
         """
         return "closed"  # Mock always returns healthy state
+
+    def is_degraded(self) -> bool:
+        """Check if the broadcaster is in degraded mode.
+
+        Returns:
+            True if broadcaster is in degraded mode, False otherwise
+        """
+        return False  # Mock always returns healthy state
 
     # ==========================================================================
     # Test-only methods below - NOT part of the real SystemBroadcaster interface

@@ -49,10 +49,12 @@ jobs:
         # Context must be project root because Dockerfile.prod copies pyproject.toml/uv.lock from root
         run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod .
 
-      - name: Clean up Docker to free space
-        # Remove build cache and intermediate layers to maximize space for Trivy
+      - name: Clean up Docker build cache to free space
+        # Remove only build cache and intermediate layers, NOT the built image
+        # IMPORTANT: Don't use 'docker system prune -af' as it deletes ALL unused images
+        # including the image we just built but haven't scanned yet
         run: |
-          docker system prune -af --volumes
+          docker builder prune -af
           df -h
 
       - name: Run Trivy vulnerability scanner (blocking)

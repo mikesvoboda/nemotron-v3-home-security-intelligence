@@ -1525,3 +1525,124 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
     assert status["data"]["ai"]["nemotron"] == "unhealthy"
     # Overall health should be degraded (DB/Redis healthy, but AI is down)
     assert status["data"]["health"] == "degraded"
+
+
+# ============================================================================
+# Tests for is_degraded() method (NEM-1075)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_is_degraded_initially_false():
+    """Test that is_degraded() returns False initially."""
+    broadcaster = SystemBroadcaster()
+    assert broadcaster.is_degraded() is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_is_degraded_after_max_recovery_attempts():
+    """Test that is_degraded() returns True after max recovery attempts exhausted."""
+    mock_redis = AsyncMock()
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    # Simulate having exhausted recovery attempts
+    broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS + 1
+    broadcaster._pubsub_listening = True
+
+    # Mock _broadcast_degraded_state to avoid WebSocket interactions
+    with patch.object(broadcaster, "_broadcast_degraded_state"):
+        await broadcaster._attempt_listener_recovery()
+
+    # Should be in degraded mode
+    assert broadcaster.is_degraded() is True
+    assert broadcaster._pubsub_listening is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_is_degraded_after_circuit_breaker_open():
+    """Test that is_degraded() returns True when circuit breaker blocks recovery."""
+    from backend.core.websocket_circuit_breaker import WebSocketCircuitState
+
+    mock_redis = AsyncMock()
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub_listening = True
+
+    # Force circuit breaker to block calls by setting state to OPEN
+    broadcaster._circuit_breaker._state = WebSocketCircuitState.OPEN
+
+    # Mock _broadcast_degraded_state to avoid WebSocket interactions
+    with patch.object(broadcaster, "_broadcast_degraded_state"):
+        await broadcaster._attempt_listener_recovery()
+
+    # Should be in degraded mode
+    assert broadcaster.is_degraded() is True
+    assert broadcaster._pubsub_listening is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_is_degraded_cleared_on_successful_start():
+    """Test that is_degraded() returns False after successful pub/sub start."""
+    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    # Manually set degraded mode
+    broadcaster._is_degraded = True
+    assert broadcaster.is_degraded() is True
+
+    # Mock listen to avoid actual async iteration
+    async def empty_listen(pubsub):
+        for _ in []:
+            yield
+
+    mock_redis.listen = empty_listen
+
+    await broadcaster._start_pubsub_listener()
+
+    # Should have cleared degraded mode on successful start
+    assert broadcaster.is_degraded() is False
+    assert broadcaster._pubsub_listening is True
+
+    # Cleanup
+    broadcaster._pubsub_listening = False
+    if broadcaster._listener_task:
+        broadcaster._listener_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await broadcaster._listener_task
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_is_degraded_after_reestablish_failure():
+    """Test that is_degraded() returns True when re-establishing connection fails."""
+    mock_redis = AsyncMock()
+    # Make subscribe_dedicated return None to simulate failure
+    mock_redis.subscribe_dedicated.side_effect = Exception("Connection failed")
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub_listening = True
+    broadcaster._recovery_attempts = 1  # Not at max yet
+
+    # Mock _reset_pubsub_connection to set pubsub to None (simulating failure)
+    async def reset_fail():
+        broadcaster._pubsub = None
+
+    # Mock _broadcast_degraded_state to avoid WebSocket interactions
+    with (
+        patch.object(broadcaster, "_reset_pubsub_connection", side_effect=reset_fail),
+        patch.object(broadcaster, "_broadcast_degraded_state"),
+    ):
+        await broadcaster._attempt_listener_recovery()
+
+    # Should be in degraded mode
+    assert broadcaster.is_degraded() is True
+    assert broadcaster._pubsub_listening is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_degraded_flag_init():
+    """Test that _is_degraded is properly initialized in __init__."""
+    broadcaster = SystemBroadcaster()
+    assert hasattr(broadcaster, "_is_degraded")
+    assert broadcaster._is_degraded is False
