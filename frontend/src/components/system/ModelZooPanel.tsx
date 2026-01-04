@@ -1,7 +1,6 @@
 import { Card, Title, Text, Badge, ProgressBar, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, RefreshCw, AlertCircle, Package, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { Cpu, RefreshCw, AlertCircle, Package } from 'lucide-react';
 
 import type { VRAMStats } from '../../hooks/useModelZooStatus';
 import type { ModelStatusResponse } from '../../services/api';
@@ -20,8 +19,6 @@ export interface ModelZooPanelProps {
   error: string | null;
   /** Callback to refresh data */
   onRefresh: () => void;
-  /** Whether to show all models by default (default: false - show only active) */
-  defaultShowAll?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -77,20 +74,11 @@ function getVramProgressColor(usagePercent: number): 'emerald' | 'yellow' | 'ora
 }
 
 /**
- * Check if a model is active (loaded or loading)
- */
-function isActiveModel(model: ModelStatusResponse): boolean {
-  return model.status === 'loaded' || model.status === 'loading';
-}
-
-/**
  * ModelZooPanel - Displays AI Model Zoo status and VRAM usage.
  *
  * Features:
  * - VRAM budget progress bar showing current consumption
- * - Table of models with status badges
- * - Default shows only loaded/loading models
- * - "Show All" toggle to expand full model list
+ * - Table of all models with status badges
  * - Load count (inference count) for loaded models
  * - Refresh button for manual updates
  * - Loading, error, and empty states
@@ -98,14 +86,14 @@ function isActiveModel(model: ModelStatusResponse): boolean {
  * Design matches the task specification:
  * ```
  * +---------------------------------------------------------+
- * | AI Model Zoo                     VRAM: 2.0/24GB [Show All]|
+ * | AI Model Zoo                                    [Refresh]|
+ * +---------------------------------------------------------+
+ * | VRAM Budget: ████████░░░░░░░░░░░ 450/1650 MB (27%)      |
  * +---------------------------------------------------------+
  * | Model                    | Status   | VRAM   | Inferences|
  * |---------------------------------------------------------|
- * | RT-DETRv2               | Loaded   | 1.2GB  | 1,847     |
- * | CLIP ViT-L              | Loaded   | 0.8GB  | 1,234     |
- * +---------------------------------------------------------+
- * | 16 models unloaded                         [Show All ->] |
+ * | CLIP ViT-L/14           | Loaded   | 400 MB | 1,547     |
+ * | YOLO11 Face             | Unloaded | 150 MB | -         |
  * +---------------------------------------------------------+
  * ```
  */
@@ -115,82 +103,35 @@ export default function ModelZooPanel({
   isLoading,
   error,
   onRefresh,
-  defaultShowAll = false,
   className,
 }: ModelZooPanelProps) {
-  const [showAll, setShowAll] = useState(defaultShowAll);
-
-  // Separate active and inactive models
-  const { inactiveModels, displayedModels } = useMemo(() => {
-    const active = models.filter(isActiveModel);
-    const inactive = models.filter((m) => !isActiveModel(m));
-    return {
-      inactiveModels: inactive,
-      displayedModels: showAll ? models : active,
-    };
-  }, [models, showAll]);
   return (
     <Card
       className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
       data-testid="model-zoo-panel"
     >
-      {/* Header with title, VRAM summary, and controls */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <Title className="flex items-center gap-2 text-white">
-            <Package className="h-5 w-5 text-[#76B900]" />
-            AI Model Zoo
-          </Title>
-          {/* Inline VRAM summary */}
-          {vramStats && (
-            <span className="text-sm text-gray-400" data-testid="vram-inline-summary">
-              VRAM: {(vramStats.used_mb / 1024).toFixed(1)}/{(vramStats.budget_mb / 1024).toFixed(0)}GB
-            </span>
+      {/* Header with title and refresh button */}
+      <div className="mb-4 flex items-center justify-between">
+        <Title className="flex items-center gap-2 text-white">
+          <Package className="h-5 w-5 text-[#76B900]" />
+          AI Model Zoo
+        </Title>
+        <button
+          onClick={onRefresh}
+          disabled={isLoading}
+          className={clsx(
+            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            isLoading
+              ? 'cursor-not-allowed bg-gray-700 text-gray-500'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Show All toggle */}
-          <button
-            type="button"
-            onClick={() => setShowAll(!showAll)}
-            className={clsx(
-              'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
-              showAll
-                ? 'bg-[#76B900]/20 text-[#76B900]'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            )}
-            data-testid="model-zoo-show-all-toggle"
-          >
-            {showAll ? (
-              <>
-                Show Active
-                <ChevronUp className="h-3 w-3" />
-              </>
-            ) : (
-              <>
-                Show All
-                <ChevronDown className="h-3 w-3" />
-              </>
-            )}
-          </button>
-          {/* Refresh button */}
-          <button
-            onClick={onRefresh}
-            disabled={isLoading}
-            className={clsx(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              isLoading
-                ? 'cursor-not-allowed bg-gray-700 text-gray-500'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-            )}
-            data-testid="model-zoo-refresh-btn"
-          >
-            <RefreshCw
-              className={clsx('h-4 w-4', isLoading && 'animate-spin')}
-            />
-            Refresh
-          </button>
-        </div>
+          data-testid="model-zoo-refresh-btn"
+        >
+          <RefreshCw
+            className={clsx('h-4 w-4', isLoading && 'animate-spin')}
+          />
+          Refresh
+        </button>
       </div>
 
       {/* Loading state */}
@@ -238,7 +179,7 @@ export default function ModelZooPanel({
             </div>
           )}
 
-          {/* Empty state - no models at all */}
+          {/* Empty state */}
           {models.length === 0 && (
             <div
               className="flex h-32 items-center justify-center"
@@ -251,27 +192,8 @@ export default function ModelZooPanel({
             </div>
           )}
 
-          {/* Empty state - no active models (when not showing all) */}
-          {models.length > 0 && displayedModels.length === 0 && !showAll && (
-            <div
-              className="flex h-24 flex-col items-center justify-center"
-              data-testid="model-zoo-no-active"
-            >
-              <Text className="text-gray-500">No active models</Text>
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                className="mt-2 flex items-center gap-1 text-xs text-[#76B900] hover:underline"
-                data-testid="show-all-link"
-              >
-                Show all {inactiveModels.length} models
-                <ChevronDown className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-
           {/* Model Table */}
-          {displayedModels.length > 0 && (
+          {models.length > 0 && (
             <div className="overflow-hidden rounded-lg border border-gray-800">
               <Table>
                 <TableHead className="bg-gray-800/50">
@@ -283,7 +205,7 @@ export default function ModelZooPanel({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {displayedModels.map((model) => (
+                  {models.map((model) => (
                     <TableRow
                       key={model.name}
                       className="border-gray-800 hover:bg-gray-800/30"
@@ -324,27 +246,6 @@ export default function ModelZooPanel({
                   ))}
                 </TableBody>
               </Table>
-
-              {/* Unloaded models summary - shown when not showing all */}
-              {!showAll && inactiveModels.length > 0 && (
-                <div
-                  className="flex items-center justify-between border-t border-gray-800 bg-gray-800/30 px-4 py-2"
-                  data-testid="unloaded-models-summary"
-                >
-                  <Text className="text-sm text-gray-500">
-                    {inactiveModels.length} model{inactiveModels.length !== 1 ? 's' : ''} unloaded
-                  </Text>
-                  <button
-                    type="button"
-                    onClick={() => setShowAll(true)}
-                    className="flex items-center gap-1 text-xs text-[#76B900] hover:underline"
-                    data-testid="show-all-footer-link"
-                  >
-                    Show All
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </>

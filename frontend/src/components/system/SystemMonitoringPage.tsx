@@ -1,18 +1,28 @@
+import { Card, Title, Text, Badge, Metric, Callout } from '@tremor/react';
+import { clsx } from 'clsx';
 import {
   Server,
   AlertCircle,
   Activity,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  BarChart2,
   ExternalLink,
 } from 'lucide-react';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
-import GpuStatistics from './GpuStatistics';
-import InfrastructureGrid from './InfrastructureGrid';
+import AiModelsPanel from './AiModelsPanel';
+import CircuitBreakerPanel from './CircuitBreakerPanel';
+import ContainersPanel from './ContainersPanel';
+import DatabasesPanel from './DatabasesPanel';
+import HostSystemPanel from './HostSystemPanel';
 import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
-import PipelineFlow from './PipelineFlow';
-import SummaryRow from './SummaryRow';
+import PipelineMetricsPanel from './PipelineMetricsPanel';
+import SeverityConfigPanel from './SeverityConfigPanel';
 import TimeRangeSelector from './TimeRangeSelector';
+import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
 import { useModelZooStatus } from '../../hooks/useModelZooStatus';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
@@ -22,18 +32,17 @@ import {
   fetchGPUStats,
   fetchConfig,
   fetchCircuitBreakers,
-  fetchReadiness,
+  resetCircuitBreaker,
+  fetchSeverityMetadata,
   type GPUStats,
   type TelemetryResponse,
+  type ServiceStatus,
   type CircuitBreakersResponse,
-  type WorkerStatus,
+  type SeverityMetadataResponse,
 } from '../../services/api';
+import GpuStats from '../dashboard/GpuStats';
 
-import type { AiModelStatus } from './GpuStatistics';
-import type { InfraComponent, PostgresDetails, RedisDetails, ContainersDetails, HostDetails, CircuitsDetails } from './InfrastructureGrid';
-import type { PipelineStage, WorkerStatus as PipelineWorkerStatus } from './PipelineFlow';
 import type { ThroughputPoint } from './PipelineMetricsPanel';
-import type { IndicatorData, HealthStatus } from './SummaryRow';
 import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
 
 /**
@@ -44,6 +53,54 @@ interface SystemStatsData {
   total_events: number;
   total_detections: number;
   uptime_seconds: number;
+}
+
+/**
+ * Formats uptime seconds into a human-readable string
+ */
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+
+  return parts.length > 0 ? parts.join(' ') : '< 1m';
+}
+
+/**
+ * Gets the badge color for service status
+ */
+function getServiceStatusColor(status: string): 'green' | 'yellow' | 'red' | 'gray' {
+  switch (status) {
+    case 'healthy':
+      return 'green';
+    case 'degraded':
+      return 'yellow';
+    case 'unhealthy':
+      return 'red';
+    default:
+      return 'gray';
+  }
+}
+
+/**
+ * Gets the icon for service status
+ */
+function ServiceStatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case 'healthy':
+      return <CheckCircle className="h-3 w-3 text-green-500" />;
+    case 'degraded':
+      return <AlertTriangle className="h-3 w-3 text-yellow-500" />;
+    case 'unhealthy':
+      return <XCircle className="h-3 w-3 text-red-500" />;
+    default:
+      return <AlertCircle className="h-3 w-3 text-gray-500" />;
+  }
 }
 
 /**
@@ -72,19 +129,21 @@ export default function SystemMonitoringPage() {
 
   // State for circuit breakers
   const [circuitBreakers, setCircuitBreakers] = useState<CircuitBreakersResponse | null>(null);
-  const [_circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
-  const [_circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
+  const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
+  const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
 
-  // State for background workers
-  const [workers, setWorkers] = useState<WorkerStatus[]>([]);
+  // State for severity metadata
+  const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
+  const [severityLoading, setSeverityLoading] = useState(true);
+  const [severityError, setSeverityError] = useState<string | null>(null);
 
   // Use the health status hook for service health
   const {
-    health: _health,
-    services: _services,
-    overallStatus: _overallStatus,
+    health,
+    services,
+    overallStatus,
     isLoading: healthLoading,
-    error: _healthError,
+    error: healthError,
   } = useHealthStatus({
     pollingInterval: 30000,
   });
@@ -128,15 +187,12 @@ export default function SystemMonitoringPage() {
 
   // Extract AI model metrics dictionary
   // Combine ai_models with nemotron (which comes separately in the API response)
-  // ai_models is a Record<string, AiModelMetrics | NemotronMetrics> with dynamic keys
-  const aiModelsData = useMemo<Record<string, { status: string } | null> | null>(() => {
-    return performanceData
-      ? {
-          ...(performanceData.ai_models ?? {}),
-          ...(performanceData.nemotron ? { nemotron: performanceData.nemotron } : {}),
-        }
-      : null;
-  }, [performanceData]);
+  const aiModelsData = performanceData
+    ? {
+        ...(performanceData.ai_models ?? {}),
+        ...(performanceData.nemotron ? { nemotron: performanceData.nemotron } : {}),
+      }
+    : null;
 
   // Extract database metrics
   const postgresMetrics = performanceData?.databases?.postgresql
@@ -159,14 +215,69 @@ export default function SystemMonitoringPage() {
       })
     : null;
 
+  // Create database history data from performance history
+  const databaseHistory = {
+    postgresql: {
+      connections: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.postgresql as { connections_active?: number } | undefined)
+            ?.connections_active ?? 0,
+      })),
+      cache_hit_ratio: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.postgresql as { cache_hit_ratio?: number } | undefined)
+            ?.cache_hit_ratio ?? 0,
+      })),
+    },
+    redis: {
+      memory: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.redis as { memory_mb?: number } | undefined)?.memory_mb ?? 0,
+      })),
+      clients: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.redis as { connected_clients?: number } | undefined)
+            ?.connected_clients ?? 0,
+      })),
+    },
+  };
+
   // Extract host metrics
   const hostMetrics = performanceData?.host ?? null;
 
+  // Create host history data
+  const hostHistory = {
+    cpu: (performanceHistory[timeRange] || []).map((update) => ({
+      timestamp: update.timestamp,
+      value: update.host?.cpu_percent ?? 0,
+    })),
+    ram: (performanceHistory[timeRange] || []).map((update) => ({
+      timestamp: update.timestamp,
+      value: update.host?.ram_used_gb ?? 0,
+    })),
+  };
+
   // Extract container metrics
-  const containerMetrics = useMemo(() => performanceData?.containers ?? [], [performanceData]);
+  const containerMetrics = performanceData?.containers ?? [];
+
+  // Create container history data
+  const containerHistory: Record<string, { timestamp: string; health: string }[]> = {};
+  containerMetrics.forEach((container) => {
+    containerHistory[container.name] = (performanceHistory[timeRange] || []).map((update) => {
+      const containerData = update.containers?.find((c) => c.name === container.name);
+      return {
+        timestamp: update.timestamp,
+        health: containerData?.health ?? 'unknown',
+      };
+    });
+  });
 
   // Throughput history for PipelineMetricsPanel
-  const [_throughputHistory, setThroughputHistory] = useState<ThroughputPoint[]>([]);
+  const [throughputHistory, setThroughputHistory] = useState<ThroughputPoint[]>([]);
   const prevTelemetryRef = useRef<TelemetryResponse | null>(null);
   const prevTimestampRef = useRef<number | null>(null);
 
@@ -276,381 +387,38 @@ export default function SystemMonitoringPage() {
     void loadCircuitBreakers();
   }, []);
 
-  // Fetch workers data
+  // Fetch severity metadata
   useEffect(() => {
-    async function loadWorkers() {
+    async function loadSeverityMetadata() {
+      setSeverityLoading(true);
+      setSeverityError(null);
+
       try {
-        const readiness = await fetchReadiness();
-        setWorkers(readiness.workers || []);
+        const data = await fetchSeverityMetadata();
+        setSeverityMetadata(data);
       } catch (err) {
-        console.error('Failed to load workers:', err);
+        console.error('Failed to load severity metadata:', err);
+        setSeverityError(err instanceof Error ? err.message : 'Failed to load severity metadata');
+      } finally {
+        setSeverityLoading(false);
       }
     }
 
-    void loadWorkers();
-    // Poll every 10 seconds
-    const interval = setInterval(() => void loadWorkers(), 10000);
-    return () => clearInterval(interval);
+    void loadSeverityMetadata();
   }, []);
 
-  // Handler for scrolling to section when summary indicator is clicked
-  const handleSummaryIndicatorClick = useCallback((id: string) => {
-    const sectionMap: Record<string, string> = {
-      overall: 'summary-section',
-      gpu: 'gpu-section',
-      pipeline: 'pipeline-section',
-      aiModels: 'ai-models-section',
-      infrastructure: 'infra-section',
-    };
-    const sectionId = sectionMap[id];
-    if (sectionId) {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+  // Handler for resetting circuit breakers
+  const handleResetCircuitBreaker = async (name: string) => {
+    try {
+      await resetCircuitBreaker(name);
+      // Reload circuit breakers data after reset
+      const data = await fetchCircuitBreakers();
+      setCircuitBreakers(data);
+    } catch (err) {
+      console.error(`Failed to reset circuit breaker ${name}:`, err);
+      setCircuitBreakersError(err instanceof Error ? err.message : `Failed to reset ${name}`);
     }
-  }, []);
-
-  // Compute Summary Row data
-  const computeSummaryData = useCallback((): {
-    overall: IndicatorData;
-    gpu: IndicatorData;
-    pipeline: IndicatorData;
-    aiModels: IndicatorData;
-    infrastructure: IndicatorData;
-  } => {
-    // GPU status
-    const gpuUtil = performanceData?.gpu?.utilization ?? gpuStats?.utilization ?? null;
-    const gpuTemp = performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null;
-    const gpuMemUsed = performanceData?.gpu?.vram_used_gb ?? (gpuStats?.memory_used ? gpuStats.memory_used / 1024 : null);
-    const gpuMemTotal = performanceData?.gpu?.vram_total_gb ?? (gpuStats?.memory_total ? gpuStats.memory_total / 1024 : null);
-
-    let gpuHealth: HealthStatus = 'unknown';
-    if (gpuUtil !== null) {
-      if (gpuUtil < 90 && (gpuTemp === null || gpuTemp < 80)) {
-        gpuHealth = 'healthy';
-      } else if (gpuUtil >= 95 || (gpuTemp !== null && gpuTemp >= 85)) {
-        gpuHealth = 'critical';
-      } else {
-        gpuHealth = 'degraded';
-      }
-    }
-
-    // Pipeline status
-    const detectionQueue = telemetry?.queues.detection_queue ?? 0;
-    const analysisQueue = telemetry?.queues.analysis_queue ?? 0;
-    const totalQueue = detectionQueue + analysisQueue;
-    let pipelineHealth: HealthStatus = 'healthy';
-    if (totalQueue > 50) {
-      pipelineHealth = 'critical';
-    } else if (totalQueue > 10) {
-      pipelineHealth = 'degraded';
-    }
-
-    // AI Models status
-    const rtdetrStatus = aiModelsData?.['rtdetr'];
-    const nemotronStatus = aiModelsData?.['nemotron'];
-    const modelsHealthy = (rtdetrStatus?.status === 'healthy' ? 1 : 0) + (nemotronStatus?.status === 'healthy' ? 1 : 0);
-    const totalModels = 2;
-    let aiModelsHealth: HealthStatus = 'healthy';
-    if (modelsHealthy === 0) {
-      aiModelsHealth = 'critical';
-    } else if (modelsHealthy < totalModels) {
-      aiModelsHealth = 'degraded';
-    }
-
-    // Infrastructure status
-    const pgHealthy = postgresMetrics?.status === 'healthy';
-    const redisHealthy = redisMetrics?.status === 'healthy';
-    const containersHealthy = containerMetrics.filter(c => c.health === 'healthy').length;
-    const containersTotal = containerMetrics.length;
-    const circuitsHealthy = circuitBreakers?.circuit_breakers
-      ? Object.values(circuitBreakers.circuit_breakers).filter(b => b.state === 'closed').length
-      : 0;
-    const circuitsTotal = circuitBreakers?.circuit_breakers
-      ? Object.values(circuitBreakers.circuit_breakers).length
-      : 0;
-
-    let infraHealth: HealthStatus = 'healthy';
-    if (!pgHealthy || !redisHealthy) {
-      infraHealth = 'critical';
-    } else if (containersHealthy < containersTotal || circuitsHealthy < circuitsTotal) {
-      infraHealth = 'degraded';
-    }
-
-    // Overall - worst of all
-    const statuses: HealthStatus[] = [gpuHealth, pipelineHealth, aiModelsHealth, infraHealth];
-    let overallHealth: HealthStatus = 'healthy';
-    if (statuses.includes('critical')) {
-      overallHealth = 'critical';
-    } else if (statuses.includes('degraded')) {
-      overallHealth = 'degraded';
-    } else if (statuses.includes('unknown')) {
-      overallHealth = 'unknown';
-    }
-
-    return {
-      overall: {
-        id: 'overall',
-        label: 'Overall',
-        status: overallHealth,
-      },
-      gpu: {
-        id: 'gpu',
-        label: 'GPU',
-        status: gpuHealth,
-        primaryValue: gpuUtil !== null ? `${gpuUtil}%` : undefined,
-        secondaryValue: gpuTemp !== null ? `${gpuTemp}C` : undefined,
-        tertiaryValue: gpuMemUsed !== null && gpuMemTotal !== null
-          ? `${gpuMemUsed.toFixed(1)}/${gpuMemTotal.toFixed(0)}GB`
-          : undefined,
-      },
-      pipeline: {
-        id: 'pipeline',
-        label: 'Pipeline',
-        status: pipelineHealth,
-        primaryValue: `${totalQueue} queue`,
-      },
-      aiModels: {
-        id: 'aiModels',
-        label: 'AI Models',
-        status: aiModelsHealth,
-        primaryValue: `${modelsHealthy}/${totalModels}`,
-      },
-      infrastructure: {
-        id: 'infrastructure',
-        label: 'Infra',
-        status: infraHealth,
-        primaryValue: `${containersHealthy}/${containersTotal}`,
-      },
-    };
-  }, [performanceData, gpuStats, telemetry, aiModelsData, postgresMetrics, redisMetrics, containerMetrics, circuitBreakers]);
-
-  // Compute Pipeline Flow data
-  const computePipelineFlowData = useCallback((): {
-    files: PipelineStage;
-    detect: PipelineStage;
-    batch: PipelineStage;
-    analyze: PipelineStage;
-  } => {
-    const detectionQueue = telemetry?.queues.detection_queue ?? 0;
-    const analysisQueue = telemetry?.queues.analysis_queue ?? 0;
-    const detectionLatency = telemetry?.latencies?.detect?.avg_ms;
-    const detectionP95 = telemetry?.latencies?.detect?.p95_ms;
-    const analysisLatency = telemetry?.latencies?.analyze?.avg_ms;
-    const analysisP95 = telemetry?.latencies?.analyze?.p95_ms;
-
-    const getQueueHealth = (depth: number): 'healthy' | 'degraded' | 'critical' => {
-      if (depth > 50) return 'critical';
-      if (depth > 10) return 'degraded';
-      return 'healthy';
-    };
-
-    return {
-      files: {
-        name: 'files',
-        label: 'Files',
-        itemsPerMin: 12, // Could come from metrics
-        health: 'healthy',
-      },
-      detect: {
-        name: 'detect',
-        label: 'Detect',
-        queueDepth: detectionQueue,
-        avgLatency: detectionLatency ? `${(detectionLatency / 1000).toFixed(1)}s` : undefined,
-        p95Latency: detectionP95 ? `${(detectionP95 / 1000).toFixed(1)}s` : undefined,
-        health: getQueueHealth(detectionQueue),
-      },
-      batch: {
-        name: 'batch',
-        label: 'Batch',
-        pendingCount: 0, // Could come from metrics
-        health: 'healthy',
-      },
-      analyze: {
-        name: 'analyze',
-        label: 'Analyze',
-        queueDepth: analysisQueue,
-        avgLatency: analysisLatency ? `${(analysisLatency / 1000).toFixed(1)}s` : undefined,
-        p95Latency: analysisP95 ? `${(analysisP95 / 1000).toFixed(1)}s` : undefined,
-        health: getQueueHealth(analysisQueue),
-      },
-    };
-  }, [telemetry]);
-
-  // Transform workers for PipelineFlow
-  const transformWorkersForPipeline = useCallback((): PipelineWorkerStatus[] => {
-    const abbreviations: Record<string, string> = {
-      detection_worker: 'Det',
-      analysis_worker: 'Ana',
-      batch_timeout_worker: 'Batch',
-      cleanup_service: 'Clean',
-      file_watcher: 'Watch',
-      gpu_monitor: 'GPU',
-      metrics_worker: 'Metr',
-      system_broadcaster: 'Bcast',
-    };
-
-    const displayNames: Record<string, string> = {
-      detection_worker: 'Detection Worker',
-      analysis_worker: 'Analysis Worker',
-      batch_timeout_worker: 'Batch Timeout',
-      cleanup_service: 'Cleanup Service',
-      file_watcher: 'File Watcher',
-      gpu_monitor: 'GPU Monitor',
-      metrics_worker: 'Metrics Worker',
-      system_broadcaster: 'System Broadcaster',
-    };
-
-    return workers.map(w => ({
-      name: w.name,
-      displayName: displayNames[w.name] || w.name,
-      running: w.running,
-      abbreviation: abbreviations[w.name] || w.name.slice(0, 4),
-    }));
-  }, [workers]);
-
-  // Compute Infrastructure Grid data
-  const computeInfrastructureData = useCallback((): {
-    postgresql: InfraComponent;
-    redis: InfraComponent;
-    containers: InfraComponent;
-    host: InfraComponent;
-    circuits: InfraComponent;
-  } => {
-    const pgStatus: ComponentStatus = postgresMetrics?.status === 'healthy' ? 'healthy'
-      : postgresMetrics?.status === 'degraded' ? 'degraded'
-      : postgresMetrics?.status ? 'unhealthy' : 'unknown';
-
-    const redisStatus: ComponentStatus = redisMetrics?.status === 'healthy' ? 'healthy'
-      : redisMetrics?.status === 'degraded' ? 'degraded'
-      : redisMetrics?.status ? 'unhealthy' : 'unknown';
-
-    const containersHealthy = containerMetrics.filter(c => c.health === 'healthy').length;
-    const containersTotal = containerMetrics.length;
-    const containersStatus: ComponentStatus = containersHealthy === containersTotal ? 'healthy'
-      : containersHealthy > 0 ? 'degraded' : 'unhealthy';
-
-    const hostStatus: ComponentStatus = hostMetrics
-      ? (hostMetrics.cpu_percent ?? 0) < 90 ? 'healthy' : 'degraded'
-      : 'unknown';
-
-    const circuitsArr = circuitBreakers?.circuit_breakers
-      ? Object.values(circuitBreakers.circuit_breakers)
-      : [];
-    const circuitsHealthy = circuitsArr.filter(b => b.state === 'closed').length;
-    const circuitsTotal = circuitsArr.length;
-    const circuitsStatus: ComponentStatus = circuitsHealthy === circuitsTotal ? 'healthy'
-      : circuitsHealthy > 0 ? 'degraded' : 'unhealthy';
-
-    return {
-      postgresql: {
-        id: 'postgresql',
-        label: 'PostgreSQL',
-        status: pgStatus,
-        keyMetric: postgresMetrics ? `${postgresMetrics.connections_active}/${postgresMetrics.connections_max}` : undefined,
-        details: postgresMetrics ? {
-          poolActive: postgresMetrics.connections_active,
-          poolMax: postgresMetrics.connections_max,
-          cacheHitRatio: postgresMetrics.cache_hit_ratio,
-        } as PostgresDetails : undefined,
-      },
-      redis: {
-        id: 'redis',
-        label: 'Redis',
-        status: redisStatus,
-        keyMetric: redisMetrics ? `${redisMetrics.memory_mb.toFixed(1)}MB` : undefined,
-        details: redisMetrics ? {
-          memoryMb: redisMetrics.memory_mb,
-          connectedClients: redisMetrics.connected_clients,
-          hitRate: redisMetrics.hit_ratio,
-          blockedClients: redisMetrics.blocked_clients,
-        } as RedisDetails : undefined,
-      },
-      containers: {
-        id: 'containers',
-        label: 'Containers',
-        status: containersStatus,
-        keyMetric: `${containersHealthy}/${containersTotal}`,
-        details: {
-          containers: containerMetrics.map(c => ({
-            name: c.name,
-            status: c.health === 'healthy' ? 'running' : 'unhealthy',
-          })),
-        } as ContainersDetails,
-      },
-      host: {
-        id: 'host',
-        label: 'Host',
-        status: hostStatus,
-        keyMetric: hostMetrics ? `CPU ${hostMetrics.cpu_percent}%` : undefined,
-        details: hostMetrics ? {
-          cpuPercent: hostMetrics.cpu_percent,
-          ramUsedGb: hostMetrics.ram_used_gb,
-          ramTotalGb: hostMetrics.ram_total_gb,
-          diskUsedGb: hostMetrics.disk_used_gb,
-          diskTotalGb: hostMetrics.disk_total_gb,
-        } as HostDetails : undefined,
-      },
-      circuits: {
-        id: 'circuits',
-        label: 'Circuits',
-        status: circuitsStatus,
-        keyMetric: `${circuitsHealthy}/${circuitsTotal}`,
-        details: {
-          breakers: circuitsArr.map(b => ({
-            name: b.name,
-            state: b.state,
-            failureCount: b.failure_count,
-          })),
-        } as CircuitsDetails,
-      },
-    };
-  }, [postgresMetrics, redisMetrics, containerMetrics, hostMetrics, circuitBreakers]);
-
-  // Compute AI model status for GpuStatistics mini-cards
-  const computeAiModelStatus = useCallback((): { rtdetr: AiModelStatus | null; nemotron: AiModelStatus | null } => {
-    const rtdetr = aiModelsData?.['rtdetr'];
-    const nemotron = aiModelsData?.['nemotron'];
-
-    const mapStatus = (status?: string): AiModelStatus['status'] => {
-      if (status === 'healthy') return 'healthy';
-      if (status === 'unhealthy' || status === 'error') return 'unhealthy';
-      if (status === 'loading') return 'loading';
-      return 'unknown';
-    };
-
-    return {
-      rtdetr: rtdetr ? {
-        name: 'RT-DETRv2',
-        status: mapStatus(rtdetr.status),
-        latency: telemetry?.latencies?.detect?.avg_ms
-          ? `${(telemetry.latencies.detect.avg_ms / 1000).toFixed(1)}s`
-          : undefined,
-        count: stats?.total_detections ?? 0,
-        errors: 0,
-      } : null,
-      nemotron: nemotron ? {
-        name: 'Nemotron',
-        status: mapStatus(nemotron.status),
-        latency: telemetry?.latencies?.analyze?.avg_ms
-          ? `${(telemetry.latencies.analyze.avg_ms / 1000).toFixed(1)}s`
-          : undefined,
-        count: stats?.total_events ?? 0,
-        errors: 0,
-      } : null,
-    };
-  }, [aiModelsData, telemetry, stats]);
-
-  // Memoized computed data
-  const summaryData = computeSummaryData();
-  const pipelineFlowData = computePipelineFlowData();
-  const pipelineWorkers = transformWorkersForPipeline();
-  const infraData = computeInfrastructureData();
-  const aiModelStatus = computeAiModelStatus();
-
-  // Type alias for infrastructure component status
-  type ComponentStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  };
 
   // Poll for telemetry and GPU updates every 5 seconds
   // Uses individual try-catch to prevent one failure from stopping all updates
@@ -731,7 +499,7 @@ export default function SystemMonitoringPage() {
     <div className="min-h-screen bg-[#121212] p-8" data-testid="system-monitoring-page">
       <div className="mx-auto max-w-[1920px]">
         {/* Header with TimeRangeSelector */}
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-8 flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
               <Server className="h-8 w-8 text-[#76B900]" />
@@ -741,141 +509,298 @@ export default function SystemMonitoringPage() {
               Real-time system metrics, service health, and pipeline performance
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <TimeRangeSelector
-              selectedRange={timeRange}
-              onRangeChange={setTimeRange}
-              data-testid="system-time-range-selector"
-            />
+          <TimeRangeSelector
+            selectedRange={timeRange}
+            onRangeChange={setTimeRange}
+            data-testid="system-time-range-selector"
+          />
+        </div>
+
+        {/* Grafana Monitoring Banner */}
+        <Callout
+          title="Monitoring Dashboard Available"
+          icon={BarChart2}
+          color="blue"
+          className="mb-6"
+          data-testid="grafana-monitoring-banner"
+        >
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>
+              View detailed metrics and historical data in Grafana.
+              No login required (anonymous access enabled).
+            </span>
             <a
               href={grafanaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              className="inline-flex items-center gap-1 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
               data-testid="grafana-link"
             >
               Open Grafana
               <ExternalLink className="h-4 w-4" />
             </a>
-          </div>
-        </div>
+          </span>
+        </Callout>
 
-        {/* Summary Row - Quick health check indicators */}
-        <div id="summary-section" className="mb-6">
-          <SummaryRow
-            overall={summaryData.overall}
-            gpu={summaryData.gpu}
-            pipeline={summaryData.pipeline}
-            aiModels={summaryData.aiModels}
-            infrastructure={summaryData.infrastructure}
-            onIndicatorClick={handleSummaryIndicatorClick}
-            data-testid="summary-row"
-          />
-        </div>
-
-        {/* Performance Alerts - Prominent banner when alerts active */}
+        {/* Performance Alerts - Prominent banner at top when alerts active */}
         {transformedAlerts.length > 0 && (
           <PerformanceAlerts
             alerts={transformedAlerts}
-            className="mb-6"
+            className="mb-4"
             data-testid="system-performance-alerts"
           />
         )}
 
         {/*
-          Reorganized Layout per Design Spec:
-          Section 1: GPU & AI Models
-          Section 2: Pipeline
-          Section 3: Infrastructure
+          Dense Grid Layout - Grafana-style dashboard
+          Row 1: System Health | GPU Stats | AI Models | Alerts (4 cols on xl)
+          Row 2: Pipeline Metrics | Database Metrics (2 cols spanning)
+          Row 3: Background Workers | Containers (2 cols spanning)
+          Row 4: Host System (full width)
         */}
-        <div className="space-y-6">
-          {/* ========== Section 1: GPU & AI MODELS ========== */}
-          <section id="gpu-section" className="scroll-mt-4">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+        <div className="grid auto-rows-min gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          {/* Row 1: System Health (compact) */}
+          <Card
+            className="border-gray-800 bg-[#1A1A1A] shadow-lg"
+            data-testid="system-overview-card"
+          >
+            <Title className="mb-3 flex items-center gap-2 text-white">
               <Activity className="h-5 w-5 text-[#76B900]" />
-              GPU & AI Models
-            </h2>
-            <div id="ai-models-section" className="grid gap-4 lg:grid-cols-2">
-              {/* GPU Statistics with stacked sparklines and AI model mini-cards */}
-              <GpuStatistics
-                gpuName={performanceData?.gpu?.name ?? gpuStats?.gpu_name ?? null}
-                utilization={performanceData?.gpu?.utilization ?? gpuStats?.utilization ?? null}
-                temperature={performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null}
-                memoryUsed={
-                  performanceData?.gpu?.vram_used_gb
-                    ? performanceData.gpu.vram_used_gb * 1024
-                    : gpuStats?.memory_used ?? null
-                }
-                memoryTotal={
-                  performanceData?.gpu?.vram_total_gb
-                    ? performanceData.gpu.vram_total_gb * 1024
-                    : gpuStats?.memory_total ?? null
-                }
-                powerUsage={performanceData?.gpu?.power_watts ?? gpuStats?.power_usage ?? null}
-                inferenceFps={gpuStats?.inference_fps ?? null}
-                historyData={gpuHistoryData.length > 0 ? gpuHistoryData : undefined}
-                rtdetr={aiModelStatus.rtdetr}
-                nemotron={aiModelStatus.nemotron}
-                grafanaUrl={grafanaUrl}
-                data-testid="gpu-statistics-section"
-              />
+              System Health
+            </Title>
 
-              {/* AI Model Zoo with show/hide toggle */}
-              <ModelZooPanel
-                models={modelZooModels}
-                vramStats={modelZooVramStats}
-                isLoading={modelZooLoading}
-                error={modelZooError}
-                onRefresh={() => void refreshModelZoo()}
-                data-testid="model-zoo-panel-section"
-              />
+            {/* Compact stats grid */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Uptime</Text>
+                <Metric className="text-base text-[#76B900]">
+                  {stats ? formatUptime(stats.uptime_seconds) : 'N/A'}
+                </Metric>
+              </div>
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Cameras</Text>
+                <Metric className="text-base text-white">{stats?.total_cameras ?? 0}</Metric>
+              </div>
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Events</Text>
+                <Metric className="text-base text-white">
+                  {stats?.total_events?.toLocaleString() ?? 0}
+                </Metric>
+              </div>
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Detections</Text>
+                <Metric className="text-base text-white">
+                  {stats?.total_detections?.toLocaleString() ?? 0}
+                </Metric>
+              </div>
             </div>
-          </section>
 
-          {/* ========== Section 2: PIPELINE ========== */}
-          <section id="pipeline-section" className="scroll-mt-4">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-              <Activity className="h-5 w-5 text-[#76B900]" />
-              Pipeline
-            </h2>
-            <PipelineFlow
-              files={pipelineFlowData.files}
-              detect={pipelineFlowData.detect}
-              batch={pipelineFlowData.batch}
-              analyze={pipelineFlowData.analyze}
-              totalLatency={
-                telemetry?.latencies?.detect && telemetry?.latencies?.analyze
-                  ? {
-                      avg: `${(((telemetry.latencies.detect.avg_ms ?? 0) + (telemetry.latencies.analyze.avg_ms ?? 0)) / 1000).toFixed(1)}s`,
-                      p95: `${(((telemetry.latencies.detect.p95_ms ?? 0) + (telemetry.latencies.analyze.p95_ms ?? 0)) / 1000).toFixed(1)}s`,
-                      p99: telemetry.latencies.detect.p99_ms && telemetry.latencies.analyze.p99_ms
-                        ? `${((telemetry.latencies.detect.p99_ms + telemetry.latencies.analyze.p99_ms) / 1000).toFixed(0)}s`
-                        : undefined,
-                    }
-                  : undefined
-              }
-              workers={pipelineWorkers}
-              data-testid="pipeline-flow-section"
-            />
-          </section>
+            {/* Service Health Summary */}
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-800/30 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-[#76B900]" />
+                <Text className="text-sm text-gray-300">Services</Text>
+              </div>
+              {overallStatus && (
+                <Badge
+                  color={getServiceStatusColor(overallStatus)}
+                  size="sm"
+                  data-testid="overall-health-badge"
+                >
+                  {overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1)}
+                </Badge>
+              )}
+            </div>
 
-          {/* ========== Section 3: INFRASTRUCTURE ========== */}
-          <section id="infra-section" className="scroll-mt-4">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-              <Server className="h-5 w-5 text-[#76B900]" />
-              Infrastructure
-            </h2>
-            <InfrastructureGrid
-              postgresql={infraData.postgresql}
-              redis={infraData.redis}
-              containers={infraData.containers}
-              host={infraData.host}
-              circuits={infraData.circuits}
-              data-testid="infrastructure-grid-section"
+            {/* Compact service list */}
+            <div className="mt-2 space-y-1" data-testid="service-health-card">
+              {healthError ? (
+                <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2">
+                  <AlertCircle className="h-3 w-3 text-red-500" />
+                  <Text className="text-xs text-red-400">
+                    Failed to fetch service health: {healthError}
+                  </Text>
+                </div>
+              ) : Object.entries(services).length > 0 ? (
+                Object.entries(services).map(([serviceName, serviceStatus]) => (
+                  <ServiceHealthRow key={serviceName} name={serviceName} status={serviceStatus} />
+                ))
+              ) : (
+                <Text className="text-xs text-gray-500">No service data available</Text>
+              )}
+            </div>
+
+            {health?.timestamp && (
+              <Text className="mt-2 text-xs text-gray-500">
+                Last checked: {new Date(health.timestamp).toLocaleTimeString()}
+              </Text>
+            )}
+          </Card>
+
+          {/* Row 1: GPU Stats (compact with sparkline) */}
+          <GpuStats
+            gpuName={performanceData?.gpu?.name ?? gpuStats?.gpu_name ?? null}
+            utilization={performanceData?.gpu?.utilization ?? gpuStats?.utilization ?? null}
+            memoryUsed={
+              performanceData?.gpu?.vram_used_gb
+                ? performanceData.gpu.vram_used_gb * 1024
+                : gpuStats?.memory_used ?? null
+            }
+            memoryTotal={
+              performanceData?.gpu?.vram_total_gb
+                ? performanceData.gpu.vram_total_gb * 1024
+                : gpuStats?.memory_total ?? null
+            }
+            temperature={performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null}
+            powerUsage={performanceData?.gpu?.power_watts ?? gpuStats?.power_usage ?? null}
+            inferenceFps={gpuStats?.inference_fps ?? null}
+            timeRange={timeRange}
+            historyData={gpuHistoryData.length > 0 ? gpuHistoryData : undefined}
+            showHistoryControls={gpuHistoryData.length === 0}
+            data-testid="gpu-stats"
+          />
+
+          {/* Row 1: AI Models (core inference engines) */}
+          <div className="xl:col-span-2">
+            <AiModelsPanel
+              aiModels={aiModelsData}
+              data-testid="ai-models-panel-section"
             />
-          </section>
+          </div>
+
+          {/* Row 2: Model Zoo (enrichment models with VRAM tracking) */}
+          <div className="xl:col-span-2">
+            <ModelZooPanel
+              models={modelZooModels}
+              vramStats={modelZooVramStats}
+              isLoading={modelZooLoading}
+              error={modelZooError}
+              onRefresh={() => void refreshModelZoo()}
+              data-testid="model-zoo-panel-section"
+            />
+          </div>
+
+          {/* Row 2: Pipeline Metrics (combined Queues + Latency + Throughput) */}
+          <div className="xl:col-span-2">
+            <PipelineMetricsPanel
+              queues={{
+                detection_queue: telemetry?.queues.detection_queue ?? 0,
+                analysis_queue: telemetry?.queues.analysis_queue ?? 0,
+              }}
+              latencies={telemetry?.latencies}
+              throughputHistory={throughputHistory}
+              timestamp={telemetry?.timestamp}
+              queueWarningThreshold={10}
+              latencyWarningThreshold={10000}
+              data-testid="pipeline-metrics-panel"
+            />
+          </div>
+
+          {/* Row 2: Database Metrics (PostgreSQL + Redis side-by-side) */}
+          <div className="xl:col-span-2">
+            <DatabasesPanel
+              postgresql={postgresMetrics}
+              redis={redisMetrics}
+              timeRange={timeRange}
+              history={databaseHistory}
+              data-testid="databases-panel-section"
+            />
+          </div>
+
+          {/* Row 3: Background Workers (collapsible, compact list) */}
+          <div className="xl:col-span-2">
+            <WorkerStatusPanel
+              pollingInterval={10000}
+              defaultExpanded={false}
+              compact={false}
+            />
+          </div>
+
+          {/* Row 3: Containers (grid of status badges) */}
+          <div className="xl:col-span-2">
+            <ContainersPanel
+              containers={containerMetrics}
+              history={containerHistory}
+              data-testid="containers-panel-section"
+            />
+          </div>
+
+          {/* Row 4: Host System (CPU | RAM | Disk inline bars) - Full width */}
+          <div className="lg:col-span-2 xl:col-span-4">
+            <HostSystemPanel
+              host={hostMetrics}
+              timeRange={timeRange}
+              history={hostHistory}
+              data-testid="host-system-panel-section"
+            />
+          </div>
+
+          {/* Row 5: Circuit Breakers and Severity Configuration */}
+          <div className="xl:col-span-2">
+            <CircuitBreakerPanel
+              data={circuitBreakers}
+              loading={circuitBreakersLoading}
+              error={circuitBreakersError}
+              onReset={handleResetCircuitBreaker}
+              data-testid="circuit-breaker-panel-section"
+            />
+          </div>
+
+          <div className="xl:col-span-2">
+            <SeverityConfigPanel
+              data={severityMetadata}
+              loading={severityLoading}
+              error={severityError}
+              data-testid="severity-config-panel-section"
+            />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * ServiceHealthRow - Displays a single service's health status
+ */
+interface ServiceHealthRowProps {
+  name: string;
+  status: ServiceStatus;
+}
+
+function ServiceHealthRow({ name, status }: ServiceHealthRowProps) {
+  // Format service name for display (e.g., "redis" -> "Redis", "rtdetr_server" -> "RT-DETR Server")
+  const displayName = name
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  return (
+    <div
+      className={clsx(
+        'flex items-center justify-between rounded-lg px-2 py-1.5',
+        status.status === 'unhealthy' && 'border border-red-500/30 bg-red-500/10',
+        status.status === 'degraded' && 'border border-yellow-500/30 bg-yellow-500/10',
+        status.status === 'healthy' && 'bg-gray-800/50',
+        status.status !== 'healthy' &&
+          status.status !== 'degraded' &&
+          status.status !== 'unhealthy' &&
+          'bg-gray-800/50'
+      )}
+      data-testid={`service-row-${name}`}
+    >
+      <div className="flex items-center gap-1.5">
+        <ServiceStatusIcon status={status.status} />
+        <div className="flex items-center gap-2">
+          <Text className="text-xs font-medium text-gray-300">{displayName}</Text>
+          {status.message && (
+            <Text className="hidden text-xs text-gray-500 sm:inline">{status.message}</Text>
+          )}
+        </div>
+      </div>
+      <Badge color={getServiceStatusColor(status.status)} size="xs">
+        {status.status}
+      </Badge>
     </div>
   );
 }
