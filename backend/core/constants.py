@@ -13,8 +13,8 @@ Usage:
         DLQ_ANALYSIS_QUEUE,
     )
 
-    # Queue operations
-    await redis.add_to_queue(DETECTION_QUEUE, data)
+    # Queue operations (use add_to_queue_safe for proper backpressure handling)
+    result = await redis.add_to_queue_safe(DETECTION_QUEUE, data)
     await redis.get_queue_length(ANALYSIS_QUEUE)
 """
 

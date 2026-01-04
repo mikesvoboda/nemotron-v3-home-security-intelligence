@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Full Stack Restart Script
 # Nemotron v3 Home Security Intelligence

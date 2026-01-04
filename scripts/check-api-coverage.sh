@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # API Coverage Check
 # Finds backend API endpoints with no frontend consumers

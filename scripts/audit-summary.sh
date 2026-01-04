@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Run all audits locally and generate summary
 # Usage: ./scripts/audit-summary.sh
 #

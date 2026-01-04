@@ -141,8 +141,8 @@ from backend.core.constants import (
     get_dlq_name,
 )
 
-# Queue operations
-await redis.add_to_queue(DETECTION_QUEUE, data)
+# Queue operations (use add_to_queue_safe for proper backpressure handling)
+result = await redis.add_to_queue_safe(DETECTION_QUEUE, data)
 dlq_name = get_dlq_name("detection_queue")  # Returns "dlq:detection_queue"
 ```
 
@@ -455,11 +455,7 @@ await client.connect()
 
 ### Queue Operations
 
-**Legacy (may silently drop data):**
-
-- `add_to_queue(queue_name, data, max_size=10000)` - RPUSH with automatic trimming
-
-**Safe (with backpressure handling):**
+**With backpressure handling:**
 
 - `add_to_queue_safe(queue_name, data, max_size, overflow_policy, dlq_name)` - Returns `QueueAddResult`
   - `QueueOverflowPolicy.REJECT` - Returns error, item NOT added

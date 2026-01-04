@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Find tests that hang or take too long
 
 source .venv/bin/activate

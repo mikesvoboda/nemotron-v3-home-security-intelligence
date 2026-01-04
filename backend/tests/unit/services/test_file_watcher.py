@@ -75,8 +75,6 @@ def temp_camera_root(tmp_path):
 def mock_redis_client():
     """Mock Redis client."""
     mock_client = AsyncMock()
-    # Legacy method (deprecated)
-    mock_client.add_to_queue = AsyncMock(return_value=1)
     # Safe method with backpressure handling
     mock_client.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)

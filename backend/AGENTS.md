@@ -139,8 +139,7 @@ See `core/AGENTS.md` for detailed documentation.
 
 - `RedisClient` class with connection pooling
 - Queue operations with backpressure handling:
-  - `add_to_queue()` - Legacy method with auto-trimming
-  - `add_to_queue_safe()` - New method with overflow policies (REJECT, DLQ, DROP_OLDEST)
+  - `add_to_queue_safe()` - Queue add with overflow policies (REJECT, DLQ, DROP_OLDEST)
   - `get_queue_pressure()` - Queue health metrics
 - Pub/Sub operations (publish, subscribe, listen)
 - Cache operations (get, set, delete, exists, expire)
@@ -300,7 +299,9 @@ async with get_session() as session:
 
 ```python
 async def my_route(redis: RedisClient = Depends(get_redis)):
-    await redis.add_to_queue("my_queue", {"data": "value"})
+    result = await redis.add_to_queue_safe("my_queue", {"data": "value"})
+    if not result.success:
+        raise HTTPException(status_code=503, detail="Queue full")
 ```
 
 **Direct access:**

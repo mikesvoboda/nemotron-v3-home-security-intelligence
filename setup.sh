@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # setup.sh - Linux/macOS wrapper for setup.py
 # Usage: ./setup.sh [--guided]
 

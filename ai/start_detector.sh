@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # RT-DETRv2 Detection Server Startup Script
 #

@@ -200,20 +200,6 @@ class MockRedisClient:
     async def exists(self, *keys: str) -> int:
         return sum(1 for key in keys if key in self._store)
 
-    async def add_to_queue(self, queue_name: str, data: Any) -> int:
-        # Validate JSON serialization like real Redis
-        self._validate_json_serializable(data)
-        if queue_name not in self._queues:
-            self._queues[queue_name] = []
-        # Validate JSON serialization - raises TypeError if not serializable
-        serialized = self._validate_json_serializable(data)
-        # Store deserialized for easier test assertions (mimics peek_queue behavior)
-        try:
-            self._queues[queue_name].append(json.loads(serialized))
-        except json.JSONDecodeError:
-            self._queues[queue_name].append(serialized)
-        return len(self._queues[queue_name])
-
     async def add_to_queue_safe(
         self,
         queue_name: str,
@@ -1249,8 +1235,8 @@ async def test_mock_redis_validates_json_serialization_on_set() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mock_redis_validates_json_serialization_on_add_to_queue() -> None:
-    """Test that MockRedisClient.add_to_queue() raises TypeError for non-serializable data.
+async def test_mock_redis_validates_json_serialization_on_add_to_queue_safe_detailed() -> None:
+    """Test that MockRedisClient.add_to_queue_safe() raises TypeError for non-serializable data.
 
     Queue operations are critical for the pipeline - this ensures we catch
     serialization bugs before they reach production.
@@ -1258,8 +1244,12 @@ async def test_mock_redis_validates_json_serialization_on_add_to_queue() -> None
     redis = MockRedisClient()
 
     # Valid data should work
-    await redis.add_to_queue("test_queue", {"camera_id": "cam1", "detection_ids": [1, 2, 3]})
-    await redis.add_to_queue("test_queue", "string_message")
+    result1 = await redis.add_to_queue_safe(
+        "test_queue", {"camera_id": "cam1", "detection_ids": [1, 2, 3]}
+    )
+    assert result1.success is True
+    result2 = await redis.add_to_queue_safe("test_queue", "string_message")
+    assert result2.success is True
 
     # Verify data was added correctly
     assert await redis.get_queue_length("test_queue") == 2
@@ -1268,11 +1258,11 @@ async def test_mock_redis_validates_json_serialization_on_add_to_queue() -> None
 
     # Non-JSON-serializable data should raise TypeError
     with pytest.raises(TypeError, match="not JSON serializable"):
-        await redis.add_to_queue("test_queue", datetime.now(UTC))
+        await redis.add_to_queue_safe("test_queue", datetime.now(UTC))
 
     with pytest.raises(TypeError, match="not JSON serializable"):
         # This is a common bug - storing set instead of list
-        await redis.add_to_queue("test_queue", {"detection_ids": {1, 2, 3}})
+        await redis.add_to_queue_safe("test_queue", {"detection_ids": {1, 2, 3}})
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Development Environment Setup Script
 # For Nemotron v3 Home Security Intelligence Dashboard

@@ -63,12 +63,6 @@ def mock_redis_client():
                 count += 1
         return count
 
-    async def mock_add_to_queue(queue_name: str, data: dict) -> int:
-        if queue_name not in queues:
-            queues[queue_name] = []
-        queues[queue_name].append(json.dumps(data))
-        return len(queues[queue_name])
-
     async def mock_add_to_queue_safe(queue_name: str, data: dict, **kwargs) -> QueueAddResult:
         """Mock add_to_queue_safe that returns a successful QueueAddResult."""
         if queue_name not in queues:
@@ -135,7 +129,6 @@ def mock_redis_client():
     mock_client.get = mock_get
     mock_client.set = mock_set
     mock_client.delete = mock_delete
-    mock_client.add_to_queue = mock_add_to_queue
     mock_client.add_to_queue_safe = mock_add_to_queue_safe
     mock_client.pipeline = mock_pipeline
 

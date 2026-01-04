@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Nemotron LLM Server Startup Script (via llama.cpp)
 # Called by ServiceHealthMonitor for auto-recovery
