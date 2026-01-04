@@ -14,6 +14,7 @@ Saves test images and results for integration testing.
 import argparse
 import base64
 import json
+import os
 import shutil
 import sys
 import time
@@ -22,13 +23,19 @@ from pathlib import Path
 
 import httpx
 
-# Service URLs
+# Default service URLs for local development
+# These can be overridden via environment variables:
+#   RTDETR_URL     - RT-DETRv2 object detection (default: http://localhost:8090)
+#   NEMOTRON_URL   - Nemotron LLM risk analysis (default: http://localhost:8091)
+#   FLORENCE_URL   - Florence-2 dense captioning (default: http://localhost:8092)
+#   CLIP_URL       - CLIP entity embeddings (default: http://localhost:8093)
+#   ENRICHMENT_URL - Enrichment service (default: http://localhost:8094)
 SERVICES = {
-    "detector": "http://localhost:8090",
-    "llm": "http://localhost:8091",
-    "florence": "http://localhost:8092",
-    "clip": "http://localhost:8093",
-    "enrichment": "http://localhost:8094",
+    "detector": os.environ.get("RTDETR_URL", "http://localhost:8090"),
+    "llm": os.environ.get("NEMOTRON_URL", "http://localhost:8091"),
+    "florence": os.environ.get("FLORENCE_URL", "http://localhost:8092"),
+    "clip": os.environ.get("CLIP_URL", "http://localhost:8093"),
+    "enrichment": os.environ.get("ENRICHMENT_URL", "http://localhost:8094"),
 }
 
 
