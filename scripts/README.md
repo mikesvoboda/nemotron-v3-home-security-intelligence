@@ -20,7 +20,7 @@ This directory contains scripts to help you set up, test, and run the Nemotron v
 
 This will:
 
-- Check prerequisites (Python 3.11+, Node.js 18+, git, etc.)
+- Check prerequisites (Python 3.14+, Node.js 20.19+/22.12+, git, etc.)
 - Install all backend and frontend dependencies
 - Set up pre-commit hooks
 - Create `.env` configuration file
@@ -141,8 +141,8 @@ pytest backend/tests/unit/test_feature.py -v
 
 ### Required
 
-- **Python 3.11+** - [Download](https://www.python.org/downloads/)
-- **Node.js 18+** - [Download](https://nodejs.org/)
+- **Python 3.14+** - [Download](https://www.python.org/downloads/)
+- **Node.js 20.19+ or 22.12+** - [Download](https://nodejs.org/) (Vite 7 requirement)
 - **git** - [Download](https://git-scm.com/)
 
 ### Optional

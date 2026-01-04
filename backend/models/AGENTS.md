@@ -17,19 +17,22 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 
 ```
 backend/models/
-├── __init__.py     # Module exports (all models and enums)
-├── camera.py       # Camera model and Base class definition
-├── detection.py    # Object detection results model (with video metadata support)
-├── event.py        # Security event model with LLM analysis
-├── alert.py        # Alert and AlertRule models for notification system
-├── zone.py         # Zone model for camera region definitions
-├── baseline.py     # ActivityBaseline and ClassBaseline for anomaly detection
-├── audit.py        # AuditLog model for security-sensitive operations
-├── gpu_stats.py    # GPU performance metrics model
-├── log.py          # Structured application log model
-├── api_key.py      # API key authentication model
-├── enums.py        # Shared enumerations (Severity)
-└── README.md       # Detailed model documentation
+├── __init__.py       # Module exports (all models and enums)
+├── camera.py         # Camera model and Base class definition
+├── detection.py      # Object detection results model (with video metadata support)
+├── event.py          # Security event model with LLM analysis
+├── event_audit.py    # AI pipeline audit model for performance tracking
+├── alert.py          # Alert and AlertRule models for notification system
+├── zone.py           # Zone model for camera region definitions
+├── baseline.py       # ActivityBaseline and ClassBaseline for anomaly detection
+├── audit.py          # AuditLog model for security-sensitive operations
+├── gpu_stats.py      # GPU performance metrics model
+├── log.py            # Structured application log model
+├── api_key.py        # API key authentication model
+├── prompt_version.py # AI prompt configuration version tracking
+├── scene_change.py   # Scene change detection for camera tampering alerts
+├── enums.py          # Shared enumerations (Severity)
+└── README.md         # Detailed model documentation
 ```
 
 ## `__init__.py` - Module Exports
@@ -40,6 +43,7 @@ backend/models/
 - `Camera` - Camera entity model
 - `Detection` - Object detection results model
 - `Event` - Security event model
+- `EventAudit` - AI pipeline audit model
 - `Alert`, `AlertRule`, `AlertSeverity`, `AlertStatus` - Alerting system models and enums
 - `Zone`, `ZoneType`, `ZoneShape` - Zone definition models and enums
 - `ActivityBaseline`, `ClassBaseline` - Anomaly detection baseline models
@@ -47,6 +51,8 @@ backend/models/
 - `GPUStats` - GPU performance metrics model
 - `Log` - Structured application log model
 - `APIKey` - API key authentication model
+- `PromptVersion`, `AIModel` - Prompt version tracking model and enum
+- `SceneChange`, `SceneChangeType` - Scene change detection model and enum
 - `Severity` - Shared severity enumeration
 
 ## `camera.py` - Camera Model
@@ -288,6 +294,184 @@ backend/models/
 - `idx_audit_logs_status` - Index on status
 - `idx_audit_logs_resource` - Composite index on (resource_type, resource_id)
 
+## `event_audit.py` - Event Audit Model
+
+**Model:** `EventAudit`
+**Table:** `event_audits`
+**Purpose:** Tracks AI pipeline performance on events including model contributions, quality scores, and prompt improvement suggestions
+
+**Fields:**
+
+| Field        | Type                    | Description                                     |
+| ------------ | ----------------------- | ----------------------------------------------- |
+| `id`         | int (PK, autoincrement) | Unique audit ID                                 |
+| `event_id`   | int (FK->events.id)     | Source event reference (unique, cascade delete) |
+| `audited_at` | datetime                | Audit timestamp (UTC)                           |
+
+**Model Contribution Flags:**
+
+| Field               | Type | Description                          |
+| ------------------- | ---- | ------------------------------------ |
+| `has_rtdetr`        | bool | RT-DETR object detection contributed |
+| `has_florence`      | bool | Florence-2 vision attributes used    |
+| `has_clip`          | bool | CLIP embeddings used                 |
+| `has_violence`      | bool | Violence detection ran               |
+| `has_clothing`      | bool | Clothing analysis ran                |
+| `has_vehicle`       | bool | Vehicle classification ran           |
+| `has_pet`           | bool | Pet classification ran               |
+| `has_weather`       | bool | Weather classification ran           |
+| `has_image_quality` | bool | Image quality assessment ran         |
+| `has_zones`         | bool | Zone analysis contributed            |
+| `has_baseline`      | bool | Baseline comparison ran              |
+| `has_cross_camera`  | bool | Cross-camera correlation ran         |
+
+**Prompt Metrics:**
+
+| Field                    | Type  | Description                        |
+| ------------------------ | ----- | ---------------------------------- |
+| `prompt_length`          | int   | Length of the prompt sent to LLM   |
+| `prompt_token_estimate`  | int   | Estimated token count              |
+| `enrichment_utilization` | float | Percentage of enrichment data used |
+
+**Self-Evaluation Scores (1-5 scale):**
+
+| Field                       | Type             | Description                     |
+| --------------------------- | ---------------- | ------------------------------- |
+| `context_usage_score`       | float (nullable) | How well context was used       |
+| `reasoning_coherence_score` | float (nullable) | Logical coherence of reasoning  |
+| `risk_justification_score`  | float (nullable) | Quality of risk justification   |
+| `consistency_score`         | float (nullable) | Consistency with similar events |
+| `overall_quality_score`     | float (nullable) | Overall quality score           |
+
+**Consistency Check:**
+
+| Field                    | Type           | Description                       |
+| ------------------------ | -------------- | --------------------------------- |
+| `consistency_risk_score` | int (nullable) | Risk score from consistency check |
+| `consistency_diff`       | int (nullable) | Difference from original score    |
+
+**Self-Evaluation Text:**
+
+| Field                | Type            | Description                     |
+| -------------------- | --------------- | ------------------------------- |
+| `self_eval_critique` | text (nullable) | Self-critique text              |
+| `self_eval_prompt`   | text (nullable) | Prompt used for self-evaluation |
+| `self_eval_response` | text (nullable) | LLM response to self-evaluation |
+
+**Prompt Improvement Suggestions (JSON arrays as text):**
+
+| Field                | Type            | Description                    |
+| -------------------- | --------------- | ------------------------------ |
+| `missing_context`    | text (nullable) | Missing context suggestions    |
+| `confusing_sections` | text (nullable) | Confusing sections identified  |
+| `unused_data`        | text (nullable) | Unused enrichment data         |
+| `format_suggestions` | text (nullable) | Format improvement suggestions |
+| `model_gaps`         | text (nullable) | Missing model recommendations  |
+
+**Relationships:**
+
+- `event` - One-to-one with Event (back_populates="audit")
+
+**Indexes:**
+
+- `idx_event_audits_event_id` - Index on event_id
+- `idx_event_audits_audited_at` - Index on audited_at
+- `idx_event_audits_overall_score` - Index on overall_quality_score
+
+**Properties:**
+
+- `is_fully_evaluated` - Returns True if overall_quality_score is not None
+
+## `prompt_version.py` - Prompt Version Model
+
+**Model:** `PromptVersion`
+**Table:** `prompt_versions`
+**Purpose:** Version tracking for AI model prompt configurations with rollback support
+
+**Enum:** `AIModel`
+
+| Value          | Description                        |
+| -------------- | ---------------------------------- |
+| `nemotron`     | Nemotron LLM risk analysis model   |
+| `florence2`    | Florence-2 scene analysis model    |
+| `yolo_world`   | YOLO-World custom object detection |
+| `xclip`        | X-CLIP action recognition model    |
+| `fashion_clip` | Fashion-CLIP clothing analysis     |
+
+**Fields:**
+
+| Field                | Type                    | Description                        |
+| -------------------- | ----------------------- | ---------------------------------- |
+| `id`                 | int (PK, autoincrement) | Unique version ID                  |
+| `model`              | AIModel enum            | Which AI model this config is for  |
+| `version`            | int                     | Version number                     |
+| `created_at`         | datetime                | Version creation timestamp (UTC)   |
+| `created_by`         | str (255, nullable)     | Who created this version           |
+| `config_json`        | text                    | Configuration as JSON string       |
+| `change_description` | text (nullable)         | Description of what changed        |
+| `is_active`          | bool                    | Whether this is the active version |
+
+**Configuration Formats by Model:**
+
+- **Nemotron:** `{"system_prompt": "..."}`
+- **Florence2:** `{"queries": ["..."]}`
+- **YOLO-World:** `{"classes": ["..."], "confidence_threshold": 0.35}`
+- **X-CLIP:** `{"action_classes": ["..."]}`
+- **Fashion-CLIP:** `{"clothing_categories": ["..."]}`
+
+**Indexes:**
+
+- `idx_prompt_versions_model` - Index on model
+- `idx_prompt_versions_model_version` - Composite index on (model, version)
+- `idx_prompt_versions_model_active` - Composite index on (model, is_active)
+- `idx_prompt_versions_created_at` - Index on created_at
+
+**Properties and Methods:**
+
+- `config` - Property that parses config_json and returns as dict
+- `set_config(config)` - Method to set config from dict, serializing to JSON
+
+## `scene_change.py` - Scene Change Model
+
+**Model:** `SceneChange`
+**Table:** `scene_changes`
+**Purpose:** Tracks detected camera view changes that may indicate tampering, angle changes, or blocked views
+
+**Enum:** `SceneChangeType`
+
+| Value           | Description                     |
+| --------------- | ------------------------------- |
+| `view_blocked`  | Camera view is blocked/obscured |
+| `angle_changed` | Camera angle has changed        |
+| `view_tampered` | Camera view has been tampered   |
+| `unknown`       | Unknown type of scene change    |
+
+**Fields:**
+
+| Field              | Type                    | Description                                         |
+| ------------------ | ----------------------- | --------------------------------------------------- |
+| `id`               | int (PK, autoincrement) | Unique scene change ID                              |
+| `camera_id`        | str (FK->cameras.id)    | Source camera reference (cascade delete)            |
+| `detected_at`      | datetime                | Detection timestamp (UTC)                           |
+| `change_type`      | SceneChangeType enum    | Type of change detected                             |
+| `similarity_score` | float                   | SSIM score (0-1, 1=identical, lower=more different) |
+| `acknowledged`     | bool                    | Whether change has been acknowledged                |
+| `acknowledged_at`  | datetime (nullable)     | When change was acknowledged                        |
+| `file_path`        | str (nullable)          | Path to triggering image                            |
+
+**Relationships:**
+
+- `camera` - Many-to-one with Camera (back_populates="scene_changes")
+
+**Indexes:**
+
+- `idx_scene_changes_camera_id` - Index on camera_id
+- `idx_scene_changes_detected_at` - Index on detected_at
+- `idx_scene_changes_acknowledged` - Index on acknowledged
+- `idx_scene_changes_camera_acknowledged` - Composite index on (camera_id, acknowledged)
+
+**Note:** Scene changes are detected by the SceneChangeDetector service using SSIM (Structural Similarity Index) comparison against a stored baseline image.
+
 ## `enums.py` - Shared Enumerations
 
 **Severity Enum:** LOW, MEDIUM, HIGH, CRITICAL
@@ -451,10 +635,12 @@ __table_args__ = (
 Camera (1) ----< (many) Detection
 Camera (1) ----< (many) Event
 Camera (1) ----< (many) Zone
+Camera (1) ----< (many) SceneChange
 Camera (1) ----< (many) ActivityBaseline (via backref)
 Camera (1) ----< (many) ClassBaseline (via backref)
 
 Event (1) ----< (many) Alert
+Event (1) ---- (one) EventAudit
 
 AlertRule (1) ----< (many) Alert
 
@@ -462,12 +648,13 @@ GPUStats (standalone, no foreign key relationships)
 APIKey (standalone, no foreign key relationships)
 Log (standalone, no foreign key relationships - for reliability)
 AuditLog (standalone, no foreign key relationships)
+PromptVersion (standalone, no foreign key relationships)
 ```
 
 **Cascade Behavior:**
 
-- Deleting a Camera cascades to delete all its Detections, Events, Zones, and Baselines
-- Deleting an Event cascades to delete all its Alerts
+- Deleting a Camera cascades to delete all its Detections, Events, Zones, SceneChanges, and Baselines
+- Deleting an Event cascades to delete all its Alerts and EventAudit
 - Deleting an AlertRule sets Alert.rule_id to NULL (SET NULL on delete)
 - `cascade="all, delete-orphan"` ensures orphaned records are removed
 

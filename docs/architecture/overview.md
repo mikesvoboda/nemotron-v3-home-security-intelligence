@@ -1,7 +1,7 @@
 ---
 title: Architecture Overview
 description: High-level system design, technology stack, data flow, and component responsibilities
-last_updated: 2025-12-30
+last_updated: 2026-01-04
 source_refs:
   - backend/main.py
   - backend/api/routes/cameras.py
@@ -15,18 +15,34 @@ source_refs:
   - backend/services/event_broadcaster.py:EventBroadcaster
   - backend/services/gpu_monitor.py:GPUMonitor
   - backend/services/health_monitor.py:ServiceHealthMonitor
+  - backend/services/enrichment_pipeline.py:EnrichmentPipeline
+  - backend/services/enrichment_client.py:EnrichmentClient
+  - backend/services/florence_client.py:FlorenceClient
+  - backend/services/clip_client.py:CLIPClient
+  - backend/services/performance_collector.py:PerformanceCollector
+  - backend/services/prompt_service.py:PromptService
+  - backend/services/audit_service.py:AuditService
+  - backend/services/notification.py:NotificationService
+  - backend/services/scene_change_detector.py:SceneChangeDetector
+  - backend/services/video_processor.py:VideoProcessor
   - backend/models/camera.py:Camera
   - backend/models/detection.py:Detection
   - backend/models/event.py:Event
   - frontend/src/hooks/useWebSocket.ts
   - frontend/src/hooks/useEventStream.ts
+  - frontend/src/hooks/useAIMetrics.ts
+  - frontend/src/hooks/usePerformanceMetrics.ts
+  - frontend/src/hooks/useHealthStatus.ts
+  - frontend/src/hooks/useServiceStatus.ts
+  - frontend/src/hooks/useConnectionStatus.ts
+  - frontend/src/hooks/useModelZooStatus.ts
   - ai/rtdetr/model.py
   - ai/nemotron/AGENTS.md
 ---
 
 # Architecture Overview
 
-> **Last Updated:** 2025-12-30
+> **Last Updated:** 2026-01-04
 > **Target Audience:** Future maintainers, technical contributors
 
 ---
@@ -147,24 +163,47 @@ flowchart TB
 
 ### Service Layer (AI Pipeline)
 
-| Service                   | Location                                  | Responsibility                                         |
-| ------------------------- | ----------------------------------------- | ------------------------------------------------------ |
-| **FileWatcher**           | `backend/services/file_watcher.py`        | Monitor camera directories, debounce, queue new images |
-| **DedupeService**         | `backend/services/dedupe.py`              | Prevent duplicate processing via content hashes        |
-| **DetectorClient**        | `backend/services/detector_client.py`     | HTTP client for RT-DETRv2, store detections            |
-| **BatchAggregator**       | `backend/services/batch_aggregator.py`    | Group detections into time-windowed batches            |
-| **NemotronAnalyzer**      | `backend/services/nemotron_analyzer.py`   | LLM risk analysis, event creation                      |
-| **ThumbnailGenerator**    | `backend/services/thumbnail_generator.py` | Bounding box overlays, preview images                  |
-| **EventBroadcaster**      | `backend/services/event_broadcaster.py`   | WebSocket event distribution via Redis pub/sub         |
-| **SystemBroadcaster**     | `backend/services/system_broadcaster.py`  | Periodic system status broadcasts                      |
-| **GPUMonitor**            | `backend/services/gpu_monitor.py`         | NVIDIA GPU metrics via pynvml                          |
-| **CleanupService**        | `backend/services/cleanup_service.py`     | Data retention enforcement                             |
-| **HealthMonitor**         | `backend/services/health_monitor.py`      | Service health checks, auto-recovery                   |
-| **RetryHandler**          | `backend/services/retry_handler.py`       | Exponential backoff, dead-letter queues                |
-| **PipelineWorkerManager** | `backend/services/pipeline_workers.py`    | Background worker lifecycle management                 |
-| **AlertEngine**           | `backend/services/alert_engine.py`        | Alert rule evaluation and notification triggering      |
-| **ZoneService**           | `backend/services/zone_service.py`        | Geographic zone management for detections              |
-| **BaselineService**       | `backend/services/baseline_service.py`    | Anomaly detection via activity baselines               |
+| Service                   | Location                                     | Responsibility                                            |
+| ------------------------- | -------------------------------------------- | --------------------------------------------------------- |
+| **FileWatcher**           | `backend/services/file_watcher.py`           | Monitor camera directories, debounce, queue new images    |
+| **DedupeService**         | `backend/services/dedupe.py`                 | Prevent duplicate processing via content hashes           |
+| **DetectorClient**        | `backend/services/detector_client.py`        | HTTP client for RT-DETRv2, store detections               |
+| **BatchAggregator**       | `backend/services/batch_aggregator.py`       | Group detections into time-windowed batches               |
+| **NemotronAnalyzer**      | `backend/services/nemotron_analyzer.py`      | LLM risk analysis, event creation                         |
+| **ThumbnailGenerator**    | `backend/services/thumbnail_generator.py`    | Bounding box overlays, preview images                     |
+| **EventBroadcaster**      | `backend/services/event_broadcaster.py`      | WebSocket event distribution via Redis pub/sub            |
+| **SystemBroadcaster**     | `backend/services/system_broadcaster.py`     | Periodic system status broadcasts                         |
+| **GPUMonitor**            | `backend/services/gpu_monitor.py`            | NVIDIA GPU metrics via pynvml                             |
+| **CleanupService**        | `backend/services/cleanup_service.py`        | Data retention enforcement                                |
+| **HealthMonitor**         | `backend/services/health_monitor.py`         | Service health checks, auto-recovery                      |
+| **RetryHandler**          | `backend/services/retry_handler.py`          | Exponential backoff, dead-letter queues                   |
+| **PipelineWorkerManager** | `backend/services/pipeline_workers.py`       | Background worker lifecycle management                    |
+| **AlertEngine**           | `backend/services/alert_engine.py`           | Alert rule evaluation and notification triggering         |
+| **ZoneService**           | `backend/services/zone_service.py`           | Geographic zone management for detections                 |
+| **BaselineService**       | `backend/services/baseline.py`               | Anomaly detection via activity baselines                  |
+| **EnrichmentPipeline**    | `backend/services/enrichment_pipeline.py`    | Orchestrate multi-model detection enrichment              |
+| **EnrichmentClient**      | `backend/services/enrichment_client.py`      | HTTP client for enrichment API service                    |
+| **FlorenceClient**        | `backend/services/florence_client.py`        | HTTP client for Florence-2 vision extraction              |
+| **CLIPClient**            | `backend/services/clip_client.py`            | HTTP client for CLIP re-identification                    |
+| **PerformanceCollector**  | `backend/services/performance_collector.py`  | AI pipeline performance metrics collection                |
+| **PromptService**         | `backend/services/prompt_service.py`         | Dynamic prompt template management                        |
+| **PromptVersionService**  | `backend/services/prompt_version_service.py` | Prompt versioning and A/B testing support                 |
+| **AuditService**          | `backend/services/audit_service.py`          | Security audit logging and compliance tracking            |
+| **NotificationService**   | `backend/services/notification.py`           | Alert delivery via multiple channels                      |
+| **SceneChangeDetector**   | `backend/services/scene_change_detector.py`  | Detect significant scene changes between frames           |
+| **SceneBaseline**         | `backend/services/scene_baseline.py`         | Maintain per-camera scene baselines for anomaly detection |
+| **VideoProcessor**        | `backend/services/video_processor.py`        | Process and analyze video clips                           |
+| **ReidService**           | `backend/services/reid_service.py`           | Person/entity re-identification across detections         |
+| **ContextEnricher**       | `backend/services/context_enricher.py`       | Add contextual metadata to detections                     |
+| **CircuitBreaker**        | `backend/services/circuit_breaker.py`        | Protect services from cascading failures                  |
+| **DegradationManager**    | `backend/services/degradation_manager.py`    | Graceful degradation during service failures              |
+| **CacheService**          | `backend/services/cache_service.py`          | Redis-based caching for frequently accessed data          |
+| **AlertDedupService**     | `backend/services/alert_dedup.py`            | Deduplicate repeated alerts                               |
+| **SearchService**         | `backend/services/search.py`                 | Full-text search across events and detections             |
+| **SeverityService**       | `backend/services/severity.py`               | Calculate and normalize severity scores                   |
+| **ModelZoo**              | `backend/services/model_zoo.py`              | Manage optional ML model loading and inference            |
+| **VisionExtractor**       | `backend/services/vision_extractor.py`       | Extract visual features from detection images             |
+| **BBoxValidation**        | `backend/services/bbox_validation.py`        | Validate and normalize bounding box coordinates           |
 
 ### Frontend Components
 
@@ -177,7 +216,27 @@ flowchart TB
 | **LogsDashboard**    | `frontend/src/components/logs/`      | System logs with filtering and statistics             |
 | **Layout**           | `frontend/src/components/layout/`    | Header, sidebar, navigation                           |
 | **API Client**       | `frontend/src/services/api.ts`       | Type-safe REST API wrapper                            |
-| **WebSocket Hooks**  | `frontend/src/hooks/`                | useWebSocket, useEventStream, useSystemStatus         |
+
+### Frontend Hooks
+
+| Hook                       | Location                                       | Responsibility                                       |
+| -------------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| **useWebSocket**           | `frontend/src/hooks/useWebSocket.ts`           | Core WebSocket connection management                 |
+| **WebSocketManager**       | `frontend/src/hooks/webSocketManager.ts`       | Singleton WebSocket instance with reconnection logic |
+| **useEventStream**         | `frontend/src/hooks/useEventStream.ts`         | Subscribe to real-time security events               |
+| **useSystemStatus**        | `frontend/src/hooks/useSystemStatus.ts`        | Subscribe to system health broadcasts                |
+| **useWebSocketStatus**     | `frontend/src/hooks/useWebSocketStatus.ts`     | Track WebSocket connection state                     |
+| **useConnectionStatus**    | `frontend/src/hooks/useConnectionStatus.ts`    | Combined API and WebSocket connection status         |
+| **useHealthStatus**        | `frontend/src/hooks/useHealthStatus.ts`        | Monitor backend service health                       |
+| **useServiceStatus**       | `frontend/src/hooks/useServiceStatus.ts`       | Track individual AI service availability             |
+| **useAIMetrics**           | `frontend/src/hooks/useAIMetrics.ts`           | AI pipeline performance metrics (latency, accuracy)  |
+| **usePerformanceMetrics**  | `frontend/src/hooks/usePerformanceMetrics.ts`  | System performance metrics (CPU, memory, GPU)        |
+| **useGpuHistory**          | `frontend/src/hooks/useGpuHistory.ts`          | Historical GPU utilization data                      |
+| **useStorageStats**        | `frontend/src/hooks/useStorageStats.ts`        | Storage usage and retention statistics               |
+| **useModelZooStatus**      | `frontend/src/hooks/useModelZooStatus.ts`      | Optional model zoo loading status                    |
+| **useDetectionEnrichment** | `frontend/src/hooks/useDetectionEnrichment.ts` | Fetch enriched detection metadata                    |
+| **useSavedSearches**       | `frontend/src/hooks/useSavedSearches.ts`       | Manage user-saved search filters                     |
+| **useSidebarContext**      | `frontend/src/hooks/useSidebarContext.ts`      | Sidebar state management context                     |
 
 ### AI Services
 
@@ -538,11 +597,18 @@ flowchart TB
         DASH[DashboardPage]
         TL[EventTimeline]
         SET[SettingsPage]
+        AIP[AIPerformancePage]
 
         subgraph Hooks["Custom Hooks"]
             HWS[useWebSocket]
             HES[useEventStream]
             HSS[useSystemStatus]
+            HAI[useAIMetrics]
+            HPM[usePerformanceMetrics]
+            HHS[useHealthStatus]
+            HSV[useServiceStatus]
+            HCS[useConnectionStatus]
+            HMZ[useModelZooStatus]
         end
 
         subgraph Services["Services"]
@@ -567,6 +633,9 @@ flowchart TB
             BA[BatchAggregator]
             NA[NemotronAnalyzer]
             TG[ThumbnailGenerator]
+            EP[EnrichmentPipeline]
+            FC[FlorenceClient]
+            CC[CLIPClient]
         end
 
         subgraph Workers["Background Workers"]
@@ -582,6 +651,9 @@ flowchart TB
             HM[HealthMonitor]
             EB[EventBroadcaster]
             SB[SystemBroadcaster]
+            PC[PerformanceCollector]
+            CB[CircuitBreaker]
+            DM[DegradationManager]
         end
     end
 
@@ -590,15 +662,23 @@ flowchart TB
         POSTGRES[(PostgreSQL)]
         RTDETR[RT-DETRv2]
         NEMOTRON[Nemotron LLM]
+        FLORENCE[Florence-2]
+        CLIP[CLIP]
     end
 
     %% Frontend connections
     DASH --> HES
     DASH --> HSS
+    AIP --> HAI
+    AIP --> HPM
     TL --> API
     SET --> API
+    SET --> HHS
+    SET --> HSV
     HES --> HWS
     HSS --> HWS
+    HAI --> HWS
+    HPM --> API
     HWS --> RW
     API --> RC & RE & RD & RS & RM
 
@@ -607,6 +687,11 @@ flowchart TB
     DW --> DC
     DC --> RTDETR
     DC --> POSTGRES
+    DW --> EP
+    EP --> FC
+    EP --> CC
+    FC --> FLORENCE
+    CC --> CLIP
     DW --> BA
     BA --> REDIS
     AW --> NA
@@ -616,10 +701,12 @@ flowchart TB
     TG --> POSTGRES
     GPU --> POSTGRES
     GPU --> SB
+    PC --> POSTGRES
     CL --> POSTGRES
     EB --> REDIS
     SB --> RW
     EB --> RW
+    CB --> DM
 
     %% Routes to DB
     RC & RE & RD & RS --> POSTGRES
@@ -632,12 +719,34 @@ flowchart TB
 
 ### Graceful Degradation
 
-| Component | Failure Mode  | Fallback Behavior                                                 |
-| --------- | ------------- | ----------------------------------------------------------------- |
-| RT-DETRv2 | Unreachable   | DetectorClient returns empty list, skips detection                |
-| Nemotron  | Unreachable   | NemotronAnalyzer returns default risk (50, medium)                |
-| Redis     | Unreachable   | Deduplication fails open (allows processing), pub/sub unavailable |
-| GPU       | Not available | GPUMonitor returns mock data                                      |
+| Component  | Failure Mode  | Fallback Behavior                                                 |
+| ---------- | ------------- | ----------------------------------------------------------------- |
+| RT-DETRv2  | Unreachable   | DetectorClient returns empty list, skips detection                |
+| Nemotron   | Unreachable   | NemotronAnalyzer returns default risk (50, medium)                |
+| Florence-2 | Unreachable   | EnrichmentPipeline skips vision extraction                        |
+| CLIP       | Unreachable   | EnrichmentPipeline skips re-identification                        |
+| Redis      | Unreachable   | Deduplication fails open (allows processing), pub/sub unavailable |
+| GPU        | Not available | GPUMonitor returns mock data                                      |
+| Enrichment | Unreachable   | EnrichmentClient returns empty enrichment, continues processing   |
+
+### Circuit Breaker Pattern
+
+The `CircuitBreaker` service (`backend/services/circuit_breaker.py`) protects against cascading failures:
+
+| State      | Behavior                                                             |
+| ---------- | -------------------------------------------------------------------- |
+| **Closed** | Normal operation, requests pass through                              |
+| **Open**   | All requests immediately fail, prevents overwhelming failing service |
+| **Half**   | Limited requests allowed to test if service recovered                |
+
+### Degradation Manager
+
+The `DegradationManager` service (`backend/services/degradation_manager.py`) coordinates graceful degradation:
+
+- Monitors service health across all AI components
+- Automatically disables non-critical enrichment features when resources constrained
+- Prioritizes core detection and risk analysis over optional enhancements
+- Broadcasts degradation status changes via WebSocket
 
 ### Retry and Dead-Letter Queues
 

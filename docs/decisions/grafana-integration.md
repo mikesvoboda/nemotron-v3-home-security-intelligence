@@ -11,7 +11,7 @@ This project is a **local single-user deployment** for home security monitoring.
 ## Decision Summary
 
 1. **Use native Tremor charts** for dashboard metrics visualization (not Grafana embeds)
-2. **Link to standalone Grafana** at `localhost:3000` for detailed metrics exploration
+2. **Link to standalone Grafana** at `localhost:3002` for detailed metrics exploration
 
 ## Options Evaluated
 
@@ -62,7 +62,7 @@ This project is a **local single-user deployment** for home security monitoring.
 
 ### Why Link to Standalone Grafana
 
-1. **Grafana remains valuable** - For detailed historical analysis, custom queries, and infrastructure monitoring, Grafana at `localhost:3000` provides superior capabilities.
+1. **Grafana remains valuable** - For detailed historical analysis, custom queries, and infrastructure monitoring, Grafana at `localhost:3002` provides superior capabilities.
 
 2. **Separation of concerns** - The React dashboard focuses on security events and real-time monitoring. Grafana handles infrastructure metrics and long-term trends.
 
@@ -98,7 +98,7 @@ Metrics to display natively:
 Add a link in the dashboard settings or header:
 
 ```typescript
-<a href="http://localhost:3000" target="_blank" rel="noopener">
+<a href="http://localhost:3002" target="_blank" rel="noopener">
   Open Grafana for detailed metrics
 </a>
 ```

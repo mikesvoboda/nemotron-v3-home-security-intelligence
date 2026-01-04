@@ -63,8 +63,8 @@ ModuleNotFoundError: No module named 'transformers'
 **Solution:**
 
 ```bash
-cd ai/rtdetr
-pip install -r requirements.txt
+cd "$PROJECT_ROOT"
+uv sync --extra dev
 ```
 
 **Model file not found:**

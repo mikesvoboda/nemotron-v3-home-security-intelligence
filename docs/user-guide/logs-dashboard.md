@@ -296,7 +296,7 @@ Retrieves paginated logs with filtering support.
 
 - `level` - Filter by log level
 - `component` - Filter by component name
-- `camera_id` - Filter by camera UUID
+- `camera_id` - Filter by camera ID (e.g., "front_door")
 - `source` - Filter by source (backend, frontend)
 - `search` - Full-text search in message
 - `start_date` - ISO format date string

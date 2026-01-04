@@ -6,34 +6,46 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 
 ## Key Files
 
-| File                       | Purpose                                         |
-| -------------------------- | ----------------------------------------------- |
-| `index.ts`                 | Central export point for all hooks and types    |
-| `useWebSocket.ts`          | Low-level WebSocket connection manager          |
-| `useWebSocketStatus.ts`    | Enhanced WebSocket with channel status tracking |
-| `useConnectionStatus.ts`   | Unified connection status for all WS channels   |
-| `useEventStream.ts`        | Security events via `/ws/events` WebSocket      |
-| `useSystemStatus.ts`       | System health via `/ws/system` WebSocket        |
-| `useGpuHistory.ts`         | GPU metrics polling with history buffer         |
-| `useHealthStatus.ts`       | REST-based health status polling                |
-| `useStorageStats.ts`       | Storage disk usage polling with cleanup preview |
-| `useServiceStatus.ts`      | Per-service status (not exported from index)    |
-| `usePerformanceMetrics.ts` | System performance metrics via WebSocket        |
+| File                        | Purpose                                                          |
+| --------------------------- | ---------------------------------------------------------------- |
+| `index.ts`                  | Central export point for all hooks and types                     |
+| `useWebSocket.ts`           | Low-level WebSocket connection manager                           |
+| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                  |
+| `useConnectionStatus.ts`    | Unified connection status for all WS channels                    |
+| `useEventStream.ts`         | Security events via `/ws/events` WebSocket                       |
+| `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                         |
+| `useGpuHistory.ts`          | GPU metrics polling with history buffer                          |
+| `useHealthStatus.ts`        | REST-based health status polling                                 |
+| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview                  |
+| `useServiceStatus.ts`       | Per-service status (not exported from index)                     |
+| `usePerformanceMetrics.ts`  | System performance metrics via WebSocket                         |
+| `useAIMetrics.ts`           | Fetches AI performance metrics from multiple endpoints           |
+| `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                 |
+| `useModelZooStatus.ts`      | Fetches and polls Model Zoo status with VRAM stats               |
+| `useSavedSearches.ts`       | Manages saved searches in localStorage                           |
+| `useSidebarContext.ts`      | Context hook for mobile sidebar state                            |
+| `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication        |
 
 ### Test Files
 
-| File                            | Coverage                                               |
-| ------------------------------- | ------------------------------------------------------ |
-| `useWebSocket.test.ts`          | Connection lifecycle, message handling, reconnects     |
-| `useWebSocketStatus.test.ts`    | Channel status tracking, reconnect state               |
-| `useConnectionStatus.test.ts`   | Multi-channel status aggregation                       |
-| `useEventStream.test.ts`        | Event buffering, envelope parsing, non-event filtering |
-| `useSystemStatus.test.ts`       | Backend message transformation, type guards            |
-| `useGpuHistory.test.ts`         | Polling, history buffer, start/stop controls           |
-| `useHealthStatus.test.ts`       | REST polling, error handling, refresh                  |
-| `useStorageStats.test.ts`       | Storage polling, cleanup preview                       |
-| `useServiceStatus.test.ts`      | Service status parsing                                 |
-| `usePerformanceMetrics.test.ts` | WebSocket performance metrics, alerts, history buffer  |
+| File                              | Coverage                                                 |
+| --------------------------------- | -------------------------------------------------------- |
+| `useWebSocket.test.ts`            | Connection lifecycle, message handling, reconnects       |
+| `useWebSocketStatus.test.ts`      | Channel status tracking, reconnect state                 |
+| `useConnectionStatus.test.ts`     | Multi-channel status aggregation                         |
+| `useEventStream.test.ts`          | Event buffering, envelope parsing, non-event filtering   |
+| `useSystemStatus.test.ts`         | Backend message transformation, type guards              |
+| `useGpuHistory.test.ts`           | Polling, history buffer, start/stop controls             |
+| `useHealthStatus.test.ts`         | REST polling, error handling, refresh                    |
+| `useStorageStats.test.ts`         | Storage polling, cleanup preview                         |
+| `useServiceStatus.test.ts`        | Service status parsing                                   |
+| `usePerformanceMetrics.test.ts`   | WebSocket performance metrics, alerts, history buffer    |
+| `useAIMetrics.test.ts`            | Multi-endpoint fetching, state combination, polling      |
+| `useDetectionEnrichment.test.ts`  | Detection enrichment fetching, loading/error states      |
+| `useModelZooStatus.test.ts`       | Model Zoo polling, VRAM calculation, refresh             |
+| `useSavedSearches.test.ts`        | LocalStorage persistence, CRUD operations, cross-tab sync|
+| `useSidebarContext.test.tsx`      | Context provider, mobile menu state                      |
+| `webSocketManager.test.ts`        | Connection deduplication, ref counting, subscribers      |
 
 ## Hook Details
 
@@ -402,6 +414,154 @@ The backend's `ServiceHealthMonitor` (health_monitor.py) monitors services and c
 **Use `useSystemStatus`** for overall system health (healthy/degraded/unhealthy).
 **Use `useConnectionStatus`** for unified connection management with status summary.
 **Use `usePerformanceMetrics`** for detailed performance metrics and alerts.
+
+### `useAIMetrics.ts`
+
+Hook for fetching AI performance metrics from multiple API endpoints and combining them into unified state.
+
+**Features:**
+
+- Fetches from `/api/metrics`, `/api/system/telemetry`, `/api/system/health`, `/api/system/pipeline-latency`
+- Combines RT-DETR and Nemotron model statuses
+- Tracks detection/analysis latency metrics with percentiles
+- Monitors queue depths, errors, and throughput
+- Configurable polling interval (default: 5000ms)
+- Manual refresh capability
+
+**Return Interface:**
+
+```typescript
+interface UseAIMetricsResult {
+  data: AIPerformanceState;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+}
+```
+
+### `useDetectionEnrichment.ts`
+
+Hook for fetching enrichment data (vision model results) for a specific detection.
+
+**Features:**
+
+- Fetches structured enrichment results from `/api/detections/{id}/enrichment`
+- Contains results from 18+ vision models run during detection processing
+- Automatic fetching when detectionId changes
+- Manual refetch capability
+
+**Return Interface:**
+
+```typescript
+interface UseDetectionEnrichmentReturn {
+  data: EnrichmentResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+```
+
+### `useModelZooStatus.ts`
+
+Hook for fetching and polling Model Zoo status including VRAM statistics.
+
+**Features:**
+
+- Polls `/api/system/models` at configurable intervals (default: 10000ms)
+- Provides list of all AI models in the Model Zoo
+- Calculates VRAM usage statistics (budget, used, available, percentage)
+- Manual refresh capability
+
+**Return Interface:**
+
+```typescript
+interface UseModelZooStatusReturn {
+  models: ModelStatusResponse[];
+  vramStats: VRAMStats | null;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+}
+```
+
+### `useSavedSearches.ts`
+
+Hook for managing saved searches with localStorage persistence.
+
+**Features:**
+
+- Persists searches to localStorage (key: `hsi_saved_searches`)
+- Limits to 10 most recent searches
+- CRUD operations: save, delete, load, clearAll
+- Cross-tab sync via storage event listener
+- Handles localStorage errors gracefully
+
+**Return Interface:**
+
+```typescript
+interface UseSavedSearchesReturn {
+  savedSearches: SavedSearch[];
+  saveSearch: (name: string, query: string, filters: SearchFilters) => void;
+  deleteSearch: (id: string) => void;
+  loadSearch: (id: string) => LoadedSearch | null;
+  clearAll: () => void;
+}
+```
+
+### `useSidebarContext.ts`
+
+Context hook for managing mobile sidebar state across the application.
+
+**Features:**
+
+- Provides mobile menu open/close state
+- Toggle function for menu visibility
+- Must be used within Layout component
+
+**Return Interface:**
+
+```typescript
+interface SidebarContextType {
+  isMobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
+}
+```
+
+### `webSocketManager.ts`
+
+Singleton class that manages WebSocket connections with deduplication and reference counting.
+
+**Features:**
+
+- Connection deduplication: multiple subscribers to same URL share one connection
+- Reference counting: connection closes only when all subscribers disconnect
+- Automatic reconnection with exponential backoff and jitter
+- Server heartbeat (ping/pong) handling
+- Connection timeout handling
+- SSR-safe: checks for `window.WebSocket` availability
+
+**Key Functions:**
+
+```typescript
+// Subscribe to a WebSocket URL
+subscribe(url: string, subscriber: Subscriber, config: ConnectionConfig): () => void
+
+// Send data through WebSocket
+send(url: string, data: unknown): boolean
+
+// Get connection state
+getConnectionState(url: string): { isConnected, reconnectCount, hasExhaustedRetries, lastHeartbeat }
+
+// Manual reconnect
+reconnect(url: string): void
+
+// Get subscriber count
+getSubscriberCount(url: string): number
+
+// Clear all connections
+clearAll(): void
+```
 
 ## Custom Hooks Patterns
 

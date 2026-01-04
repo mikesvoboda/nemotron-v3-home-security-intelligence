@@ -11,7 +11,6 @@ source_refs:
   - docker-compose.prod.yml:1
   - docker-compose.prod.yml:46-81
   - docker-compose.prod.yml:109-143
-  - docker-compose.yml:1
 ---
 
 # First Run
@@ -32,10 +31,9 @@ no text overlays"
 
 There are two deployment paths. Choose the one that fits your setup:
 
-| Mode            | AI Services          | Use Case                                 | Docker Compose File       |
-| --------------- | -------------------- | ---------------------------------------- | ------------------------- |
-| **Production**  | Run in containers    | Simplest setup, everything containerized | `docker-compose.prod.yml` |
-| **Development** | Run natively on host | Faster AI iteration, debugging           | `docker-compose.yml`      |
+| Mode           | AI Services       | Use Case                                 | Docker Compose File       |
+| -------------- | ----------------- | ---------------------------------------- | ------------------------- |
+| **Production** | Run in containers | Simplest setup, everything containerized | `docker-compose.prod.yml` |
 
 > **Important:** Do NOT mix host-run AI servers with `docker-compose.prod.yml`. This causes port conflicts on 8090–8094.
 
@@ -200,23 +198,23 @@ In a **third terminal**, set the AI host and start containers:
 
 ```bash
 # macOS with Docker Desktop (default, no export needed)
-docker compose up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # macOS with Podman
 export AI_HOST=host.containers.internal
-podman-compose up -d
+podman-compose -f docker-compose.prod.yml up -d
 
 # Linux with Docker
-docker compose up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Linux with Podman (use your host IP)
 export AI_HOST=192.168.1.100  # Replace with your IP
-podman-compose up -d
+podman-compose -f docker-compose.prod.yml up -d
 ```
 
-> **Note:** The development compose file (`docker-compose.yml`) does NOT include AI services - it expects them to run on the host.
+> **Note:** When running AI servers natively on the host, the backend container connects to them via `AI_HOST`.
 
-**What starts** ([`docker-compose.yml`](../../docker-compose.yml:1)):
+**What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1) without AI services, or start AI separately):
 
 | Service    | Port | Purpose                           |
 | ---------- | ---- | --------------------------------- |
@@ -229,10 +227,10 @@ podman-compose up -d
 
 ```bash
 # Docker
-docker compose ps
+docker compose -f docker-compose.prod.yml ps
 
 # OR Podman
-podman-compose ps
+podman-compose -f docker-compose.prod.yml ps
 
 # Expected: All services "healthy" or "running"
 NAME                    STATUS
@@ -325,12 +323,12 @@ AI server logs appear in the terminal windows where you started them.
 
 ```bash
 # Docker
-docker compose logs -f
-docker compose logs -f backend
+docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f backend
 
 # OR Podman
-podman-compose logs -f
-podman-compose logs -f backend
+podman-compose -f docker-compose.prod.yml logs -f
+podman-compose -f docker-compose.prod.yml logs -f backend
 ```
 
 ---
@@ -353,10 +351,10 @@ podman-compose -f docker-compose.prod.yml down -v  # Full cleanup (removes volum
 
 ```bash
 # Docker
-docker compose down
+docker compose -f docker-compose.prod.yml down
 
 # OR Podman
-podman-compose down
+podman-compose -f docker-compose.prod.yml down
 
 # Stop AI Servers: Press Ctrl+C in each terminal
 ```
@@ -387,7 +385,7 @@ This happens when you mix host AI servers with `docker-compose.prod.yml`.
 **Solution:** Choose one path:
 
 - **Production:** Stop host AI servers, use `docker-compose.prod.yml` only
-- **Development:** Use `docker-compose.yml` (no AI containers) with host AI servers
+- **Development:** Run AI servers natively on the host and configure `AI_HOST` for the backend container
 
 ### Backend can't reach AI services
 
@@ -406,12 +404,12 @@ echo $AI_HOST
 
 ```bash
 # Docker
-docker compose ps postgres
-docker compose logs postgres
+docker compose -f docker-compose.prod.yml ps postgres
+docker compose -f docker-compose.prod.yml logs postgres
 
 # OR Podman
-podman-compose ps postgres
-podman-compose logs postgres
+podman-compose -f docker-compose.prod.yml ps postgres
+podman-compose -f docker-compose.prod.yml logs postgres
 ```
 
 ### Frontend not loading

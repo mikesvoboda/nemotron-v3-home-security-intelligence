@@ -960,19 +960,21 @@ class TestGetCameraSnapshot:
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
     ) -> None:
         """Test snapshot endpoint returns the most recently modified JPG image."""
-        import time
+        import os
 
         # Set up paths
         foscam_root = tmp_path / "foscam"
         camera_folder = foscam_root / "front_door"
         camera_folder.mkdir(parents=True)
 
-        # Create two images with different modification times
+        # Create two images with different modification times using os.utime
         older_image = camera_folder / "older.jpg"
         older_image.write_bytes(b"older image data")
-        time.sleep(0.01)  # Ensure different mtime
+        os.utime(older_image, (1000.0, 1000.0))  # Set explicit older mtime
+
         newer_image = camera_folder / "newer.jpg"
         newer_image.write_bytes(b"newer image data")
+        os.utime(newer_image, (2000.0, 2000.0))  # Set explicit newer mtime
 
         camera = Camera(
             id=str(uuid.uuid4()),

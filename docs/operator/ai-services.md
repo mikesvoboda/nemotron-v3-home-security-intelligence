@@ -368,6 +368,7 @@ nvidia-smi
 
 ## Next Steps
 
+- [AI GHCR Deployment](ai-ghcr-deployment.md) - Deploy AI services from GHCR
 - [AI Troubleshooting](ai-troubleshooting.md) - Common issues and solutions
 - [AI Performance](ai-performance.md) - Performance tuning
 - [AI TLS](ai-tls.md) - Secure communications

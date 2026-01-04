@@ -35,7 +35,7 @@ This project supports two common AI deployment modes:
 In production (`docker-compose.prod.yml`), the AI layer consists of these HTTP services:
 
 1. **RT-DETRv2 Detection Server** (Port 8090)
-2. **Nemotron LLM Server (llama.cpp)** (Port 8091)
+2. **[NVIDIA Nemotron](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) LLM Server (llama.cpp)** (Port 8091)
 3. **Florence-2 Vision-Language Server** (Port 8092)
 4. **CLIP Embedding Server** (Port 8093)
 5. **Enrichment Service** (Port 8094)
@@ -43,7 +43,7 @@ In production (`docker-compose.prod.yml`), the AI layer consists of these HTTP s
 These are used by the backend for:
 
 - Object detection (RT-DETRv2)
-- Risk reasoning (Nemotron)
+- Risk reasoning (NVIDIA Nemotron)
 - Vision-language attributes/captions (Florence-2)
 - Embeddings/re-identification support (CLIP)
 - Remote enrichment helpers (vehicle/pet/clothing/etc. via `ai-enrichment`)
@@ -58,10 +58,17 @@ context (plates/OCR, faces, clothing/vehicle/pet signals, image quality/tamper i
 
 Exact VRAM depends on which services are enabled and which model sizes you deploy.
 
-- **Host-run dev (minimal)**: RT-DETRv2 + Nemotron Mini 4B can fit in ~8–12GB VRAM
-- **Production full AI stack**: plan for ~22GB VRAM (24GB recommended) when running all services
+- **Host-run dev (minimal)**: RT-DETRv2 (~4GB) + Nemotron Mini 4B (~3GB) can fit in ~8-12GB VRAM
+- **Production full AI stack**: RT-DETRv2 (~4GB) + NVIDIA Nemotron-3-Nano-30B (~14.7GB) + Enrichment (~4GB) = ~22-24GB VRAM (24GB recommended)
 
-See also: [`ai/AGENTS.md`](../ai/AGENTS.md)
+**Production Model Specifications:**
+
+| Model                          | File                                    | Size    | VRAM     | Context |
+| ------------------------------ | --------------------------------------- | ------- | -------- | ------- |
+| NVIDIA Nemotron-3-Nano-30B-A3B | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`   | ~18 GB  | ~14.7 GB | 131,072 |
+| Nemotron Mini 4B (dev)         | `nemotron-mini-4b-instruct-q4_k_m.gguf` | ~2.5 GB | ~3 GB    | 4,096   |
+
+See also: [`ai/AGENTS.md`](../ai/AGENTS.md) and [`ai/nemotron/AGENTS.md`](../ai/nemotron/AGENTS.md)
 
 ## Architecture
 
@@ -69,7 +76,7 @@ See also: [`ai/AGENTS.md`](../ai/AGENTS.md)
 Camera uploads → backend FileWatcher → detection_queue
   → RT-DETRv2 (8090) → detections (DB)
   → batching + enrichment (context + model zoo)
-  → Nemotron (8091) → events (DB)
+  → NVIDIA Nemotron (8091) → events (DB)
   → WebSocket dashboard
 
 Enrichment services (optional / configurable):
@@ -98,12 +105,12 @@ The following environment variables are used by the AI services. Set these in yo
 | Variable        | Description                         | Default |
 | --------------- | ----------------------------------- | ------- |
 | `RTDETR_PORT`   | Port for RT-DETRv2 detection server | `8090`  |
-| `NEMOTRON_PORT` | Port for Nemotron LLM server        | `8091`  |
+| `NEMOTRON_PORT` | Port for NVIDIA Nemotron LLM server | `8091`  |
 
 **Note:** Log file paths are hardcoded and cannot be overridden:
 
 - RT-DETRv2: `/tmp/rtdetr-detector.log`
-- Nemotron: `/tmp/nemotron-llm.log`
+- NVIDIA Nemotron: `/tmp/nemotron-llm.log`
 
 #### RT-DETRv2 Detection Server (ai/rtdetr/model.py)
 
@@ -114,26 +121,33 @@ The following environment variables are used by the AI services. Set these in yo
 | `PORT`              | Server port (direct execution)  | `8090`                                         |
 | `HOST`              | Bind address (direct execution) | `0.0.0.0`                                      |
 
-#### Nemotron LLM Server (ai/start_llm.sh)
+#### NVIDIA Nemotron LLM Server (ai/start_llm.sh or ai/start_nemotron.sh)
 
-| Variable              | Description             | Default                                                           |
+| Variable              | Description             | Default (Dev)                                                     |
 | --------------------- | ----------------------- | ----------------------------------------------------------------- |
 | `NEMOTRON_MODEL_PATH` | Path to GGUF model file | `$PROJECT_ROOT/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
 | `NEMOTRON_PORT`       | Server port             | `8091`                                                            |
+| `GPU_LAYERS`          | Layers offloaded to GPU | `35`                                                              |
+| `CTX_SIZE`            | Context window size     | `131072` (for 30B) / `4096` (for 4B)                              |
+
+**Production Model:** [NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
+
+- File: `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` (~18GB)
+- VRAM: ~14.7GB, Context: 131,072 tokens (128K)
 
 #### Backend Configuration (backend/core/config.py)
 
 These variables configure how the backend connects to AI services:
 
-| Variable           | Description                          | Default                 |
-| ------------------ | ------------------------------------ | ----------------------- |
-| `RTDETR_URL`       | Full URL to RT-DETRv2 service        | `http://localhost:8090` |
-| `NEMOTRON_URL`     | Full URL to Nemotron service         | `http://localhost:8091` |
-| `FLORENCE_URL`     | Full URL to Florence-2 service       | `http://localhost:8092` |
-| `CLIP_URL`         | Full URL to CLIP service             | `http://localhost:8093` |
-| `ENRICHMENT_URL`   | Full URL to Enrichment service       | `http://localhost:8094` |
-| `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication | (none)                  |
-| `NEMOTRON_API_KEY` | API key for Nemotron authentication  | (none)                  |
+| Variable           | Description                                | Default                 |
+| ------------------ | ------------------------------------------ | ----------------------- |
+| `RTDETR_URL`       | Full URL to RT-DETRv2 service              | `http://localhost:8090` |
+| `NEMOTRON_URL`     | Full URL to NVIDIA Nemotron service        | `http://localhost:8091` |
+| `FLORENCE_URL`     | Full URL to Florence-2 service             | `http://localhost:8092` |
+| `CLIP_URL`         | Full URL to CLIP service                   | `http://localhost:8093` |
+| `ENRICHMENT_URL`   | Full URL to Enrichment service             | `http://localhost:8094` |
+| `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication       | (none)                  |
+| `NEMOTRON_API_KEY` | API key for NVIDIA Nemotron authentication | (none)                  |
 
 #### Feature toggles (backend)
 
@@ -292,14 +306,14 @@ Build time: ~5-10 minutes depending on CPU.
 #### 4. Python Dependencies (RT-DETRv2)
 
 ```bash
-cd "$PROJECT_ROOT/ai/rtdetr"
+cd "$PROJECT_ROOT"
 
-# Create and activate virtual environment (optional but recommended)
-python3 -m venv venv
-source venv/bin/activate
+# Install dependencies using uv (recommended - 10-100x faster than pip)
+# Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --extra dev
 
-# Install dependencies
-pip install -r requirements.txt
+# This creates .venv and installs all dependencies from pyproject.toml
+# The RT-DETRv2 dependencies are included in the main project
 ```
 
 Key dependencies:
@@ -593,8 +607,8 @@ tail -f /tmp/rtdetr-detector.log
    - **Solution**:
 
    ```bash
-   cd ai/rtdetr
-   pip install -r requirements.txt
+   cd "$PROJECT_ROOT"
+   uv sync --extra dev
    ```
 
 ### Nemotron LLM Won't Start

@@ -154,8 +154,9 @@ cd frontend && npm test
 
 ```bash
 # 1. Find and claim work
-bd ready                                    # List available tasks
-bd update <id> --status in_progress         # Claim task
+# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/active
+# Or use MCP tools: mcp__linear__list_issues(teamId="998946a2-aa75-491b-a39d-189660131392")
+# Claim by setting status to "In Progress" via Linear web UI or MCP tools
 
 # 2. Create branch
 git checkout -b feature/my-feature
@@ -174,7 +175,8 @@ git push -u origin feature/my-feature
 gh pr create --title "feat: my feature"
 
 # 6. After merge, close task
-bd close <id>
+# Mark as "Done" via Linear web UI or MCP tools:
+# mcp__linear__update_issue(issueId="NEM-123", status="38267c1e-4458-4875-aa66-4b56381786e9")
 ```
 
 ### Commit Message Format

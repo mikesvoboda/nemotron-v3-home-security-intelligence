@@ -6,20 +6,25 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 
 ## Directory Structure
 
-| Directory      | Purpose                                          | Key Components                                                                                                                                 |
-| -------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **alerts/**    | Alert management page                            | AlertsPage                                                                                                                                     |
-| **audit/**     | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards                                                                      |
-| **common/**    | Shared UI components used across the application | RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox                                                                         |
-| **dashboard/** | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow (with integrated risk sparkline), PipelineQueues, PipelineTelemetry                |
-| **detection/** | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                         |
-| **entities/**  | Entity tracking page (WIP)                       | EntitiesPage                                                                                                                                   |
-| **events/**    | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                        |
-| **layout/**    | Application shell components                     | Layout, Header, Sidebar                                                                                                                        |
-| **logs/**      | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                            |
-| **settings/**  | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                        |
-| **system/**    | System monitoring page                           | SystemMonitoringPage, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, PerformanceAlerts, TimeRangeSelector |
-| **video/**     | Video playback components                        | VideoPlayer                                                                                                                                    |
+| Directory           | Purpose                                          | Key Components                                                                                                                                 |
+| ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ai/**             | AI Performance page components                   | AIPerformancePage, AIAuditPage, ModelStatusCards, LatencyPanel, PipelineHealthPanel, InsightsCharts, ModelZooSection, BatchAuditModal          |
+| **ai-audit/**       | AI audit components (re-exports from ai/)        | Re-exports from ai/ directory                                                                                                                  |
+| **ai-performance/** | AI performance summary components                | AIPerformanceSummaryRow                                                                                                                        |
+| **alerts/**         | Alert management page                            | AlertsPage                                                                                                                                     |
+| **audit/**          | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards                                                                      |
+| **common/**         | Shared UI components used across the application | RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox                                                                         |
+| **dashboard/**      | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow (with integrated risk sparkline), PipelineQueues, PipelineTelemetry                |
+| **detection/**      | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                         |
+| **entities/**       | Entity tracking page (WIP)                       | EntitiesPage                                                                                                                                   |
+| **events/**         | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                        |
+| **layout/**         | Application shell components                     | Layout, Header, Sidebar                                                                                                                        |
+| **logs/**           | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                            |
+| **search/**         | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                |
+| **settings/**       | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                        |
+| **system/**         | System monitoring page                           | SystemMonitoringPage, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, PerformanceAlerts, TimeRangeSelector |
+| **video/**          | Video playback components                        | VideoPlayer                                                                                                                                    |
+| **zones/**          | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                     |
 
 ## Component Hierarchy
 
@@ -106,7 +111,7 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 - **Framework:** Vitest
 - **Library:** React Testing Library
-- **Coverage:** 95% requirement enforced in CI
+- **Coverage:** 83%/77%/81%/84% thresholds (statements/branches/functions/lines)
 
 ## File Inventory by Directory
 

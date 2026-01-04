@@ -110,10 +110,10 @@ Coverage thresholds are configured in `vite.config.ts`:
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 89%       |
-| Branches   | 84%       |
-| Functions  | 86%       |
-| Lines      | 90%       |
+| Statements | 83%       |
+| Branches   | 77%       |
+| Functions  | 81%       |
+| Lines      | 84%       |
 
 ## Related Documentation
 

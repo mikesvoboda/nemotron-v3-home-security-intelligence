@@ -283,10 +283,10 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 
 ### Test Coverage Thresholds
 
-- Statements: 89%
-- Branches: 84%
-- Functions: 86%
-- Lines: 90%
+- Statements: 83%
+- Branches: 77%
+- Functions: 81%
+- Lines: 84%
 
 ### Test Setup
 

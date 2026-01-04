@@ -130,7 +130,7 @@ async def get_camera(
     """Get a specific camera by ID.
 
     Args:
-        camera_id: UUID of the camera
+        camera_id: Normalized camera ID (e.g., "front_door", "backyard")
         db: Database session
 
     Returns:
@@ -246,7 +246,7 @@ async def update_camera(
     """Update an existing camera.
 
     Args:
-        camera_id: UUID of the camera to update
+        camera_id: Normalized camera ID (e.g., "front_door", "backyard")
         camera_data: Camera update data (all fields optional)
         request: FastAPI request for audit logging
         db: Database session
@@ -322,7 +322,7 @@ async def delete_camera(
     This operation cascades to all related detections and events.
 
     Args:
-        camera_id: UUID of the camera to delete
+        camera_id: Normalized camera ID (e.g., "front_door", "backyard")
         request: FastAPI request for audit logging
         db: Database session
 

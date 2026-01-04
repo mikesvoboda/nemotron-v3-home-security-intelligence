@@ -428,7 +428,7 @@ test.describe('Dashboard', () => {
 For complex features, invoke the TDD skill to guide your workflow:
 
 ```bash
-/test-driven-development
+/superpowers:test-driven-development
 ```
 
 This skill will:
@@ -456,12 +456,15 @@ Tasks labeled `tdd` are test-focused tasks that pair with feature tasks:
 
 This project enforces strict coverage thresholds:
 
-| Test Type   | Minimum Coverage | Enforcement   |
-| ----------- | ---------------- | ------------- |
-| Unit        | 92%              | CI gate       |
-| Integration | 50%              | CI gate       |
-| Combined    | 90%              | CI gate       |
-| E2E         | Critical paths   | Manual review |
+| Test Type        | Minimum Coverage | Enforcement   |
+| ---------------- | ---------------- | ------------- |
+| Backend Unit     | 85%              | CI gate       |
+| Backend Combined | 95%              | CI gate       |
+| Frontend         | 83%/77%/81%/84%  | CI gate       |
+| E2E              | Critical paths   | Manual review |
+
+**Note:** Frontend thresholds are statements/branches/functions/lines respectively.
+See `pyproject.toml` (backend) and `vite.config.ts` (frontend) for authoritative values.
 
 **Coverage Commands:**
 
@@ -492,7 +495,7 @@ Before creating a PR, verify:
 - [ ] All new code has corresponding tests
 - [ ] Tests were written BEFORE implementation (TDD)
 - [ ] Tests cover happy path AND error cases
-- [ ] Coverage thresholds are met (92% unit, 50% integration)
+- [ ] Coverage thresholds are met (85% backend unit, 95% backend combined)
 - [ ] No tests were skipped or disabled
 - [ ] E2E tests pass for UI changes
 
@@ -515,11 +518,11 @@ Before creating a PR, verify:
 
 ```
 backend/tests/
-  unit/              # Python unit tests (pytest) - 2957 tests
-  integration/       # API and service integration tests - 626 tests
+  unit/              # Python unit tests (pytest) - 7193 tests
+  integration/       # API and service integration tests - 1499 tests
 frontend/
   src/**/*.test.ts   # Component and hook tests (Vitest)
-  tests/e2e/         # Playwright E2E tests - 233 tests (multi-browser)
+  tests/e2e/         # Playwright E2E tests - 2358 tests across 17 files (multi-browser)
 ```
 
 ### Test Parallelization
@@ -716,7 +719,7 @@ Every directory contains an `AGENTS.md` file that documents:
 find . -name "AGENTS.md" -type f | head -20
 ```
 
-### AGENTS.md Locations (34 files)
+### AGENTS.md Locations (98 files)
 
 | Directory                            | Purpose                           |
 | ------------------------------------ | --------------------------------- |

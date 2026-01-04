@@ -96,7 +96,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ├── monitoring/           # Prometheus + Grafana configuration
 │   └── grafana/          # Grafana dashboards
 ├── scripts/              # Development and deployment scripts
-├── .beads/               # Issue tracking data (bd tool)
+├── .beads/               # Legacy issue tracking data (deprecated)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
     ├── codeql/           # CodeQL security analysis
@@ -105,28 +105,37 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ## Issue Tracking
 
-This project uses **bd** (beads) for issue tracking:
+This project uses **Linear** for issue tracking:
+
+- **Workspace:** [nemotron-v3-home-security](https://linear.app/nemotron-v3-home-security)
+- **Team:** NEM
+- **Issue format:** NEM-123
 
 ```bash
-bd ready                    # Find available work
-bd show <id>               # View task details
-bd update <id> --status in_progress  # Claim work
-bd close <id>              # Complete work
-bd sync                    # Sync with git
+# Find available work
+# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/active
+
+# Filter by phase (e.g., phase-3)
+# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3
+
+# View and manage tasks via Linear web interface or MCP tools:
+# - mcp__linear__list_issues(teamId="998946a2-aa75-491b-a39d-189660131392")
+# - mcp__linear__get_issue(issueId="NEM-123")
+# - mcp__linear__update_issue(issueId="NEM-123", status="<UUID>")
 ```
 
 Tasks are organized into **8 execution phases**. Complete phases in order:
 
-```bash
-bd list --label phase-1    # Project Setup (7 tasks)
-bd list --label phase-2    # Database & Layout (6 tasks)
-bd list --label phase-3    # Core APIs & Components (11 tasks)
-bd list --label phase-4    # AI Pipeline (13 tasks)
-bd list --label phase-5    # Events & Real-time (9 tasks)
-bd list --label phase-6    # Dashboard Components (7 tasks)
-bd list --label phase-7    # Pages & Modals (6 tasks)
-bd list --label phase-8    # Integration & E2E (8 tasks)
-```
+| Phase   | Description            | Linear Filter                                                               |
+| ------- | ---------------------- | --------------------------------------------------------------------------- |
+| phase-1 | Project Setup          | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1) |
+| phase-2 | Database & Layout      | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-2) |
+| phase-3 | Core APIs & Components | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3) |
+| phase-4 | AI Pipeline            | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-4) |
+| phase-5 | Events & Real-time     | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-5) |
+| phase-6 | Dashboard Components   | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-6) |
+| phase-7 | Pages & Modals         | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-7) |
+| phase-8 | Integration & E2E      | [View](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-8) |
 
 ## Development Workflow
 
@@ -193,7 +202,7 @@ cd frontend && npm test
 ### Starting Point
 
 1. **Read CLAUDE.md** - Comprehensive project instructions
-2. **Check available work:** `bd ready` or `bd list --label phase-N`
+2. **Check available work:** Visit [Linear Active](https://linear.app/nemotron-v3-home-security/team/NEM/active) or filter by phase label
 3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1-8 are operational**)
 4. **Read directory AGENTS.md files** - Navigate to specific areas
 
@@ -252,14 +261,14 @@ cd frontend && npm test
 Before ending a session:
 
 1. Run full test suite: `./scripts/test-runner.sh`
-2. Update issue status: `bd close <id>` for completed tasks
+2. Update issue status: Mark completed tasks as "Done" in Linear
 3. Commit changes: `git add -A && git commit -m "description"`
-4. Sync and push: `bd sync && git push`
+4. Push to remote: `git push`
 5. Verify: `git status` should show clean state
 
 ## Resources
 
-- **Issue Tracker:** bd (beads) - syncs with `.beads/` directory
+- **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
 - **Documentation:** `docs/` directory
 - **Runtime Config:** `docs/RUNTIME_CONFIG.md` (authoritative port/env reference)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`

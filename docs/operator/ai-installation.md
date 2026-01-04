@@ -134,17 +134,17 @@ Build time: ~5-10 minutes depending on CPU.
 ### 4. Python Dependencies (RT-DETRv2)
 
 ```bash
-cd $PROJECT_ROOT/ai/rtdetr
+cd $PROJECT_ROOT
 
-# Create virtual environment (recommended)
-python3 -m venv venv
-source venv/bin/activate
+# Install dependencies using uv (recommended - 10-100x faster than pip)
+# Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --extra dev
 
-# Install dependencies
-pip install -r requirements.txt
+# This creates .venv and installs all dependencies from pyproject.toml
+# The RT-DETRv2 dependencies are included in the main project
 ```
 
-Key dependencies:
+Key dependencies (defined in `pyproject.toml`):
 
 - `torch` + `torchvision` - PyTorch for deep learning
 - `transformers` - HuggingFace model loading/inference (RT-DETRv2)
@@ -344,6 +344,7 @@ curl http://localhost:8094/health  # Enrichment
 ## Next Steps
 
 - [AI Configuration](ai-configuration.md) - Configure environment variables
+- [AI GHCR Deployment](ai-ghcr-deployment.md) - Deploy AI services from GHCR
 - [AI Services](ai-services.md) - Start and verify services
 - [AI Troubleshooting](ai-troubleshooting.md) - Common issues and solutions
 

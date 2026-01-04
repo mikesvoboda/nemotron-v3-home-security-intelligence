@@ -46,12 +46,14 @@ docker compose -f docker-compose.prod.yml up -d postgres
 docker compose -f docker-compose.prod.yml ps postgres
 ```
 
-**Default credentials (from docker-compose.prod.yml):**
+**Required credentials (must be set in .env):**
+
+> **IMPORTANT:** There is no default password. `POSTGRES_PASSWORD` must be explicitly set or the container will fail to start. See [Security - Database Credentials](../admin-guide/security.md#database-credentials-required) for details.
 
 ```bash
-POSTGRES_USER=security
-POSTGRES_PASSWORD=security_dev_password
-POSTGRES_DB=security
+POSTGRES_USER=security                  # Default username
+POSTGRES_PASSWORD=<your-secure-password>  # REQUIRED - generate with: openssl rand -base64 32
+POSTGRES_DB=security                    # Default database name
 ```
 
 ### Option 2: Native PostgreSQL

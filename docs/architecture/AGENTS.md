@@ -16,6 +16,7 @@ architecture/
   frontend-hooks.md # Frontend React hooks architecture
   real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
   resilience.md     # Circuit breakers, retries, DLQ, health monitoring
+  system-page-pipeline-visualization.md  # System page pipeline visualization components
 ```
 
 ## Key Files
@@ -175,6 +176,32 @@ architecture/
 
 **When to use:** Implementing new frontend features, understanding data flow in components.
 
+### system-page-pipeline-visualization.md
+
+**Purpose:** Documentation of the System page pipeline visualization components.
+
+**Topics Covered:**
+
+- PipelineFlowVisualization component architecture
+- Pipeline stages (Files, Detect, Batch, Analyze)
+- Health status indicators and color coding
+- Background workers grid and status monitoring
+- PipelineMetricsPanel with queue depths, latencies, and throughput
+- Data sources and refresh rates
+- WebSocket and polling integration
+- Related system monitoring components
+
+**Key Source Files:**
+
+- `frontend/src/components/system/PipelineFlowVisualization.tsx` - Pipeline flow diagram
+- `frontend/src/components/system/PipelineMetricsPanel.tsx` - Detailed metrics panel
+- `frontend/src/components/system/SystemMonitoringPage.tsx` - Parent page component
+- `frontend/src/components/system/SystemSummaryRow.tsx` - Summary indicators
+- `frontend/src/hooks/usePerformanceMetrics.ts` - Performance data hook
+- `backend/api/routes/system.py` - Telemetry API endpoint
+
+**When to use:** Understanding system page components, implementing pipeline monitoring, debugging visualization issues.
+
 ## Important Patterns
 
 ### Fully Containerized Deployment
@@ -246,6 +273,13 @@ FileWatcher --> detection_queue --> DetectionWorker --> RT-DETRv2
 1. Read `real-time.md` for WebSocket architecture
 2. Understand Redis pub/sub for event distribution
 3. Review message formats and frontend hooks
+
+### Working on Pipeline Visualization
+
+1. Read `system-page-pipeline-visualization.md` for component architecture
+2. Understand pipeline stages and health status indicators
+3. Review data sources and refresh rates
+4. Check telemetry API endpoint for backend integration
 
 ## Diagram Conventions
 
