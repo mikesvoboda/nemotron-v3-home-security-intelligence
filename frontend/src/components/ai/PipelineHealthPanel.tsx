@@ -219,13 +219,13 @@ export default function PipelineHealthPanel({
 
             {/* DLQ Items */}
             {totalDlqItems > 0 && (
-              <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-4">
+              <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-4" data-testid="dlq-items-section">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Inbox className="h-4 w-4 text-orange-400" />
                     <Text className="font-medium text-orange-400">Dead Letter Queue</Text>
                   </div>
-                  <Badge color="orange">{totalDlqItems} items</Badge>
+                  <Badge color="orange" data-testid="dlq-total-badge">{totalDlqItems.toLocaleString()} items</Badge>
                 </div>
                 <div className="space-y-1">
                   {Object.entries(dlqItems).map(([queue, count]) => (

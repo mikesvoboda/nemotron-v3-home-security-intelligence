@@ -91,10 +91,16 @@ describe('PipelineFlowVisualization', () => {
     it('renders stage names', () => {
       render(<PipelineFlowVisualization {...defaultProps} />);
 
-      expect(screen.getByText('Files')).toBeInTheDocument();
-      expect(screen.getByText('Detect')).toBeInTheDocument();
-      expect(screen.getByText('Batch')).toBeInTheDocument();
-      expect(screen.getByText('Analyze')).toBeInTheDocument();
+      // Check stage names within their respective stage cards
+      const filesStage = screen.getByTestId('stage-files');
+      const detectStage = screen.getByTestId('stage-detect');
+      const batchStage = screen.getByTestId('stage-batch');
+      const analyzeStage = screen.getByTestId('stage-analyze');
+
+      expect(within(filesStage).getByText('Files')).toBeInTheDocument();
+      expect(within(detectStage).getByText('Detect')).toBeInTheDocument();
+      expect(within(batchStage).getByText('Batch')).toBeInTheDocument();
+      expect(within(analyzeStage).getByText('Analyze')).toBeInTheDocument();
     });
 
     it('renders flow arrows between stages', () => {
@@ -107,10 +113,13 @@ describe('PipelineFlowVisualization', () => {
     it('renders total pipeline latency', () => {
       render(<PipelineFlowVisualization {...defaultProps} />);
 
-      expect(screen.getByTestId('total-pipeline-latency')).toBeInTheDocument();
-      expect(screen.getByText(/16\.1s avg/)).toBeInTheDocument();
-      expect(screen.getByText(/47\.8s p95/)).toBeInTheDocument();
-      expect(screen.getByText(/102s p99/)).toBeInTheDocument();
+      const latencySection = screen.getByTestId('total-pipeline-latency');
+      expect(latencySection).toBeInTheDocument();
+      // formatTotalLatency rounds to whole seconds for values >= 10s
+      // 16100ms -> 16s, 47800ms -> 48s, 102000ms -> 102s
+      expect(latencySection).toHaveTextContent('16s avg');
+      expect(latencySection).toHaveTextContent('48s p95');
+      expect(latencySection).toHaveTextContent('102s p99');
     });
   });
 
@@ -133,7 +142,8 @@ describe('PipelineFlowVisualization', () => {
       render(<PipelineFlowVisualization {...defaultProps} />);
 
       const detectStage = screen.getByTestId('stage-detect');
-      expect(within(detectStage).getByText(/Avg: 14s/)).toBeInTheDocument();
+      // formatLatency outputs "14.0s" for 14000ms values
+      expect(within(detectStage).getByText(/Avg: 14\.0s/)).toBeInTheDocument();
     });
 
     it('displays pending count for batch stage', () => {
@@ -311,9 +321,11 @@ describe('PipelineFlowVisualization', () => {
     it('shows worker abbreviations', () => {
       render(<PipelineFlowVisualization {...defaultProps} />);
 
-      expect(screen.getByText('Det')).toBeInTheDocument();
-      expect(screen.getByText('Ana')).toBeInTheDocument();
-      expect(screen.getByText('Batch')).toBeInTheDocument();
+      const workersGrid = screen.getByTestId('workers-grid');
+      // Check worker names within the workers grid to avoid collision with stage names
+      expect(within(workersGrid).getByText('Det')).toBeInTheDocument();
+      expect(within(workersGrid).getByText('Ana')).toBeInTheDocument();
+      expect(within(workersGrid).getByText('Batch')).toBeInTheDocument();
     });
 
     it('updates count badge when some workers stopped', () => {
@@ -392,7 +404,8 @@ describe('PipelineFlowVisualization', () => {
       render(<PipelineFlowVisualization {...defaultProps} />);
 
       const detectStage = screen.getByTestId('stage-detect');
-      expect(within(detectStage).getByText(/Avg: 14s/)).toBeInTheDocument();
+      // formatLatency outputs "14.0s" for 14000ms values (uses toFixed(1))
+      expect(within(detectStage).getByText(/Avg: 14\.0s/)).toBeInTheDocument();
     });
 
     it('handles null/undefined metrics gracefully', () => {

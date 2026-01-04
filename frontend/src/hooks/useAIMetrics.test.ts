@@ -393,25 +393,6 @@ describe('useAIMetrics', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('should handle DLQ stats endpoint failure and fall back to Prometheus metrics', async () => {
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(
-        new Error('DLQ stats unavailable')
-      );
-
-      const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      // Should fall back to Prometheus metrics values (8, 2) instead of DLQ stats (1611, 0)
-      expect(result.current.data.dlqItems).toEqual({
-        'dlq:detection_queue': 8,
-        'dlq:analysis_queue': 2,
-      });
-      expect(result.current.error).toBeNull();
-    });
-
     it('should handle multiple endpoint failures', async () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchHealth).mockRejectedValue(new Error('Failed'));
@@ -432,7 +413,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchTelemetry).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchHealth).mockRejectedValue(new Error('Failed'));
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('Failed'));
       mockFetch.mockRejectedValue(new Error('Failed'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -812,8 +792,7 @@ describe('useAIMetrics', () => {
       expect(result.current.data.dlqItems).toEqual({});
     });
 
-    it('should return empty dlqItems when both DLQ stats and metrics fail', async () => {
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('Failed'));
+    it('should return empty dlqItems when metrics return empty dlq_items', async () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue({
         ...mockMetricsResponse,
         dlq_items: {},
@@ -825,7 +804,7 @@ describe('useAIMetrics', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Falls back to empty metrics when DLQ stats fails
+      // dlqItems comes from metrics.dlq_items, should be empty when metrics returns empty
       expect(result.current.data.dlqItems).toEqual({});
     });
 
