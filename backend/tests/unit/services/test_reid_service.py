@@ -1841,7 +1841,7 @@ class TestReIDTimeoutBehavior:
         mock_client = AsyncMock()
 
         async def slow_embed(image: Image.Image) -> list[float]:
-            await asyncio.sleep(10)  # Much longer than timeout
+            await asyncio.sleep(0.5)  # Longer than 0.1s timeout
             return [0.1] * EMBEDDING_DIMENSION
 
         mock_client.embed.side_effect = slow_embed

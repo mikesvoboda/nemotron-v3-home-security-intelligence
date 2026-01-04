@@ -458,7 +458,7 @@ class TestGracefulShutdown:
             nonlocal queue_read_cancelled
             queue_read_started.set()
             try:
-                await asyncio.sleep(10)  # cancelled - simulating BLPOP, task.cancel() below
+                await asyncio.sleep(0.5)  # cancelled - simulating BLPOP, task.cancel() below
             except asyncio.CancelledError:
                 queue_read_cancelled = True
                 raise
@@ -1029,7 +1029,7 @@ class TestEdgeCases:
         """Test handling of timeout during batch analysis."""
 
         async def slow_analysis(batch_id):
-            await asyncio.sleep(10)  # Very slow
+            await asyncio.sleep(0.5)  # Longer than 0.1s timeout
 
         mock_analyzer.analyze_batch = slow_analysis
 

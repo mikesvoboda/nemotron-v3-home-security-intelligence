@@ -42,7 +42,7 @@ class TestDatabaseConnectionErrors:
 
         # Simulate database timeout by mocking the health check
         async def slow_check(*args, **kwargs):
-            await asyncio.sleep(10)  # Will be interrupted by timeout
+            await asyncio.sleep(0.5)  # Will be interrupted by timeout
             raise TimeoutError("Database timeout")
 
         with patch(

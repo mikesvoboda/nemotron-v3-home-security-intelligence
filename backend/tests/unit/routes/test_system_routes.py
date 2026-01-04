@@ -894,7 +894,7 @@ async def test_get_readiness_database_timeout() -> None:
 
     async def slow_db_execute(*args, **kwargs):
         """Simulate a slow database query that will timeout."""
-        await asyncio.sleep(10)  # Much longer than the timeout
+        await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
     db = AsyncMock()
     db.execute = slow_db_execute
@@ -926,7 +926,7 @@ async def test_get_readiness_redis_timeout() -> None:
 
     async def slow_redis_health_check():
         """Simulate a slow Redis health check that will timeout."""
-        await asyncio.sleep(10)  # Much longer than the timeout
+        await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
     redis = AsyncMock()
     redis.health_check = slow_redis_health_check
@@ -972,7 +972,7 @@ async def test_get_readiness_ai_services_timeout() -> None:
 
         async def slow_ai_health_check():
             """Simulate a slow AI services health check that will timeout."""
-            await asyncio.sleep(10)  # Much longer than the timeout
+            await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
             # This return is never reached due to timeout
             return system_routes.ServiceStatus(
                 status="healthy", message="AI services operational", details=None
@@ -1006,15 +1006,15 @@ async def test_get_readiness_all_services_timeout() -> None:
 
     async def slow_db_execute(*args, **kwargs):
         """Simulate a slow database query that will timeout."""
-        await asyncio.sleep(10)
+        await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
     async def slow_redis_health_check():
         """Simulate a slow Redis health check that will timeout."""
-        await asyncio.sleep(10)
+        await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
     async def slow_ai_health_check():
         """Simulate a slow AI services health check that will timeout."""
-        await asyncio.sleep(10)
+        await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
     db = AsyncMock()
     db.execute = slow_db_execute
@@ -3830,8 +3830,8 @@ async def test_bounded_health_check_timeout_returns_degraded_status() -> None:
     """Test that _bounded_health_check returns degraded status on timeout."""
 
     async def slow_check(*args):
-        # This check takes longer than the timeout
-        await asyncio.sleep(2.0)
+        # This check takes longer than the timeout (0.1s)
+        await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
         return (True, None)
 
     # Use a very short timeout to trigger timeout behavior
