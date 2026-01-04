@@ -122,6 +122,16 @@ SLOW_TEST_PATTERNS = [
     r"test_json_utils.*PropertyBased.*",
     r"test_json_utils.*test_valid_json_always_parses",
     r"test_json_utils.*test_json_after_think_block_parses",
+    # ReID service retry/backoff tests - use actual delays for timing verification
+    r"test_reid_service.*TestReIDRetryBehavior.*",
+    r"test_reid_service.*TestReIDRetryLogging.*",
+    r"test_reid_service.*TestGenerateEmbedding.*test_generate_embedding_generic_error",
+    r"test_reid_service.*TestRateLimitingEdgeCases.*test_rate_limit_released_on_exception",
+    # Linear migration script retry tests - use actual delays
+    r"test_migrate_beads_to_linear.*TestLinearClientRetryLogic.*",
+    r"test_migrate_beads_to_linear.*TestLinearClientRetryLogging.*",
+    # VitPose loader exception tests - model loading overhead
+    r"test_vitpose_loader.*test_extract_pose_from_crop_exception",
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely
