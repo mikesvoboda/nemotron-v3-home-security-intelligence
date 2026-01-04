@@ -218,7 +218,8 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile.prod
+      dockerfile: backend/Dockerfile
+      target: prod
     ports:
       - '8000:8000'
     volumes:
@@ -321,7 +322,8 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
+      target: prod
     ports:
       - '${FRONTEND_PORT:-5173}:80'
     # NOTE: VITE_* environment variables are NOT used at runtime.
