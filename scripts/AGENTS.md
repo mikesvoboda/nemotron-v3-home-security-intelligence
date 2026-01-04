@@ -231,7 +231,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 
 **What it runs:**
 
-1. **Backend:** Ruff linting, Ruff format check, MyPy type checking, pytest with 90% coverage
+1. **Backend:** Ruff linting, Ruff format check, MyPy type checking, pytest with 95% coverage
 2. **Frontend:** ESLint, TypeScript check, Prettier check, Vitest
 
 **Usage:**

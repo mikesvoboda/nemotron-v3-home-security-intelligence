@@ -344,6 +344,7 @@ curl http://localhost:8094/health  # Enrichment
 ## Next Steps
 
 - [AI Configuration](ai-configuration.md) - Configure environment variables
+- [AI GHCR Deployment](ai-ghcr-deployment.md) - Deploy AI services from GHCR
 - [AI Services](ai-services.md) - Start and verify services
 - [AI Troubleshooting](ai-troubleshooting.md) - Common issues and solutions
 

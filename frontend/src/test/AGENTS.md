@@ -114,12 +114,12 @@ Coverage reports are generated to `./coverage/`:
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 89%       |
-| Branches   | 86%       |
-| Functions  | 85%       |
-| Lines      | 90%       |
+| Statements | 83%       |
+| Branches   | 77%       |
+| Functions  | 81%       |
+| Lines      | 84%       |
 
-Note: Thresholds temporarily lowered due to SearchBar test isolation issue (mousedown listener). See `vite.config.ts` for details and TODO.
+Note: Thresholds adjusted based on current coverage levels. See `vite.config.ts` for authoritative values.
 
 **Excluded from Coverage:**
 

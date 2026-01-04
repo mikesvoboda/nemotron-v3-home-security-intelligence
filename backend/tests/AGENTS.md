@@ -62,10 +62,10 @@ pytest backend/tests/benchmarks/ -v --benchmark-only
 ### Parallel execution
 
 ```bash
-# Unit tests: parallel with worksteal scheduler (~10s for 2957 tests)
+# Unit tests: parallel with worksteal scheduler (~10s for 7193 tests)
 uv run pytest backend/tests/unit/ -n auto --dist=worksteal
 
-# Integration tests: serial due to shared database state (~70s for 626 tests)
+# Integration tests: serial due to shared database state (~70s for 1499 tests)
 uv run pytest backend/tests/integration/ -n0
 ```
 
@@ -161,13 +161,13 @@ Timeouts are applied automatically based on test location:
 
 ## Coverage Requirements
 
-- **Target**: 95%+ coverage for all backend code
-- **CI Enforcement**: `--cov-fail-under=95` in GitHub Actions
+- **Unit Tests**: 85%+ coverage (CI unit test job)
+- **Combined**: 95%+ coverage for all backend code (`pyproject.toml` fail_under)
 - **Reports**: HTML reports via `--cov-report=html`
 
 ## Test Categories
 
-### Unit Tests (`unit/`) - 2957 tests
+### Unit Tests (`unit/`) - 7193 tests
 
 Tests for individual components in isolation with all external dependencies mocked.
 Includes property-based tests using **Hypothesis** for model invariants.
@@ -181,7 +181,7 @@ Categories:
 - **Middleware**: auth, rate limiting, TLS
 - **Alert System**: engine, dedup, models, notification
 
-### Integration Tests (`integration/`) - 626 tests
+### Integration Tests (`integration/`) - 1499 tests
 
 Tests for multi-component workflows with real database and mocked Redis.
 **Must run serially** (`-n0`) due to shared database state.

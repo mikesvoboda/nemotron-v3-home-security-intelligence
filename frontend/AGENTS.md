@@ -149,7 +149,7 @@ The `vite.config.ts` configures:
 - **API Proxy**: `/api/*` -> `http://localhost:8000`
 - **WebSocket Proxy**: `/ws/*` -> `ws://localhost:8000`
 - **Test Environment**: jsdom with globals
-- **Coverage Thresholds**: 89% statements, 84% branches, 86% functions, 90% lines
+- **Coverage Thresholds**: 83% statements, 77% branches, 81% functions, 84% lines
 - **Memory Optimization**: Uses forks pool with single fork
 
 ## TypeScript Configuration

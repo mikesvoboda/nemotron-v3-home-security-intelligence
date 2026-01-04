@@ -176,7 +176,7 @@ This runs ([scripts/validate.sh](../../scripts/validate.sh:1)):
 1. **Ruff linting** - Python code style
 2. **Ruff formatting** - Python code formatting
 3. **MyPy** - Python type checking
-4. **Pytest** - Backend tests with 90%+ coverage
+4. **Pytest** - Backend tests with 95% combined coverage
 5. **ESLint** - Frontend linting
 6. **TypeScript** - Frontend type checking
 7. **Prettier** - Frontend formatting

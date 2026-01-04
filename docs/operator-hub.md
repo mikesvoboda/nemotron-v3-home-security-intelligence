@@ -233,6 +233,7 @@ RETENTION_DAYS=30
 | [AI Overview](operator/ai-overview.md)               | What the AI does, architecture | ~5 min  |
 | [AI Installation](operator/ai-installation.md)       | Prerequisites and dependencies | ~10 min |
 | [AI Configuration](operator/ai-configuration.md)     | Environment variables          | ~8 min  |
+| [AI GHCR Deployment](operator/ai-ghcr-deployment.md) | Deploy AI from GHCR            | ~12 min |
 | [AI Services](operator/ai-services.md)               | Starting, stopping, verifying  | ~8 min  |
 | [AI Troubleshooting](operator/ai-troubleshooting.md) | Common issues and solutions    | ~10 min |
 | [AI Performance](operator/ai-performance.md)         | Performance tuning             | ~6 min  |

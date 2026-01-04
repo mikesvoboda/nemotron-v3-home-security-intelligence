@@ -198,7 +198,7 @@ Before submitting a PR:
 
 - [ ] All pre-commit hooks pass
 - [ ] All tests pass locally
-- [ ] Code coverage meets thresholds (92% unit, 50% integration)
+- [ ] Code coverage meets thresholds (85% unit, 95% combined)
 - [ ] No new linting warnings
 - [ ] TypeScript compiles without errors
 - [ ] Documentation updated if needed
@@ -246,8 +246,8 @@ All CI jobs must pass before merge:
 | ------------------------- | -------- | ---------------------- |
 | Backend Lint              | Yes      | Ruff check and format  |
 | Backend Type Check        | Yes      | MyPy                   |
-| Backend Unit Tests        | Yes      | 92% coverage threshold |
-| Backend Integration Tests | Yes      | 50% coverage threshold |
+| Backend Unit Tests        | Yes      | 85% coverage threshold |
+| Backend Integration Tests | Yes      | Combined 95% threshold |
 | Frontend Lint             | Yes      | ESLint                 |
 | Frontend Type Check       | Yes      | TypeScript compilation |
 | Frontend Tests            | Yes      | Vitest                 |
@@ -287,6 +287,8 @@ This is wrong. Use `async with`.
 ```
 
 ## Code Standards
+
+For comprehensive documentation on all code quality tools, configuration, and commands, see [Code Quality Tools](code-quality.md).
 
 ### Python (Backend)
 
@@ -428,5 +430,6 @@ git push
 
 - [Setup Guide](setup.md) - Development environment setup
 - [Testing Guide](testing.md) - Test strategy and patterns
+- [Code Quality Tools](code-quality.md) - Linting, formatting, and static analysis tools
 - [Code Patterns](patterns.md) - Key patterns and conventions
 - [CLAUDE.md](../../CLAUDE.md) - Project instructions

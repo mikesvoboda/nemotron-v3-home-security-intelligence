@@ -23,7 +23,7 @@ decisions/
 **Decision Summary:**
 
 1. Use native Tremor charts for dashboard metrics visualization (not Grafana embeds)
-2. Link to standalone Grafana at `localhost:3000` for detailed metrics exploration
+2. Link to standalone Grafana at `localhost:3002` for detailed metrics exploration
 
 **Context:**
 

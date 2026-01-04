@@ -111,7 +111,7 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 - **Framework:** Vitest
 - **Library:** React Testing Library
-- **Coverage:** 95% requirement enforced in CI
+- **Coverage:** 83%/77%/81%/84% thresholds (statements/branches/functions/lines)
 
 ## File Inventory by Directory
 

@@ -12,11 +12,20 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 
 ## Available Spokes
 
-| Document              | Description                                      |
-| --------------------- | ------------------------------------------------ |
-| `backup.md`           | Backup and recovery procedures                   |
-| `deployment-modes.md` | Deployment mode decision table and AI networking |
-| `gpu-setup.md`        | NVIDIA driver and container toolkit setup        |
+| Document                | Description                                      |
+| ----------------------- | ------------------------------------------------ |
+| `ai-configuration.md`   | AI service environment variables                 |
+| `ai-ghcr-deployment.md` | GHCR deployment for AI services                  |
+| `ai-installation.md`    | AI prerequisites and model downloads             |
+| `ai-overview.md`        | AI pipeline architecture                         |
+| `ai-performance.md`     | AI performance tuning                            |
+| `ai-services.md`        | AI service management                            |
+| `ai-tls.md`             | AI service TLS configuration                     |
+| `ai-troubleshooting.md` | AI troubleshooting guide                         |
+| `backup.md`             | Backup and recovery procedures                   |
+| `database.md`           | PostgreSQL configuration                         |
+| `deployment-modes.md`   | Deployment mode decision table and AI networking |
+| `gpu-setup.md`          | NVIDIA driver and container toolkit setup        |
 
 ## Migration Status
 
