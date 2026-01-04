@@ -286,14 +286,18 @@ describe('LatencyPanel', () => {
 
     it('displays all pipeline stage labels', () => {
       render(<LatencyPanel pipelineLatency={pipelineLatency} />);
-      expect(screen.getByText('File Watch to Detection')).toBeInTheDocument();
-      expect(screen.getByText('Detection to Batch')).toBeInTheDocument();
-      expect(screen.getByText('Batch to Analysis')).toBeInTheDocument();
+      // Labels appear in both the pipeline card and the history chart dropdown,
+      // so we use getAllByText to verify they're present
+      expect(screen.getAllByText('File Watch to Detection').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Detection to Batch').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Batch to Analysis').length).toBeGreaterThan(0);
     });
 
     it('displays Total Pipeline section with sample count', () => {
       render(<LatencyPanel pipelineLatency={pipelineLatency} />);
-      expect(screen.getByText('Total Pipeline')).toBeInTheDocument();
+      // "Total Pipeline" appears in both the pipeline card and the history chart dropdown,
+      // so we verify at least one is present
+      expect(screen.getAllByText('Total Pipeline').length).toBeGreaterThan(0);
       // Sample count is formatted with locale - multiple "samples" labels exist
       const sampleTexts = screen.getAllByText(/samples/);
       expect(sampleTexts.length).toBeGreaterThan(0);
@@ -325,7 +329,12 @@ describe('LatencyPanel', () => {
         timestamp: '2025-01-03T12:00:00Z',
       };
       render(<LatencyPanel pipelineLatency={emptyTotalPipeline} />);
-      expect(screen.queryByText('Total Pipeline')).not.toBeInTheDocument();
+      // "Total Pipeline" appears in the history chart dropdown, but NOT in the
+      // pipeline card section when sample_count is 0. Verify by checking if
+      // the highlighted total pipeline section container exists - it has a unique
+      // bg-[#76B900]/10 class that only appears on the total pipeline section.
+      const pipelineCard = screen.getByTestId('pipeline-latency-card');
+      expect(pipelineCard.querySelector('.bg-\\[\\#76B900\\]\\/10')).toBeNull();
     });
 
     it('does not render timestamp when not provided', () => {

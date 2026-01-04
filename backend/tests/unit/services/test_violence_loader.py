@@ -92,12 +92,8 @@ class TestLoadViolenceModel:
         assert result["processor"] is not None
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
     async def test_load_violence_model_missing_path(self) -> None:
-        """Test that loading from a missing path raises an error.
-
-        Note: Marked slow because importing transformers takes significant time.
-        """
+        """Test that loading from a missing path raises an error."""
         with pytest.raises(RuntimeError) as exc_info:
             await load_violence_model("/nonexistent/path")
 

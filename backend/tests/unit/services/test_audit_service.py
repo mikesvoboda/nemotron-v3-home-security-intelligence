@@ -1,351 +1,114 @@
-"""Unit tests for audit logging service.
+"""Unit tests for AI audit service (audit_service.py).
 
-Tests cover:
-- AuditService.log_action() - All parameters, enum conversion, IP extraction
-- AuditService.get_audit_logs() - Filter combinations, pagination, date range filtering
-- AuditService.get_audit_log_by_id() - Existence checks, not-found handling
-- AI Pipeline AuditService (audit_service.py) - Model contribution flags, token estimation
+These tests cover the AuditService class which handles AI audit evaluations
+with LLM integration (Nemotron). Tests use mocked database sessions and
+LLM responses - no real database or LLM connection required.
+
+For integration tests with a real database, see backend/tests/integration/
 """
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from __future__ import annotations
 
+import json
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
 import pytest
 
-from backend.models.audit import AuditAction, AuditLog, AuditStatus
-from backend.services.audit import AuditService, audit_service
+from backend.models.event import Event
+from backend.models.event_audit import EventAudit
 from backend.services.audit_service import (
-    AuditService as AIPipelineAuditService,
-)
-from backend.services.audit_service import (
+    MODEL_NAMES,
+    AuditService,
     get_audit_service,
     reset_audit_service,
 )
 
-# =============================================================================
-# log_action Tests
-# =============================================================================
-
-
-class TestLogAction:
-    """Tests for AuditService.log_action method."""
-
-    @pytest.mark.asyncio
-    async def test_log_action_minimal_parameters(self) -> None:
-        """Test log_action with only required parameters."""
-        mock_db = AsyncMock()
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.EVENT_REVIEWED,
-            resource_type="event",
-        )
-
-        assert result.action == "event_reviewed"
-        assert result.resource_type == "event"
-        assert result.actor == "anonymous"
-        assert result.resource_id is None
-        assert result.details is None
-        assert result.ip_address is None
-        assert result.user_agent is None
-        assert result.status == "success"
-        mock_db.add.assert_called_once_with(result)
-        mock_db.flush.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_log_action_all_parameters(self) -> None:
-        """Test log_action with all parameters provided."""
-        mock_db = AsyncMock()
-
-        # Create mock request
-        mock_request = MagicMock()
-        mock_request.client.host = "192.168.1.100"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": None,
-            "user-agent": "Mozilla/5.0 TestBrowser",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            actor="admin_user",
-            resource_id="settings-123",
-            details={"changed_fields": ["theme", "notifications"]},
-            request=mock_request,
-            status=AuditStatus.SUCCESS,
-        )
-
-        assert result.action == "settings_changed"
-        assert result.resource_type == "settings"
-        assert result.actor == "admin_user"
-        assert result.resource_id == "settings-123"
-        assert result.details == {"changed_fields": ["theme", "notifications"]}
-        assert result.ip_address == "192.168.1.100"
-        assert result.user_agent == "Mozilla/5.0 TestBrowser"
-        assert result.status == "success"
-
-    @pytest.mark.asyncio
-    async def test_log_action_with_action_enum(self) -> None:
-        """Test that action enum is properly converted to string."""
-        mock_db = AsyncMock()
-
-        for action in AuditAction:
-            result = await AuditService.log_action(
-                db=mock_db,
-                action=action,
-                resource_type="test",
-            )
-            assert result.action == action.value
-
-    @pytest.mark.asyncio
-    async def test_log_action_with_action_string(self) -> None:
-        """Test that action string is passed through directly."""
-        mock_db = AsyncMock()
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action="custom_action",
-            resource_type="test",
-        )
-
-        assert result.action == "custom_action"
-
-    @pytest.mark.asyncio
-    async def test_log_action_with_status_enum(self) -> None:
-        """Test that status enum is properly converted to string."""
-        mock_db = AsyncMock()
-
-        for status in AuditStatus:
-            result = await AuditService.log_action(
-                db=mock_db,
-                action=AuditAction.LOGIN,
-                resource_type="auth",
-                status=status,
-            )
-            assert result.status == status.value
-
-    @pytest.mark.asyncio
-    async def test_log_action_with_status_string(self) -> None:
-        """Test that status string is passed through directly."""
-        mock_db = AsyncMock()
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            status="custom_status",
-        )
-
-        assert result.status == "custom_status"
-
-    @pytest.mark.asyncio
-    async def test_log_action_failure_status(self) -> None:
-        """Test log_action with failure status."""
-        mock_db = AsyncMock()
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            status=AuditStatus.FAILURE,
-            details={"error": "Invalid credentials"},
-        )
-
-        assert result.status == "failure"
-        assert result.details == {"error": "Invalid credentials"}
-
-    @pytest.mark.asyncio
-    async def test_log_action_timestamp_is_set(self) -> None:
-        """Test that timestamp is automatically set."""
-        mock_db = AsyncMock()
-
-        before = datetime.now(UTC)
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-        )
-        after = datetime.now(UTC)
-
-        assert result.timestamp is not None
-        assert before <= result.timestamp <= after
+# Mark all tests in this file as unit tests
+pytestmark = pytest.mark.unit
 
 
 # =============================================================================
-# log_action Request/IP Extraction Tests
+# Fixtures
 # =============================================================================
 
 
-class TestLogActionRequestExtraction:
-    """Tests for IP and user agent extraction from request."""
-
-    @pytest.mark.asyncio
-    async def test_log_action_x_forwarded_for_single_ip(self) -> None:
-        """Test extraction of single IP from X-Forwarded-For header."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "10.0.0.1"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": "203.0.113.50",
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        # Should use X-Forwarded-For IP instead of client IP
-        assert result.ip_address == "203.0.113.50"
-
-    @pytest.mark.asyncio
-    async def test_log_action_x_forwarded_for_multiple_ips(self) -> None:
-        """Test extraction of first IP from X-Forwarded-For with multiple IPs."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "10.0.0.1"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": "203.0.113.50, 198.51.100.25, 10.0.0.1",
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        # Should use the first IP (original client)
-        assert result.ip_address == "203.0.113.50"
-
-    @pytest.mark.asyncio
-    async def test_log_action_x_forwarded_for_with_spaces(self) -> None:
-        """Test that IPs in X-Forwarded-For are properly trimmed."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "10.0.0.1"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": "  203.0.113.50  ,  198.51.100.25  ",
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        # Should trim whitespace
-        assert result.ip_address == "203.0.113.50"
-
-    @pytest.mark.asyncio
-    async def test_log_action_no_x_forwarded_for(self) -> None:
-        """Test fallback to client IP when X-Forwarded-For is absent."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "192.168.1.100"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": None,
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        assert result.ip_address == "192.168.1.100"
-
-    @pytest.mark.asyncio
-    async def test_log_action_no_client_info(self) -> None:
-        """Test handling when request.client is None."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client = None
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": None,
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        assert result.ip_address is None
-        assert result.user_agent == "TestAgent"
-
-    @pytest.mark.asyncio
-    async def test_log_action_no_request(self) -> None:
-        """Test handling when no request object is provided."""
-        mock_db = AsyncMock()
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.DATA_CLEARED,
-            resource_type="system",
-            actor="system",
-        )
-
-        assert result.ip_address is None
-        assert result.user_agent is None
-
-    @pytest.mark.asyncio
-    async def test_log_action_no_user_agent(self) -> None:
-        """Test handling when user-agent header is missing."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "192.168.1.100"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": None,
-            "user-agent": None,
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        assert result.ip_address == "192.168.1.100"
-        assert result.user_agent is None
-
-    @pytest.mark.asyncio
-    async def test_log_action_x_forwarded_for_overrides_client(self) -> None:
-        """Test X-Forwarded-For takes precedence even when client is present."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "192.168.1.100"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": "8.8.8.8",
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        # X-Forwarded-For should override client IP
-        assert result.ip_address == "8.8.8.8"
+@pytest.fixture
+def audit_service() -> AuditService:
+    """Create a fresh AuditService instance for testing."""
+    reset_audit_service()
+    return AuditService()
 
 
-# =============================================================================
-# AI Pipeline AuditService Tests (from audit_service.py)
-# =============================================================================
+@pytest.fixture(autouse=True)
+def reset_singleton():
+    """Reset the singleton before and after each test."""
+    reset_audit_service()
+    yield
+    reset_audit_service()
+
+
+@pytest.fixture
+def mock_db_session():
+    """Create a mock database session with spec to prevent mocking non-existent attributes."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    mock_session = MagicMock(spec=AsyncSession)
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+    mock_session.execute = AsyncMock()
+    return mock_session
+
+
+@pytest.fixture
+def sample_event() -> Event:
+    """Create a sample Event for testing."""
+    return Event(
+        id=1,
+        batch_id="batch_123",
+        camera_id="front_door",
+        started_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+        ended_at=datetime(2025, 12, 23, 14, 31, 0, tzinfo=UTC),
+        risk_score=75,
+        risk_level="high",
+        summary="Person detected at front door",
+        reasoning="Unusual activity at late night hours near entry point",
+        llm_prompt="<|im_start|>system\nYou are a security AI...",
+        reviewed=False,
+    )
+
+
+@pytest.fixture
+def sample_event_no_prompt() -> Event:
+    """Create a sample Event without an llm_prompt."""
+    return Event(
+        id=2,
+        batch_id="batch_456",
+        camera_id="backyard",
+        started_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+        risk_score=50,
+        risk_level="medium",
+        summary="Motion detected",
+        reasoning="Standard activity",
+        llm_prompt=None,
+        reviewed=False,
+    )
+
+
+@dataclass
+class MockEnrichedContext:
+    """Mock EnrichedContext for testing."""
+
+    camera_name: str = "Front Door Camera"
+    camera_id: str = "front_door"
+    zones: list[Any] = field(default_factory=list)
+    baselines: Any = None
+    recent_events: list[Any] = field(default_factory=list)
+    cross_camera: list[Any] = field(default_factory=list)
 
 
 @dataclass
@@ -353,1240 +116,1486 @@ class MockEnrichmentResult:
     """Mock EnrichmentResult for testing."""
 
     has_vision_extraction: bool = False
-    person_reid_matches: dict = field(default_factory=dict)
-    vehicle_reid_matches: dict = field(default_factory=dict)
+    person_reid_matches: dict[str, Any] = field(default_factory=dict)
+    vehicle_reid_matches: dict[str, Any] = field(default_factory=dict)
     has_violence: bool = False
     has_clothing_classifications: bool = False
     has_vehicle_classifications: bool = False
     has_vehicle_damage: bool = False
     has_pet_classifications: bool = False
-    weather_classification: object | None = None
+    weather_classification: Any = None
     has_image_quality: bool = False
 
 
-@dataclass
-class MockEnrichedContext:
-    """Mock EnrichedContext for testing."""
-
-    zones: list = field(default_factory=list)
-    baselines: object | None = None
-    cross_camera: object | None = None
+# =============================================================================
+# Test: Singleton Pattern
+# =============================================================================
 
 
-class TestAIPipelineAuditService:
-    """Tests for the AI Pipeline AuditService (audit_service.py)."""
+class TestSingletonPattern:
+    """Tests for the singleton pattern."""
 
-    def setup_method(self) -> None:
-        """Reset singleton before each test."""
+    def test_get_audit_service_returns_instance(self):
+        """Test get_audit_service returns an AuditService instance."""
+        service = get_audit_service()
+        assert isinstance(service, AuditService)
+
+    def test_get_audit_service_returns_same_instance(self):
+        """Test get_audit_service returns the same instance on repeated calls."""
+        service1 = get_audit_service()
+        service2 = get_audit_service()
+        assert service1 is service2
+
+    def test_reset_audit_service(self):
+        """Test reset_audit_service creates a new instance on next call."""
+        service1 = get_audit_service()
         reset_audit_service()
+        service2 = get_audit_service()
+        assert service1 is not service2
 
-    def test_create_partial_audit_basic(self) -> None:
-        """Test creating partial audit with no enrichment."""
-        service = AIPipelineAuditService()
-        audit = service.create_partial_audit(
-            event_id=123,
-            llm_prompt="test prompt",
-            enriched_context=None,
-            enrichment_result=None,
+
+# =============================================================================
+# Test: create_partial_audit
+# =============================================================================
+
+
+class TestCreatePartialAudit:
+    """Tests for create_partial_audit method."""
+
+    def test_create_partial_audit_with_all_enrichments(self, audit_service):
+        """Test creating an audit with all model contributions active."""
+        # Create rich context and result
+        context = MockEnrichedContext(
+            zones=[{"zone_id": "z1", "zone_name": "Entry Point"}],
+            baselines={"hour_of_day": 14},
+            cross_camera=[{"camera_id": "cam2"}],
         )
-        assert audit.event_id == 123
-        assert audit.prompt_length == len("test prompt")
-        assert audit.has_rtdetr is True
-        assert audit.has_florence is False
-
-    def test_create_partial_audit_with_prompt_metrics(self) -> None:
-        """Test prompt length and token estimate calculation."""
-        service = AIPipelineAuditService()
-        prompt = "This is a test prompt with multiple words"
-        audit = service.create_partial_audit(
-            event_id=456,
-            llm_prompt=prompt,
-            enriched_context=None,
-            enrichment_result=None,
-        )
-        assert audit.prompt_length == len(prompt)
-        assert audit.prompt_token_estimate == len(prompt) // 4
-
-    def test_create_partial_audit_with_enrichment_result(self) -> None:
-        """Test creating audit with enrichment result flags."""
-        service = AIPipelineAuditService()
-
-        # Mock enrichment result with florence and violence
-        mock_result = MockEnrichmentResult(
+        result = MockEnrichmentResult(
             has_vision_extraction=True,
-            has_violence=True,
-            has_clothing_classifications=True,
-        )
-
-        audit = service.create_partial_audit(
-            event_id=789,
-            llm_prompt="test",
-            enriched_context=None,
-            enrichment_result=mock_result,  # type: ignore[arg-type]
-        )
-
-        assert audit.has_rtdetr is True
-        assert audit.has_florence is True
-        assert audit.has_violence is True
-        assert audit.has_clothing is True
-        assert audit.has_clip is False
-        assert audit.has_vehicle is False
-
-    def test_create_partial_audit_with_enriched_context(self) -> None:
-        """Test creating audit with enriched context flags."""
-        service = AIPipelineAuditService()
-
-        # Mock enriched context with zones and baselines
-        mock_context = MockEnrichedContext(
-            zones=[{"zone_id": "z1"}],
-            baselines=MagicMock(),
-            cross_camera=MagicMock(),
-        )
-
-        audit = service.create_partial_audit(
-            event_id=101,
-            llm_prompt="test",
-            enriched_context=mock_context,  # type: ignore[arg-type]
-            enrichment_result=None,
-        )
-
-        assert audit.has_zones is True
-        assert audit.has_baseline is True
-        assert audit.has_cross_camera is True
-
-    def test_create_partial_audit_no_prompt(self) -> None:
-        """Test creating audit with no LLM prompt."""
-        service = AIPipelineAuditService()
-        audit = service.create_partial_audit(
-            event_id=999,
-            llm_prompt=None,
-            enriched_context=None,
-            enrichment_result=None,
-        )
-        assert audit.prompt_length == 0
-        assert audit.prompt_token_estimate == 0
-
-    def test_estimate_tokens_none(self) -> None:
-        """Test token estimation with None input."""
-        service = AIPipelineAuditService()
-        assert service._estimate_tokens(None) == 0
-
-    def test_estimate_tokens_empty(self) -> None:
-        """Test token estimation with empty string."""
-        service = AIPipelineAuditService()
-        assert service._estimate_tokens("") == 0
-
-    def test_estimate_tokens_short(self) -> None:
-        """Test token estimation with short string."""
-        service = AIPipelineAuditService()
-        assert service._estimate_tokens("test") == 1  # 4 chars / 4 = 1
-
-    def test_estimate_tokens_long(self) -> None:
-        """Test token estimation with long string."""
-        service = AIPipelineAuditService()
-        assert service._estimate_tokens("a" * 100) == 25  # 100 chars / 4 = 25
-
-    def test_estimate_tokens_calculation(self) -> None:
-        """Test token estimation calculation (chars / 4)."""
-        service = AIPipelineAuditService()
-        # Test various lengths
-        assert service._estimate_tokens("ab") == 0  # 2 / 4 = 0 (integer division)
-        assert service._estimate_tokens("abcd") == 1  # 4 / 4 = 1
-        assert service._estimate_tokens("abcdefgh") == 2  # 8 / 4 = 2
-        assert service._estimate_tokens("x" * 12) == 3  # 12 / 4 = 3
-
-    def test_calc_utilization_empty(self) -> None:
-        """Test enrichment utilization with no enrichment."""
-        service = AIPipelineAuditService()
-        util = service._calc_utilization(None, None)
-        # Should be 1/12 (just rtdetr)
-        assert util == pytest.approx(1 / 12)
-
-    def test_calc_utilization_with_florence(self) -> None:
-        """Test enrichment utilization with Florence enabled."""
-        service = AIPipelineAuditService()
-        mock_result = MockEnrichmentResult(has_vision_extraction=True)
-        util = service._calc_utilization(None, mock_result)  # type: ignore[arg-type]
-        # rtdetr + florence = 2/12
-        assert util == pytest.approx(2 / 12)
-
-    def test_calc_utilization_with_multiple_enrichments(self) -> None:
-        """Test enrichment utilization with multiple enrichments."""
-        service = AIPipelineAuditService()
-        mock_result = MockEnrichmentResult(
-            has_vision_extraction=True,
-            has_violence=True,
-            has_clothing_classifications=True,
-            has_vehicle_classifications=True,
-            has_image_quality=True,
-        )
-        mock_context = MockEnrichedContext(
-            zones=[{"z1": "zone"}],
-            baselines=MagicMock(),
-        )
-        util = service._calc_utilization(mock_context, mock_result)  # type: ignore[arg-type]
-        # rtdetr + florence + violence + clothing + vehicle + image_quality + zones + baseline = 8/12
-        assert util == pytest.approx(8 / 12)
-
-    def test_calc_utilization_full(self) -> None:
-        """Test enrichment utilization with all enrichments."""
-        service = AIPipelineAuditService()
-        mock_result = MockEnrichmentResult(
-            has_vision_extraction=True,
-            person_reid_matches={"p1": []},  # Non-empty dict for clip
+            person_reid_matches={"person1": [{"similarity": 0.9}]},
+            vehicle_reid_matches={"vehicle1": [{"similarity": 0.85}]},
             has_violence=True,
             has_clothing_classifications=True,
             has_vehicle_classifications=True,
             has_vehicle_damage=True,
             has_pet_classifications=True,
-            weather_classification=MagicMock(),
+            weather_classification={"condition": "clear"},
             has_image_quality=True,
         )
-        mock_context = MockEnrichedContext(
-            zones=[{"z1": "zone"}],
-            baselines=MagicMock(),
-            cross_camera=MagicMock(),
+
+        llm_prompt = "This is a test prompt with 100 characters " * 10
+
+        audit = audit_service.create_partial_audit(
+            event_id=1,
+            llm_prompt=llm_prompt,
+            enriched_context=context,
+            enrichment_result=result,
         )
-        util = service._calc_utilization(mock_context, mock_result)  # type: ignore[arg-type]
-        # All 12 enrichments enabled
-        assert util == pytest.approx(12 / 12)
 
-    def test_singleton_get_audit_service(self) -> None:
-        """Test service singleton returns same instance."""
-        s1 = get_audit_service()
-        s2 = get_audit_service()
-        assert s1 is s2
+        # Verify basic fields
+        assert audit.event_id == 1
+        assert audit.audited_at is not None
 
-    def test_singleton_reset(self) -> None:
-        """Test singleton reset creates new instance."""
-        s1 = get_audit_service()
-        reset_audit_service()
-        s2 = get_audit_service()
-        assert s1 is not s2
+        # Verify all model contribution flags
+        assert audit.has_rtdetr is True  # Always true
+        assert audit.has_florence is True
+        assert audit.has_clip is True
+        assert audit.has_violence is True
+        assert audit.has_clothing is True
+        assert audit.has_vehicle is True
+        assert audit.has_pet is True
+        assert audit.has_weather is True
+        assert audit.has_image_quality is True
+        assert audit.has_zones is True
+        assert audit.has_baseline is True
+        assert audit.has_cross_camera is True
 
-    def test_singleton_is_audit_service(self) -> None:
-        """Test singleton is an AIPipelineAuditService instance."""
-        service = get_audit_service()
-        assert isinstance(service, AIPipelineAuditService)
+        # Verify prompt metrics
+        assert audit.prompt_length == len(llm_prompt)
+        assert audit.prompt_token_estimate == len(llm_prompt) // 4
 
+        # Verify utilization (all 12 models)
+        assert audit.enrichment_utilization == 1.0
 
-class TestAIPipelineAuditServiceModelFlags:
-    """Tests for model contribution flag detection."""
-
-    def setup_method(self) -> None:
-        """Reset singleton before each test."""
-        reset_audit_service()
-
-    def test_has_florence_true(self) -> None:
-        """Test Florence detection when has_vision_extraction is True."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_vision_extraction=True)
-        assert service._has_florence(result) is True  # type: ignore[arg-type]
-
-    def test_has_florence_false(self) -> None:
-        """Test Florence detection when has_vision_extraction is False."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_vision_extraction=False)
-        assert service._has_florence(result) is False  # type: ignore[arg-type]
-
-    def test_has_florence_none(self) -> None:
-        """Test Florence detection when result is None."""
-        service = AIPipelineAuditService()
-        assert service._has_florence(None) is False
-
-    def test_has_clip_with_person_matches(self) -> None:
-        """Test CLIP detection with person re-ID matches."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(person_reid_matches={"p1": []})
-        assert service._has_clip(result) is True  # type: ignore[arg-type]
-
-    def test_has_clip_with_vehicle_matches(self) -> None:
-        """Test CLIP detection with vehicle re-ID matches."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(vehicle_reid_matches={"v1": []})
-        assert service._has_clip(result) is True  # type: ignore[arg-type]
-
-    def test_has_clip_empty(self) -> None:
-        """Test CLIP detection with no re-ID matches."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult()
-        assert service._has_clip(result) is False  # type: ignore[arg-type]
-
-    def test_has_violence_true(self) -> None:
-        """Test violence detection flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_violence=True)
-        assert service._has_violence(result) is True  # type: ignore[arg-type]
-
-    def test_has_violence_false(self) -> None:
-        """Test violence detection flag when False."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_violence=False)
-        assert service._has_violence(result) is False  # type: ignore[arg-type]
-
-    def test_has_clothing_true(self) -> None:
-        """Test clothing classification flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_clothing_classifications=True)
-        assert service._has_clothing(result) is True  # type: ignore[arg-type]
-
-    def test_has_vehicle_classifications(self) -> None:
-        """Test vehicle classification flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_vehicle_classifications=True)
-        assert service._has_vehicle(result) is True  # type: ignore[arg-type]
-
-    def test_has_vehicle_damage(self) -> None:
-        """Test vehicle damage flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_vehicle_damage=True)
-        assert service._has_vehicle(result) is True  # type: ignore[arg-type]
-
-    def test_has_pet_true(self) -> None:
-        """Test pet classification flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_pet_classifications=True)
-        assert service._has_pet(result) is True  # type: ignore[arg-type]
-
-    def test_has_weather_true(self) -> None:
-        """Test weather classification flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(weather_classification=MagicMock())
-        assert service._has_weather(result) is True  # type: ignore[arg-type]
-
-    def test_has_weather_none(self) -> None:
-        """Test weather classification flag when None."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(weather_classification=None)
-        assert service._has_weather(result) is False  # type: ignore[arg-type]
-
-    def test_has_image_quality_true(self) -> None:
-        """Test image quality flag."""
-        service = AIPipelineAuditService()
-        result = MockEnrichmentResult(has_image_quality=True)
-        assert service._has_image_quality(result) is True  # type: ignore[arg-type]
-
-    def test_has_zones_true(self) -> None:
-        """Test zones flag when zones list is non-empty."""
-        service = AIPipelineAuditService()
-        context = MockEnrichedContext(zones=[{"z1": "zone"}])
-        assert service._has_zones(context) is True  # type: ignore[arg-type]
-
-    def test_has_zones_empty(self) -> None:
-        """Test zones flag when zones list is empty."""
-        service = AIPipelineAuditService()
-        context = MockEnrichedContext(zones=[])
-        assert service._has_zones(context) is False  # type: ignore[arg-type]
-
-    def test_has_zones_none(self) -> None:
-        """Test zones flag when context is None."""
-        service = AIPipelineAuditService()
-        assert service._has_zones(None) is False
-
-    def test_has_baseline_true(self) -> None:
-        """Test baseline flag when baselines is not None."""
-        service = AIPipelineAuditService()
-        context = MockEnrichedContext(baselines=MagicMock())
-        assert service._has_baseline(context) is True  # type: ignore[arg-type]
-
-    def test_has_baseline_none(self) -> None:
-        """Test baseline flag when baselines is None."""
-        service = AIPipelineAuditService()
-        context = MockEnrichedContext(baselines=None)
-        assert service._has_baseline(context) is False  # type: ignore[arg-type]
-
-    def test_has_cross_camera_true(self) -> None:
-        """Test cross_camera flag when not None."""
-        service = AIPipelineAuditService()
-        context = MockEnrichedContext(cross_camera=MagicMock())
-        assert service._has_cross_camera(context) is True  # type: ignore[arg-type]
-
-    def test_has_cross_camera_none(self) -> None:
-        """Test cross_camera flag when None."""
-        service = AIPipelineAuditService()
-        context = MockEnrichedContext(cross_camera=None)
-        assert service._has_cross_camera(context) is False  # type: ignore[arg-type]
-
-
-# =============================================================================
-# Audit Persistence Tests
-# =============================================================================
-
-
-class TestAuditPersistence:
-    """Tests for audit record persistence."""
-
-    def setup_method(self) -> None:
-        """Reset singleton before each test."""
-        reset_audit_service()
-
-    @pytest.mark.asyncio
-    async def test_persist_audit_record(self) -> None:
-        """Test persist_record persists the audit to the database."""
-        service = AIPipelineAuditService()
-
-        # Create a mock audit record
-        audit = service.create_partial_audit(
-            event_id=123,
-            llm_prompt="test prompt",
+    def test_create_partial_audit_with_no_enrichments(self, audit_service):
+        """Test creating an audit with minimal enrichments."""
+        audit = audit_service.create_partial_audit(
+            event_id=2,
+            llm_prompt="Short prompt",
             enriched_context=None,
             enrichment_result=None,
         )
 
-        # Create mock session
-        mock_session = AsyncMock()
+        # Only rtdetr should be true
+        assert audit.has_rtdetr is True
+        assert audit.has_florence is False
+        assert audit.has_clip is False
+        assert audit.has_violence is False
+        assert audit.has_clothing is False
+        assert audit.has_vehicle is False
+        assert audit.has_pet is False
+        assert audit.has_weather is False
+        assert audit.has_image_quality is False
+        assert audit.has_zones is False
+        assert audit.has_baseline is False
+        assert audit.has_cross_camera is False
 
-        # Call persist_record
-        result = await service.persist_record(audit, mock_session)
+        # Utilization should be 1/12 (only rtdetr)
+        assert audit.enrichment_utilization == pytest.approx(1 / 12)
 
-        # Verify the audit was added to the session
-        mock_session.add.assert_called_once_with(audit)
-        # Verify commit was called
-        mock_session.commit.assert_awaited_once()
-        # Verify refresh was called on the audit
-        mock_session.refresh.assert_awaited_once_with(audit)
-        # Verify the result is the audit
+    def test_create_partial_audit_with_none_prompt(self, audit_service):
+        """Test creating an audit with no LLM prompt."""
+        audit = audit_service.create_partial_audit(
+            event_id=3,
+            llm_prompt=None,
+            enriched_context=None,
+            enrichment_result=None,
+        )
+
+        assert audit.prompt_length == 0
+        assert audit.prompt_token_estimate == 0
+
+    def test_create_partial_audit_with_partial_enrichments(self, audit_service):
+        """Test creating an audit with some enrichments."""
+        context = MockEnrichedContext(
+            zones=[{"zone_id": "z1"}],
+            baselines=None,
+            cross_camera=None,  # Use None instead of [] to not trigger has_cross_camera
+        )
+        result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            has_violence=False,
+            has_clothing_classifications=True,
+            has_pet_classifications=False,
+        )
+
+        audit = audit_service.create_partial_audit(
+            event_id=4,
+            llm_prompt="Test prompt",
+            enriched_context=context,
+            enrichment_result=result,
+        )
+
+        # Check specific flags
+        assert audit.has_rtdetr is True
+        assert audit.has_florence is True
+        assert audit.has_clothing is True
+        assert audit.has_zones is True
+        assert audit.has_violence is False
+        assert audit.has_pet is False
+        assert audit.has_baseline is False
+        assert audit.has_cross_camera is False
+
+        # 4 models out of 12: rtdetr, florence, clothing, zones
+        assert audit.enrichment_utilization == pytest.approx(4 / 12)
+
+
+# =============================================================================
+# Test: Token Estimation
+# =============================================================================
+
+
+class TestTokenEstimation:
+    """Tests for token estimation algorithm."""
+
+    def test_estimate_tokens_empty_text(self, audit_service):
+        """Test token estimation with empty text."""
+        assert audit_service._estimate_tokens(None) == 0
+        assert audit_service._estimate_tokens("") == 0
+
+    def test_estimate_tokens_short_text(self, audit_service):
+        """Test token estimation with short text."""
+        text = "Hello world"  # 11 characters
+        assert audit_service._estimate_tokens(text) == 11 // 4  # = 2
+
+    def test_estimate_tokens_long_text(self, audit_service):
+        """Test token estimation with longer text."""
+        text = "a" * 1000
+        assert audit_service._estimate_tokens(text) == 250
+
+    def test_estimate_tokens_unicode(self, audit_service):
+        """Test token estimation with unicode characters."""
+        text = "Hello"  # 6 chars with emoji
+        # Emoji is multiple bytes, but len() counts unicode chars
+        assert audit_service._estimate_tokens(text) == len(text) // 4
+
+
+# =============================================================================
+# Test: Utilization Calculation
+# =============================================================================
+
+
+class TestUtilizationCalculation:
+    """Tests for enrichment utilization calculation."""
+
+    def test_calc_utilization_none_inputs(self, audit_service):
+        """Test utilization with None inputs."""
+        util = audit_service._calc_utilization(None, None)
+        # Only rtdetr counts (always true)
+        assert util == pytest.approx(1 / 12)
+
+    def test_calc_utilization_full_enrichment(self, audit_service):
+        """Test utilization with full enrichment."""
+        context = MockEnrichedContext(
+            zones=[{"z1": True}],
+            baselines={"hour": 14},
+            cross_camera=[{"cam2": True}],
+        )
+        result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            person_reid_matches={"p1": []},
+            vehicle_reid_matches={"v1": []},
+            has_violence=True,
+            has_clothing_classifications=True,
+            has_vehicle_classifications=True,
+            has_vehicle_damage=True,
+            has_pet_classifications=True,
+            weather_classification={"clear": True},
+            has_image_quality=True,
+        )
+
+        util = audit_service._calc_utilization(context, result)
+        assert util == 1.0
+
+    def test_calc_utilization_half_enrichment(self, audit_service):
+        """Test utilization with approximately half enrichments."""
+        context = MockEnrichedContext(
+            zones=[{"z1": True}],
+            baselines={"hour": 14},
+            cross_camera=None,  # Use None instead of [] to not trigger has_cross_camera
+        )
+        result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            person_reid_matches={"p1": []},
+            has_violence=True,
+            has_clothing_classifications=False,
+        )
+
+        util = audit_service._calc_utilization(context, result)
+        # rtdetr(1) + florence(1) + clip(1) + violence(1) + zones(1) + baseline(1) = 6
+        assert util == pytest.approx(6 / 12)
+
+
+# =============================================================================
+# Test: Model Contribution Flags
+# =============================================================================
+
+
+class TestModelContributionFlags:
+    """Tests for individual model contribution flag methods."""
+
+    def test_has_florence(self, audit_service):
+        """Test Florence detection flag."""
+        result_with = MockEnrichmentResult(has_vision_extraction=True)
+        result_without = MockEnrichmentResult(has_vision_extraction=False)
+
+        assert audit_service._has_florence(result_with) is True
+        assert audit_service._has_florence(result_without) is False
+        assert audit_service._has_florence(None) is False
+
+    def test_has_clip(self, audit_service):
+        """Test CLIP re-identification flag."""
+        result_with_person = MockEnrichmentResult(person_reid_matches={"p1": [{"similarity": 0.9}]})
+        result_with_vehicle = MockEnrichmentResult(
+            vehicle_reid_matches={"v1": [{"similarity": 0.8}]}
+        )
+        result_without = MockEnrichmentResult()
+
+        assert audit_service._has_clip(result_with_person) is True
+        assert audit_service._has_clip(result_with_vehicle) is True
+        assert audit_service._has_clip(result_without) is False
+        assert audit_service._has_clip(None) is False
+
+    def test_has_violence(self, audit_service):
+        """Test violence detection flag."""
+        result_with = MockEnrichmentResult(has_violence=True)
+        result_without = MockEnrichmentResult(has_violence=False)
+
+        assert audit_service._has_violence(result_with) is True
+        assert audit_service._has_violence(result_without) is False
+        assert audit_service._has_violence(None) is False
+
+    def test_has_zones(self, audit_service):
+        """Test zones context flag."""
+        context_with = MockEnrichedContext(zones=[{"z1": True}])
+        context_without = MockEnrichedContext(zones=[])
+
+        assert audit_service._has_zones(context_with) is True
+        assert audit_service._has_zones(context_without) is False
+        assert audit_service._has_zones(None) is False
+
+    def test_has_baseline(self, audit_service):
+        """Test baseline context flag."""
+        context_with = MockEnrichedContext(baselines={"hour": 14})
+        context_without = MockEnrichedContext(baselines=None)
+
+        assert audit_service._has_baseline(context_with) is True
+        assert audit_service._has_baseline(context_without) is False
+        assert audit_service._has_baseline(None) is False
+
+    def test_has_cross_camera(self, audit_service):
+        """Test cross-camera context flag."""
+        context_with = MockEnrichedContext(cross_camera=[{"cam2": True}])
+        context_without = MockEnrichedContext(cross_camera=None)
+
+        assert audit_service._has_cross_camera(context_with) is True
+        assert audit_service._has_cross_camera(context_without) is False
+        assert audit_service._has_cross_camera(None) is False
+
+
+# =============================================================================
+# Test: persist_record
+# =============================================================================
+
+
+class TestPersistRecord:
+    """Tests for persist_record method."""
+
+    @pytest.mark.asyncio
+    async def test_persist_record_success(self, audit_service, mock_db_session):
+        """Test successful persistence of audit record."""
+        audit = EventAudit(
+            event_id=1,
+            audited_at=datetime.now(UTC),
+            has_rtdetr=True,
+        )
+
+        result = await audit_service.persist_record(audit, mock_db_session)
+
+        mock_db_session.add.assert_called_once_with(audit)
+        mock_db_session.commit.assert_awaited_once()
+        mock_db_session.refresh.assert_awaited_once_with(audit)
         assert result is audit
 
     @pytest.mark.asyncio
-    async def test_persist_audit_record_returns_persisted_audit(self) -> None:
-        """Test persist_record returns the persisted audit."""
-        service = AIPipelineAuditService()
+    async def test_persist_record_db_error(self, audit_service, mock_db_session):
+        """Test handling of database error during persistence."""
+        audit = EventAudit(event_id=1, audited_at=datetime.now(UTC))
+        mock_db_session.commit.side_effect = Exception("Database error")
 
-        audit = service.create_partial_audit(
-            event_id=456,
-            llm_prompt="another prompt",
-            enriched_context=None,
-            enrichment_result=None,
-        )
-
-        mock_session = AsyncMock()
-
-        result = await service.persist_record(audit, mock_session)
-
-        # The returned audit should be the same instance
-        assert result.event_id == 456
-        assert result.prompt_length == len("another prompt")
-
-    @pytest.mark.asyncio
-    async def test_persist_audit_record_with_enrichment(self) -> None:
-        """Test persist_record works with enriched audit records."""
-        service = AIPipelineAuditService()
-
-        mock_result = MockEnrichmentResult(
-            has_vision_extraction=True,
-            has_violence=True,
-        )
-
-        audit = service.create_partial_audit(
-            event_id=789,
-            llm_prompt="enriched prompt",
-            enriched_context=None,
-            enrichment_result=mock_result,  # type: ignore[arg-type]
-        )
-
-        mock_session = AsyncMock()
-
-        result = await service.persist_record(audit, mock_session)
-
-        # Verify enrichment flags are preserved
-        assert result.has_florence is True
-        assert result.has_violence is True
-        mock_session.add.assert_called_once()
-        mock_session.commit.assert_awaited_once()
+        with pytest.raises(Exception, match="Database error"):
+            await audit_service.persist_record(audit, mock_db_session)
 
 
 # =============================================================================
-# get_audit_logs Tests
+# Test: run_full_evaluation
 # =============================================================================
 
 
-class TestGetAuditLogs:
-    """Tests for AuditService.get_audit_logs method."""
+class TestRunFullEvaluation:
+    """Tests for run_full_evaluation method."""
 
     @pytest.mark.asyncio
-    async def test_get_audit_logs_no_filters(self) -> None:
-        """Test get_audit_logs with no filters returns all logs."""
-        mock_db = AsyncMock()
+    async def test_run_full_evaluation_no_llm_prompt(
+        self, audit_service, mock_db_session, sample_event_no_prompt
+    ):
+        """Test run_full_evaluation returns early when event has no llm_prompt."""
+        audit = EventAudit(event_id=2, audited_at=datetime.now(UTC))
 
-        # Setup mock for count query
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 5
+        result = await audit_service.run_full_evaluation(
+            audit, sample_event_no_prompt, mock_db_session
+        )
 
-        # Setup mock audit logs
-        mock_log1 = MagicMock(spec=AuditLog)
-        mock_log2 = MagicMock(spec=AuditLog)
-        mock_log3 = MagicMock(spec=AuditLog)
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [mock_log1, mock_log2, mock_log3]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(db=mock_db)
-
-        assert len(logs) == 3
-        assert total == 5
+        # Should return audit unchanged (no LLM calls made)
+        assert result is audit
+        # No commit should have been called
+        mock_db_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_get_audit_logs_empty_results(self) -> None:
-        """Test get_audit_logs returns empty list when no logs exist."""
-        mock_db = AsyncMock()
+    async def test_run_full_evaluation_success(self, audit_service, mock_db_session, sample_event):
+        """Test successful full evaluation with all 4 modes."""
+        audit = EventAudit(event_id=1, audited_at=datetime.now(UTC))
 
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 0
+        # Mock all 4 evaluation methods
+        with (
+            patch.object(
+                audit_service,
+                "_run_self_critique",
+                new_callable=AsyncMock,
+                return_value="Good analysis overall, but could improve context usage.",
+            ),
+            patch.object(
+                audit_service,
+                "_run_rubric_eval",
+                new_callable=AsyncMock,
+                return_value={
+                    "context_usage": 4.0,
+                    "reasoning_coherence": 4.5,
+                    "risk_justification": 3.5,
+                    "actionability": 4.0,
+                },
+            ),
+            patch.object(
+                audit_service,
+                "_run_consistency_check",
+                new_callable=AsyncMock,
+                return_value={"risk_score": 70, "risk_level": "high"},
+            ),
+            patch.object(
+                audit_service,
+                "_run_prompt_improvement",
+                new_callable=AsyncMock,
+                return_value={
+                    "missing_context": ["time since last motion"],
+                    "confusing_sections": [],
+                    "unused_data": ["weather data"],
+                    "format_suggestions": ["add more structure"],
+                    "model_gaps": ["face detection"],
+                },
+            ),
+        ):
+            result = await audit_service.run_full_evaluation(audit, sample_event, mock_db_session)
 
-        mock_logs_result = MagicMock()
+        # Verify self-critique (Mode 1)
+        assert (
+            result.self_eval_critique == "Good analysis overall, but could improve context usage."
+        )
+
+        # Verify rubric scores (Mode 2)
+        assert result.context_usage_score == 4.0
+        assert result.reasoning_coherence_score == 4.5
+        assert result.risk_justification_score == 3.5
+        # Overall quality = average of 4 scores: (4.0 + 4.5 + 3.5 + 4.0) / 4 = 4.0
+        assert result.overall_quality_score == 4.0
+
+        # Verify consistency check (Mode 3)
+        assert result.consistency_risk_score == 70
+        # Consistency diff = |70 - 75| = 5
+        assert result.consistency_diff == 5
+        # Consistency score = max(1.0, 5.0 - (5 / 5)) = max(1.0, 4.0) = 4.0
+        assert result.consistency_score == 4.0
+
+        # Verify prompt improvement (Mode 4)
+        assert json.loads(result.missing_context) == ["time since last motion"]
+        assert json.loads(result.confusing_sections) == []
+        assert json.loads(result.unused_data) == ["weather data"]
+        assert json.loads(result.format_suggestions) == ["add more structure"]
+        assert json.loads(result.model_gaps) == ["face detection"]
+
+        # Verify self_eval_prompt was stored
+        assert result.self_eval_prompt is not None
+
+        # Verify database operations
+        mock_db_session.commit.assert_awaited_once()
+        mock_db_session.refresh.assert_awaited_once_with(audit)
+
+    @pytest.mark.asyncio
+    async def test_run_full_evaluation_consistency_score_calculation(
+        self, audit_service, mock_db_session, sample_event
+    ):
+        """Test consistency score calculation for various diffs."""
+        test_cases = [
+            # (consistency_risk_score, event_risk_score, expected_diff, expected_score)
+            (75, 75, 0, 5.0),  # Perfect match
+            (70, 75, 5, 4.0),  # Small diff
+            (65, 75, 10, 3.0),  # Moderate diff
+            (55, 75, 20, 1.0),  # Large diff (clamped to 1.0)
+            (45, 75, 30, 1.0),  # Very large diff (clamped to 1.0)
+        ]
+
+        for cons_score, event_score, expected_diff, expected_cons_score in test_cases:
+            audit = EventAudit(event_id=1, audited_at=datetime.now(UTC))
+            sample_event.risk_score = event_score
+
+            with (
+                patch.object(
+                    audit_service, "_run_self_critique", new_callable=AsyncMock, return_value=""
+                ),
+                patch.object(
+                    audit_service, "_run_rubric_eval", new_callable=AsyncMock, return_value={}
+                ),
+                patch.object(
+                    audit_service,
+                    "_run_consistency_check",
+                    new_callable=AsyncMock,
+                    return_value={"risk_score": cons_score},
+                ),
+                patch.object(
+                    audit_service,
+                    "_run_prompt_improvement",
+                    new_callable=AsyncMock,
+                    return_value={},
+                ),
+            ):
+                result = await audit_service.run_full_evaluation(
+                    audit, sample_event, mock_db_session
+                )
+
+            assert result.consistency_diff == expected_diff, (
+                f"For cons_score={cons_score}, event_score={event_score}"
+            )
+            assert result.consistency_score == expected_cons_score, (
+                f"For cons_score={cons_score}, event_score={event_score}"
+            )
+
+
+# =============================================================================
+# Test: _call_llm
+# =============================================================================
+
+
+class TestCallLLM:
+    """Tests for _call_llm method."""
+
+    @pytest.mark.asyncio
+    async def test_call_llm_success(self, audit_service):
+        """Test successful LLM call."""
+        mock_response = {"content": "This is the LLM response."}
+
+        with patch("httpx.AsyncClient.post") as mock_post:
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = mock_response
+            mock_resp.raise_for_status = MagicMock()
+            mock_post.return_value = mock_resp
+
+            result = await audit_service._call_llm("Test prompt")
+
+        assert result == "This is the LLM response."
+        mock_post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_call_llm_timeout(self, audit_service):
+        """Test LLM call handles timeout."""
+        with patch("httpx.AsyncClient.post") as mock_post:
+            mock_post.side_effect = httpx.TimeoutException("Timeout")
+
+            with pytest.raises(httpx.TimeoutException):
+                await audit_service._call_llm("Test prompt")
+
+    @pytest.mark.asyncio
+    async def test_call_llm_connection_error(self, audit_service):
+        """Test LLM call handles connection error."""
+        with patch("httpx.AsyncClient.post") as mock_post:
+            mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+            with pytest.raises(httpx.ConnectError):
+                await audit_service._call_llm("Test prompt")
+
+    @pytest.mark.asyncio
+    async def test_call_llm_http_error(self, audit_service):
+        """Test LLM call handles HTTP error."""
+        with patch("httpx.AsyncClient.post") as mock_post:
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 500
+            mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "Internal Server Error",
+                request=MagicMock(spec=httpx.Request),
+                response=mock_resp,
+            )
+            mock_post.return_value = mock_resp
+
+            with pytest.raises(httpx.HTTPStatusError):
+                await audit_service._call_llm("Test prompt")
+
+
+# =============================================================================
+# Test: _run_self_critique (Mode 1)
+# =============================================================================
+
+
+class TestRunSelfCritique:
+    """Tests for _run_self_critique method (Mode 1)."""
+
+    @pytest.mark.asyncio
+    async def test_run_self_critique_success(self, audit_service, sample_event):
+        """Test successful self-critique."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            return_value="The analysis was thorough but missed some context.",
+        ):
+            result = await audit_service._run_self_critique(sample_event)
+
+        assert result == "The analysis was thorough but missed some context."
+
+    @pytest.mark.asyncio
+    async def test_run_self_critique_failure(self, audit_service, sample_event):
+        """Test self-critique handles LLM failure gracefully."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            side_effect=Exception("LLM unavailable"),
+        ):
+            result = await audit_service._run_self_critique(sample_event)
+
+        assert "Evaluation failed" in result
+        assert "LLM unavailable" in result
+
+
+# =============================================================================
+# Test: _run_rubric_eval (Mode 2)
+# =============================================================================
+
+
+class TestRunRubricEval:
+    """Tests for _run_rubric_eval method (Mode 2)."""
+
+    @pytest.mark.asyncio
+    async def test_run_rubric_eval_success(self, audit_service, sample_event):
+        """Test successful rubric evaluation."""
+        llm_response = json.dumps(
+            {
+                "context_usage": 4,
+                "reasoning_coherence": 5,
+                "risk_justification": 3,
+                "actionability": 4,
+                "explanation": "Overall good analysis.",
+            }
+        )
+
+        with patch.object(
+            audit_service, "_call_llm", new_callable=AsyncMock, return_value=llm_response
+        ):
+            result = await audit_service._run_rubric_eval(sample_event)
+
+        assert result["context_usage"] == 4
+        assert result["reasoning_coherence"] == 5
+        assert result["risk_justification"] == 3
+        assert result["actionability"] == 4
+
+    @pytest.mark.asyncio
+    async def test_run_rubric_eval_invalid_json(self, audit_service, sample_event):
+        """Test rubric evaluation handles invalid JSON."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            return_value="This is not valid JSON at all.",
+        ):
+            result = await audit_service._run_rubric_eval(sample_event)
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_run_rubric_eval_llm_failure(self, audit_service, sample_event):
+        """Test rubric evaluation handles LLM failure."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            side_effect=httpx.ConnectError("Connection refused"),
+        ):
+            result = await audit_service._run_rubric_eval(sample_event)
+
+        assert result == {}
+
+
+# =============================================================================
+# Test: _run_consistency_check (Mode 3)
+# =============================================================================
+
+
+class TestRunConsistencyCheck:
+    """Tests for _run_consistency_check method (Mode 3)."""
+
+    @pytest.mark.asyncio
+    async def test_run_consistency_check_success(self, audit_service, sample_event):
+        """Test successful consistency check."""
+        llm_response = json.dumps(
+            {
+                "risk_score": 72,
+                "risk_level": "high",
+                "brief_reason": "Similar assessment to original.",
+            }
+        )
+
+        with patch.object(
+            audit_service, "_call_llm", new_callable=AsyncMock, return_value=llm_response
+        ):
+            result = await audit_service._run_consistency_check(sample_event)
+
+        assert result["risk_score"] == 72
+        assert result["risk_level"] == "high"
+
+    @pytest.mark.asyncio
+    async def test_run_consistency_check_strips_assistant_tag(self, audit_service, sample_event):
+        """Test consistency check properly strips assistant tag from original prompt."""
+        sample_event.llm_prompt = "System prompt here<|im_start|>assistant\nPrevious response"
+        llm_response = json.dumps({"risk_score": 70, "risk_level": "high"})
+
+        call_args_captured = []
+
+        async def capture_call_llm(prompt):
+            call_args_captured.append(prompt)
+            return llm_response
+
+        with patch.object(audit_service, "_call_llm", side_effect=capture_call_llm):
+            await audit_service._run_consistency_check(sample_event)
+
+        # Verify the original assistant response was stripped from the prompt
+        # The CONSISTENCY_CHECK_PROMPT template adds its own <|im_start|>assistant tag
+        # but the content from the original prompt's assistant section should be gone
+        assert "Previous response" not in call_args_captured[0]
+        assert "System prompt here" in call_args_captured[0]
+
+    @pytest.mark.asyncio
+    async def test_run_consistency_check_invalid_json(self, audit_service, sample_event):
+        """Test consistency check handles invalid JSON."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            return_value="No JSON here",
+        ):
+            result = await audit_service._run_consistency_check(sample_event)
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_run_consistency_check_llm_failure(self, audit_service, sample_event):
+        """Test consistency check handles LLM failure."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            side_effect=Exception("LLM timeout"),
+        ):
+            result = await audit_service._run_consistency_check(sample_event)
+
+        assert result == {}
+
+
+# =============================================================================
+# Test: _run_prompt_improvement (Mode 4)
+# =============================================================================
+
+
+class TestRunPromptImprovement:
+    """Tests for _run_prompt_improvement method (Mode 4)."""
+
+    @pytest.mark.asyncio
+    async def test_run_prompt_improvement_success(self, audit_service, sample_event):
+        """Test successful prompt improvement suggestions."""
+        llm_response = json.dumps(
+            {
+                "missing_context": ["historical activity patterns", "time since last motion"],
+                "confusing_sections": ["zone descriptions could be clearer"],
+                "unused_data": ["weather information"],
+                "format_suggestions": ["use bullet points for detections"],
+                "model_gaps": ["face detection", "pose estimation"],
+            }
+        )
+
+        with patch.object(
+            audit_service, "_call_llm", new_callable=AsyncMock, return_value=llm_response
+        ):
+            result = await audit_service._run_prompt_improvement(sample_event)
+
+        assert len(result["missing_context"]) == 2
+        assert "historical activity patterns" in result["missing_context"]
+        assert len(result["model_gaps"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_run_prompt_improvement_invalid_json(self, audit_service, sample_event):
+        """Test prompt improvement handles invalid JSON."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            return_value="Not valid JSON",
+        ):
+            result = await audit_service._run_prompt_improvement(sample_event)
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_run_prompt_improvement_llm_failure(self, audit_service, sample_event):
+        """Test prompt improvement handles LLM failure."""
+        with patch.object(
+            audit_service,
+            "_call_llm",
+            new_callable=AsyncMock,
+            side_effect=httpx.TimeoutException("Timeout"),
+        ):
+            result = await audit_service._run_prompt_improvement(sample_event)
+
+        assert result == {}
+
+
+# =============================================================================
+# Test: get_stats
+# =============================================================================
+
+
+class TestGetStats:
+    """Tests for get_stats method."""
+
+    def _create_mock_audit(
+        self,
+        event_id: int,
+        audited_at: datetime,
+        overall_score: float | None = None,
+        consistency_score: float | None = None,
+        utilization: float = 0.5,
+        **model_flags,
+    ) -> EventAudit:
+        """Helper to create mock audit records."""
+        audit = EventAudit(
+            id=event_id,
+            event_id=event_id,
+            audited_at=audited_at,
+            overall_quality_score=overall_score,
+            consistency_score=consistency_score,
+            enrichment_utilization=utilization,
+            has_rtdetr=True,
+        )
+        for flag, value in model_flags.items():
+            setattr(audit, flag, value)
+        return audit
+
+    @pytest.mark.asyncio
+    async def test_get_stats_empty(self, audit_service, mock_db_session):
+        """Test get_stats with no audit records."""
+        # Mock execute to return empty list
+        mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
-        mock_logs_result.scalars.return_value = mock_scalars
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
 
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
+        stats = await audit_service.get_stats(mock_db_session, days=7)
 
-        logs, total = await AuditService.get_audit_logs(db=mock_db)
+        assert stats["total_events"] == 0
+        assert stats["audited_events"] == 0
+        assert stats["fully_evaluated_events"] == 0
+        assert stats["avg_quality_score"] is None
+        assert stats["avg_consistency_rate"] is None
+        assert stats["avg_enrichment_utilization"] is None
 
-        assert logs == []
-        assert total == 0
+        # All model contribution rates should be 0
+        for model in MODEL_NAMES:
+            assert stats["model_contribution_rates"][model] == 0
 
     @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_by_action(self) -> None:
-        """Test filtering logs by action type."""
-        mock_db = AsyncMock()
+    async def test_get_stats_with_audits(self, audit_service, mock_db_session):
+        """Test get_stats with audit records."""
+        now = datetime.now(UTC)
+        audits = [
+            self._create_mock_audit(
+                1,
+                now - timedelta(days=1),
+                overall_score=4.0,
+                consistency_score=4.5,
+                utilization=0.8,
+                has_florence=True,
+                has_clip=True,
+            ),
+            self._create_mock_audit(
+                2,
+                now - timedelta(days=2),
+                overall_score=3.5,
+                consistency_score=3.0,
+                utilization=0.6,
+                has_florence=True,
+            ),
+            self._create_mock_audit(
+                3,
+                now - timedelta(days=3),
+                overall_score=None,  # Not fully evaluated
+                consistency_score=None,
+                utilization=0.4,
+            ),
+        ]
 
-        mock_log = MagicMock(spec=AuditLog)
-        mock_log.action = "login"
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 1
-
-        mock_logs_result = MagicMock()
+        mock_result = MagicMock()
         mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [mock_log]
-        mock_logs_result.scalars.return_value = mock_scalars
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
 
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
+        stats = await audit_service.get_stats(mock_db_session, days=7)
 
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            action="login",
-        )
+        assert stats["total_events"] == 3
+        assert stats["audited_events"] == 3
+        assert stats["fully_evaluated_events"] == 2  # Only 2 have overall_quality_score
 
-        assert len(logs) == 1
-        assert total == 1
-        # Verify that execute was called (filter applied)
-        assert mock_db.execute.call_count == 2
+        # Average quality = (4.0 + 3.5) / 2 = 3.75
+        assert stats["avg_quality_score"] == pytest.approx(3.75)
 
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_by_resource_type(self) -> None:
-        """Test filtering logs by resource type."""
-        mock_db = AsyncMock()
+        # Average consistency = (4.5 + 3.0) / 2 = 3.75
+        assert stats["avg_consistency_rate"] == pytest.approx(3.75)
 
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 2
+        # Average utilization = (0.8 + 0.6 + 0.4) / 3 = 0.6
+        assert stats["avg_enrichment_utilization"] == pytest.approx(0.6)
 
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock(), MagicMock()]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            resource_type="event",
-        )
-
-        assert len(logs) == 2
-        assert total == 2
+        # Model contribution rates
+        # rtdetr: 3/3 = 1.0
+        assert stats["model_contribution_rates"]["rtdetr"] == pytest.approx(1.0)
+        # florence: 2/3 = 0.666...
+        assert stats["model_contribution_rates"]["florence"] == pytest.approx(2 / 3)
+        # clip: 1/3 = 0.333...
+        assert stats["model_contribution_rates"]["clip"] == pytest.approx(1 / 3)
 
     @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_by_resource_id(self) -> None:
-        """Test filtering logs by specific resource ID."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 1
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            resource_id="event-123",
-        )
-
-        assert len(logs) == 1
-        assert total == 1
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_by_actor(self) -> None:
-        """Test filtering logs by actor."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 3
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock(), MagicMock(), MagicMock()]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            actor="admin_user",
-        )
-
-        assert len(logs) == 3
-        assert total == 3
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_by_status(self) -> None:
-        """Test filtering logs by status."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 2
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock(), MagicMock()]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            status="failure",
-        )
-
-        assert len(logs) == 2
-        assert total == 2
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_by_date_range(self) -> None:
-        """Test filtering logs by date range."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 5
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 5
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        start_date = datetime(2025, 1, 1, tzinfo=UTC)
-        end_date = datetime(2025, 12, 31, tzinfo=UTC)
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        assert len(logs) == 5
-        assert total == 5
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_start_date_only(self) -> None:
-        """Test filtering logs with only start date."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 3
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 3
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        start_date = datetime(2025, 6, 1, tzinfo=UTC)
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            start_date=start_date,
-        )
-
-        assert len(logs) == 3
-        assert total == 3
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_filter_end_date_only(self) -> None:
-        """Test filtering logs with only end date."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 4
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 4
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        end_date = datetime(2025, 6, 30, tzinfo=UTC)
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            end_date=end_date,
-        )
-
-        assert len(logs) == 4
-        assert total == 4
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_combined_filters(self) -> None:
-        """Test get_audit_logs with multiple filters combined."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 1
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            action="login",
-            resource_type="auth",
-            actor="admin",
-            status="success",
-            start_date=datetime(2025, 1, 1, tzinfo=UTC),
-            end_date=datetime(2025, 12, 31, tzinfo=UTC),
-        )
-
-        assert len(logs) == 1
-        assert total == 1
-
-
-# =============================================================================
-# get_audit_logs Pagination Tests
-# =============================================================================
-
-
-class TestGetAuditLogsPagination:
-    """Tests for pagination in get_audit_logs."""
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_default_pagination(self) -> None:
-        """Test default pagination (limit=100, offset=0)."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 150
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 100
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(db=mock_db)
-
-        assert len(logs) == 100
-        assert total == 150
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_custom_limit(self) -> None:
-        """Test custom limit parameter."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 50
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 10
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            limit=10,
-        )
-
-        assert len(logs) == 10
-        assert total == 50
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_custom_offset(self) -> None:
-        """Test custom offset parameter."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 50
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 20
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            offset=30,
-        )
-
-        assert len(logs) == 20
-        assert total == 50
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_pagination_boundary_first_page(self) -> None:
-        """Test pagination at first page boundary."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 25
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()] * 10
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            limit=10,
-            offset=0,
-        )
-
-        assert len(logs) == 10
-        assert total == 25
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_pagination_boundary_last_page(self) -> None:
-        """Test pagination at last page with partial results."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 25
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        # Last page has only 5 items
-        mock_scalars.all.return_value = [MagicMock()] * 5
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            limit=10,
-            offset=20,
-        )
-
-        assert len(logs) == 5
-        assert total == 25
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_pagination_beyond_total(self) -> None:
-        """Test pagination when offset exceeds total records."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 25
-
-        mock_logs_result = MagicMock()
+    async def test_get_stats_with_camera_filter(self, audit_service, mock_db_session):
+        """Test get_stats filters by camera_id."""
+        mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
-        mock_logs_result.scalars.return_value = mock_scalars
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
 
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
+        stats = await audit_service.get_stats(mock_db_session, days=7, camera_id="front_door")
 
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            limit=10,
-            offset=100,
-        )
-
-        assert logs == []
-        assert total == 25
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_limit_one(self) -> None:
-        """Test with limit=1."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 100
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [MagicMock()]
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(
-            db=mock_db,
-            limit=1,
-        )
-
-        assert len(logs) == 1
-        assert total == 100
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_count_returns_none(self) -> None:
-        """Test handling when count query returns None."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = None
-
-        mock_logs_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = []
-        mock_logs_result.scalars.return_value = mock_scalars
-
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
-
-        logs, total = await AuditService.get_audit_logs(db=mock_db)
-
-        assert logs == []
-        assert total == 0
+        # Verify execute was called (query should include camera filter)
+        mock_db_session.execute.assert_awaited_once()
+        assert stats["total_events"] == 0
 
 
 # =============================================================================
-# get_audit_log_by_id Tests
+# Test: get_leaderboard
 # =============================================================================
 
 
-class TestGetAuditLogById:
-    """Tests for AuditService.get_audit_log_by_id method."""
+class TestGetLeaderboard:
+    """Tests for get_leaderboard method."""
 
     @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_found(self) -> None:
-        """Test retrieving an existing audit log by ID."""
-        mock_db = AsyncMock()
+    async def test_get_leaderboard_empty(self, audit_service, mock_db_session):
+        """Test leaderboard with no audit records."""
+        # Mock get_stats to return empty stats
+        with patch.object(
+            audit_service,
+            "get_stats",
+            new_callable=AsyncMock,
+            return_value={
+                "total_events": 0,
+                "model_contribution_rates": dict.fromkeys(MODEL_NAMES, 0),
+            },
+        ):
+            leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
 
-        mock_log = MagicMock(spec=AuditLog)
-        mock_log.id = 123
-        mock_log.action = "login"
-        mock_log.resource_type = "auth"
-
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_log
-        mock_db.execute.return_value = mock_result
-
-        result = await AuditService.get_audit_log_by_id(
-            db=mock_db,
-            audit_id=123,
-        )
-
-        assert result is mock_log
-        assert result.id == 123
+        assert len(leaderboard) == len(MODEL_NAMES)
+        for entry in leaderboard:
+            assert entry["contribution_rate"] == 0
+            assert entry["event_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_not_found(self) -> None:
-        """Test retrieving a non-existent audit log returns None."""
-        mock_db = AsyncMock()
+    async def test_get_leaderboard_sorted_by_contribution(self, audit_service, mock_db_session):
+        """Test leaderboard is sorted by contribution rate descending."""
+        contribution_rates = dict.fromkeys(MODEL_NAMES, 0.0)
+        contribution_rates["rtdetr"] = 1.0
+        contribution_rates["florence"] = 0.8
+        contribution_rates["clip"] = 0.6
+        contribution_rates["violence"] = 0.4
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
+        with patch.object(
+            audit_service,
+            "get_stats",
+            new_callable=AsyncMock,
+            return_value={
+                "total_events": 100,
+                "model_contribution_rates": contribution_rates,
+            },
+        ):
+            leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
 
-        result = await AuditService.get_audit_log_by_id(
-            db=mock_db,
-            audit_id=999,
-        )
+        # Verify sorted order
+        assert leaderboard[0]["model_name"] == "rtdetr"
+        assert leaderboard[0]["contribution_rate"] == 1.0
+        assert leaderboard[0]["event_count"] == 100
 
-        assert result is None
+        assert leaderboard[1]["model_name"] == "florence"
+        assert leaderboard[1]["contribution_rate"] == 0.8
+        assert leaderboard[1]["event_count"] == 80
 
-    @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_zero(self) -> None:
-        """Test retrieving with ID 0."""
-        mock_db = AsyncMock()
-
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
-
-        result = await AuditService.get_audit_log_by_id(
-            db=mock_db,
-            audit_id=0,
-        )
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_negative(self) -> None:
-        """Test retrieving with negative ID."""
-        mock_db = AsyncMock()
-
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
-
-        result = await AuditService.get_audit_log_by_id(
-            db=mock_db,
-            audit_id=-1,
-        )
-
-        assert result is None
+        assert leaderboard[2]["model_name"] == "clip"
+        assert leaderboard[2]["contribution_rate"] == 0.6
+        assert leaderboard[2]["event_count"] == 60
 
     @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_large_id(self) -> None:
-        """Test retrieving with very large ID."""
-        mock_db = AsyncMock()
+    async def test_get_leaderboard_schema_compliance(self, audit_service, mock_db_session):
+        """Test leaderboard entries match expected schema."""
+        with patch.object(
+            audit_service,
+            "get_stats",
+            new_callable=AsyncMock,
+            return_value={
+                "total_events": 50,
+                "model_contribution_rates": dict.fromkeys(MODEL_NAMES, 0.5),
+            },
+        ):
+            leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
-
-        result = await AuditService.get_audit_log_by_id(
-            db=mock_db,
-            audit_id=999999999,
-        )
-
-        assert result is None
+        for entry in leaderboard:
+            assert "model_name" in entry
+            assert "contribution_rate" in entry
+            assert "quality_correlation" in entry
+            assert "event_count" in entry
+            assert entry["model_name"] in MODEL_NAMES
 
 
 # =============================================================================
-# Singleton Tests
+# Test: get_recommendations
 # =============================================================================
 
 
-class TestAuditServiceSingleton:
-    """Tests for the audit_service singleton instance."""
+class TestGetRecommendations:
+    """Tests for get_recommendations method."""
 
-    def test_audit_service_singleton_exists(self) -> None:
-        """Test that audit_service singleton is an AuditService instance."""
-        assert audit_service is not None
-        assert isinstance(audit_service, AuditService)
-
-    @pytest.mark.asyncio
-    async def test_audit_service_singleton_log_action(self) -> None:
-        """Test that singleton can be used for log_action."""
-        mock_db = AsyncMock()
-
-        result = await audit_service.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
+    def _create_audit_with_suggestions(
+        self,
+        event_id: int,
+        missing_context: list[str] | None = None,
+        unused_data: list[str] | None = None,
+        model_gaps: list[str] | None = None,
+        format_suggestions: list[str] | None = None,
+    ) -> EventAudit:
+        """Helper to create audit with improvement suggestions."""
+        audit = EventAudit(
+            id=event_id,
+            event_id=event_id,
+            audited_at=datetime.now(UTC),
+            overall_quality_score=4.0,  # Required to be included
         )
-
-        assert result.action == "login"
+        if missing_context:
+            audit.missing_context = json.dumps(missing_context)
+        if unused_data:
+            audit.unused_data = json.dumps(unused_data)
+        if model_gaps:
+            audit.model_gaps = json.dumps(model_gaps)
+        if format_suggestions:
+            audit.format_suggestions = json.dumps(format_suggestions)
+        return audit
 
     @pytest.mark.asyncio
-    async def test_audit_service_singleton_get_audit_logs(self) -> None:
-        """Test that singleton can be used for get_audit_logs."""
-        mock_db = AsyncMock()
-
-        mock_count_result = MagicMock()
-        mock_count_result.scalar.return_value = 0
-
-        mock_logs_result = MagicMock()
+    async def test_get_recommendations_empty(self, audit_service, mock_db_session):
+        """Test recommendations with no audit records."""
+        mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
-        mock_logs_result.scalars.return_value = mock_scalars
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
 
-        mock_db.execute.side_effect = [mock_count_result, mock_logs_result]
+        recommendations = await audit_service.get_recommendations(mock_db_session, days=7)
 
-        logs, total = await audit_service.get_audit_logs(db=mock_db)
-
-        assert logs == []
-        assert total == 0
+        assert recommendations == []
 
     @pytest.mark.asyncio
-    async def test_audit_service_singleton_get_audit_log_by_id(self) -> None:
-        """Test that singleton can be used for get_audit_log_by_id."""
-        mock_db = AsyncMock()
+    async def test_get_recommendations_aggregates_suggestions(self, audit_service, mock_db_session):
+        """Test recommendations aggregates suggestions across audits."""
+        audits = [
+            self._create_audit_with_suggestions(
+                1,
+                missing_context=["time since last motion", "historical patterns"],
+                model_gaps=["face detection"],
+            ),
+            self._create_audit_with_suggestions(
+                2,
+                missing_context=["time since last motion"],  # Duplicate
+                model_gaps=["face detection", "pose estimation"],
+            ),
+            self._create_audit_with_suggestions(
+                3,
+                missing_context=["time since last motion"],  # Another duplicate
+                unused_data=["weather data"],
+            ),
+        ]
 
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
 
-        result = await audit_service.get_audit_log_by_id(
-            db=mock_db,
-            audit_id=1,
+        recommendations = await audit_service.get_recommendations(mock_db_session, days=7)
+
+        # Verify recommendations are present
+        assert len(recommendations) > 0
+
+        # Find the "time since last motion" recommendation
+        time_rec = next(
+            (r for r in recommendations if r["suggestion"] == "time since last motion"),
+            None,
         )
+        assert time_rec is not None
+        assert time_rec["category"] == "missing_context"
+        assert time_rec["frequency"] == 3  # Appeared in all 3 audits
+        assert time_rec["priority"] == "high"  # 3/3 > 30%
 
-        assert result is None
-
-
-# =============================================================================
-# All AuditAction Enum Values Tests
-# =============================================================================
-
-
-class TestAuditActionEnumValues:
-    """Tests to ensure all AuditAction enum values work correctly."""
+        # Find face detection recommendation
+        face_rec = next(
+            (r for r in recommendations if r["suggestion"] == "face detection"),
+            None,
+        )
+        assert face_rec is not None
+        assert face_rec["category"] == "model_gaps"
+        assert face_rec["frequency"] == 2
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "action",
-        list(AuditAction),
-        ids=[a.name for a in AuditAction],
-    )
-    async def test_log_action_with_all_enum_values(self, action: AuditAction) -> None:
-        """Test log_action works with each AuditAction enum value."""
-        mock_db = AsyncMock()
+    async def test_get_recommendations_priority_levels(self, audit_service, mock_db_session):
+        """Test recommendations priority levels are calculated correctly."""
+        # Create 10 audits with varying frequencies
+        audits = []
+        for i in range(10):
+            suggestions = []
+            if i < 4:  # 40% frequency - high priority (> 30%)
+                suggestions.append("high_freq_suggestion")
+            if i < 2:  # 20% frequency - medium priority (> 10%)
+                suggestions.append("medium_freq_suggestion")
+            if i == 0:  # 10% frequency - low priority
+                suggestions.append("low_freq_suggestion")
+            audits.append(self._create_audit_with_suggestions(i, missing_context=suggestions))
 
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=action,
-            resource_type="test",
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        recommendations = await audit_service.get_recommendations(mock_db_session, days=7)
+
+        # Find each recommendation
+        high_rec = next(
+            (r for r in recommendations if r["suggestion"] == "high_freq_suggestion"),
+            None,
+        )
+        medium_rec = next(
+            (r for r in recommendations if r["suggestion"] == "medium_freq_suggestion"),
+            None,
+        )
+        low_rec = next(
+            (r for r in recommendations if r["suggestion"] == "low_freq_suggestion"),
+            None,
         )
 
-        assert result.action == action.value
+        assert high_rec is not None
+        assert high_rec["priority"] == "high"
+        assert high_rec["frequency"] == 4
+
+        assert medium_rec is not None
+        assert medium_rec["priority"] == "medium"
+        assert medium_rec["frequency"] == 2
+
+        assert low_rec is not None
+        assert low_rec["priority"] == "low"
+        assert low_rec["frequency"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_recommendations_limits_to_20(self, audit_service, mock_db_session):
+        """Test recommendations are limited to 20 entries."""
+        # Create audits with many different suggestions
+        suggestions = [f"suggestion_{i}" for i in range(30)]
+        audits = [
+            self._create_audit_with_suggestions(1, missing_context=suggestions),
+        ]
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = audits
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        recommendations = await audit_service.get_recommendations(mock_db_session, days=7)
+
+        assert len(recommendations) <= 20
+
+    @pytest.mark.asyncio
+    async def test_get_recommendations_handles_invalid_json(self, audit_service, mock_db_session):
+        """Test recommendations handles invalid JSON in suggestion fields."""
+        audit = EventAudit(
+            id=1,
+            event_id=1,
+            audited_at=datetime.now(UTC),
+            overall_quality_score=4.0,
+            missing_context="not valid json",  # Invalid JSON
+        )
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [audit]
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        # Should not raise exception
+        recommendations = await audit_service.get_recommendations(mock_db_session, days=7)
+
+        # Should return empty (invalid JSON is skipped)
+        assert recommendations == []
 
 
 # =============================================================================
-# Edge Cases and Error Handling Tests
+# Test: LLM Response Parsing with extract_json_from_llm_response
+# =============================================================================
+
+
+class TestLLMResponseParsing:
+    """Tests for JSON parsing from LLM responses."""
+
+    @pytest.mark.asyncio
+    async def test_rubric_eval_parses_json_with_extra_text(self, audit_service, sample_event):
+        """Test rubric eval handles JSON with surrounding text."""
+        llm_response = """
+        Based on my analysis, here are the scores:
+
+        {
+            "context_usage": 4,
+            "reasoning_coherence": 5,
+            "risk_justification": 3,
+            "actionability": 4
+        }
+
+        Let me know if you need more details.
+        """
+
+        with patch.object(
+            audit_service, "_call_llm", new_callable=AsyncMock, return_value=llm_response
+        ):
+            result = await audit_service._run_rubric_eval(sample_event)
+
+        assert result["context_usage"] == 4
+        assert result["reasoning_coherence"] == 5
+
+    @pytest.mark.asyncio
+    async def test_consistency_check_parses_json_with_markdown(self, audit_service, sample_event):
+        """Test consistency check handles JSON in markdown code block."""
+        llm_response = """
+        ```json
+        {
+            "risk_score": 72,
+            "risk_level": "high",
+            "brief_reason": "Similar assessment"
+        }
+        ```
+        """
+
+        with patch.object(
+            audit_service, "_call_llm", new_callable=AsyncMock, return_value=llm_response
+        ):
+            result = await audit_service._run_consistency_check(sample_event)
+
+        assert result["risk_score"] == 72
+        assert result["risk_level"] == "high"
+
+
+# =============================================================================
+# Test: MODEL_NAMES Constant
+# =============================================================================
+
+
+class TestModelNamesConstant:
+    """Tests for the MODEL_NAMES constant."""
+
+    def test_model_names_count(self):
+        """Test MODEL_NAMES has expected number of models."""
+        assert len(MODEL_NAMES) == 12
+
+    def test_model_names_content(self):
+        """Test MODEL_NAMES contains expected model names."""
+        expected = [
+            "rtdetr",
+            "florence",
+            "clip",
+            "violence",
+            "clothing",
+            "vehicle",
+            "pet",
+            "weather",
+            "image_quality",
+            "zones",
+            "baseline",
+            "cross_camera",
+        ]
+        assert set(MODEL_NAMES) == set(expected)
+
+    def test_model_names_match_audit_flags(self):
+        """Test MODEL_NAMES match EventAudit flag attributes."""
+        for model in MODEL_NAMES:
+            attr_name = f"has_{model}"
+            # Verify EventAudit has this attribute
+            assert hasattr(EventAudit, attr_name), f"EventAudit missing attribute {attr_name}"
+
+
+# =============================================================================
+# Test: Integration with real LLM prompts
+# =============================================================================
+
+
+class TestPromptFormatting:
+    """Tests for prompt formatting in evaluation methods."""
+
+    @pytest.mark.asyncio
+    async def test_self_critique_prompt_includes_event_data(self, audit_service, sample_event):
+        """Test self-critique prompt includes all event data."""
+        captured_prompt = None
+
+        async def capture_prompt(prompt):
+            nonlocal captured_prompt
+            captured_prompt = prompt
+            return "Critique response"
+
+        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt):
+            await audit_service._run_self_critique(sample_event)
+
+        assert str(sample_event.risk_score) in captured_prompt
+        assert sample_event.summary in captured_prompt
+        assert sample_event.reasoning in captured_prompt
+
+    @pytest.mark.asyncio
+    async def test_rubric_eval_prompt_format(self, audit_service, sample_event):
+        """Test rubric evaluation prompt format."""
+        captured_prompt = None
+
+        async def capture_prompt(prompt):
+            nonlocal captured_prompt
+            captured_prompt = prompt
+            return '{"context_usage": 4, "reasoning_coherence": 4, "risk_justification": 4, "actionability": 4}'
+
+        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt):
+            await audit_service._run_rubric_eval(sample_event)
+
+        # Verify prompt contains expected elements
+        assert "CONTEXT_USAGE" in captured_prompt
+        assert "REASONING_COHERENCE" in captured_prompt
+        assert "RISK_JUSTIFICATION" in captured_prompt
+        assert "ACTIONABILITY" in captured_prompt
+        assert "1-5 scale" in captured_prompt
+
+    @pytest.mark.asyncio
+    async def test_prompt_improvement_prompt_format(self, audit_service, sample_event):
+        """Test prompt improvement suggestion prompt format."""
+        captured_prompt = None
+
+        async def capture_prompt(prompt):
+            nonlocal captured_prompt
+            captured_prompt = prompt
+            return '{"missing_context": [], "confusing_sections": [], "unused_data": [], "format_suggestions": [], "model_gaps": []}'
+
+        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt):
+            await audit_service._run_prompt_improvement(sample_event)
+
+        # Verify prompt asks for 5 categories
+        assert "MISSING_CONTEXT" in captured_prompt
+        assert "CONFUSING_SECTIONS" in captured_prompt
+        assert "UNUSED_DATA" in captured_prompt
+        assert "FORMAT_SUGGESTIONS" in captured_prompt
+        assert "MODEL_GAPS" in captured_prompt
+
+
+# =============================================================================
+# Test: Edge Cases
 # =============================================================================
 
 
 class TestEdgeCases:
-    """Tests for edge cases and unusual inputs."""
+    """Tests for edge cases and error handling."""
 
-    @pytest.mark.asyncio
-    async def test_log_action_with_empty_details_dict(self) -> None:
-        """Test log_action with empty details dictionary."""
-        mock_db = AsyncMock()
+    def test_create_partial_audit_with_empty_zones(self, audit_service):
+        """Test creating audit with empty zones list."""
+        context = MockEnrichedContext(zones=[])
 
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            details={},
+        audit = audit_service.create_partial_audit(
+            event_id=1,
+            llm_prompt="Test",
+            enriched_context=context,
+            enrichment_result=None,
         )
 
-        assert result.details == {}
+        assert audit.has_zones is False
 
-    @pytest.mark.asyncio
-    async def test_log_action_with_nested_details(self) -> None:
-        """Test log_action with deeply nested details."""
-        mock_db = AsyncMock()
+    def test_create_partial_audit_with_none_baselines(self, audit_service):
+        """Test creating audit with None baselines."""
+        context = MockEnrichedContext(baselines=None)
 
-        complex_details = {
-            "changes": {
-                "before": {"theme": "light", "notifications": {"email": True}},
-                "after": {"theme": "dark", "notifications": {"email": False}},
-            },
-            "metadata": {
-                "version": "1.0",
-                "timestamp": "2025-01-01T00:00:00Z",
-            },
-        }
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            details=complex_details,
+        audit = audit_service.create_partial_audit(
+            event_id=1,
+            llm_prompt="Test",
+            enriched_context=context,
+            enrichment_result=None,
         )
 
-        assert result.details == complex_details
+        assert audit.has_baseline is False
 
     @pytest.mark.asyncio
-    async def test_log_action_with_special_characters_in_resource_id(self) -> None:
-        """Test log_action with special characters in resource_id."""
-        mock_db = AsyncMock()
+    async def test_run_full_evaluation_with_long_prompt(
+        self, audit_service, mock_db_session, sample_event
+    ):
+        """Test full evaluation truncates long prompts in self_eval_prompt."""
+        sample_event.llm_prompt = "A" * 1000  # Long prompt
+        sample_event.reasoning = "B" * 500  # Long reasoning
 
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.EVENT_REVIEWED,
-            resource_type="event",
-            resource_id="event/123/sub-event_456",
-        )
+        audit = EventAudit(event_id=1, audited_at=datetime.now(UTC))
 
-        assert result.resource_id == "event/123/sub-event_456"
+        with (
+            patch.object(
+                audit_service, "_run_self_critique", new_callable=AsyncMock, return_value=""
+            ),
+            patch.object(
+                audit_service, "_run_rubric_eval", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(
+                audit_service, "_run_consistency_check", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(
+                audit_service, "_run_prompt_improvement", new_callable=AsyncMock, return_value={}
+            ),
+        ):
+            result = await audit_service.run_full_evaluation(audit, sample_event, mock_db_session)
 
-    @pytest.mark.asyncio
-    async def test_log_action_with_unicode_in_actor(self) -> None:
-        """Test log_action with unicode characters in actor."""
-        mock_db = AsyncMock()
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            actor="user_test_name",
-        )
-
-        assert result.actor == "user_test_name"
-
-    @pytest.mark.asyncio
-    async def test_log_action_with_long_user_agent(self) -> None:
-        """Test log_action with very long user agent string."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "192.168.1.1"
-
-        long_user_agent = "Mozilla/5.0 " + "x" * 1000
-
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": None,
-            "user-agent": long_user_agent,
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
-
-        assert result.user_agent == long_user_agent
+        # Verify truncation occurred - the service truncates llm_prompt to 500 chars
+        # and reasoning to 300 chars, adding "..." suffix
+        assert "..." in result.self_eval_prompt
+        # The truncated prompt (500+...) + truncated reasoning (300+...) + template overhead
+        # should still be significantly shorter than if it included the full 1000+500 chars
+        assert "AAA" in result.self_eval_prompt  # Part of truncated prompt
+        assert "BBB" in result.self_eval_prompt  # Part of truncated reasoning
 
     @pytest.mark.asyncio
-    async def test_log_action_ipv6_address(self) -> None:
-        """Test log_action with IPv6 address in X-Forwarded-For."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "127.0.0.1"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
-            "user-agent": "TestAgent",
-        }.get(key)
-
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
+    async def test_get_stats_handles_none_scores(self, audit_service, mock_db_session):
+        """Test get_stats handles audits with all None scores."""
+        audit = EventAudit(
+            id=1,
+            event_id=1,
+            audited_at=datetime.now(UTC),
+            overall_quality_score=None,
+            consistency_score=None,
+            enrichment_utilization=0.5,
         )
 
-        assert result.ip_address == "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [audit]
+        mock_result.scalars.return_value = mock_scalars
+        mock_db_session.execute.return_value = mock_result
+
+        stats = await audit_service.get_stats(mock_db_session, days=7)
+
+        assert stats["total_events"] == 1
+        assert stats["avg_quality_score"] is None
+        assert stats["avg_consistency_rate"] is None
+        assert stats["avg_enrichment_utilization"] == 0.5
 
     @pytest.mark.asyncio
-    async def test_log_action_mixed_ipv4_ipv6_forwarded(self) -> None:
-        """Test X-Forwarded-For with mixed IPv4 and IPv6 addresses."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        mock_request.client.host = "127.0.0.1"
-        mock_request.headers.get.side_effect = lambda key: {
-            "x-forwarded-for": "2001:db8::1, 192.168.1.1, 10.0.0.1",
-            "user-agent": "TestAgent",
-        }.get(key)
+    async def test_run_full_evaluation_with_none_risk_score(
+        self, audit_service, mock_db_session, sample_event
+    ):
+        """Test full evaluation handles None risk_score in consistency calculation."""
+        sample_event.risk_score = None
+        audit = EventAudit(event_id=1, audited_at=datetime.now(UTC))
 
-        result = await AuditService.log_action(
-            db=mock_db,
-            action=AuditAction.LOGIN,
-            resource_type="auth",
-            request=mock_request,
-        )
+        with (
+            patch.object(
+                audit_service, "_run_self_critique", new_callable=AsyncMock, return_value=""
+            ),
+            patch.object(
+                audit_service, "_run_rubric_eval", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(
+                audit_service,
+                "_run_consistency_check",
+                new_callable=AsyncMock,
+                return_value={"risk_score": 70},
+            ),
+            patch.object(
+                audit_service, "_run_prompt_improvement", new_callable=AsyncMock, return_value={}
+            ),
+        ):
+            result = await audit_service.run_full_evaluation(audit, sample_event, mock_db_session)
 
-        # Should use first IP (IPv6)
-        assert result.ip_address == "2001:db8::1"
+        # Consistency diff should not be calculated when event.risk_score is None
+        assert result.consistency_risk_score == 70
+        assert result.consistency_diff is None
+        assert result.consistency_score is None

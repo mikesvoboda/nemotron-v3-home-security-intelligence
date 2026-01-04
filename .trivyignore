@@ -43,6 +43,19 @@ CVE-2025-46394
 # Low severity, no fix available in current Alpine stable
 
 # =============================================================================
+# Debian/Ubuntu Base Image - No Fix Available
+# =============================================================================
+# These CVEs are in system packages with no upstream fix available
+
+CVE-2025-2176
+# libzvbi critical vulnerability - no fix available in Debian stable
+# Affects libzvbi0 package used by ffmpeg dependencies
+
+CVE-2023-45853
+# zlib integer overflow - marked "will_not_fix" by Debian
+# Affects minizip functionality in zipOpenNewFileInZip4_6, not used by application
+
+# =============================================================================
 # Notes
 # =============================================================================
 # Before adding a CVE here, verify:

@@ -107,11 +107,37 @@ SLOW_TEST_PATTERNS = [
     # Performance collector container health tests - multiple HTTP health checks
     r"test_performance_collector.*TestCollectContainerHealth",
     r"test_performance_collector.*test_collect_container_health",
-    # Alert rules error state tests - API retry exhaustion (~10-11s)
-    r"alert-rules\.spec\.ts.*Error State.*try again",
-    r"alert-rules\.spec\.ts.*Error State.*button.*error",
+    # Alert rules E2E tests - UI-heavy interactions take 8-12s in CI
+    r"alert-rules\.spec\.ts.*",
     # Re-identification tests - require Redis connection setup overhead
     r"test_enrichment_pipeline.*test_run_reid_requires_redis",
+    # Accessibility tests - axe-core analysis takes 15-25s per page in CI
+    r"accessibility\.spec\.ts.*",
+    r".*Accessibility.*accessible",
+    r".*Accessibility.*violations",
+    r".*Color Contrast.*",
+    r".*keyboard accessible",
+    r".*focus correctly",
+    # Property-based JSON parsing tests - Hypothesis text generation overhead
+    r"test_json_utils.*PropertyBased.*",
+    r"test_json_utils.*test_valid_json_always_parses",
+    r"test_json_utils.*test_json_after_think_block_parses",
+]
+
+# Benchmark patterns - tests that should be excluded from audit entirely
+# These are intentionally slow and measure performance, not correctness
+BENCHMARK_PATTERNS = [
+    # API benchmarks - intentionally slow, measure performance
+    r"TestAPIBenchmarks::",
+    r"TestAPIBenchmarksAsync::",
+    # Memory profiling tests
+    r"TestMemoryProfiling.*",
+    r"TestMemoryProfilingFallback.*",
+    # Big-O complexity tests
+    r"TestBatchAggregatorComplexity::",
+    r"TestFileWatcherComplexity::",
+    # Any test in benchmarks directory
+    r"backend\.tests\.benchmarks\.",
 ]
 
 
@@ -131,10 +157,20 @@ def is_known_slow_test(classname: str, name: str) -> bool:
     return any(re.search(pattern, full_path, re.IGNORECASE) for pattern in SLOW_TEST_PATTERNS)
 
 
+def is_benchmark_test(classname: str, name: str) -> bool:
+    """Check if test is a benchmark test (should be excluded from audit)."""
+    full_path = f"{classname}::{name}"
+    return any(re.search(pattern, full_path, re.IGNORECASE) for pattern in BENCHMARK_PATTERNS)
+
+
 def categorize_test(classname: str, name: str, filepath: str = "") -> str:
-    """Determine if a test is unit, integration, e2e, or slow based on path/patterns."""
+    """Determine if a test is unit, integration, e2e, slow, or benchmark."""
     full_path = f"{classname}.{name}".lower()
     file_lower = filepath.lower()
+
+    # Check if it's a benchmark test (excluded from audit)
+    if is_benchmark_test(classname, name):
+        return "benchmark"
 
     # Check if it matches known slow test patterns
     if is_known_slow_test(classname, name):
@@ -187,7 +223,9 @@ def parse_junit_xml(filepath: Path) -> list[dict]:
     return tests
 
 
-def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict], list[dict]]:
+def analyze_tests(
+    results_dir: Path,
+) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     """Analyze all JUnit XML files in directory."""
     unit_threshold, integration_threshold, e2e_threshold, slow_threshold, warn_pct = (
         get_thresholds()
@@ -196,17 +234,23 @@ def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict], list[dict]
     failures = []
     warnings = []
     slow_tests = []
+    benchmark_tests = []  # Track benchmarks separately (excluded from audit)
 
     # Find all XML files
     xml_files = list(results_dir.glob("**/*.xml"))
     if not xml_files:
         print(f"Warning: No XML files found in {results_dir}", file=sys.stderr)
-        return [], [], []
+        return [], [], [], []
 
     for xml_file in xml_files:
         tests = parse_junit_xml(xml_file)
 
         for test in tests:
+            # Benchmark tests are excluded from threshold checking
+            if test["category"] == "benchmark":
+                benchmark_tests.append(test)
+                continue
+
             # Determine threshold based on category
             if test["category"] == "slow":
                 threshold = slow_threshold
@@ -231,13 +275,69 @@ def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict], list[dict]
     failures.sort(key=lambda x: x["duration"], reverse=True)
     warnings.sort(key=lambda x: x["duration"], reverse=True)
     slow_tests.sort(key=lambda x: x["duration"], reverse=True)
+    benchmark_tests.sort(key=lambda x: x["duration"], reverse=True)
 
-    return failures, warnings, slow_tests
+    return failures, warnings, slow_tests, benchmark_tests
 
 
 def format_test_name(test: dict) -> str:
     """Format test name for display."""
     return f"{test['classname']}::{test['name']}"
+
+
+def print_benchmark_section(benchmark_tests: list[dict]) -> None:
+    """Print benchmark tests section."""
+    if not benchmark_tests:
+        return
+    print(f"BENCHMARK TESTS ({len(benchmark_tests)} - excluded from audit):")
+    print("-" * 40)
+    for test in benchmark_tests[:5]:
+        print(f"  {test['duration']:.2f}s - {format_test_name(test)}")
+    if len(benchmark_tests) > 5:
+        print(f"  ... and {len(benchmark_tests) - 5} more")
+    print()
+
+
+def print_slow_tests_section(slow_tests: list[dict]) -> None:
+    """Print known slow tests section."""
+    if not slow_tests:
+        return
+    print(f"KNOWN SLOW TESTS ({len(slow_tests)} tests with extended threshold):")
+    print("-" * 40)
+    for test in slow_tests[:5]:
+        print(f"  {test['duration']:.2f}s (limit: {test['threshold']:.1f}s) [{test['category']}]")
+        print(f"    {format_test_name(test)}")
+    if len(slow_tests) > 5:
+        print(f"  ... and {len(slow_tests) - 5} more")
+    print()
+
+
+def print_failures_section(failures: list[dict]) -> None:
+    """Print failures section."""
+    if not failures:
+        return
+    print("FAILURES (exceeded threshold):")
+    print("-" * 40)
+    for test in failures:
+        print(f"  {test['duration']:.2f}s (limit: {test['threshold']:.1f}s) [{test['category']}]")
+        print(f"    {format_test_name(test)}")
+    print()
+
+
+def print_warnings_section(warnings: list[dict]) -> None:
+    """Print warnings section."""
+    if not warnings:
+        return
+    print("WARNINGS (>80% of threshold):")
+    print("-" * 40)
+    for test in warnings:
+        pct = (test["duration"] / test["threshold"]) * 100
+        print(
+            f"  {test['duration']:.2f}s ({pct:.0f}% of {test['threshold']:.1f}s) "
+            f"[{test['category']}]"
+        )
+        print(f"    {format_test_name(test)}")
+    print()
 
 
 def main() -> int:
@@ -251,7 +351,7 @@ def main() -> int:
         print(f"Error: Directory not found: {results_dir}", file=sys.stderr)
         return 1
 
-    failures, warnings, slow_tests = analyze_tests(results_dir)
+    failures, warnings, slow_tests, benchmark_tests = analyze_tests(results_dir)
 
     print("=" * 70)
     print("TEST PERFORMANCE AUDIT")
@@ -268,51 +368,30 @@ def main() -> int:
     print(f"Warning at: {warn_pct * 100:.0f}% of threshold")
     print()
 
-    if slow_tests:
-        print(f"KNOWN SLOW TESTS ({len(slow_tests)} tests with extended threshold):")
-        print("-" * 40)
-        for test in slow_tests[:5]:  # Show top 5 slow tests
-            print(
-                f"  {test['duration']:.2f}s (limit: {test['threshold']:.1f}s) [{test['category']}]"
-            )
-            print(f"    {format_test_name(test)}")
-        if len(slow_tests) > 5:
-            print(f"  ... and {len(slow_tests) - 5} more")
-        print()
-
-    if failures:
-        print("FAILURES (exceeded threshold):")
-        print("-" * 40)
-        for test in failures:
-            print(
-                f"  {test['duration']:.2f}s (limit: {test['threshold']:.1f}s) [{test['category']}]"
-            )
-            print(f"    {format_test_name(test)}")
-        print()
-
-    if warnings:
-        print("WARNINGS (>80% of threshold):")
-        print("-" * 40)
-        for test in warnings:
-            pct = (test["duration"] / test["threshold"]) * 100
-            print(
-                f"  {test['duration']:.2f}s ({pct:.0f}% of {test['threshold']:.1f}s) "
-                f"[{test['category']}]"
-            )
-            print(f"    {format_test_name(test)}")
-        print()
+    # Print all sections using helper functions
+    print_benchmark_section(benchmark_tests)
+    print_slow_tests_section(slow_tests)
+    print_failures_section(failures)
+    print_warnings_section(warnings)
 
     # Summary
     print("=" * 70)
     if failures:
         print(f"RESULT: FAIL - {len(failures)} test(s) exceeded time limit")
         return 1
-    elif warnings:
-        print(f"RESULT: PASS with {len(warnings)} warning(s), {len(slow_tests)} known slow test(s)")
-        return 0
+
+    if warnings:
+        print(
+            f"RESULT: PASS with {len(warnings)} warning(s), "
+            f"{len(slow_tests)} known slow test(s), "
+            f"{len(benchmark_tests)} benchmark(s) excluded"
+        )
     else:
-        print(f"RESULT: PASS - All tests within time limits ({len(slow_tests)} known slow)")
-        return 0
+        print(
+            f"RESULT: PASS - All tests within time limits "
+            f"({len(slow_tests)} known slow, {len(benchmark_tests)} benchmarks excluded)"
+        )
+    return 0
 
 
 if __name__ == "__main__":

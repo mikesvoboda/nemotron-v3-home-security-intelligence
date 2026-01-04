@@ -2,13 +2,13 @@
  * LatencyPanel - Displays detailed pipeline latency metrics
  *
  * Shows latency statistics for each pipeline stage with percentile breakdowns.
- * Includes visual indicators for latency thresholds and time-series graph.
+ * Includes visual indicators for latency thresholds and time-series history chart.
  */
 
-import { Card, Title, Text, ProgressBar, AreaChart } from '@tremor/react';
+import { Card, Title, Text, ProgressBar, AreaChart, Select, SelectItem } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Clock, ArrowRight, Timer, TrendingUp } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import type { AILatencyMetrics } from '../../services/metricsParser';
 
@@ -38,33 +38,43 @@ interface PipelineLatencyData {
 }
 
 /**
- * Latency sample for time-series visualization
+ * Latency history stage stats
  */
-export interface LatencySample {
-  timestamp: number;
-  stage: string;
-  latency_ms: number;
+interface LatencyHistoryStageStats {
+  avg_ms: number;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+  sample_count: number;
 }
 
 /**
- * Latency history response
+ * Latency history snapshot for time-series
  */
-export interface LatencyHistoryData {
-  samples: LatencySample[];
+interface LatencyHistorySnapshot {
+  timestamp: string;
+  stages: Record<string, LatencyHistoryStageStats | null>;
+}
+
+/**
+ * Latency history response from API
+ */
+interface LatencyHistoryResponse {
+  snapshots: LatencyHistorySnapshot[];
   window_minutes: number;
+  bucket_seconds: number;
   timestamp: string;
 }
 
 /**
- * Chart data point for latency history visualization
+ * Available pipeline stages for selection
  */
-interface ChartDataPoint {
-  time: string;
-  watch_to_detect: number | null;
-  detect_to_batch: number | null;
-  batch_to_analyze: number | null;
-  total_pipeline: number | null;
-}
+const STAGE_OPTIONS = [
+  { value: 'watch_to_detect', label: 'File Watch to Detection' },
+  { value: 'detect_to_batch', label: 'Detection to Batch' },
+  { value: 'batch_to_analyze', label: 'Batch to Analysis' },
+  { value: 'total_pipeline', label: 'Total Pipeline' },
+] as const;
 
 export interface LatencyPanelProps {
   /** RT-DETR detection latency */
@@ -73,14 +83,6 @@ export interface LatencyPanelProps {
   analysisLatency?: AILatencyMetrics | null;
   /** Pipeline stage latencies */
   pipelineLatency?: PipelineLatencyData | null;
-  /** Whether to show the latency history graph */
-  showHistory?: boolean;
-  /** Time window in minutes for history (default: 60) */
-  historyWindowMinutes?: number;
-  /** Maximum samples to fetch (default: 100) */
-  historyLimit?: number;
-  /** Polling interval in milliseconds for history data (default: 30000) */
-  historyPollingInterval?: number;
   /** Additional CSS classes */
   className?: string;
 }
@@ -134,70 +136,6 @@ interface LatencyStatRowProps {
   thresholds: { warning: number; critical: number };
   maxDisplay: number;
   icon?: React.ReactNode;
-}
-
-/**
- * Fetch latency history from the API
- */
-async function fetchLatencyHistory(windowMinutes: number = 60, limit: number = 100): Promise<LatencyHistoryData> {
-  const response = await fetch(`/api/system/pipeline-latency-history?window_minutes=${windowMinutes}&limit=${limit}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch latency history: ${response.status}`);
-  }
-  return response.json() as Promise<LatencyHistoryData>;
-}
-
-/**
- * Transform latency samples to chart data format
- * Groups samples by time bucket and creates a single data point per bucket
- */
-function transformToChartData(samples: LatencySample[], bucketMinutes: number = 1): ChartDataPoint[] {
-  if (!samples || samples.length === 0) return [];
-
-  // Group samples by time bucket (in minutes)
-  const buckets = new Map<number, Map<string, number[]>>();
-
-  for (const sample of samples) {
-    const bucketTime = Math.floor(sample.timestamp / (bucketMinutes * 60)) * (bucketMinutes * 60);
-
-    if (!buckets.has(bucketTime)) {
-      buckets.set(bucketTime, new Map());
-    }
-
-    const stageBucket = buckets.get(bucketTime);
-    if (!stageBucket) continue;
-    if (!stageBucket.has(sample.stage)) {
-      stageBucket.set(sample.stage, []);
-    }
-    const stageArray = stageBucket.get(sample.stage);
-    if (stageArray) stageArray.push(sample.latency_ms);
-  }
-
-  // Convert to chart data points (average per bucket)
-  const chartData: ChartDataPoint[] = [];
-
-  const sortedBuckets = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
-
-  for (const [timestamp, stageValues] of sortedBuckets) {
-    const date = new Date(timestamp * 1000);
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const avgOrNull = (stage: string): number | null => {
-      const values = stageValues.get(stage);
-      if (!values || values.length === 0) return null;
-      return values.reduce((a, b) => a + b, 0) / values.length;
-    };
-
-    chartData.push({
-      time: timeStr,
-      watch_to_detect: avgOrNull('watch_to_detect'),
-      detect_to_batch: avgOrNull('detect_to_batch'),
-      batch_to_analyze: avgOrNull('batch_to_analyze'),
-      total_pipeline: avgOrNull('total_pipeline'),
-    });
-  }
-
-  return chartData;
 }
 
 function LatencyStatRow({ label, latency, thresholds, maxDisplay, icon }: LatencyStatRowProps) {
@@ -283,58 +221,133 @@ function LatencyStatRow({ label, latency, thresholds, maxDisplay, icon }: Latenc
 }
 
 /**
+ * LatencyHistoryChart - Time-series chart for latency visualization
+ */
+interface LatencyHistoryChartProps {
+  selectedStage: string;
+  onStageChange: (stage: string) => void;
+}
+
+function LatencyHistoryChart({ selectedStage, onStageChange }: LatencyHistoryChartProps) {
+  const [historyData, setHistoryData] = useState<LatencyHistoryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/system/pipeline-latency/history?since=60&bucket_seconds=60');
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+      const data = (await response.json()) as LatencyHistoryResponse;
+      setHistoryData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch latency history');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch history on mount and every 60 seconds
+  useEffect(() => {
+    void fetchHistory();
+    const interval = setInterval(() => void fetchHistory(), 60000);
+    return () => clearInterval(interval);
+  }, [fetchHistory]);
+
+  // Transform data for chart
+  const chartData = historyData?.snapshots.map((snapshot) => {
+    const stageStats = snapshot.stages[selectedStage];
+    const time = new Date(snapshot.timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return {
+      time,
+      'Avg (ms)': stageStats?.avg_ms ?? null,
+      'P50 (ms)': stageStats?.p50_ms ?? null,
+      'P95 (ms)': stageStats?.p95_ms ?? null,
+    };
+  }) ?? [];
+
+  const stageLabel = STAGE_OPTIONS.find((s) => s.value === selectedStage)?.label ?? selectedStage;
+
+  return (
+    <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="latency-history-card">
+      <div className="mb-4 flex items-center justify-between">
+        <Title className="flex items-center gap-2 text-white">
+          <TrendingUp className="h-5 w-5 text-[#76B900]" />
+          Latency Over Time
+        </Title>
+        <Select
+          value={selectedStage}
+          onValueChange={onStageChange}
+          className="w-48"
+          data-testid="stage-select"
+        >
+          {STAGE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </Select>
+      </div>
+
+      {loading && !historyData && (
+        <div className="flex h-48 items-center justify-center">
+          <Text className="text-gray-500">Loading latency history...</Text>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex h-48 items-center justify-center">
+          <Text className="text-red-400">Error: {error}</Text>
+        </div>
+      )}
+
+      {!loading && !error && chartData.length === 0 && (
+        <div className="flex h-48 items-center justify-center">
+          <Text className="text-gray-500">No latency data available for {stageLabel}</Text>
+        </div>
+      )}
+
+      {chartData.length > 0 && (
+        <AreaChart
+          className="h-48"
+          data={chartData}
+          index="time"
+          categories={['Avg (ms)', 'P50 (ms)', 'P95 (ms)']}
+          colors={['emerald', 'blue', 'amber']}
+          valueFormatter={(value) => (value !== null ? `${Math.round(value)}ms` : '-')}
+          showLegend={true}
+          showGridLines={true}
+          curveType="monotone"
+          connectNulls={false}
+          data-testid="latency-chart"
+        />
+      )}
+
+      {historyData?.timestamp && (
+        <Text className="mt-2 text-xs text-gray-500">
+          Last updated: {new Date(historyData.timestamp).toLocaleTimeString()}
+        </Text>
+      )}
+    </Card>
+  );
+}
+
+/**
  * LatencyPanel - Comprehensive latency metrics display
  */
 export default function LatencyPanel({
   detectionLatency,
   analysisLatency,
   pipelineLatency,
-  showHistory = false,
-  historyWindowMinutes = 60,
-  historyLimit = 100,
-  historyPollingInterval = 30000,
   className,
 }: LatencyPanelProps) {
-  // State for latency history
-  const [historyData, setHistoryData] = useState<LatencySample[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-
-  // Fetch latency history
-  const loadHistory = useCallback(async () => {
-    if (!showHistory) return;
-
-    setHistoryLoading(true);
-    setHistoryError(null);
-
-    try {
-      const data = await fetchLatencyHistory(historyWindowMinutes, historyLimit);
-      setHistoryData(data.samples);
-    } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : 'Failed to fetch latency history');
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [showHistory, historyWindowMinutes, historyLimit]);
-
-  // Initial load and polling
-  useEffect(() => {
-    if (!showHistory) return;
-
-    void loadHistory();
-
-    const interval = setInterval(() => void loadHistory(), historyPollingInterval);
-    return () => clearInterval(interval);
-  }, [showHistory, loadHistory, historyPollingInterval]);
-
-  // Transform history data to chart format
-  const chartData = useMemo(() => {
-    if (!historyData || historyData.length === 0) return [];
-    return transformToChartData(historyData, 1);
-  }, [historyData]);
-
-  // Format latency value for chart tooltip
-  const latencyValueFormatter = (value: number) => `${value.toFixed(0)}ms`;
+  const [selectedStage, setSelectedStage] = useState<string>('total_pipeline');
 
   return (
     <div className={clsx('space-y-4', className)} data-testid="latency-panel">
@@ -363,6 +376,12 @@ export default function LatencyPanel({
           />
         </div>
       </Card>
+
+      {/* Latency History Chart */}
+      <LatencyHistoryChart
+        selectedStage={selectedStage}
+        onStageChange={setSelectedStage}
+      />
 
       {/* Pipeline Stage Latencies */}
       {pipelineLatency && (
@@ -442,65 +461,6 @@ export default function LatencyPanel({
             <Text className="mt-4 text-xs text-gray-500">
               Updated: {new Date(pipelineLatency.timestamp).toLocaleTimeString()}
             </Text>
-          )}
-        </Card>
-      )}
-
-      {/* Latency History Time-Series Chart */}
-      {showHistory && (
-        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="latency-history-card">
-          <Title className="mb-4 flex items-center gap-2 text-white">
-            <TrendingUp className="h-5 w-5 text-[#76B900]" />
-            Latency History
-            <Text className="ml-2 text-sm font-normal text-gray-500">
-              (last {historyWindowMinutes} min)
-            </Text>
-          </Title>
-
-          {historyLoading && historyData.length === 0 ? (
-            <div
-              className="flex h-48 items-center justify-center text-gray-500"
-              data-testid="latency-history-loading"
-            >
-              <Text>Loading history...</Text>
-            </div>
-          ) : historyError ? (
-            <div
-              className="flex h-48 items-center justify-center text-red-400"
-              data-testid="latency-history-error"
-            >
-              <Text>Error: {historyError}</Text>
-            </div>
-          ) : chartData.length > 0 ? (
-            <>
-              <AreaChart
-                className="h-48"
-                data={chartData}
-                index="time"
-                categories={['watch_to_detect', 'detect_to_batch', 'batch_to_analyze', 'total_pipeline']}
-                colors={['emerald', 'blue', 'amber', 'violet']}
-                valueFormatter={latencyValueFormatter}
-                showLegend={true}
-                showGridLines={false}
-                curveType="monotone"
-                data-testid="latency-history-chart"
-              />
-              <div className="mt-2 flex items-center justify-between">
-                <Text className="text-xs text-gray-500">
-                  {historyData.length} sample{historyData.length !== 1 ? 's' : ''} in {chartData.length} bucket{chartData.length !== 1 ? 's' : ''}
-                </Text>
-                {historyLoading && (
-                  <Text className="text-xs text-gray-400">Updating...</Text>
-                )}
-              </div>
-            </>
-          ) : (
-            <div
-              className="flex h-48 items-center justify-center text-gray-500"
-              data-testid="latency-history-empty"
-            >
-              <Text>No history data available</Text>
-            </div>
           )}
         </Card>
       )}

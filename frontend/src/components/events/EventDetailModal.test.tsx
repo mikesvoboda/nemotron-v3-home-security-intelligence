@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import EventDetailModal, { type Event, type EventDetailModalProps } from './EventDetailModal';
 import * as api from '../../services/api';
@@ -76,6 +76,11 @@ describe('EventDetailModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('rendering', () => {
@@ -370,7 +375,7 @@ describe('EventDetailModal', () => {
 
   describe('close functionality', () => {
     it('calls onClose when close button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} onClose={onClose} />);
 
@@ -381,23 +386,20 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onClose when escape key is pressed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} onClose={onClose} />);
 
       await user.keyboard('{Escape}');
 
       // Headless UI Dialog also handles Escape, so onClose should be called
-      await waitFor(
-        () => {
-          expect(onClose).toHaveBeenCalled();
-        },
-        { timeout: 1000 }
-      );
+      await waitFor(() => {
+        expect(onClose).toHaveBeenCalled();
+      });
     });
 
     it('calls onClose when clicking backdrop', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} onClose={onClose} />);
 
@@ -413,14 +415,16 @@ describe('EventDetailModal', () => {
     });
 
     it('does not call onClose when modal is already closed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} isOpen={false} onClose={onClose} />);
 
       await user.keyboard('{Escape}');
 
-      // Small delay to ensure no delayed calls
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Advance time to ensure no delayed calls
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
       expect(onClose).not.toHaveBeenCalled();
     });
   });
@@ -442,7 +446,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onNavigate with "prev" when Previous button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
@@ -454,7 +458,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onNavigate with "next" when Next button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
@@ -466,7 +470,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onNavigate with "prev" when left arrow key is pressed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
@@ -478,7 +482,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onNavigate with "next" when right arrow key is pressed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
@@ -490,19 +494,22 @@ describe('EventDetailModal', () => {
     });
 
     it('does not call onNavigate on arrow keys when modal is closed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} isOpen={false} onNavigate={onNavigate} />);
 
       await user.keyboard('{ArrowLeft}');
       await user.keyboard('{ArrowRight}');
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Advance time to ensure no delayed calls
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
       expect(onNavigate).not.toHaveBeenCalled();
     });
 
     it('does not call onNavigate on arrow keys when onNavigate is undefined', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<EventDetailModal {...mockProps} onNavigate={undefined} />);
 
       await user.keyboard('{ArrowLeft}');
@@ -542,7 +549,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onMarkReviewed with event ID when button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onMarkReviewed = vi.fn();
       render(<EventDetailModal {...mockProps} onMarkReviewed={onMarkReviewed} />);
 
@@ -765,7 +772,7 @@ describe('EventDetailModal', () => {
     });
 
     it('allows typing in notes textarea', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<EventDetailModal {...mockProps} />);
 
       const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
@@ -783,7 +790,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onSaveNotes when save button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
 
@@ -809,7 +816,7 @@ describe('EventDetailModal', () => {
     });
 
     it('shows saving state while saving notes', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       let resolveSave: () => void;
       const savePromise = new Promise<void>((resolve) => {
         resolveSave = resolve;
@@ -831,7 +838,7 @@ describe('EventDetailModal', () => {
     });
 
     it('shows saved indicator after successful save', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
@@ -845,7 +852,7 @@ describe('EventDetailModal', () => {
     });
 
     it('clears saved indicator after 3 seconds', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
@@ -859,18 +866,16 @@ describe('EventDetailModal', () => {
         expect(screen.getByText('Saved')).toBeInTheDocument();
       });
 
-      // Wait for the 3 second timeout to clear the indicator
-      // Using a slightly longer timeout to account for timing variations
-      await waitFor(
-        () => {
-          expect(screen.queryByText('Saved')).not.toBeInTheDocument();
-        },
-        { timeout: 4000 }
-      );
+      // Advance time by 3 seconds to clear the indicator
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(screen.queryByText('Saved')).not.toBeInTheDocument();
     });
 
     it('handles save errors gracefully', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const onSaveNotes = vi.fn().mockRejectedValue(new Error('Save failed'));
 
@@ -905,7 +910,7 @@ describe('EventDetailModal', () => {
     });
 
     it('clears saved indicator when event changes', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
       const { rerender } = render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
@@ -929,7 +934,7 @@ describe('EventDetailModal', () => {
     });
 
     it('saves empty string as notes', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const eventWithNotes = { ...mockEvent, notes: 'Some existing notes' };
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
@@ -989,7 +994,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onFlagEvent with correct parameters when flagging unflagged event', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
@@ -1004,7 +1009,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onFlagEvent with correct parameters when unflagging flagged event', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
@@ -1019,7 +1024,7 @@ describe('EventDetailModal', () => {
     });
 
     it('disables flag button while flagging is in progress', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       let resolveFlagging: () => void;
       const flaggingPromise = new Promise<void>((resolve) => {
         resolveFlagging = resolve;
@@ -1044,7 +1049,7 @@ describe('EventDetailModal', () => {
     });
 
     it('handles flagging errors gracefully', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const onFlagEvent = vi.fn().mockRejectedValue(new Error('Flagging failed'));
 
@@ -1113,7 +1118,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls onDownloadMedia with event ID when button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
@@ -1127,7 +1132,7 @@ describe('EventDetailModal', () => {
     });
 
     it('disables download button while download is in progress', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       let resolveDownload: () => void;
       const downloadPromise = new Promise<void>((resolve) => {
         resolveDownload = resolve;
@@ -1152,7 +1157,7 @@ describe('EventDetailModal', () => {
     });
 
     it('handles download errors gracefully', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const onDownloadMedia = vi.fn().mockRejectedValue(new Error('Download failed'));
 
@@ -1178,7 +1183,7 @@ describe('EventDetailModal', () => {
     });
 
     it('can be called multiple times', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
@@ -1252,7 +1257,7 @@ describe('EventDetailModal', () => {
     });
 
     it('handles multiple interactions without errors', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       const onMarkReviewed = vi.fn();
       const onNavigate = vi.fn();
@@ -1586,7 +1591,7 @@ describe('EventDetailModal', () => {
         offset: 0,
       });
 
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<EventDetailModal {...mockVideoProps} />);
 
       // Initially should show video (first detection)
@@ -1667,7 +1672,7 @@ describe('EventDetailModal', () => {
     });
 
     it('calls triggerEvaluation when re-evaluate button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(auditApi.triggerEvaluation).mockResolvedValue({
         id: 1,
         event_id: 123,
@@ -1720,7 +1725,7 @@ describe('EventDetailModal', () => {
     });
 
     it('shows loading state while re-evaluating', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       let resolveEval: () => void;
       const evalPromise = new Promise<void>((resolve) => {
         resolveEval = () => resolve();
@@ -1739,7 +1744,7 @@ describe('EventDetailModal', () => {
     });
 
     it('shows success message after successful re-evaluation', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(auditApi.triggerEvaluation).mockResolvedValue({
         id: 1,
         event_id: 123,
@@ -1793,7 +1798,7 @@ describe('EventDetailModal', () => {
     });
 
     it('shows error message on re-evaluation failure', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(auditApi.triggerEvaluation).mockRejectedValue(
         new auditApi.AuditApiError(500, 'Server error')
       );
@@ -1810,7 +1815,7 @@ describe('EventDetailModal', () => {
     });
 
     it('clears error and success state when event changes', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(auditApi.triggerEvaluation).mockRejectedValue(
         new auditApi.AuditApiError(500, 'Server error')
       );
