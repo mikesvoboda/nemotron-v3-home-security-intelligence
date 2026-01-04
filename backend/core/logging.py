@@ -107,15 +107,8 @@ def redact_url(url: str) -> str:
             )
         )
         return redacted
-    except Exception as e:
-        # Log warning for debugging malformed URLs
-        # Note: We use logging.getLogger directly to avoid circular imports
-        # since this module defines the logging configuration.
-        # We do NOT log the URL itself for security reasons.
-        logging.getLogger(__name__).warning(
-            "URL redaction parsing failed",
-            extra={"error_type": type(e).__name__},
-        )
+    except Exception:
+        # If parsing fails, return a safe fallback
         return "[URL REDACTED - PARSE ERROR]"
 
 

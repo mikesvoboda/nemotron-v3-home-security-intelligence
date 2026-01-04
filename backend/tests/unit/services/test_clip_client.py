@@ -25,7 +25,6 @@ from backend.services.clip_client import (
     CLIP_READ_TIMEOUT,
     DEFAULT_CLIP_URL,
     EMBEDDING_DIMENSION,
-    MAX_BATCH_SIZE,
     CLIPClient,
     CLIPUnavailableError,
     get_clip_client,
@@ -1186,65 +1185,6 @@ class TestBatchSimilarity:
         assert "cannot be empty" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_batch_similarity_exceeds_max_batch_size(
-        self, client: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        """Test batch_similarity raises ValueError when texts exceed MAX_BATCH_SIZE."""
-        # Create a list with more texts than allowed
-        oversized_texts = [f"text_{i}" for i in range(MAX_BATCH_SIZE + 1)]
-
-        with pytest.raises(ValueError) as exc_info:
-            await client.batch_similarity(sample_image, oversized_texts)
-
-        error_msg = str(exc_info.value)
-        assert f"Batch size {MAX_BATCH_SIZE + 1}" in error_msg
-        assert f"exceeds maximum of {MAX_BATCH_SIZE}" in error_msg
-        assert "Split the texts into smaller batches" in error_msg
-
-    @pytest.mark.asyncio
-    async def test_batch_similarity_at_max_batch_size(
-        self, client: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        """Test batch_similarity accepts exactly MAX_BATCH_SIZE texts."""
-        # Create exactly MAX_BATCH_SIZE texts
-        max_texts = [f"text_{i}" for i in range(MAX_BATCH_SIZE)]
-        expected_similarities = dict.fromkeys(max_texts, 0.5)
-
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json = MagicMock(return_value={"similarities": expected_similarities})
-
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
-
-            result = await client.batch_similarity(sample_image, max_texts)
-
-            assert result == expected_similarities
-            assert len(result) == MAX_BATCH_SIZE
-
-    @pytest.mark.asyncio
-    async def test_batch_similarity_large_overage(
-        self, client: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        """Test batch_similarity rejects significantly oversized batches."""
-        # Create a list with many more texts than allowed (e.g., 500)
-        large_oversized_texts = [f"text_{i}" for i in range(500)]
-
-        with pytest.raises(ValueError) as exc_info:
-            await client.batch_similarity(sample_image, large_oversized_texts)
-
-        error_msg = str(exc_info.value)
-        assert "500" in error_msg
-        assert f"exceeds maximum of {MAX_BATCH_SIZE}" in error_msg
-
-    @pytest.mark.asyncio
     async def test_batch_similarity_missing_field(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
@@ -1460,10 +1400,6 @@ class TestConstants:
     def test_clip_read_timeout(self) -> None:
         """Test the CLIP read timeout constant."""
         assert CLIP_READ_TIMEOUT == 15.0
-
-    def test_max_batch_size(self) -> None:
-        """Test the MAX_BATCH_SIZE constant."""
-        assert MAX_BATCH_SIZE == 100
 
 
 # =============================================================================

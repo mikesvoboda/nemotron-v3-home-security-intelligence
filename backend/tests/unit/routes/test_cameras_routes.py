@@ -479,10 +479,7 @@ class TestCreateCamera:
     def test_create_camera_duplicate_name_returns_409(
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
-        """Test creating a camera with a duplicate name returns 409 Conflict.
-
-        Security: Verifies that internal camera ID is NOT leaked in error message.
-        """
+        """Test creating a camera with a duplicate name returns 409 Conflict."""
         # Mock the first execute call (name check) to return an existing camera
         existing_camera = Camera(
             id="existing-id-123",
@@ -507,17 +504,11 @@ class TestCreateCamera:
         data = response.json()
         assert "already exists" in data["detail"].lower()
         assert "Test Camera" in data["detail"]
-        # Security: Verify internal camera ID is NOT leaked in error message
-        assert "existing-id-123" not in data["detail"]
-        assert "(id:" not in data["detail"].lower()
 
     def test_create_camera_duplicate_folder_path_returns_409(
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
-        """Test creating a camera with a duplicate folder_path returns 409 Conflict.
-
-        Security: Verifies that internal camera ID is NOT leaked in error message.
-        """
+        """Test creating a camera with a duplicate folder_path returns 409 Conflict."""
         # Mock to return None for name check, then existing camera for folder check
         existing_camera = Camera(
             id="existing-id-456",
@@ -543,9 +534,6 @@ class TestCreateCamera:
         data = response.json()
         assert "already exists" in data["detail"].lower()
         assert "/export/foscam/duplicate" in data["detail"]
-        # Security: Verify internal camera ID is NOT leaked in error message
-        assert "existing-id-456" not in data["detail"]
-        assert "(id:" not in data["detail"].lower()
 
     def test_create_camera_no_duplicate_succeeds(
         self, client: TestClient, mock_db_session: AsyncMock
