@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Setup systemd user services for Home Security Intelligence containers
 # This script generates systemd unit files and enables auto-start on boot
 #

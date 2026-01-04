@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Wrapper script to run docker compose with sudo for user systemd service
 
 set -e

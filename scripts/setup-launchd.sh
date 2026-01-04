@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Setup launchd user agents for Home Security Intelligence containers (macOS)
 # This script creates plist files and enables auto-start on boot
 #
@@ -138,7 +138,7 @@ mkdir -p "$WRAPPER_DIR"
 FRONTEND_WRAPPER="$WRAPPER_DIR/start-security-frontend.sh"
 
 cat > "$FRONTEND_WRAPPER" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # Wait for backend to be healthy before starting frontend
 BACKEND_CONTAINER="nemotron-v3-home-security-intelligence_backend_1"
 FRONTEND_CONTAINER="nemotron-v3-home-security-intelligence_frontend_1"

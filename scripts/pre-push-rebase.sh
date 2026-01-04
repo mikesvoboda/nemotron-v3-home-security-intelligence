@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Pre-push hook: Auto-rebase on origin's default branch before pushing
 #
 # This hook fetches the default branch and rebases the current branch if needed.
