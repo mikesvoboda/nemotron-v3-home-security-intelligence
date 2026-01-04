@@ -737,6 +737,7 @@ Sent when service health changes:
 
 ### Performance Update Message
 
+<<<<<<< HEAD
 Sent periodically (every 5 seconds) with detailed system performance metrics. This message provides comprehensive monitoring data for the AI Performance dashboard.
 
 **Message Type:** `performance_update`
@@ -969,6 +970,9 @@ Array of alerts when metrics exceed configured thresholds:
 | `redis_hit_ratio` | <50%    | <10%     |
 
 #### Complete Example
+=======
+Sent periodically with detailed system performance metrics:
+>>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
 
 ```json
 {
@@ -977,6 +981,7 @@ Array of alerts when metrics exceed configured thresholds:
     "timestamp": "2024-01-15T10:30:00.000000",
     "gpu": {
       "name": "NVIDIA RTX A5500",
+<<<<<<< HEAD
       "utilization": 38.0,
       "vram_used_gb": 22.7,
       "vram_total_gb": 24.0,
@@ -1009,11 +1014,40 @@ Array of alerts when metrics exceed configured thresholds:
       "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
       "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
       "queues": { "detection": 0, "analysis": 0 }
+=======
+      "utilization": 45.2,
+      "vram_used_gb": 7.5,
+      "vram_total_gb": 24.0,
+      "temperature": 65,
+      "power_watts": 125.5
+    },
+    "ai_models": {
+      "rtdetr": {
+        "status": "loaded",
+        "vram_gb": 4.2,
+        "model": "RT-DETRv2-L",
+        "device": "cuda:0"
+      }
+    },
+    "nemotron": {
+      "status": "running",
+      "slots_active": 1,
+      "slots_total": 4,
+      "context_size": 4096
+    },
+    "inference": {
+      "rtdetr_latency_ms": { "p50": 35, "p95": 52, "p99": 68 },
+      "nemotron_latency_ms": { "p50": 2100, "p95": 3500, "p99": 4200 },
+      "pipeline_latency_ms": { "avg": 2500, "p95": 4000 },
+      "throughput": { "detections_per_min": 45, "events_per_hour": 12 },
+      "queues": { "detection_queue": 3, "analysis_queue": 1 }
+>>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
     },
     "databases": {
       "postgresql": {
         "status": "healthy",
         "connections_active": 5,
+<<<<<<< HEAD
         "connections_max": 30,
         "cache_hit_ratio": 98.2,
         "transactions_per_min": 1200
@@ -1023,10 +1057,22 @@ Array of alerts when metrics exceed configured thresholds:
         "connected_clients": 8,
         "memory_mb": 1.5,
         "hit_ratio": 99.5,
+=======
+        "connections_max": 100,
+        "cache_hit_ratio": 0.98,
+        "transactions_per_min": 120
+      },
+      "redis": {
+        "status": "healthy",
+        "connected_clients": 3,
+        "memory_mb": 128,
+        "hit_ratio": 0.95,
+>>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
         "blocked_clients": 0
       }
     },
     "host": {
+<<<<<<< HEAD
       "cpu_percent": 12.0,
       "ram_used_gb": 8.2,
       "ram_total_gb": 32.0,
@@ -1042,6 +1088,27 @@ Array of alerts when metrics exceed configured thresholds:
       { "name": "ai-llm", "status": "running", "health": "healthy" }
     ],
     "alerts": []
+=======
+      "cpu_percent": 25.5,
+      "ram_used_gb": 12.5,
+      "ram_total_gb": 64.0,
+      "disk_used_gb": 250.0,
+      "disk_total_gb": 1000.0
+    },
+    "containers": [
+      { "name": "backend", "status": "running", "health": "healthy" },
+      { "name": "rtdetr", "status": "running", "health": "healthy" }
+    ],
+    "alerts": [
+      {
+        "severity": "warning",
+        "metric": "gpu_temperature",
+        "value": 82,
+        "threshold": 80,
+        "message": "GPU temperature above threshold"
+      }
+    ]
+>>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
   }
 }
 ```
