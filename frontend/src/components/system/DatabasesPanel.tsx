@@ -80,6 +80,7 @@ function getStatusColor(status: string): 'green' | 'red' | 'yellow' | 'gray' {
     case 'healthy':
       return 'green';
     case 'unhealthy':
+    case 'unreachable':
       return 'red';
     case 'degraded':
       return 'yellow';

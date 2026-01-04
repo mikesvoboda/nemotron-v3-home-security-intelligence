@@ -2361,7 +2361,38 @@ export interface paths {
          *         SeverityMetadataResponse with all severity definitions and current thresholds
          */
         get: operations["get_severity_metadata_api_system_severity_get"];
-        put?: never;
+        /**
+         * Update Severity Thresholds
+         * @description Update severity threshold configuration.
+         *
+         *     Updates the risk score thresholds for severity levels. The thresholds
+         *     define how risk scores (0-100) are mapped to severity levels:
+         *     - LOW: 0 to low_max
+         *     - MEDIUM: low_max+1 to medium_max
+         *     - HIGH: medium_max+1 to high_max
+         *     - CRITICAL: high_max+1 to 100
+         *
+         *     Requires API key authentication when api_key_enabled is True in settings.
+         *     Provide the API key via X-API-Key header.
+         *
+         *     Validation:
+         *     - Thresholds must be strictly ordered: low_max < medium_max < high_max
+         *     - All thresholds must be between 1 and 99
+         *     - This ensures contiguous, non-overlapping ranges covering 0-100
+         *
+         *     Note: Changes only affect new events. Existing events retain their
+         *     original severity assignment.
+         *
+         *     Args:
+         *         update: New threshold values
+         *
+         *     Returns:
+         *         SeverityMetadataResponse with updated definitions and thresholds
+         *
+         *     Raises:
+         *         HTTPException 400: If thresholds are not strictly ordered
+         */
+        put: operations["update_severity_thresholds_api_system_severity_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -7767,6 +7798,42 @@ export interface components {
             high_max: number;
         };
         /**
+         * SeverityThresholdsUpdateRequest
+         * @description Request schema for updating severity thresholds.
+         *
+         *     The thresholds must form contiguous ranges from 0-100:
+         *     - LOW: 0 to low_max (inclusive)
+         *     - MEDIUM: low_max+1 to medium_max (inclusive)
+         *     - HIGH: medium_max+1 to high_max (inclusive)
+         *     - CRITICAL: high_max+1 to 100 (inclusive)
+         *
+         *     Validation rules:
+         *     - 0 < low_max < medium_max < high_max < 100
+         *     - This ensures all ranges are valid and cover 0-100 without gaps or overlaps
+         * @example {
+         *       "high_max": 84,
+         *       "low_max": 29,
+         *       "medium_max": 59
+         *     }
+         */
+        SeverityThresholdsUpdateRequest: {
+            /**
+             * Low Max
+             * @description Maximum risk score for LOW severity (1-98)
+             */
+            low_max: number;
+            /**
+             * Medium Max
+             * @description Maximum risk score for MEDIUM severity (2-99)
+             */
+            medium_max: number;
+            /**
+             * High Max
+             * @description Maximum risk score for HIGH severity (3-99)
+             */
+            high_max: number;
+        };
+        /**
          * StageLatency
          * @description Latency statistics for a single pipeline stage.
          * @example {
@@ -11107,6 +11174,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SeverityMetadataResponse"];
+                };
+            };
+        };
+    };
+    update_severity_thresholds_api_system_severity_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeverityThresholdsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeverityMetadataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

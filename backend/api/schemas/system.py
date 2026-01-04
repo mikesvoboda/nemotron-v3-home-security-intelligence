@@ -1066,6 +1066,50 @@ class SeverityMetadataResponse(BaseModel):
     )
 
 
+class SeverityThresholdsUpdateRequest(BaseModel):
+    """Request schema for updating severity thresholds.
+
+    The thresholds must form contiguous ranges from 0-100:
+    - LOW: 0 to low_max (inclusive)
+    - MEDIUM: low_max+1 to medium_max (inclusive)
+    - HIGH: medium_max+1 to high_max (inclusive)
+    - CRITICAL: high_max+1 to 100 (inclusive)
+
+    Validation rules:
+    - 0 < low_max < medium_max < high_max < 100
+    - This ensures all ranges are valid and cover 0-100 without gaps or overlaps
+    """
+
+    low_max: int = Field(
+        ...,
+        description="Maximum risk score for LOW severity (1-98)",
+        ge=1,
+        le=98,
+    )
+    medium_max: int = Field(
+        ...,
+        description="Maximum risk score for MEDIUM severity (2-99)",
+        ge=2,
+        le=99,
+    )
+    high_max: int = Field(
+        ...,
+        description="Maximum risk score for HIGH severity (3-99)",
+        ge=3,
+        le=99,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "low_max": 29,
+                "medium_max": 59,
+                "high_max": 84,
+            }
+        }
+    )
+
+
 # =============================================================================
 # Storage Schemas
 # =============================================================================

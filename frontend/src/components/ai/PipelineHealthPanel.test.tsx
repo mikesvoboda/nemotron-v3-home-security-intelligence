@@ -199,7 +199,7 @@ describe('PipelineHealthPanel', () => {
     it('does not display all-clear when there are DLQ items', () => {
       const dlqProps = {
         ...healthyProps,
-        dlqItems: { detection_dlq: 3 },
+        dlqItems: { 'dlq:detection_queue': 3 },
       };
       render(<PipelineHealthPanel {...dlqProps} />);
       expect(screen.queryByTestId('all-clear-card')).not.toBeInTheDocument();
@@ -269,7 +269,7 @@ describe('PipelineHealthPanel', () => {
     it('displays DLQ section with items', () => {
       const dlqProps = {
         ...healthyProps,
-        dlqItems: { detection_dlq: 3, analysis_dlq: 2 },
+        dlqItems: { 'dlq:detection_queue': 3, 'dlq:analysis_queue': 2 },
       };
       render(<PipelineHealthPanel {...dlqProps} />);
       expect(screen.getByText('Dead Letter Queue')).toBeInTheDocument();
@@ -278,10 +278,48 @@ describe('PipelineHealthPanel', () => {
       expect(itemTexts.length).toBeGreaterThan(0);
     });
 
+    it('displays DLQ queue names formatted correctly', () => {
+      const dlqProps = {
+        ...healthyProps,
+        dlqItems: { 'dlq:detection_queue': 1611, 'dlq:analysis_queue': 5 },
+      };
+      render(<PipelineHealthPanel {...dlqProps} />);
+      const dlqSection = screen.getByTestId('dlq-items-section');
+      // Check the DLQ section contains the formatted queue names
+      // formatDlqQueueName converts 'dlq:detection_queue' -> 'Detection Queue'
+      expect(dlqSection).toHaveTextContent('Detection Queue');
+      expect(dlqSection).toHaveTextContent('Analysis Queue');
+    });
+
+    it('displays large DLQ counts with commas', () => {
+      const dlqProps = {
+        ...healthyProps,
+        dlqItems: { 'dlq:detection_queue': 1611, 'dlq:analysis_queue': 0 },
+      };
+      render(<PipelineHealthPanel {...dlqProps} />);
+      // Total badge shows count with commas (formatNumberWithCommas)
+      expect(screen.getByTestId('dlq-total-badge')).toHaveTextContent('1,611 items');
+    });
+
+    it('displays only non-zero queues in DLQ breakdown', () => {
+      // Note: The filtering of zero counts happens in useAIMetrics, not in PipelineHealthPanel
+      // So we test that when only detection_queue is provided, only it is displayed
+      const dlqProps = {
+        ...healthyProps,
+        dlqItems: { 'dlq:detection_queue': 1611 },
+      };
+      render(<PipelineHealthPanel {...dlqProps} />);
+      const dlqSection = screen.getByTestId('dlq-items-section');
+      // Detection Queue should be visible in DLQ section
+      expect(dlqSection).toHaveTextContent('Detection Queue');
+      // Analysis Queue should NOT be visible since it wasn't provided
+      expect(dlqSection).not.toHaveTextContent('Analysis Queue');
+    });
+
     it('displays DLQ help message', () => {
       const dlqProps = {
         ...healthyProps,
-        dlqItems: { detection_dlq: 3 },
+        dlqItems: { 'dlq:detection_queue': 3 },
       };
       render(<PipelineHealthPanel {...dlqProps} />);
       expect(
@@ -307,7 +345,7 @@ describe('PipelineHealthPanel', () => {
         ...healthyProps,
         pipelineErrors: { detection_error: 5 },
         queueOverflows: { detection_queue: 10 },
-        dlqItems: { detection_dlq: 3 },
+        dlqItems: { 'dlq:detection_queue': 3 },
       };
       render(<PipelineHealthPanel {...allErrorsProps} />);
 
@@ -335,7 +373,7 @@ describe('PipelineHealthPanel', () => {
         ...healthyProps,
         pipelineErrors: {},
         queueOverflows: {},
-        dlqItems: { detection_dlq: 3 },
+        dlqItems: { 'dlq:detection_queue': 3 },
       };
       render(<PipelineHealthPanel {...onlyDlqProps} />);
 
