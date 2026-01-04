@@ -32,6 +32,7 @@ These guides help you understand what you see when you open the app.
 | ---------------------------------------------------- | -------------------------------------- | ------- |
 | [Dashboard Basics](user/dashboard-basics.md)         | Layout, header, sidebar, quick stats   | ~8 min  |
 | [Viewing Events](user/viewing-events.md)             | Activity feed, timeline, event details | ~10 min |
+| [AI Enrichment Data](user/ai-enrichment.md)          | Advanced AI analysis in event details  | ~8 min  |
 | [Understanding Alerts](user/understanding-alerts.md) | Risk levels and how to respond         | ~8 min  |
 | [Dashboard Settings](user/dashboard-settings.md)     | Configuration and quick reference      | ~5 min  |
 

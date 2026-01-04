@@ -2,103 +2,159 @@
 
 ## Purpose
 
-This directory contains the core business logic and background services for the AI-powered home security monitoring system. Services orchestrate the complete detection pipeline from file monitoring through AI analysis to event creation.
+This directory contains the core business logic and background services for the AI-powered home security monitoring system. Services orchestrate the complete detection pipeline from file monitoring through AI analysis to event creation, along with context enrichment, re-identification, and model zoo management.
 
 ## Architecture Overview
 
 The services implement a multi-stage async pipeline with real-time broadcasting and background maintenance:
 
 ```
-File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasting
-   (1)          (2)         (3)         (4)         (5)              (6)
+File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation -> Broadcasting
+   (1)          (2)         (3)          (4)          (5)          (6)              (7)
 
                      Monitoring Services (Parallel)
                      ├── GPUMonitor (polls GPU stats)
                      ├── SystemBroadcaster (system status)
                      ├── HealthMonitor (service recovery)
-                     └── CleanupService (retention policy)
+                     ├── CleanupService (retention policy)
+                     └── PerformanceCollector (metrics aggregation)
 ```
 
-### Core AI Pipeline Services
+### Service Categories
 
-1. **FileWatcher** - Monitors camera directories for new image and video uploads
-2. **DedupeService** - Prevents duplicate file processing via content hashing
-3. **DetectorClient** - Sends images to RT-DETRv2 for object detection
-4. **BatchAggregator** - Groups detections into time-based batches
-5. **NemotronAnalyzer** - Analyzes batches with LLM for risk scoring
-6. **ThumbnailGenerator** - Creates preview images with bounding boxes
-7. **VideoProcessor** - Extracts metadata and thumbnails from video files using ffmpeg
-8. **EventBroadcaster** - Distributes events via WebSocket to frontend
-
-### Pipeline Workers
-
-- **DetectionQueueWorker** - Consumes from detection_queue, runs detection
-- **AnalysisQueueWorker** - Consumes from analysis_queue, runs LLM analysis
-- **BatchTimeoutWorker** - Periodically checks and closes timed-out batches
-- **QueueMetricsWorker** - Updates Prometheus metrics for queue depths
-- **PipelineWorkerManager** - Unified lifecycle management for all workers
-
-### Background Services
-
-- **GPUMonitor** - Polls NVIDIA GPU metrics and stores statistics
-- **SystemBroadcaster** - Aggregates and broadcasts system health status
-- **CleanupService** - Enforces data retention policies and frees disk space
-- **ServiceHealthMonitor** - Monitors external service health with auto-recovery
-
-### Infrastructure Services
-
-- **RetryHandler** - Exponential backoff and dead-letter queue support
-- **ServiceManager** - Strategy pattern for service restarts (Shell/Docker)
-- **CircuitBreaker** - Circuit breaker pattern for service resilience
-- **DegradationManager** - Graceful degradation during service outages
+1. **Core AI Pipeline** - File watching, detection, batching, analysis
+2. **AI Clients** - HTTP clients for external AI services (Florence, CLIP)
+3. **Context Enrichment** - Zone detection, baseline tracking, re-identification
+4. **Model Zoo** - On-demand model loading for attribute extraction
+5. **Model Loaders** - Individual model loading functions for Model Zoo
+6. **Pipeline Workers** - Background queue consumers and managers
+7. **Background Services** - GPU monitoring, cleanup, health checks
+8. **Infrastructure** - Circuit breakers, retry handlers, degradation
+9. **Alerting** - Alert rules, deduplication, notifications
+10. **Utility** - Search, severity mapping, prompt templates
 
 ## Service Files Overview
 
-| Service                    | Purpose                                          | Type           | Exported via `__init__.py` |
-| -------------------------- | ------------------------------------------------ | -------------- | -------------------------- |
-| `file_watcher.py`          | Monitor camera directories for media uploads     | Core Pipeline  | Yes                        |
-| `dedupe.py`                | Prevent duplicate file processing                | Core Pipeline  | Yes                        |
-| `detector_client.py`       | Send images to RT-DETRv2 for detection           | Core Pipeline  | Yes                        |
-| `batch_aggregator.py`      | Group detections into time-based batches         | Core Pipeline  | Yes                        |
-| `nemotron_analyzer.py`     | LLM-based risk analysis via llama.cpp            | Core Pipeline  | Yes                        |
-| `thumbnail_generator.py`   | Generate preview images with bounding boxes      | Core Pipeline  | Yes                        |
-| `video_processor.py`       | Extract video metadata and thumbnails            | Core Pipeline  | No (import directly)       |
-| `pipeline_workers.py`      | Background queue workers and manager             | Workers        | No (import directly)       |
-| `event_broadcaster.py`     | Distribute events via WebSocket                  | Broadcasting   | Yes                        |
-| `system_broadcaster.py`    | Broadcast system health status                   | Broadcasting   | No (import directly)       |
-| `gpu_monitor.py`           | Poll NVIDIA GPU metrics                          | Background     | Yes                        |
-| `cleanup_service.py`       | Enforce data retention policies                  | Background     | Yes                        |
-| `health_monitor.py`        | Monitor service health with auto-recovery        | Background     | No (import directly)       |
-| `retry_handler.py`         | Exponential backoff and DLQ support              | Infrastructure | Yes                        |
-| `service_managers.py`      | Strategy pattern for service management          | Infrastructure | No (import directly)       |
-| `circuit_breaker.py`       | Circuit breaker for service resilience           | Infrastructure | Yes                        |
-| `degradation_manager.py`   | Graceful degradation management                  | Infrastructure | Yes                        |
-| `prompts.py`               | LLM prompt templates                             | Utility        | No (import directly)       |
-| `alert_engine.py`          | Evaluate alert rules against events              | Alerting       | Yes                        |
-| `alert_dedup.py`           | Alert deduplication logic                        | Alerting       | Yes                        |
-| `notification.py`          | Multi-channel notification delivery              | Alerting       | Yes                        |
-| `search.py`                | Full-text search for events                      | Query          | Yes                        |
-| `severity.py`              | Severity level mapping and configuration         | Utility        | Yes                        |
-| `zone_service.py`          | Zone detection and context generation            | Core Pipeline  | Yes                        |
-| `baseline.py`              | Activity baseline tracking for anomaly detection | Core Pipeline  | Yes                        |
-| `audit.py`                 | Audit logging for security-sensitive actions     | Infrastructure | Yes                        |
-| `clip_generator.py`        | Video clip generation for events                 | Core Pipeline  | Yes                        |
-| `performance_collector.py` | Collect system performance metrics               | Background     | No (import directly)       |
+### Core AI Pipeline Services
 
-**Import Pattern:**
+| Service                  | Purpose                                      | Exported via `__init__.py` |
+| ------------------------ | -------------------------------------------- | -------------------------- |
+| `file_watcher.py`        | Monitor camera directories for media uploads | Yes                        |
+| `dedupe.py`              | Prevent duplicate file processing            | Yes                        |
+| `detector_client.py`     | Send images to RT-DETRv2 for detection       | Yes                        |
+| `batch_aggregator.py`    | Group detections into time-based batches     | Yes                        |
+| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Yes                        |
+| `thumbnail_generator.py` | Generate preview images with bounding boxes  | Yes                        |
+| `video_processor.py`     | Extract video metadata and thumbnails        | No (import directly)       |
+| `event_broadcaster.py`   | Distribute events via WebSocket              | Yes                        |
 
-```python
-# For exported services (most common)
-from backend.services import FileWatcher, DetectorClient, NemotronAnalyzer
+### AI Client Services
 
-# For non-exported services (import directly)
-from backend.services.video_processor import VideoProcessor
-from backend.services.pipeline_workers import PipelineWorkerManager
-from backend.services.health_monitor import ServiceHealthMonitor
-from backend.services.performance_collector import PerformanceCollector
-```
+| Service              | Purpose                                    | Exported via `__init__.py` |
+| -------------------- | ------------------------------------------ | -------------------------- |
+| `florence_client.py` | HTTP client for Florence-2 vision-language | No (import directly)       |
+| `clip_client.py`     | HTTP client for CLIP embedding generation  | No (import directly)       |
 
-## Service Files
+### Context Enrichment Services
+
+| Service                    | Purpose                                          | Exported via `__init__.py` |
+| -------------------------- | ------------------------------------------------ | -------------------------- |
+| `context_enricher.py`      | Aggregate context from zones, baselines, reid    | No (import directly)       |
+| `enrichment_pipeline.py`   | Orchestrate Model Zoo enrichment for batches     | No (import directly)       |
+| `enrichment_client.py`     | HTTP client for enrichment service               | No (import directly)       |
+| `vision_extractor.py`      | Florence-2 attribute extraction orchestration    | No (import directly)       |
+| `florence_extractor.py`    | Florence-2 specific extraction logic             | No (import directly)       |
+| `zone_service.py`          | Zone detection and context generation            | Yes                        |
+| `baseline.py`              | Activity baseline tracking for anomaly detection | Yes                        |
+| `scene_baseline.py`        | Scene-level baseline tracking                    | No (import directly)       |
+| `scene_change_detector.py` | SSIM-based scene change detection                | No (import directly)       |
+| `reid_service.py`          | Entity re-identification across cameras          | No (import directly)       |
+| `bbox_validation.py`       | Bounding box validation utilities                | No (import directly)       |
+
+### Model Zoo Services
+
+| Service        | Purpose                                      | Exported via `__init__.py` |
+| -------------- | -------------------------------------------- | -------------------------- |
+| `model_zoo.py` | Registry and manager for on-demand AI models | No (import directly)       |
+
+### Model Loader Services
+
+| Service                        | Purpose                                          | Exported via `__init__.py` |
+| ------------------------------ | ------------------------------------------------ | -------------------------- |
+| `clip_loader.py`               | Load CLIP ViT-L for embeddings                   | No (import directly)       |
+| `florence_loader.py`           | Load Florence-2 for vision-language              | No (import directly)       |
+| `yolo_world_loader.py`         | Load YOLO-World for open-vocabulary detection    | No (import directly)       |
+| `vitpose_loader.py`            | Load ViTPose for human pose estimation           | No (import directly)       |
+| `depth_anything_loader.py`     | Load Depth Anything for depth estimation         | No (import directly)       |
+| `violence_loader.py`           | Load violence detection model                    | No (import directly)       |
+| `weather_loader.py`            | Load weather classification model                | No (import directly)       |
+| `segformer_loader.py`          | Load SegFormer for clothing segmentation         | No (import directly)       |
+| `xclip_loader.py`              | Load X-CLIP for action recognition               | No (import directly)       |
+| `fashion_clip_loader.py`       | Load Fashion-CLIP for clothing classification    | No (import directly)       |
+| `image_quality_loader.py`      | Load BRISQUE for image quality assessment        | No (import directly)       |
+| `vehicle_classifier_loader.py` | Load vehicle segment classifier                  | No (import directly)       |
+| `vehicle_damage_loader.py`     | Load vehicle damage detection model              | No (import directly)       |
+| `pet_classifier_loader.py`     | Load pet classifier for false positive reduction | No (import directly)       |
+
+### Specialized Detection Services
+
+| Service             | Purpose                                     | Exported via `__init__.py` |
+| ------------------- | ------------------------------------------- | -------------------------- |
+| `plate_detector.py` | License plate detection and OCR             | No (import directly)       |
+| `face_detector.py`  | Face detection for person re-identification | No (import directly)       |
+| `ocr_service.py`    | OCR text extraction from detected regions   | No (import directly)       |
+
+### Pipeline Workers
+
+| Service               | Purpose                              | Exported via `__init__.py` |
+| --------------------- | ------------------------------------ | -------------------------- |
+| `pipeline_workers.py` | Background queue workers and manager | No (import directly)       |
+
+### Background Services
+
+| Service                    | Purpose                                   | Exported via `__init__.py` |
+| -------------------------- | ----------------------------------------- | -------------------------- |
+| `gpu_monitor.py`           | Poll NVIDIA GPU metrics                   | Yes                        |
+| `cleanup_service.py`       | Enforce data retention policies           | Yes                        |
+| `health_monitor.py`        | Monitor service health with auto-recovery | No (import directly)       |
+| `system_broadcaster.py`    | Broadcast system health status            | No (import directly)       |
+| `performance_collector.py` | Collect system performance metrics        | No (import directly)       |
+
+### Infrastructure Services
+
+| Service                  | Purpose                                 | Exported via `__init__.py` |
+| ------------------------ | --------------------------------------- | -------------------------- |
+| `retry_handler.py`       | Exponential backoff and DLQ support     | Yes                        |
+| `service_managers.py`    | Strategy pattern for service management | No (import directly)       |
+| `circuit_breaker.py`     | Circuit breaker for service resilience  | Yes                        |
+| `degradation_manager.py` | Graceful degradation management         | Yes                        |
+| `cache_service.py`       | Redis caching utilities                 | No (import directly)       |
+
+### Alerting Services
+
+| Service           | Purpose                             | Exported via `__init__.py` |
+| ----------------- | ----------------------------------- | -------------------------- |
+| `alert_engine.py` | Evaluate alert rules against events | Yes                        |
+| `alert_dedup.py`  | Alert deduplication logic           | Yes                        |
+| `notification.py` | Multi-channel notification delivery | Yes                        |
+
+### Audit Services
+
+| Service            | Purpose                                      | Exported via `__init__.py` |
+| ------------------ | -------------------------------------------- | -------------------------- |
+| `audit.py`         | Audit logging for security-sensitive actions | Yes                        |
+| `audit_service.py` | AI pipeline audit and self-evaluation        | No (import directly)       |
+
+### Utility Services
+
+| Service             | Purpose                                  | Exported via `__init__.py` |
+| ------------------- | ---------------------------------------- | -------------------------- |
+| `prompts.py`        | LLM prompt templates                     | No (import directly)       |
+| `search.py`         | Full-text search for events              | Yes                        |
+| `severity.py`       | Severity level mapping and configuration | Yes                        |
+| `clip_generator.py` | Video clip generation for events         | Yes                        |
+
+## Detailed Service Documentation
 
 ### file_watcher.py
 
@@ -109,10 +165,7 @@ from backend.services.performance_collector import PerformanceCollector
 - Watchdog-based filesystem monitoring (recursive)
 - Supports both images (.jpg, .jpeg, .png) and videos (.mp4, .mkv, .avi, .mov)
 - Debounce logic (0.5s default) to wait for complete file writes
-- Image integrity validation using PIL (checks for corruption, zero-byte files)
-- Video validation (file exists, minimum size check of 1KB)
-- Async-compatible design with thread-safe event loop scheduling
-- Camera ID derived from folder name via `normalize_camera_id()`
+- Image integrity validation using PIL
 - Integrates with DedupeService for content-hash based deduplication
 - Supports both native filesystem events (inotify/FSEvents) and polling mode
 
@@ -122,27 +175,6 @@ from backend.services.performance_collector import PerformanceCollector
 - Polling mode: Enabled via `FILE_WATCHER_POLLING` env var or `settings.file_watcher_polling`
 - Use polling for Docker Desktop, NFS/SMB mounts where inotify events don't propagate
 
-**Supported File Types:**
-
-- **Images:** `.jpg`, `.jpeg`, `.png`
-- **Videos:** `.mp4`, `.mkv`, `.avi`, `.mov`
-
-**Public API (exported from `backend.services`):**
-
-- `FileWatcher(camera_root, redis_client, debounce_delay, queue_name, dedupe_service)` - Initialize watcher
-- `async start()` - Begin monitoring camera directories
-- `async stop()` - Gracefully shutdown (cancels pending tasks)
-- `is_image_file(path)` - Validate image extension (module-level function)
-- `is_valid_image(path)` - Validate image integrity with PIL (module-level function)
-
-**Additional module-level functions (not exported):**
-
-- `is_video_file(path)` - Validate video extension
-- `is_supported_media_file(path)` - Validate any supported media extension
-- `get_media_type(path)` - Returns "image", "video", or None
-- `is_valid_video(path)` - Validate video file exists and has content (>1KB)
-- `is_valid_media_file(path)` - Validate either image or video
-
 **Camera ID Contract:**
 
 ```
@@ -151,60 +183,12 @@ Upload path: /export/foscam/Front Door/image.jpg
 -> camera_id: "front_door" (normalized)
 ```
 
-Auto-creates Camera record if `auto_create_cameras` is enabled (default: True).
-
-**Data Flow:**
-
-1. Watchdog detects file creation/modification event
-2. Checks if file has supported media extension (image or video)
-3. Schedules async task via `asyncio.run_coroutine_threadsafe()`
-4. Debounces by cancelling/recreating pending task on each event
-5. After debounce delay, validates media and extracts camera ID
-6. Checks for duplicates via DedupeService (SHA256 content hash)
-7. Queues to Redis `detection_queue` with `{camera_id, file_path, timestamp, media_type, file_hash}`
-
-**Error Handling:**
-
-- Warns on invalid/corrupted media files (skips processing)
-- Logs errors for queue failures
-- Creates camera root directory if missing
-- Skips duplicate files based on content hash
-- Uses QueueOverflowPolicy for queue capacity management
-
-### dedupe.py
-
-**Purpose:** Provides file deduplication to prevent duplicate processing using content hashes.
-
-**Key Features:**
-
-- SHA256 content hash of image files for idempotency
-- Redis as primary dedupe cache with configurable TTL (default 5 minutes)
-- Database fallback when Redis is unavailable
-- Fail-open design for availability (processes if dedupe unavailable)
-- Thread-safe and async-compatible
-
 **Public API:**
 
-- `compute_file_hash(file_path)` - Compute SHA256 hash of file content
-- `DedupeService(redis_client, ttl_seconds)` - Initialize service
-- `async is_duplicate(file_path, file_hash)` - Check if file was already processed
-- `async mark_processed(file_path, file_hash)` - Mark file as processed
-- `async is_duplicate_and_mark(file_path)` - Atomic check-and-mark operation
-- `async clear_hash(file_hash)` - Clear hash from cache (for testing/reprocessing)
-- `get_dedupe_service(redis_client)` - Get/create global singleton
-- `reset_dedupe_service()` - Reset singleton (for testing)
-
-**Redis Keys:**
-
-```
-dedupe:{sha256_hash}  -> file_path (with TTL)
-```
-
-**Error Handling:**
-
-- Redis unavailable: Fails open (allows processing)
-- File read errors: Returns False (don't process corrupted files)
-- Empty files: Logs warning, returns None hash
+- `FileWatcher(camera_root, redis_client, debounce_delay, queue_name, dedupe_service)`
+- `async start()` - Begin monitoring camera directories
+- `async stop()` - Gracefully shutdown
+- `is_image_file(path)`, `is_video_file(path)`, `is_supported_media_file(path)`
 
 ### detector_client.py
 
@@ -213,31 +197,16 @@ dedupe:{sha256_hash}  -> file_path (with TTL)
 **Key Features:**
 
 - Async HTTP client using httpx
-- Confidence threshold filtering (default from config)
+- Confidence threshold filtering
 - Direct database persistence (creates Detection records)
 - 30-second timeout for detection requests
-- Prometheus metrics for AI request duration and pipeline errors
+- Prometheus metrics for AI request duration
 
 **Public API:**
 
 - `DetectorClient()` - Initialize with settings
 - `async health_check()` - Check if detector is reachable
 - `async detect_objects(image_path, camera_id, session)` - Detect and store
-
-**Data Flow:**
-
-1. Read image file as bytes
-2. POST to `{rtdetr_url}/detect` with multipart/form-data
-3. Parse JSON response: `{"detections": [{"class": "person", "confidence": 0.95, "bbox": [x,y,w,h]}, ...]}`
-4. Filter detections by confidence threshold
-5. Create Detection model instances with bbox coordinates
-6. Commit to database, return Detection list
-
-**Error Handling:**
-
-- Returns empty list `[]` on all errors
-- Logs detailed error messages for debugging
-- Records pipeline error metrics
 
 ### batch_aggregator.py
 
@@ -248,271 +217,383 @@ dedupe:{sha256_hash}  -> file_path (with TTL)
 - **Window timeout:** 90 seconds from batch start (configurable)
 - **Idle timeout:** 30 seconds since last detection (configurable)
 - **One batch per camera:** Each camera has max 1 active batch at a time
-- **Fast path:** High-confidence critical detections bypass batching for immediate analysis
+- **Fast path:** High-confidence critical detections bypass batching
 
-**Redis Keys:**
+**Redis Keys (all keys have 1-hour TTL for orphan cleanup):**
 
 ```
-batch:{camera_id}:current         -> current batch ID (string)
-batch:{batch_id}:camera_id        -> camera ID (string)
-batch:{batch_id}:detections       -> JSON array of detection IDs
-batch:{batch_id}:started_at       -> Unix timestamp (float)
-batch:{batch_id}:last_activity    -> Unix timestamp (float)
+batch:{camera_id}:current         -> current batch ID
+batch:{batch_id}:camera_id        -> camera ID
+batch:{batch_id}:detections       -> LIST of detection IDs (RPUSH for atomic append)
+batch:{batch_id}:started_at       -> Unix timestamp
+batch:{batch_id}:last_activity    -> Unix timestamp
 ```
+
+**Concurrency:** Uses per-camera locks plus global lock for batch operations. Detection list updates use Redis RPUSH for atomic append in distributed environments.
 
 **Public API:**
 
-- `BatchAggregator(redis_client, analyzer)` - Initialize with Redis and optional analyzer for fast path
-- `async add_detection(camera_id, detection_id, file_path, confidence, object_type)` - Add to batch
-- `async check_batch_timeouts()` - Close expired batches, returns closed batch IDs
+- `BatchAggregator(redis_client, analyzer)`
+- `async add_detection(camera_id, detection_id, file_path, confidence, object_type)`
+- `async check_batch_timeouts()` - Close expired batches
 - `async close_batch(batch_id)` - Force close and push to analysis queue
 
 ### nemotron_analyzer.py
 
 **Purpose:** LLM-based risk analysis using Nemotron via llama.cpp server.
 
-**Key Features:**
+**Analysis Flow:**
 
-- Fetches batch detections from database
-- Formats structured prompt with detection details
-- Calls llama.cpp `/completion` endpoint
-- Parses JSON from LLM response (handles extra text)
-- Creates Event records with risk scores
-- Broadcasts via WebSocket (optional)
+1. Fetch batch detections from Redis/database
+2. Enrich context with zones, baselines, and cross-camera activity
+3. Run enrichment pipeline for license plates, faces, OCR (optional)
+4. Format prompt with enriched detection details
+5. POST to llama.cpp completion endpoint
+6. Parse JSON response
+7. Create Event with risk assessment
+8. Store Event in database
+9. Broadcast via WebSocket (if available)
+
+**Prompt Templates:**
+
+- `RISK_ANALYSIS_PROMPT` - Basic risk analysis
+- `ENRICHED_RISK_ANALYSIS_PROMPT` - With context enrichment
+- `VISION_ENHANCED_RISK_ANALYSIS_PROMPT` - With Florence-2 attributes
+- `MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT` - Full Model Zoo enrichment
 
 **Public API:**
 
-- `NemotronAnalyzer(redis_client)` - Initialize with Redis
+- `NemotronAnalyzer(redis_client, context_enricher, enrichment_pipeline)`
 - `async analyze_batch(batch_id)` - Analyze batch and create Event
-- `async analyze_detection_fast_path(camera_id, detection_id)` - Analyze single detection immediately
+- `async analyze_detection_fast_path(camera_id, detection_id)` - Immediate analysis
 - `async health_check()` - Check if LLM server is reachable
 
-### thumbnail_generator.py
+### context_enricher.py
 
-**Purpose:** Generate thumbnail previews with bounding boxes for detection visualization.
+**Purpose:** Aggregates contextual information from multiple sources for LLM prompts.
 
-**Key Features:**
+**Context Sources:**
 
-- Draws colored bounding boxes based on object type
-- Adds text labels with confidence scores
-- Resizes to 320x240 with aspect ratio preservation
-- Saves as optimized JPEG (quality 85)
+- Zone information (from zone_service)
+- Activity baselines (from baseline)
+- Cross-camera activity (recent detections on other cameras)
 
-**Color Scheme:**
+**Key Classes:**
+
+- `EnrichedContext` - Dataclass holding all enrichment data
+- `ContextEnricher` - Service class for context aggregation
+
+**Public API:**
+
+- `ContextEnricher(session)` - Initialize with database session
+- `async enrich_detections(camera_id, detections)` - Get context for detections
+- `get_context_enricher()` - Get global singleton
+- `reset_context_enricher()` - Reset singleton (for testing)
+
+### enrichment_pipeline.py
+
+**Purpose:** Orchestrates Model Zoo enrichment during batch analysis.
+
+**Enrichment Flow:**
+
+1. Load appropriate models based on detection types
+2. Extract license plates from vehicles (YOLO + PaddleOCR)
+3. Detect faces on persons (YOLO)
+4. Generate embeddings for re-identification (CLIP)
+5. Run vision-language queries (Florence-2)
+6. Extract pose, clothing, vehicle type attributes
+7. Assess violence, weather, image quality
+
+**Key Classes:**
+
+- `DetectionInput` - Input detection with bbox and image path
+- `BoundingBox` - Validated bounding box coordinates
+- `EnrichmentResult` - All extracted attributes and metadata
+- `EnrichmentPipeline` - Main orchestration class
+
+**Public API:**
+
+- `EnrichmentPipeline(model_manager, redis_client)`
+- `async enrich_batch(image_path, detections)` - Run full enrichment
+- `get_enrichment_pipeline()` - Get global singleton
+- `reset_enrichment_pipeline()` - Reset singleton (for testing)
+
+### model_zoo.py
+
+**Purpose:** Registry and manager for on-demand AI model loading with VRAM optimization.
+
+**Available Models:**
+
+| Model Name                     | Category           | VRAM (MB) | Purpose                                           |
+| ------------------------------ | ------------------ | --------- | ------------------------------------------------- |
+| yolo11-license-plate           | detection          | 300       | License plate detection                           |
+| yolo11-face                    | detection          | 200       | Face detection                                    |
+| paddleocr                      | ocr                | 100       | Text extraction from plates                       |
+| clip-vit-l                     | embedding          | 800       | Re-identification embeddings                      |
+| florence-2-large               | vision-language    | 1200      | Attribute extraction (disabled - runs as service) |
+| yolo-world-s                   | detection          | 1500      | Open-vocabulary detection                         |
+| vitpose-small                  | pose               | 1500      | Human pose keypoints (17 COCO)                    |
+| depth-anything-v2-small        | depth-estimation   | 150       | Monocular depth estimation                        |
+| violence-detection             | classification     | 500       | Violence detection (98.8% acc)                    |
+| weather-classification         | classification     | 200       | Weather condition (5 classes)                     |
+| segformer-b2-clothes           | segmentation       | 1500      | Clothing segmentation (18 categories)             |
+| xclip-base                     | action-recognition | 2000      | Temporal action recognition                       |
+| fashion-clip                   | classification     | 500       | Zero-shot clothing classification                 |
+| brisque-quality                | quality-assessment | 0         | Image quality (CPU-based, disabled)               |
+| vehicle-segment-classification | classification     | 1500      | Detailed vehicle type (11 classes)                |
+| vehicle-damage-detection       | detection          | 2000      | Vehicle damage (6 damage types)                   |
+| pet-classifier                 | classification     | 200       | Cat/dog classification                            |
+
+**VRAM Budget:**
+
+- Nemotron LLM: 21,700 MB (always loaded)
+- RT-DETRv2: 650 MB (always loaded)
+- Available for Model Zoo: ~1,650 MB
+- Models load sequentially, never concurrently
+
+**Key Classes:**
+
+- `ModelConfig` - Configuration for a Model Zoo model
+- `ModelManager` - Manager for on-demand model loading with reference counting
+
+**Public API:**
 
 ```python
-person:            red (#E74856)
-car/truck:         blue (#3B82F6)
-dog/cat:           green (#76B900)
-bicycle/motorcycle: yellow (#FFB800)
-bird:              purple (#A855F7)
-default:           white (#FFFFFF)
+manager = get_model_manager()
+
+async with manager.load("yolo11-face") as model:
+    results = model.predict(image)
+# Model automatically unloaded and CUDA cache cleared
+
+# Utility functions
+get_model_config(name)       # Get config for model
+get_enabled_models()         # List enabled models
+get_available_models()       # List verified working models
+get_total_vram_if_loaded(names)  # Calculate VRAM usage
 ```
 
-**Public API:**
+### florence_client.py
 
-- `ThumbnailGenerator(output_dir)` - Initialize with output directory
-- `generate_thumbnail(image_path, detections, output_size, detection_id)` - Create thumbnail
-- `draw_bounding_boxes(image, detections)` - Draw boxes on image
-- `get_output_path(detection_id)` - Get thumbnail path
-- `delete_thumbnail(detection_id)` - Remove thumbnail file
+**Purpose:** HTTP client for Florence-2 vision-language extraction.
 
-### video_processor.py
+**Service:** Runs at `http://ai-florence:8092` as dedicated container.
 
-**Purpose:** Extract metadata and thumbnails from video files using ffmpeg.
+**Supported Tasks:**
 
-**Key Features:**
+- `<CAPTION>` - Brief caption
+- `<DETAILED_CAPTION>` - Detailed caption
+- `<MORE_DETAILED_CAPTION>` - Extensive description
+- `<VQA>` - Visual question answering
+- `<OCR>` - Text extraction with regions
+- `<OD>` - Object detection
+- `<DENSE_REGION_CAPTION>` - Regional captions
 
-- Uses ffmpeg/ffprobe subprocess for reliable cross-platform video processing
-- Extracts video metadata (duration, codec, resolution)
-- Generates thumbnail frames at configurable timestamps
-- Smart thumbnail extraction (avoids black frames at start)
-- Async-compatible subprocess execution via `asyncio.to_thread`
-- No Python video library dependencies (uses system ffmpeg)
+**Key Classes:**
 
-**Supported Formats:**
-
-- MP4 (.mp4)
-- Matroska (.mkv)
-- AVI (.avi)
-- QuickTime (.mov)
+- `FlorenceClient` - HTTP client for Florence service
+- `FlorenceUnavailableError` - Raised when service unavailable
+- `OCRRegion`, `Detection`, `CaptionedRegion` - Response types
 
 **Public API:**
 
-- `VideoProcessor(output_dir)` - Initialize with output directory (default: "data/thumbnails")
-- `async get_video_metadata(video_path)` - Extract video metadata
-- `async extract_thumbnail(video_path, output_path, timestamp, size)` - Extract frame as thumbnail
-- `async extract_thumbnail_for_detection(video_path, detection_id, size)` - Convenience method
-- `get_output_path(detection_id)` - Get thumbnail path for detection
-- `delete_thumbnail(detection_id)` - Remove thumbnail file
+- `FlorenceClient(base_url, timeout)`
+- `async extract(image, task, text_input)` - Run extraction
+- `async caption(image)`, `async detailed_caption(image)`
+- `async vqa(image, question)` - Visual Q&A
+- `async ocr(image)` - Text extraction
+- `async health_check()` - Check service health
+- `get_florence_client()` - Get global singleton
 
-**Metadata Returned:**
+### clip_client.py
 
-```python
-{
-    "duration": float,        # Video duration in seconds
-    "video_codec": str,       # Codec name (e.g., "h264", "hevc")
-    "video_width": int,       # Video width in pixels
-    "video_height": int,      # Video height in pixels
-    "file_type": str          # MIME type (e.g., "video/mp4")
+**Purpose:** HTTP client for CLIP embedding generation.
+
+**Service:** Runs at `http://ai-clip:8093` as dedicated container.
+
+**Features:**
+
+- 768-dimensional embeddings from CLIP ViT-L
+- 10s connect timeout, 15s read timeout
+- Error handling with CLIPUnavailableError
+
+**Public API:**
+
+- `CLIPClient(base_url, timeout)`
+- `async embed(image)` - Generate 768-dim embedding
+- `async health_check()` - Check service health
+- `get_clip_client()` - Get global singleton
+
+### reid_service.py
+
+**Purpose:** Entity re-identification across cameras using CLIP embeddings.
+
+**Features:**
+
+- Generate embeddings from detected entities via ai-clip HTTP service
+- Store embeddings in Redis with 24-hour TTL
+- Match entities across camera views using cosine similarity
+- Rate limiting via asyncio.Semaphore (configurable max concurrent requests)
+- Timeout and retry logic with exponential backoff
+- Batch similarity computation for performance (NEM-1071)
+- Bounding box validation with clamping (NEM-1073)
+
+**Redis Storage:**
+
+```
+entity_embeddings:{date} -> {
+    "persons": [{entity_type, embedding, camera_id, timestamp, detection_id, attributes}, ...],
+    "vehicles": [...]
 }
+TTL: 24 hours (86400 seconds)
 ```
 
-**Thumbnail Extraction:**
+**Key Classes:**
 
-- Default size: 320x240 pixels
-- Smart timestamp selection: `min(1 second, 10% of duration)`
-- Maintains aspect ratio with black padding
-- Output naming: `{detection_id}_video_thumb.jpg`
-
-**Error Handling:**
-
-- Raises `VideoProcessingError` for metadata extraction failures
-- Logs warning if ffmpeg/ffprobe not found in PATH
-- Returns `None` from thumbnail extraction on failure
-- Handles subprocess timeouts (30 second limit)
-
-**Dependencies:**
-
-- Requires `ffmpeg` and `ffprobe` in system PATH
-- Install: `brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux)
-
-### pipeline_workers.py
-
-**Purpose:** Background worker processes for continuous detection and analysis processing.
-
-**Worker Classes:**
-
-- `DetectionQueueWorker` - Consumes from detection_queue, runs RT-DETRv2 detection
-- `AnalysisQueueWorker` - Consumes from analysis_queue, runs Nemotron LLM analysis
-- `BatchTimeoutWorker` - Periodically checks and closes timed-out batches
-- `QueueMetricsWorker` - Updates Prometheus metrics for queue depths
-- `PipelineWorkerManager` - Unified lifecycle management for all workers
-
-### retry_handler.py
-
-**Purpose:** Retry logic with exponential backoff and dead-letter queue support.
-
-**DLQ Structure:**
-
-```
-dlq:detection_queue  - Failed detection jobs
-dlq:analysis_queue   - Failed LLM analysis jobs
-```
-
-### service_managers.py
-
-**Purpose:** Strategy pattern for managing external services (Redis, RT-DETRv2, Nemotron).
-
-- `ShellServiceManager` - Shell script restarts (dev)
-- `DockerServiceManager` - Docker container restarts (prod)
-
-### health_monitor.py
-
-**Purpose:** Monitors service health and orchestrates automatic recovery with exponential backoff.
-
-**Key Features:**
-
-- Periodic health checks for all configured services (Redis, RT-DETRv2, Nemotron)
-- Automatic restart with exponential backoff on failure
-- Configurable max retries before giving up
-- WebSocket broadcast of service status changes
-- Graceful shutdown support
-
-**Status Values:**
-
-- `healthy` - Service responding normally
-- `unhealthy` - Health check failed
-- `restarting` - Restart in progress
-- `restart_failed` - Restart attempt failed
-- `failed` - Max retries exceeded, giving up
-
-**Public API (import directly):**
-
-```python
-from backend.services.health_monitor import ServiceHealthMonitor
-
-monitor = ServiceHealthMonitor(
-    manager=service_manager,
-    services=[redis_config, rtdetr_config, nemotron_config],
-    broadcaster=event_broadcaster,
-    check_interval=15.0  # seconds
-)
-await monitor.start()
-await monitor.stop()
-```
-
-### cleanup_service.py
-
-**Purpose:** Automated data retention and disk space management service.
-
-### event_broadcaster.py
-
-**Purpose:** Real-time event distribution via WebSocket using Redis pub/sub backbone.
-
-**Key Features:**
-
-- Publishes events to Redis pub/sub channel `security_events`
-- WebSocket clients subscribe to receive real-time updates
-- Message envelope format for type discrimination
-
-**Message Format:**
-
-```json
-{
-  "type": "event",
-  "data": {
-    "event_id": 123,
-    "camera_id": "front_door",
-    "risk_score": 65,
-    "risk_level": "high",
-    "summary": "Person detected near entrance",
-    "started_at": "2024-01-15T10:30:00.000000",
-    "ended_at": "2024-01-15T10:31:00.000000"
-  }
-}
-```
+- `EntityEmbedding` - Embedding data for detected entity
+- `EntityMatch` - Match result with similarity score
+- `ReIdentificationService` - Main service class
 
 **Public API:**
 
-- `EventBroadcaster(redis_client)` - Initialize with Redis client
-- `async broadcast_event(event)` - Publish event to security_events channel
-- `CHANNEL_NAME = "security_events"` - Canonical channel name constant
+- `ReIdentificationService(clip_client, max_concurrent_requests, embedding_timeout, max_retries)`
+- `async generate_embedding(image, bbox)` - Generate 768-dim embedding
+- `async store_embedding(redis, embedding)` - Store in Redis
+- `async find_matching_entities(redis, embedding, entity_type, threshold)` - Find matches
+- `get_reid_service()` - Get global singleton
+
+**Prompt Formatting:**
+
+- `format_entity_match(match)` - Format single match for prompt
+- `format_reid_context(matches_by_entity, entity_type)` - Format all matches
+- `format_full_reid_context(person_matches, vehicle_matches)` - Complete context
+- `format_reid_summary(person_matches, vehicle_matches)` - Brief summary
+
+### scene_change_detector.py
+
+**Purpose:** CPU-based scene change detection using Structural Similarity Index (SSIM).
+
+**Features:**
+
+- Compares current frames against stored baselines
+- Detects significant visual changes (>10% difference by default)
+- Per-camera baseline management
+- Configurable similarity threshold and resize dimensions
+
+**Key Classes:**
+
+- `SceneChangeResult` - Detection result with similarity score and is_first_frame flag
+- `SceneChangeDetector` - Main detector class
+
+**Public API:**
+
+- `SceneChangeDetector(similarity_threshold=0.90, resize_width=640)`
+- `detect_changes(camera_id, frame)` - Compare frame to baseline
+- `update_baseline(camera_id, frame)` - Set new baseline
+- `reset_baseline(camera_id)` - Remove baseline
+- `reset_all_baselines()` - Clear all baselines
+- `get_scene_change_detector()` - Get global singleton
+
+### audit_service.py
+
+**Purpose:** AI pipeline auditing with self-evaluation via Nemotron.
+
+**Features:**
+
+- Create audit records with model contribution flags
+- Self-evaluation modes:
+  1. **Self-critique** - LLM critiques its own response
+  2. **Rubric scoring** - Quality dimension scoring (1-5 scale)
+  3. **Consistency check** - Re-analyze and compare risk scores
+  4. **Prompt improvement** - Suggest prompt enhancements
+- Aggregate statistics and model leaderboard
+
+**Tracked Models:**
+rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality, zones, baseline, cross_camera
+
+**Quality Dimensions:**
+
+- context_usage - Did analysis reference all relevant enrichment data?
+- reasoning_coherence - Is reasoning logical and well-structured?
+- risk_justification - Does evidence support the risk score?
+- actionability - Is summary useful for homeowner?
+
+**Public API:**
+
+- `AuditService()`
+- `create_partial_audit(event_id, llm_prompt, enriched_context, enrichment_result)`
+- `async persist_record(audit, session)` - Save to database
+- `async run_full_evaluation(audit, event, session)` - Run all 4 evaluation modes
+- `async get_stats(session, days, camera_id)` - Aggregate statistics
+- `async get_leaderboard(session, days)` - Model contribution ranking
+- `async get_recommendations(session, days)` - Prompt improvements
+- `get_audit_service()` - Get global singleton
 
 ### gpu_monitor.py
 
-**Purpose:** NVIDIA GPU statistics monitoring using pynvml.
+**Purpose:** NVIDIA GPU statistics monitoring with multiple fallback strategies.
 
-### system_broadcaster.py
+**Fallback Order:**
 
-**Purpose:** WebSocket broadcaster for comprehensive system status updates.
+1. pynvml (direct NVML bindings - fastest)
+2. nvidia-smi subprocess (works when nvidia-smi in PATH)
+3. AI container health endpoints (RT-DETRv2 reports VRAM)
+4. Mock data (for development without GPU)
 
-### prompts.py
+**Public API:**
 
-**Purpose:** Centralized prompt templates for LLM analysis.
+- `GPUMonitor(poll_interval, history_minutes, broadcaster, http_timeout)`
+- `async start()` - Start polling loop
+- `async stop()` - Stop polling
+- `async poll_once()` - Single poll
+- `get_latest_stats()` - Get most recent stats
+- `get_history(minutes)` - Get stats history
+
+### cleanup_service.py
+
+**Purpose:** Automated data retention and disk space management.
+
+**Features:**
+
+- Delete events older than retention period
+- Cascade delete associated detections
+- Remove GPU stats older than retention period
+- Clean up thumbnail files for deleted detections
+- Clean up log entries older than log_retention_days
+- Optional cleanup of original image files
+- Transaction-safe with rollback support
+
+**Key Classes:**
+
+- `CleanupStats` - Statistics for cleanup operation (events, detections, gpu_stats, logs, thumbnails, images, space_reclaimed)
+- `CleanupService` - Main cleanup service
+
+**Public API:**
+
+- `CleanupService(session)`
+- `async cleanup(dry_run=False)` - Run cleanup
+- `async get_stats()` - Get cleanup statistics
 
 ### alert_engine.py
 
-**Purpose:** Core engine for evaluating alert rules against events and detections.
+**Purpose:** Core engine for evaluating alert rules against events.
 
-**Key Features:**
+**Features:**
 
-- Loads and evaluates all enabled AlertRule records
-- Uses AND logic within rules (all conditions must match)
-- Supports multiple condition types: risk_threshold, object_types, camera_ids, zone_ids, min_confidence, schedule
-- Respects cooldown periods using dedup_key
+- AND logic within rules (all conditions must match)
+- Condition types: risk_threshold, object_types, camera_ids, zone_ids, min_confidence, schedule
+- Cooldown periods using dedup_key
 - Creates Alert records for triggered rules
 
 **Public API:**
 
-- `AlertRuleEngine(session, redis_client)` - Initialize with database session
-- `async evaluate_event(event, detections, current_time)` - Evaluate all rules against event
+- `AlertRuleEngine(session, redis_client)`
+- `async evaluate_event(event, detections, current_time)` - Evaluate all rules
 - `async create_alerts_for_event(event, triggered_rules)` - Create Alert records
 - `async test_rule_against_events(rule, events)` - Test rule configuration
 
 ### circuit_breaker.py
 
-**Purpose:** Circuit breaker pattern implementation for external service protection.
+**Purpose:** Circuit breaker pattern for external service protection.
 
 **States:**
 
@@ -530,14 +611,19 @@ await monitor.stop()
 
 **Public API:**
 
-- `CircuitBreaker(name, config)` - Create circuit breaker
+- `CircuitBreaker(name, config)`
 - `async call(operation, *args, **kwargs)` - Execute through circuit breaker
 - `get_circuit_breaker(name, config)` - Get from global registry
 - Supports async context manager: `async with breaker: ...`
 
 ### retry_handler.py
 
-**Purpose:** Retry logic with exponential backoff and dead-letter queue (DLQ) support.
+**Purpose:** Retry logic with exponential backoff and dead-letter queue support.
+
+**DLQ Queues:**
+
+- `dlq:detection_queue` - Failed detection jobs
+- `dlq:analysis_queue` - Failed LLM analysis jobs
 
 **Key Features:**
 
@@ -546,125 +632,53 @@ await monitor.stop()
 - Moves failed jobs to DLQ after exhausting retries
 - DLQ inspection and management
 
-**DLQ Queues:**
-
-- `dlq:detection_queue` - Failed detection jobs
-- `dlq:analysis_queue` - Failed LLM analysis jobs
-
 **Public API:**
 
-- `RetryHandler(redis_client, config)` - Initialize handler
+- `RetryHandler(redis_client, config)`
 - `async with_retry(operation, job_data, queue_name)` - Execute with retries
 - `async get_dlq_stats()` - Get DLQ statistics
 - `async get_dlq_jobs(dlq_name)` - Inspect DLQ contents
 - `async requeue_dlq_job(dlq_name)` - Move job back to processing
 
-### severity.py
+### vision_extractor.py
 
-**Purpose:** Configurable severity level mapping and utilities.
+**Purpose:** Florence-2 attribute extraction orchestration for vehicles and persons.
 
-**Key Features:**
+**Extracted Attributes:**
 
-- Maps risk scores (0-100) to severity levels (LOW/MEDIUM/HIGH/CRITICAL)
-- Configurable thresholds via settings
-- Severity comparison functions (gt, gte, lt, lte)
-- Color mapping for UI display
+**Vehicles:**
 
-**Default Thresholds:**
+- color (e.g., "white", "red", "black")
+- vehicle_type (e.g., "sedan", "SUV", "pickup", "van")
+- is_commercial (boolean)
+- commercial_text (visible company name/logo)
+- caption (full description)
 
-- LOW: 0-29
-- MEDIUM: 30-59
-- HIGH: 60-84
-- CRITICAL: 85-100
+**Persons:**
 
-### search.py
+- clothing (e.g., "blue jacket, dark pants")
+- carrying (e.g., "backpack", "package", "nothing")
+- is_service_worker (boolean)
+- action (e.g., "walking", "standing", "crouching")
+- caption (full description)
 
-**Purpose:** Full-text search for events using PostgreSQL TSVECTOR.
+**Scene Analysis:**
 
-**Key Features:**
+- unusual_objects
+- tools_detected
+- abandoned_items
+- scene_description
 
-- Searches across summary, reasoning, object_types
-- Supports filtering by camera, risk level, date range
-- Pagination with total count
+**Key Classes:**
 
-**Public API:**
-
-- `async search_events(session, query, filters, page, page_size)` - Execute search
-- `async update_event_object_types(session, event, detection_ids)` - Update cached types
-- `async refresh_event_search_vector(session, event_id)` - Refresh TSVECTOR
-
-### zone_service.py
-
-**Purpose:** Zone detection and context generation for detections.
-
-**Key Features:**
-
-- Determines which zones contain a detection (point-in-polygon)
-- Generates context strings for LLM prompts
-- Supports priority-based zone resolution for overlapping zones
-
-**Public API:**
-
-- `point_in_zone(x, y, zone)` - Check if point is in zone
-- `detection_in_zone(detection, zone)` - Check if detection bbox center is in zone
-- `get_zones_for_detection(session, detection)` - Get all matching zones
-- `get_highest_priority_zone(session, detection)` - Get primary zone
-- `zones_to_context(zones)` - Generate context string for LLM
-
-### audit.py
-
-**Purpose:** Audit logging for security-sensitive operations.
-
-**Key Features:**
-
-- Records who, what, when, where for sensitive actions
-- Captures client IP and user agent
-- Supports success/failure status tracking
-
-**Auditable Actions:**
-
-- Event review/dismissal
-- Settings changes
-- Media exports
-- Alert rule CRUD
-- Camera CRUD
-- API key management
-
-**Public API:**
-
-- `AuditService(session)` - Initialize with database session
-- `async log_action(action, resource_type, resource_id, actor, ...)` - Record action
-- `audit_service` - Global singleton accessor
-
-### clip_generator.py
-
-**Purpose:** Generate video clips for security events using ffmpeg.
-
-**Key Features:**
-
-- Creates clips from detection images for an event
-- Configurable output format and quality
-- Async subprocess execution
-
-**Public API:**
-
-- `ClipGenerator(output_dir)` - Initialize with output directory
-- `async generate_clip(event_id, image_paths)` - Create video clip
-- `get_clip_path(event_id)` - Get output path for event
+- `VehicleAttributes`, `PersonAttributes` - Immutable dataclasses
+- `SceneAnalysis`, `EnvironmentContext` - Scene-level data
+- `BatchExtractionResult` - Complete extraction results
+- `VisionExtractor` - Main service class
 
 ### performance_collector.py
 
-**Purpose:** Collects system performance metrics from all components for the System Performance Dashboard.
-
-**Key Features:**
-
-- Aggregates metrics from GPU, AI models, databases, host system, and containers
-- Uses pynvml for direct GPU metrics or falls back to AI container health endpoints
-- Collects PostgreSQL metrics (connections, cache hit ratio, transactions)
-- Collects Redis metrics (clients, memory, hit ratio)
-- Host metrics via psutil (CPU, RAM, disk)
-- Alert threshold checking with warning and critical levels
-- Metrics broadcast via WebSocket every 5 seconds
+**Purpose:** Collects system performance metrics from all components.
 
 **Metrics Sources:**
 
@@ -685,13 +699,13 @@ await monitor.stop()
 - GPU utilization: warning 90%, critical 98%
 - GPU VRAM: warning 90%, critical 95%
 - PostgreSQL connections: warning 80%, critical 95%
-- PostgreSQL cache hit: warning below 90%, critical below 80%
+- PostgreSQL cache hit: warning <90%, critical <80%
 - Redis memory: warning 100MB, critical 500MB
 - Host CPU: warning 80%, critical 95%
 - Host RAM: warning 85%, critical 95%
 - Host disk: warning 80%, critical 90%
 
-**Public API (import directly):**
+**Public API:**
 
 ```python
 from backend.services.performance_collector import PerformanceCollector
@@ -710,11 +724,10 @@ await collector.close()
    | Detects new image or video files
    | Validates media file integrity
    | Checks for duplicates via DedupeService
-   | Queues to Redis: detection_queue (with media_type)
+   | Queues to Redis: detection_queue
 
 2. [DetectionQueueWorker]
    | Consumes from: detection_queue
-   | Calls: DedupeService.is_duplicate_and_mark()
    | For images: Calls DetectorClient.detect_objects()
    | For videos: Calls VideoProcessor.extract_thumbnail() then DetectorClient
    | Stores: Detection records in PostgreSQL
@@ -734,38 +747,63 @@ await collector.close()
 
 5. [AnalysisQueueWorker]
    | Consumes from: analysis_queue
+   | Calls: ContextEnricher.enrich_detections()
+   | Calls: EnrichmentPipeline.enrich_batch()
    | Calls: NemotronAnalyzer.analyze_batch()
    | Stores: Event records in PostgreSQL
 
 6. [NemotronAnalyzer]
+   | Calls: AuditService.create_partial_audit()
    | Calls: EventBroadcaster.broadcast_event()
    | Publishes: Redis pub/sub channel "security_events"
-   | Broadcasts: WebSocket to all connected clients
 
 7. [AlertRuleEngine] (After Event Creation)
-   | Loads: All enabled AlertRule records
    | Evaluates: Each rule's conditions against event
    | Creates: Alert records for triggered rules
    | Calls: NotificationService.send_alert()
-   | Delivers: Notifications via configured channels
-
-8. [On Demand]
-   | Calls: ThumbnailGenerator.generate_thumbnail()
-   | Stores: Thumbnail files in data/thumbnails/
 ```
 
-**Background Services (Parallel):**
+### Enrichment Pipeline Flow
+
+```
+EnrichmentPipeline.enrich_batch(image_path, detections)
+│
+├── For each person detection:
+│   ├── florence_client.vqa() -> clothing, carrying, action
+│   ├── face_detector.detect() -> face locations
+│   ├── reid_service.generate_embedding() -> CLIP embedding
+│   ├── vitpose_loader -> pose keypoints
+│   ├── fashion_clip_loader -> clothing categories
+│   └── violence_loader (if 2+ persons) -> violence score
+│
+├── For each vehicle detection:
+│   ├── florence_client.vqa() -> color, type, commercial
+│   ├── plate_detector.detect() -> license plate bbox
+│   ├── ocr_service.extract() -> plate text
+│   ├── reid_service.generate_embedding() -> CLIP embedding
+│   ├── vehicle_classifier_loader -> detailed type (11 classes)
+│   └── vehicle_damage_loader -> damage detection (6 types)
+│
+├── For each animal detection:
+│   └── pet_classifier_loader -> cat/dog classification
+│
+└── Scene-level enrichment (once per batch):
+    ├── weather_loader -> weather classification
+    ├── depth_anything_loader -> depth estimation
+    └── image_quality_loader -> quality score (disabled)
+```
+
+### Background Services (Parallel)
 
 ```
 GPUMonitor (Continuous Polling)
-   | Every poll_interval seconds (default from settings)
-   | Reads: pynvml GPU metrics
+   | Every poll_interval seconds
+   | Reads: pynvml GPU metrics (or fallback)
    | Stores: GPUStats records in PostgreSQL
-   | Appends: In-memory circular buffer (max 1000)
    | Broadcasts: WebSocket to SystemBroadcaster (optional)
 
 SystemBroadcaster (Periodic Broadcasting)
-   | Every 5 seconds (configurable)
+   | Every 5 seconds
    | Queries: Latest GPUStats, Camera counts, Redis queue lengths
    | Checks: Database + Redis health
    | Broadcasts: WebSocket system_status to all connected clients
@@ -781,24 +819,18 @@ CleanupService (Daily Scheduled)
    | Deletes: Events, Detections, GPUStats older than retention_days
    | Deletes: Logs older than log_retention_days
    | Removes: Thumbnail files (and optionally original images)
-   | Logs: CleanupStats (records deleted, space reclaimed)
 
 ServiceHealthMonitor (Periodic Health Checks)
    | Every check_interval seconds (default: 15s)
-   | Checks: HTTP health endpoints for RT-DETRv2, Nemotron
+   | Checks: HTTP health endpoints for RT-DETRv2, Nemotron, Florence, CLIP
    | Checks: Redis via redis-cli ping
    | Restarts: Failed services with exponential backoff
    | Broadcasts: Service status changes via WebSocket
-
-QueueMetricsWorker (Periodic Metrics)
-   | Every update_interval seconds (default: 5s)
-   | Queries: Redis queue lengths
-   | Updates: Prometheus gauge metrics
 ```
 
 ### Redis Queue Structure
 
-**detection_queue (image):**
+**detection_queue:**
 
 ```json
 {
@@ -810,16 +842,120 @@ QueueMetricsWorker (Periodic Metrics)
 }
 ```
 
-**detection_queue (video):**
+**analysis_queue:**
 
 ```json
 {
+  "batch_id": "batch_uuid",
   "camera_id": "front_door",
-  "file_path": "/export/foscam/front_door/video_001.mp4",
-  "timestamp": "2024-01-15T10:30:00.000000",
-  "media_type": "video",
-  "file_hash": "def456..."
+  "detection_ids": [1, 2, 3]
 }
+```
+
+## Import Patterns
+
+```python
+# For exported services (via __init__.py)
+from backend.services import (
+    FileWatcher,
+    DetectorClient,
+    NemotronAnalyzer,
+    BatchAggregator,
+    ThumbnailGenerator,
+    EventBroadcaster,
+    GPUMonitor,
+    CleanupService,
+    CircuitBreaker,
+    RetryHandler,
+)
+
+# For context enrichment (import directly)
+from backend.services.context_enricher import ContextEnricher, get_context_enricher
+from backend.services.enrichment_pipeline import EnrichmentPipeline, get_enrichment_pipeline
+from backend.services.reid_service import ReIdentificationService, get_reid_service
+from backend.services.scene_change_detector import SceneChangeDetector, get_scene_change_detector
+from backend.services.vision_extractor import VisionExtractor
+
+# For Model Zoo (import directly)
+from backend.services.model_zoo import ModelManager, get_model_manager, get_model_config
+
+# For AI clients (import directly)
+from backend.services.florence_client import FlorenceClient, get_florence_client
+from backend.services.clip_client import CLIPClient, get_clip_client
+
+# For workers and background services (import directly)
+from backend.services.pipeline_workers import PipelineWorkerManager
+from backend.services.health_monitor import ServiceHealthMonitor
+from backend.services.performance_collector import PerformanceCollector
+from backend.services.audit_service import AuditService, get_audit_service
+```
+
+## Testing Considerations
+
+### Mocking AI Services
+
+```python
+# Mock Model Zoo for tests
+from backend.services.model_zoo import reset_model_zoo, reset_model_manager
+reset_model_zoo()
+reset_model_manager()
+
+# Mock HTTP clients
+from backend.services.florence_client import reset_florence_client
+from backend.services.clip_client import reset_clip_client
+reset_florence_client()
+reset_clip_client()
+```
+
+### Singleton Reset Functions
+
+Most services provide `reset_*()` functions for test isolation:
+
+- `reset_model_zoo()`, `reset_model_manager()`
+- `reset_florence_client()`, `reset_clip_client()`
+- `reset_reid_service()`, `reset_dedupe_service()`
+- `reset_context_enricher()`, `reset_enrichment_pipeline()`
+- `reset_scene_change_detector()`, `reset_audit_service()`
+
+### Integration Test Patterns
+
+```python
+@pytest.mark.asyncio
+async def test_enrichment_pipeline():
+    # Reset singletons
+    reset_enrichment_pipeline()
+
+    # Create mock dependencies
+    mock_model_manager = MagicMock()
+    mock_redis = MagicMock()
+
+    # Create pipeline with mocks
+    pipeline = EnrichmentPipeline(
+        model_manager=mock_model_manager,
+        redis_client=mock_redis,
+    )
+
+    # Test enrichment
+    result = await pipeline.enrich_batch(image_path, detections)
+    assert result.has_vision_extraction
+```
+
+### Bounding Box Testing
+
+```python
+from backend.services.bbox_validation import (
+    is_valid_bbox,
+    clamp_bbox_to_image,
+    InvalidBoundingBoxError,
+)
+
+# Test invalid bboxes
+assert not is_valid_bbox((0, 0, 0, 0))  # Zero dimensions
+assert not is_valid_bbox((100, 100, 50, 50))  # Inverted
+
+# Test clamping
+clamped = clamp_bbox_to_image((10, 10, 200, 200), 100, 100)
+assert clamped == (10, 10, 100, 100)
 ```
 
 ## Dependencies
@@ -827,10 +963,12 @@ QueueMetricsWorker (Periodic Metrics)
 ### External Services
 
 - **RT-DETRv2 HTTP server** (port 8090) - Object detection
-- **llama.cpp server** (port 8080) - LLM inference
+- **ai-florence HTTP server** (port 8092) - Florence-2 vision-language
+- **ai-clip HTTP server** (port 8093) - CLIP embeddings
+- **llama.cpp server** (port 8080) - Nemotron LLM inference
 - **Redis** - Queue and cache storage
-- **PostgreSQL** - Persistent storage (via SQLAlchemy async)
-- **ffmpeg/ffprobe** - Video processing (system binaries)
+- **PostgreSQL** - Persistent storage
+- **ffmpeg/ffprobe** - Video processing
 
 ### Python Packages
 
@@ -840,12 +978,18 @@ QueueMetricsWorker (Periodic Metrics)
 - `sqlalchemy[asyncio]` - Database ORM
 - `redis` - Redis client
 - `pynvml` - NVIDIA GPU monitoring (optional)
-- `fastapi` - WebSocket support
+- `numpy` - Numerical operations
+- `scikit-image` - SSIM computation
+- `transformers` - Model loading (HuggingFace)
+- `torch` - PyTorch for model inference
 
 ## Related Documentation
 
 - `/backend/AGENTS.md` - Backend architecture overview
 - `/backend/models/AGENTS.md` - Database model documentation
 - `/backend/api/routes/AGENTS.md` - API endpoint documentation
+- `/backend/api/schemas/AGENTS.md` - Pydantic schema documentation
 - `/backend/core/AGENTS.md` - Core infrastructure documentation
-- `/backend/examples/AGENTS.md` - Example code and usage patterns
+- `/ai/AGENTS.md` - AI pipeline overview
+- `/ai/rtdetr/AGENTS.md` - RT-DETRv2 detection server
+- `/ai/nemotron/AGENTS.md` - Nemotron LLM configuration

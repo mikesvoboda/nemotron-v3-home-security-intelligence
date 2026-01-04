@@ -18,6 +18,7 @@ This directory contains end-user documentation for the Home Security Intelligenc
 ```
 user/
   AGENTS.md                  # This file
+  ai-enrichment.md           # AI enrichment data in event details
   dashboard-basics.md        # Main dashboard layout and components
   dashboard-settings.md      # Settings configuration
   understanding-alerts.md    # Risk levels and how to respond
@@ -25,6 +26,35 @@ user/
 ```
 
 ## Key Files
+
+### ai-enrichment.md
+
+**Purpose:** Understanding the AI enrichment data displayed in Event Details.
+
+**Read Time:** ~8 minutes
+
+**Prerequisites:** viewing-events.md
+
+**Topics Covered:**
+
+- What is AI enrichment (going beyond basic detection)
+- Finding enrichment data in Event Detail Modal
+- Enrichment data types:
+  - **Vehicle Information** - Type, color, damage, commercial status
+  - **Person Information** - Clothing, action, carrying, security flags
+  - **License Plate Detection** - OCR-extracted plate text
+  - **Pet Identification** - Cat/dog classification, breed
+  - **Weather Conditions** - Clear, rain, snow, fog
+  - **Image Quality Assessment** - Quality score, issues
+- Understanding confidence scores (high/medium/low)
+- Accordion navigation
+- When enrichment data is available
+- How enrichment affects risk scores
+- Data retention
+
+**Screenshot Placeholders:** AI Enrichment panel, Vehicle/Person/License Plate/Pet sections
+
+**When to use:** Understanding advanced AI analysis for events, interpreting security flags.
 
 ### dashboard-basics.md
 

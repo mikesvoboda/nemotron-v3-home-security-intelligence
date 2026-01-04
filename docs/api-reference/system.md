@@ -31,6 +31,12 @@ The System API provides endpoints for monitoring system health, GPU statistics, 
 | GET    | `/api/system/storage`                       | Storage statistics         |
 | GET    | `/api/system/circuit-breakers`              | List circuit breakers      |
 | POST   | `/api/system/circuit-breakers/{name}/reset` | Reset circuit breaker      |
+| GET    | `/api/system/models`                        | Model Zoo registry         |
+| GET    | `/api/system/models/{model_name}`           | Get specific model status  |
+| GET    | `/api/system/model-zoo/status`              | Model Zoo compact status   |
+| GET    | `/api/system/model-zoo/latency/history`     | Model latency time series  |
+
+> **Note:** For detailed Model Zoo documentation, see [Model Zoo API](model-zoo.md).
 
 ---
 
@@ -788,6 +794,8 @@ curl -X POST http://localhost:8000/api/system/circuit-breakers/rtdetr/reset \
 
 ## Related Documentation
 
+- [Model Zoo API](model-zoo.md) - AI model status and latency monitoring
+- [Enrichment API](enrichment.md) - Vision model analysis results
 - [Events API](events.md) - Event statistics
 - [Detections API](detections.md) - Detection counts
 - [Cameras API](cameras.md) - Camera management

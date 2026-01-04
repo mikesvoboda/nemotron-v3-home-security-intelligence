@@ -15,15 +15,18 @@ The Events API provides endpoints for managing security events. Events are aggre
 
 ## Endpoints Overview
 
-| Method | Endpoint                            | Description                         |
-| ------ | ----------------------------------- | ----------------------------------- |
-| GET    | `/api/events`                       | List events with filtering          |
-| GET    | `/api/events/stats`                 | Get aggregated event statistics     |
-| GET    | `/api/events/search`                | Full-text search events             |
-| GET    | `/api/events/export`                | Export events as CSV                |
-| GET    | `/api/events/{event_id}`            | Get event by ID                     |
-| PATCH  | `/api/events/{event_id}`            | Update event (review status, notes) |
-| GET    | `/api/events/{event_id}/detections` | Get detections for event            |
+| Method | Endpoint                             | Description                            |
+| ------ | ------------------------------------ | -------------------------------------- |
+| GET    | `/api/events`                        | List events with filtering             |
+| GET    | `/api/events/stats`                  | Get aggregated event statistics        |
+| GET    | `/api/events/search`                 | Full-text search events                |
+| GET    | `/api/events/export`                 | Export events as CSV                   |
+| GET    | `/api/events/{event_id}`             | Get event by ID                        |
+| PATCH  | `/api/events/{event_id}`             | Update event (review status, notes)    |
+| GET    | `/api/events/{event_id}/detections`  | Get detections for event               |
+| GET    | `/api/events/{event_id}/enrichments` | Get enrichment data for all detections |
+
+> **Note:** For detailed enrichment documentation, see [Enrichment API](enrichment.md).
 
 ---
 
@@ -522,6 +525,8 @@ Search result with relevance score.
 
 ## Related Documentation
 
+- [Enrichment API](enrichment.md) - Vision model analysis results for detections
+- [Model Zoo API](model-zoo.md) - AI model status monitoring
 - [Cameras API](cameras.md) - Events are linked to cameras
 - [Detections API](detections.md) - Events contain multiple detections
 - [WebSocket API](websocket.md) - Real-time event streaming

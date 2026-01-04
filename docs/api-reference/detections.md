@@ -20,8 +20,11 @@ The Detections API provides endpoints for accessing object detections from the A
 | GET    | `/api/detections`                                | List detections with filtering            |
 | GET    | `/api/detections/{detection_id}`                 | Get detection by ID                       |
 | GET    | `/api/detections/{detection_id}/image`           | Get detection thumbnail with bounding box |
+| GET    | `/api/detections/{detection_id}/enrichment`      | Get enrichment data from vision models    |
 | GET    | `/api/detections/{detection_id}/video`           | Stream detection video                    |
 | GET    | `/api/detections/{detection_id}/video/thumbnail` | Get video thumbnail frame                 |
+
+> **Note:** For detailed enrichment documentation, see [Enrichment API](enrichment.md).
 
 ---
 
@@ -440,6 +443,8 @@ The video streaming endpoint supports:
 
 ## Related Documentation
 
+- [Enrichment API](enrichment.md) - Vision model analysis results
+- [Model Zoo API](model-zoo.md) - AI model status monitoring
 - [Events API](events.md) - Events contain multiple detections
 - [Cameras API](cameras.md) - Detections are linked to cameras
 - [System API](system.md) - Detection counts in system stats

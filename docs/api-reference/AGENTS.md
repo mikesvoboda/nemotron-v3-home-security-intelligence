@@ -17,9 +17,12 @@ api-reference/
   alerts.md        # Alerts API reference
   cameras.md       # Cameras API reference
   detections.md    # Detections API reference
+  enrichment.md    # Enrichment API reference (vision model results)
   events.md        # Events API reference
+  model-zoo.md     # Model Zoo API reference (AI model management)
   system.md        # System API reference
   websocket.md     # WebSocket API reference
+  zones.md         # Zones API reference
 ```
 
 ## Key Files
@@ -80,10 +83,32 @@ api-reference/
 - `GET /api/detections` - List detections
 - `GET /api/detections/{detection_id}` - Get detection by ID
 - `GET /api/detections/{detection_id}/image` - Get detection thumbnail
+- `GET /api/detections/{detection_id}/enrichment` - Get enrichment data for detection
 - `GET /api/detections/{detection_id}/video` - Stream detection video
 - `GET /api/detections/{detection_id}/video/thumbnail` - Get video thumbnail frame
 
 **When to use:** Querying object detection results.
+
+### enrichment.md
+
+**Purpose:** Enrichment API reference - structured results from vision model analysis.
+
+**Endpoints:**
+
+- `GET /api/detections/{detection_id}/enrichment` - Get enrichment data for a detection
+- `GET /api/events/{event_id}/enrichments` - Get enrichment data for all detections in an event
+
+**Data Categories:**
+
+- License plate detection and OCR
+- Face detection
+- Vehicle classification and damage detection
+- Clothing analysis (FashionCLIP, SegFormer)
+- Violence detection
+- Image quality assessment
+- Pet classification
+
+**When to use:** Accessing detailed vision model results beyond basic detection data.
 
 ### events.md
 
@@ -98,8 +123,30 @@ api-reference/
 - `GET /api/events/{event_id}` - Get event by ID
 - `PATCH /api/events/{event_id}` - Update event (review/notes)
 - `GET /api/events/{event_id}/detections` - Get detections for event
+- `GET /api/events/{event_id}/enrichments` - Get enrichment data for all detections
 
 **When to use:** Querying security events and their associated data.
+
+### model-zoo.md
+
+**Purpose:** Model Zoo API reference - AI model status and latency monitoring.
+
+**Endpoints:**
+
+- `GET /api/system/models` - Get Model Zoo registry with all models
+- `GET /api/system/models/{model_name}` - Get status of a specific model
+- `GET /api/system/model-zoo/status` - Get compact status for UI display
+- `GET /api/system/model-zoo/latency/history` - Get latency history for a model
+
+**Topics Covered:**
+
+- Model status (loaded, unloaded, disabled)
+- VRAM budget and usage monitoring
+- Model categories and capabilities
+- Latency time-series data for performance monitoring
+- Available models (18+ vision models)
+
+**When to use:** Monitoring AI model performance, VRAM management, building AI dashboards.
 
 ### system.md
 
