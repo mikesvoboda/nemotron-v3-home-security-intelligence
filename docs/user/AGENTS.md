@@ -23,6 +23,7 @@ user/
   ai-performance.md          # AI Performance page and clickable risk distribution
   dashboard-basics.md        # Main dashboard layout and components
   dashboard-settings.md      # Settings configuration
+  system-monitoring.md       # System Monitoring with pipeline visualization and infrastructure grid
   understanding-alerts.md    # Risk levels and how to respond
   viewing-events.md          # Event timeline, live feed, and details
 ```
@@ -184,6 +185,60 @@ user/
 
 **When to use:** Configuring the system, checking AI status.
 
+### system-monitoring.md
+
+**Purpose:** Understanding the System Monitoring page with pipeline visualization and infrastructure grid.
+
+**Read Time:** ~15 minutes
+
+**Prerequisites:** dashboard-basics.md
+
+**Topics Covered:**
+
+- System Monitoring page overview and layout
+- Time range selector (1H, 6H, 24H, 7D)
+- Grafana integration banner
+- Performance alerts banner
+- **System Health Panel:**
+  - Statistics grid (Uptime, Cameras, Events, Detections)
+  - Service health list with status badges
+- **GPU Statistics Panel:**
+  - Utilization, memory, temperature, power metrics
+  - Historical utilization chart
+- **AI Models Panel:**
+  - RT-DETRv2 (object detection) status and metrics
+  - Nemotron (risk analysis) status and metrics
+- **Model Zoo Panel:**
+  - Summary bar (loaded/unloaded/disabled, VRAM usage)
+  - Model categories and status indicators
+- **Pipeline Metrics Panel (new redesign feature):**
+  - Understanding the four-stage pipeline flow (Files -> Detect -> Batch -> Analyze)
+  - Queue depths row with color-coded badges
+  - Latency grid (avg, p95, p99 for each stage)
+  - Throughput chart showing processing rates
+  - Queue backup warning banner
+- **Database Panels:**
+  - PostgreSQL metrics (connections, cache hit ratio, transactions)
+  - Redis metrics (clients, memory, hit ratio)
+- **Background Workers Panel:**
+  - Worker status summary and dots
+  - Expandable worker details list
+- **Containers Panel:**
+  - Container status table (name, status, CPU, memory, restarts)
+- **Host System Panel:**
+  - CPU, Memory, Disk usage progress bars with color thresholds
+- **Circuit Breakers Panel:**
+  - Circuit states (Closed, Open, Half-Open)
+  - Circuit breaker table and reset button
+- **Severity Configuration Panel:**
+  - Risk level threshold definitions
+- Health status color guide
+- Common questions and troubleshooting quick reference
+
+**Screenshot Placeholders:** System Monitoring page overview, Pipeline Metrics panel, Infrastructure panels, Circuit Breaker panel
+
+**When to use:** Monitoring system health, understanding pipeline flow, checking infrastructure status, troubleshooting performance issues.
+
 ### understanding-alerts.md
 
 **Purpose:** What risk levels mean and how to respond to security events.
@@ -300,12 +355,12 @@ User documentation follows these conventions:
 
 ## Target Audiences
 
-| Audience           | Technical Level | Primary Documents                                                       |
-| ------------------ | --------------- | ----------------------------------------------------------------------- |
-| **Homeowners**     | Low             | All files                                                               |
-| **Family Members** | Low             | dashboard-basics.md                                                     |
-| **Daily Users**    | Low-Medium      | viewing-events.md, understanding-alerts.md                              |
-| **Power Users**    | Medium          | dashboard-settings.md, ai-audit.md, ai-enrichment.md, ai-performance.md |
+| Audience           | Technical Level | Primary Documents                                                                             |
+| ------------------ | --------------- | --------------------------------------------------------------------------------------------- |
+| **Homeowners**     | Low             | All files                                                                                     |
+| **Family Members** | Low             | dashboard-basics.md                                                                           |
+| **Daily Users**    | Low-Medium      | viewing-events.md, understanding-alerts.md                                                    |
+| **Power Users**    | Medium          | dashboard-settings.md, ai-audit.md, ai-enrichment.md, ai-performance.md, system-monitoring.md |
 
 ## Navigation Path
 
@@ -316,6 +371,7 @@ Recommended reading order for new users:
 3. `understanding-alerts.md` - Understand risk levels
 4. `dashboard-settings.md` - Configure preferences
 5. `ai-performance.md` - Monitor AI models and investigate by risk level
+6. `system-monitoring.md` - Understand system health and circuit breakers
 
 ## Relationship to user-guide/
 

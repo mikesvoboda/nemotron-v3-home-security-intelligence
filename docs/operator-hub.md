@@ -320,12 +320,14 @@ PostgreSQL is required. SQLite is not supported.
 # Connection URL format
 DATABASE_URL=postgresql+asyncpg://username:password@host:port/database
 
-# Docker Compose (default)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
+# Docker Compose (run ./setup.sh to generate .env with secure password)
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
 
 # Native development
-DATABASE_URL=postgresql+asyncpg://security:your_password@localhost:5432/security
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 ```
+
+> **Note:** There is no default password. Run `./setup.sh` to generate secure credentials, or create a password with `openssl rand -base64 32`.
 
 **Run migrations:**
 

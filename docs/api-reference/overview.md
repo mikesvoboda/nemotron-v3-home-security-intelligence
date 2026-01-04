@@ -264,6 +264,8 @@ See [websocket.md](websocket.md) for full documentation.
 | POST   | `/api/dlq/requeue-all/{queue_name}` | Requeue all jobs   |
 | DELETE | `/api/dlq/{queue_name}`             | Clear DLQ          |
 
+See [dlq.md](dlq.md) for full documentation.
+
 ### AI Audit API
 
 | Method | Endpoint                                   | Description                           |
@@ -292,6 +294,70 @@ See [ai-audit.md](ai-audit.md) for full documentation.
 | POST   | `/api/ai-audit/prompts/import/preview`       | Preview import changes before applying        |
 
 See [prompts.md](prompts.md) for full documentation.
+
+### Entities API
+
+| Method | Endpoint                            | Description                    |
+| ------ | ----------------------------------- | ------------------------------ |
+| GET    | `/api/entities`                     | List tracked entities          |
+| GET    | `/api/entities/{entity_id}`         | Get entity details             |
+| GET    | `/api/entities/{entity_id}/history` | Get entity appearance timeline |
+
+See [entities.md](entities.md) for full documentation.
+
+### Enrichment API
+
+| Method | Endpoint                                    | Description                                        |
+| ------ | ------------------------------------------- | -------------------------------------------------- |
+| GET    | `/api/detections/{detection_id}/enrichment` | Get enrichment data for a single detection         |
+| GET    | `/api/events/{event_id}/enrichments`        | Get enrichment data for all detections in an event |
+
+See [enrichment.md](enrichment.md) for full documentation.
+
+### Media API
+
+| Method | Endpoint                                    | Description                          |
+| ------ | ------------------------------------------- | ------------------------------------ |
+| GET    | `/api/media/cameras/{camera_id}/{filename}` | Serve camera image or video          |
+| GET    | `/api/media/thumbnails/{filename}`          | Serve detection thumbnail            |
+| GET    | `/api/media/detections/{detection_id}`      | Serve image for a detection          |
+| GET    | `/api/media/clips/{filename}`               | Serve event video clip               |
+| GET    | `/api/media/{path}`                         | Compatibility route (legacy support) |
+
+See [media.md](media.md) for full documentation.
+
+### Logs API
+
+| Method | Endpoint             | Description               |
+| ------ | -------------------- | ------------------------- |
+| GET    | `/api/logs`          | List logs with filtering  |
+| GET    | `/api/logs/stats`    | Get log statistics        |
+| GET    | `/api/logs/{log_id}` | Get specific log entry    |
+| POST   | `/api/logs/frontend` | Submit frontend log entry |
+
+See [logs.md](logs.md) for full documentation.
+
+### Zones API
+
+| Method | Endpoint                                   | Description       |
+| ------ | ------------------------------------------ | ----------------- |
+| GET    | `/api/cameras/{camera_id}/zones`           | List zones        |
+| POST   | `/api/cameras/{camera_id}/zones`           | Create zone       |
+| GET    | `/api/cameras/{camera_id}/zones/{zone_id}` | Get specific zone |
+| PUT    | `/api/cameras/{camera_id}/zones/{zone_id}` | Update zone       |
+| DELETE | `/api/cameras/{camera_id}/zones/{zone_id}` | Delete zone       |
+
+See [zones.md](zones.md) for full documentation.
+
+### Audit API
+
+| Method | Endpoint                | Description              |
+| ------ | ----------------------- | ------------------------ |
+| GET    | `/api/audit`            | List audit entries       |
+| GET    | `/api/audit/stats`      | Get audit statistics     |
+| GET    | `/api/audit/{audit_id}` | Get specific audit entry |
+
+See [audit.md](audit.md) for full documentation.
 
 ## Rate Limiting
 

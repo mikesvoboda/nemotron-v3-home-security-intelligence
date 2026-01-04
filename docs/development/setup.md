@@ -136,7 +136,9 @@ Key environment variables to configure:
 
 ```bash
 # Database (PostgreSQL required)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@localhost:5432/security
+# IMPORTANT: Run ./setup.sh to generate .env with a secure password, or set manually:
+# Generate password: openssl rand -base64 32
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -298,7 +300,7 @@ podman-compose -f docker-compose.prod.yml up -d postgres
 Check connection:
 
 ```bash
-psql postgresql://security:security_dev_password@localhost:5432/security
+psql postgresql://security:<your-password>@localhost:5432/security
 ```
 
 ### Import Errors in Tests

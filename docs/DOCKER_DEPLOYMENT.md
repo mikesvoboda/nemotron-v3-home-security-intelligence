@@ -434,9 +434,9 @@ Create a `.env` file in the project root (use `.env.example` as template).
 # Camera Configuration
 FOSCAM_BASE_PATH=/export/foscam
 
-# Database
-# Defaults match docker-compose.prod.yml (override via env/.env as needed)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
+# Database (REQUIRED - no default password, run ./setup.sh to generate)
+# Generate password: openssl rand -base64 32
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
 
 # Redis
 REDIS_URL=redis://redis:6379

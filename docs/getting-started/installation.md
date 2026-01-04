@@ -192,11 +192,13 @@ cp .env.example .env
 
 ### Required Configuration
 
-Edit `.env` with your settings:
+> **Recommended:** Run `./setup.sh` to generate a `.env` file with secure database credentials automatically.
+
+Or manually edit `.env` with your settings:
 
 ```bash
-# Database (usually no changes needed)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
+# Database (POSTGRES_PASSWORD is REQUIRED - generate with: openssl rand -base64 32)
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
 REDIS_URL=redis://redis:6379
 
 # AI Services (pick URLs based on your deployment mode)

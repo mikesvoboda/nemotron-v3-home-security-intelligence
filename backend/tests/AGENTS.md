@@ -131,10 +131,12 @@ podman-compose -f docker-compose.prod.yml up -d postgres redis
 pytest backend/tests/ -v
 ```
 
-Default URLs:
+Default URLs (set in `.env` or via `./setup.sh`):
 
-- PostgreSQL: `postgresql+asyncpg://security:security_dev_password@localhost:5432/security`
+- PostgreSQL: `postgresql+asyncpg://security:<your-password>@localhost:5432/security`
 - Redis: `redis://localhost:6379/15` (DB 15 for test isolation)
+
+> **Note:** Tests use the password configured in your `.env` file. Run `./setup.sh` to generate secure credentials.
 
 ### Parallel Test Isolation
 

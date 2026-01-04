@@ -152,9 +152,16 @@ ENRICHMENT_URL=http://ai-enrichment:8094
 
 ### Database Configuration
 
-| Variable       | Default                                                                       | Description                   |
-| -------------- | ----------------------------------------------------------------------------- | ----------------------------- |
-| `DATABASE_URL` | `postgresql+asyncpg://security:security_dev_password@localhost:5432/security` | SQLAlchemy async database URL |
+| Variable       | Default           | Description                   |
+| -------------- | ----------------- | ----------------------------- |
+| `DATABASE_URL` | _none (required)_ | SQLAlchemy async database URL |
+
+> **IMPORTANT:** There is no default `DATABASE_URL`. You must set it explicitly with a secure password.
+> Run `./setup.sh` to generate a `.env` file with secure credentials, or set manually:
+>
+> ```bash
+> DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
+> ```
 
 **Notes:**
 
@@ -587,8 +594,8 @@ FRONTEND_PORT=80
 Running everything on your development machine:
 
 ```bash
-# .env
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@localhost:5432/security
+# .env (run ./setup.sh to generate with secure password)
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
@@ -602,8 +609,8 @@ LOG_LEVEL=DEBUG
 Using Docker Compose for backend/frontend/redis/postgres, native AI services:
 
 ```bash
-# .env (values are set in docker-compose.yml, this is for reference)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
+# .env (run ./setup.sh to generate, or set password manually)
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -678,8 +685,9 @@ docker compose down && docker compose up -d
 
 **Solution:** Ensure PostgreSQL is running and credentials are correct:
 
-- Native: `postgresql+asyncpg://security:security_dev_password@localhost:5432/security`
-- Docker: `postgresql+asyncpg://security:security_dev_password@postgres:5432/security` (use service name)
+- Run `./setup.sh` to generate a `.env` file with secure database credentials
+- Native: `postgresql+asyncpg://security:<your-password>@localhost:5432/security`
+- Docker: `postgresql+asyncpg://security:<your-password>@postgres:5432/security` (use service name)
 - Verify PostgreSQL is accessible: `psql -h localhost -U security -d security`
 - Ensure the database exists before starting the application
 

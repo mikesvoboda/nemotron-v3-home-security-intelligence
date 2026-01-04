@@ -28,6 +28,7 @@ The System API provides endpoints for monitoring system health, GPU statistics, 
 | GET    | `/api/system/pipeline-latency`              | Pipeline latency metrics   |
 | POST   | `/api/system/cleanup`                       | Trigger data cleanup       |
 | GET    | `/api/system/severity`                      | Severity definitions       |
+| PUT    | `/api/system/severity`                      | Update severity thresholds |
 | GET    | `/api/system/storage`                       | Storage statistics         |
 | GET    | `/api/system/pipeline`                      | Pipeline status            |
 | GET    | `/api/system/pipeline-latency/history`      | Pipeline latency history   |
@@ -906,6 +907,155 @@ Get severity level definitions and thresholds.
     "low_max": 29,
     "medium_max": 59,
     "high_max": 84
+  }
+}
+```
+
+---
+
+## PUT /api/system/severity
+
+Update severity threshold configuration.
+
+**Source:** [`update_severity_thresholds`](../../backend/api/routes/system.py:1778)
+
+**Authentication:** Required when `API_KEY_ENABLED=true` (via `X-API-Key` header)
+
+**Request Body:**
+
+```json
+{
+  "low_max": 29,
+  "medium_max": 59,
+  "high_max": 84
+}
+```
+
+**Request Fields:**
+
+| Field        | Type    | Required | Constraints | Description                                                      |
+| ------------ | ------- | -------- | ----------- | ---------------------------------------------------------------- |
+| `low_max`    | integer | Yes      | 1-98        | Maximum risk score for LOW severity (0 to low_max)               |
+| `medium_max` | integer | Yes      | 2-99        | Maximum risk score for MEDIUM severity (low_max+1 to medium_max) |
+| `high_max`   | integer | Yes      | 3-99        | Maximum risk score for HIGH severity (medium_max+1 to high_max)  |
+
+**Response:** `200 OK`
+
+Returns the updated severity metadata (same format as GET):
+
+```json
+{
+  "definitions": [
+    {
+      "severity": "low",
+      "label": "Low",
+      "description": "Routine activity, no concern",
+      "color": "#22c55e",
+      "priority": 3,
+      "min_score": 0,
+      "max_score": 29
+    },
+    {
+      "severity": "medium",
+      "label": "Medium",
+      "description": "Notable activity, worth reviewing",
+      "color": "#eab308",
+      "priority": 2,
+      "min_score": 30,
+      "max_score": 59
+    },
+    {
+      "severity": "high",
+      "label": "High",
+      "description": "Concerning activity, review soon",
+      "color": "#f97316",
+      "priority": 1,
+      "min_score": 60,
+      "max_score": 84
+    },
+    {
+      "severity": "critical",
+      "label": "Critical",
+      "description": "Immediate attention required",
+      "color": "#ef4444",
+      "priority": 0,
+      "min_score": 85,
+      "max_score": 100
+    }
+  ],
+  "thresholds": {
+    "low_max": 29,
+    "medium_max": 59,
+    "high_max": 84
+  }
+}
+```
+
+**Validation Rules:**
+
+1. **Strict ordering:** Thresholds must be strictly ordered: `low_max < medium_max < high_max`
+2. **Value ranges:** All thresholds must be between 1 and 99
+3. **Contiguous ranges:** This ensures contiguous, non-overlapping ranges covering 0-100
+
+**Severity Level Ranges:**
+
+The thresholds define how risk scores (0-100) map to severity levels:
+
+| Severity   | Score Range                  | Description                       |
+| ---------- | ---------------------------- | --------------------------------- |
+| `low`      | 0 to `low_max`               | Routine activity, no concern      |
+| `medium`   | `low_max+1` to `medium_max`  | Notable activity, worth reviewing |
+| `high`     | `medium_max+1` to `high_max` | Concerning activity, review soon  |
+| `critical` | `high_max+1` to 100          | Immediate attention required      |
+
+**Errors:**
+
+| Code | Description                                                   |
+| ---- | ------------------------------------------------------------- |
+| 400  | Thresholds not strictly ordered (e.g., low_max >= medium_max) |
+| 401  | API key required or invalid                                   |
+| 422  | Validation error (values out of range)                        |
+
+**Example Requests:**
+
+```bash
+# Update severity thresholds (default values)
+curl -X PUT http://localhost:8000/api/system/severity \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"low_max": 29, "medium_max": 59, "high_max": 84}'
+
+# Tighten thresholds (more events classified as higher severity)
+curl -X PUT http://localhost:8000/api/system/severity \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"low_max": 20, "medium_max": 45, "high_max": 70}'
+
+# Loosen thresholds (fewer events classified as high/critical)
+curl -X PUT http://localhost:8000/api/system/severity \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"low_max": 40, "medium_max": 70, "high_max": 90}'
+```
+
+**Important Notes:**
+
+- **Existing events unaffected:** Changes only affect new events. Existing events retain their original severity assignment.
+- **Persistent storage:** Thresholds are persisted to the runtime environment file and survive container restarts.
+- **Audit log:** Creates audit entry with action `settings_changed` recording old and new threshold values.
+
+**Audit Log Entry:**
+
+```json
+{
+  "action": "settings_changed",
+  "resource_type": "severity_thresholds",
+  "details": {
+    "changes": {
+      "low_max": { "old": 29, "new": 20 },
+      "medium_max": { "old": 59, "new": 45 },
+      "high_max": { "old": 84, "new": 70 }
+    }
   }
 }
 ```
