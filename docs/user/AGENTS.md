@@ -20,6 +20,7 @@ user/
   AGENTS.md                  # This file
   ai-audit.md                # AI Audit Dashboard and quality metrics
   ai-enrichment.md           # AI enrichment data in event details
+  ai-performance.md          # AI Performance page and clickable risk distribution
   dashboard-basics.md        # Main dashboard layout and components
   dashboard-settings.md      # Settings configuration
   understanding-alerts.md    # Risk levels and how to respond
@@ -64,6 +65,53 @@ user/
 ### ai-enrichment.md
 
 **Purpose:** Understanding the AI enrichment data displayed in Event Details.
+
+### ai-performance.md
+
+**Purpose:** Understanding the AI Performance page, Model Zoo, and interactive features.
+
+**Read Time:** ~15 minutes
+
+**Prerequisites:** dashboard-basics.md
+
+**Topics Covered:**
+
+- AI Performance page overview
+- Accessing the page
+- Model status cards (RT-DETRv2, Nemotron)
+- Latency panel and pipeline health
+- Detection class distribution chart
+- Risk score distribution chart:
+  - **Risk levels** - Low (0-29), Medium (30-59), High (60-84), Critical (85-100)
+  - **Clickable bars** - Navigate to Timeline filtered by risk level
+  - **Navigation behavior** - URL query parameter filtering
+  - **Visual feedback** - Hover tooltips, scale effects, focus rings
+  - **Accessibility** - Keyboard navigation, screen reader support
+- Summary counts section
+- **Model Zoo section (comprehensive):**
+  - Summary bar (loaded/unloaded/disabled counts, VRAM usage)
+  - Latency chart with model selector dropdown
+  - Chart metrics (Avg, P50, P95 latency)
+  - Model status cards (name, status, VRAM, last used, category)
+  - Status indicators (Loaded, Loading, Unloaded, Disabled, Error)
+  - Active vs Disabled models organization
+- **Model Zoo categories:**
+  - Detection models (License Plate, Face, YOLO World, Damage)
+  - Classification models (Violence, Weather, Fashion, Vehicle, Pet)
+  - Other models (Segmentation, Pose, Depth, Embedding, OCR, Action)
+- **Understanding VRAM:** Budget, loading strategy, automatic management
+- **Model Zoo Analytics:** Contribution chart, Model leaderboard
+- **Troubleshooting Model Zoo issues:**
+  - Error status diagnosis
+  - Model not loading issues
+  - High latency troubleshooting
+  - No data available explanations
+- Refresh and auto-update behavior
+- Grafana integration
+
+**Screenshot Placeholders:** AI Performance page, risk distribution chart, model status cards, Model Zoo section, latency chart, individual model cards
+
+**When to use:** Monitoring AI performance, investigating events by risk level, understanding system health, troubleshooting Model Zoo models.
 
 **Read Time:** ~8 minutes
 
@@ -252,12 +300,12 @@ User documentation follows these conventions:
 
 ## Target Audiences
 
-| Audience           | Technical Level | Primary Documents                                    |
-| ------------------ | --------------- | ---------------------------------------------------- |
-| **Homeowners**     | Low             | All files                                            |
-| **Family Members** | Low             | dashboard-basics.md                                  |
-| **Daily Users**    | Low-Medium      | viewing-events.md, understanding-alerts.md           |
-| **Power Users**    | Medium          | dashboard-settings.md, ai-audit.md, ai-enrichment.md |
+| Audience           | Technical Level | Primary Documents                                                       |
+| ------------------ | --------------- | ----------------------------------------------------------------------- |
+| **Homeowners**     | Low             | All files                                                               |
+| **Family Members** | Low             | dashboard-basics.md                                                     |
+| **Daily Users**    | Low-Medium      | viewing-events.md, understanding-alerts.md                              |
+| **Power Users**    | Medium          | dashboard-settings.md, ai-audit.md, ai-enrichment.md, ai-performance.md |
 
 ## Navigation Path
 
@@ -267,6 +315,7 @@ Recommended reading order for new users:
 2. `viewing-events.md` - Learn to review security events
 3. `understanding-alerts.md` - Understand risk levels
 4. `dashboard-settings.md` - Configure preferences
+5. `ai-performance.md` - Monitor AI models and investigate by risk level
 
 ## Relationship to user-guide/
 

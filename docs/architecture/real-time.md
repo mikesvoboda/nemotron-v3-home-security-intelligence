@@ -1,16 +1,19 @@
 ---
 title: Real-Time Architecture
 description: WebSocket channels, Redis pub/sub, event broadcasting, and message formats
-last_updated: 2025-12-30
+last_updated: 2026-01-04
 source_refs:
   - backend/services/event_broadcaster.py:EventBroadcaster:36
   - backend/services/event_broadcaster.py:get_broadcaster:263
   - backend/services/event_broadcaster.py:get_event_channel:27
   - backend/services/system_broadcaster.py:SystemBroadcaster
+  - backend/services/performance_collector.py:PerformanceCollector
   - backend/api/routes/websocket.py
+  - backend/api/schemas/performance.py:PerformanceUpdate
   - frontend/src/hooks/useWebSocket.ts
   - frontend/src/hooks/useEventStream.ts
   - frontend/src/hooks/useSystemStatus.ts
+  - frontend/src/hooks/usePerformanceMetrics.ts
 ---
 
 # Real-Time Architecture
@@ -504,7 +507,238 @@ Sent when service health changes:
 
 ### Performance Update Message
 
-Sent periodically with detailed system performance metrics:
+Sent periodically (every 5 seconds) with detailed system performance metrics. This message provides comprehensive monitoring data for the AI Performance dashboard.
+
+**Message Type:** `performance_update`
+
+**Source:** [SystemBroadcaster](../../backend/services/system_broadcaster.py) via [PerformanceCollector](../../backend/services/performance_collector.py)
+
+**Redis Channel:** `performance_update`
+
+**Trigger:** Broadcast loop (every 5 seconds when clients are connected)
+
+**Frontend Consumer:** [usePerformanceMetrics](../../frontend/src/hooks/usePerformanceMetrics.ts) hook
+
+#### Message Structure
+
+```json
+{
+  "type": "performance_update",
+  "data": {
+    "timestamp": "2024-01-15T10:30:00.000000",
+    "gpu": { ... },
+    "ai_models": { ... },
+    "nemotron": { ... },
+    "inference": { ... },
+    "databases": { ... },
+    "host": { ... },
+    "containers": [ ... ],
+    "alerts": [ ... ]
+  }
+}
+```
+
+#### Field Descriptions
+
+| Field        | Type            | Description                                                           |
+| ------------ | --------------- | --------------------------------------------------------------------- |
+| `timestamp`  | ISO 8601 string | When this update was generated (UTC)                                  |
+| `gpu`        | object \| null  | GPU metrics from pynvml or AI container health endpoints              |
+| `ai_models`  | object          | Dictionary of AI model metrics keyed by model name (rtdetr, nemotron) |
+| `nemotron`   | object \| null  | Nemotron LLM-specific metrics (slots, context size)                   |
+| `inference`  | object \| null  | AI inference latency percentiles and throughput                       |
+| `databases`  | object          | Dictionary of database metrics keyed by name (postgresql, redis)      |
+| `host`       | object \| null  | Host system metrics from psutil (CPU, RAM, disk)                      |
+| `containers` | array           | Health status of all monitored containers                             |
+| `alerts`     | array           | Active performance alerts when thresholds are exceeded                |
+
+#### GPU Metrics (`gpu`)
+
+```json
+{
+  "name": "NVIDIA RTX A5500",
+  "utilization": 38.0,
+  "vram_used_gb": 22.7,
+  "vram_total_gb": 24.0,
+  "temperature": 38,
+  "power_watts": 31
+}
+```
+
+| Field           | Type   | Description                        |
+| --------------- | ------ | ---------------------------------- |
+| `name`          | string | GPU device name                    |
+| `utilization`   | float  | GPU utilization percentage (0-100) |
+| `vram_used_gb`  | float  | VRAM used in GB                    |
+| `vram_total_gb` | float  | Total VRAM in GB                   |
+| `temperature`   | int    | GPU temperature in Celsius         |
+| `power_watts`   | int    | GPU power usage in Watts           |
+
+#### AI Models (`ai_models`)
+
+Dictionary containing metrics for each AI model:
+
+**RT-DETRv2 (`rtdetr`):**
+
+```json
+{
+  "status": "healthy",
+  "vram_gb": 0.17,
+  "model": "rtdetr_r50vd_coco_o365",
+  "device": "cuda:0"
+}
+```
+
+| Field     | Type   | Description                                          |
+| --------- | ------ | ---------------------------------------------------- |
+| `status`  | string | Health status: "healthy", "unhealthy", "unreachable" |
+| `vram_gb` | float  | VRAM used by the model in GB                         |
+| `model`   | string | Model name/variant                                   |
+| `device`  | string | CUDA device (e.g., "cuda:0")                         |
+
+#### Nemotron Metrics (`nemotron`)
+
+```json
+{
+  "status": "healthy",
+  "slots_active": 1,
+  "slots_total": 2,
+  "context_size": 4096
+}
+```
+
+| Field          | Type   | Description                                          |
+| -------------- | ------ | ---------------------------------------------------- |
+| `status`       | string | Health status: "healthy", "unhealthy", "unreachable" |
+| `slots_active` | int    | Number of active inference slots                     |
+| `slots_total`  | int    | Total available inference slots                      |
+| `context_size` | int    | Context window size in tokens                        |
+
+#### Inference Metrics (`inference`)
+
+```json
+{
+  "rtdetr_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
+  "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
+  "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
+  "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
+  "queues": { "detection": 0, "analysis": 0 }
+}
+```
+
+| Field                 | Type   | Description                                       |
+| --------------------- | ------ | ------------------------------------------------- |
+| `rtdetr_latency_ms`   | object | RT-DETRv2 latency stats (avg, p95, p99 in ms)     |
+| `nemotron_latency_ms` | object | Nemotron latency stats (avg, p95, p99 in ms)      |
+| `pipeline_latency_ms` | object | Full pipeline latency stats (avg, p95 in ms)      |
+| `throughput`          | object | Processing rates (images_per_min, events_per_min) |
+| `queues`              | object | Queue depths (detection, analysis)                |
+
+#### Database Metrics (`databases`)
+
+**PostgreSQL:**
+
+```json
+{
+  "status": "healthy",
+  "connections_active": 5,
+  "connections_max": 30,
+  "cache_hit_ratio": 98.2,
+  "transactions_per_min": 1200
+}
+```
+
+**Redis:**
+
+```json
+{
+  "status": "healthy",
+  "connected_clients": 8,
+  "memory_mb": 1.5,
+  "hit_ratio": 99.5,
+  "blocked_clients": 0
+}
+```
+
+#### Host Metrics (`host`)
+
+```json
+{
+  "cpu_percent": 12.0,
+  "ram_used_gb": 8.2,
+  "ram_total_gb": 32.0,
+  "disk_used_gb": 156.0,
+  "disk_total_gb": 500.0
+}
+```
+
+| Field           | Type  | Description                        |
+| --------------- | ----- | ---------------------------------- |
+| `cpu_percent`   | float | CPU utilization percentage (0-100) |
+| `ram_used_gb`   | float | RAM used in GB                     |
+| `ram_total_gb`  | float | Total RAM in GB                    |
+| `disk_used_gb`  | float | Disk used in GB                    |
+| `disk_total_gb` | float | Total disk in GB                   |
+
+#### Container Metrics (`containers`)
+
+Array of container health statuses:
+
+```json
+[
+  { "name": "backend", "status": "running", "health": "healthy" },
+  { "name": "frontend", "status": "running", "health": "healthy" },
+  { "name": "postgres", "status": "running", "health": "healthy" },
+  { "name": "redis", "status": "running", "health": "healthy" },
+  { "name": "ai-detector", "status": "running", "health": "healthy" },
+  { "name": "ai-llm", "status": "running", "health": "healthy" }
+]
+```
+
+| Field    | Type   | Description                                                      |
+| -------- | ------ | ---------------------------------------------------------------- |
+| `name`   | string | Container name                                                   |
+| `status` | string | Container status ("running", "stopped", "restarting", "unknown") |
+| `health` | string | Health status ("healthy", "unhealthy", "starting")               |
+
+#### Performance Alerts (`alerts`)
+
+Array of alerts when metrics exceed configured thresholds:
+
+```json
+[
+  {
+    "severity": "warning",
+    "metric": "gpu_temperature",
+    "value": 82,
+    "threshold": 80,
+    "message": "GPU temperature high: 82C"
+  }
+]
+```
+
+| Field       | Type   | Description                             |
+| ----------- | ------ | --------------------------------------- |
+| `severity`  | string | Alert severity: "warning" or "critical" |
+| `metric`    | string | Metric name that triggered the alert    |
+| `value`     | float  | Current metric value                    |
+| `threshold` | float  | Threshold that was exceeded             |
+| `message`   | string | Human-readable alert message            |
+
+**Alert Thresholds:**
+
+| Metric            | Warning | Critical |
+| ----------------- | ------- | -------- |
+| `gpu_temperature` | 75C     | 85C      |
+| `gpu_utilization` | 90%     | 98%      |
+| `gpu_vram`        | 90%     | 95%      |
+| `host_cpu`        | 80%     | 95%      |
+| `host_ram`        | 85%     | 95%      |
+| `host_disk`       | 80%     | 90%      |
+| `pg_cache_hit`    | <90%    | <80%     |
+| `redis_hit_ratio` | <50%    | <10%     |
+
+#### Complete Example
 
 ```json
 {
@@ -513,69 +747,71 @@ Sent periodically with detailed system performance metrics:
     "timestamp": "2024-01-15T10:30:00.000000",
     "gpu": {
       "name": "NVIDIA RTX A5500",
-      "utilization": 45.2,
-      "vram_used_gb": 7.5,
+      "utilization": 38.0,
+      "vram_used_gb": 22.7,
       "vram_total_gb": 24.0,
-      "temperature": 65,
-      "power_watts": 125.5
+      "temperature": 38,
+      "power_watts": 31
     },
     "ai_models": {
       "rtdetr": {
-        "status": "loaded",
-        "vram_gb": 4.2,
-        "model": "RT-DETRv2-L",
+        "status": "healthy",
+        "vram_gb": 0.17,
+        "model": "rtdetr_r50vd_coco_o365",
         "device": "cuda:0"
+      },
+      "nemotron": {
+        "status": "healthy",
+        "slots_active": 1,
+        "slots_total": 2,
+        "context_size": 4096
       }
     },
     "nemotron": {
-      "status": "running",
+      "status": "healthy",
       "slots_active": 1,
-      "slots_total": 4,
+      "slots_total": 2,
       "context_size": 4096
     },
     "inference": {
-      "rtdetr_latency_ms": { "p50": 35, "p95": 52, "p99": 68 },
-      "nemotron_latency_ms": { "p50": 2100, "p95": 3500, "p99": 4200 },
-      "pipeline_latency_ms": { "avg": 2500, "p95": 4000 },
-      "throughput": { "detections_per_min": 45, "events_per_hour": 12 },
-      "queues": { "detection_queue": 3, "analysis_queue": 1 }
+      "rtdetr_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
+      "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
+      "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
+      "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
+      "queues": { "detection": 0, "analysis": 0 }
     },
     "databases": {
       "postgresql": {
         "status": "healthy",
         "connections_active": 5,
-        "connections_max": 100,
-        "cache_hit_ratio": 0.98,
-        "transactions_per_min": 120
+        "connections_max": 30,
+        "cache_hit_ratio": 98.2,
+        "transactions_per_min": 1200
       },
       "redis": {
         "status": "healthy",
-        "connected_clients": 3,
-        "memory_mb": 128,
-        "hit_ratio": 0.95,
+        "connected_clients": 8,
+        "memory_mb": 1.5,
+        "hit_ratio": 99.5,
         "blocked_clients": 0
       }
     },
     "host": {
-      "cpu_percent": 25.5,
-      "ram_used_gb": 12.5,
-      "ram_total_gb": 64.0,
-      "disk_used_gb": 250.0,
-      "disk_total_gb": 1000.0
+      "cpu_percent": 12.0,
+      "ram_used_gb": 8.2,
+      "ram_total_gb": 32.0,
+      "disk_used_gb": 156.0,
+      "disk_total_gb": 500.0
     },
     "containers": [
       { "name": "backend", "status": "running", "health": "healthy" },
-      { "name": "rtdetr", "status": "running", "health": "healthy" }
+      { "name": "frontend", "status": "running", "health": "healthy" },
+      { "name": "postgres", "status": "running", "health": "healthy" },
+      { "name": "redis", "status": "running", "health": "healthy" },
+      { "name": "ai-detector", "status": "running", "health": "healthy" },
+      { "name": "ai-llm", "status": "running", "health": "healthy" }
     ],
-    "alerts": [
-      {
-        "severity": "warning",
-        "metric": "gpu_temperature",
-        "value": 82,
-        "threshold": 80,
-        "message": "GPU temperature above threshold"
-      }
-    ]
+    "alerts": []
   }
 }
 ```

@@ -5,6 +5,7 @@ last_updated: 2026-01-04
 source_refs:
   - frontend/src/components/system/PipelineFlowVisualization.tsx
   - frontend/src/components/system/PipelineMetricsPanel.tsx
+  - frontend/src/components/system/InfrastructureStatusGrid.tsx
   - frontend/src/components/system/SystemMonitoringPage.tsx
   - frontend/src/components/system/SystemSummaryRow.tsx
   - frontend/src/hooks/usePerformanceMetrics.ts
@@ -23,8 +24,9 @@ This document describes the pipeline visualization features on the System Monito
 4. [Health Status Indicators](#health-status-indicators)
 5. [Background Workers Grid](#background-workers-grid)
 6. [Pipeline Metrics Panel](#pipeline-metrics-panel)
-7. [Data Sources and Refresh](#data-sources-and-refresh)
-8. [Related Components](#related-components)
+7. [Infrastructure Status Grid](#infrastructure-status-grid)
+8. [Data Sources and Refresh](#data-sources-and-refresh)
+9. [Related Components](#related-components)
 
 ---
 
@@ -309,6 +311,224 @@ When queue backup is detected, a warning banner appears:
 
 ---
 
+## Infrastructure Status Grid
+
+The `InfrastructureStatusGrid` component (`frontend/src/components/system/InfrastructureStatusGrid.tsx`) provides a compact 5-card grid showing infrastructure health status with expandable detail panels.
+
+### Visual Layout
+
+```
++-------------+-------------+-------------+-------------+-------------+
+|  [Database] |  [Server]   |   [Box]     | [Monitor]   |   [Zap]     |
+| PostgreSQL  |    Redis    | Containers  |    Host     |  Circuits   |
+|     [ok]    |    [ok]     |    [ok]     |    [ok]     |    [ok]     |
+|    12ms     |   1.2k/s    |    5/5      |  CPU 45%    |    4/4      |
+|     [v]     |     [v]     |     [v]     |     [v]     |     [v]     |
++-------------+-------------+-------------+-------------+-------------+
+
+(Clicking any card expands its detail panel below)
+
++------------------------------------------------------------------+
+|  [Database Icon] PostgreSQL Details                               |
+|  Pool usage: [=========    ] 8/20 active                          |
+|  Query latency: 12ms                                              |
+|  Active queries: 3                                                |
+|  DB size: 2.4 GB                                                  |
++------------------------------------------------------------------+
+```
+
+### Component Props
+
+| Prop           | Type                                             | Description                                    |
+| -------------- | ------------------------------------------------ | ---------------------------------------------- |
+| `data`         | `InfrastructureData`                             | Infrastructure data from API                   |
+| `loading`      | `boolean`                                        | Shows loading skeleton when true               |
+| `error`        | `string \| null`                                 | Displays error state when set                  |
+| `onCardClick`  | `(cardId: InfrastructureCardId \| null) => void` | Callback when a card is clicked                |
+| `expandedCard` | `InfrastructureCardId \| null`                   | Currently expanded card (null = all collapsed) |
+| `className`    | `string`                                         | Additional CSS classes                         |
+
+### Infrastructure Cards
+
+The grid displays five infrastructure service cards:
+
+| Card           | Icon       | Color  | Primary Metric      | Description                 |
+| -------------- | ---------- | ------ | ------------------- | --------------------------- |
+| **PostgreSQL** | `Database` | Blue   | Query latency (ms)  | Primary database health     |
+| **Redis**      | `Server`   | Red    | Operations/sec      | Cache and queue performance |
+| **Containers** | `Box`      | Purple | Running/Total count | Docker container health     |
+| **Host**       | `Monitor`  | Orange | CPU utilization (%) | Host system resources       |
+| **Circuits**   | `Zap`      | Green  | Healthy/Total count | Circuit breaker states      |
+
+### Card Status Indicators
+
+Each card displays a status icon and colored border based on health:
+
+| Status        | Icon            | Border Color                 | Conditions                     |
+| ------------- | --------------- | ---------------------------- | ------------------------------ |
+| **Healthy**   | Green checkmark | Gray (green on hover)        | Service operating normally     |
+| **Degraded**  | Yellow triangle | Yellow (`border-yellow-500`) | Service experiencing issues    |
+| **Unhealthy** | Red X           | Red (`border-red-500`)       | Service failing or unreachable |
+| **Unknown**   | Gray circle     | Gray (`border-gray-700`)     | Status cannot be determined    |
+
+### Accordion Behavior
+
+- **Single expansion**: Only one card can be expanded at a time
+- **Toggle**: Clicking an expanded card collapses it
+- **Switch**: Clicking a different card switches the expansion
+- **Visual indicator**: Expanded cards show a green ring and rotated chevron
+
+### Expanded Detail Panels
+
+#### PostgreSQL Details
+
+Shows database connection pool and query metrics:
+
+| Metric         | Description                              | Warning Threshold |
+| -------------- | ---------------------------------------- | ----------------- |
+| Pool usage     | Active/max connections with progress bar | > 80% pool usage  |
+| Query latency  | Average query response time (ms)         | > 100ms           |
+| Active queries | Currently running queries                | > 50 queries      |
+| DB size        | Total database size in GB                | Informational     |
+
+#### Redis Details
+
+Shows cache server performance metrics:
+
+| Metric            | Description                     | Warning Threshold |
+| ----------------- | ------------------------------- | ----------------- |
+| Memory usage      | Current memory consumption (MB) | > 80% of max      |
+| Ops/sec           | Operations per second           | Informational     |
+| Connected clients | Number of active connections    | > 100 clients     |
+| Hit rate          | Cache hit ratio percentage      | < 80%             |
+
+#### Containers Details
+
+Shows status table for all Docker containers:
+
+| Column    | Description                                  |
+| --------- | -------------------------------------------- |
+| Container | Container name (truncated if long)           |
+| Status    | running (green) / stopped (red) / restarting |
+| CPU       | CPU utilization percentage                   |
+| Memory    | Memory usage in MB                           |
+| Restarts  | Restart count (yellow if >= 3)               |
+
+#### Host Details
+
+Shows system resource utilization with progress bars:
+
+| Metric | Description                      | Color Thresholds                      |
+| ------ | -------------------------------- | ------------------------------------- |
+| CPU    | Processor utilization percentage | Green < 75%, Yellow < 90%, Red >= 90% |
+| Memory | RAM usage (used/total GB)        | Green < 75%, Yellow < 90%, Red >= 90% |
+| Disk   | Storage usage (used/total GB)    | Green < 75%, Yellow < 90%, Red >= 90% |
+
+#### Circuit Breakers Details
+
+Shows status table for all circuit breakers:
+
+| Column   | Description               | Color                |
+| -------- | ------------------------- | -------------------- |
+| Circuit  | Circuit breaker name      | Based on state       |
+| State    | closed / open / half_open | Green / Red / Yellow |
+| Failures | Cumulative failure count  | N/A                  |
+
+### Type Definitions
+
+```typescript
+interface InfrastructureData {
+  postgresql: PostgreSQLDetails | null;
+  redis: RedisDetails | null;
+  containers: ContainerDetails | null;
+  host: HostDetails | null;
+  circuits: CircuitDetails | null;
+}
+
+interface PostgreSQLDetails {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  latency_ms: number;
+  pool_active: number;
+  pool_max: number;
+  active_queries: number;
+  db_size_gb: number;
+}
+
+interface RedisDetails {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  ops_per_sec: number;
+  memory_mb: number;
+  connected_clients: number;
+  hit_rate: number;
+}
+
+interface ContainerDetails {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  running: number;
+  total: number;
+  containers: ContainerInfo[];
+}
+
+interface ContainerInfo {
+  name: string;
+  status: 'running' | 'stopped' | 'restarting';
+  cpu_percent: number;
+  memory_mb: number;
+  restart_count: number;
+}
+
+interface HostDetails {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  cpu_percent: number;
+  memory_used_gb: number;
+  memory_total_gb: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
+}
+
+interface CircuitDetails {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  healthy: number;
+  total: number;
+  breakers: CircuitBreakerInfo[];
+}
+
+interface CircuitBreakerInfo {
+  name: string;
+  state: 'closed' | 'open' | 'half_open';
+  failure_count: number;
+}
+```
+
+### Grid Responsiveness
+
+The card grid adapts to different screen sizes:
+
+| Screen Size  | Columns | Description             |
+| ------------ | ------- | ----------------------- |
+| Mobile       | 2       | 2 cards per row         |
+| Tablet (sm)  | 3       | 3 cards per row         |
+| Desktop (lg) | 5       | All cards in single row |
+
+### Loading and Error States
+
+**Loading State:**
+
+- Shows animated skeleton grid (5 placeholder cards)
+- Test ID: `infrastructure-grid-loading`
+
+**Error State:**
+
+- Shows red-bordered error message with alert icon
+- Displays the error message text
+- Test ID: `infrastructure-grid-error`
+
+### Integration with SystemMonitoringPage
+
+The InfrastructureStatusGrid is currently referenced in documentation but the full integration uses individual panels (DatabasesPanel, ContainersPanel, HostSystemPanel, CircuitBreakerPanel) for more detailed views. The compact grid is available for summary views where space is limited.
+
+---
+
 ## Data Sources and Refresh
 
 ### Backend API Endpoint
@@ -408,13 +628,15 @@ Clicking any indicator scrolls to the corresponding section.
 
 ### InfrastructureStatusGrid
 
-A compact grid of infrastructure components (`frontend/src/components/system/InfrastructureStatusGrid.tsx`) showing:
+A compact 5-card grid (`frontend/src/components/system/InfrastructureStatusGrid.tsx`) showing infrastructure health at a glance:
 
-- PostgreSQL status
-- Redis status
-- Container health
-- Host resources
-- Circuit breaker states
+- **PostgreSQL** - Database connection pool and query latency
+- **Redis** - Cache operations per second and memory usage
+- **Containers** - Running container count and individual status
+- **Host** - CPU, memory, and disk utilization
+- **Circuits** - Circuit breaker states (closed/open/half_open)
+
+Each card is clickable to expand detailed metrics in an accordion panel below the grid. See [Infrastructure Status Grid](#infrastructure-status-grid) for complete documentation.
 
 ---
 

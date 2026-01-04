@@ -9,6 +9,7 @@ source_refs:
   - backend/services/circuit_breaker.py:CircuitState:39
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker:82
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitState:34
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreakerMetrics:42
   - backend/services/system_broadcaster.py:SystemBroadcaster:62
   - backend/services/event_broadcaster.py:EventBroadcaster:49
   - backend/services/retry_handler.py:RetryHandler:128
@@ -17,8 +18,11 @@ source_refs:
   - backend/services/health_monitor.py:ServiceHealthMonitor:25
   - backend/services/degradation_manager.py:DegradationManager
   - backend/services/service_managers.py:ServiceManager
-  - frontend/src/hooks/useWebSocket.ts
-  - frontend/src/hooks/webSocketManager.ts
+  - frontend/src/hooks/useWebSocket.ts:useWebSocket:51
+  - frontend/src/hooks/useWebSocket.ts:WebSocketOptions:10
+  - frontend/src/hooks/useWebSocket.ts:UseWebSocketReturn:37
+  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:131
+  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:94
 ---
 
 # Resilience Architecture
@@ -924,9 +928,43 @@ flowchart TB
     style CB_BLOCK fill:#FFB800,color:#000
 ```
 
-### Frontend: Client-Side Reconnection
+### Frontend: Client-Side Circuit Breaker Pattern
 
-The frontend implements its own reconnection logic with exponential backoff, independent of the backend circuit breaker.
+The frontend implements its own circuit breaker-like behavior through the reconnection logic in `webSocketManager.ts`. While not a traditional circuit breaker class, the `maxReconnectAttempts` mechanism provides equivalent protection:
+
+- **Closed State (equivalent):** Normal connection, reset on successful open
+- **Open State (equivalent):** `hasExhaustedRetries = true`, no more connection attempts
+- **Half-Open State (equivalent):** Each reconnection attempt tests if the server is available
+
+This approach is more appropriate for client-side WebSocket connections where:
+
+1. The client cannot "block" operations like a backend service can
+2. The primary failure mode is disconnection, not request failures
+3. User feedback (connection status) is more important than request throttling
+
+#### Frontend Circuit Breaker State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Connected: Initial connect()
+
+    Connected --> Reconnecting: onClose event
+    Connected: isConnected = true
+    Connected: hasExhaustedRetries = false
+    Connected: reconnectAttempts = 0
+
+    Reconnecting --> Connected: onOpen event
+    Reconnecting --> Reconnecting: attempt < maxReconnectAttempts
+    Reconnecting --> Exhausted: attempt >= maxReconnectAttempts
+    Reconnecting: isConnected = false
+    Reconnecting: Exponential backoff + jitter
+    Reconnecting: reconnectAttempts++
+
+    Exhausted --> Connected: Manual connect() call
+    Exhausted: hasExhaustedRetries = true
+    Exhausted: onMaxRetriesExhausted() called
+    Exhausted: No automatic reconnection
+```
 
 #### WebSocket Manager Architecture
 
@@ -1136,6 +1174,21 @@ async def _supervise_listener(self) -> None:
             else:
                 self._enter_degraded_mode()
 ```
+
+### Backend vs Frontend Circuit Breaker Comparison
+
+| Aspect                  | Backend (WebSocketCircuitBreaker)               | Frontend (WebSocketManager)                 |
+| ----------------------- | ----------------------------------------------- | ------------------------------------------- |
+| **Implementation**      | Dedicated class with explicit states            | Reconnection logic with attempt counter     |
+| **State Tracking**      | `WebSocketCircuitState` enum (CLOSED/OPEN/HALF) | Derived from `reconnectAttempts` counter    |
+| **Failure Detection**   | Explicit `record_failure()` calls               | `onClose` event triggers attempt increment  |
+| **Recovery Testing**    | HALF_OPEN state with limited calls              | Each reconnect attempt is a recovery test   |
+| **Blocking Behavior**   | Rejects operations when OPEN                    | Stops automatic reconnection when exhausted |
+| **User Notification**   | `service_status` WebSocket message              | `onMaxRetriesExhausted` callback            |
+| **Manual Reset**        | `reset()` method                                | `connect()` method resets attempt counter   |
+| **Timeout-based Reset** | Yes (`recovery_timeout` triggers HALF_OPEN)     | No (manual `connect()` required)            |
+| **Thread Safety**       | `asyncio.Lock` for async contexts               | Single-threaded JavaScript (not needed)     |
+| **Metrics**             | `get_metrics()` with counters and timestamps    | `getConnectionState()` with basic state     |
 
 ### Configuration Summary
 
