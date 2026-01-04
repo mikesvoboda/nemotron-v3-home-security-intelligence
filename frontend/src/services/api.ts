@@ -1849,3 +1849,95 @@ export interface ModelRegistryResponse {
 export async function fetchModelZooStatus(): Promise<ModelRegistryResponse> {
   return fetchApi<ModelRegistryResponse>('/api/system/models');
 }
+
+// ============================================================================
+// Model Zoo Status and Latency Endpoints
+// ============================================================================
+
+/**
+ * Status information for a Model Zoo model (compact format for status cards)
+ */
+export interface ModelZooStatusItem {
+  name: string;
+  display_name: string;
+  category: string;
+  status: 'loaded' | 'unloaded' | 'loading' | 'error' | 'disabled';
+  vram_mb: number;
+  last_used_at: string | null;
+  enabled: boolean;
+}
+
+/**
+ * Response from model zoo status endpoint
+ */
+export interface ModelZooStatusResponse {
+  models: ModelZooStatusItem[];
+  total_models: number;
+  loaded_count: number;
+  disabled_count: number;
+  vram_budget_mb: number;
+  vram_used_mb: number;
+  timestamp: string;
+}
+
+/**
+ * Latency statistics for a time bucket
+ */
+export interface ModelLatencyStats {
+  avg_ms: number;
+  p50_ms: number;
+  p95_ms: number;
+  sample_count: number;
+}
+
+/**
+ * Single time-bucket snapshot of model latency
+ */
+export interface ModelLatencySnapshot {
+  timestamp: string;
+  stats: ModelLatencyStats | null;
+}
+
+/**
+ * Response from model latency history endpoint
+ */
+export interface ModelLatencyHistoryResponse {
+  model_name: string;
+  display_name: string;
+  snapshots: ModelLatencySnapshot[];
+  window_minutes: number;
+  bucket_seconds: number;
+  has_data: boolean;
+  timestamp: string;
+}
+
+/**
+ * Fetch compact status for all Model Zoo models.
+ *
+ * @returns ModelZooStatusResponse with status for all models
+ */
+export async function fetchModelZooCompactStatus(): Promise<ModelZooStatusResponse> {
+  return fetchApi<ModelZooStatusResponse>('/api/system/model-zoo/status');
+}
+
+/**
+ * Fetch latency history for a specific Model Zoo model.
+ *
+ * @param model - Model name (e.g., 'yolo11-license-plate')
+ * @param since - Minutes of history to return (default 60)
+ * @param bucketSeconds - Bucket size in seconds (default 60)
+ * @returns ModelLatencyHistoryResponse with time-series data
+ */
+export async function fetchModelZooLatencyHistory(
+  model: string,
+  since: number = 60,
+  bucketSeconds: number = 60
+): Promise<ModelLatencyHistoryResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('model', model);
+  queryParams.append('since', String(since));
+  queryParams.append('bucket_seconds', String(bucketSeconds));
+  return fetchApi<ModelLatencyHistoryResponse>(
+    `/api/system/model-zoo/latency/history?${queryParams.toString()}`
+  );
+}

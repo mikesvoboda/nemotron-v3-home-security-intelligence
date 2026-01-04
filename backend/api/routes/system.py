@@ -37,9 +37,14 @@ from backend.api.schemas.system import (
     HealthResponse,
     LatencyHistorySnapshot,
     LatencyHistoryStageStats,
+    ModelLatencyHistoryResponse,
+    ModelLatencyHistorySnapshot,
+    ModelLatencyStageStats,
     ModelRegistryResponse,
     ModelStatusEnum,
     ModelStatusResponse,
+    ModelZooStatusItem,
+    ModelZooStatusResponse,
     PipelineLatencies,
     PipelineLatencyHistoryResponse,
     PipelineLatencyResponse,
@@ -2598,4 +2603,231 @@ async def get_model(model_name: str) -> ModelStatusResponse:
         model_name,
         manager.loaded_models,
         manager._load_counts,
+    )
+
+
+# =============================================================================
+# Model Zoo Status and Latency Endpoints
+# =============================================================================
+
+# Model category mapping for dropdown grouping
+MODEL_CATEGORIES: dict[str, list[str]] = {
+    "Detection": [
+        "yolo11-license-plate",
+        "yolo11-face",
+        "yolo-world-s",
+        "vehicle-damage-detection",
+    ],
+    "Classification": [
+        "violence-detection",
+        "weather-classification",
+        "fashion-clip",
+        "vehicle-segment-classification",
+        "pet-classifier",
+    ],
+    "Segmentation": ["segformer-b2-clothes"],
+    "Pose": ["vitpose-small"],
+    "Depth": ["depth-anything-v2-small"],
+    "Embedding": ["clip-vit-l"],
+    "OCR": ["paddleocr"],
+    "Action Recognition": ["xclip-base"],
+}
+
+# Disabled models that should appear at the bottom of the dropdown
+DISABLED_MODELS = ["florence-2-large", "brisque-quality", "yolo26-general"]
+
+# Redis key prefix for model zoo latency data
+MODEL_ZOO_LATENCY_KEY_PREFIX = "model_zoo:latency:"
+MODEL_ZOO_LATENCY_TTL_SECONDS = 86400  # Keep data for 24 hours
+
+
+def _get_model_category(model_name: str) -> str:
+    """Get the category for a model.
+
+    Args:
+        model_name: Model identifier
+
+    Returns:
+        Category name (e.g., 'Detection', 'Classification')
+    """
+    for category, models in MODEL_CATEGORIES.items():
+        if model_name in models:
+            return category
+    return "Other"
+
+
+@router.get(
+    "/model-zoo/status",
+    response_model=ModelZooStatusResponse,
+    summary="Get Model Zoo Status",
+)
+async def get_model_zoo_status() -> ModelZooStatusResponse:
+    """Get status information for all Model Zoo models.
+
+    Returns status information for all 18 Model Zoo models, including:
+    - Current status (loaded, unloaded, disabled)
+    - VRAM usage when loaded
+    - Last usage timestamp
+    - Category grouping for UI display
+
+    This endpoint is optimized for the compact status card display
+    in the AI Performance page.
+
+    Returns:
+        ModelZooStatusResponse with all model statuses
+    """
+    manager = get_model_manager()
+    zoo = get_model_zoo()
+
+    models: list[ModelZooStatusItem] = []
+    loaded_count = 0
+    disabled_count = 0
+
+    for model_name, config in zoo.items():
+        # Determine status
+        if not config.enabled:
+            status = ModelStatusEnum.DISABLED
+            disabled_count += 1
+        elif model_name in manager.loaded_models:
+            status = ModelStatusEnum.LOADED
+            loaded_count += 1
+        else:
+            status = ModelStatusEnum.UNLOADED
+
+        # Get category
+        category = _get_model_category(model_name)
+
+        models.append(
+            ModelZooStatusItem(
+                name=config.name,
+                display_name=_get_model_display_name(config.name),
+                category=category,
+                status=status,
+                vram_mb=config.vram_mb,
+                last_used_at=None,  # TODO: Track last usage time
+                enabled=config.enabled,
+            )
+        )
+
+    # Sort models: enabled first (by category), then disabled
+    enabled_models = [m for m in models if m.enabled]
+    disabled_models_list = [m for m in models if not m.enabled]
+
+    # Sort enabled by category, then by name
+    category_order = [*list(MODEL_CATEGORIES.keys()), "Other"]
+    enabled_models.sort(
+        key=lambda m: (
+            category_order.index(m.category) if m.category in category_order else 999,
+            m.name,
+        )
+    )
+
+    sorted_models = enabled_models + disabled_models_list
+
+    return ModelZooStatusResponse(
+        models=sorted_models,
+        total_models=len(models),
+        loaded_count=loaded_count,
+        disabled_count=disabled_count,
+        vram_budget_mb=MODEL_ZOO_VRAM_BUDGET_MB,
+        vram_used_mb=manager.total_loaded_vram,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.get(
+    "/model-zoo/latency/history",
+    response_model=ModelLatencyHistoryResponse,
+    summary="Get Model Zoo Latency History",
+)
+async def get_model_zoo_latency_history(
+    model: str = Query(
+        ...,
+        description="Model name to get latency history for (e.g., 'yolo11-license-plate')",
+    ),
+    since: int = Query(
+        default=60,
+        ge=1,
+        le=1440,
+        description="Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours)",
+    ),
+    bucket_seconds: int = Query(
+        default=60,
+        ge=10,
+        le=3600,
+        description="Size of each time bucket in seconds (10-3600, i.e., 10 seconds to 1 hour)",
+    ),
+) -> ModelLatencyHistoryResponse:
+    """Get latency history for a specific Model Zoo model.
+
+    Returns time-series latency data for the dropdown-controlled chart.
+    Each bucket contains aggregated statistics (avg, p50, p95).
+
+    Args:
+        model: Model name to get history for
+        since: Number of minutes of history to return (default 60)
+        bucket_seconds: Size of each time bucket in seconds (default 60)
+
+    Returns:
+        ModelLatencyHistoryResponse with chronologically ordered snapshots
+
+    Raises:
+        HTTPException: 404 if model not found in registry
+    """
+    config = get_model_config(model)
+    if config is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model '{model}' not found in registry",
+        )
+
+    # Get latency history from the metrics tracker if available
+    from backend.core.metrics import get_model_latency_tracker
+
+    tracker = get_model_latency_tracker()
+    if tracker is not None:
+        history_data = tracker.get_model_latency_history(
+            model_name=model,
+            window_minutes=since,
+            bucket_seconds=bucket_seconds,
+        )
+    else:
+        # Return empty history if tracker not available
+        history_data = []
+
+    # Build snapshots
+    snapshots: list[ModelLatencyHistorySnapshot] = []
+    has_data = False
+
+    for snapshot in history_data:
+        stats = snapshot.get("stats")
+        if stats is not None:
+            has_data = True
+            snapshots.append(
+                ModelLatencyHistorySnapshot(
+                    timestamp=snapshot["timestamp"],
+                    stats=ModelLatencyStageStats(
+                        avg_ms=stats["avg_ms"],
+                        p50_ms=stats["p50_ms"],
+                        p95_ms=stats["p95_ms"],
+                        sample_count=stats["sample_count"],
+                    ),
+                )
+            )
+        else:
+            snapshots.append(
+                ModelLatencyHistorySnapshot(
+                    timestamp=snapshot["timestamp"],
+                    stats=None,
+                )
+            )
+
+    return ModelLatencyHistoryResponse(
+        model_name=model,
+        display_name=_get_model_display_name(model),
+        snapshots=snapshots,
+        window_minutes=since,
+        bucket_seconds=bucket_seconds,
+        has_data=has_data,
+        timestamp=datetime.now(UTC),
     )

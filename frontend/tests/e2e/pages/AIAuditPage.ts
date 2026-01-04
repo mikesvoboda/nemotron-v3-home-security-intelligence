@@ -3,10 +3,10 @@
  *
  * Provides selectors and interactions for:
  * - Quality score metrics
- * - Model contribution chart
- * - Model leaderboard
  * - Recommendations panel
  * - Period selector
+ *
+ * Note: Model contribution chart and leaderboard are now on the AI Performance page
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -29,13 +29,6 @@ export class AIAuditPage extends BasePage {
   readonly enrichmentUtilizationCard: Locator;
   readonly evaluationCoverageCard: Locator;
 
-  // Model Contribution Chart
-  readonly modelContributionChart: Locator;
-
-  // Model Leaderboard
-  readonly modelLeaderboard: Locator;
-  readonly leaderboardTable: Locator;
-
   // Recommendations Panel
   readonly recommendationsPanel: Locator;
   readonly recommendationsAccordion: Locator;
@@ -50,7 +43,7 @@ export class AIAuditPage extends BasePage {
 
     // Page heading
     this.pageTitle = page.getByRole('heading', { name: /AI Audit Dashboard/i });
-    this.pageSubtitle = page.getByText(/Model contribution rates, quality metrics/i);
+    this.pageSubtitle = page.getByText(/quality metrics/i);
 
     // Controls
     this.periodSelector = page.getByTestId('period-selector');
@@ -62,13 +55,6 @@ export class AIAuditPage extends BasePage {
     this.consistencyRateCard = page.getByTestId('consistency-rate-card');
     this.enrichmentUtilizationCard = page.getByTestId('enrichment-utilization-card');
     this.evaluationCoverageCard = page.getByTestId('evaluation-coverage-card');
-
-    // Model Contribution Chart
-    this.modelContributionChart = page.getByTestId('model-contribution-chart');
-
-    // Model Leaderboard
-    this.modelLeaderboard = page.getByTestId('model-leaderboard');
-    this.leaderboardTable = page.getByTestId('leaderboard-table');
 
     // Recommendations Panel
     this.recommendationsPanel = page.getByTestId('recommendations-panel');
@@ -114,14 +100,6 @@ export class AIAuditPage extends BasePage {
   async selectPeriod(period: '1' | '7' | '14' | '30' | '90'): Promise<void> {
     await this.periodSelector.click();
     await this.page.getByRole('option', { name: new RegExp(period) }).click();
-  }
-
-  /**
-   * Get the number of models in the leaderboard
-   */
-  async getLeaderboardModelCount(): Promise<number> {
-    const rows = this.leaderboardTable.locator('tbody tr');
-    return rows.count();
   }
 
   /**

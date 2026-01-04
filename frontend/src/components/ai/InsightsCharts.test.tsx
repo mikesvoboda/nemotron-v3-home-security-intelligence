@@ -3,11 +3,17 @@
  * Comprehensive test coverage for AI detection and risk distribution charts
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import InsightsCharts from './InsightsCharts';
 import * as api from '../../services/api';
+
+// Mock react-router-dom useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
 
 // Mock the fetchEventStats API
 vi.mock('../../services/api', () => ({
@@ -31,6 +37,7 @@ vi.mock('../../services/api', () => ({
 describe('InsightsCharts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockClear();
   });
 
   afterEach(() => {
@@ -83,10 +90,11 @@ describe('InsightsCharts', () => {
     it('displays risk level labels', async () => {
       render(<InsightsCharts />);
       await waitFor(() => {
-        expect(screen.getByText('Low')).toBeInTheDocument();
-        expect(screen.getByText('Medium')).toBeInTheDocument();
-        expect(screen.getByText('High')).toBeInTheDocument();
-        expect(screen.getByText('Critical')).toBeInTheDocument();
+        // Each risk level appears multiple times (bar label + count label), so use getAllByText
+        expect(screen.getAllByText('Low').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('High').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Critical').length).toBeGreaterThan(0);
       });
     });
 
@@ -530,11 +538,11 @@ describe('InsightsCharts', () => {
       render(<InsightsCharts />);
 
       await waitFor(() => {
-        // Each risk level should have a styled count
-        expect(screen.getByText('Low')).toBeInTheDocument();
-        expect(screen.getByText('Medium')).toBeInTheDocument();
-        expect(screen.getByText('High')).toBeInTheDocument();
-        expect(screen.getByText('Critical')).toBeInTheDocument();
+        // Each risk level appears multiple times (bar label + count label), so use getAllByText
+        expect(screen.getAllByText('Low').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('High').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Critical').length).toBeGreaterThan(0);
       });
     });
   });
@@ -789,6 +797,124 @@ describe('InsightsCharts', () => {
         const gridContainer = riskCard.querySelector('.grid');
         expect(gridContainer).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('risk bar click navigation', () => {
+    it('navigates to timeline with low risk filter when clicking low bar', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-bar-low')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('risk-bar-low'));
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?risk_level=low');
+    });
+
+    it('navigates to timeline with medium risk filter when clicking medium bar', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-bar-medium')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('risk-bar-medium'));
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?risk_level=medium');
+    });
+
+    it('navigates to timeline with high risk filter when clicking high bar', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-bar-high')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('risk-bar-high'));
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?risk_level=high');
+    });
+
+    it('navigates to timeline with critical risk filter when clicking critical bar', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-bar-critical')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('risk-bar-critical'));
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?risk_level=critical');
+    });
+
+    it('navigates when clicking risk count buttons', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-count-low')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('risk-count-high'));
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?risk_level=high');
+    });
+
+    it('displays pointer cursor on risk bars', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        const lowBar = screen.getByTestId('risk-bar-low');
+        expect(lowBar).toHaveClass('cursor-pointer');
+      });
+    });
+
+    it('renders correct aria labels for accessibility', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        const lowBar = screen.getByTestId('risk-bar-low');
+        expect(lowBar).toHaveAttribute(
+          'aria-label',
+          expect.stringContaining('Low: 50 events')
+        );
+      });
+    });
+
+    it('displays tooltip text on hover', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        const riskCard = screen.getByTestId('risk-distribution-card');
+        // Tooltip text should be in the DOM (hidden by CSS until hover)
+        expect(riskCard).toHaveTextContent('Click to view 50 events');
+      });
+    });
+
+    it('renders clickable bars as buttons for keyboard accessibility', async () => {
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        const lowBar = screen.getByTestId('risk-bar-low');
+        expect(lowBar.tagName.toLowerCase()).toBe('button');
+      });
+    });
+
+    it('does not render clickable bars when no events exist', async () => {
+      vi.mocked(api.fetchEventStats).mockResolvedValueOnce({
+        total_events: 0,
+        events_by_risk_level: {
+          critical: 0,
+          high: 0,
+          medium: 0,
+          low: 0,
+        },
+        events_by_camera: [],
+      });
+
+      render(<InsightsCharts />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No events recorded yet')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('risk-bar-low')).not.toBeInTheDocument();
     });
   });
 });

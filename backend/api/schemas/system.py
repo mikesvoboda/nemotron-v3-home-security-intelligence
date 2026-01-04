@@ -1899,3 +1899,212 @@ class ModelRegistryResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Model Zoo Status and Latency Schemas
+# =============================================================================
+
+
+class ModelZooStatusItem(BaseModel):
+    """Status information for a single Model Zoo model.
+
+    Used in the compact status card display for Model Zoo models.
+    """
+
+    name: str = Field(
+        ...,
+        description="Model identifier (e.g., 'yolo11-license-plate')",
+    )
+    display_name: str = Field(
+        ...,
+        description="Human-readable display name",
+    )
+    category: str = Field(
+        ...,
+        description="Model category (detection, classification, segmentation, etc.)",
+    )
+    status: ModelStatusEnum = Field(
+        ...,
+        description="Current status: loaded (green), unloaded (gray), disabled (yellow)",
+    )
+    vram_mb: int = Field(
+        ...,
+        description="VRAM usage in megabytes when loaded",
+        ge=0,
+    )
+    last_used_at: datetime | None = Field(
+        None,
+        description="Timestamp of last model usage (null if never used)",
+    )
+    enabled: bool = Field(
+        ...,
+        description="Whether the model is enabled for use",
+    )
+
+
+class ModelZooStatusResponse(BaseModel):
+    """Response schema for Model Zoo status endpoint.
+
+    Returns status information for all 18 Model Zoo models organized by category.
+    Used to populate the compact status cards in the UI.
+    """
+
+    models: list[ModelZooStatusItem] = Field(
+        ...,
+        description="List of all Model Zoo models with their current status",
+    )
+    total_models: int = Field(
+        ...,
+        description="Total number of models in the registry",
+        ge=0,
+    )
+    loaded_count: int = Field(
+        ...,
+        description="Number of currently loaded models",
+        ge=0,
+    )
+    disabled_count: int = Field(
+        ...,
+        description="Number of disabled models",
+        ge=0,
+    )
+    vram_budget_mb: int = Field(
+        ...,
+        description="Total VRAM budget for Model Zoo",
+        ge=0,
+    )
+    vram_used_mb: int = Field(
+        ...,
+        description="Currently used VRAM",
+        ge=0,
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of status snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "models": [
+                    {
+                        "name": "yolo11-license-plate",
+                        "display_name": "YOLO11 License Plate",
+                        "category": "detection",
+                        "status": "unloaded",
+                        "vram_mb": 300,
+                        "last_used_at": None,
+                        "enabled": True,
+                    }
+                ],
+                "total_models": 18,
+                "loaded_count": 0,
+                "disabled_count": 3,
+                "vram_budget_mb": 1650,
+                "vram_used_mb": 0,
+                "timestamp": "2026-01-04T10:30:00Z",
+            }
+        }
+    )
+
+
+class ModelLatencyStageStats(BaseModel):
+    """Latency statistics for a Model Zoo model at a point in time."""
+
+    avg_ms: float = Field(
+        ...,
+        description="Average latency in milliseconds",
+        ge=0,
+    )
+    p50_ms: float = Field(
+        ...,
+        description="50th percentile (median) latency in milliseconds",
+        ge=0,
+    )
+    p95_ms: float = Field(
+        ...,
+        description="95th percentile latency in milliseconds",
+        ge=0,
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of samples in this time bucket",
+        ge=0,
+    )
+
+
+class ModelLatencyHistorySnapshot(BaseModel):
+    """Single time-bucket snapshot of Model Zoo model latency."""
+
+    timestamp: str = Field(
+        ...,
+        description="Bucket start time (ISO format)",
+    )
+    stats: ModelLatencyStageStats | None = Field(
+        None,
+        description="Latency statistics for this time bucket (None if no data)",
+    )
+
+
+class ModelLatencyHistoryResponse(BaseModel):
+    """Response schema for Model Zoo latency history endpoint.
+
+    Returns time-series latency data for a specific Model Zoo model.
+    Used to populate the dropdown-controlled latency chart.
+    """
+
+    model_name: str = Field(
+        ...,
+        description="Name of the model this data is for",
+    )
+    display_name: str = Field(
+        ...,
+        description="Human-readable display name",
+    )
+    snapshots: list[ModelLatencyHistorySnapshot] = Field(
+        ...,
+        description="Chronologically ordered latency snapshots",
+    )
+    window_minutes: int = Field(
+        ...,
+        description="Time window covered by the history",
+        ge=1,
+    )
+    bucket_seconds: int = Field(
+        ...,
+        description="Bucket size for aggregation",
+        ge=1,
+    )
+    has_data: bool = Field(
+        ...,
+        description="Whether any latency data exists for this model",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp when history was retrieved",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "yolo11-license-plate",
+                "display_name": "YOLO11 License Plate",
+                "snapshots": [
+                    {
+                        "timestamp": "2026-01-04T10:00:00+00:00",
+                        "stats": {
+                            "avg_ms": 45.0,
+                            "p50_ms": 42.0,
+                            "p95_ms": 68.0,
+                            "sample_count": 15,
+                        },
+                    },
+                ],
+                "window_minutes": 60,
+                "bucket_seconds": 60,
+                "has_data": True,
+                "timestamp": "2026-01-04T10:30:00Z",
+            }
+        }
+    )
