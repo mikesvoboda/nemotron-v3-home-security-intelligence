@@ -32,6 +32,7 @@ from backend.core import close_db, get_settings, init_db
 from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.models.camera import Camera
+from backend.services.circuit_breaker import CircuitBreakerConfig, get_circuit_breaker
 from backend.services.cleanup_service import CleanupService
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
@@ -80,6 +81,58 @@ async def create_camera_callback(camera: Camera) -> None:
             f"Auto-created camera: {camera.id} ({camera.name})",
             extra={"camera_id": camera.id, "folder_path": camera.folder_path},
         )
+
+
+def init_circuit_breakers() -> list[str]:
+    """Pre-register circuit breakers for known external services.
+
+    This function initializes circuit breakers at startup for all known
+    external services that the application depends on. This ensures the
+    circuit breakers appear in the monitoring UI even before they are first used.
+
+    Pre-registered circuit breakers:
+    - rtdetr: RT-DETRv2 object detection service
+    - nemotron: Nemotron LLM risk analysis service
+    - postgresql: Database connection pool
+    - redis: Redis cache and queue service
+
+    Returns:
+        List of circuit breaker names that were pre-registered
+    """
+    # Configuration for AI services - more aggressive (quick failure detection)
+    ai_service_config = CircuitBreakerConfig(
+        failure_threshold=5,
+        recovery_timeout=30.0,
+        half_open_max_calls=3,
+        success_threshold=2,
+    )
+
+    # Configuration for infrastructure services - more tolerant
+    infrastructure_config = CircuitBreakerConfig(
+        failure_threshold=10,
+        recovery_timeout=60.0,
+        half_open_max_calls=5,
+        success_threshold=3,
+    )
+
+    # Pre-register circuit breakers
+    breaker_names = []
+
+    # AI services
+    get_circuit_breaker("rtdetr", ai_service_config)
+    breaker_names.append("rtdetr")
+
+    get_circuit_breaker("nemotron", ai_service_config)
+    breaker_names.append("nemotron")
+
+    # Infrastructure services
+    get_circuit_breaker("postgresql", infrastructure_config)
+    breaker_names.append("postgresql")
+
+    get_circuit_breaker("redis", infrastructure_config)
+    breaker_names.append("redis")
+
+    return breaker_names
 
 
 async def seed_cameras_if_empty() -> int:
@@ -219,6 +272,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     # Startup
     settings = get_settings()
+
+    # Pre-register circuit breakers for known services
+    # This ensures they appear in monitoring UI even before first use
+    breaker_names = init_circuit_breakers()
+    print(f"Circuit breakers initialized: {', '.join(breaker_names)}")
+
     await init_db()
     print(f"Database initialized: {redact_url(settings.database_url)}")
 

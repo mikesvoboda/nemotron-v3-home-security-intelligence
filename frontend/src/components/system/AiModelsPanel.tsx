@@ -49,6 +49,7 @@ function getStatusColor(status: string): 'green' | 'yellow' | 'red' | 'gray' {
       return 'yellow';
     case 'unhealthy':
     case 'error':
+    case 'unreachable':
       return 'red';
     default:
       return 'gray';

@@ -45,6 +45,19 @@ function getQueueColor(depth: number): 'green' | 'yellow' | 'red' {
 }
 
 /**
+ * Format DLQ queue name for display
+ */
+function formatDlqQueueName(key: string): string {
+  // Convert 'dlq:detection_queue' -> 'Detection Queue'
+  // Convert 'dlq:analysis_queue' -> 'Analysis Queue'
+  const name = key.replace('dlq:', '').replace(/_/g, ' ');
+  return name
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
  * Format large numbers with K/M suffixes
  */
 function formatNumber(n: number): string {
@@ -224,7 +237,7 @@ export default function PipelineHealthPanel({
                 <div className="space-y-1">
                   {Object.entries(dlqItems).map(([queue, count]) => (
                     <div key={queue} className="flex justify-between text-sm" data-testid={`dlq-queue-${queue}`}>
-                      <Text className="text-gray-400">{queue.replace('dlq:', '')}</Text>
+                      <Text className="text-gray-400">{formatDlqQueueName(queue)}</Text>
                       <Text className="text-orange-300">{formatNumberWithCommas(count)}</Text>
                     </div>
                   ))}

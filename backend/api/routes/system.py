@@ -52,6 +52,7 @@ from backend.api.schemas.system import (
     SeverityDefinitionResponse,
     SeverityMetadataResponse,
     SeverityThresholds,
+    SeverityThresholdsUpdateRequest,
     StageLatency,
     StorageCategoryStats,
     StorageStatsResponse,
@@ -1762,6 +1763,125 @@ async def get_severity_metadata() -> SeverityMetadataResponse:
             low_max=thresholds["low_max"],
             medium_max=thresholds["medium_max"],
             high_max=thresholds["high_max"],
+        ),
+    )
+
+
+@router.put(
+    "/severity", response_model=SeverityMetadataResponse, dependencies=[Depends(verify_api_key)]
+)
+async def update_severity_thresholds(
+    request: Request,
+    update: SeverityThresholdsUpdateRequest = Body(...),
+    db: AsyncSession = Depends(get_db),
+) -> SeverityMetadataResponse:
+    """Update severity threshold configuration.
+
+    Updates the risk score thresholds for severity levels. The thresholds
+    define how risk scores (0-100) are mapped to severity levels:
+    - LOW: 0 to low_max
+    - MEDIUM: low_max+1 to medium_max
+    - HIGH: medium_max+1 to high_max
+    - CRITICAL: high_max+1 to 100
+
+    Requires API key authentication when api_key_enabled is True in settings.
+    Provide the API key via X-API-Key header.
+
+    Validation:
+    - Thresholds must be strictly ordered: low_max < medium_max < high_max
+    - All thresholds must be between 1 and 99
+    - This ensures contiguous, non-overlapping ranges covering 0-100
+
+    Note: Changes only affect new events. Existing events retain their
+    original severity assignment.
+
+    Args:
+        update: New threshold values
+
+    Returns:
+        SeverityMetadataResponse with updated definitions and thresholds
+
+    Raises:
+        HTTPException 400: If thresholds are not strictly ordered
+    """
+    from backend.services.severity import get_severity_service, reset_severity_service
+
+    # Validate threshold ordering (must be strictly increasing)
+    if not (update.low_max < update.medium_max < update.high_max):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Thresholds must be strictly ordered: low_max ({update.low_max}) < "
+            f"medium_max ({update.medium_max}) < high_max ({update.high_max})",
+        )
+
+    # Capture old thresholds for audit log
+    old_service = get_severity_service()
+    old_thresholds = old_service.get_thresholds()
+
+    # Write new thresholds to runtime env file
+    overrides = {
+        "SEVERITY_LOW_MAX": str(update.low_max),
+        "SEVERITY_MEDIUM_MAX": str(update.medium_max),
+        "SEVERITY_HIGH_MAX": str(update.high_max),
+    }
+    _write_runtime_env(overrides)
+
+    # Clear settings cache to pick up new values
+    get_settings.cache_clear()
+
+    # Clear severity service cache to create new service with updated thresholds
+    reset_severity_service()
+
+    # Get the updated service
+    service = get_severity_service()
+
+    # Build audit log changes
+    new_thresholds = service.get_thresholds()
+    changes: dict[str, dict[str, int]] = {}
+    for key in ["low_max", "medium_max", "high_max"]:
+        if old_thresholds[key] != new_thresholds[key]:
+            changes[key] = {"old": old_thresholds[key], "new": new_thresholds[key]}
+
+    # Log the audit entry
+    if changes:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.SETTINGS_CHANGED,
+            resource_type="severity_thresholds",
+            actor="anonymous",
+            details={"changes": changes},
+            request=request,
+        )
+        await db.commit()
+
+    logger.info(
+        f"Severity thresholds updated: low_max={new_thresholds['low_max']}, "
+        f"medium_max={new_thresholds['medium_max']}, high_max={new_thresholds['high_max']}"
+    )
+
+    # Get updated severity definitions
+    definitions = service.get_severity_definitions()
+
+    # Convert to response format
+    definition_responses = [
+        SeverityDefinitionResponse(
+            severity=defn.severity.value,
+            label=defn.label,
+            description=defn.description,
+            color=defn.color,
+            priority=defn.priority,
+            min_score=defn.min_score,
+            max_score=defn.max_score,
+        )
+        for defn in definitions
+    ]
+
+    return SeverityMetadataResponse(
+        definitions=definition_responses,
+        thresholds=SeverityThresholds(
+            low_max=new_thresholds["low_max"],
+            medium_max=new_thresholds["medium_max"],
+            high_max=new_thresholds["high_max"],
         ),
     )
 

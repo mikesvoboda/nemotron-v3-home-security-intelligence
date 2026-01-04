@@ -41,6 +41,10 @@ def clean_env(monkeypatch):
     # Set DATABASE_URL since it's now required (no default)
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
 
+    # Set FOSCAM_BASE_PATH to expected default since .env file may override
+    # (monkeypatch.delenv only clears os.environ, but Pydantic still reads .env file)
+    monkeypatch.setenv("FOSCAM_BASE_PATH", "/export/foscam")
+
     # Clear the lru_cache on get_settings
     get_settings.cache_clear()
 
