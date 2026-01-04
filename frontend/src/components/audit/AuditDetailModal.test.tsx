@@ -32,10 +32,12 @@ describe('AuditDetailModal', () => {
   });
 
   describe('Rendering', () => {
-    it('renders modal when isOpen is true and log is provided', () => {
+    it('renders modal when isOpen is true and log is provided', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
 
     it('does not render when isOpen is false', () => {
@@ -52,36 +54,42 @@ describe('AuditDetailModal', () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it('displays formatted action as dialog title', () => {
+    it('displays formatted action as dialog title', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Event Reviewed')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Event Reviewed')).toBeInTheDocument();
+      });
     });
 
-    it('displays formatted timestamp', () => {
+    it('displays formatted timestamp', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      // Should contain date information
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveTextContent(/January/);
-      expect(dialog).toHaveTextContent(/15/);
-      expect(dialog).toHaveTextContent(/2024/);
+      await waitFor(() => {
+        // Should contain date information
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent(/January/);
+        expect(dialog).toHaveTextContent(/15/);
+        expect(dialog).toHaveTextContent(/2024/);
+      });
     });
   });
 
   describe('Status Badge', () => {
-    it('displays success status with green styling', () => {
+    it('displays success status with green styling', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      // Find all success texts and get the one in the header badge (has rounded-full class)
-      const statusBadges = screen.getAllByText('success');
-      const headerBadge = statusBadges.find((el) =>
-        el.closest('span')?.classList.contains('rounded-full')
-      );
-      expect(headerBadge?.closest('span')).toHaveClass('text-green-400');
+      await waitFor(() => {
+        // Find all success texts and get the one in the header badge (has rounded-full class)
+        const statusBadges = screen.getAllByText('success');
+        const headerBadge = statusBadges.find((el) =>
+          el.closest('span')?.classList.contains('rounded-full')
+        );
+        expect(headerBadge?.closest('span')).toHaveClass('text-green-400');
+      });
     });
 
-    it('displays failure status with red styling', () => {
+    it('displays failure status with red styling', async () => {
       const failedLog: AuditEntry = {
         ...mockAuditLog,
         status: 'failure',
@@ -89,15 +97,17 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={failedLog} isOpen={true} onClose={mockOnClose} />);
 
-      // Find the badge in the header
-      const statusBadges = screen.getAllByText('failure');
-      const headerBadge = statusBadges.find((el) =>
-        el.closest('span')?.classList.contains('rounded-full')
-      );
-      expect(headerBadge?.closest('span')).toHaveClass('text-red-400');
+      await waitFor(() => {
+        // Find the badge in the header
+        const statusBadges = screen.getAllByText('failure');
+        const headerBadge = statusBadges.find((el) =>
+          el.closest('span')?.classList.contains('rounded-full')
+        );
+        expect(headerBadge?.closest('span')).toHaveClass('text-red-400');
+      });
     });
 
-    it('displays error status with red styling', () => {
+    it('displays error status with red styling', async () => {
       const errorLog: AuditEntry = {
         ...mockAuditLog,
         status: 'error',
@@ -105,14 +115,16 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={errorLog} isOpen={true} onClose={mockOnClose} />);
 
-      const statusBadges = screen.getAllByText('error');
-      const headerBadge = statusBadges.find((el) =>
-        el.closest('span')?.classList.contains('rounded-full')
-      );
-      expect(headerBadge?.closest('span')).toHaveClass('text-red-400');
+      await waitFor(() => {
+        const statusBadges = screen.getAllByText('error');
+        const headerBadge = statusBadges.find((el) =>
+          el.closest('span')?.classList.contains('rounded-full')
+        );
+        expect(headerBadge?.closest('span')).toHaveClass('text-red-400');
+      });
     });
 
-    it('displays unknown status with gray styling', () => {
+    it('displays unknown status with gray styling', async () => {
       const unknownLog: AuditEntry = {
         ...mockAuditLog,
         status: 'pending',
@@ -120,40 +132,48 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={unknownLog} isOpen={true} onClose={mockOnClose} />);
 
-      const statusBadges = screen.getAllByText('pending');
-      const headerBadge = statusBadges.find((el) =>
-        el.closest('span')?.classList.contains('rounded-full')
-      );
-      expect(headerBadge?.closest('span')).toHaveClass('text-gray-300');
+      await waitFor(() => {
+        const statusBadges = screen.getAllByText('pending');
+        const headerBadge = statusBadges.find((el) =>
+          el.closest('span')?.classList.contains('rounded-full')
+        );
+        expect(headerBadge?.closest('span')).toHaveClass('text-gray-300');
+      });
     });
   });
 
   describe('Actor and Resource Cards', () => {
-    it('displays actor name', () => {
+    it('displays actor name', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('testuser')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('testuser')).toBeInTheDocument();
+      });
     });
 
-    it('displays actor section label', () => {
+    it('displays actor section label', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Actor')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Actor')).toBeInTheDocument();
+      });
     });
 
-    it('displays resource type and ID', () => {
+    it('displays resource type and ID', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Resource')).toBeInTheDocument();
-      // Both resource type and action contain 'event', so use getAllByText
-      const eventTexts = screen.getAllByText(/event/);
-      expect(eventTexts.length).toBeGreaterThan(0);
-      // Resource ID is displayed
-      const resourceIdTexts = screen.getAllByText(/123/);
-      expect(resourceIdTexts.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(screen.getByText('Resource')).toBeInTheDocument();
+        // Both resource type and action contain 'event', so use getAllByText
+        const eventTexts = screen.getAllByText(/event/);
+        expect(eventTexts.length).toBeGreaterThan(0);
+        // Resource ID is displayed
+        const resourceIdTexts = screen.getAllByText(/123/);
+        expect(resourceIdTexts.length).toBeGreaterThan(0);
+      });
     });
 
-    it('displays resource type without ID when resource_id is null', () => {
+    it('displays resource type without ID when resource_id is null', async () => {
       const logWithoutResourceId: AuditEntry = {
         ...mockAuditLog,
         resource_id: null,
@@ -161,40 +181,50 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={logWithoutResourceId} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Resource')).toBeInTheDocument();
-      expect(screen.getByText('event')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Resource')).toBeInTheDocument();
+        expect(screen.getByText('event')).toBeInTheDocument();
+      });
     });
   });
 
   describe('Entry Details Section', () => {
-    it('displays audit ID', () => {
+    it('displays audit ID', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Audit ID')).toBeInTheDocument();
-      expect(screen.getByText('42')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Audit ID')).toBeInTheDocument();
+        expect(screen.getByText('42')).toBeInTheDocument();
+      });
     });
 
-    it('displays action type', () => {
+    it('displays action type', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Action')).toBeInTheDocument();
-      expect(screen.getByText('event_reviewed')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Action')).toBeInTheDocument();
+        expect(screen.getByText('event_reviewed')).toBeInTheDocument();
+      });
     });
 
-    it('displays status', () => {
+    it('displays status', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Status')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Status')).toBeInTheDocument();
+      });
     });
 
-    it('displays IP address when available', () => {
+    it('displays IP address when available', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('IP Address')).toBeInTheDocument();
-      expect(screen.getByText('192.168.1.100')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('IP Address')).toBeInTheDocument();
+        expect(screen.getByText('192.168.1.100')).toBeInTheDocument();
+      });
     });
 
-    it('hides IP address section when null', () => {
+    it('hides IP address section when null', async () => {
       const logWithoutIP: AuditEntry = {
         ...mockAuditLog,
         ip_address: null,
@@ -202,19 +232,24 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={logWithoutIP} isOpen={true} onClose={mockOnClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText('IP Address')).not.toBeInTheDocument();
     });
   });
 
   describe('User Agent Section', () => {
-    it('displays user agent when available', () => {
+    it('displays user agent when available', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('User Agent')).toBeInTheDocument();
-      expect(screen.getByText(/Mozilla\/5\.0/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('User Agent')).toBeInTheDocument();
+        expect(screen.getByText(/Mozilla\/5\.0/)).toBeInTheDocument();
+      });
     });
 
-    it('hides user agent section when null', () => {
+    it('hides user agent section when null', async () => {
       const logWithoutUserAgent: AuditEntry = {
         ...mockAuditLog,
         user_agent: null,
@@ -222,23 +257,28 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={logWithoutUserAgent} isOpen={true} onClose={mockOnClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText('User Agent')).not.toBeInTheDocument();
     });
   });
 
   describe('Details Section', () => {
-    it('displays additional details as formatted JSON', () => {
+    it('displays additional details as formatted JSON', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Additional Details')).toBeInTheDocument();
-      // The details JSON contains "reviewed" which also appears in action name
-      const reviewedTexts = screen.getAllByText(/reviewed/i);
-      expect(reviewedTexts.length).toBeGreaterThan(0);
-      // Check for the JSON content in the pre element
-      expect(screen.getByText(/Verified as safe/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Additional Details')).toBeInTheDocument();
+        // The details JSON contains "reviewed" which also appears in action name
+        const reviewedTexts = screen.getAllByText(/reviewed/i);
+        expect(reviewedTexts.length).toBeGreaterThan(0);
+        // Check for the JSON content in the pre element
+        expect(screen.getByText(/Verified as safe/)).toBeInTheDocument();
+      });
     });
 
-    it('hides details section when details is null', () => {
+    it('hides details section when details is null', async () => {
       const logWithoutDetails: AuditEntry = {
         ...mockAuditLog,
         details: null,
@@ -246,10 +286,13 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={logWithoutDetails} isOpen={true} onClose={mockOnClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText('Additional Details')).not.toBeInTheDocument();
     });
 
-    it('hides details section when details is empty object', () => {
+    it('hides details section when details is empty object', async () => {
       const logWithEmptyDetails: AuditEntry = {
         ...mockAuditLog,
         details: {},
@@ -257,6 +300,9 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={logWithEmptyDetails} isOpen={true} onClose={mockOnClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText('Additional Details')).not.toBeInTheDocument();
     });
   });
@@ -266,6 +312,10 @@ describe('AuditDetailModal', () => {
       const user = userEvent.setup();
 
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const closeButtons = screen.getAllByLabelText('Close modal');
       await user.click(closeButtons[0]); // Click the X button in header
@@ -278,6 +328,10 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       const closeButtons = screen.getAllByLabelText('Close modal');
       await user.click(closeButtons[1]); // Click the Close button in footer
 
@@ -288,6 +342,10 @@ describe('AuditDetailModal', () => {
       const user = userEvent.setup();
 
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       await user.keyboard('{Escape}');
 
@@ -300,6 +358,10 @@ describe('AuditDetailModal', () => {
       const user = userEvent.setup();
 
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       // Find the backdrop (the dark overlay)
       const backdrop = document.querySelector('[aria-hidden="true"]');
@@ -314,7 +376,7 @@ describe('AuditDetailModal', () => {
   });
 
   describe('Action Formatting', () => {
-    it('formats snake_case actions to Title Case', () => {
+    it('formats snake_case actions to Title Case', async () => {
       const snakeCaseLog: AuditEntry = {
         ...mockAuditLog,
         action: 'camera_settings_updated',
@@ -322,10 +384,12 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={snakeCaseLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Camera Settings Updated')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Camera Settings Updated')).toBeInTheDocument();
+      });
     });
 
-    it('handles single word actions', () => {
+    it('handles single word actions', async () => {
       const singleWordLog: AuditEntry = {
         ...mockAuditLog,
         action: 'login',
@@ -333,20 +397,24 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={singleWordLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Login')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Login')).toBeInTheDocument();
+      });
     });
   });
 
   describe('Timestamp Formatting', () => {
-    it('formats timestamp to readable date and time', () => {
+    it('formats timestamp to readable date and time', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      // Should contain AM/PM
-      const dialog = screen.getByRole('dialog');
-      expect(dialog.textContent).toMatch(/\d{1,2}:\d{2}:\d{2}\s*(AM|PM)/i);
+      await waitFor(() => {
+        // Should contain AM/PM
+        const dialog = screen.getByRole('dialog');
+        expect(dialog.textContent).toMatch(/\d{1,2}:\d{2}:\d{2}\s*(AM|PM)/i);
+      });
     });
 
-    it('handles invalid timestamp gracefully', () => {
+    it('handles invalid timestamp gracefully', async () => {
       const invalidTimestampLog: AuditEntry = {
         ...mockAuditLog,
         timestamp: 'invalid-date',
@@ -354,59 +422,73 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={invalidTimestampLog} isOpen={true} onClose={mockOnClose} />);
 
-      // Invalid dates show "Invalid Date" from toLocaleString
-      expect(screen.getByText('Invalid Date')).toBeInTheDocument();
+      await waitFor(() => {
+        // Invalid dates show "Invalid Date" from toLocaleString
+        expect(screen.getByText('Invalid Date')).toBeInTheDocument();
+      });
     });
   });
 
   describe('Accessibility', () => {
-    it('has dialog role', () => {
+    it('has dialog role', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
 
-    it('has close buttons with accessible labels', () => {
+    it('has close buttons with accessible labels', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      const closeButtons = screen.getAllByLabelText('Close modal');
-      expect(closeButtons.length).toBe(2); // X button and Close button
+      await waitFor(() => {
+        const closeButtons = screen.getAllByLabelText('Close modal');
+        expect(closeButtons.length).toBe(2); // X button and Close button
+      });
     });
 
-    it('has dialog title', () => {
+    it('has dialog title', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      // HeadlessUI Dialog sets up proper heading
-      const title = screen.getByText('Event Reviewed');
-      expect(title.tagName).toBe('H2');
+      await waitFor(() => {
+        // HeadlessUI Dialog sets up proper heading
+        const title = screen.getByText('Event Reviewed');
+        expect(title.tagName).toBe('H2');
+      });
     });
   });
 
   describe('Styling', () => {
-    it('uses NVIDIA dark theme colors', () => {
+    it('uses NVIDIA dark theme colors', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      const dialogPanel = document.querySelector('.bg-\\[\\#1A1A1A\\]');
-      expect(dialogPanel).toBeInTheDocument();
+      await waitFor(() => {
+        const dialogPanel = document.querySelector('.bg-\\[\\#1A1A1A\\]');
+        expect(dialogPanel).toBeInTheDocument();
+      });
     });
 
-    it('uses green accent for actor name', () => {
+    it('uses green accent for actor name', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      const actorText = screen.getByText('testuser');
-      expect(actorText).toHaveClass('text-[#76B900]');
+      await waitFor(() => {
+        const actorText = screen.getByText('testuser');
+        expect(actorText).toHaveClass('text-[#76B900]');
+      });
     });
 
-    it('has dark backdrop', () => {
+    it('has dark backdrop', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      const backdrop = document.querySelector('.bg-black\\/75');
-      expect(backdrop).toBeInTheDocument();
+      await waitFor(() => {
+        const backdrop = document.querySelector('.bg-black\\/75');
+        expect(backdrop).toBeInTheDocument();
+      });
     });
   });
 
   describe('JSON Details Formatting', () => {
-    it('pretty-prints complex nested objects', () => {
+    it('pretty-prints complex nested objects', async () => {
       const complexDetailsLog: AuditEntry = {
         ...mockAuditLog,
         details: {
@@ -420,18 +502,22 @@ describe('AuditDetailModal', () => {
 
       render(<AuditDetailModal log={complexDetailsLog} isOpen={true} onClose={mockOnClose} />);
 
-      // Check that JSON is formatted (contains newlines/indentation)
-      const pre = screen.getByText(/nested/).closest('pre');
-      expect(pre).toBeInTheDocument();
+      await waitFor(() => {
+        // Check that JSON is formatted (contains newlines/indentation)
+        const pre = screen.getByText(/nested/).closest('pre');
+        expect(pre).toBeInTheDocument();
+      });
     });
   });
 
   describe('Modal Transitions', () => {
-    it('applies transition classes', () => {
+    it('applies transition classes', async () => {
       render(<AuditDetailModal log={mockAuditLog} isOpen={true} onClose={mockOnClose} />);
 
-      const dialogPanel = document.querySelector('.transition-all');
-      expect(dialogPanel).toBeInTheDocument();
+      await waitFor(() => {
+        const dialogPanel = document.querySelector('.transition-all');
+        expect(dialogPanel).toBeInTheDocument();
+      });
     });
   });
 });

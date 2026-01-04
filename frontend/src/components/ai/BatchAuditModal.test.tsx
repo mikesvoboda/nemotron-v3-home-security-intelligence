@@ -41,61 +41,85 @@ describe('BatchAuditModal', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('renders modal when isOpen is true', () => {
+    it('renders modal when isOpen is true', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
 
-    it('renders modal title', () => {
+    it('renders modal title', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByRole('heading', { name: 'Trigger Batch Audit' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Trigger Batch Audit' })).toBeInTheDocument();
+      });
     });
 
-    it('renders modal description', () => {
+    it('renders modal description', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByText(/Queue multiple events for AI self-evaluation/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Queue multiple events for AI self-evaluation/)
+        ).toBeInTheDocument();
+      });
     });
 
-    it('renders limit input with default value', () => {
+    it('renders limit input with default value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      const limitInput = screen.getByLabelText(/Event Limit/i);
-      expect(limitInput).toBeInTheDocument();
-      expect(limitInput).toHaveValue(50);
+      await waitFor(() => {
+        const limitInput = screen.getByLabelText(/Event Limit/i);
+        expect(limitInput).toBeInTheDocument();
+        expect(limitInput).toHaveValue(50);
+      });
     });
 
-    it('renders min risk score input with default value', () => {
+    it('renders min risk score input with default value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      const riskInput = screen.getByLabelText(/Minimum Risk Score/i);
-      expect(riskInput).toBeInTheDocument();
-      expect(riskInput).toHaveValue(50);
+      await waitFor(() => {
+        const riskInput = screen.getByLabelText(/Minimum Risk Score/i);
+        expect(riskInput).toBeInTheDocument();
+        expect(riskInput).toHaveValue(50);
+      });
     });
 
-    it('renders force re-evaluate checkbox unchecked by default', () => {
+    it('renders force re-evaluate checkbox unchecked by default', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      const forceCheckbox = screen.getByLabelText(/Force Re-evaluate/i);
-      expect(forceCheckbox).toBeInTheDocument();
-      expect(forceCheckbox).not.toBeChecked();
+      await waitFor(() => {
+        const forceCheckbox = screen.getByLabelText(/Force Re-evaluate/i);
+        expect(forceCheckbox).toBeInTheDocument();
+        expect(forceCheckbox).not.toBeChecked();
+      });
     });
 
-    it('renders cancel button', () => {
+    it('renders cancel button', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+      });
     });
 
-    it('renders submit button', () => {
+    it('renders submit button', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByRole('button', { name: /Start Batch Audit/i })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Start Batch Audit/i })).toBeInTheDocument();
+      });
     });
 
-    it('renders close button', () => {
+    it('renders close button', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      });
     });
   });
 
   describe('form interactions', () => {
-    it('allows changing limit value', () => {
+    it('allows changing limit value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const limitInput = screen.getByLabelText(/Event Limit/i);
       fireEvent.change(limitInput, { target: { value: '100', valueAsNumber: 100 } });
@@ -103,8 +127,12 @@ describe('BatchAuditModal', () => {
       expect(limitInput).toHaveValue(100);
     });
 
-    it('allows changing min risk score value', () => {
+    it('allows changing min risk score value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const riskInput = screen.getByLabelText(/Minimum Risk Score/i);
       fireEvent.change(riskInput, { target: { value: '75', valueAsNumber: 75 } });
@@ -116,6 +144,10 @@ describe('BatchAuditModal', () => {
       const user = userEvent.setup();
       render(<BatchAuditModal {...defaultProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       const forceCheckbox = screen.getByLabelText(/Force Re-evaluate/i);
       expect(forceCheckbox).not.toBeChecked();
 
@@ -126,29 +158,45 @@ describe('BatchAuditModal', () => {
       expect(forceCheckbox).not.toBeChecked();
     });
 
-    it('validates limit minimum value', () => {
+    it('validates limit minimum value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const limitInput = screen.getByLabelText(/Event Limit/i);
       expect(limitInput).toHaveAttribute('min', '1');
     });
 
-    it('validates limit maximum value', () => {
+    it('validates limit maximum value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const limitInput = screen.getByLabelText(/Event Limit/i);
       expect(limitInput).toHaveAttribute('max', '1000');
     });
 
-    it('validates min risk score minimum value', () => {
+    it('validates min risk score minimum value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const riskInput = screen.getByLabelText(/Minimum Risk Score/i);
       expect(riskInput).toHaveAttribute('min', '0');
     });
 
-    it('validates min risk score maximum value', () => {
+    it('validates min risk score maximum value', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const riskInput = screen.getByLabelText(/Minimum Risk Score/i);
       expect(riskInput).toHaveAttribute('max', '100');
@@ -161,6 +209,10 @@ describe('BatchAuditModal', () => {
       const onClose = vi.fn();
       render(<BatchAuditModal {...defaultProps} onClose={onClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
       expect(onClose).toHaveBeenCalledTimes(1);
@@ -170,6 +222,10 @@ describe('BatchAuditModal', () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
       render(<BatchAuditModal {...defaultProps} onClose={onClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       await user.click(screen.getByRole('button', { name: 'Close modal' }));
 
@@ -181,6 +237,10 @@ describe('BatchAuditModal', () => {
       const onClose = vi.fn();
       render(<BatchAuditModal {...defaultProps} onClose={onClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.keyboard('{Escape}');
 
       await waitFor(() => {
@@ -188,8 +248,12 @@ describe('BatchAuditModal', () => {
       });
     });
 
-    it('resets form state when closed and reopened', () => {
+    it('resets form state when closed and reopened', async () => {
       const { rerender } = render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       // Modify form values using fireEvent for number inputs (more reliable)
       const limitInput = screen.getByLabelText(/Event Limit/i);
@@ -200,9 +264,11 @@ describe('BatchAuditModal', () => {
       rerender(<BatchAuditModal {...defaultProps} isOpen={false} />);
       rerender(<BatchAuditModal {...defaultProps} isOpen={true} />);
 
-      // Form should be reset to defaults
-      const newLimitInput = screen.getByLabelText(/Event Limit/i);
-      expect(newLimitInput).toHaveValue(50);
+      await waitFor(() => {
+        // Form should be reset to defaults
+        const newLimitInput = screen.getByLabelText(/Event Limit/i);
+        expect(newLimitInput).toHaveValue(50);
+      });
     });
   });
 
@@ -250,6 +316,10 @@ describe('BatchAuditModal', () => {
 
       render(<BatchAuditModal {...defaultProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
       await waitFor(() => {
@@ -266,6 +336,10 @@ describe('BatchAuditModal', () => {
       vi.mocked(auditApi.triggerBatchAudit).mockReturnValue(submitPromise);
 
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const submitButton = screen.getByRole('button', { name: /Start Batch Audit/i });
       await user.click(submitButton);
@@ -289,6 +363,10 @@ describe('BatchAuditModal', () => {
 
       render(<BatchAuditModal {...defaultProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       const cancelButton = screen.getByRole('button', { name: 'Cancel' });
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
@@ -311,6 +389,10 @@ describe('BatchAuditModal', () => {
 
       render(<BatchAuditModal {...defaultProps} onSuccess={onSuccess} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
       await waitFor(() => {
@@ -327,6 +409,10 @@ describe('BatchAuditModal', () => {
       });
 
       render(<BatchAuditModal {...defaultProps} onClose={onClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
@@ -345,6 +431,10 @@ describe('BatchAuditModal', () => {
 
       render(<BatchAuditModal {...defaultProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
       await waitFor(() => {
@@ -357,6 +447,10 @@ describe('BatchAuditModal', () => {
       vi.mocked(auditApi.triggerBatchAudit).mockRejectedValue(new Error('Network error'));
 
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
@@ -372,6 +466,10 @@ describe('BatchAuditModal', () => {
       );
 
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       // Trigger error
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
@@ -397,6 +495,10 @@ describe('BatchAuditModal', () => {
 
       render(<BatchAuditModal {...defaultProps} onClose={onClose} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
       await waitFor(() => {
@@ -416,6 +518,10 @@ describe('BatchAuditModal', () => {
 
       render(<BatchAuditModal {...defaultProps} onSuccess={onSuccess} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /Start Batch Audit/i }));
 
       await waitFor(() => {
@@ -427,32 +533,45 @@ describe('BatchAuditModal', () => {
   });
 
   describe('accessibility', () => {
-    it('has role="dialog"', () => {
+    it('has role="dialog"', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
 
-    it('has aria-modal attribute', () => {
+    it('has aria-modal attribute', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveAttribute('aria-modal');
+      await waitFor(() => {
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveAttribute('aria-modal');
+      });
     });
 
-    it('close button has aria-label', () => {
+    it('close button has aria-label', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      const closeButton = screen.getByRole('button', { name: 'Close modal' });
-      expect(closeButton).toHaveAttribute('aria-label', 'Close modal');
+      await waitFor(() => {
+        const closeButton = screen.getByRole('button', { name: 'Close modal' });
+        expect(closeButton).toHaveAttribute('aria-label', 'Close modal');
+      });
     });
 
-    it('form inputs have associated labels', () => {
+    it('form inputs have associated labels', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByLabelText(/Event Limit/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Minimum Risk Score/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Force Re-evaluate/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Event Limit/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Minimum Risk Score/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Force Re-evaluate/i)).toBeInTheDocument();
+      });
     });
 
-    it('has proper input types', () => {
+    it('has proper input types', async () => {
       render(<BatchAuditModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       const limitInput = screen.getByLabelText(/Event Limit/i);
       const riskInput = screen.getByLabelText(/Minimum Risk Score/i);
       const forceCheckbox = screen.getByLabelText(/Force Re-evaluate/i);
@@ -464,29 +583,39 @@ describe('BatchAuditModal', () => {
   });
 
   describe('data-testid attributes', () => {
-    it('has data-testid for modal', () => {
+    it('has data-testid for modal', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByTestId('batch-audit-modal')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('batch-audit-modal')).toBeInTheDocument();
+      });
     });
 
-    it('has data-testid for limit input', () => {
+    it('has data-testid for limit input', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByTestId('batch-audit-limit')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('batch-audit-limit')).toBeInTheDocument();
+      });
     });
 
-    it('has data-testid for risk score input', () => {
+    it('has data-testid for risk score input', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByTestId('batch-audit-min-risk')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('batch-audit-min-risk')).toBeInTheDocument();
+      });
     });
 
-    it('has data-testid for force checkbox', () => {
+    it('has data-testid for force checkbox', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByTestId('batch-audit-force')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('batch-audit-force')).toBeInTheDocument();
+      });
     });
 
-    it('has data-testid for submit button', () => {
+    it('has data-testid for submit button', async () => {
       render(<BatchAuditModal {...defaultProps} />);
-      expect(screen.getByTestId('batch-audit-submit')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('batch-audit-submit')).toBeInTheDocument();
+      });
     });
   });
 });
