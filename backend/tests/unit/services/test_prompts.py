@@ -1761,6 +1761,92 @@ class TestPromptTemplateConsistency:
             assert '"risk_score"' in template
 
 
+# =============================================================================
+# Test Classes for Efficient String Building (NEM-1095)
+# =============================================================================
+
+
+class TestEfficientStringBuilding:
+    """Tests for efficient string building patterns in prompt generation.
+
+    NEM-1095: Use efficient string building for LLM prompt generation.
+    String concatenation with += is O(n^2) in the worst case. Using list.append()
+    followed by ''.join() is O(n) and much more efficient for building large prompts.
+    """
+
+    def test_format_functions_use_list_join_pattern(self) -> None:
+        """Verify format functions use efficient list.append() + join() pattern."""
+        import inspect
+
+        from backend.services import prompts
+
+        format_functions = [
+            prompts.format_clothing_analysis_context,
+            prompts.format_pose_analysis_context,
+            prompts.format_action_recognition_context,
+            prompts.format_vehicle_classification_context,
+            prompts.format_vehicle_damage_context,
+            prompts.format_pet_classification_context,
+            prompts.format_depth_context,
+            prompts.format_detections_with_all_enrichment,
+        ]
+
+        for func in format_functions:
+            source = inspect.getsource(func)
+            # Check that functions use list-based building, not string concatenation
+            # They should have 'lines = []' or similar pattern
+            assert "lines = []" in source or "lines.append" in source, (
+                f"{func.__name__} should use list.append() + join() pattern"
+            )
+
+    def test_large_detection_list_performance(self) -> None:
+        """Test that formatting large detection lists is efficient."""
+        import time
+
+        # Create a large list of detections
+        large_detections = [
+            {
+                "detection_id": f"det_{i:04d}",
+                "class_name": "person" if i % 2 == 0 else "car",
+                "confidence": 0.85 + (i % 15) / 100,
+                "bbox": [100 + i, 150 + i, 300 + i, 450 + i],
+            }
+            for i in range(100)  # 100 detections
+        ]
+
+        # Format should complete quickly (well under 1 second)
+        start = time.time()
+        result = format_detections_with_all_enrichment(large_detections)
+        elapsed = time.time() - start
+
+        # Should complete in under 100ms for 100 detections
+        assert elapsed < 0.1, f"Formatting took too long: {elapsed:.3f}s"
+        # Should contain all detections
+        assert "det_0099" in result
+
+    def test_string_join_produces_correct_output(self) -> None:
+        """Test that list.append() + join() produces correct multi-line output."""
+        # Test with clothing context (uses lines pattern)
+        classifications = {
+            f"det_{i}": MockClothingClassification(
+                raw_description=f"outfit {i}",
+                confidence=0.85,
+                is_suspicious=False,
+                is_service_uniform=False,
+                top_category="casual",
+            )
+            for i in range(5)
+        }
+
+        result = format_clothing_analysis_context(classifications, None)
+
+        # Should have proper newlines between person entries
+        assert "\n\n" in result  # Double newlines separate entries
+        # Each person should be present
+        for i in range(5):
+            assert f"Person det_{i}:" in result
+
+
 class TestPromptModuleImports:
     """Tests for module structure and exports."""
 

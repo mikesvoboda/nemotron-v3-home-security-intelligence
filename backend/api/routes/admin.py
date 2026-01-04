@@ -275,12 +275,14 @@ async def seed_cameras(
     # Seed cameras
     cameras_to_create = _get_sample_cameras()[: request.count]
 
-    for camera_data in cameras_to_create:
-        # Check if camera already exists
-        result = await db.execute(select(Camera).where(Camera.id == camera_data["id"]))
-        existing_camera = result.scalar_one_or_none()
+    # Batch load existing camera IDs to avoid N+1 queries
+    camera_ids_to_check = [c["id"] for c in cameras_to_create]
+    existing_result = await db.execute(select(Camera.id).where(Camera.id.in_(camera_ids_to_check)))
+    existing_ids = {row[0] for row in existing_result.all()}
 
-        if existing_camera:
+    for camera_data in cameras_to_create:
+        # Check if camera already exists using batch-loaded set
+        if camera_data["id"] in existing_ids:
             continue
 
         # Create camera folder if requested

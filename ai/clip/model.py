@@ -20,7 +20,7 @@ from typing import Any
 import torch
 from fastapi import FastAPI, HTTPException
 from PIL import Image
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from transformers import CLIPModel, CLIPProcessor
 
 # Configure logging
@@ -36,6 +36,11 @@ MAX_BASE64_SIZE_BYTES = int(MAX_IMAGE_SIZE_BYTES * 4 / 3) + 100  # ~13.3MB + pad
 
 # CLIP ViT-L embedding dimension
 EMBEDDING_DIMENSION = 768
+
+# Maximum batch size for batch similarity requests to prevent resource exhaustion (NEM-1101)
+# This limits the number of text descriptions that can be compared against a single image
+# in one request. Configurable via environment variable.
+MAX_BATCH_TEXTS_SIZE = int(os.environ.get("CLIP_MAX_BATCH_TEXTS_SIZE", "100"))
 
 
 class EmbedRequest(BaseModel):
@@ -106,6 +111,21 @@ class BatchSimilarityRequest(BaseModel):
 
     image: str = Field(..., description="Base64 encoded image")
     texts: list[str] = Field(..., description="List of text descriptions to compare against")
+
+    @field_validator("texts")
+    @classmethod
+    def validate_batch_size(cls, v: list[str]) -> list[str]:
+        """Validate that the batch size does not exceed the maximum allowed.
+
+        This prevents resource exhaustion attacks through oversized batch requests.
+        See NEM-1101 for details.
+        """
+        if len(v) > MAX_BATCH_TEXTS_SIZE:
+            raise ValueError(
+                f"Batch size {len(v)} exceeds maximum allowed size of {MAX_BATCH_TEXTS_SIZE}. "
+                f"Please reduce the number of texts in your request."
+            )
+        return v
 
 
 class BatchSimilarityResponse(BaseModel):
@@ -235,8 +255,11 @@ class CLIPEmbeddingModel:
         with torch.no_grad():
             image_features = self.model.get_image_features(**inputs)
 
-            # Normalize embedding
-            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+            # Normalize embedding with epsilon to prevent division by zero (NEM-1100)
+            epsilon = 1e-8
+            image_features = image_features / (
+                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+            )
 
         # Convert to list
         embedding: list[float] = image_features[0].cpu().float().numpy().tolist()
@@ -275,8 +298,10 @@ class CLIPEmbeddingModel:
         baseline_tensor = torch.tensor(baseline_embedding, dtype=torch.float32)
 
         # Ensure embeddings are normalized (they should be from extract_embedding)
-        current_norm = current_tensor / current_tensor.norm(p=2)
-        baseline_norm = baseline_tensor / baseline_tensor.norm(p=2)
+        # Add epsilon to prevent division by zero for zero vectors (NEM-1100)
+        epsilon = 1e-8
+        current_norm = current_tensor / (current_tensor.norm(p=2) + epsilon)
+        baseline_norm = baseline_tensor / (baseline_tensor.norm(p=2) + epsilon)
 
         # Compute cosine similarity (dot product of normalized vectors)
         similarity = float(torch.dot(current_norm, baseline_norm).item())
@@ -383,9 +408,14 @@ class CLIPEmbeddingModel:
             image_features = self.model.get_image_features(**image_inputs)
             text_features = self.model.get_text_features(**text_inputs)
 
-            # Normalize embeddings
-            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
-            text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
+            # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
+            epsilon = 1e-8
+            image_features = image_features / (
+                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+            )
+            text_features = text_features / (
+                text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+            )
 
             # Compute cosine similarity
             similarity = (image_features @ text_features.T)[0, 0].cpu().float().item()
@@ -432,9 +462,14 @@ class CLIPEmbeddingModel:
             image_features = self.model.get_image_features(**image_inputs)
             text_features = self.model.get_text_features(**text_inputs)
 
-            # Normalize embeddings
-            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
-            text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
+            # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
+            epsilon = 1e-8
+            image_features = image_features / (
+                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+            )
+            text_features = text_features / (
+                text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+            )
 
             # Compute cosine similarities (1, num_texts)
             similarities_tensor = (image_features @ text_features.T)[0]

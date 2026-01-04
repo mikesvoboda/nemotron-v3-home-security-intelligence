@@ -1074,6 +1074,209 @@ class TestSecurityValidation:
         assert _validate_max_frames(1000) == 1000
 
 
+# =============================================================================
+# Batch Frame Extraction Tests (NEM-1062)
+# =============================================================================
+
+
+class TestBatchFrameExtraction:
+    """Tests for optimized batch frame extraction using FFmpeg select filter.
+
+    NEM-1062: Optimize FFmpeg frame extraction to batch multiple frames.
+    Instead of calling FFmpeg once per frame, use -vf select='eq(n,X)+eq(n,Y)'
+    pattern to extract multiple frames in a single FFmpeg call.
+    """
+
+    @pytest.fixture
+    def video_processor(self, tmp_path: Path) -> VideoProcessor:
+        """Create VideoProcessor with mocked ffmpeg check."""
+        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+            return VideoProcessor(output_dir=str(tmp_path))
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_uses_single_ffmpeg_call(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test that batch extraction uses a single FFmpeg call for multiple frames."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        mock_metadata = {"duration": 10.0}
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        ffmpeg_call_count = [0]
+
+        async def mock_to_thread(func, cmd, *args, **kwargs):
+            ffmpeg_call_count[0] += 1
+            # Create output files - batch extraction creates multiple frames
+            output_pattern = cmd[-1]  # Output pattern like frames_dir/%04d.jpg
+            frames_dir = Path(output_pattern).parent
+            frames_dir.mkdir(parents=True, exist_ok=True)
+            # Create 5 frame files as output
+            for i in range(5):
+                (frames_dir / f"{i:04d}.jpg").write_bytes(b"fake frame")
+            return mock_result
+
+        with (
+            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
+            patch("asyncio.to_thread", side_effect=mock_to_thread),
+        ):
+            result = await video_processor.extract_frames_for_detection_batch(
+                str(video_path), interval_seconds=2.0, max_frames=5
+            )
+
+        # Should only call FFmpeg once for batch extraction
+        assert ffmpeg_call_count[0] == 1
+        # Should return paths to extracted frames
+        assert len(result) > 0
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_builds_select_filter(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test that batch extraction uses -vf select filter with correct timestamps."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        mock_metadata = {"duration": 10.0}
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        captured_cmd: list[str] = []
+
+        async def mock_to_thread(func, cmd, *args, **kwargs):
+            captured_cmd.extend(cmd)
+            output_pattern = cmd[-1]
+            frames_dir = Path(output_pattern).parent
+            frames_dir.mkdir(parents=True, exist_ok=True)
+            for i in range(3):
+                (frames_dir / f"{i:04d}.jpg").write_bytes(b"fake frame")
+            return mock_result
+
+        with (
+            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
+            patch("asyncio.to_thread", side_effect=mock_to_thread),
+        ):
+            await video_processor.extract_frames_for_detection_batch(
+                str(video_path), interval_seconds=3.0, max_frames=5
+            )
+
+        # Verify FFmpeg command contains select filter
+        cmd_str = " ".join(captured_cmd)
+        assert "select=" in cmd_str or "-vf" in cmd_str
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_file_not_found(
+        self, video_processor: VideoProcessor
+    ) -> None:
+        """Test batch extraction returns empty list for missing file."""
+        result = await video_processor.extract_frames_for_detection_batch("/nonexistent/video.mp4")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_zero_duration(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test batch extraction handles video with zero duration."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        mock_metadata = {"duration": 0}
+
+        with patch.object(video_processor, "get_video_metadata", return_value=mock_metadata):
+            result = await video_processor.extract_frames_for_detection_batch(str(video_path))
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_respects_max_frames(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test that batch extraction respects max_frames limit."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        mock_metadata = {"duration": 1000.0}  # Long video
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        async def mock_to_thread(func, cmd, *args, **kwargs):
+            output_pattern = cmd[-1]
+            frames_dir = Path(output_pattern).parent
+            frames_dir.mkdir(parents=True, exist_ok=True)
+            # Create exactly max_frames files
+            for i in range(10):
+                (frames_dir / f"{i:04d}.jpg").write_bytes(b"fake frame")
+            return mock_result
+
+        with (
+            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
+            patch("asyncio.to_thread", side_effect=mock_to_thread),
+        ):
+            result = await video_processor.extract_frames_for_detection_batch(
+                str(video_path), max_frames=10
+            )
+
+        assert len(result) <= 10
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_ffmpeg_failure(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test batch extraction handles FFmpeg failure gracefully."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        mock_metadata = {"duration": 10.0}
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "ffmpeg error"
+
+        with (
+            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
+            patch("asyncio.to_thread", return_value=mock_result),
+        ):
+            result = await video_processor.extract_frames_for_detection_batch(str(video_path))
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_batch_with_custom_size(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test batch extraction with custom frame size."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        mock_metadata = {"duration": 10.0}
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        captured_cmd: list[str] = []
+
+        async def mock_to_thread(func, cmd, *args, **kwargs):
+            captured_cmd.extend(cmd)
+            output_pattern = cmd[-1]
+            frames_dir = Path(output_pattern).parent
+            frames_dir.mkdir(parents=True, exist_ok=True)
+            for i in range(3):
+                (frames_dir / f"{i:04d}.jpg").write_bytes(b"fake frame")
+            return mock_result
+
+        with (
+            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
+            patch("asyncio.to_thread", side_effect=mock_to_thread),
+        ):
+            await video_processor.extract_frames_for_detection_batch(
+                str(video_path), size=(640, 480)
+            )
+
+        # Verify scale filter contains custom size
+        cmd_str = " ".join(captured_cmd)
+        assert "640:480" in cmd_str
+
+
 class TestVideoProcessorSecurityIntegration:
     """Integration tests for security validation in VideoProcessor methods."""
 

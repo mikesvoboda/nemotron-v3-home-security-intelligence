@@ -174,6 +174,7 @@ class RateLimitTier(str, Enum):
     MEDIA = "media"
     WEBSOCKET = "websocket"
     SEARCH = "search"
+    EXPORT = "export"
 
 
 def get_tier_limits(tier: RateLimitTier) -> tuple[int, int]:
@@ -193,6 +194,9 @@ def get_tier_limits(tier: RateLimitTier) -> tuple[int, int]:
         return (settings.rate_limit_websocket_connections_per_minute, 2)
     elif tier == RateLimitTier.SEARCH:
         return (settings.rate_limit_search_requests_per_minute, settings.rate_limit_burst)
+    elif tier == RateLimitTier.EXPORT:
+        # Export tier has no burst allowance to prevent abuse
+        return (settings.rate_limit_export_requests_per_minute, 0)
     else:
         return (settings.rate_limit_requests_per_minute, settings.rate_limit_burst)
 
@@ -471,6 +475,16 @@ def rate_limit_media() -> RateLimiter:
 def rate_limit_search() -> RateLimiter:
     """Get search rate limiter dependency."""
     return RateLimiter(tier=RateLimitTier.SEARCH)
+
+
+def rate_limit_export() -> RateLimiter:
+    """Get export rate limiter dependency.
+
+    The export tier has stricter limits (10 requests/minute, no burst)
+    to prevent abuse of the CSV export functionality which could be used
+    to overload the server or exfiltrate large amounts of data.
+    """
+    return RateLimiter(tier=RateLimitTier.EXPORT)
 
 
 # Type alias for cleaner dependency injection

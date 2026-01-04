@@ -8,21 +8,18 @@ SceneChangeDetector service using SSIM (Structural Similarity Index) comparison.
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.core.time_utils import utc_now
+
 from .camera import Base
 
 if TYPE_CHECKING:
     from .camera import Camera
-
-
-def _utc_now() -> datetime:
-    """Return current UTC time as a timezone-aware datetime."""
-    return datetime.now(UTC)
 
 
 class SceneChangeType(str, enum.Enum):
@@ -59,7 +56,7 @@ class SceneChange(Base):
         String, ForeignKey("cameras.id", ondelete="CASCADE"), nullable=False
     )
     detected_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, nullable=False
     )
     change_type: Mapped[SceneChangeType] = mapped_column(
         Enum(SceneChangeType, name="scene_change_type_enum"),

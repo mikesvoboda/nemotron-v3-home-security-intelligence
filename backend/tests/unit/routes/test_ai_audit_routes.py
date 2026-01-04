@@ -1005,7 +1005,8 @@ class TestTriggerBatchAudit:
         assert response.status_code == 200
         data = response.json()
         assert data["queued_count"] == 0
-        assert "Successfully processed 0 events" in data["message"]
+        # New message is more informative when no events match criteria
+        assert "No events found matching criteria" in data["message"]
 
 
 # =============================================================================

@@ -562,3 +562,183 @@ class TestEnrichmentSchemas:
         assert pet.detected is True
         assert pet.type == "dog"
         assert pet.is_household_pet is True
+
+
+class TestErrorSanitization:
+    """Tests for error sanitization in enrichment API responses.
+
+    Security: Error messages from the enrichment pipeline may contain sensitive
+    internal details that should not be exposed via the API. These tests verify
+    that _sanitize_errors removes sensitive information.
+    """
+
+    def test_sanitize_errors_removes_file_paths(self) -> None:
+        """Test that file paths are removed from error messages."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            "License plate detection failed: FileNotFoundError: /export/foscam/front_door/image.jpg",
+            "Face detection failed: Permission denied: /data/models/weights.pt",
+            "Image quality assessment failed: Could not read /home/user/.cache/model/config.json",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 3
+        # Verify file paths are not present
+        for error in sanitized:
+            assert "/export" not in error
+            assert "/data" not in error
+            assert "/home" not in error
+            assert ".pt" not in error
+            assert ".json" not in error
+
+    def test_sanitize_errors_removes_internal_ips(self) -> None:
+        """Test that internal IP addresses are removed from error messages."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            "Connection failed: Could not connect to http://192.168.1.100:8080/detect",
+            "CLIP service unavailable: 10.0.0.50:9000 connection refused",
+            "Florence model error: HTTPError at http://172.16.0.10:8000/api/v1/caption",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 3
+        # Verify IPs and ports are not present
+        for error in sanitized:
+            assert "192.168" not in error
+            assert "10.0.0" not in error
+            assert "172.16" not in error
+            assert ":8080" not in error
+            assert ":9000" not in error
+            assert ":8000" not in error
+
+    def test_sanitize_errors_removes_stack_traces(self) -> None:
+        """Test that stack traces are removed from error messages."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            'Traceback (most recent call last):\n  File "/app/backend/services/plate_detector.py", line 45\n    raise RuntimeError("Detection failed")',
+            "Error at line 123: AttributeError: 'NoneType' object has no attribute 'bbox'",
+            "Exception in backend.services.enrichment_pipeline.EnrichmentPipeline._detect_faces",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 3
+        # Verify stack trace elements are not present
+        for error in sanitized:
+            assert "Traceback" not in error
+            assert "line " not in error.lower() or "pipeline" not in error.lower()
+            assert "File " not in error
+            assert "backend.services" not in error
+
+    def test_sanitize_errors_removes_environment_variables(self) -> None:
+        """Test that environment variable values are removed from error messages."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            "Config error: DATABASE_URL=postgresql://user:password@localhost:5432/db",
+            "Auth failed: API_KEY=sk-1234567890abcdef",
+            "Redis connection: REDIS_HOST=redis.internal.svc.cluster.local",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 3
+        # Verify sensitive config values are not present
+        for error in sanitized:
+            assert "postgresql://" not in error
+            assert "password" not in error
+            assert "sk-" not in error
+            assert ".internal.svc" not in error
+
+    def test_sanitize_errors_preserves_error_category(self) -> None:
+        """Test that sanitized errors preserve the category of the error."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            "License plate detection failed: FileNotFoundError: /export/foscam/image.jpg",
+            "Face detection failed: Connection refused at 192.168.1.50:8080",
+            "Violence detection failed: CUDA out of memory",
+            "Pet classification failed: Model not loaded",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 4
+        # Verify the error category is preserved
+        assert "License plate" in sanitized[0] or "license plate" in sanitized[0].lower()
+        assert "Face" in sanitized[1] or "face" in sanitized[1].lower()
+        assert "Violence" in sanitized[2] or "violence" in sanitized[2].lower()
+        assert "Pet" in sanitized[3] or "pet" in sanitized[3].lower()
+
+    def test_sanitize_errors_empty_list(self) -> None:
+        """Test that empty error list returns empty list."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        assert _sanitize_errors([]) == []
+
+    def test_sanitize_errors_already_safe_messages(self) -> None:
+        """Test that already safe error messages are preserved reasonably."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            "License plate detection failed",
+            "Face detection error",
+            "Processing timeout exceeded",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 3
+        # Safe messages should still be sanitized to generic form
+        for error in sanitized:
+            assert isinstance(error, str)
+            assert len(error) > 0
+
+    def test_transform_enrichment_data_sanitizes_errors(self) -> None:
+        """Test that _transform_enrichment_data sanitizes errors field."""
+        from backend.api.routes.detections import _transform_enrichment_data
+
+        enrichment_data = {
+            "errors": [
+                "License plate detection failed: FileNotFoundError: /export/foscam/front_door/image.jpg",
+                "Face detection failed: Connection refused at http://192.168.1.100:8080/detect",
+            ],
+            "processing_time_ms": 150.0,
+        }
+
+        detected_at = datetime(2026, 1, 3, 10, 30, 0, tzinfo=UTC)
+        result = _transform_enrichment_data(
+            detection_id=1,
+            enrichment_data=enrichment_data,
+            detected_at=detected_at,
+        )
+
+        # Verify errors are sanitized
+        assert len(result["errors"]) == 2
+        for error in result["errors"]:
+            assert "/export" not in error
+            assert "192.168" not in error
+            assert ":8080" not in error
+
+    def test_sanitize_errors_removes_hostnames(self) -> None:
+        """Test that internal hostnames are removed from error messages."""
+        from backend.api.routes.detections import _sanitize_errors
+
+        errors = [
+            "Cannot connect to enrichment-service.internal:8000",
+            "Redis error: redis-master.prod.svc.cluster.local unreachable",
+            "PostgreSQL: host=db.internal.company.com port=5432",
+        ]
+
+        sanitized = _sanitize_errors(errors)
+
+        assert len(sanitized) == 3
+        for error in sanitized:
+            assert ".internal" not in error
+            assert ".svc.cluster.local" not in error
+            assert ".company.com" not in error

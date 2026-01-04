@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,6 +62,7 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
+from backend.core.config import Settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
 from backend.core.redis import (
@@ -1540,8 +1541,18 @@ async def get_pipeline_latency(
 
 @router.get("/pipeline-latency/history", response_model=PipelineLatencyHistoryResponse)
 async def get_pipeline_latency_history(
-    since: int = 60,
-    bucket_seconds: int = 60,
+    since: int = Query(
+        default=60,
+        ge=1,
+        le=1440,
+        description="Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours)",
+    ),
+    bucket_seconds: int = Query(
+        default=60,
+        ge=10,
+        le=3600,
+        description="Size of each time bucket in seconds (10-3600, i.e., 10 seconds to 1 hour)",
+    ),
 ) -> PipelineLatencyHistoryResponse:
     """Get pipeline latency history for time-series visualization.
 
@@ -1549,8 +1560,8 @@ async def get_pipeline_latency_history(
     Each bucket contains aggregated statistics for all pipeline stages.
 
     Args:
-        since: Number of minutes of history to return (default 60)
-        bucket_seconds: Size of each time bucket in seconds (default 60 = 1 minute)
+        since: Number of minutes of history to return (1-1440, default 60)
+        bucket_seconds: Size of each time bucket in seconds (10-3600, default 60)
 
     Returns:
         PipelineLatencyHistoryResponse with chronologically ordered snapshots
@@ -2078,10 +2089,43 @@ async def get_cleanup_status() -> CleanupStatusResponse:
 # =============================================================================
 
 
+def _decode_redis_value(value: bytes | str | None) -> str | None:
+    """Decode a Redis value from bytes or string to string."""
+    if value is None:
+        return None
+    return value.decode() if isinstance(value, bytes) else value
+
+
+def _parse_detections(detections_data_raw: bytes | str | None) -> list[dict[str, Any]]:
+    """Parse detections from raw Redis value."""
+    import json
+
+    if not detections_data_raw:
+        return []
+    detections_data = _decode_redis_value(detections_data_raw)
+    if isinstance(detections_data, str):
+        parsed: list[dict[str, Any]] = json.loads(detections_data)
+        return parsed
+    return []
+
+
+def _build_empty_batch_response(settings: Settings) -> BatchAggregatorStatusResponse:
+    """Build an empty batch aggregator status response."""
+    return BatchAggregatorStatusResponse(
+        active_batches=0,
+        batches=[],
+        batch_window_seconds=settings.batch_window_seconds,
+        idle_timeout_seconds=settings.batch_idle_timeout_seconds,
+    )
+
+
 async def _get_batch_aggregator_status(
     redis: RedisClient | None,
 ) -> BatchAggregatorStatusResponse | None:
     """Get status of batch aggregator service by querying Redis.
+
+    Uses Redis pipelining to efficiently batch all metadata fetches,
+    reducing round-trip overhead when multiple batches are active.
 
     Args:
         redis: Redis client for batch state queries
@@ -2089,44 +2133,55 @@ async def _get_batch_aggregator_status(
     Returns:
         BatchAggregatorStatusResponse or None if service unavailable
     """
-    if redis is None:
+    if redis is None or redis._client is None:
         return None
 
     settings = get_settings()
     current_time = time.time()
-    active_batches: list[BatchInfoResponse] = []
+    redis_client = redis._client
 
     try:
-        # Find all active batch keys (batch:{camera_id}:current)
-        redis_client = redis._client
-        if redis_client is None:
-            return None
-
+        # First pass: collect all batch IDs using scan
+        batch_keys: list[str] = []
         async for key in redis_client.scan_iter(match="batch:*:current", count=100):
-            try:
-                # Get batch ID
-                batch_id = await redis.get_with_retry(key)
-                if not batch_id:
-                    continue
+            batch_keys.append(key)
 
-                # Get batch metadata
-                camera_id = await redis.get_with_retry(f"batch:{batch_id}:camera_id")
+        if not batch_keys:
+            return _build_empty_batch_response(settings)
+
+        # Pipeline batch ID fetches
+        pipe = redis_client.pipeline()
+        for key in batch_keys:
+            pipe.get(key)
+        batch_id_results = await pipe.execute()
+
+        # Collect valid batch IDs (filter None and decode)
+        batch_ids = [_decode_redis_value(result) for result in batch_id_results if result]
+        batch_ids = [bid for bid in batch_ids if bid]  # Filter None values
+
+        if not batch_ids:
+            return _build_empty_batch_response(settings)
+
+        # Second pass: pipeline all metadata fetches (4 keys per batch)
+        pipe = redis_client.pipeline()
+        for batch_id in batch_ids:
+            pipe.get(f"batch:{batch_id}:camera_id")
+            pipe.get(f"batch:{batch_id}:detections")
+            pipe.get(f"batch:{batch_id}:started_at")
+            pipe.get(f"batch:{batch_id}:last_activity")
+        metadata_results = await pipe.execute()
+
+        # Process results in groups of 4
+        active_batches: list[BatchInfoResponse] = []
+        for i, batch_id in enumerate(batch_ids):
+            try:
+                camera_id = _decode_redis_value(metadata_results[i * 4])
                 if not camera_id:
                     continue
 
-                detections_data = await redis.get_with_retry(f"batch:{batch_id}:detections")
-                detections = []
-                if detections_data:
-                    import json
-
-                    detections = (
-                        json.loads(detections_data)
-                        if isinstance(detections_data, str)
-                        else detections_data
-                    )
-
-                started_at_str = await redis.get_with_retry(f"batch:{batch_id}:started_at")
-                last_activity_str = await redis.get_with_retry(f"batch:{batch_id}:last_activity")
+                detections = _parse_detections(metadata_results[i * 4 + 1])
+                started_at_str = _decode_redis_value(metadata_results[i * 4 + 2])
+                last_activity_str = _decode_redis_value(metadata_results[i * 4 + 3])
 
                 started_at = float(started_at_str) if started_at_str else current_time
                 last_activity = float(last_activity_str) if last_activity_str else started_at
@@ -2142,7 +2197,7 @@ async def _get_batch_aggregator_status(
                     )
                 )
             except Exception as e:
-                logger.warning(f"Error processing batch key {key}: {e}", exc_info=True)
+                logger.warning(f"Error processing batch {batch_id}: {e}", exc_info=True)
                 continue
 
         return BatchAggregatorStatusResponse(

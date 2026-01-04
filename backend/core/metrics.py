@@ -38,6 +38,13 @@ from prometheus_client import (
 )
 
 from backend.core.logging import get_logger
+from backend.core.sanitization import (
+    sanitize_camera_id,
+    sanitize_error_type,
+    sanitize_metric_label,
+    sanitize_object_class,
+    sanitize_risk_level,
+)
 
 logger = get_logger(__name__)
 
@@ -323,8 +330,14 @@ def record_pipeline_error(error_type: str) -> None:
 
     Args:
         error_type: Type of error (e.g., "connection_error", "timeout_error")
+
+    Note:
+        Error types are sanitized using an allowlist to prevent cardinality
+        explosion from user-controlled or unexpected error types (NEM-1064).
     """
-    PIPELINE_ERRORS_TOTAL.labels(error_type=error_type).inc()
+    # Sanitize error type to prevent cardinality explosion
+    safe_error_type = sanitize_error_type(error_type)
+    PIPELINE_ERRORS_TOTAL.labels(error_type=safe_error_type).inc()
 
 
 # =============================================================================
@@ -337,8 +350,14 @@ def record_detection_by_class(object_class: str) -> None:
 
     Args:
         object_class: The detected object class (e.g., "person", "car", "dog")
+
+    Note:
+        Object classes are sanitized using an allowlist of known COCO classes
+        to prevent cardinality explosion from unexpected values (NEM-1064).
     """
-    DETECTIONS_BY_CLASS_TOTAL.labels(object_class=object_class).inc()
+    # Sanitize object class to prevent cardinality explosion
+    safe_class = sanitize_object_class(object_class)
+    DETECTIONS_BY_CLASS_TOTAL.labels(object_class=safe_class).inc()
 
 
 def observe_detection_confidence(confidence: float) -> None:
@@ -369,8 +388,14 @@ def record_event_by_risk_level(level: str) -> None:
 
     Args:
         level: Risk level (e.g., "low", "medium", "high", "critical")
+
+    Note:
+        Risk levels are sanitized using an allowlist to prevent cardinality
+        explosion from unexpected values (NEM-1064).
     """
-    EVENTS_BY_RISK_LEVEL.labels(level=level).inc()
+    # Sanitize risk level to prevent cardinality explosion
+    safe_level = sanitize_risk_level(level)
+    EVENTS_BY_RISK_LEVEL.labels(level=safe_level).inc()
 
 
 def record_prompt_template_used(template: str) -> None:
@@ -412,8 +437,15 @@ def record_event_by_camera(camera_id: str, camera_name: str) -> None:
     Args:
         camera_id: Unique identifier for the camera
         camera_name: Human-readable camera name
+
+    Note:
+        Camera IDs and names are sanitized to prevent cardinality explosion
+        from malformed or excessively long values (NEM-1064).
     """
-    EVENTS_BY_CAMERA_TOTAL.labels(camera_id=camera_id, camera_name=camera_name).inc()
+    # Sanitize camera_id and camera_name to prevent cardinality explosion
+    safe_camera_id = sanitize_camera_id(camera_id)
+    safe_camera_name = sanitize_metric_label(camera_name, max_length=64)
+    EVENTS_BY_CAMERA_TOTAL.labels(camera_id=safe_camera_id, camera_name=safe_camera_name).inc()
 
 
 def record_event_reviewed() -> None:

@@ -146,6 +146,7 @@ jobs:
     name: Integration Tests (API)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -227,6 +228,7 @@ jobs:
     name: Integration Tests (WebSocket)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -308,6 +310,7 @@ jobs:
     name: Integration Tests (Services)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -389,6 +392,7 @@ jobs:
     name: Integration Tests (Models)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -710,7 +714,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -768,7 +772,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -810,6 +814,7 @@ jobs:
     name: Build Docker (backend)
     runs-on: ubuntu-latest
     continue-on-error: true
+    # Only needs lint/typecheck - runs in parallel with tests for CI speed
     needs:
       - lint
       - typecheck

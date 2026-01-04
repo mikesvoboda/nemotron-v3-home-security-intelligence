@@ -136,38 +136,61 @@ def classify_pet(image_path: str, client: httpx.Client) -> tuple[dict, float]:
 
 
 def analyze_with_nemotron(results: list[PipelineResult], client: httpx.Client) -> tuple[str, float]:
-    """Send aggregated results to Nemotron for risk analysis."""
-    # Build prompt from pipeline results
-    prompt = """You are a home security AI analyst. Analyze the following camera detections and provide a risk assessment.
+    """Send aggregated results to Nemotron for risk analysis.
+
+    NEM-1095: Uses efficient list.append() + ''.join() pattern instead of
+    string concatenation with += which is O(n^2) for large prompts.
+    """
+    # Build prompt from pipeline results using efficient list pattern
+    prompt_parts: list[str] = []
+
+    prompt_parts.append(
+        """You are a home security AI analyst. Analyze the following camera detections and provide a risk assessment.
 
 DETECTION SUMMARY:
 """
+    )
+
     for i, result in enumerate(results, 1):
-        prompt += f"""
---- Image {i}: {Path(result.image_path).name} ---
-Camera: {Path(result.image_path).parent.parent.parent.name}
-Timestamp: {Path(result.image_path).stem.split("_")[-1] if "_" in Path(result.image_path).stem else "unknown"}
+        # Build image header
+        image_path = Path(result.image_path)
+        timestamp = image_path.stem.split("_")[-1] if "_" in image_path.stem else "unknown"
+        prompt_parts.append(
+            f"""
+--- Image {i}: {image_path.name} ---
+Camera: {image_path.parent.parent.parent.name}
+Timestamp: {timestamp}
 
 Objects Detected ({len(result.detections)}):
 """
-        for det in result.detections[:10]:  # Limit to top 10
-            prompt += (
-                f"  - {det.get('label', 'unknown')} (confidence: {det.get('confidence', 0):.2f})\n"
-            )
+        )
+
+        # Add detections (limit to top 10)
+        for det in result.detections[:10]:
+            label = det.get("label", "unknown")
+            confidence = det.get("confidence", 0)
+            prompt_parts.append(f"  - {label} (confidence: {confidence:.2f})\n")
 
         if result.caption:
-            prompt += f"\nScene Description (Florence-2):\n  {result.caption}\n"
+            prompt_parts.append(f"\nScene Description (Florence-2):\n  {result.caption}\n")
 
         if result.vehicle_class:
-            prompt += f"\nVehicle Classification:\n  {json.dumps(result.vehicle_class, indent=2)}\n"
+            prompt_parts.append(
+                f"\nVehicle Classification:\n  {json.dumps(result.vehicle_class, indent=2)}\n"
+            )
 
         if result.pet_class and result.pet_class.get("predictions"):
-            prompt += f"\nPet Classification:\n  {json.dumps(result.pet_class, indent=2)}\n"
+            prompt_parts.append(
+                f"\nPet Classification:\n  {json.dumps(result.pet_class, indent=2)}\n"
+            )
 
         if result.embeddings:
-            prompt += f"\nCLIP Embedding: {len(result.embeddings)}-dimensional vector (for re-identification)\n"
+            prompt_parts.append(
+                f"\nCLIP Embedding: {len(result.embeddings)}-dimensional vector (for re-identification)\n"
+            )
 
-    prompt += """
+    prompt_parts.append(
+        """
 ANALYSIS REQUEST:
 Based on the above detections from multiple cameras, provide:
 1. Overall risk score (0-100)
@@ -176,6 +199,10 @@ Based on the above detections from multiple cameras, provide:
 4. Recommended actions
 
 Be concise."""
+    )
+
+    # Join all parts efficiently in one operation
+    prompt = "".join(prompt_parts)
 
     start = time.time()
     r = client.post(

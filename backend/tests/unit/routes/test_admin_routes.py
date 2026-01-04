@@ -256,8 +256,12 @@ class TestSeedCameras:
         self, client: TestClient, mock_db_session: AsyncMock, sample_camera: Camera
     ) -> None:
         """Test that existing cameras are skipped."""
+        # Mock the batch query for existing camera IDs
+        # New code uses: select(Camera.id).where(Camera.id.in_(...))
+        # which returns rows of (camera_id,) tuples
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # Return the sample camera's ID as a tuple row (batch load pattern)
+        mock_result.all.return_value = [(sample_camera.id,)]
         mock_db_session.execute.return_value = mock_result
 
         response = client.post("/api/admin/seed/cameras", json={"count": 1})

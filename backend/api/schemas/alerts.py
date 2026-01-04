@@ -1,9 +1,43 @@
 """Pydantic schemas for alerts API endpoints."""
 
+import re
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+# Pattern for valid dedup_key: alphanumeric, underscore, hyphen, colon only
+# This prevents injection attacks via special characters (NEM-1107)
+DEDUP_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9_:\-]+$")
+
+
+def validate_dedup_key(value: str) -> str:
+    """Validate dedup_key contains only safe characters.
+
+    Args:
+        value: The dedup_key value to validate
+
+    Returns:
+        The validated value
+
+    Raises:
+        ValueError: If the value contains invalid characters
+
+    Security:
+        Rejects SQL injection, command injection, path traversal,
+        XSS vectors, and non-ASCII unicode characters.
+    """
+    if value and not DEDUP_KEY_PATTERN.match(value):
+        raise ValueError(
+            "dedup_key contains invalid characters. "
+            "Only alphanumeric characters, underscores, hyphens, and colons are allowed."
+        )
+    return value
+
+
+# Type alias for validated dedup_key fields
+DedupKeyStr = Annotated[str, AfterValidator(validate_dedup_key)]
 
 
 class AlertSeverity(str, Enum):
@@ -330,7 +364,12 @@ class AlertCreate(BaseModel):
     event_id: int = Field(..., description="Event ID that triggered this alert")
     rule_id: str | None = Field(None, description="Alert rule UUID that matched (optional)")
     severity: AlertSeverity = Field(AlertSeverity.MEDIUM, description="Alert severity level")
-    dedup_key: str = Field(..., max_length=255, description="Deduplication key for alert grouping")
+    dedup_key: DedupKeyStr = Field(
+        ...,
+        max_length=255,
+        description="Deduplication key for alert grouping. "
+        "Only alphanumeric, underscore, hyphen, and colon characters allowed.",
+    )
     channels: list[str] = Field(
         default_factory=list, description="Notification channels to deliver to"
     )
@@ -448,7 +487,12 @@ class DedupCheckRequest(BaseModel):
         }
     )
 
-    dedup_key: str = Field(..., max_length=255, description="Deduplication key to check")
+    dedup_key: DedupKeyStr = Field(
+        ...,
+        max_length=255,
+        description="Deduplication key to check. "
+        "Only alphanumeric, underscore, hyphen, and colon characters allowed.",
+    )
     cooldown_seconds: int = Field(300, ge=0, description="Cooldown window in seconds")
 
 

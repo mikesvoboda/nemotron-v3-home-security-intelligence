@@ -112,10 +112,14 @@ Note: This project uses **Podman** for container management. Replace `docker` wi
 
 ### Accessing Dashboards
 
-1. Open Grafana at http://localhost:3000
-2. Default credentials: admin/admin (change on first login)
-3. Navigate to "Home Security Intelligence" folder
-4. Select "Pipeline" dashboard
+1. Open Grafana at http://localhost:3002
+2. Anonymous users can view dashboards (read-only Viewer role)
+3. To make changes, log in with admin credentials:
+   - Default: admin/admin (change via `GF_ADMIN_PASSWORD` env var in production)
+4. Navigate to "Home Security Intelligence" folder
+5. Select "Pipeline" dashboard
+
+**Security Note:** Anonymous access is restricted to Viewer role only. Administrators must log in to modify dashboards, data sources, or settings.
 
 ### Prometheus Queries
 

@@ -257,7 +257,19 @@ class BatchAggregator:
                         )
                     )
 
-                await asyncio.gather(*redis_ops)
+                results = await asyncio.gather(*redis_ops, return_exceptions=True)
+                # Check for any exceptions in the results (NEM-1097)
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        logger.error(
+                            f"Redis operation {i} failed during batch creation",
+                            extra={
+                                "batch_id": batch_id,
+                                "camera_id": camera_id,
+                                "error": str(result),
+                            },
+                        )
+                        raise result
                 # Note: No need to initialize empty list - RPUSH creates it automatically
 
             # Add detection to batch using atomic RPUSH operation
@@ -282,12 +294,16 @@ class BatchAggregator:
 
             return batch_id
 
-    async def check_batch_timeouts(self) -> list[str]:
+    async def check_batch_timeouts(self) -> list[str]:  # noqa: PLR0912
         """Check all active batches for timeouts and close expired ones.
 
         A batch is closed if:
         - It has exceeded the batch window (90 seconds from start)
         - It has exceeded the idle timeout (30 seconds since last activity)
+
+        Uses Redis pipelining to fetch all batch metadata in a single round trip,
+        reducing network latency from O(N * 3) RTTs to O(2) RTTs where N is the
+        number of active batches.
 
         Returns:
             List of batch IDs that were closed
@@ -296,7 +312,7 @@ class BatchAggregator:
             raise RuntimeError("Redis client not initialized")
 
         current_time = time.time()
-        closed_batches = []
+        closed_batches: list[str] = []
 
         # Find all active batch keys (batch:{camera_id}:current)
         # Use SCAN instead of KEYS to avoid blocking Redis on large keyspaces
@@ -307,15 +323,38 @@ class BatchAggregator:
         async for key in redis_client.scan_iter(match="batch:*:current", count=100):
             batch_keys.append(key)
 
-        for batch_key in batch_keys:
-            try:
-                # Get batch ID and metadata with retry for Redis connection failures
-                batch_id = await self._redis.get(batch_key)
-                if not batch_id:
-                    continue
+        if not batch_keys:
+            return closed_batches
 
-                started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
-                last_activity_str = await self._redis.get(f"batch:{batch_id}:last_activity")
+        # Phase 1: Fetch all batch IDs in parallel using pipeline
+        # This reduces N sequential GET calls to 1 pipeline round trip
+        batch_id_pipe = redis_client.pipeline()
+        for batch_key in batch_keys:
+            batch_id_pipe.get(batch_key)
+        batch_ids = await batch_id_pipe.execute()
+
+        # Build list of valid batch IDs and their keys
+        valid_batches: list[tuple[str, str]] = []  # (batch_key, batch_id)
+        for batch_key, batch_id in zip(batch_keys, batch_ids, strict=True):
+            if batch_id:
+                valid_batches.append((batch_key, batch_id))
+
+        if not valid_batches:
+            return closed_batches
+
+        # Phase 2: Fetch all batch metadata in parallel using pipeline
+        # This reduces N * 2 sequential GET calls to 1 pipeline round trip
+        metadata_pipe = redis_client.pipeline()
+        for _batch_key, batch_id in valid_batches:
+            metadata_pipe.get(f"batch:{batch_id}:started_at")
+            metadata_pipe.get(f"batch:{batch_id}:last_activity")
+        metadata_results = await metadata_pipe.execute()
+
+        # Process results (2 results per batch: started_at, last_activity)
+        for i, (batch_key, batch_id) in enumerate(valid_batches):
+            try:
+                started_at_str = metadata_results[i * 2]
+                last_activity_str = metadata_results[i * 2 + 1]
 
                 if not started_at_str:
                     logger.warning(f"Batch {batch_id} missing started_at timestamp, skipping")
@@ -343,6 +382,7 @@ class BatchAggregator:
                     )
 
                 if should_close:
+                    # Fetch camera_id for logging (single call, not in critical path)
                     camera_id_for_log = await self._redis.get(f"batch:{batch_id}:camera_id")
                     logger.info(
                         f"Closing batch {batch_id}: {close_reason}",
@@ -420,12 +460,28 @@ class BatchAggregator:
                         "already_closed": True,
                     }
 
-                # Get batch data in parallel for performance
-                detections_result, started_at_str, pipeline_start_time = await asyncio.gather(
+                # Get batch data in parallel for performance (NEM-1097: return_exceptions=True)
+                gather_results = await asyncio.gather(
                     self._atomic_list_get_all(f"batch:{batch_id}:detections"),
                     self._redis.get(f"batch:{batch_id}:started_at"),
                     self._redis.get(f"batch:{batch_id}:pipeline_start_time"),
+                    return_exceptions=True,
                 )
+
+                # Check for any exceptions in the results (NEM-1097)
+                for i, result in enumerate(gather_results):
+                    if isinstance(result, Exception):
+                        logger.error(
+                            f"Failed to fetch batch data (operation {i})",
+                            extra={
+                                "batch_id": batch_id,
+                                "camera_id": camera_id,
+                                "error": str(result),
+                            },
+                        )
+                        raise result
+
+                detections_result, started_at_str, pipeline_start_time = gather_results
                 detections = detections_result
                 started_at = float(started_at_str) if started_at_str else time.time()
 

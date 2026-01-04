@@ -265,12 +265,30 @@ class TestQueueConsumerLoop:
 
         mock_redis_client._client.scan_iter = MagicMock(return_value=mock_scan_iter())
 
+        # Create mock pipeline for the optimized check_batch_timeouts
+        def create_mock_pipeline(execute_results):
+            mock_pipe = MagicMock()
+            mock_pipe.get = MagicMock(return_value=mock_pipe)
+            mock_pipe.execute = AsyncMock(return_value=execute_results)
+            return mock_pipe
+
+        # Phase 1 pipeline: fetch batch IDs
+        phase1_pipe = create_mock_pipeline([batch_id])
+        # Phase 2 pipeline: fetch started_at and last_activity
+        phase2_pipe = create_mock_pipeline([old_timestamp, old_timestamp])
+
+        call_count = [0]
+
+        def get_pipeline():
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return phase1_pipe
+            return phase2_pipe
+
+        mock_redis_client._client.pipeline = MagicMock(side_effect=get_pipeline)
+
         async def mock_get(key):
-            if key == f"batch:{camera_id}:current":
-                return batch_id
-            elif key in {f"batch:{batch_id}:started_at", f"batch:{batch_id}:last_activity"}:
-                return old_timestamp
-            elif key == f"batch:{batch_id}:camera_id":
+            if key == f"batch:{batch_id}:camera_id":
                 return camera_id
             return None
 

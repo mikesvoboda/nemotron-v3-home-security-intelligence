@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import select
 
+from backend.core.time_utils import utc_now
 from backend.models import (
     Alert,
     AlertRule,
@@ -18,14 +19,6 @@ from backend.models import (
     Event,
 )
 from backend.tests.conftest import unique_id
-
-
-def utc_now() -> datetime:
-    """Return current UTC time as a timezone-aware datetime."""
-    from datetime import UTC
-
-    return datetime.now(UTC)
-
 
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup

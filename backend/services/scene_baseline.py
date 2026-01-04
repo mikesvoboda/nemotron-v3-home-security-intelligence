@@ -138,6 +138,9 @@ class SceneBaselineService:
     async def get_baseline(self, camera_id: str) -> tuple[list[float], int, datetime | None]:
         """Get the current baseline embedding for a camera.
 
+        Uses Redis pipelining to fetch all three keys in a single round trip,
+        reducing network latency from 3 RTTs to 1 RTT.
+
         Args:
             camera_id: Camera identifier
 
@@ -154,13 +157,20 @@ class SceneBaselineService:
         count_key = self._get_count_key(camera_id)
         updated_key = self._get_updated_key(camera_id)
 
-        # Fetch all values
-        embedding_data = await self._redis.get(embedding_key)
+        # Use pipeline to fetch all three keys in a single round trip
+        # This reduces network latency from 3 RTTs to 1 RTT
+        if self._redis._client is None:
+            raise SceneBaselineError("Redis client is not connected")
+        pipe = self._redis._client.pipeline()
+        pipe.get(embedding_key)
+        pipe.get(count_key)
+        pipe.get(updated_key)
+        results = await pipe.execute()
+
+        embedding_data, count_data, updated_data = results
+
         if embedding_data is None:
             raise BaselineNotFoundError(f"No baseline found for camera: {camera_id}")
-
-        count_data = await self._redis.get(count_key)
-        updated_data = await self._redis.get(updated_key)
 
         # Parse embedding
         if isinstance(embedding_data, str):
@@ -276,11 +286,16 @@ class SceneBaselineService:
         if norm > 0:
             new_baseline = [x / norm for x in new_baseline]
 
-        # Store updated baseline
+        # Store updated baseline using pipeline for atomic operation
+        # This reduces network latency from 3 RTTs to 1 RTT
+        if self._redis._client is None:
+            raise SceneBaselineError("Redis client is not connected")
         now = datetime.now(UTC)
-        await self._redis.set(embedding_key, json.dumps(new_baseline), expire=self._baseline_ttl)
-        await self._redis.set(count_key, str(new_count), expire=self._baseline_ttl)
-        await self._redis.set(updated_key, now.isoformat(), expire=self._baseline_ttl)
+        pipe = self._redis._client.pipeline()
+        pipe.setex(embedding_key, self._baseline_ttl, json.dumps(new_baseline))
+        pipe.setex(count_key, self._baseline_ttl, str(new_count))
+        pipe.setex(updated_key, self._baseline_ttl, now.isoformat())
+        await pipe.execute()
 
         logger.debug(f"Updated baseline for camera={camera_id}: count={new_count}")
 
@@ -323,10 +338,16 @@ class SceneBaselineService:
         if norm > 0:
             embedding = [x / norm for x in embedding]
 
+        # Use pipeline to set all three keys in a single round trip
+        # This reduces network latency from 3 RTTs to 1 RTT
+        if self._redis._client is None:
+            raise SceneBaselineError("Redis client is not connected")
         now = datetime.now(UTC)
-        await self._redis.set(embedding_key, json.dumps(embedding), expire=self._baseline_ttl)
-        await self._redis.set(count_key, str(sample_count), expire=self._baseline_ttl)
-        await self._redis.set(updated_key, now.isoformat(), expire=self._baseline_ttl)
+        pipe = self._redis._client.pipeline()
+        pipe.setex(embedding_key, self._baseline_ttl, json.dumps(embedding))
+        pipe.setex(count_key, self._baseline_ttl, str(sample_count))
+        pipe.setex(updated_key, self._baseline_ttl, now.isoformat())
+        await pipe.execute()
 
         logger.info(f"Set baseline for camera={camera_id}: count={sample_count}")
 

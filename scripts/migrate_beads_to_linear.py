@@ -54,32 +54,141 @@ TYPE_LABEL_MAP = {
 
 
 class LinearClient:
-    """Simple Linear GraphQL API client."""
+    """Simple Linear GraphQL API client with retry logic (NEM-1087)."""
 
-    def __init__(self, api_key: str):
+    def __init__(
+        self,
+        api_key: str,
+        max_retries: int = 3,
+        retry_base_delay: float = 1.0,
+    ):
+        """Initialize Linear client.
+
+        Args:
+            api_key: Linear API key for authentication
+            max_retries: Maximum retry attempts for transient failures (default: 3)
+            retry_base_delay: Base delay in seconds for exponential backoff (default: 1.0)
+        """
         self.api_key = api_key
         self.client = httpx.Client(timeout=30.0)
         self.label_cache: dict[str, str] = {}  # name -> id
+        self.max_retries = max_retries
+        self.retry_base_delay = retry_base_delay
 
-    def _request(self, query: str, variables: dict | None = None) -> dict:
-        """Execute a GraphQL request."""
-        response = self.client.post(
-            LINEAR_API_URL,
-            json={"query": query, "variables": variables or {}},
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": self.api_key,
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
-        if "errors" in data:
-            raise Exception(f"GraphQL errors: {data['errors']}")
-        return data["data"]
+    def _handle_retry(
+        self, error_type: str, attempt: int, delay: float | None = None
+    ) -> tuple[bool, float]:
+        """Handle retry logic and return whether to continue retrying.
+
+        Args:
+            error_type: Description of the error type for logging
+            attempt: Current attempt number (0-indexed)
+            delay: Optional explicit delay (e.g., from Retry-After header)
+
+        Returns:
+            Tuple of (should_continue, delay_seconds)
+        """
+        actual_delay = delay if delay is not None else self.retry_base_delay * (2**attempt)
+        if attempt < self.max_retries - 1:
+            print(
+                f"  {error_type}, retrying in {actual_delay:.1f}s "
+                f"(attempt {attempt + 1}/{self.max_retries})..."
+            )
+            time.sleep(actual_delay)
+            return True, actual_delay
+        print(f"  {error_type} after {self.max_retries} attempts")
+        return False, actual_delay
+
+    def _request(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Execute a GraphQL request with retry logic.
+
+        Implements exponential backoff retry for transient failures (NEM-1087):
+        - Connection errors trigger retry
+        - 429 rate limit responses trigger retry (respects Retry-After header)
+        - 5xx server errors trigger retry
+        - GraphQL errors are NOT retried (application-level errors)
+
+        Args:
+            query: GraphQL query string
+            variables: Optional query variables
+
+        Returns:
+            GraphQL response data
+
+        Raises:
+            Exception: If request fails after all retries
+        """
+        last_exception: Exception | None = None
+
+        for attempt in range(self.max_retries):
+            try:
+                response = self.client.post(
+                    LINEAR_API_URL,
+                    json={"query": query, "variables": variables or {}},
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": self.api_key,
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                # GraphQL errors are not retryable - they're application errors
+                if "errors" in data:
+                    raise Exception(f"GraphQL errors: {data['errors']}")
+
+                result: dict[str, Any] = data["data"]
+                return result
+
+            except httpx.HTTPStatusError as e:
+                last_exception = e
+                status_code = e.response.status_code
+
+                # Handle rate limiting (429)
+                if status_code == 429:
+                    retry_after = e.response.headers.get("Retry-After")
+                    delay = float(retry_after) if retry_after else None
+                    should_continue, _ = self._handle_retry(
+                        f"Rate limited ({status_code})", attempt, delay
+                    )
+                    if should_continue:
+                        continue
+                    raise
+
+                # Retry on server errors (5xx)
+                if status_code >= 500:
+                    should_continue, _ = self._handle_retry(
+                        f"Server error ({status_code})", attempt
+                    )
+                    if should_continue:
+                        continue
+                    raise
+
+                # Don't retry on client errors (4xx except 429)
+                raise
+
+            except httpx.ConnectError as e:
+                last_exception = e
+                should_continue, _ = self._handle_retry("Connection error", attempt)
+                if should_continue:
+                    continue
+                raise
+
+            except httpx.TimeoutException as e:
+                last_exception = e
+                should_continue, _ = self._handle_retry("Timeout", attempt)
+                if should_continue:
+                    continue
+                raise
+
+        # Should never reach here, but just in case
+        if last_exception:
+            raise last_exception
+        raise Exception("Request failed after all retries")
 
     def get_labels(self, team_id: str) -> dict[str, str]:
         """Get existing labels for a team."""
-        query = """
+        query: str = """
         query GetLabels($teamId: String!) {
             team(id: $teamId) {
                 labels {
@@ -111,7 +220,8 @@ class LinearClient:
             data = self._request(query, {"teamId": team_id, "name": name, "color": color})
             if not data["issueLabelCreate"]["success"]:
                 return None
-            return data["issueLabelCreate"]["issueLabel"]["id"]
+            label_id: str = data["issueLabelCreate"]["issueLabel"]["id"]
+            return label_id
         except Exception as e:
             error_str = str(e).lower()
             if "duplicate" in error_str:
@@ -130,7 +240,7 @@ class LinearClient:
         state_id: str | None = None,
         label_ids: list[str] | None = None,
         parent_id: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create a new issue."""
         query = """
         mutation CreateIssue($input: IssueCreateInput!) {
@@ -162,7 +272,8 @@ class LinearClient:
         data = self._request(query, {"input": input_data})
         if not data["issueCreate"]["success"]:
             raise Exception(f"Failed to create issue: {title}")
-        return data["issueCreate"]["issue"]
+        issue: dict[str, Any] = data["issueCreate"]["issue"]
+        return issue
 
     def ensure_labels(self, team_id: str, labels: set[str]) -> dict[str, str]:
         """Ensure all labels exist, creating missing ones."""
@@ -238,13 +349,13 @@ def load_beads(jsonl_path: Path) -> list[dict]:
     return beads
 
 
-def get_parent_id(bead: dict) -> str | None:
+def get_parent_id(bead: dict[str, Any]) -> str | None:
     """Extract parent bead ID from dependencies."""
-    deps = bead.get("dependencies", [])
+    deps: list[dict[str, Any]] = bead.get("dependencies", [])
     for dep in deps:
         if dep.get("type") == "parent-child":
             # The depends_on_id is the parent
-            parent_id = dep.get("depends_on_id")
+            parent_id: str | None = dep.get("depends_on_id")
             if parent_id and parent_id != bead["id"]:
                 return parent_id
     return None
@@ -411,7 +522,7 @@ def migrate(
     print(f"\nMapping saved to: {mapping_path}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Migrate beads to Linear")
     parser.add_argument(
         "--api-key",

@@ -140,6 +140,52 @@ Fixes datetime timezone awareness:
 - Updates datetime columns to use timezone-aware timestamps
 - Ensures consistent UTC handling across all timestamp fields
 
+### `fix_search_vector_backfill.py`
+
+**Revision ID:** `fix_search_vector_backfill`
+**Parent:** `fix_datetime_tz`
+
+Backfills NULL search_vector values for existing events that were created before the FTS trigger was added.
+
+### `add_llm_prompt_column.py`
+
+**Revision ID:** `add_llm_prompt`
+**Parent:** `fix_search_vector_backfill`
+
+Adds `llm_prompt` column to events table for storing the full prompt sent to Nemotron LLM.
+
+### `add_event_audits_table.py`
+
+**Revision ID:** `add_event_audits`
+**Parent:** `add_llm_prompt`
+
+Creates `event_audits` table for AI pipeline performance tracking and self-evaluation.
+
+### `add_camera_unique_constraints.py`
+
+**Revision ID:** `add_camera_unique_constraints`
+**Parent:** `add_event_audits`
+
+Adds unique constraints on cameras.name and cameras.folder_path columns after cleaning up duplicates.
+
+### `add_enrichment_data_column.py`
+
+**Revision ID:** `add_enrichment_data`
+**Parent:** `add_camera_unique_constraints`
+
+Adds `enrichment_data` JSONB column to detections table for storing vision model results.
+
+### `add_object_types_gin_trgm_index.py`
+
+**Revision ID:** `add_object_types_gin_trgm`
+**Parent:** `add_enrichment_data`
+
+Adds GIN trigram index on events.object_types for efficient LIKE/ILIKE queries:
+
+- Enables pg_trgm extension
+- Creates `idx_events_object_types_trgm` using gin_trgm_ops operator class
+- Optimizes queries like `object_types LIKE '%person%'` that previously caused full table scans
+
 ## Creating New Migrations
 
 ### 1. Autogenerate from model changes

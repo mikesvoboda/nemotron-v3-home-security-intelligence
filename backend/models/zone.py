@@ -9,20 +9,16 @@ entry points, or sidewalks.
 from __future__ import annotations
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.core.time_utils import utc_now
+
 from .camera import Base
-
-
-def _utc_now() -> datetime:
-    """Return current UTC time as a timezone-aware datetime."""
-    return datetime.now(UTC)
-
 
 if TYPE_CHECKING:
     from .camera import Camera
@@ -78,10 +74,10 @@ class Zone(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     priority: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
     # Relationships

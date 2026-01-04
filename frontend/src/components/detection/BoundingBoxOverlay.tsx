@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 export interface BoundingBox {
   x: number; // top-left x (pixels or percentage)
@@ -20,6 +20,61 @@ export interface BoundingBoxOverlayProps {
   onClick?: (box: BoundingBox) => void;
 }
 
+/**
+ * Custom equality function for React.memo to prevent unnecessary re-renders.
+ * Performs deep comparison of bounding box data and shallow comparison of other props.
+ *
+ * This optimization is important because BoundingBoxOverlay can receive new array
+ * references on every parent render even when the actual bounding box data hasn't changed.
+ *
+ * @param prevProps - Previous component props
+ * @param nextProps - Next component props
+ * @returns true if props are equal (skip re-render), false otherwise
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function arePropsEqual(
+  prevProps: BoundingBoxOverlayProps,
+  nextProps: BoundingBoxOverlayProps
+): boolean {
+  // Check primitive props first (fast path)
+  if (
+    prevProps.imageWidth !== nextProps.imageWidth ||
+    prevProps.imageHeight !== nextProps.imageHeight ||
+    prevProps.showLabels !== nextProps.showLabels ||
+    prevProps.showConfidence !== nextProps.showConfidence ||
+    prevProps.minConfidence !== nextProps.minConfidence ||
+    prevProps.onClick !== nextProps.onClick
+  ) {
+    return false;
+  }
+
+  // Check boxes array length
+  const prevBoxes = prevProps.boxes;
+  const nextBoxes = nextProps.boxes;
+  if (prevBoxes.length !== nextBoxes.length) {
+    return false;
+  }
+
+  // Deep compare each box
+  for (let i = 0; i < prevBoxes.length; i++) {
+    const prev = prevBoxes[i];
+    const next = nextBoxes[i];
+    if (
+      prev.x !== next.x ||
+      prev.y !== next.y ||
+      prev.width !== next.width ||
+      prev.height !== next.height ||
+      prev.label !== next.label ||
+      prev.confidence !== next.confidence ||
+      prev.color !== next.color
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Default color scheme for common object types
 const DEFAULT_COLORS: Record<string, string> = {
   person: '#ef4444', // red
@@ -30,7 +85,7 @@ const DEFAULT_COLORS: Record<string, string> = {
   default: '#6b7280', // gray
 };
 
-const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
+const BoundingBoxOverlayComponent: React.FC<BoundingBoxOverlayProps> = ({
   boxes,
   imageWidth,
   imageHeight,
@@ -143,5 +198,9 @@ const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
     </svg>
   );
 };
+
+// Wrap component with React.memo using custom equality function
+// This prevents re-renders when bounding box data hasn't actually changed
+const BoundingBoxOverlay = memo(BoundingBoxOverlayComponent, arePropsEqual);
 
 export default BoundingBoxOverlay;

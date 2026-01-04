@@ -231,6 +231,9 @@ services:
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
+      # SECURITY: Redis password authentication (optional, for production use)
+      # Must match REDIS_PASSWORD set in the redis service
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
@@ -278,9 +281,31 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --appendfsync everysec
+    # SECURITY: Password authentication via REDIS_PASSWORD environment variable
+    # If REDIS_PASSWORD is set, Redis requires authentication for all connections.
+    # If REDIS_PASSWORD is empty or not set, Redis runs without authentication (local dev only).
+    command: >-
+      sh -c '
+      if [ -n "$$REDIS_PASSWORD" ]; then
+        echo "Starting Redis with password authentication"
+        redis-server --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"
+      else
+        echo "Starting Redis without authentication (development mode)"
+        redis-server --appendonly yes --appendfsync everysec
+      fi
+      '
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      # Use AUTH if password is set, otherwise just ping
+      test: >-
+        sh -c '
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          redis-cli -a "$$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
+        else
+          redis-cli ping | grep -q PONG
+        fi
+        '
       interval: 10s
       timeout: 5s
       retries: 3
@@ -363,9 +388,15 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      # Anonymous access: Allow viewing dashboards without login (Viewer role only)
+      # SECURITY: Anonymous users are limited to Viewer role (read-only access)
+      # Administrators must log in to make changes
+      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      # Admin credentials - SECURITY: Change default password in .env
+      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3002
       - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
@@ -390,6 +421,8 @@ services:
       - '9121:9121'
     environment:
       - REDIS_ADDR=redis://redis:6379
+      # SECURITY: Redis password for exporter authentication (must match redis service)
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     depends_on:
       redis:
         condition: service_healthy
