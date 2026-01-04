@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "test:frontend": "npm --prefix frontend test",
+    "test:frontend:run": "npm --prefix frontend test -- --run",
+    "test:frontend:coverage": "npm --prefix frontend test -- --run --coverage"
+  },
   "devDependencies": {
     "prettier": "^3.7.4",
     "prettier-plugin-tailwindcss": "^0.7.2"
