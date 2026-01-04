@@ -969,6 +969,45 @@ class TestRedactUrl:
         assert "[REDACTED]" in result
         assert "password" not in result
 
+    def test_redact_url_logs_warning_on_parse_failure(self, caplog):
+        """Test that redact_url logs a warning when URL parsing fails."""
+        # Create a mock that raises an exception during parsing
+        with patch("backend.core.logging.urlparse") as mock_urlparse:
+            mock_urlparse.side_effect = ValueError("Malformed URL")
+
+            # Enable logging capture
+            with caplog.at_level(logging.WARNING, logger="backend.core.logging"):
+                result = redact_url("some-invalid-url")
+
+            # Verify the fallback is returned
+            assert result == "[URL REDACTED - PARSE ERROR]"
+
+            # Verify warning was logged
+            assert len(caplog.records) == 1
+            record = caplog.records[0]
+            assert record.levelname == "WARNING"
+            assert "URL redaction parsing failed" in record.message
+            # Verify error_type is in extra (not the URL itself for security)
+            assert record.error_type == "ValueError"
+
+    def test_redact_url_warning_does_not_log_url_content(self, caplog):
+        """Test that the warning does NOT include the malformed URL for security."""
+        malicious_url = "http://attacker.com/secret?token=abc123"
+
+        with patch("backend.core.logging.urlparse") as mock_urlparse:
+            mock_urlparse.side_effect = Exception("Parse error")
+
+            with caplog.at_level(logging.WARNING, logger="backend.core.logging"):
+                result = redact_url(malicious_url)
+
+            assert result == "[URL REDACTED - PARSE ERROR]"
+
+            # Verify the URL content is NOT in the log message
+            for record in caplog.records:
+                assert malicious_url not in record.message
+                assert "attacker.com" not in record.message
+                assert "token=abc123" not in record.message
+
 
 class TestRedactSensitiveValue:
     """Tests for sensitive value redaction."""
