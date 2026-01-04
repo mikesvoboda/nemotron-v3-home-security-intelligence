@@ -81,13 +81,15 @@ CVE-2024-23775
 
 CVE-2025-47917
 # libmbedcrypto use-after-free - CRITICAL but no fix in Debian stable
-# Same package as above
+# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 
 CVE-2025-48965
 # libmbedcrypto NULL pointer dereference - no fix in Debian stable
+# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 
 CVE-2025-52496
 # libmbedcrypto AESNI race condition - no fix in Debian stable
+# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 
 CVE-2025-13601
 # libglib2.0 integer overflow in g_escape_uri_string - affected status
@@ -102,25 +104,32 @@ CVE-2025-7345
 # Image processing library, input validation handles malicious images
 
 CVE-2025-7458
-# Similar to CVE-2025-7345 - image processing library
+# libsqlite3-0 integer overflow - CRITICAL but no fix in Debian stable
+# SQLite vulnerability, affects libsqlite3-0 package used by Python stdlib
 
 CVE-2025-2173
-# Debian system library - affected, no fix available
+# libzvbi vulnerability - affected, no fix available in Debian stable
+# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 
 CVE-2025-2174
-# Debian system library - affected, no fix available
+# libzvbi vulnerability - affected, no fix available in Debian stable
+# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 
 CVE-2025-5318
-# Debian system library - affected, no fix available
+# libssh-gcrypt out-of-bounds read in sftp_handle() - affected, no fix available
+# SSH library used by ffmpeg libavformat, not directly used by application
 
 CVE-2025-5372
-# Debian system library - affected, no fix available
+# libssh-gcrypt incorrect return code handling in ssh_kdf() - affected, no fix available
+# SSH library used by ffmpeg libavformat, not directly used by application
 
 CVE-2025-5987
-# Debian system library - affected, no fix available
+# libssh-gcrypt invalid return code for chacha20 poly1305 - affected, no fix available
+# SSH library used by ffmpeg libavformat, not directly used by application
 
 CVE-2025-6020
-# Debian system library - affected, no fix available
+# libpam directory traversal - affected, no fix available in Debian stable
+# PAM modules used for system authentication, not user-exposed in container
 
 # =============================================================================
 # Notes
@@ -131,3 +140,6 @@ CVE-2025-6020
 # 3. The risk is accepted after security review
 #
 # Remove entries when fixes become available. Review this file quarterly.
+#
+# Last reviewed: 2026-01-04 (NEM-1126)
+# Next review: 2026-04-04
