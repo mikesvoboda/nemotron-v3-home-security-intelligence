@@ -17,7 +17,7 @@ The Chrome DevTools MCP server connects Claude Code to a running Chrome instance
 ## Prerequisites
 
 - Google Chrome installed (`/usr/bin/google-chrome` on this system)
-- Node.js v18+ with npx
+- Node.js v20.19+ or v22.12+ with npx (Vite 7 requirement)
 - Claude Code with MCP support
 
 ## Architecture

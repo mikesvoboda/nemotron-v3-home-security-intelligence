@@ -56,7 +56,7 @@ Sec-WebSocket-Protocol: api-key.YOUR_KEY
     "id": 1,
     "event_id": 1,
     "batch_id": "batch_abc123",
-    "camera_id": "uuid-string",
+    "camera_id": "front_door",
     "risk_score": 75,
     "risk_level": "high",
     "summary": "Person detected at front door",

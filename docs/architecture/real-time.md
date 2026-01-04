@@ -1,16 +1,19 @@
 ---
 title: Real-Time Architecture
 description: WebSocket channels, Redis pub/sub, event broadcasting, and message formats
-last_updated: 2025-12-30
+last_updated: 2026-01-04
 source_refs:
   - backend/services/event_broadcaster.py:EventBroadcaster:36
   - backend/services/event_broadcaster.py:get_broadcaster:263
   - backend/services/event_broadcaster.py:get_event_channel:27
   - backend/services/system_broadcaster.py:SystemBroadcaster
+  - backend/services/performance_collector.py:PerformanceCollector
   - backend/api/routes/websocket.py
+  - backend/api/schemas/performance.py:PerformanceUpdate
   - frontend/src/hooks/useWebSocket.ts
   - frontend/src/hooks/useEventStream.ts
   - frontend/src/hooks/useSystemStatus.ts
+  - frontend/src/hooks/usePerformanceMetrics.ts
 ---
 
 # Real-Time Architecture
@@ -26,6 +29,10 @@ This document details the real-time communication architecture of the Home Secur
 3. [Redis Pub/Sub Backbone](#redis-pubsub-backbone)
 4. [Event Broadcasting](#event-broadcasting)
 5. [System Status Broadcasting](#system-status-broadcasting)
+   - [SystemBroadcaster Features](#systembroadcaster-features)
+   - [Circuit Breaker Integration](#circuit-breaker-integration)
+   - [Degraded Mode](#degraded-mode)
+   - [Performance Broadcasting](#performance-broadcasting)
 6. [Message Formats](#message-formats)
 7. [Frontend Integration](#frontend-integration)
 8. [Connection Management](#connection-management)
@@ -372,7 +379,18 @@ async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
 
 ## System Status Broadcasting
 
-The SystemBroadcaster periodically sends system status updates to all connected clients.
+The [SystemBroadcaster](../../backend/services/system_broadcaster.py) periodically sends system status updates to all connected clients. It provides real-time system health information including GPU statistics, camera status, queue depths, and AI service health.
+
+### SystemBroadcaster Features
+
+| Feature                      | Description                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------- |
+| **Periodic broadcasting**    | Sends `system_status` messages every 5 seconds (configurable)                      |
+| **Performance broadcasting** | Sends `performance_update` messages with detailed metrics via PerformanceCollector |
+| **Circuit breaker**          | Protects against cascading failures with automatic recovery                        |
+| **Degraded mode**            | Gracefully handles failures when Redis pub/sub is unavailable                      |
+| **Multi-instance support**   | Uses Redis pub/sub to synchronize status across multiple backend instances         |
+| **Local-first delivery**     | Always sends to local clients first, then publishes to Redis for remote instances  |
 
 ### Status Update Content
 
@@ -424,6 +442,221 @@ class SystemBroadcaster:
         self._interval = broadcast_interval
         # ...
 ```
+
+### Circuit Breaker Integration
+
+The SystemBroadcaster integrates with a [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) to protect against cascading failures when the Redis pub/sub connection becomes unreliable.
+
+#### Circuit Breaker States
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED: Initialize
+    CLOSED --> OPEN: failure_count >= threshold (5)
+    OPEN --> HALF_OPEN: recovery_timeout elapsed (30s)
+    HALF_OPEN --> CLOSED: success recorded
+    HALF_OPEN --> OPEN: failure recorded
+    OPEN --> CLOSED: manual reset()
+```
+
+| State         | Description                                                                   |
+| ------------- | ----------------------------------------------------------------------------- |
+| **CLOSED**    | Normal operation. Redis pub/sub listener is active and broadcasting normally. |
+| **OPEN**      | Too many failures. Recovery blocked to allow system stabilization.            |
+| **HALF_OPEN** | Testing recovery after timeout. Limited operations allowed.                   |
+
+#### Circuit Breaker Configuration
+
+The SystemBroadcaster's circuit breaker uses these default settings:
+
+| Parameter             | Value | Description                                    |
+| --------------------- | ----- | ---------------------------------------------- |
+| `failure_threshold`   | 5     | Consecutive failures before opening circuit    |
+| `recovery_timeout`    | 30.0s | Time to wait before attempting recovery        |
+| `half_open_max_calls` | 1     | Maximum calls allowed while testing recovery   |
+| `success_threshold`   | 1     | Successes needed in half-open to close circuit |
+
+#### Accessing Circuit Breaker State
+
+```python
+from backend.services.system_broadcaster import get_system_broadcaster
+
+broadcaster = get_system_broadcaster()
+
+# Get current circuit breaker state
+state = broadcaster.get_circuit_state()  # Returns WebSocketCircuitState enum
+
+# Access circuit breaker directly for detailed metrics
+cb = broadcaster.circuit_breaker
+status = cb.get_status()  # Returns dict with state, counters, config
+```
+
+### Degraded Mode
+
+The SystemBroadcaster enters **degraded mode** when it cannot reliably broadcast real-time updates to clients. This is a graceful degradation strategy that maintains service availability even when the Redis pub/sub backbone is unavailable.
+
+#### When Degraded Mode is Activated
+
+Degraded mode (`is_degraded() returns True`) is activated when ANY of these conditions occur:
+
+1. **Circuit breaker opens**: The pub/sub listener circuit breaker transitions to OPEN state after recording `failure_threshold` (default: 5) consecutive failures.
+
+2. **Recovery attempts exhausted**: The broadcaster has attempted `MAX_RECOVERY_ATTEMPTS` (default: 5) reconnection attempts without success.
+
+3. **Pub/sub connection fails to re-establish**: After a connection reset, if the new subscription cannot be created.
+
+```python
+# Check if broadcaster is in degraded mode
+from backend.services.system_broadcaster import get_system_broadcaster
+
+broadcaster = get_system_broadcaster()
+if broadcaster.is_degraded():
+    # Real-time updates may be delayed or unavailable
+    # Consider showing a warning to users
+    pass
+```
+
+#### Behavior in Degraded Mode
+
+When degraded mode is active:
+
+| Capability                   | Status                                                  |
+| ---------------------------- | ------------------------------------------------------- |
+| **WebSocket connections**    | Still accepted - clients can connect                    |
+| **Local client updates**     | Working - direct sends still occur                      |
+| **Redis pub/sub listener**   | Stopped - no cross-instance synchronization             |
+| **Multi-instance sync**      | Unavailable - instances operate independently           |
+| **System status collection** | Working - metrics still gathered from DB/Redis          |
+| **Performance collection**   | Working - PerformanceCollector continues gathering data |
+
+#### Degraded State Notification
+
+When entering degraded mode, the broadcaster sends a `service_status` message to all connected clients:
+
+```json
+{
+  "type": "service_status",
+  "data": {
+    "service": "system_broadcaster",
+    "status": "degraded",
+    "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+    "circuit_state": "open"
+  }
+}
+```
+
+Frontend applications can listen for this message to show appropriate warnings to users.
+
+#### Recovery from Degraded Mode
+
+The broadcaster automatically recovers from degraded mode when:
+
+1. The circuit breaker transitions from OPEN to HALF_OPEN (after `recovery_timeout`)
+2. A successful pub/sub reconnection occurs
+3. The circuit breaker transitions to CLOSED
+
+```python
+# Manual recovery (restart pub/sub listener)
+# This is typically done by restarting the broadcaster
+from backend.services.system_broadcaster import stop_system_broadcaster, get_system_broadcaster_async
+
+await stop_system_broadcaster()
+broadcaster = await get_system_broadcaster_async(redis_client=redis)
+# Degraded mode is automatically cleared on successful start
+```
+
+#### Degraded Mode Flow
+
+```mermaid
+flowchart TB
+    subgraph Normal["Normal Operation"]
+        BROADCAST[Broadcasting via<br/>Redis Pub/Sub]
+    end
+
+    subgraph Failure["Failure Detection"]
+        F1[Pub/Sub Error]
+        F2[Record Failure]
+        F3{Failures >= 5?}
+    end
+
+    subgraph Recovery["Recovery Attempts"]
+        R1[Wait 1 second]
+        R2[Reset Pub/Sub Connection]
+        R3{Attempts < 5?}
+    end
+
+    subgraph Degraded["Degraded Mode"]
+        D1[_is_degraded = True]
+        D2[Stop Pub/Sub Listener]
+        D3[Broadcast Degraded<br/>State to Clients]
+        D4[Local-only Updates]
+    end
+
+    BROADCAST --> F1
+    F1 --> F2
+    F2 --> F3
+    F3 -->|No| R1
+    F3 -->|Yes| D1
+    R1 --> R2
+    R2 --> R3
+    R3 -->|Yes| BROADCAST
+    R3 -->|No| D1
+    D1 --> D2
+    D2 --> D3
+    D3 --> D4
+
+    style D1 fill:#E74856,color:#fff
+    style D4 fill:#F59E0B,color:#fff
+```
+
+### Performance Broadcasting
+
+The SystemBroadcaster can broadcast detailed performance metrics through its `broadcast_performance()` method. This requires a [PerformanceCollector](../../backend/services/performance_collector.py) to be configured.
+
+#### Enabling Performance Broadcasting
+
+```python
+from backend.services.system_broadcaster import get_system_broadcaster
+from backend.services.performance_collector import PerformanceCollector
+
+# Get or create the broadcaster
+broadcaster = get_system_broadcaster()
+
+# Create and configure the performance collector
+collector = PerformanceCollector(redis_client=redis, db_session_factory=get_session)
+
+# Enable performance broadcasting
+broadcaster.set_performance_collector(collector)
+```
+
+#### Performance Broadcast Flow
+
+When enabled, performance metrics are automatically broadcast in the same loop as system status updates:
+
+```python
+async def _broadcast_loop(self, interval: float) -> None:
+    while self._running:
+        if self.connections:
+            # Broadcast system status
+            status_data = await self._get_system_status()
+            await self.broadcast_status(status_data)
+
+            # Also broadcast detailed performance metrics
+            await self.broadcast_performance()
+
+        await asyncio.sleep(interval)
+```
+
+#### Redis Channels
+
+The SystemBroadcaster uses two Redis pub/sub channels:
+
+| Channel              | Message Type         | Purpose                                      |
+| -------------------- | -------------------- | -------------------------------------------- |
+| `system_status`      | `system_status`      | Basic health information (GPU, cameras, etc) |
+| `performance_update` | `performance_update` | Detailed performance metrics                 |
+
+Both channels support multi-instance deployments where any backend can publish and all instances forward to their local WebSocket clients.
 
 ---
 
@@ -502,13 +735,325 @@ Sent when service health changes:
 }
 ```
 
+### Performance Update Message
+
+Sent periodically (every 5 seconds) with detailed system performance metrics. This message provides comprehensive monitoring data for the AI Performance dashboard.
+
+**Message Type:** `performance_update`
+
+**Source:** [SystemBroadcaster](../../backend/services/system_broadcaster.py) via [PerformanceCollector](../../backend/services/performance_collector.py)
+
+**Redis Channel:** `performance_update`
+
+**Trigger:** Broadcast loop (every 5 seconds when clients are connected)
+
+**Frontend Consumer:** [usePerformanceMetrics](../../frontend/src/hooks/usePerformanceMetrics.ts) hook
+
+#### Message Structure
+
+```json
+{
+  "type": "performance_update",
+  "data": {
+    "timestamp": "2024-01-15T10:30:00.000000",
+    "gpu": { ... },
+    "ai_models": { ... },
+    "nemotron": { ... },
+    "inference": { ... },
+    "databases": { ... },
+    "host": { ... },
+    "containers": [ ... ],
+    "alerts": [ ... ]
+  }
+}
+```
+
+#### Field Descriptions
+
+| Field        | Type            | Description                                                           |
+| ------------ | --------------- | --------------------------------------------------------------------- |
+| `timestamp`  | ISO 8601 string | When this update was generated (UTC)                                  |
+| `gpu`        | object \| null  | GPU metrics from pynvml or AI container health endpoints              |
+| `ai_models`  | object          | Dictionary of AI model metrics keyed by model name (rtdetr, nemotron) |
+| `nemotron`   | object \| null  | Nemotron LLM-specific metrics (slots, context size)                   |
+| `inference`  | object \| null  | AI inference latency percentiles and throughput                       |
+| `databases`  | object          | Dictionary of database metrics keyed by name (postgresql, redis)      |
+| `host`       | object \| null  | Host system metrics from psutil (CPU, RAM, disk)                      |
+| `containers` | array           | Health status of all monitored containers                             |
+| `alerts`     | array           | Active performance alerts when thresholds are exceeded                |
+
+#### GPU Metrics (`gpu`)
+
+```json
+{
+  "name": "NVIDIA RTX A5500",
+  "utilization": 38.0,
+  "vram_used_gb": 22.7,
+  "vram_total_gb": 24.0,
+  "temperature": 38,
+  "power_watts": 31
+}
+```
+
+| Field           | Type   | Description                        |
+| --------------- | ------ | ---------------------------------- |
+| `name`          | string | GPU device name                    |
+| `utilization`   | float  | GPU utilization percentage (0-100) |
+| `vram_used_gb`  | float  | VRAM used in GB                    |
+| `vram_total_gb` | float  | Total VRAM in GB                   |
+| `temperature`   | int    | GPU temperature in Celsius         |
+| `power_watts`   | int    | GPU power usage in Watts           |
+
+#### AI Models (`ai_models`)
+
+Dictionary containing metrics for each AI model:
+
+**RT-DETRv2 (`rtdetr`):**
+
+```json
+{
+  "status": "healthy",
+  "vram_gb": 0.17,
+  "model": "rtdetr_r50vd_coco_o365",
+  "device": "cuda:0"
+}
+```
+
+| Field     | Type   | Description                                          |
+| --------- | ------ | ---------------------------------------------------- |
+| `status`  | string | Health status: "healthy", "unhealthy", "unreachable" |
+| `vram_gb` | float  | VRAM used by the model in GB                         |
+| `model`   | string | Model name/variant                                   |
+| `device`  | string | CUDA device (e.g., "cuda:0")                         |
+
+#### Nemotron Metrics (`nemotron`)
+
+```json
+{
+  "status": "healthy",
+  "slots_active": 1,
+  "slots_total": 2,
+  "context_size": 4096
+}
+```
+
+| Field          | Type   | Description                                          |
+| -------------- | ------ | ---------------------------------------------------- |
+| `status`       | string | Health status: "healthy", "unhealthy", "unreachable" |
+| `slots_active` | int    | Number of active inference slots                     |
+| `slots_total`  | int    | Total available inference slots                      |
+| `context_size` | int    | Context window size in tokens                        |
+
+#### Inference Metrics (`inference`)
+
+```json
+{
+  "rtdetr_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
+  "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
+  "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
+  "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
+  "queues": { "detection": 0, "analysis": 0 }
+}
+```
+
+| Field                 | Type   | Description                                       |
+| --------------------- | ------ | ------------------------------------------------- |
+| `rtdetr_latency_ms`   | object | RT-DETRv2 latency stats (avg, p95, p99 in ms)     |
+| `nemotron_latency_ms` | object | Nemotron latency stats (avg, p95, p99 in ms)      |
+| `pipeline_latency_ms` | object | Full pipeline latency stats (avg, p95 in ms)      |
+| `throughput`          | object | Processing rates (images_per_min, events_per_min) |
+| `queues`              | object | Queue depths (detection, analysis)                |
+
+#### Database Metrics (`databases`)
+
+**PostgreSQL:**
+
+```json
+{
+  "status": "healthy",
+  "connections_active": 5,
+  "connections_max": 30,
+  "cache_hit_ratio": 98.2,
+  "transactions_per_min": 1200
+}
+```
+
+**Redis:**
+
+```json
+{
+  "status": "healthy",
+  "connected_clients": 8,
+  "memory_mb": 1.5,
+  "hit_ratio": 99.5,
+  "blocked_clients": 0
+}
+```
+
+#### Host Metrics (`host`)
+
+```json
+{
+  "cpu_percent": 12.0,
+  "ram_used_gb": 8.2,
+  "ram_total_gb": 32.0,
+  "disk_used_gb": 156.0,
+  "disk_total_gb": 500.0
+}
+```
+
+| Field           | Type  | Description                        |
+| --------------- | ----- | ---------------------------------- |
+| `cpu_percent`   | float | CPU utilization percentage (0-100) |
+| `ram_used_gb`   | float | RAM used in GB                     |
+| `ram_total_gb`  | float | Total RAM in GB                    |
+| `disk_used_gb`  | float | Disk used in GB                    |
+| `disk_total_gb` | float | Total disk in GB                   |
+
+#### Container Metrics (`containers`)
+
+Array of container health statuses:
+
+```json
+[
+  { "name": "backend", "status": "running", "health": "healthy" },
+  { "name": "frontend", "status": "running", "health": "healthy" },
+  { "name": "postgres", "status": "running", "health": "healthy" },
+  { "name": "redis", "status": "running", "health": "healthy" },
+  { "name": "ai-detector", "status": "running", "health": "healthy" },
+  { "name": "ai-llm", "status": "running", "health": "healthy" }
+]
+```
+
+| Field    | Type   | Description                                                      |
+| -------- | ------ | ---------------------------------------------------------------- |
+| `name`   | string | Container name                                                   |
+| `status` | string | Container status ("running", "stopped", "restarting", "unknown") |
+| `health` | string | Health status ("healthy", "unhealthy", "starting")               |
+
+#### Performance Alerts (`alerts`)
+
+Array of alerts when metrics exceed configured thresholds:
+
+```json
+[
+  {
+    "severity": "warning",
+    "metric": "gpu_temperature",
+    "value": 82,
+    "threshold": 80,
+    "message": "GPU temperature high: 82C"
+  }
+]
+```
+
+| Field       | Type   | Description                             |
+| ----------- | ------ | --------------------------------------- |
+| `severity`  | string | Alert severity: "warning" or "critical" |
+| `metric`    | string | Metric name that triggered the alert    |
+| `value`     | float  | Current metric value                    |
+| `threshold` | float  | Threshold that was exceeded             |
+| `message`   | string | Human-readable alert message            |
+
+**Alert Thresholds:**
+
+| Metric            | Warning | Critical |
+| ----------------- | ------- | -------- |
+| `gpu_temperature` | 75C     | 85C      |
+| `gpu_utilization` | 90%     | 98%      |
+| `gpu_vram`        | 90%     | 95%      |
+| `host_cpu`        | 80%     | 95%      |
+| `host_ram`        | 85%     | 95%      |
+| `host_disk`       | 80%     | 90%      |
+| `pg_cache_hit`    | <90%    | <80%     |
+| `redis_hit_ratio` | <50%    | <10%     |
+
+#### Complete Example
+
+```json
+{
+  "type": "performance_update",
+  "data": {
+    "timestamp": "2024-01-15T10:30:00.000000",
+    "gpu": {
+      "name": "NVIDIA RTX A5500",
+      "utilization": 38.0,
+      "vram_used_gb": 22.7,
+      "vram_total_gb": 24.0,
+      "temperature": 38,
+      "power_watts": 31
+    },
+    "ai_models": {
+      "rtdetr": {
+        "status": "healthy",
+        "vram_gb": 0.17,
+        "model": "rtdetr_r50vd_coco_o365",
+        "device": "cuda:0"
+      },
+      "nemotron": {
+        "status": "healthy",
+        "slots_active": 1,
+        "slots_total": 2,
+        "context_size": 4096
+      }
+    },
+    "nemotron": {
+      "status": "healthy",
+      "slots_active": 1,
+      "slots_total": 2,
+      "context_size": 4096
+    },
+    "inference": {
+      "rtdetr_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
+      "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
+      "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
+      "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
+      "queues": { "detection": 0, "analysis": 0 }
+    },
+    "databases": {
+      "postgresql": {
+        "status": "healthy",
+        "connections_active": 5,
+        "connections_max": 30,
+        "cache_hit_ratio": 98.2,
+        "transactions_per_min": 1200
+      },
+      "redis": {
+        "status": "healthy",
+        "connected_clients": 8,
+        "memory_mb": 1.5,
+        "hit_ratio": 99.5,
+        "blocked_clients": 0
+      }
+    },
+    "host": {
+      "cpu_percent": 12.0,
+      "ram_used_gb": 8.2,
+      "ram_total_gb": 32.0,
+      "disk_used_gb": 156.0,
+      "disk_total_gb": 500.0
+    },
+    "containers": [
+      { "name": "backend", "status": "running", "health": "healthy" },
+      { "name": "frontend", "status": "running", "health": "healthy" },
+      { "name": "postgres", "status": "running", "health": "healthy" },
+      { "name": "redis", "status": "running", "health": "healthy" },
+      { "name": "ai-detector", "status": "running", "health": "healthy" },
+      { "name": "ai-llm", "status": "running", "health": "healthy" }
+    ],
+    "alerts": []
+  }
+}
+```
+
 ### Message Type Summary
 
-| Type             | Source            | Trigger        | Content                      |
-| ---------------- | ----------------- | -------------- | ---------------------------- |
-| `event`          | NemotronAnalyzer  | Event creation | Security event details       |
-| `system_status`  | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health |
-| `service_status` | HealthMonitor     | Status change  | Service name and status      |
+| Type                 | Source            | Trigger        | Content                                  |
+| -------------------- | ----------------- | -------------- | ---------------------------------------- |
+| `event`              | NemotronAnalyzer  | Event creation | Security event details                   |
+| `system_status`      | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health             |
+| `service_status`     | HealthMonitor     | Status change  | Service name and status                  |
+| `performance_update` | SystemBroadcaster | Every 5s       | Detailed GPU, AI, database, host metrics |
 
 ---
 

@@ -86,7 +86,7 @@ Examples:
 
 Requirements:
     Backend:  Python 3.14+, uv (https://docs.astral.sh/uv/)
-    Frontend: Node.js 18+, npm, node_modules installed
+    Frontend: Node.js 20.19+/22.12+, npm, node_modules installed
 
 Setup:
     Run ./scripts/setup.sh first to install all dependencies.
@@ -217,16 +217,16 @@ run_frontend_validation() {
     if ! check_command node; then
         print_error "Node.js not found"
         echo ""
-        echo "Please install Node.js 18+ from https://nodejs.org/"
-        echo "Or use nvm: nvm install 18 && nvm use 18"
+        echo "Please install Node.js 20.19+ or 22.12+ from https://nodejs.org/"
+        echo "Or use nvm: nvm install 20 && nvm use 20"
         exit 1
     fi
 
     NODE_VERSION=$(node --version | sed 's/v//' | cut -d. -f1)
-    if [ "$NODE_VERSION" -lt 18 ]; then
-        print_error "Node.js 18+ required, found v$NODE_VERSION"
+    if [ "$NODE_VERSION" -lt 20 ]; then
+        print_error "Node.js 20.19+ or 22.12+ required, found v$NODE_VERSION"
         echo ""
-        echo "Please upgrade Node.js to version 18 or later."
+        echo "Please upgrade Node.js to version 20.19+ or 22.12+ (Vite 7 requirement)."
         exit 1
     fi
     print_success "Node.js $(node --version) found"

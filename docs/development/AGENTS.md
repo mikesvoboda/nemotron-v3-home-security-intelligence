@@ -91,7 +91,7 @@ development/
 - Frontend testing with Vitest
 - E2E testing
 - Mocking strategies
-- Test coverage requirements (95%+)
+- Test coverage requirements (85% unit, 95% combined backend)
 - Running tests locally
 - CI test pipeline
 

@@ -31,15 +31,15 @@ See [CLAUDE.md](../../CLAUDE.md:199) for the complete policy on testing requirem
 ```
 flowchart TB
     subgraph "Test Pyramid"
-        E2E["E2E Tests<br/>2 files"]
-        INT["Integration Tests<br/>19 files"]
-        UNIT["Unit Tests<br/>59 files"]
+        E2E["E2E Tests<br/>2358 tests / 17 files"]
+        INT["Integration Tests<br/>1499 tests"]
+        UNIT["Unit Tests<br/>7193 tests"]
     end
 
     subgraph "Coverage Targets"
-        UNIT_COV["Unit: 92%+"]
-        INT_COV["Integration: 50%+"]
-        TOTAL_COV["Combined: 90%+"]
+        UNIT_COV["Unit: 85%+"]
+        INT_COV["Integration: N/A"]
+        TOTAL_COV["Combined: 95%+"]
     end
 
     UNIT --> UNIT_COV
@@ -53,14 +53,18 @@ flowchart TB
 
 ### Test Categories
 
-| Category        | Location                     | Count | Timeout | Coverage Target |
-| --------------- | ---------------------------- | ----- | ------- | --------------- |
-| **Unit Tests**  | `backend/tests/unit/`        | 59    | 1s      | 92%+            |
-| **Integration** | `backend/tests/integration/` | 19    | 5s      | 50%+            |
-| **E2E Tests**   | `backend/tests/e2e/`         | 2     | 30s     | -               |
-| **GPU Tests**   | `backend/tests/gpu/`         | 1     | -       | -               |
-| **Benchmarks**  | `backend/tests/benchmarks/`  | 3     | -       | -               |
-| **Frontend**    | `frontend/src/**/*.test.ts`  | -     | -       | 93%+            |
+| Category                      | Location                     | Count      | Timeout | Coverage Target |
+| ----------------------------- | ---------------------------- | ---------- | ------- | --------------- |
+| **Backend Unit Tests**        | `backend/tests/unit/`        | 7193 tests | 1s      | 85%+            |
+| **Backend Integration**       | `backend/tests/integration/` | 1499 tests | 5s      | N/A (combined)  |
+| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files    | 30s     | -               |
+| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file     | -       | -               |
+| **Benchmarks**                | `backend/tests/benchmarks/`  | 3 files    | -       | -               |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -          | -       | 83%+            |
+| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 2358 tests | 15s     | -               |
+
+**Note:** Backend combined coverage (unit + integration) must reach 95% (see `pyproject.toml`).
+Frontend thresholds: 83% statements, 77% branches, 81% functions, 84% lines (see `vite.config.ts`).
 
 ## Running Tests
 
@@ -109,6 +113,75 @@ npm run test -- --watch
 # E2E tests (Playwright)
 npm run test:e2e
 ```
+
+### Multi-Browser E2E Tests (Playwright)
+
+The frontend E2E test suite runs **2358 tests across 17 spec files** using Playwright. Tests execute across multiple browsers and viewport configurations for comprehensive cross-platform coverage.
+
+#### Browser and Viewport Matrix
+
+| Project         | Device/Browser  | Viewport | Action Timeout |
+| --------------- | --------------- | -------- | -------------- |
+| `chromium`      | Desktop Chrome  | 1280x720 | 5s             |
+| `firefox`       | Desktop Firefox | 1280x720 | 8s             |
+| `webkit`        | Desktop Safari  | 1280x720 | 8s             |
+| `mobile-chrome` | Pixel 5         | 393x851  | 5s             |
+| `mobile-safari` | iPhone 12       | 390x844  | 5s             |
+| `tablet`        | iPad (gen 7)    | 810x1080 | 5s             |
+
+#### Running E2E Tests
+
+```bash
+cd frontend
+
+# Run all browsers (local development)
+npm run test:e2e
+
+# Run specific browser
+npm run test:e2e -- --project=chromium
+npm run test:e2e -- --project=firefox
+npm run test:e2e -- --project=webkit
+
+# Run mobile viewport tests
+npm run test:e2e -- --project=mobile-chrome
+npm run test:e2e -- --project=mobile-safari
+
+# Run tablet viewport tests
+npm run test:e2e -- --project=tablet
+
+# Run with visible browser (headed mode)
+npm run test:e2e -- --headed
+
+# Run single test file
+npm run test:e2e -- tests/e2e/specs/dashboard.spec.ts
+
+# Debug mode with Playwright Inspector
+npm run test:e2e -- --debug
+```
+
+#### CI Configuration
+
+In CI, browsers run in parallel containers via the `--project` flag:
+
+- **Chromium job**: `npx playwright test --project=chromium`
+- **Firefox job**: `npx playwright test --project=firefox`
+- **WebKit job**: `npx playwright test --project=webkit`
+
+Configuration details:
+
+- **Retries**: 2 retries in CI to handle flaky tests
+- **Workers**: 4 parallel workers in CI
+- **Artifacts**: Screenshots, videos, and traces on failure
+- **Reports**: GitHub annotations, HTML report, JUnit XML
+
+#### Playwright Configuration
+
+See [frontend/playwright.config.ts](../../frontend/playwright.config.ts) for full configuration:
+
+- Global test timeout: 15 seconds
+- Expect timeout: 3 seconds
+- Navigation timeout: 10 seconds
+- WebKit tests have extended 30s timeout for complex workflows
 
 ### Full Validation
 
@@ -326,19 +399,21 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 92
+fail_under = 95
 show_missing = true
 ```
 
 ### CI Coverage Thresholds
 
-From [.github/workflows/ci.yml](../../.github/workflows/ci.yml:67):
+From [.github/workflows/ci.yml](../../.github/workflows/ci.yml:67) and [pyproject.toml](../../pyproject.toml):
 
-| Test Type   | Threshold | Rationale                                |
-| ----------- | --------- | ---------------------------------------- |
-| Unit        | 92%       | Strict for isolated component testing    |
-| Integration | 50%       | Lower due to mocked deps, endpoint focus |
-| Combined    | 90%       | Local validation threshold               |
+| Test Type | Threshold | Rationale                                   |
+| --------- | --------- | ------------------------------------------- |
+| Unit      | 85%       | CI gate for unit tests alone                |
+| Combined  | 95%       | `pyproject.toml` fail_under for all backend |
+
+**Note:** Integration tests run in parallel shards without per-shard coverage thresholds.
+Combined coverage (unit + integration) must reach 95%.
 
 ### Generating Coverage Reports
 
@@ -370,8 +445,8 @@ The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml:1)) r
 
 1. **Backend Lint** - Ruff check and format
 2. **Backend Type Check** - MyPy
-3. **Backend Unit Tests** - 92% coverage threshold
-4. **Backend Integration Tests** - 50% coverage threshold
+3. **Backend Unit Tests** - 85% coverage threshold
+4. **Backend Integration Tests** - Combined 95% threshold
 5. **Frontend Lint** - ESLint
 6. **Frontend Type Check** - TypeScript
 7. **Frontend Tests** - Vitest
@@ -397,10 +472,12 @@ podman-compose -f docker-compose.prod.yml up -d postgres redis
 pytest backend/tests/ -v
 ```
 
-Default URLs:
+Default URLs (set in `.env` or via `./setup.sh`):
 
-- PostgreSQL: `postgresql+asyncpg://security:security_dev_password@localhost:5432/security`
+- PostgreSQL: `postgresql+asyncpg://security:<your-password>@localhost:5432/security`
 - Redis: `redis://localhost:6379/15` (DB 15 for test isolation)
+
+> **Note:** Tests use the password configured in your `.env` file. Run `./setup.sh` to generate secure credentials.
 
 ### Parallel Test Isolation
 

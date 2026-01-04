@@ -91,7 +91,7 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 | Service        | Port | URL                   |
 | -------------- | ---- | --------------------- |
 | Prometheus     | 9090 | http://localhost:9090 |
-| Grafana        | 3000 | http://localhost:3000 |
+| Grafana        | 3002 | http://localhost:3002 |
 | JSON Exporter  | 7979 | http://localhost:7979 |
 | Redis Exporter | 9121 | http://localhost:9121 |
 | Backend API    | 8000 | http://localhost:8000 |

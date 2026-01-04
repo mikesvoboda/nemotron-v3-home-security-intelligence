@@ -5,7 +5,8 @@ source_refs:
   - scripts/setup-hooks.sh:1
   - ai/download_models.sh:1
   - docker-compose.prod.yml:1
-  - backend/requirements.txt:1
+  - pyproject.toml:1
+  - uv.lock:1
   - frontend/package.json:1
 ---
 
@@ -313,8 +314,8 @@ echo "Upgrade complete. Backup saved to $BACKUP_DIR"
 ### Dependencies won't install
 
 ```bash
-# Clear pip cache
-pip cache purge
+# Clear uv cache
+uv cache clean
 
 # Clear npm cache
 cd frontend && rm -rf node_modules && npm cache clean --force && npm install

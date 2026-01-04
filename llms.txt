@@ -197,7 +197,7 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4-base nvidia-smi
 **Out of VRAM:**
 ```bash
 # Edit .env or docker-compose.prod.yml
-GPU_LAYERS=30  # Reduce from default 45
+GPU_LAYERS=30  # Reduce from default 35
 ```
 
 **AI service slow/not responding:**

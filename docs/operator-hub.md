@@ -233,6 +233,7 @@ RETENTION_DAYS=30
 | [AI Overview](operator/ai-overview.md)               | What the AI does, architecture | ~5 min  |
 | [AI Installation](operator/ai-installation.md)       | Prerequisites and dependencies | ~10 min |
 | [AI Configuration](operator/ai-configuration.md)     | Environment variables          | ~8 min  |
+| [AI GHCR Deployment](operator/ai-ghcr-deployment.md) | Deploy AI from GHCR            | ~12 min |
 | [AI Services](operator/ai-services.md)               | Starting, stopping, verifying  | ~8 min  |
 | [AI Troubleshooting](operator/ai-troubleshooting.md) | Common issues and solutions    | ~10 min |
 | [AI Performance](operator/ai-performance.md)         | Performance tuning             | ~6 min  |
@@ -319,12 +320,14 @@ PostgreSQL is required. SQLite is not supported.
 # Connection URL format
 DATABASE_URL=postgresql+asyncpg://username:password@host:port/database
 
-# Docker Compose (default)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
+# Docker Compose (run ./setup.sh to generate .env with secure password)
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
 
 # Native development
-DATABASE_URL=postgresql+asyncpg://security:your_password@localhost:5432/security
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 ```
+
+> **Note:** There is no default password. Run `./setup.sh` to generate secure credentials, or create a password with `openssl rand -base64 32`.
 
 **Run migrations:**
 
@@ -332,6 +335,39 @@ DATABASE_URL=postgresql+asyncpg://security:your_password@localhost:5432/security
 cd backend
 alembic upgrade head
 ```
+
+### Redis Setup
+
+~10 min read | [Full Guide](operator/redis.md)
+
+Redis is required for caching, pub/sub messaging, and queue management.
+
+```bash
+# Connection URL format
+REDIS_URL=redis://host:port
+
+# Docker Compose (internal network)
+REDIS_URL=redis://redis:6379
+
+# Native development
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Password authentication (recommended for production):**
+
+```bash
+# Generate secure password
+openssl rand -base64 32
+
+# Add to .env
+REDIS_PASSWORD=your_generated_password_here
+```
+
+When `REDIS_PASSWORD` is set, both the Redis container and backend automatically use it. See [Redis Setup Guide](operator/redis.md) for:
+
+- Authentication configuration
+- SSL/TLS setup
+- Troubleshooting connection issues
 
 ---
 
@@ -471,8 +507,7 @@ git fetch origin
 git pull origin main
 
 # 3. Update dependencies
-source .venv/bin/activate
-pip install -r backend/requirements.txt --upgrade
+uv sync --extra dev
 cd frontend && npm install && cd ..
 
 # 4. Run migrations
@@ -656,6 +691,7 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 | AI services unreachable    | Start with [Deployment Modes & AI Networking](operator/deployment-modes.md) to choose correct URLs |
 | GPU out of memory          | Close other GPU applications, restart AI services                                                  |
 | Database connection failed | Verify `DATABASE_URL`, check PostgreSQL is running                                                 |
+| Redis auth failed          | Check `REDIS_PASSWORD` matches in .env, restart services. See [Redis Setup](operator/redis.md)     |
 | WebSocket won't connect    | Check CORS settings, verify backend is healthy                                                     |
 | Images not processing      | Check `FOSCAM_BASE_PATH`, enable `FILE_WATCHER_POLLING` for Docker Desktop                         |
 | DLQ jobs accumulating      | Verify AI services are healthy, check error messages in DLQ                                        |

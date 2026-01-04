@@ -37,7 +37,7 @@ LLAMA_SERVER_PATHS=(
 )
 
 # GPU layers (use all by default)
-GPU_LAYERS="${NEMOTRON_GPU_LAYERS:-45}"
+GPU_LAYERS="${NEMOTRON_GPU_LAYERS:-35}"
 CONTEXT_SIZE="${NEMOTRON_CONTEXT_SIZE:-12288}"
 
 # Check if already running

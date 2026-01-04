@@ -100,11 +100,11 @@ Controls how many model layers run on GPU vs CPU. More GPU layers = faster infer
 
 **Configuration locations and their defaults:**
 
-| Location                  | Default | Model    | Rationale                        |
-| ------------------------- | ------- | -------- | -------------------------------- |
-| `docker-compose.prod.yml` | 35      | Nano 30B | Conservative for 16GB GPUs       |
-| `ai/nemotron/Dockerfile`  | 30      | Nano 30B | Safe default for varied hardware |
-| `ai/start_llm.sh`         | 99      | Mini 4B  | All layers on GPU (small model)  |
+| Location                  | Default | Model    | Rationale                       |
+| ------------------------- | ------- | -------- | ------------------------------- |
+| `docker-compose.prod.yml` | 35      | Nano 30B | Conservative for 16GB GPUs      |
+| `ai/nemotron/Dockerfile`  | 35      | Nano 30B | Matches compose default         |
+| `ai/start_llm.sh`         | 99      | Mini 4B  | All layers on GPU (small model) |
 
 **Recommended settings by GPU VRAM:**
 

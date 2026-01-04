@@ -18,8 +18,9 @@ Before dispatching parallel agents, complete this verification checklist:
 
 ```bash
 # Check what files each task will likely touch
-bd show <task-1-id>
-bd show <task-2-id>
+# Use Linear MCP tools to view task details:
+# mcp__linear__get_issue(issueId="NEM-123")
+# mcp__linear__get_issue(issueId="NEM-124")
 
 # Review recent changes to target areas
 git log --oneline --stat -10 -- backend/services/
@@ -75,7 +76,7 @@ Before each agent begins work, declare scope explicitly:
 
 **Agent ID:** agent-1-websocket-backend
 **Task:** Implement WebSocket event deduplication
-**Bead:** 8yco
+**Linear Issue:** NEM-123
 
 ### Files I WILL Modify
 
@@ -159,7 +160,7 @@ Single Agent: Make all pyproject.toml changes in one task
 **WRONG:**
 
 ```
-Agent 1: "fix: resolve 9 beads - WebSocket, tests, AI model improvements"
+Agent 1: "fix: resolve 9 issues - WebSocket, tests, AI model improvements"
 # Touches: backend/services/, frontend/src/, ai/rtdetr/, tests/
 # This is a recipe for conflicts if another agent is working anywhere
 ```
@@ -394,7 +395,7 @@ git diff main...feature-branch-2
 - [ ] Full test suite passes
 - [ ] No duplicate code or implementations
 - [ ] Documentation updated if needed
-- [ ] Beads closed for all completed tasks
+- [ ] Linear issues closed for all completed tasks
 
 ## Common Coordination Patterns
 
@@ -551,7 +552,7 @@ These anti-patterns have caused real issues in this repository:
 
 ### Issue: Batch Fixes Across Subsystems
 
-**Commit:** `cbebedc fix: resolve 9 beads - WebSocket, tests, AI model improvements`
+**Commit:** `cbebedc fix: resolve 9 issues - WebSocket, tests, AI model improvements`
 
 **Problem:** Single commit touched:
 

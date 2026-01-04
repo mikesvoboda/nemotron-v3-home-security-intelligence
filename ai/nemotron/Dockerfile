@@ -59,7 +59,7 @@ RUN mkdir -p /models && chown llama:llama /models
 # Environment variables for configuration
 ENV MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ENV PORT=8091
-ENV GPU_LAYERS=30
+ENV GPU_LAYERS=35
 ENV CTX_SIZE=131072
 ENV PARALLEL=1
 

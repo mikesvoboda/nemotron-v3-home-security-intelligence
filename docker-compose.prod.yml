@@ -20,7 +20,7 @@
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
 #   - FRONTEND_PORT: Host port for frontend (default: 5173, nginx serves on port 80 inside container)
 #   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
-#   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
+#   - GPU_LAYERS: Number of GPU layers for LLM (default: 35)
 #   - CTX_SIZE: LLM context window size (default: 131072)
 #   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
 #
@@ -352,7 +352,7 @@ services:
   # Monitoring Stack (Optional)
   # =============================================================================
   # To enable monitoring: podman-compose --profile monitoring -f docker-compose.prod.yml up -d
-  # Access Grafana at http://localhost:3001 (admin/admin)
+  # Access Grafana at http://localhost:3002 (admin/admin)
   # Access Prometheus at http://localhost:9090
 
   prometheus:

@@ -51,7 +51,7 @@ scripts/
 
 **What it does:**
 
-1. Checks prerequisites (Python 3.11+, Node.js 18+, Docker, NVIDIA drivers)
+1. Checks prerequisites (Python 3.14+, Node.js 20.19+/22.12+, Docker, NVIDIA drivers)
 2. Creates Python virtual environment (`.venv`)
 3. Installs backend dependencies from `backend/requirements.txt`
 4. Installs dev tools (pre-commit, ruff, mypy)
@@ -231,7 +231,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 
 **What it runs:**
 
-1. **Backend:** Ruff linting, Ruff format check, MyPy type checking, pytest with 90% coverage
+1. **Backend:** Ruff linting, Ruff format check, MyPy type checking, pytest with 95% coverage
 2. **Frontend:** ESLint, TypeScript check, Prettier check, Vitest
 
 **Usage:**
