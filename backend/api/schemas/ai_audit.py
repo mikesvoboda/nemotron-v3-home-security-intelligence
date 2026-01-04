@@ -137,3 +137,242 @@ class BatchAuditResponse(BaseModel):
 
     queued_count: int
     message: str
+
+
+# =============================================================================
+# Prompt Playground Schemas
+# =============================================================================
+
+
+class ModelName(str):
+    """Supported AI model names for prompt management."""
+
+    NEMOTRON = "nemotron"
+    FLORENCE2 = "florence2"
+    YOLO_WORLD = "yolo_world"
+    XCLIP = "xclip"
+    FASHION_CLIP = "fashion_clip"
+
+    @classmethod
+    def all_models(cls) -> list[str]:
+        """Return all supported model names."""
+        return [cls.NEMOTRON, cls.FLORENCE2, cls.YOLO_WORLD, cls.XCLIP, cls.FASHION_CLIP]
+
+
+class NemotronConfig(BaseModel):
+    """Configuration for Nemotron LLM risk analyzer."""
+
+    system_prompt: str = Field(..., description="Full system prompt text for risk analysis")
+    temperature: float = Field(0.7, ge=0.0, le=2.0, description="LLM temperature setting")
+    max_tokens: int = Field(2048, ge=100, le=8192, description="Maximum tokens in response")
+
+
+class Florence2Config(BaseModel):
+    """Configuration for Florence-2 VQA model."""
+
+    vqa_queries: list[str] = Field(
+        ...,
+        description="List of visual question-answering queries",
+        min_length=1,
+    )
+
+
+class YoloWorldConfig(BaseModel):
+    """Configuration for YOLO-World object detection."""
+
+    object_classes: list[str] = Field(
+        ...,
+        description="List of object classes to detect",
+        min_length=1,
+    )
+    confidence_threshold: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence for detections",
+    )
+
+
+class XClipConfig(BaseModel):
+    """Configuration for X-CLIP action recognition."""
+
+    action_classes: list[str] = Field(
+        ...,
+        description="List of action classes to recognize",
+        min_length=1,
+    )
+
+
+class FashionClipConfig(BaseModel):
+    """Configuration for FashionCLIP clothing analysis."""
+
+    clothing_categories: list[str] = Field(
+        ...,
+        description="List of clothing categories to classify",
+        min_length=1,
+    )
+    suspicious_indicators: list[str] = Field(
+        default_factory=lambda: ["all black", "face mask", "hoodie up", "gloves at night"],
+        description="Clothing patterns that indicate suspicious activity",
+    )
+
+
+class PromptConfigUnion(BaseModel):
+    """Union type for model configurations."""
+
+    nemotron: NemotronConfig | None = None
+    florence2: Florence2Config | None = None
+    yolo_world: YoloWorldConfig | None = None
+    xclip: XClipConfig | None = None
+    fashion_clip: FashionClipConfig | None = None
+
+
+class PromptVersionInfo(BaseModel):
+    """Version information for a prompt configuration."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    version: int = Field(..., ge=1, description="Version number (1-indexed)")
+    created_at: datetime = Field(..., description="When this version was created")
+    created_by: str = Field("system", description="Who created this version")
+    description: str | None = Field(None, description="Optional description of changes")
+
+
+class ModelPromptResponse(BaseModel):
+    """Response for a single model's prompt configuration."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    model_name: str = Field(..., description="Name of the AI model")
+    config: dict = Field(..., description="Current configuration for this model")
+    version: int = Field(..., ge=1, description="Current version number")
+    updated_at: datetime = Field(..., description="When last updated")
+
+
+class AllPromptsResponse(BaseModel):
+    """Response containing prompts for all models."""
+
+    prompts: dict[str, ModelPromptResponse] = Field(
+        ...,
+        description="Dictionary mapping model names to their configurations",
+    )
+
+
+class PromptUpdateRequest(BaseModel):
+    """Request to update a model's prompt configuration."""
+
+    config: dict = Field(..., description="New configuration for the model")
+    description: str | None = Field(None, description="Description of the changes")
+
+
+class PromptUpdateResponse(BaseModel):
+    """Response after updating a model's prompt."""
+
+    model_name: str
+    version: int
+    message: str
+    config: dict
+
+
+class PromptTestRequest(BaseModel):
+    """Request to test a modified prompt against an event."""
+
+    model: str = Field(..., description="Model name to test (nemotron, florence2, etc.)")
+    config: dict = Field(..., description="Modified configuration to test")
+    event_id: int = Field(..., ge=1, description="Event ID to test against")
+
+
+class PromptTestResultBefore(BaseModel):
+    """Result from the original (current) prompt."""
+
+    score: int = Field(..., ge=0, le=100, description="Risk score from original prompt")
+    risk_level: str = Field(..., description="Risk level (low, medium, high, critical)")
+    summary: str = Field(..., description="Summary from original analysis")
+
+
+class PromptTestResultAfter(BaseModel):
+    """Result from the modified prompt."""
+
+    score: int = Field(..., ge=0, le=100, description="Risk score from modified prompt")
+    risk_level: str = Field(..., description="Risk level (low, medium, high, critical)")
+    summary: str = Field(..., description="Summary from modified analysis")
+
+
+class PromptTestResponse(BaseModel):
+    """Response from testing a modified prompt."""
+
+    before: PromptTestResultBefore = Field(..., description="Results from original prompt")
+    after: PromptTestResultAfter = Field(..., description="Results from modified prompt")
+    improved: bool = Field(..., description="Whether the modification improved results")
+    inference_time_ms: int = Field(..., ge=0, description="Time taken for inference in ms")
+
+
+class PromptHistoryEntry(BaseModel):
+    """A single entry in prompt version history."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    version: int = Field(..., ge=1, description="Version number")
+    config: dict = Field(..., description="Configuration at this version")
+    created_at: datetime = Field(..., description="When this version was created")
+    created_by: str = Field("system", description="Who created this version")
+    description: str | None = Field(None, description="Description of changes")
+
+
+class PromptHistoryResponse(BaseModel):
+    """Response containing version history for a model's prompts."""
+
+    model_name: str
+    versions: list[PromptHistoryEntry]
+    total_versions: int
+
+
+class PromptRestoreRequest(BaseModel):
+    """Request to restore a specific version of a prompt."""
+
+    description: str | None = Field(
+        None,
+        description="Optional description for the restore action",
+    )
+
+
+class PromptRestoreResponse(BaseModel):
+    """Response after restoring a prompt version."""
+
+    model_name: str
+    restored_version: int
+    new_version: int
+    message: str
+
+
+class PromptExportResponse(BaseModel):
+    """Response containing all prompt configurations for export."""
+
+    exported_at: datetime = Field(..., description="When the export was created")
+    version: str = Field("1.0", description="Export format version")
+    prompts: dict[str, dict] = Field(
+        ...,
+        description="All model configurations keyed by model name",
+    )
+
+
+class PromptImportRequest(BaseModel):
+    """Request to import prompt configurations."""
+
+    prompts: dict[str, dict] = Field(
+        ...,
+        description="Model configurations to import, keyed by model name",
+    )
+    overwrite: bool = Field(
+        False,
+        description="Whether to overwrite existing configurations",
+    )
+
+
+class PromptImportResponse(BaseModel):
+    """Response after importing prompt configurations."""
+
+    imported_count: int = Field(..., ge=0, description="Number of models imported")
+    skipped_count: int = Field(..., ge=0, description="Number of models skipped")
+    errors: list[str] = Field(default_factory=list, description="Any errors encountered")
+    message: str

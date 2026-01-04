@@ -11,6 +11,7 @@ import type { AlertRule, Camera, RuleTestResponse } from '../../services/api';
 vi.mock('../../services/api', () => ({
   fetchAlertRules: vi.fn(),
   fetchCameras: vi.fn(),
+  fetchSeverityMetadata: vi.fn(),
   createAlertRule: vi.fn(),
   updateAlertRule: vi.fn(),
   deleteAlertRule: vi.fn(),
@@ -25,6 +26,11 @@ vi.mock('../../services/api', () => ({
       this.name = 'ApiError';
     }
   },
+}));
+
+// Mock SeverityConfigPanel to avoid testing it here
+vi.mock('../system/SeverityConfigPanel', () => ({
+  default: () => <div data-testid="severity-config-panel">Severity Config Panel</div>,
 }));
 
 describe('AlertRulesSettings', () => {
@@ -124,6 +130,14 @@ describe('AlertRulesSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+    // Mock severity metadata API - not the focus of these tests
+    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue({
+      definitions: [
+        { severity: 'low', label: 'Low', description: 'Routine', color: '#22c55e', priority: 3, min_score: 0, max_score: 29 },
+        { severity: 'critical', label: 'Critical', description: 'Urgent', color: '#ef4444', priority: 0, min_score: 85, max_score: 100 },
+      ],
+      thresholds: { low_max: 29, medium_max: 59, high_max: 84 },
+    });
   });
 
   afterEach(() => {
