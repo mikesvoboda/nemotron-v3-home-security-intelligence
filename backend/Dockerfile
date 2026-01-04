@@ -37,7 +37,9 @@ COPY pyproject.toml uv.lock ./
 FROM base AS dev
 
 # Install all dependencies including dev (for development container)
-RUN uv sync --frozen --no-install-project
+# Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project
 
 # Copy application code to backend subdirectory (for absolute imports)
 COPY backend/ ./backend/
@@ -74,7 +76,9 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--re
 FROM base AS builder
 
 # Install production dependencies only (no dev/test deps)
-RUN uv sync --frozen --no-dev --no-install-project
+# Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # =============================================================================
 # Production target: minimal runtime image without build tools
