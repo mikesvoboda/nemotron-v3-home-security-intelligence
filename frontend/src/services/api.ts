@@ -1941,3 +1941,259 @@ export async function fetchModelZooLatencyHistory(
     `/api/system/model-zoo/latency/history?${queryParams.toString()}`
   );
 }
+
+// ============================================================================
+// Prompt Playground Endpoints
+// ============================================================================
+
+/**
+ * Supported AI model names for prompt management
+ */
+export type PromptModelName = 'nemotron' | 'florence2' | 'yolo_world' | 'xclip' | 'fashion_clip';
+
+/**
+ * Response for a single model's prompt configuration
+ */
+export interface ModelPromptResponse {
+  model_name: string;
+  config: Record<string, unknown>;
+  version: number;
+  updated_at: string;
+}
+
+/**
+ * Response containing prompts for all models
+ */
+export interface AllPromptsResponse {
+  prompts: Record<string, ModelPromptResponse>;
+}
+
+/**
+ * Response after updating a model's prompt
+ */
+export interface PromptUpdateResponse {
+  model_name: string;
+  version: number;
+  message: string;
+  config: Record<string, unknown>;
+}
+
+/**
+ * Result from the original (current) prompt
+ */
+export interface PromptTestResultBefore {
+  score: number;
+  risk_level: string;
+  summary: string;
+}
+
+/**
+ * Result from the modified prompt
+ */
+export interface PromptTestResultAfter {
+  score: number;
+  risk_level: string;
+  summary: string;
+}
+
+/**
+ * Response from testing a modified prompt
+ */
+export interface PromptTestResponse {
+  before: PromptTestResultBefore;
+  after: PromptTestResultAfter;
+  improved: boolean;
+  inference_time_ms: number;
+}
+
+/**
+ * A single entry in prompt version history
+ */
+export interface PromptHistoryEntry {
+  version: number;
+  config: Record<string, unknown>;
+  created_at: string;
+  created_by: string;
+  description: string | null;
+}
+
+/**
+ * Response containing version history for a model's prompts
+ */
+export interface PromptHistoryResponse {
+  model_name: string;
+  versions: PromptHistoryEntry[];
+  total_versions: number;
+}
+
+/**
+ * Response after restoring a prompt version
+ */
+export interface PromptRestoreResponse {
+  model_name: string;
+  restored_version: number;
+  new_version: number;
+  message: string;
+}
+
+/**
+ * Response containing all prompt configurations for export
+ */
+export interface PromptExportResponse {
+  exported_at: string;
+  version: string;
+  prompts: Record<string, Record<string, unknown>>;
+}
+
+/**
+ * Response after importing prompt configurations
+ */
+export interface PromptImportResponse {
+  imported_count: number;
+  skipped_count: number;
+  errors: string[];
+  message: string;
+}
+
+/**
+ * Fetch current prompt configurations for all AI models.
+ *
+ * @returns AllPromptsResponse containing all model configurations
+ */
+export async function fetchAllPrompts(): Promise<AllPromptsResponse> {
+  return fetchApi<AllPromptsResponse>('/api/ai-audit/prompts');
+}
+
+/**
+ * Fetch current prompt configuration for a specific AI model.
+ *
+ * @param model - Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)
+ * @returns ModelPromptResponse with current configuration
+ */
+export async function fetchModelPrompt(model: PromptModelName): Promise<ModelPromptResponse> {
+  return fetchApi<ModelPromptResponse>(`/api/ai-audit/prompts/${model}`);
+}
+
+/**
+ * Update prompt configuration for a specific AI model.
+ *
+ * @param model - Model name to update
+ * @param config - New configuration for the model
+ * @param description - Optional description of the changes
+ * @returns PromptUpdateResponse with new version info
+ */
+export async function updateModelPrompt(
+  model: PromptModelName,
+  config: Record<string, unknown>,
+  description?: string
+): Promise<PromptUpdateResponse> {
+  return fetchApi<PromptUpdateResponse>(`/api/ai-audit/prompts/${model}`, {
+    method: 'PUT',
+    body: JSON.stringify({ config, description }),
+  });
+}
+
+/**
+ * Test a modified prompt configuration against a specific event.
+ *
+ * @param model - Model name to test
+ * @param config - Modified configuration to test
+ * @param eventId - Event ID to test against
+ * @returns PromptTestResponse with before/after comparison
+ */
+export async function testPrompt(
+  model: PromptModelName,
+  config: Record<string, unknown>,
+  eventId: number
+): Promise<PromptTestResponse> {
+  return fetchApi<PromptTestResponse>('/api/ai-audit/prompts/test', {
+    method: 'POST',
+    body: JSON.stringify({ model, config, event_id: eventId }),
+  });
+}
+
+/**
+ * Fetch version history for all AI models.
+ *
+ * @param limit - Maximum number of versions to return per model (default 10)
+ * @returns Dict mapping model names to their version histories
+ */
+export async function fetchAllPromptsHistory(
+  limit: number = 10
+): Promise<Record<string, PromptHistoryResponse>> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('limit', String(limit));
+  return fetchApi<Record<string, PromptHistoryResponse>>(
+    `/api/ai-audit/prompts/history?${queryParams.toString()}`
+  );
+}
+
+/**
+ * Fetch version history for a specific AI model.
+ *
+ * @param model - Model name to get history for
+ * @param limit - Maximum versions to return (default 50)
+ * @param offset - Number of versions to skip (default 0)
+ * @returns PromptHistoryResponse with version list
+ */
+export async function fetchModelHistory(
+  model: PromptModelName,
+  limit: number = 50,
+  offset: number = 0
+): Promise<PromptHistoryResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('limit', String(limit));
+  queryParams.append('offset', String(offset));
+  return fetchApi<PromptHistoryResponse>(
+    `/api/ai-audit/prompts/history/${model}?${queryParams.toString()}`
+  );
+}
+
+/**
+ * Restore a specific version of a model's prompt configuration.
+ *
+ * @param model - Model name to restore version for
+ * @param version - Version number to restore
+ * @param description - Optional description for the restore action
+ * @returns PromptRestoreResponse with restore details
+ */
+export async function restorePromptVersion(
+  model: PromptModelName,
+  version: number,
+  description?: string
+): Promise<PromptRestoreResponse> {
+  const body = description ? { description } : {};
+  return fetchApi<PromptRestoreResponse>(
+    `/api/ai-audit/prompts/history/${version}?model=${model}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+/**
+ * Export all AI model configurations as JSON.
+ *
+ * @returns PromptExportResponse with all configurations
+ */
+export async function exportPrompts(): Promise<PromptExportResponse> {
+  return fetchApi<PromptExportResponse>('/api/ai-audit/prompts/export');
+}
+
+/**
+ * Import AI model configurations from JSON.
+ *
+ * @param prompts - Model configurations to import
+ * @param overwrite - Whether to overwrite existing configurations (default false)
+ * @returns PromptImportResponse with import results
+ */
+export async function importPrompts(
+  prompts: Record<string, Record<string, unknown>>,
+  overwrite: boolean = false
+): Promise<PromptImportResponse> {
+  return fetchApi<PromptImportResponse>('/api/ai-audit/prompts/import', {
+    method: 'POST',
+    body: JSON.stringify({ prompts, overwrite }),
+  });
+}

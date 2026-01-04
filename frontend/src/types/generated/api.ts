@@ -292,6 +292,265 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai-audit/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get All Prompts
+         * @description Get current prompt configurations for all AI models.
+         *
+         *     Returns configurations for nemotron, florence2, yolo_world, xclip,
+         *     and fashion_clip models with their current versions.
+         *
+         *     Returns:
+         *         AllPromptsResponse containing all model configurations
+         */
+        get: operations["get_all_prompts_api_ai_audit_prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Prompt
+         * @description Test a modified prompt configuration against a specific event.
+         *
+         *     Runs inference with both the current and modified configurations,
+         *     returning a comparison of the results to help evaluate changes.
+         *
+         *     Note: This currently returns mock results. In production, it would
+         *     call the actual AI services with the modified configuration.
+         *
+         *     Args:
+         *         request: Test request with model name, config, and event ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         PromptTestResponse with before/after comparison
+         *
+         *     Raises:
+         *         HTTPException: 404 if model or event not found, 400 if config invalid
+         */
+        post: operations["test_prompt_api_ai_audit_prompts_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get All Prompts History
+         * @description Get version history for all AI models.
+         *
+         *     Returns the most recent versions for each supported model.
+         *
+         *     Args:
+         *         limit: Maximum number of versions to return per model (1-100, default 10)
+         *
+         *     Returns:
+         *         Dict mapping model names to their version histories
+         */
+        get: operations["get_all_prompts_history_api_ai_audit_prompts_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Prompts
+         * @description Export all AI model configurations as JSON.
+         *
+         *     Returns all current configurations in a format suitable for
+         *     backup or transfer to another instance.
+         *
+         *     Returns:
+         *         PromptExportResponse with all configurations
+         */
+        get: operations["export_prompts_api_ai_audit_prompts_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Prompts
+         * @description Import AI model configurations from JSON.
+         *
+         *     Imports configurations for multiple models at once. By default,
+         *     existing configurations are not overwritten unless overwrite=true.
+         *
+         *     Args:
+         *         request: Import request with configurations and overwrite flag
+         *
+         *     Returns:
+         *         PromptImportResponse with import results
+         */
+        post: operations["import_prompts_api_ai_audit_prompts_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/{model}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Prompt
+         * @description Get current prompt configuration for a specific AI model.
+         *
+         *     Args:
+         *         model: Model name (nemotron, florence2, yolo_world, xclip, fashion_clip)
+         *
+         *     Returns:
+         *         ModelPromptResponse with current configuration
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found
+         */
+        get: operations["get_model_prompt_api_ai_audit_prompts__model__get"];
+        /**
+         * Update Model Prompt
+         * @description Update prompt configuration for a specific AI model.
+         *
+         *     Creates a new version of the configuration with the provided changes.
+         *     The previous version is preserved in history.
+         *
+         *     Args:
+         *         model: Model name to update
+         *         request: New configuration and optional description
+         *
+         *     Returns:
+         *         PromptUpdateResponse with new version info
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found, 400 if configuration invalid
+         */
+        put: operations["update_model_prompt_api_ai_audit_prompts__model__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/history/{model}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model History
+         * @description Get version history for a specific AI model.
+         *
+         *     Returns all versions of the model's configuration, newest first,
+         *     with pagination support.
+         *
+         *     Args:
+         *         model: Model name to get history for
+         *         limit: Maximum versions to return (1-100, default 50)
+         *         offset: Number of versions to skip (default 0)
+         *
+         *     Returns:
+         *         PromptHistoryResponse with version list
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found
+         */
+        get: operations["get_model_history_api_ai_audit_prompts_history__model__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompts/history/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Prompt Version
+         * @description Restore a specific version of a model's prompt configuration.
+         *
+         *     Creates a new version with the configuration from the specified version.
+         *     The restore action is recorded in the version history.
+         *
+         *     Args:
+         *         version: Version number to restore
+         *         model: Model name to restore version for
+         *         request: Optional restore request with description
+         *
+         *     Returns:
+         *         PromptRestoreResponse with restore details
+         *
+         *     Raises:
+         *         HTTPException: 404 if model or version not found
+         */
+        post: operations["restore_prompt_version_api_ai_audit_prompts_history__version__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/alerts/rules": {
         parameters: {
             query?: never;
@@ -3349,6 +3608,19 @@ export interface components {
          * @enum {string}
          */
         AlertSeverity: "low" | "medium" | "high" | "critical";
+        /**
+         * AllPromptsResponse
+         * @description Response containing prompts for all models.
+         */
+        AllPromptsResponse: {
+            /**
+             * Prompts
+             * @description Dictionary mapping model names to their configurations
+             */
+            prompts: {
+                [key: string]: components["schemas"]["ModelPromptResponse"];
+            };
+        };
         /**
          * AnomalyEvent
          * @description A single anomaly event detected for a camera.
@@ -6535,6 +6807,35 @@ export interface components {
             event_count: number;
         };
         /**
+         * ModelPromptResponse
+         * @description Response for a single model's prompt configuration.
+         */
+        ModelPromptResponse: {
+            /**
+             * Model Name
+             * @description Name of the AI model
+             */
+            model_name: string;
+            /**
+             * Config
+             * @description Current configuration for this model
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Version
+             * @description Current version number
+             */
+            version: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When last updated
+             */
+            updated_at: string;
+        };
+        /**
          * ModelRegistryResponse
          * @description Response schema for model registry endpoint.
          *
@@ -7231,6 +7532,124 @@ export interface components {
             confidence?: number | null;
         };
         /**
+         * PromptExportResponse
+         * @description Response containing all prompt configurations for export.
+         */
+        PromptExportResponse: {
+            /**
+             * Exported At
+             * Format: date-time
+             * @description When the export was created
+             */
+            exported_at: string;
+            /**
+             * Version
+             * @description Export format version
+             * @default 1.0
+             */
+            version: string;
+            /**
+             * Prompts
+             * @description All model configurations keyed by model name
+             */
+            prompts: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /**
+         * PromptHistoryEntry
+         * @description A single entry in prompt version history.
+         */
+        PromptHistoryEntry: {
+            /**
+             * Version
+             * @description Version number
+             */
+            version: number;
+            /**
+             * Config
+             * @description Configuration at this version
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             * @description When this version was created
+             */
+            created_at: string;
+            /**
+             * Created By
+             * @description Who created this version
+             * @default system
+             */
+            created_by: string;
+            /**
+             * Description
+             * @description Description of changes
+             */
+            description?: string | null;
+        };
+        /**
+         * PromptHistoryResponse
+         * @description Response containing version history for a model's prompts.
+         */
+        PromptHistoryResponse: {
+            /** Model Name */
+            model_name: string;
+            /** Versions */
+            versions: components["schemas"]["PromptHistoryEntry"][];
+            /** Total Versions */
+            total_versions: number;
+        };
+        /**
+         * PromptImportRequest
+         * @description Request to import prompt configurations.
+         */
+        PromptImportRequest: {
+            /**
+             * Prompts
+             * @description Model configurations to import, keyed by model name
+             */
+            prompts: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /**
+             * Overwrite
+             * @description Whether to overwrite existing configurations
+             * @default false
+             */
+            overwrite: boolean;
+        };
+        /**
+         * PromptImportResponse
+         * @description Response after importing prompt configurations.
+         */
+        PromptImportResponse: {
+            /**
+             * Imported Count
+             * @description Number of models imported
+             */
+            imported_count: number;
+            /**
+             * Skipped Count
+             * @description Number of models skipped
+             */
+            skipped_count: number;
+            /**
+             * Errors
+             * @description Any errors encountered
+             */
+            errors?: string[];
+            /** Message */
+            message: string;
+        };
+        /**
          * PromptImprovements
          * @description Prompt improvement suggestions from self-evaluation.
          */
@@ -7245,6 +7664,150 @@ export interface components {
             format_suggestions?: string[];
             /** Model Gaps */
             model_gaps?: string[];
+        };
+        /**
+         * PromptRestoreRequest
+         * @description Request to restore a specific version of a prompt.
+         */
+        PromptRestoreRequest: {
+            /**
+             * Description
+             * @description Optional description for the restore action
+             */
+            description?: string | null;
+        };
+        /**
+         * PromptRestoreResponse
+         * @description Response after restoring a prompt version.
+         */
+        PromptRestoreResponse: {
+            /** Model Name */
+            model_name: string;
+            /** Restored Version */
+            restored_version: number;
+            /** New Version */
+            new_version: number;
+            /** Message */
+            message: string;
+        };
+        /**
+         * PromptTestRequest
+         * @description Request to test a modified prompt against an event.
+         */
+        PromptTestRequest: {
+            /**
+             * Model
+             * @description Model name to test (nemotron, florence2, etc.)
+             */
+            model: string;
+            /**
+             * Config
+             * @description Modified configuration to test
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Event Id
+             * @description Event ID to test against
+             */
+            event_id: number;
+        };
+        /**
+         * PromptTestResponse
+         * @description Response from testing a modified prompt.
+         */
+        PromptTestResponse: {
+            /** @description Results from original prompt */
+            before: components["schemas"]["PromptTestResultBefore"];
+            /** @description Results from modified prompt */
+            after: components["schemas"]["PromptTestResultAfter"];
+            /**
+             * Improved
+             * @description Whether the modification improved results
+             */
+            improved: boolean;
+            /**
+             * Inference Time Ms
+             * @description Time taken for inference in ms
+             */
+            inference_time_ms: number;
+        };
+        /**
+         * PromptTestResultAfter
+         * @description Result from the modified prompt.
+         */
+        PromptTestResultAfter: {
+            /**
+             * Score
+             * @description Risk score from modified prompt
+             */
+            score: number;
+            /**
+             * Risk Level
+             * @description Risk level (low, medium, high, critical)
+             */
+            risk_level: string;
+            /**
+             * Summary
+             * @description Summary from modified analysis
+             */
+            summary: string;
+        };
+        /**
+         * PromptTestResultBefore
+         * @description Result from the original (current) prompt.
+         */
+        PromptTestResultBefore: {
+            /**
+             * Score
+             * @description Risk score from original prompt
+             */
+            score: number;
+            /**
+             * Risk Level
+             * @description Risk level (low, medium, high, critical)
+             */
+            risk_level: string;
+            /**
+             * Summary
+             * @description Summary from original analysis
+             */
+            summary: string;
+        };
+        /**
+         * PromptUpdateRequest
+         * @description Request to update a model's prompt configuration.
+         */
+        PromptUpdateRequest: {
+            /**
+             * Config
+             * @description New configuration for the model
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Description
+             * @description Description of the changes
+             */
+            description?: string | null;
+        };
+        /**
+         * PromptUpdateResponse
+         * @description Response after updating a model's prompt.
+         */
+        PromptUpdateResponse: {
+            /** Model Name */
+            model_name: string;
+            /** Version */
+            version: number;
+            /** Message */
+            message: string;
+            /** Config */
+            config: {
+                [key: string]: unknown;
+            };
         };
         /**
          * QualityScores
@@ -9117,6 +9680,286 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BatchAuditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_all_prompts_api_ai_audit_prompts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllPromptsResponse"];
+                };
+            };
+        };
+    };
+    test_prompt_api_ai_audit_prompts_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptTestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_all_prompts_history_api_ai_audit_prompts_history_get: {
+        parameters: {
+            query?: {
+                /** @description Max versions per model */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["PromptHistoryResponse"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_prompts_api_ai_audit_prompts_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptExportResponse"];
+                };
+            };
+        };
+    };
+    import_prompts_api_ai_audit_prompts_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptImportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_model_prompt_api_ai_audit_prompts__model__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPromptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_model_prompt_api_ai_audit_prompts__model__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_model_history_api_ai_audit_prompts_history__model__get: {
+        parameters: {
+            query?: {
+                /** @description Max versions to return */
+                limit?: number;
+                /** @description Number of versions to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_prompt_version_api_ai_audit_prompts_history__version__post: {
+        parameters: {
+            query: {
+                /** @description Model name to restore version for */
+                model: string;
+            };
+            header?: never;
+            path: {
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PromptRestoreRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptRestoreResponse"];
                 };
             };
             /** @description Validation Error */

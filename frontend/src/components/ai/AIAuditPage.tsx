@@ -13,6 +13,7 @@ import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play } from 'lucide-r
 import { useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
+import PromptPlayground from './PromptPlayground';
 import QualityScoreTrends from './QualityScoreTrends';
 import RecommendationsPanel from './RecommendationsPanel';
 import {
@@ -23,6 +24,7 @@ import {
 import type {
   AiAuditStatsResponse,
   AiAuditRecommendationsResponse,
+  AiAuditRecommendationItem,
 } from '../../services/api';
 import type { BatchAuditResponse } from '../../services/auditApi';
 
@@ -45,6 +47,10 @@ export default function AIAuditPage() {
   // Batch audit modal state
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchSuccess, setBatchSuccess] = useState<string | null>(null);
+
+  // Prompt playground state
+  const [isPlaygroundOpen, setIsPlaygroundOpen] = useState(false);
+  const [selectedRecommendation, setSelectedRecommendation] = useState<AiAuditRecommendationItem | null>(null);
 
   // Load data
   const loadData = useCallback(async (showLoading = true) => {
@@ -93,6 +99,18 @@ export default function AIAuditPage() {
     setTimeout(() => setBatchSuccess(null), 5000);
     // Refresh data to show updated stats
     void loadData(false);
+  };
+
+  // Handle recommendation explore click
+  const handleExploreRecommendation = (recommendation: AiAuditRecommendationItem) => {
+    setSelectedRecommendation(recommendation);
+    setIsPlaygroundOpen(true);
+  };
+
+  // Handle playground close
+  const handlePlaygroundClose = () => {
+    setIsPlaygroundOpen(false);
+    setSelectedRecommendation(null);
   };
 
   // Loading state
@@ -247,6 +265,7 @@ export default function AIAuditPage() {
               <RecommendationsPanel
                 recommendations={recommendations.recommendations}
                 totalEventsAnalyzed={recommendations.total_events_analyzed}
+                onExploreRecommendation={handleExploreRecommendation}
               />
             )}
 
@@ -263,6 +282,13 @@ export default function AIAuditPage() {
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onSuccess={handleBatchAuditSuccess}
+      />
+
+      {/* Prompt Playground Slide-out Panel */}
+      <PromptPlayground
+        isOpen={isPlaygroundOpen}
+        onClose={handlePlaygroundClose}
+        recommendation={selectedRecommendation}
       />
     </div>
   );
