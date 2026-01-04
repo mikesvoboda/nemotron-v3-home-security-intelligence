@@ -9,12 +9,11 @@
  * - /api/system/telemetry - Queue depths and basic latency stats
  * - /api/system/health - AI service health status
  * - /api/system/pipeline-latency - Detailed pipeline latency percentiles
- * - /api/dlq/stats - Dead letter queue counts (actual current DLQ depth)
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { fetchTelemetry, fetchHealth, fetchDlqStats, type TelemetryResponse, type HealthResponse, type DLQStatsResponse } from '../services/api';
+import { fetchTelemetry, fetchHealth, type TelemetryResponse, type HealthResponse } from '../services/api';
 import { fetchAIMetrics, type AIMetrics, type AILatencyMetrics } from '../services/metricsParser';
 
 /**
@@ -216,12 +215,11 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
   const fetchAllMetrics = useCallback(async () => {
     try {
       // Fetch all data sources in parallel
-      const [metricsResult, telemetryResult, healthResult, pipelineResult, dlqStatsResult] = await Promise.allSettled([
+      const [metricsResult, telemetryResult, healthResult, pipelineResult] = await Promise.allSettled([
         fetchAIMetrics(),
         fetchTelemetry(),
         fetchHealth(),
         fetchPipelineLatency(60),
-        fetchDlqStats(),
       ]);
 
       if (!mountedRef.current) return;
@@ -235,28 +233,9 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         healthResult.status === 'fulfilled' ? healthResult.value : null;
       const pipelineLatency: PipelineLatencyResponse | null =
         pipelineResult.status === 'fulfilled' ? pipelineResult.value : null;
-      const dlqStats: DLQStatsResponse | null =
-        dlqStatsResult.status === 'fulfilled' ? dlqStatsResult.value : null;
 
       // Extract AI model statuses
       const { rtdetr, nemotron } = extractAIStatuses(health);
-
-      // Build DLQ items from API stats (preferred) or fall back to Prometheus metrics
-      // The DLQ stats API returns the actual current count, while Prometheus metrics
-      // track cumulative "items moved to DLQ" which is less accurate for current state
-      let dlqItems: Record<string, number>;
-      if (dlqStats && (dlqStats.detection_queue_count > 0 || dlqStats.analysis_queue_count > 0 || dlqStats.total_count > 0)) {
-        dlqItems = {};
-        if (dlqStats.detection_queue_count > 0) {
-          dlqItems['dlq:detection_queue'] = dlqStats.detection_queue_count;
-        }
-        if (dlqStats.analysis_queue_count > 0) {
-          dlqItems['dlq:analysis_queue'] = dlqStats.analysis_queue_count;
-        }
-      } else {
-        // Fall back to Prometheus metrics if DLQ stats API failed or returned zeros
-        dlqItems = metrics?.dlq_items ?? {};
-      }
 
       // Combine all metrics into state
       setData({
@@ -271,7 +250,7 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         analysisQueueDepth: telemetry?.queues?.analysis_queue ?? metrics?.analysis_queue_depth ?? 0,
         pipelineErrors: metrics?.pipeline_errors ?? {},
         queueOverflows: metrics?.queue_overflows ?? {},
-        dlqItems,
+        dlqItems: metrics?.dlq_items ?? {},
         lastUpdated: new Date().toISOString(),
       });
 

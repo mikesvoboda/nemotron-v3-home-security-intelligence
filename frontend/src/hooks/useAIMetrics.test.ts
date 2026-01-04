@@ -9,7 +9,6 @@ import * as metricsParser from '../services/metricsParser';
 vi.mock('../services/api', () => ({
   fetchTelemetry: vi.fn(),
   fetchHealth: vi.fn(),
-  fetchDlqStats: vi.fn(),
 }));
 
 // Mock the metricsParser module
@@ -114,12 +113,6 @@ describe('useAIMetrics', () => {
     timestamp: '2025-12-28T10:30:00Z',
   };
 
-  const mockDlqStatsResponse: api.DLQStatsResponse = {
-    detection_queue_count: 1611,
-    analysis_queue_count: 0,
-    total_count: 1611,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -127,7 +120,6 @@ describe('useAIMetrics', () => {
     vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue(mockMetricsResponse);
     vi.mocked(api.fetchTelemetry).mockResolvedValue(mockTelemetryResponse);
     vi.mocked(api.fetchHealth).mockResolvedValue(mockHealthResponse);
-    vi.mocked(api.fetchDlqStats).mockResolvedValue(mockDlqStatsResponse);
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockPipelineLatencyResponse),
@@ -144,7 +136,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
-      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -157,7 +148,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
-      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -171,7 +161,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
-      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -186,7 +175,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
-      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -205,7 +193,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
-      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -215,7 +202,7 @@ describe('useAIMetrics', () => {
   });
 
   describe('successful data fetching', () => {
-    it('should fetch all 5 endpoints on mount', async () => {
+    it('should fetch all 4 endpoints on mount', async () => {
       renderHook(() => useAIMetrics({ enablePolling: false }));
 
       await waitFor(() => {
@@ -224,7 +211,6 @@ describe('useAIMetrics', () => {
 
       expect(api.fetchTelemetry).toHaveBeenCalledTimes(1);
       expect(api.fetchHealth).toHaveBeenCalledTimes(1);
-      expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledWith('/api/system/pipeline-latency?window_minutes=60');
     });
 
@@ -311,63 +297,6 @@ describe('useAIMetrics', () => {
         detection_queue: 5,
         analysis_queue: 1,
       });
-      // DLQ items now come from DLQ stats API (1611) instead of Prometheus metrics
-      expect(result.current.data.dlqItems).toEqual({
-        'dlq:detection_queue': 1611,
-      });
-    });
-
-    it('should prefer DLQ stats API over Prometheus metrics for DLQ items', async () => {
-      // Mock DLQ stats with actual counts from the API
-      vi.mocked(api.fetchDlqStats).mockResolvedValue({
-        detection_queue_count: 1611,
-        analysis_queue_count: 5,
-        total_count: 1616,
-      });
-
-      const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      // Should use DLQ stats API values, not Prometheus metrics
-      expect(result.current.data.dlqItems).toEqual({
-        'dlq:detection_queue': 1611,
-        'dlq:analysis_queue': 5,
-      });
-    });
-
-    it('should fall back to Prometheus metrics when DLQ stats API fails', async () => {
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('DLQ stats unavailable'));
-
-      const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      // Should fall back to Prometheus metrics from mockMetricsResponse
-      expect(result.current.data.dlqItems).toEqual({
-        'dlq:detection_queue': 8,
-        'dlq:analysis_queue': 2,
-      });
-    });
-
-    it('should fall back to Prometheus metrics when DLQ stats API returns zeros', async () => {
-      vi.mocked(api.fetchDlqStats).mockResolvedValue({
-        detection_queue_count: 0,
-        analysis_queue_count: 0,
-        total_count: 0,
-      });
-
-      const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      // Should fall back to Prometheus metrics from mockMetricsResponse
       expect(result.current.data.dlqItems).toEqual({
         'dlq:detection_queue': 8,
         'dlq:analysis_queue': 2,
@@ -464,25 +393,6 @@ describe('useAIMetrics', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('should handle DLQ stats endpoint failure and fall back to Prometheus metrics', async () => {
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(
-        new Error('DLQ stats unavailable')
-      );
-
-      const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      // Should fall back to Prometheus metrics values (8, 2) instead of DLQ stats (1611, 0)
-      expect(result.current.data.dlqItems).toEqual({
-        'dlq:detection_queue': 8,
-        'dlq:analysis_queue': 2,
-      });
-      expect(result.current.error).toBeNull();
-    });
-
     it('should handle multiple endpoint failures', async () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchHealth).mockRejectedValue(new Error('Failed'));
@@ -503,7 +413,6 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchTelemetry).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchHealth).mockRejectedValue(new Error('Failed'));
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('Failed'));
       mockFetch.mockRejectedValue(new Error('Failed'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -869,12 +778,6 @@ describe('useAIMetrics', () => {
         queue_overflows: {},
         dlq_items: {},
       });
-      // Also return zero DLQ stats to test empty state
-      vi.mocked(api.fetchDlqStats).mockResolvedValue({
-        detection_queue_count: 0,
-        analysis_queue_count: 0,
-        total_count: 0,
-      });
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 
@@ -889,8 +792,7 @@ describe('useAIMetrics', () => {
       expect(result.current.data.dlqItems).toEqual({});
     });
 
-    it('should return empty dlqItems when both DLQ stats and metrics fail', async () => {
-      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('Failed'));
+    it('should return empty dlqItems when metrics return empty dlq_items', async () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue({
         ...mockMetricsResponse,
         dlq_items: {},
@@ -902,7 +804,7 @@ describe('useAIMetrics', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Falls back to empty metrics when DLQ stats fails
+      // dlqItems comes from metrics.dlq_items, should be empty when metrics returns empty
       expect(result.current.data.dlqItems).toEqual({});
     });
 
