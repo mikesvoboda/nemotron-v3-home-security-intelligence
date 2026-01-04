@@ -4,31 +4,50 @@
 
 The `backend/tests/unit/routes/` directory contains unit tests for FastAPI route handlers in `backend/api/routes/`. Tests verify endpoint behavior with mocked dependencies.
 
-## Test Files (5 files)
+## Directory Structure
 
-| File                          | Tests For                   | Test Count |
-| ----------------------------- | --------------------------- | ---------- |
-| `test_admin_routes.py`        | Admin endpoints (seed data) | ~15 tests  |
-| `test_alerts_routes.py`       | Alert rules CRUD endpoints  | ~40 tests  |
-| `test_audit_routes.py`        | Audit log endpoints         | ~25 tests  |
-| `test_notification_routes.py` | Notification endpoints      | ~20 tests  |
+```
+backend/tests/unit/routes/
+├── AGENTS.md                   # This file
+├── __init__.py                 # Package initialization
+├── test_admin_routes.py        # Admin endpoints
+├── test_ai_audit_routes.py     # AI audit routes
+├── test_alerts_routes.py       # Alert rules CRUD
+├── test_audit_routes.py        # Audit log endpoints
+├── test_cameras_routes.py      # Camera CRUD endpoints
+├── test_detections_routes.py   # Detection listing endpoints
+├── test_events_routes.py       # Event management endpoints
+├── test_logs_routes.py         # Log management endpoints
+├── test_media_routes.py        # Media file serving
+├── test_notification_routes.py # Notification endpoints
+├── test_system_routes.py       # System health and config
+├── test_websocket_routes.py    # WebSocket handlers
+└── test_zones_routes.py        # Zone CRUD endpoints
+```
 
-## Additional Route Tests (in parent directory)
+## Test Files (13 files)
 
-Many route tests are in `backend/tests/unit/` directly:
+| File                          | Tests For                | Endpoints              |
+| ----------------------------- | ------------------------ | ---------------------- |
+| `test_admin_routes.py`        | Admin endpoints          | `/api/admin/*`         |
+| `test_ai_audit_routes.py`     | AI audit routes          | `/api/ai-audit/*`      |
+| `test_alerts_routes.py`       | Alert rules CRUD         | `/api/alerts/*`        |
+| `test_audit_routes.py`        | Audit log endpoints      | `/api/audit/*`         |
+| `test_cameras_routes.py`      | Camera CRUD endpoints    | `/api/cameras/*`       |
+| `test_detections_routes.py`   | Detection listing        | `/api/detections/*`    |
+| `test_events_routes.py`       | Event management         | `/api/events/*`        |
+| `test_logs_routes.py`         | Log management           | `/api/logs/*`          |
+| `test_media_routes.py`        | Media file serving       | `/api/media/*`         |
+| `test_notification_routes.py` | Notification endpoints   | `/api/notifications/*` |
+| `test_system_routes.py`       | System health and config | `/api/system/*`        |
+| `test_websocket_routes.py`    | WebSocket handlers       | `/ws/*`                |
+| `test_zones_routes.py`        | Zone CRUD endpoints      | `/api/zones/*`         |
 
-| File                        | Tests For                   |
-| --------------------------- | --------------------------- |
-| `test_cameras_routes.py`    | Camera CRUD endpoints       |
-| `test_events_routes.py`     | Event management endpoints  |
-| `test_detections_routes.py` | Detection listing endpoints |
-| `test_system_routes.py`     | System health and config    |
-| `test_logs_routes.py`       | Log management endpoints    |
-| `test_media_routes.py`      | Media file serving          |
-| `test_websocket_routes.py`  | WebSocket handlers          |
-| `test_zones_routes.py`      | Zone CRUD endpoints         |
-| `test_dlq_api.py`           | Dead-letter queue endpoints |
-| `test_telemetry_api.py`     | Telemetry endpoints         |
+## Additional Route Tests
+
+Additional route tests are in `backend/tests/unit/api/routes/` (17 files) covering:
+
+- AI audit, DLQ, enrichment, entities, event clips, events export, metrics, scene changes, telemetry
 
 ## Test Categories
 

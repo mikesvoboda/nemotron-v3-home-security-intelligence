@@ -12,10 +12,11 @@ Package initialization with public exports:
 
 - `alerts_router` - Alert rules API router
 - `audit_router` - Audit logs API router
+- `entities_router` - Entity re-identification API router
 - `logs_router` - Logs API router
 - `zones_router` - Camera zones API router
 
-Note: Other routers (cameras, events, detections, system, media, websocket, dlq, metrics, notification, admin) are imported directly via FastAPI app.include_router() in main.py.
+Note: Other routers (cameras, events, detections, system, media, websocket, dlq, metrics, notification, admin, ai_audit, prompt_management) are imported directly via FastAPI app.include_router() in main.py.
 
 ### `cameras.py`
 
@@ -443,11 +444,11 @@ Development-only admin endpoints for seeding test data.
 
 ### `ai_audit.py`
 
-AI pipeline audit management for model performance, quality scoring, and recommendations.
+AI pipeline audit management for model performance, quality scoring, recommendations, and prompt management.
 
 **Router prefix:** `/api/ai-audit`
 
-**Endpoints:**
+**Audit Endpoints:**
 
 | Method | Path                                       | Purpose                                            |
 | ------ | ------------------------------------------ | -------------------------------------------------- |
@@ -458,6 +459,20 @@ AI pipeline audit management for model performance, quality scoring, and recomme
 | GET    | `/api/ai-audit/recommendations`            | Get aggregated prompt improvement recommendations  |
 | POST   | `/api/ai-audit/batch`                      | Trigger batch audit processing for multiple events |
 
+**Prompt Management Endpoints (Prompt Playground API):**
+
+| Method | Path                                      | Purpose                                  |
+| ------ | ----------------------------------------- | ---------------------------------------- |
+| GET    | `/api/ai-audit/prompts`                   | Get all prompt configurations            |
+| POST   | `/api/ai-audit/prompts/test`              | Test a modified prompt against an event  |
+| GET    | `/api/ai-audit/prompts/history`           | Get prompt version history (all models)  |
+| GET    | `/api/ai-audit/prompts/export`            | Export all prompts as JSON               |
+| POST   | `/api/ai-audit/prompts/import`            | Import prompt configurations             |
+| GET    | `/api/ai-audit/prompts/{model}`           | Get prompt for a specific model          |
+| PUT    | `/api/ai-audit/prompts/{model}`           | Update prompt for a specific model       |
+| GET    | `/api/ai-audit/prompts/history/{model}`   | Get version history for a specific model |
+| POST   | `/api/ai-audit/prompts/history/{version}` | Restore a specific prompt version        |
+
 **Query Parameters:**
 
 - `days` - Number of days to include (1-90, default 7)
@@ -466,6 +481,14 @@ AI pipeline audit management for model performance, quality scoring, and recomme
 - `min_risk_score` - Minimum risk score filter (batch endpoint)
 - `limit` - Maximum events to process (batch endpoint)
 
+**Supported Prompt Models:**
+
+- `nemotron` - System prompt for risk analysis
+- `florence2` - Scene analysis queries
+- `yolo_world` - Custom object classes and confidence threshold
+- `xclip` - Action recognition classes
+- `fashion_clip` - Clothing categories
+
 **Key Features:**
 
 - Model contribution tracking (RT-DETR, Florence, CLIP, violence, clothing, vehicle, pet, weather, etc.)
@@ -473,6 +496,9 @@ AI pipeline audit management for model performance, quality scoring, and recomme
 - Prompt improvement suggestions (missing context, confusing sections, unused data, format suggestions)
 - Model leaderboard with quality correlation
 - Batch evaluation for historical events
+- Full prompt version history with change descriptions
+- Export/import for backup and sharing configurations
+- A/B testing prompts against events or images
 
 ### `entities.py`
 
@@ -508,6 +534,8 @@ Entity re-identification tracking across multiple cameras using CLIP embeddings.
 Prompt configuration management for AI models with versioning, testing, and import/export.
 
 **Router prefix:** `/api/ai-audit/prompts`
+
+**Note:** This module is currently NOT included in main.py. The prompt management endpoints are served by `ai_audit.py` instead. This file exists as a standalone module that may be used for alternate routing or future refactoring.
 
 **Endpoints:**
 

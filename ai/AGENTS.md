@@ -25,15 +25,18 @@ ai/
 │   ├── test_model.py      # Unit tests (pytest)
 │   ├── requirements.txt   # Python dependencies
 │   ├── README.md          # Usage documentation
-│   └── __init__.py        # Package init (version 1.0.0)
+│   ├── __init__.py        # Package init (version 1.0.0)
+│   └── .gitkeep           # Placeholder
 ├── nemotron/              # Nemotron LLM model files
 │   ├── AGENTS.md          # Nemotron documentation
 │   ├── Dockerfile         # Multi-stage build for llama.cpp
-│   └── config.json        # llama.cpp config reference
+│   ├── config.json        # llama.cpp config reference
+│   └── .gitkeep           # Placeholder (GGUF models downloaded at runtime)
 ├── clip/                  # CLIP embedding server
 │   ├── AGENTS.md          # CLIP documentation
 │   ├── Dockerfile         # Container build
 │   ├── model.py           # FastAPI server for embeddings
+│   ├── test_model.py      # Unit tests (pytest)
 │   └── requirements.txt   # Python dependencies
 ├── florence/              # Florence-2 vision-language server
 │   ├── AGENTS.md          # Florence-2 documentation

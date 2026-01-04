@@ -10,11 +10,12 @@ This directory contains all automated tests for the backend Python application. 
 backend/tests/
 ├── conftest.py              # Shared pytest fixtures and configuration
 ├── __init__.py              # Package initialization
-├── unit/                    # Unit tests for isolated components (56 test files)
-├── integration/             # Integration tests for API and multi-component workflows (30 test files)
+├── unit/                    # Unit tests for isolated components (150 test files)
+├── integration/             # Integration tests for API and multi-component workflows (55 test files)
 ├── e2e/                     # End-to-end pipeline integration tests (2 test files)
 ├── gpu/                     # GPU-specific AI service tests (1 test file)
 ├── benchmarks/              # Performance and complexity benchmarks (3 test files)
+├── fixtures/                # Test fixtures including sample images
 ├── check_syntax.py          # Syntax validation script
 ├── run_db_tests.sh          # Database test runner script
 ├── verify_database.py       # Database verification script
@@ -169,53 +170,61 @@ Timeouts are applied automatically based on test location:
 
 ## Test Categories
 
-### Unit Tests (`unit/`) - 7193 tests
+### Unit Tests (`unit/`) - 150 test files
 
 Tests for individual components in isolation with all external dependencies mocked.
 Includes property-based tests using **Hypothesis** for model invariants.
 
-Categories:
+Subdirectories:
 
-- **Core**: config, database, redis, logging, metrics
-- **Models**: Camera, Detection, Event, GPUStats, Log (with Hypothesis property tests)
-- **Services**: file_watcher, detector_client, batch_aggregator, nemotron_analyzer, broadcasters
-- **API Routes**: cameras, events, detections, system, logs, media, websocket, admin, zones
-- **Middleware**: auth, rate limiting, TLS
-- **Alert System**: engine, dedup, models, notification
+- **api/routes/**: API route unit tests (17 files) - AI audit, cameras, DLQ, enrichment, events, etc.
+- **api/schemas/**: Pydantic schema validation tests (5 files)
+- **core/**: Infrastructure tests (28 files) - config, database, redis, logging, middleware, TLS
+- **models/**: ORM model tests (16 files) - Camera, Detection, Event, Alert, Zone, GPUStats
+- **routes/**: Additional route tests (13 files) - admin, alerts, audit, cameras, events, etc.
+- **services/**: Business logic tests (71 files) - AI pipeline, broadcasters, enrichment, loaders
+- **scripts/**: Migration script tests (1 file)
 
-### Integration Tests (`integration/`) - 1499 tests
+### Integration Tests (`integration/`) - 55 test files
 
 Tests for multi-component workflows with real database and mocked Redis.
 **Must run serially** (`-n0`) due to shared database state.
 
 Categories:
 
-- **API endpoints**: All CRUD operations, filtering, pagination
-- **WebSocket**: Connection handling, broadcasting, cleanup
-- **Services**: Batch aggregation, detector client, file watcher, health monitor
-- **Full stack**: Camera -> Detection -> Event workflows
-- **Security**: Path traversal prevention, file type validation
+- **API endpoints**: admin, alerts, AI audit, cameras, detections, events, logs, media, metrics, zones
+- **WebSocket**: Connection handling, broadcasting, authentication, cleanup
+- **Services**: Batch aggregation, detector client, file watcher, health monitor, cache, cleanup
+- **Full stack**: Camera -> Detection -> Event workflows, pipeline E2E
+- **Security**: Path traversal prevention, file type validation, error handling
+- **Database**: Migrations, model cascades, transaction rollback, Redis pub/sub
 
-### End-to-End Tests (`e2e/`) - 2 files
+### End-to-End Tests (`e2e/`) - 2 test files
 
 Complete pipeline tests from file detection to event creation.
 
 - `test_pipeline_integration.py`: E2E with mocked AI services
 - `test_gpu_pipeline.py`: E2E with real or mocked GPU services
 
-### GPU Tests (`gpu/`) - 1 file
+### GPU Tests (`gpu/`) - 1 test file
 
 Tests for RT-DETRv2 and Nemotron service integration.
 
 - `test_detector_integration.py`: GPU service health, inference, performance
 
-### Benchmarks (`benchmarks/`) - 3 files
+### Benchmarks (`benchmarks/`) - 3 test files
 
 Performance and complexity regression detection.
 
 - `test_api_benchmarks.py`: Response time measurements
 - `test_bigo.py`: O(n) complexity verification
 - `test_memory.py`: Memory usage limits (Linux only)
+
+### Fixtures (`fixtures/`)
+
+Test fixtures and sample data.
+
+- `images/pipeline_test/`: 14 JPEG images for testing (person, pet, vehicle detection)
 
 ## Pre-commit Integration
 

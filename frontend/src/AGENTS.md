@@ -193,30 +193,41 @@ Global search components:
 
 ### `/hooks/` - Custom React Hooks
 
-| Hook                       | Purpose                                             |
-| -------------------------- | --------------------------------------------------- |
-| `useWebSocket.ts`          | WebSocket connection management with auto-reconnect |
-| `useWebSocketStatus.ts`    | Enhanced WebSocket with channel status tracking     |
-| `useConnectionStatus.ts`   | Unified status for all WS channels (events/system)  |
-| `useEventStream.ts`        | Event stream subscription for `/ws/events`          |
-| `useSystemStatus.ts`       | System status monitoring via `/ws/system`           |
-| `useServiceStatus.ts`      | Service health status tracking                      |
-| `useGpuHistory.ts`         | GPU metrics history with polling                    |
-| `useHealthStatus.ts`       | Health status polling                               |
-| `useStorageStats.ts`       | Storage/disk usage polling with cleanup preview     |
-| `usePerformanceMetrics.ts` | Performance metrics collection and tracking         |
-| `index.ts`                 | Barrel export for all hooks                         |
+| Hook                        | Purpose                                             | Exported |
+| --------------------------- | --------------------------------------------------- | -------- |
+| `useWebSocket.ts`           | WebSocket connection management with auto-reconnect | Yes      |
+| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking     | Yes      |
+| `useConnectionStatus.ts`    | Unified status for all WS channels (events/system)  | Yes      |
+| `useEventStream.ts`         | Event stream subscription for `/ws/events`          | Yes      |
+| `useSystemStatus.ts`        | System status monitoring via `/ws/system`           | Yes      |
+| `useGpuHistory.ts`          | GPU metrics history with polling                    | Yes      |
+| `useHealthStatus.ts`        | Health status polling                               | Yes      |
+| `usePerformanceMetrics.ts`  | Performance metrics collection and tracking         | Yes      |
+| `useAIMetrics.ts`           | AI performance metrics from multiple endpoints      | Yes      |
+| `useDetectionEnrichment.ts` | Detection enrichment data fetching                  | Yes      |
+| `useModelZooStatus.ts`      | Model Zoo status with VRAM stats                    | Yes      |
+| `useSavedSearches.ts`       | Saved searches in localStorage                      | Yes      |
+| `useStorageStats.ts`        | Storage/disk usage polling with cleanup preview     | No       |
+| `useServiceStatus.ts`       | Service health status tracking                      | No       |
+| `useSidebarContext.ts`      | Context hook for mobile sidebar state               | No       |
+| `webSocketManager.ts`       | Singleton WebSocket connection manager              | No       |
+| `index.ts`                  | Barrel export for exported hooks                    | N/A      |
 
 Each hook has a co-located `.test.ts` file.
 
 ### `/services/` - API Client and Services
 
-| File             | Purpose                                   |
-| ---------------- | ----------------------------------------- |
-| `api.ts`         | REST API client with typed fetch wrappers |
-| `api.test.ts`    | API client tests                          |
-| `logger.ts`      | Client-side structured logging            |
-| `logger.test.ts` | Logger tests                              |
+| File                    | Purpose                                          |
+| ----------------------- | ------------------------------------------------ |
+| `api.ts`                | REST API client with typed fetch wrappers        |
+| `api.test.ts`           | API client tests                                 |
+| `api.abort.test.ts`     | Request cancellation tests                       |
+| `auditApi.ts`           | AI pipeline audit API client                     |
+| `auditApi.test.ts`      | Audit API client tests                           |
+| `logger.ts`             | Client-side structured logging                   |
+| `logger.test.ts`        | Logger tests                                     |
+| `metricsParser.ts`      | Prometheus text format parser                    |
+| `metricsParser.test.ts` | Metrics parser tests                             |
 
 The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
@@ -245,16 +256,30 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
   - `api.ts` - Full OpenAPI types (DO NOT EDIT)
   - `index.ts` - Re-exports with convenient aliases
 - **`performance.ts`** - Performance metrics type definitions
+- **`enrichment.ts`** - Detection enrichment types (vehicle, pet, person, weather)
 
 ### `/utils/` - Utility Functions
 
-| File            | Purpose                                                                      |
-| --------------- | ---------------------------------------------------------------------------- |
-| `risk.ts`       | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)              |
-| `confidence.ts` | Detection confidence utilities (levels, colors, Tailwind classes, array ops) |
-| `time.ts`       | Time formatting (formatDuration, getDurationLabel, isEventOngoing)           |
+| File           | Purpose                                                                      |
+| -------------- | ---------------------------------------------------------------------------- |
+| `index.ts`     | Barrel export for all utility modules                                        |
+| `risk.ts`      | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)              |
+| `confidence.ts`| Detection confidence utilities (levels, colors, Tailwind classes, array ops) |
+| `time.ts`      | Time formatting (formatDuration, getDurationLabel, isEventOngoing)           |
+| `webcodecs.ts` | WebCodecs API feature detection and fallback helpers                         |
 
 Each utility has a co-located `.test.ts` file.
+
+### `/test-utils/` - Test Utilities
+
+| File                     | Purpose                                                   |
+| ------------------------ | --------------------------------------------------------- |
+| `index.ts`               | Central export point for all test utilities               |
+| `renderWithProviders.tsx`| Custom render function wrapping components with providers |
+| `factories.ts`           | Test data factories for events, detections, cameras       |
+| `test-utils.test.tsx`    | Tests for test utilities                                  |
+
+Import test utilities from `../test-utils` in test files.
 
 ### `/__tests__/` - Additional Tests
 

@@ -22,11 +22,14 @@ frontend/tests/e2e/
 │   ├── DashboardPage.ts
 │   ├── TimelinePage.ts
 │   ├── AlertsPage.ts
+│   ├── AlertRulesPage.ts
 │   ├── EntitiesPage.ts
 │   ├── LogsPage.ts
 │   ├── AuditPage.ts
+│   ├── AIAuditPage.ts
 │   ├── SystemPage.ts
-│   └── SettingsPage.ts
+│   ├── SettingsPage.ts
+│   └── ZonesPage.ts
 ├── specs/              # Test specification files
 │   ├── AGENTS.md       # Specs documentation
 │   ├── smoke.spec.ts   # Basic loading and visibility tests
@@ -35,13 +38,21 @@ frontend/tests/e2e/
 │   ├── realtime.spec.ts    # WebSocket and real-time tests
 │   ├── events.spec.ts      # Events/timeline tests
 │   ├── alerts.spec.ts      # Alerts page tests
+│   ├── alert-rules.spec.ts # Alert rules configuration tests
 │   ├── entities.spec.ts    # Entities page tests
 │   ├── logs.spec.ts        # Logs page tests
 │   ├── audit.spec.ts       # Audit log tests
+│   ├── ai-audit.spec.ts    # AI pipeline audit tests
 │   ├── system.spec.ts      # System monitoring tests
 │   ├── settings.spec.ts    # Settings page tests
+│   ├── zones.spec.ts       # Camera zones configuration tests
 │   ├── responsive.spec.ts  # Responsive design tests
+│   ├── accessibility.spec.ts # WCAG 2.1 AA compliance tests
 │   └── error-handling.spec.ts  # Error state tests
+├── utils/              # Test utility functions
+│   ├── AGENTS.md       # Utils documentation
+│   ├── index.ts        # Central utility exports
+│   └── accessibility.ts  # Accessibility testing helpers (axe-core)
 └── .gitkeep            # Git placeholder
 ```
 

@@ -9,10 +9,19 @@ Unit tests verify individual components in isolation. Each test focuses on a sin
 ```
 backend/tests/unit/
 ├── AGENTS.md                  # This file
+├── conftest.py                # Unit test-specific fixtures
 ├── __init__.py                # Package initialization
 ├── .gitkeep                   # Directory placeholder
 ├── test_websocket_README.md   # WebSocket testing documentation
-└── test_*.py                  # Test files (56 total)
+├── api/                       # API layer tests (17 route tests + 5 schema tests)
+│   ├── routes/                # Route handler tests
+│   └── schemas/               # Pydantic schema tests
+├── core/                      # Core infrastructure tests (28 files)
+├── models/                    # ORM model tests (16 files)
+├── routes/                    # Additional route tests (13 files)
+├── services/                  # Service layer tests (71 files)
+├── scripts/                   # Migration script tests (1 file)
+└── test_*.py                  # Root-level test files (5 files)
 ```
 
 ## Running Tests
@@ -37,104 +46,223 @@ pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 pytest backend/tests/unit/ -v --no-cov
 ```
 
-## Test Files (56 total)
+## Test Files (150 total)
 
-### Core Components
+### Root Level Tests (5 files)
 
-| File              | Tests For                                                    |
-| ----------------- | ------------------------------------------------------------ |
-| `test_config.py`  | `backend/core/config.py` - Settings, env vars, type coercion |
-| `test_redis.py`   | `backend/core/redis.py` - Redis client operations            |
-| `test_logging.py` | `backend/core/logging.py` - Structured logging               |
-| `test_metrics.py` | `backend/core/metrics.py` - Metrics collection               |
+| File                              | Tests For                       |
+| --------------------------------- | ------------------------------- |
+| `test_benchmarks.py`              | Benchmark utilities and helpers |
+| `test_benchmark_vram.py`          | VRAM usage benchmarks           |
+| `test_business_metrics.py`        | Business metrics calculations   |
+| `test_main.py`                    | Application entrypoint testing  |
+| `test_migrate_sqlite_postgres.py` | SQLite to PostgreSQL migration  |
 
-### Database Models
+### API Routes (`api/routes/`) - 17 files
 
-| File                | Tests For               |
-| ------------------- | ----------------------- |
-| `test_log_model.py` | `backend/models/log.py` |
+| File                         | Tests For                        |
+| ---------------------------- | -------------------------------- |
+| `test_ai_audit_prompts.py`   | AI audit prompt management       |
+| `test_ai_audit.py`           | AI audit endpoints               |
+| `test_cameras_baseline.py`   | Camera baseline endpoints        |
+| `test_detections_api.py`     | Detection listing endpoints      |
+| `test_dlq_api.py`            | Dead letter queue endpoints      |
+| `test_enrichment.py`         | Enrichment endpoints             |
+| `test_enrichment_storage.py` | Enrichment storage operations    |
+| `test_entities.py`           | Entity management endpoints      |
+| `test_event_clips.py`        | Event clip generation endpoints  |
+| `test_events_api.py`         | Event management endpoints       |
+| `test_events_export.py`      | Event export functionality       |
+| `test_metrics.py`            | Metrics endpoints                |
+| `test_prompt_management.py`  | Prompt management (empty file)   |
+| `test_scene_changes.py`      | Scene change detection endpoints |
+| `test_system_models.py`      | System model endpoints           |
+| `test_telemetry_api.py`      | Telemetry endpoints              |
 
-### AI Services
+### API Schemas (`api/schemas/`) - 5 files
 
-| File                          | Tests For                                      |
-| ----------------------------- | ---------------------------------------------- |
-| `test_file_watcher.py`        | File system monitoring, image/video validation |
-| `test_detector_client.py`     | RT-DETRv2 HTTP client                          |
-| `test_batch_aggregator.py`    | Detection batch aggregation, timeouts          |
-| `test_nemotron_analyzer.py`   | Nemotron LLM risk analysis                     |
-| `test_thumbnail_generator.py` | Thumbnail generation with bounding boxes       |
-| `test_video_support.py`       | Video detection, validation, streaming         |
-| `test_video_processor.py`     | Video processing service                       |
-| `test_pipeline_worker.py`     | AI pipeline worker                             |
-| `test_pipeline_workers.py`    | Worker orchestration                           |
-| `test_clip_generator.py`      | Video clip generation                          |
+| File                                 | Tests For                      |
+| ------------------------------------ | ------------------------------ |
+| `test_detections.py`                 | Detection schema validation    |
+| `test_enrichment_data_validation.py` | Enrichment data schemas        |
+| `test_llm_response.py`               | LLM response schema validation |
+| `test_performance_schemas.py`        | Performance schema models      |
+| `test_system.py`                     | System schema validation       |
 
-### Broadcaster Services
+### Core Components (`core/`) - 28 files
+
+| File                                | Tests For                           |
+| ----------------------------------- | ----------------------------------- |
+| `test_auth_middleware.py`           | Authentication middleware           |
+| `test_config.py`                    | Settings, env vars, type coercion   |
+| `test_database_init_lock.py`        | Database initialization locking     |
+| `test_database_pool.py`             | Connection pool management          |
+| `test_database.py`                  | Database operations, ILIKE escaping |
+| `test_database_utils.py`            | Database utility functions          |
+| `test_dockerfile_config.py`         | Docker configuration validation     |
+| `test_health_monitor.py`            | Health monitoring service           |
+| `test_json_utils.py`                | JSON serialization utilities        |
+| `test_logging.py`                   | Structured logging                  |
+| `test_logging_sanitization.py`      | Log sanitization (PII removal)      |
+| `test_metrics.py`                   | Metrics collection                  |
+| `test_middleware.py`                | Request/response middleware         |
+| `test_mime_types.py`                | MIME type detection                 |
+| `test_query_optimization.py`        | Query optimization utilities        |
+| `test_rate_limit.py`                | Rate limiting middleware            |
+| `test_redis.py`                     | Redis client operations             |
+| `test_redis_retry.py`               | Redis retry logic                   |
+| `test_sanitization.py`              | Input sanitization                  |
+| `test_security_headers.py`          | Security header middleware          |
+| `test_tls.py`                       | TLS/SSL configuration               |
+| `test_url_validation.py`            | URL validation utilities            |
+| `test_websocket_circuit_breaker.py` | WebSocket circuit breaker           |
+| `test_websocket.py`                 | WebSocket core functionality        |
+| `test_websocket_timeout.py`         | WebSocket timeout handling          |
+| `test_websocket_validation.py`      | WebSocket message validation        |
+
+### Database Models (`models/`) - 16 files
+
+| File                         | Tests For                  |
+| ---------------------------- | -------------------------- |
+| `test_alert.py`              | Alert and AlertRule models |
+| `test_api_key.py`            | APIKey model               |
+| `test_audit_log.py`          | AuditLog model             |
+| `test_baseline.py`           | Baseline models            |
+| `test_camera.py`             | Camera model               |
+| `test_detection.py`          | Detection model            |
+| `test_enums.py`              | Severity and other enums   |
+| `test_event_audit.py`        | EventAudit model           |
+| `test_event.py`              | Event model                |
+| `test_gpu_stats.py`          | GPUStats model             |
+| `test_hypothesis_example.py` | Hypothesis property tests  |
+| `test_log_model.py`          | Log model                  |
+| `test_models_hypothesis.py`  | Model property-based tests |
+| `test_prompt_version.py`     | PromptVersion model        |
+| `test_zone.py`               | Zone model                 |
+
+### Routes (`routes/`) - 13 files
+
+| File                          | Tests For                  |
+| ----------------------------- | -------------------------- |
+| `test_admin_routes.py`        | Admin endpoints            |
+| `test_ai_audit_routes.py`     | AI audit routes            |
+| `test_alerts_routes.py`       | Alert rules CRUD           |
+| `test_audit_routes.py`        | Audit log endpoints        |
+| `test_cameras_routes.py`      | Camera CRUD endpoints      |
+| `test_detections_routes.py`   | Detection endpoints        |
+| `test_events_routes.py`       | Event management endpoints |
+| `test_logs_routes.py`         | Log management endpoints   |
+| `test_media_routes.py`        | Media file serving         |
+| `test_notification_routes.py` | Notification endpoints     |
+| `test_system_routes.py`       | System health and config   |
+| `test_websocket_routes.py`    | WebSocket handlers         |
+| `test_zones_routes.py`        | Zone CRUD endpoints        |
+
+### Services (`services/`) - 71 files
+
+**AI Pipeline Services:**
+
+| File                        | Tests For                   |
+| --------------------------- | --------------------------- |
+| `test_batch_aggregator.py`  | Detection batch aggregation |
+| `test_detector_client.py`   | RT-DETRv2 HTTP client       |
+| `test_file_watcher.py`      | File system monitoring      |
+| `test_nemotron_analyzer.py` | Nemotron LLM risk analysis  |
+| `test_pipeline_worker.py`   | AI pipeline worker          |
+| `test_pipeline_workers.py`  | Worker orchestration        |
+
+**Enrichment and Vision Services:**
+
+| File                               | Tests For                   |
+| ---------------------------------- | --------------------------- |
+| `test_clip_client.py`              | CLIP model client           |
+| `test_clip_generator.py`           | Video clip generation       |
+| `test_clip_loader.py`              | CLIP model loader           |
+| `test_context_enricher.py`         | Context enrichment service  |
+| `test_enrichment_client.py`        | Enrichment client           |
+| `test_enrichment_client_errors.py` | Enrichment error handling   |
+| `test_enrichment_pipeline.py`      | Enrichment pipeline         |
+| `test_florence_client.py`          | Florence model client       |
+| `test_florence_extractor.py`       | Florence feature extraction |
+| `test_florence_loader.py`          | Florence model loader       |
+| `test_vision_extractor.py`         | Vision feature extraction   |
+
+**Model Loaders:**
+
+| File                                | Tests For                     |
+| ----------------------------------- | ----------------------------- |
+| `test_depth_anything_loader.py`     | Depth estimation loader       |
+| `test_fashion_clip_loader.py`       | Fashion CLIP loader           |
+| `test_image_quality_loader.py`      | Image quality model loader    |
+| `test_model_zoo.py`                 | Model zoo management          |
+| `test_pet_classifier_loader.py`     | Pet classifier loader         |
+| `test_segformer_loader.py`          | SegFormer segmentation loader |
+| `test_vehicle_classifier_loader.py` | Vehicle classifier loader     |
+| `test_vehicle_damage_loader.py`     | Vehicle damage loader         |
+| `test_violence_loader.py`           | Violence detection loader     |
+| `test_vitpose_loader.py`            | ViTPose pose estimation       |
+| `test_weather_loader.py`            | Weather classification loader |
+| `test_xclip_loader.py`              | X-CLIP video model loader     |
+| `test_yolo_world_loader.py`         | YOLO World loader             |
+
+**Broadcaster Services:**
 
 | File                         | Tests For                    |
 | ---------------------------- | ---------------------------- |
 | `test_event_broadcaster.py`  | Event WebSocket broadcasting |
 | `test_system_broadcaster.py` | System status broadcasting   |
 | `test_gpu_monitor.py`        | GPU monitoring service       |
-| `test_cleanup_service.py`    | Data cleanup service         |
-| `test_health_monitor.py`     | Health monitoring            |
-| `test_service_managers.py`   | Service lifecycle management |
 
-### API Routes
+**Alert and Notification:**
 
-| File                           | Tests For                     |
-| ------------------------------ | ----------------------------- |
-| `test_cameras_routes.py`       | `/api/cameras/*` endpoints    |
-| `test_detections_routes.py`    | `/api/detections/*` endpoints |
-| `test_detections_api.py`       | Detection API (additional)    |
-| `test_events_routes.py`        | `/api/events/*` endpoints     |
-| `test_events_api.py`           | Events API (additional)       |
-| `test_system_routes.py`        | `/api/system/*` endpoints     |
-| `test_logs_routes.py`          | `/api/logs/*` endpoints       |
-| `test_media_routes.py`         | `/api/media/*` endpoints      |
-| `test_websocket_routes.py`     | WebSocket handlers            |
-| `test_websocket.py`            | WebSocket functionality       |
-| `test_websocket_validation.py` | Message validation            |
-| `test_admin_api.py`            | Admin endpoints               |
-| `test_dlq_api.py`              | Dead letter queue endpoints   |
-| `test_telemetry_api.py`        | Telemetry endpoints           |
-| `test_zones_routes.py`         | Zone CRUD endpoints           |
+| File                                | Tests For               |
+| ----------------------------------- | ----------------------- |
+| `test_alert_dedup.py`               | Alert deduplication     |
+| `test_alert_engine.py`              | Alert rule engine       |
+| `test_notification.py`              | Notification delivery   |
+| `test_notification_webhook_ssrf.py` | Webhook SSRF prevention |
 
-### Middleware and Security
+**Other Services:**
 
-| File                          | Tests For                 |
-| ----------------------------- | ------------------------- |
-| `test_auth_middleware.py`     | Authentication middleware |
-| `test_middleware.py`          | Request handling          |
-| `test_circuit_breaker.py`     | Circuit breaker pattern   |
-| `test_degradation_manager.py` | Graceful degradation      |
-| `test_rate_limit.py`          | Rate limiting             |
-| `test_tls.py`                 | TLS/SSL configuration     |
+| File                                  | Tests For                     |
+| ------------------------------------- | ----------------------------- |
+| `test_audit.py`                       | Audit logging                 |
+| `test_audit_service.py`               | Audit service operations      |
+| `test_baseline.py`                    | Activity baseline service     |
+| `test_bbox_validation.py`             | Bounding box validation       |
+| `test_bbox_validation_integration.py` | BBox validation integration   |
+| `test_cache_service.py`               | Cache service                 |
+| `test_circuit_breaker.py`             | Circuit breaker pattern       |
+| `test_cleanup_service.py`             | Data cleanup service          |
+| `test_dedupe.py`                      | Deduplication logic           |
+| `test_dedup_key.py`                   | Deduplication key generation  |
+| `test_degradation_manager.py`         | Graceful degradation          |
+| `test_face_detector.py`               | Face detection service        |
+| `test_ocr_service.py`                 | OCR service                   |
+| `test_performance_collector.py`       | Performance metrics collector |
+| `test_plate_detector.py`              | License plate detection       |
+| `test_prompt_formatters.py`           | Prompt formatting             |
+| `test_prompt_service.py`              | Prompt service                |
+| `test_prompts.py`                     | Prompt templates              |
+| `test_prompt_version_service.py`      | Prompt versioning             |
+| `test_reid_service.py`                | Re-identification service     |
+| `test_retry_handler.py`               | Retry logic                   |
+| `test_scene_baseline.py`              | Scene baseline detection      |
+| `test_scene_change_detector.py`       | Scene change detection        |
+| `test_search.py`                      | Search functionality          |
+| `test_service_managers.py`            | Service lifecycle management  |
+| `test_severity.py`                    | Severity classification       |
+| `test_thumbnail_generator.py`         | Thumbnail generation          |
+| `test_video_processor.py`             | Video processing service      |
+| `test_video_support.py`               | Video detection/streaming     |
+| `test_websocket_circuit_breaker.py`   | WS circuit breaker            |
+| `test_zone_service.py`                | Zone management               |
 
-### Alert System
+### Scripts (`scripts/`) - 1 file
 
-| File                   | Tests For             |
-| ---------------------- | --------------------- |
-| `test_alert_dedup.py`  | Alert deduplication   |
-| `test_notification.py` | Notification delivery |
-
-### Utility Components
-
-| File                              | Tests For                  |
-| --------------------------------- | -------------------------- |
-| `test_audit.py`                   | Audit logging              |
-| `test_baseline.py`                | Baseline detection         |
-| `test_dedupe.py`                  | Deduplication logic        |
-| `test_search.py`                  | Search functionality       |
-| `test_zone_service.py`            | Zone management            |
-| `test_severity.py`                | Severity classification    |
-| `test_retry_handler.py`           | Retry logic                |
-| `test_mime_types.py`              | MIME type detection        |
-| `test_migrate_sqlite_postgres.py` | Database migration         |
-| `test_dockerfile_config.py`       | Docker configuration       |
-| `test_benchmarks.py`              | Benchmark utilities        |
-| `test_performance_collector.py`   | Performance data collector |
-| `test_performance_schemas.py`     | Performance schema models  |
+| File                              | Tests For                 |
+| --------------------------------- | ------------------------- |
+| `test_migrate_beads_to_linear.py` | Beads to Linear migration |
 
 ## Common Fixtures
 

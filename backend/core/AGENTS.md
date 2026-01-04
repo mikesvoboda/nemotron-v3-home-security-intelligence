@@ -18,18 +18,23 @@ These components are designed as singletons and provide dependency injection pat
 
 ```
 backend/core/
-├── __init__.py           # Public API exports (comprehensive re-exports)
-├── config.py             # Pydantic Settings configuration
-├── constants.py          # Application-wide constants (queue names, DLQ names, prefixes)
-├── database.py           # SQLAlchemy async database layer
-├── logging.py            # Centralized logging configuration
-├── metrics.py            # Prometheus metrics definitions
-├── mime_types.py         # MIME type utilities for media files
-├── redis.py              # Redis async client with backpressure
-├── tls.py                # TLS/SSL certificate management
-├── README.md             # General documentation
-├── README_REDIS.md       # Detailed Redis documentation
-└── REDIS_QUICKSTART.md   # Redis usage quick reference
+├── __init__.py                   # Public API exports (comprehensive re-exports)
+├── config.py                     # Pydantic Settings configuration
+├── constants.py                  # Application-wide constants (queue names, DLQ names)
+├── database.py                   # SQLAlchemy async database layer
+├── json_utils.py                 # LLM JSON response parsing utilities
+├── logging.py                    # Centralized logging configuration
+├── metrics.py                    # Prometheus metrics definitions
+├── mime_types.py                 # MIME type utilities for media files
+├── redis.py                      # Redis async client with backpressure
+├── sanitization.py               # Input sanitization (command injection, SSRF)
+├── time_utils.py                 # UTC datetime utilities
+├── tls.py                        # TLS/SSL certificate management
+├── url_validation.py             # SSRF-safe URL validation for webhooks
+├── websocket_circuit_breaker.py  # Circuit breaker for WebSocket connections
+├── middleware/                   # Reserved for core middleware (currently empty)
+├── README.md                     # General documentation
+└── README_REDIS.md               # Detailed Redis documentation
 ```
 
 ## `__init__.py` - Public Exports
@@ -50,6 +55,12 @@ The `__init__.py` file provides a clean public API for the core module:
 - `get_session()` - Context manager for manual session usage
 - `get_engine()` - Access global async engine
 - `get_session_factory()` - Access session factory
+- `escape_ilike_pattern()` - Escape special characters for ILIKE queries
+
+**Exported from json_utils.py:**
+
+- `extract_json_from_llm_response()` - Parse JSON from LLM output with error handling
+- `extract_json_field()` - Extract specific field from JSON in LLM response
 
 **Exported from redis.py:**
 
@@ -67,6 +78,9 @@ The `__init__.py` file provides a clean public API for the core module:
 - `set_request_id()` - Set request ID in context
 - `setup_logging()` - Initialize application-wide logging
 - `sanitize_error()` - Sanitize error messages for logging
+- `redact_url()` - Redact credentials from URLs for safe logging
+- `redact_sensitive_value()` - Redact sensitive values in log output
+- `SENSITIVE_FIELD_NAMES` - Set of field names to redact
 
 **Exported from metrics.py:**
 
@@ -104,6 +118,7 @@ The `__init__.py` file provides a clean public API for the core module:
 from backend.core import get_settings, init_db, get_redis, get_logger, setup_logging
 from backend.core import TLSConfig, TLSMode, create_ssl_context
 from backend.core import get_mime_type, is_video_mime_type
+from backend.core import extract_json_from_llm_response, escape_ilike_pattern
 ```
 
 ## `constants.py` - Application Constants
@@ -715,6 +730,166 @@ cert_info = get_cert_info()
 - `TLSConfigurationError` - Invalid or incomplete configuration
 - `CertificateNotFoundError` - Certificate file not found
 - `CertificateValidationError` - Certificate parsing/validation failed
+
+## `json_utils.py` - LLM JSON Parsing
+
+### Purpose
+
+Provides robust JSON extraction from potentially malformed LLM outputs, handling common issues like:
+
+- Markdown code blocks (`json ... `)
+- `<think>...</think>` reasoning blocks
+- Extra text before/after JSON
+- Missing commas between object properties
+- Trailing commas
+- Single quotes instead of double quotes
+- Incomplete/truncated JSON
+
+### Functions
+
+**`extract_json_from_llm_response(text)`** - Extract and parse JSON from an LLM response:
+
+````python
+from backend.core.json_utils import extract_json_from_llm_response
+
+response = '''<think>analyzing...</think>
+```json
+{"risk_score": 75, "summary": "Person detected"}
+```'''
+
+data = extract_json_from_llm_response(response)
+# Returns: {"risk_score": 75, "summary": "Person detected"}
+````
+
+**`extract_json_field(text, field_name, default)`** - Extract a specific field from JSON in LLM response:
+
+```python
+from backend.core.json_utils import extract_json_field
+
+score = extract_json_field(response, "risk_score", default=0)
+```
+
+## `sanitization.py` - Input Sanitization
+
+### Purpose
+
+Provides comprehensive sanitization functions to prevent:
+
+- Command injection in shell scripts (container names)
+- Path disclosure in error messages
+- Metric label cardinality explosion
+- Exception message information leakage
+- SSRF attacks via URL validation
+
+### Container Name Sanitization
+
+```python
+from backend.core.sanitization import sanitize_container_name
+
+name = sanitize_container_name("my-container")  # Valid
+sanitize_container_name("$(rm -rf /)")  # Raises ValueError
+```
+
+### Metric Label Sanitization
+
+Prevents cardinality explosion in Prometheus metrics:
+
+```python
+from backend.core.sanitization import sanitize_object_class, sanitize_error_type
+
+label = sanitize_object_class("person")  # Returns "person"
+label = sanitize_object_class("unknown_class")  # Returns "other"
+```
+
+Known allowlists: `KNOWN_OBJECT_CLASSES`, `KNOWN_ERROR_TYPES`, `KNOWN_RISK_LEVELS`, `KNOWN_PIPELINE_STAGES`
+
+### Error Sanitization
+
+```python
+from backend.core.sanitization import sanitize_error_for_response
+
+safe_msg = sanitize_error_for_response(exception, context="processing image")
+# Removes file paths, credentials, IPs from error message
+```
+
+## `time_utils.py` - UTC Time Utilities
+
+### Purpose
+
+Centralized time utility functions for consistent UTC handling across the codebase.
+
+### Functions
+
+```python
+from backend.core.time_utils import utc_now, utc_now_naive
+
+# Timezone-aware datetime (for DateTime(timezone=True) columns)
+now = utc_now()
+
+# Naive datetime (for DateTime(timezone=False) columns in PostgreSQL)
+now_naive = utc_now_naive()
+```
+
+## `url_validation.py` - SSRF Protection
+
+### Purpose
+
+Secure URL validation to prevent Server-Side Request Forgery (SSRF) attacks.
+
+### Features
+
+- Only HTTPS allowed in production (HTTP for localhost in dev)
+- Private IP ranges blocked (10.x, 172.x, 192.168.x, 127.x)
+- Cloud metadata endpoints blocked (169.254.169.254)
+- DNS resolution to validate resolved IPs
+
+### Usage
+
+```python
+from backend.core.url_validation import validate_webhook_url, SSRFValidationError
+
+try:
+    validated_url = validate_webhook_url("https://example.com/webhook")
+except SSRFValidationError as e:
+    logger.error(f"Invalid webhook URL: {e}")
+
+# Dev mode allows localhost HTTP
+validate_webhook_url("http://localhost:8080/hook", allow_dev_http=True)
+```
+
+## `websocket_circuit_breaker.py` - WebSocket Resilience
+
+### Purpose
+
+Circuit breaker pattern for WebSocket connections in broadcasters, providing graceful degradation when connections are unreliable.
+
+### States
+
+- `CLOSED` - Normal operation, WebSocket operations proceed
+- `OPEN` - Too many failures, operations blocked to allow recovery
+- `HALF_OPEN` - Testing recovery, limited operations allowed
+
+### Usage
+
+```python
+from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
+
+breaker = WebSocketCircuitBreaker(
+    failure_threshold=3,
+    recovery_timeout=30.0,
+    name="event_broadcaster"
+)
+
+if breaker.is_call_permitted():
+    try:
+        await websocket_operation()
+        breaker.record_success()
+    except Exception:
+        breaker.record_failure()
+else:
+    # Handle degraded mode
+    pass
+```
 
 ## Dependency Injection Patterns
 

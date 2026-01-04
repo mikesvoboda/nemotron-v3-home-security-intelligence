@@ -35,20 +35,21 @@ podman-compose -f docker-compose.prod.yml up -d backend
 backend/
 ├── main.py                 # FastAPI application entry point
 ├── __init__.py             # Package initialization
-├── requirements.txt        # Python dependencies
-├── requirements-prod.txt   # Production dependencies
-├── Dockerfile              # Development Docker configuration
-├── Dockerfile.prod         # Production Docker configuration
+├── Dockerfile              # Container configuration (uv-based, works with Docker/Podman)
 ├── .dockerignore           # Docker build exclusions
+├── alembic.ini             # Alembic configuration
 ├── alembic/                # Database migrations (Alembic)
 ├── api/                    # REST API routes, schemas, and middleware
 ├── core/                   # Infrastructure (database, Redis, config, logging, metrics, TLS)
 ├── models/                 # SQLAlchemy ORM models
 ├── services/               # Business logic and AI pipeline
 ├── tests/                  # Unit and integration tests
-├── data/                   # Runtime data (sample images, database location)
-└── examples/               # Example scripts and configurations
+├── data/                   # Runtime data (sample images, thumbnails)
+├── examples/               # Example scripts (Redis usage)
+└── scripts/                # Utility scripts (VRAM benchmarking)
 ```
+
+**Note:** Python dependencies are managed via `uv` (pyproject.toml/uv.lock) at the project root level, not per-directory requirements.txt files.
 
 ## Key Files
 
@@ -63,11 +64,13 @@ backend/
 - Health check endpoints (`/`, `/health`)
 - Router registration for all API modules:
   - `admin` - Admin operations
+  - `ai_audit` - AI pipeline audit endpoints
   - `alerts` - Alert rule management
   - `audit` - Audit logging
   - `cameras` - Camera CRUD
   - `detections` - Detection management
   - `dlq` - Dead-letter queue management
+  - `entities` - Entity management endpoints
   - `events` - Event management
   - `logs` - Log querying and frontend log ingestion
   - `media` - Secure file serving
@@ -84,14 +87,12 @@ backend/
   - `CleanupService` - Data retention and disk cleanup
   - `SystemBroadcaster` - Periodic system status broadcasting
   - `EventBroadcaster` - WebSocket event distribution
+  - `PerformanceCollector` - AI service performance metrics collection
+  - `ServiceHealthMonitor` - Auto-recovery monitoring for AI services
 
 ### Package Configuration
 
 **`__init__.py`** - Simple package docstring for the backend module.
-
-**`requirements.txt`** - Development dependencies including FastAPI, SQLAlchemy, Redis, httpx, Pillow, pynvml, prometheus-client, and testing libraries.
-
-**`requirements-prod.txt`** - Production-optimized dependencies with gunicorn.
 
 ## Core Infrastructure (`core/`)
 

@@ -1,10 +1,19 @@
-# Test Utilities
-
-This directory contains shared test utilities for the Home Security Intelligence frontend.
+# Test Utilities Directory
 
 ## Purpose
 
-Provides reusable test helpers and factories to reduce test boilerplate and ensure consistent testing patterns across the codebase.
+Provides reusable test helpers and factories to reduce test boilerplate and ensure consistent testing patterns across the Home Security Intelligence frontend codebase.
+
+## Directory Contents
+
+```
+frontend/src/test-utils/
+├── AGENTS.md              # This documentation file
+├── index.ts               # Central export point for all utilities
+├── renderWithProviders.tsx # Custom render with providers
+├── factories.ts           # Test data factories
+└── test-utils.test.tsx    # Tests for test utilities
+```
 
 ## Key Files
 
@@ -87,3 +96,11 @@ it('handles click', async () => {
 
 1. **Always import from `test-utils`** - Use the central export for consistency
 2. **Use factories for test data** - Avoid hardcoding test data
+3. **Override only what matters** - Let factories provide sensible defaults
+
+## Notes for AI Agents
+
+- Import everything from `../test-utils` rather than individual files
+- Factories create valid test data matching backend API responses
+- `renderWithProviders` handles all React context setup automatically
+- Tests for these utilities are in `test-utils.test.tsx`

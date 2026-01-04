@@ -6,25 +6,25 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 
 ## Key Files
 
-| File                        | Purpose                                                          |
-| --------------------------- | ---------------------------------------------------------------- |
-| `index.ts`                  | Central export point for all hooks and types                     |
-| `useWebSocket.ts`           | Low-level WebSocket connection manager                           |
-| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                  |
-| `useConnectionStatus.ts`    | Unified connection status for all WS channels                    |
-| `useEventStream.ts`         | Security events via `/ws/events` WebSocket                       |
-| `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                         |
-| `useGpuHistory.ts`          | GPU metrics polling with history buffer                          |
-| `useHealthStatus.ts`        | REST-based health status polling                                 |
-| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview                  |
-| `useServiceStatus.ts`       | Per-service status (not exported from index)                     |
-| `usePerformanceMetrics.ts`  | System performance metrics via WebSocket                         |
-| `useAIMetrics.ts`           | Fetches AI performance metrics from multiple endpoints           |
-| `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                 |
-| `useModelZooStatus.ts`      | Fetches and polls Model Zoo status with VRAM stats               |
-| `useSavedSearches.ts`       | Manages saved searches in localStorage                           |
-| `useSidebarContext.ts`      | Context hook for mobile sidebar state                            |
-| `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication        |
+| File                        | Purpose                                                          | Exported |
+| --------------------------- | ---------------------------------------------------------------- | -------- |
+| `index.ts`                  | Central export point for hooks and types                         | N/A      |
+| `useWebSocket.ts`           | Low-level WebSocket connection manager                           | Yes      |
+| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                  | Yes      |
+| `useConnectionStatus.ts`    | Unified connection status for all WS channels                    | Yes      |
+| `useEventStream.ts`         | Security events via `/ws/events` WebSocket                       | Yes      |
+| `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                         | Yes      |
+| `useGpuHistory.ts`          | GPU metrics polling with history buffer                          | Yes      |
+| `useHealthStatus.ts`        | REST-based health status polling                                 | Yes      |
+| `usePerformanceMetrics.ts`  | System performance metrics via WebSocket                         | Yes      |
+| `useAIMetrics.ts`           | Fetches AI performance metrics from multiple endpoints           | Yes      |
+| `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                 | Yes      |
+| `useModelZooStatus.ts`      | Fetches and polls Model Zoo status with VRAM stats               | Yes      |
+| `useSavedSearches.ts`       | Manages saved searches in localStorage                           | Yes      |
+| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview                  | No       |
+| `useServiceStatus.ts`       | Per-service status tracking                                      | No       |
+| `useSidebarContext.ts`      | Context hook for mobile sidebar state                            | No       |
+| `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication        | No       |
 
 ### Test Files
 
@@ -405,15 +405,17 @@ interface UsePerformanceMetricsReturn {
 }
 ```
 
-### `useServiceStatus.ts`
+### Non-Exported Hooks
 
-**Note:** This hook is NOT exported from `index.ts`.
+The following hooks are NOT exported from `index.ts` and are used internally or directly imported:
 
-The backend's `ServiceHealthMonitor` (health_monitor.py) monitors services and can broadcast `service_status` messages. However, this hook is not part of the public API.
+**`useServiceStatus.ts`** - Per-service status tracking. The backend's `ServiceHealthMonitor` (health_monitor.py) monitors services and broadcasts `service_status` messages. Use `useSystemStatus` for overall system health or `usePerformanceMetrics` for detailed metrics.
 
-**Use `useSystemStatus`** for overall system health (healthy/degraded/unhealthy).
-**Use `useConnectionStatus`** for unified connection management with status summary.
-**Use `usePerformanceMetrics`** for detailed performance metrics and alerts.
+**`useStorageStats.ts`** - Storage disk usage polling with cleanup preview. Import directly when needed.
+
+**`useSidebarContext.ts`** - Context hook for mobile sidebar state. Used by Layout component for sidebar toggle state management.
+
+**`webSocketManager.ts`** - Singleton WebSocket connection manager with deduplication. Used internally by WebSocket hooks for connection sharing.
 
 ### `useAIMetrics.ts`
 

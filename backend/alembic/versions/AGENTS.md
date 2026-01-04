@@ -6,7 +6,7 @@ This directory contains PostgreSQL database migration scripts managed by Alembic
 
 ## Migration Chain
 
-Migrations form a linear chain. Each migration's `down_revision` points to its parent:
+Migrations form a chain where each migration's `down_revision` points to its parent. Note that there is one merge point in the chain:
 
 ```
 968b0dff6a9b (initial_schema)
@@ -24,6 +24,23 @@ add_baselines (add_baseline_tables)
 add_clip_path (add_clip_path_column)
        |
 fix_datetime_tz (fix_datetime_timezone)
+       |
+fix_search_vector_backfill
+       |
+add_llm_prompt (add_llm_prompt_column)
+       |
+add_event_audits (add_event_audits_table)
+       |
+add_camera_unique_constraints
+       |
+add_enrichment_data (add_enrichment_data_column)
+       |
+       +-----> add_object_types_gin_trgm
+       |                    |
+       +-----> add_prompt_versions
+                            |
+                            v
+                d4cdaa821492 (merge_heads)
 ```
 
 ## Migration Files
@@ -185,6 +202,29 @@ Adds GIN trigram index on events.object_types for efficient LIKE/ILIKE queries:
 - Enables pg_trgm extension
 - Creates `idx_events_object_types_trgm` using gin_trgm_ops operator class
 - Optimizes queries like `object_types LIKE '%person%'` that previously caused full table scans
+
+### `add_prompt_versions_table.py`
+
+**Revision ID:** `add_prompt_versions`
+**Parent:** `add_event_audits`
+
+Creates `prompt_versions` table for AI model prompt configuration tracking:
+
+- PostgreSQL ENUM type `aimodel`: nemotron, florence2, yolo_world, xclip, fashion_clip
+- Columns: `id`, `model`, `version`, `created_at`, `created_by`, `config` (JSONB), `is_active`, `performance_score`
+- Supports version history and A/B testing of prompts
+
+### `d4cdaa821492_merge_heads.py`
+
+**Revision ID:** `d4cdaa821492`
+**Parents:** `add_object_types_gin_trgm`, `add_prompt_versions`
+
+Merge migration that combines two parallel branches:
+
+- No schema changes (empty upgrade/downgrade functions)
+- Resolves the branching from `add_enrichment_data` that split into:
+  - `add_object_types_gin_trgm` branch
+  - `add_prompt_versions` branch
 
 ## Creating New Migrations
 

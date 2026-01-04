@@ -2,7 +2,34 @@
 
 ## Purpose
 
-Contains components for application configuration and system settings. Includes camera management, AI model status, and processing parameters. These components provide administrative controls for the security system, organized in a tabbed interface.
+Contains components for application configuration and system settings. Includes camera management, AI model status, processing parameters, notification configuration, storage monitoring, alert rules, and dead letter queue management. These components provide administrative controls for the security system, organized in a tabbed interface.
+
+## Files
+
+| File                              | Purpose                                       |
+| --------------------------------- | --------------------------------------------- |
+| `SettingsPage.tsx`                | Main settings page with tabbed interface      |
+| `SettingsPage.test.tsx`           | Test suite for SettingsPage                   |
+| `CamerasSettings.tsx`             | Camera management CRUD interface              |
+| `CamerasSettings.test.tsx`        | Test suite for CamerasSettings                |
+| `AIModelsSettings.tsx`            | AI model status and metrics display           |
+| `AIModelsSettings.test.tsx`       | Test suite for AIModelsSettings               |
+| `AIModelsSettings.example.tsx`    | Example usage of AIModelsSettings             |
+| `ProcessingSettings.tsx`          | Event processing configuration                |
+| `ProcessingSettings.test.tsx`     | Test suite for ProcessingSettings             |
+| `ProcessingSettings.example.tsx`  | Example usage of ProcessingSettings           |
+| `AlertRulesSettings.tsx`          | Alert rule configuration management           |
+| `AlertRulesSettings.test.tsx`     | Test suite for AlertRulesSettings             |
+| `NotificationSettings.tsx`        | Email and webhook notification config         |
+| `NotificationSettings.test.tsx`   | Test suite for NotificationSettings           |
+| `StorageDashboard.tsx`            | Disk usage and storage breakdown dashboard    |
+| `StorageDashboard.test.tsx`       | Test suite for StorageDashboard               |
+| `SeverityThresholds.tsx`          | Risk score threshold configuration            |
+| `SeverityThresholds.test.tsx`     | Test suite for SeverityThresholds             |
+| `DlqMonitor.tsx`                  | Dead letter queue monitoring and management   |
+| `DlqMonitor.test.tsx`             | Test suite for DlqMonitor                     |
+| `README.md`                       | Component documentation                       |
+| `index.ts`                        | Barrel exports                                |
 
 ## Key Components
 
@@ -312,17 +339,113 @@ interface StorageDashboardProps {
 - `formatBytes(bytes)` - Converts bytes to human-readable string (KB, MB, GB, TB)
 - `formatNumber(num)` - Adds thousands separator
 
+### AlertRulesSettings.tsx
+
+**Purpose:** CRUD interface for managing alert rules that trigger notifications
+
+**Key Features:**
+
+- Table view of all alert rules
+- Add new rule via modal form
+- Edit existing rules
+- Delete rules with confirmation
+- Rule priority (1-10 scale)
+- Rule conditions: camera, zone, risk level, object type
+- Rule actions: email, webhook, both
+- Enable/disable toggle
+- Rule test button
+
+**Props:**
+
+```typescript
+interface AlertRulesSettingsProps {
+  className?: string;
+}
+```
+
+**Rule Interface:**
+
+```typescript
+interface AlertRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  conditions: {
+    camera_ids?: string[];
+    zone_ids?: string[];
+    risk_levels?: string[];
+    object_types?: string[];
+  };
+  actions: {
+    email?: boolean;
+    webhook?: boolean;
+  };
+  created_at: string;
+  updated_at: string;
+}
+```
+
+---
+
+### SeverityThresholds.tsx
+
+**Purpose:** Visual editor for risk score severity thresholds
+
+**Key Features:**
+
+- Visual score distribution bar showing ranges
+- Editable range sliders for Low/Medium/High thresholds
+- Critical range auto-calculated from High max
+- Real-time validation (ranges must be contiguous)
+- Color-coded severity indicators
+- Save/Reset buttons
+- Current configuration table
+- Success/error/validation feedback
+
+**Props:**
+
+```typescript
+interface SeverityThresholdsProps {
+  className?: string;
+}
+```
+
+**Threshold Interface:**
+
+```typescript
+interface ThresholdValues {
+  low_max: number;    // 1-98
+  medium_max: number; // 2-99
+  high_max: number;   // 3-99
+}
+// Critical range: high_max + 1 to 100
+```
+
+**Validation Rules:**
+
+- Low max must be < Medium max
+- Medium max must be < High max
+- Ranges must be contiguous (no gaps)
+
+**API Endpoints:**
+
+- `GET /api/system/severity` - Fetch current thresholds
+- `PUT /api/system/severity` - Update thresholds
+
+---
+
 ### index.ts
 
 **Purpose:** Barrel export for settings components
 
 ```typescript
-export { default as CamerasSettings } from './CamerasSettings';
 export { default as AIModelsSettings } from './AIModelsSettings';
+export type { AIModelsSettingsProps, ModelInfo } from './AIModelsSettings';
+export { default as AlertRulesSettings } from './AlertRulesSettings';
+export { default as CamerasSettings } from './CamerasSettings';
 export { default as ProcessingSettings } from './ProcessingSettings';
-export { default as DlqMonitor } from './DlqMonitor';
-export { default as NotificationSettings } from './NotificationSettings';
-export { default as StorageDashboard } from './StorageDashboard';
+export { default as SettingsPage } from './SettingsPage';
 ```
 
 ### README.md

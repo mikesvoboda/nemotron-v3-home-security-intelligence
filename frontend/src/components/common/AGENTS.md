@@ -6,17 +6,28 @@ Contains reusable UI components shared across multiple features. These are low-l
 
 ## Files
 
-| File                     | Purpose                                                    | Status     |
-| ------------------------ | ---------------------------------------------------------- | ---------- |
-| `ErrorBoundary.tsx`      | React error boundary for catching component errors         | Active     |
-| `RiskBadge.tsx`          | Risk level badge with icon and optional score              | Active     |
-| `ConfidenceBadge.tsx`    | Detection confidence score badge with color coding         | Active     |
-| `ObjectTypeBadge.tsx`    | Detection object type badge                                | Active     |
-| `Lightbox.tsx`           | Full-size image viewer with navigation                     | Active     |
-| `WebSocketStatus.tsx`    | WebSocket connection status indicator                      | Active     |
-| `ServiceStatusAlert.tsx` | Service health notification banner                         | Deprecated |
-| `index.ts`               | Barrel exports (ErrorBoundary, RiskBadge, WebSocketStatus) | Active     |
-| `*.test.tsx`             | Test files for each component                              | Active     |
+| File                          | Purpose                                                              | Status     |
+| ----------------------------- | -------------------------------------------------------------------- | ---------- |
+| `ErrorBoundary.tsx`           | React error boundary for catching component errors                   | Active     |
+| `ErrorBoundary.test.tsx`      | Test suite for ErrorBoundary                                         | Active     |
+| `RiskBadge.tsx`               | Risk level badge with icon and optional score                        | Active     |
+| `RiskBadge.test.tsx`          | Test suite for RiskBadge                                             | Active     |
+| `ConfidenceBadge.tsx`         | Detection confidence score badge with color coding                   | Active     |
+| `ConfidenceBadge.test.tsx`    | Test suite for ConfidenceBadge                                       | Active     |
+| `ObjectTypeBadge.tsx`         | Detection object type badge                                          | Active     |
+| `ObjectTypeBadge.test.tsx`    | Test suite for ObjectTypeBadge                                       | Active     |
+| `Lightbox.tsx`                | Full-size image viewer with navigation                               | Active     |
+| `Lightbox.test.tsx`           | Test suite for Lightbox                                              | Active     |
+| `WebSocketStatus.tsx`         | WebSocket connection status indicator                                | Active     |
+| `WebSocketStatus.test.tsx`    | Test suite for WebSocketStatus                                       | Active     |
+| `SecureContextWarning.tsx`    | Banner for insecure context (HTTP) detection                         | Active     |
+| `SecureContextWarning.test.tsx`| Test suite for SecureContextWarning                                 | Active     |
+| `ScheduleSelector.tsx`        | Time-based schedule configuration for alerts                         | Active     |
+| `ScheduleSelector.test.tsx`   | Test suite for ScheduleSelector                                      | Active     |
+| `ServiceStatusAlert.tsx`      | Service health notification banner                                   | Deprecated |
+| `ServiceStatusAlert.test.tsx` | Test suite for ServiceStatusAlert                                    | Deprecated |
+| `index.ts`                    | Barrel exports (ErrorBoundary, RiskBadge, SecureContextWarning, WebSocketStatus) | Active |
+| `.gitkeep`                    | Placeholder file                                                     | -          |
 
 ## Key Components
 
@@ -257,17 +268,115 @@ interface ServiceStatus {
 **Current Exports:**
 
 ```typescript
+export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as RiskBadge } from './RiskBadge';
-export type { RiskBadgeProps } from './RiskBadge';
+export { default as SecureContextWarning } from './SecureContextWarning';
+export { default as WebSocketStatus } from './WebSocketStatus';
 ```
 
-**Note:** ConfidenceBadge, ObjectTypeBadge, Lightbox, and ServiceStatusAlert are NOT exported from index.ts. Import directly:
+**Note:** ConfidenceBadge, ObjectTypeBadge, Lightbox, ScheduleSelector, and ServiceStatusAlert are NOT exported from index.ts. Import directly:
 
 ```typescript
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import ConfidenceBadge from '../common/ConfidenceBadge';
 import Lightbox from '../common/Lightbox';
+import ScheduleSelector from '../common/ScheduleSelector';
 ```
+
+---
+
+### SecureContextWarning.tsx
+
+**Purpose:** Display a warning banner when the application is not running in a secure context (HTTPS)
+
+**Props Interface:**
+
+```typescript
+interface SecureContextWarningProps {
+  forceShow?: boolean;    // Show even in secure contexts (for testing)
+  dismissible?: boolean;  // Allow dismissing the warning (default: true)
+  onDismiss?: () => void; // Callback when dismissed
+  className?: string;     // Additional CSS classes
+}
+```
+
+**Key Features:**
+
+- Auto-hides when in secure context (HTTPS or localhost)
+- Displays information about affected browser APIs (WebCodecs)
+- Dismissible with X button
+- Shows current context and required context
+- Uses `getWebCodecsStatus()` utility for status message
+
+**Usage:**
+
+```tsx
+import SecureContextWarning from '../common/SecureContextWarning';
+// or
+import { SecureContextWarning } from '../common';
+
+<SecureContextWarning />
+<SecureContextWarning dismissible={false} />
+<SecureContextWarning onDismiss={() => console.log('Dismissed')} />
+```
+
+**Dependencies:**
+
+- `lucide-react` - AlertTriangle, Shield, X icons
+- `../../utils/webcodecs` - getWebCodecsStatus, isSecureContext
+
+---
+
+### ScheduleSelector.tsx
+
+**Purpose:** Configure time-based schedules for alert rules with day, time, and timezone selection
+
+**Props Interface:**
+
+```typescript
+interface ScheduleSelectorProps {
+  value: AlertRuleSchedule | null;  // Current schedule, null = always active
+  onChange: (schedule: AlertRuleSchedule | null) => void;  // Callback on change
+  disabled?: boolean;               // Disable all inputs
+  className?: string;               // Additional CSS classes
+}
+
+interface AlertRuleSchedule {
+  days: string[] | null;    // ['monday', 'tuesday', ...] or null for all days
+  start_time: string | null; // '22:00' format
+  end_time: string | null;   // '06:00' format
+  timezone: string;          // 'America/New_York', 'UTC', etc.
+}
+```
+
+**Key Features:**
+
+- Enable/disable schedule toggle
+- Day of week checkboxes (Mon-Sun)
+- Quick options: All Days, Weekdays, Weekends
+- Start and end time pickers
+- All Day quick option
+- Timezone selector with auto-detection
+- Supports overnight schedules (e.g., 22:00-06:00)
+
+**Usage:**
+
+```tsx
+import ScheduleSelector from '../common/ScheduleSelector';
+
+<ScheduleSelector
+  value={schedule}
+  onChange={setSchedule}
+  disabled={isSubmitting}
+/>
+```
+
+**Dependencies:**
+
+- `@headlessui/react` - Switch component
+- `clsx` - Conditional class composition
+- `lucide-react` - Calendar, Clock, Globe icons
+- `../../services/api` - AlertRuleSchedule type
 
 ---
 
@@ -467,6 +576,8 @@ All badge components follow the same sizing pattern (sm/md/lg) for consistency a
 **Also see:** `ObjectTypeBadge.tsx` - Detection object type badge
 **Also see:** `WebSocketStatus.tsx` - Connection status indicator
 **Also see:** `Lightbox.tsx` - Full-size image viewing modal
+**Also see:** `SecureContextWarning.tsx` - HTTPS requirement warning banner
+**Also see:** `ScheduleSelector.tsx` - Alert schedule configuration
 **Reference:** `ServiceStatusAlert.tsx` - Deprecated but documented for future use
 
 ---
