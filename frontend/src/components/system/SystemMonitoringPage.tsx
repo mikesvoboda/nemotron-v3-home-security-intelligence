@@ -17,9 +17,12 @@ import CircuitBreakerPanel from './CircuitBreakerPanel';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
+import InfrastructureStatusGrid from './InfrastructureStatusGrid';
 import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
+import PipelineFlowVisualization from './PipelineFlowVisualization';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
+import SystemSummaryRow from './SystemSummaryRow';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
@@ -39,6 +42,8 @@ import {
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 
+import type { InfrastructureCardId, InfrastructureData } from './InfrastructureStatusGrid';
+import type { PipelineStageData, BackgroundWorkerStatus, TotalLatency } from './PipelineFlowVisualization';
 import type { ThroughputPoint } from './PipelineMetricsPanel';
 import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
 
@@ -128,6 +133,9 @@ export default function SystemMonitoringPage() {
   const [circuitBreakers, setCircuitBreakers] = useState<CircuitBreakersResponse | null>(null);
   const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
   const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
+
+  // State for infrastructure grid expanded card
+  const [expandedInfraCard, setExpandedInfraCard] = useState<InfrastructureCardId | null>(null);
 
   // Use the health status hook for service health
   const {
@@ -312,6 +320,147 @@ export default function SystemMonitoringPage() {
     prevTelemetryRef.current = telemetry;
     prevTimestampRef.current = now;
   }, [telemetry]);
+
+  // Pipeline stages data for PipelineFlowVisualization
+  const pipelineStages: PipelineStageData[] = [
+    {
+      id: 'files',
+      name: 'Files',
+      icon: 'folder',
+      metrics: {
+        throughput: performanceData?.inference?.throughput?.files_per_minute
+          ? `${performanceData.inference.throughput.files_per_minute.toFixed(0)}/min`
+          : undefined,
+        pending: telemetry?.queues?.detection_queue ?? 0,
+      },
+    },
+    {
+      id: 'detect',
+      name: 'Detect',
+      icon: 'search',
+      metrics: {
+        queueDepth: telemetry?.queues?.detection_queue ?? 0,
+        avgLatency: telemetry?.latencies?.detect?.avg_ms ?? performanceData?.inference?.rtdetr_latency_ms?.avg ?? null,
+        p95Latency: telemetry?.latencies?.detect?.p95_ms ?? performanceData?.inference?.rtdetr_latency_ms?.p95 ?? null,
+      },
+    },
+    {
+      id: 'batch',
+      name: 'Batch',
+      icon: 'package',
+      metrics: {
+        throughput: throughputHistory.length > 0
+          ? `${throughputHistory[throughputHistory.length - 1].detections}/min`
+          : undefined,
+        pending: telemetry?.queues?.analysis_queue ?? 0,
+      },
+    },
+    {
+      id: 'analyze',
+      name: 'Analyze',
+      icon: 'brain',
+      metrics: {
+        queueDepth: telemetry?.queues?.analysis_queue ?? 0,
+        avgLatency: telemetry?.latencies?.analyze?.avg_ms ?? performanceData?.inference?.nemotron_latency_ms?.avg ?? null,
+        p95Latency: telemetry?.latencies?.analyze?.p95_ms ?? performanceData?.inference?.nemotron_latency_ms?.p95 ?? null,
+      },
+    },
+  ];
+
+  // Background workers data for PipelineFlowVisualization
+  const backgroundWorkers: BackgroundWorkerStatus[] = [
+    {
+      id: 'file-watcher',
+      name: 'Watcher',
+      status: services?.file_watcher?.status === 'healthy' ? 'running' :
+              services?.file_watcher?.status === 'degraded' ? 'degraded' : 'stopped',
+    },
+    {
+      id: 'detector',
+      name: 'Detector',
+      status: services?.rtdetr_server?.status === 'healthy' ? 'running' :
+              services?.rtdetr_server?.status === 'degraded' ? 'degraded' : 'stopped',
+    },
+    {
+      id: 'aggregator',
+      name: 'Aggregator',
+      status: services?.batch_aggregator?.status === 'healthy' ? 'running' :
+              services?.batch_aggregator?.status === 'degraded' ? 'degraded' : 'stopped',
+    },
+    {
+      id: 'analyzer',
+      name: 'Analyzer',
+      status: services?.nemotron_server?.status === 'healthy' ? 'running' :
+              services?.nemotron_server?.status === 'degraded' ? 'degraded' : 'stopped',
+    },
+    {
+      id: 'cleanup',
+      name: 'Cleanup',
+      status: services?.cleanup_service?.status === 'healthy' ? 'running' :
+              services?.cleanup_service?.status === 'degraded' ? 'degraded' : 'stopped',
+    },
+  ];
+
+  // Total pipeline latency for PipelineFlowVisualization
+  const totalPipelineLatency: TotalLatency = {
+    avg: (telemetry?.latencies?.detect?.avg_ms ?? 0) + (telemetry?.latencies?.analyze?.avg_ms ?? 0),
+    p95: (telemetry?.latencies?.detect?.p95_ms ?? 0) + (telemetry?.latencies?.analyze?.p95_ms ?? 0),
+    p99: (telemetry?.latencies?.detect?.p99_ms ?? 0) + (telemetry?.latencies?.analyze?.p99_ms ?? 0),
+  };
+
+  // Infrastructure data for InfrastructureStatusGrid
+  const infrastructureData: InfrastructureData = {
+    postgresql: postgresMetrics ? {
+      status: postgresMetrics.status === 'healthy' ? 'healthy' :
+              postgresMetrics.status === 'degraded' ? 'degraded' : 'unhealthy',
+      latency_ms: performanceData?.inference?.pipeline_latency_ms?.db_query ?? 0,
+      pool_active: postgresMetrics.connections_active,
+      pool_max: postgresMetrics.connections_max,
+      active_queries: postgresMetrics.transactions_per_min ?? 0,
+      db_size_gb: 0, // Not available from current metrics
+    } : null,
+    redis: redisMetrics ? {
+      status: redisMetrics.status === 'healthy' ? 'healthy' :
+              redisMetrics.status === 'degraded' ? 'degraded' : 'unhealthy',
+      ops_per_sec: 0, // Not directly available
+      memory_mb: redisMetrics.memory_mb,
+      connected_clients: redisMetrics.connected_clients,
+      hit_rate: redisMetrics.hit_ratio,
+    } : null,
+    containers: containerMetrics.length > 0 ? {
+      status: containerMetrics.every(c => c.status === 'running' && (c.health === 'healthy' || c.health === 'none')) ? 'healthy' :
+              containerMetrics.some(c => c.status !== 'running') ? 'unhealthy' : 'degraded',
+      running: containerMetrics.filter(c => c.status === 'running').length,
+      total: containerMetrics.length,
+      containers: containerMetrics.map(c => ({
+        name: c.name,
+        status: c.status === 'running' ? 'running' : c.status === 'restarting' ? 'restarting' : 'stopped',
+        cpu_percent: 0, // Not available from current metrics
+        memory_mb: 0, // Not available from current metrics
+        restart_count: 0, // Not available from current metrics
+      })),
+    } : null,
+    host: hostMetrics ? {
+      status: hostMetrics.cpu_percent < 80 && (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) < 0.9 ? 'healthy' :
+              hostMetrics.cpu_percent < 95 && (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) < 0.95 ? 'degraded' : 'unhealthy',
+      cpu_percent: hostMetrics.cpu_percent,
+      memory_used_gb: hostMetrics.ram_used_gb,
+      memory_total_gb: hostMetrics.ram_total_gb,
+      disk_used_gb: hostMetrics.disk_used_gb,
+      disk_total_gb: hostMetrics.disk_total_gb,
+    } : null,
+    circuits: circuitBreakers ? {
+      status: circuitBreakers.open_count === 0 ? 'healthy' :
+              circuitBreakers.open_count < circuitBreakers.total_count / 2 ? 'degraded' : 'unhealthy',
+      healthy: circuitBreakers.total_count - circuitBreakers.open_count,
+      total: circuitBreakers.total_count,
+      breakers: Object.values(circuitBreakers.circuit_breakers).map(cb => ({
+        name: cb.name,
+        state: cb.state,
+        failure_count: cb.failure_count,
+      })),
+    } : null,
+  };
 
   // Fetch Grafana URL from config API
   useEffect(() => {
@@ -522,6 +671,34 @@ export default function SystemMonitoringPage() {
             data-testid="system-performance-alerts"
           />
         )}
+
+        {/* Summary Row - Five clickable indicators for quick system health overview */}
+        <SystemSummaryRow
+          className="mb-6"
+          data-testid="system-summary-row"
+        />
+
+        {/* Pipeline Flow Visualization - Visual diagram of the pipeline flow */}
+        <PipelineFlowVisualization
+          stages={pipelineStages}
+          workers={backgroundWorkers}
+          totalLatency={totalPipelineLatency}
+          isLoading={loading}
+          error={error}
+          className="mb-6"
+          data-testid="pipeline-flow-visualization"
+        />
+
+        {/* Infrastructure Status Grid - Compact 5-card grid showing infrastructure status */}
+        <InfrastructureStatusGrid
+          data={infrastructureData}
+          loading={loading}
+          error={error}
+          onCardClick={setExpandedInfraCard}
+          expandedCard={expandedInfraCard}
+          className="mb-6"
+          data-testid="infrastructure-status-grid"
+        />
 
         {/*
           Dense Grid Layout - Grafana-style dashboard
