@@ -584,7 +584,7 @@ export interface paths {
          * @description Get a specific camera by ID.
          *
          *     Args:
-         *         camera_id: UUID of the camera
+         *         camera_id: Normalized camera ID (e.g., "front_door", "backyard")
          *         db: Database session
          *
          *     Returns:
@@ -603,7 +603,7 @@ export interface paths {
          *     This operation cascades to all related detections and events.
          *
          *     Args:
-         *         camera_id: UUID of the camera to delete
+         *         camera_id: Normalized camera ID (e.g., "front_door", "backyard")
          *         request: FastAPI request for audit logging
          *         db: Database session
          *
@@ -618,7 +618,7 @@ export interface paths {
          * @description Update an existing camera.
          *
          *     Args:
-         *         camera_id: UUID of the camera to update
+         *         camera_id: Normalized camera ID (e.g., "front_door", "backyard")
          *         camera_data: Camera update data (all fields optional)
          *         request: FastAPI request for audit logging
          *         db: Database session
@@ -3854,7 +3854,7 @@ export interface components {
          *         {
          *           "created_at": "2025-12-23T10:00:00Z",
          *           "folder_path": "/export/foscam/front_door",
-         *           "id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "id": "front_door",
          *           "last_seen_at": "2025-12-23T12:00:00Z",
          *           "name": "Front Door Camera",
          *           "status": "online"
@@ -3881,7 +3881,7 @@ export interface components {
          * @example {
          *       "created_at": "2025-12-23T10:00:00Z",
          *       "folder_path": "/export/foscam/front_door",
-         *       "id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "id": "front_door",
          *       "last_seen_at": "2025-12-23T12:00:00Z",
          *       "name": "Front Door Camera",
          *       "status": "online"
@@ -3890,7 +3890,7 @@ export interface components {
         CameraResponse: {
             /**
              * Id
-             * @description Camera UUID
+             * @description Normalized camera ID derived from folder name (e.g., 'front_door')
              */
             id: string;
             /**
@@ -4826,7 +4826,7 @@ export interface components {
          *           "bbox_width": 200,
          *           "bbox_x": 100,
          *           "bbox_y": 150,
-         *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "camera_id": "front_door",
          *           "confidence": 0.95,
          *           "detected_at": "2025-12-23T12:00:00Z",
          *           "file_path": "/export/foscam/front_door/20251223_120000.jpg",
@@ -4870,7 +4870,7 @@ export interface components {
          *       "bbox_width": 200,
          *       "bbox_x": 100,
          *       "bbox_y": 150,
-         *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "camera_id": "front_door",
          *       "confidence": 0.95,
          *       "detected_at": "2025-12-23T12:00:00Z",
          *       "enrichment_data": {
@@ -4907,7 +4907,7 @@ export interface components {
             id: number;
             /**
              * Camera Id
-             * @description Camera UUID
+             * @description Normalized camera ID (e.g., 'front_door')
              */
             camera_id: string;
             /**
@@ -5560,7 +5560,7 @@ export interface components {
          *       "count": 1,
          *       "events": [
          *         {
-         *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "camera_id": "front_door",
          *           "detection_count": 5,
          *           "detection_ids": [
          *             1,
@@ -5611,7 +5611,7 @@ export interface components {
          * EventResponse
          * @description Schema for event response.
          * @example {
-         *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "camera_id": "front_door",
          *       "detection_count": 5,
          *       "detection_ids": [
          *         1,
@@ -5640,7 +5640,7 @@ export interface components {
             id: number;
             /**
              * Camera Id
-             * @description Camera UUID
+             * @description Normalized camera ID (e.g., 'front_door')
              */
             camera_id: string;
             /**
@@ -5713,12 +5713,12 @@ export interface components {
          * @example {
          *       "events_by_camera": [
          *         {
-         *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "camera_id": "front_door",
          *           "camera_name": "Front Door",
          *           "event_count": 30
          *         },
          *         {
-         *           "camera_id": "456e7890-e89b-12d3-a456-426614174001",
+         *           "camera_id": "back_door",
          *           "camera_name": "Back Door",
          *           "event_count": 14
          *         }
@@ -5770,7 +5770,7 @@ export interface components {
          * EventsByCamera
          * @description Schema for events count by camera.
          * @example {
-         *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "camera_id": "front_door",
          *       "camera_name": "Front Door",
          *       "event_count": 15
          *     }
@@ -5778,7 +5778,7 @@ export interface components {
         EventsByCamera: {
             /**
              * Camera Id
-             * @description Camera UUID
+             * @description Normalized camera ID (e.g., 'front_door')
              */
             camera_id: string;
             /**
