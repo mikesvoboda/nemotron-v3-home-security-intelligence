@@ -842,7 +842,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./backend/Dockerfile.prod
+          file: ./backend/Dockerfile
+          target: prod
           push: false
           tags: backend:${{ github.sha }}
           cache-from: type=gha,scope=backend
@@ -868,7 +869,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          file: ./frontend/Dockerfile.prod
+          file: ./frontend/Dockerfile
+          target: prod
           push: false
           tags: frontend:${{ github.sha }}
           cache-from: type=gha,scope=frontend

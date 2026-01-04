@@ -45,9 +45,9 @@ jobs:
 
       - name: Build backend image
         id: build
-        # Use production Dockerfile which has minimal dependencies
-        # Context must be project root because Dockerfile.prod copies pyproject.toml/uv.lock from root
-        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod .
+        # Use production target which has minimal dependencies
+        # Context must be project root because Dockerfile copies pyproject.toml/uv.lock from root
+        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile --target prod .
 
       - name: Clean up Docker build cache to free space
         # Remove only build cache and intermediate layers, NOT the built image
@@ -104,8 +104,8 @@ jobs:
 
       - name: Build frontend image
         id: build
-        # Use production Dockerfile which has minimal dependencies
-        run: docker build -t frontend:${{ github.sha }} -f frontend/Dockerfile.prod frontend/
+        # Use production target which has minimal dependencies
+        run: docker build -t frontend:${{ github.sha }} -f frontend/Dockerfile --target prod frontend/
 
       - name: Run Trivy vulnerability scanner (blocking)
         id: trivy-scan
