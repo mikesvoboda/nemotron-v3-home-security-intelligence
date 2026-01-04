@@ -21,8 +21,10 @@ import time
 from typing import Any
 
 import httpx
+from pydantic import ValidationError
 from sqlalchemy import select
 
+from backend.api.schemas.llm_response import LLMRawResponse, LLMRiskResponse
 from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.core.logging import get_logger, sanitize_error
@@ -1151,49 +1153,71 @@ class NemotronAnalyzer:
         raise ValueError(f"Could not parse valid risk JSON from: {text[:200]}")
 
     def _validate_risk_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Validate and normalize risk assessment data.
+        """Validate and normalize risk assessment data using Pydantic schemas.
 
-        Ensures risk_score is 0-100, risk_level is valid, and required
-        fields are present.
+        Uses LLMRawResponse for lenient parsing, then converts to validated
+        LLMRiskResponse via to_validated_response(). This ensures:
+        - risk_score is clamped to 0-100
+        - risk_level is valid (inferred from score if invalid)
+        - summary and reasoning have defaults if missing
 
         Args:
-            data: Raw risk data from LLM
+            data: Raw risk data dictionary from LLM JSON response
 
         Returns:
-            Validated and normalized risk data
-        """
-        # Validate risk_score
-        risk_score = data.get("risk_score", 50)
-        if not isinstance(risk_score, int | float):
-            try:
-                risk_score = int(risk_score)
-            except (ValueError, TypeError):
-                risk_score = 50
-        risk_score = max(0, min(100, int(risk_score)))
+            Validated and normalized risk data dictionary
 
-        # Validate risk_level
-        valid_levels = ["low", "medium", "high", "critical"]
-        risk_level = str(data.get("risk_level", "medium")).lower()
-        if risk_level not in valid_levels:
-            # Infer from risk_score using SeverityService for consistent thresholds
-            # This ensures fallback behavior matches the backend severity taxonomy:
-            # LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+        Note:
+            This method uses the default severity thresholds from the schema.
+            For dynamic thresholds based on Settings, the SeverityService can
+            still be used as a fallback when risk_level inference is needed.
+        """
+        try:
+            # First try strict validation with LLMRiskResponse
+            # This handles well-formed LLM responses directly
+            validated = LLMRiskResponse.model_validate(data)
+            return validated.model_dump()
+        except ValidationError:
+            # Fall back to lenient parsing with LLMRawResponse
+            # This handles malformed responses (out-of-range scores, invalid levels)
+            pass
+
+        try:
+            # Parse with lenient schema, then normalize
+            raw = LLMRawResponse.model_validate(data)
+            validated = raw.to_validated_response()
+            return validated.model_dump()
+        except ValidationError as e:
+            # If even lenient parsing fails, use defaults with any available data
+            logger.warning(
+                f"Failed to validate LLM response, using defaults: {e}",
+                extra={"validation_errors": str(e.errors())},
+            )
+
+            # Extract what we can from the raw data
+            risk_score = 50  # Default
+            if "risk_score" in data:
+                try:
+                    score = data["risk_score"]
+                    if isinstance(score, (int, float)):
+                        risk_score = max(0, min(100, int(score)))
+                    elif isinstance(score, str):
+                        risk_score = max(0, min(100, int(float(score))))
+                except (ValueError, TypeError):
+                    pass
+
+            # Infer risk_level from score using SeverityService for consistency
             from backend.services.severity import get_severity_service
 
             severity_service = get_severity_service()
             severity = severity_service.risk_score_to_severity(risk_score)
-            risk_level = severity.value
 
-        # Ensure summary and reasoning exist
-        summary = data.get("summary", "Risk analysis completed")
-        reasoning = data.get("reasoning", "No detailed reasoning provided")
-
-        return {
-            "risk_score": risk_score,
-            "risk_level": risk_level,
-            "summary": summary,
-            "reasoning": reasoning,
-        }
+            return {
+                "risk_score": risk_score,
+                "risk_level": severity.value,
+                "summary": data.get("summary", "Risk analysis completed"),
+                "reasoning": data.get("reasoning", "No detailed reasoning provided"),
+            }
 
     async def _broadcast_event(self, event: Event) -> None:
         """Broadcast event via WebSocket (optional).

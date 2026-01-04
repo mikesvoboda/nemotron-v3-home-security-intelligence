@@ -32,6 +32,12 @@ from .clips import (
     ClipInfoResponse,
     ClipStatus,
 )
+from .detections import (
+    EnrichmentDataSchema,
+    PersonEnrichmentData,
+    PetEnrichmentData,
+    VehicleEnrichmentData,
+)
 from .enrichment import (
     ClothingEnrichment,
     DepthEnrichment,
@@ -45,6 +51,13 @@ from .enrichment import (
     VehicleEnrichment,
     ViolenceEnrichment,
     WeatherEnrichment,
+)
+from .llm_response import (
+    LLMRawResponse,
+    LLMRiskResponse,
+)
+from .llm_response import (
+    RiskLevel as LLMRiskLevel,
 )
 from .notification import (
     DeliveryResultResponse,
@@ -116,11 +129,15 @@ __all__ = [
     "DeliveryResultResponse",
     "DepthEnrichment",
     "DeviationInterpretation",
+    "EnrichmentDataSchema",
     "EnrichmentResponse",
     "EventEnrichmentsResponse",
     "FaceEnrichment",
     "HourlyPattern",
     "ImageQualityEnrichment",
+    "LLMRawResponse",
+    "LLMRiskLevel",
+    "LLMRiskResponse",
     "LicensePlateEnrichment",
     "NotificationChannel",
     "NotificationConfigResponse",
@@ -128,7 +145,9 @@ __all__ = [
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
+    "PersonEnrichmentData",
     "PetEnrichment",
+    "PetEnrichmentData",
     "PoseEnrichment",
     "RiskLevel",
     "SceneChangeAcknowledgeResponse",
@@ -143,6 +162,7 @@ __all__ = [
     "TestNotificationRequest",
     "TestNotificationResponse",
     "VehicleEnrichment",
+    "VehicleEnrichmentData",
     "ViolenceEnrichment",
     "WeatherEnrichment",
     "WebSocketErrorCode",

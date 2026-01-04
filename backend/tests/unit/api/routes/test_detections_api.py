@@ -5,7 +5,11 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
+from backend.api.schemas.detections import (
+    DetectionListResponse,
+    DetectionResponse,
+    DetectionStatsResponse,
+)
 
 
 class TestDetectionResponse:
@@ -106,4 +110,54 @@ class TestDetectionListResponse:
             DetectionListResponse(
                 detections=[],
                 # missing count, limit, offset
+            )
+
+
+class TestDetectionStatsResponse:
+    """Tests for DetectionStatsResponse schema (NEM-1128)."""
+
+    def test_valid_detection_stats_response(self):
+        """Test creating a valid detection stats response with class distribution."""
+        stats = DetectionStatsResponse(
+            total_detections=107,
+            detections_by_class={
+                "person": 23,
+                "car": 20,
+                "truck": 6,
+                "bicycle": 1,
+            },
+            average_confidence=0.87,
+        )
+        assert stats.total_detections == 107
+        assert stats.detections_by_class["person"] == 23
+        assert stats.detections_by_class["car"] == 20
+        assert stats.average_confidence == 0.87
+
+    def test_detection_stats_empty_classes(self):
+        """Test detection stats with no detections."""
+        stats = DetectionStatsResponse(
+            total_detections=0,
+            detections_by_class={},
+            average_confidence=None,
+        )
+        assert stats.total_detections == 0
+        assert len(stats.detections_by_class) == 0
+        assert stats.average_confidence is None
+
+    def test_detection_stats_null_confidence(self):
+        """Test detection stats with null average confidence."""
+        stats = DetectionStatsResponse(
+            total_detections=10,
+            detections_by_class={"person": 10},
+            average_confidence=None,
+        )
+        assert stats.total_detections == 10
+        assert stats.average_confidence is None
+
+    def test_detection_stats_missing_required_field(self):
+        """Test that missing required fields raise validation error."""
+        with pytest.raises(ValidationError):
+            DetectionStatsResponse(
+                total_detections=10,
+                # missing detections_by_class
             )

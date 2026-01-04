@@ -9,11 +9,13 @@
  * - /api/system/telemetry - Queue depths and basic latency stats
  * - /api/system/health - AI service health status
  * - /api/system/pipeline-latency - Detailed pipeline latency percentiles
+ * - /api/dlq/stats - Dead letter queue counts (actual current items in DLQ)
+ * - /api/detections/stats - Detection class distribution
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { fetchTelemetry, fetchHealth, type TelemetryResponse, type HealthResponse } from '../services/api';
+import { fetchTelemetry, fetchHealth, fetchDlqStats, fetchDetectionStats, type TelemetryResponse, type HealthResponse, type DLQStatsResponse, type DetectionStatsResponse } from '../services/api';
 import { fetchAIMetrics, type AIMetrics, type AILatencyMetrics } from '../services/metricsParser';
 
 /**
@@ -80,6 +82,8 @@ export interface AIPerformanceState {
   queueOverflows: Record<string, number>;
   /** Items in DLQ by queue */
   dlqItems: Record<string, number>;
+  /** Detection counts by object class (person, car, truck, etc.) */
+  detectionsByClass: Record<string, number>;
   /** Last update timestamp */
   lastUpdated: string | null;
 }
@@ -124,6 +128,7 @@ const initialState: AIPerformanceState = {
   pipelineErrors: {},
   queueOverflows: {},
   dlqItems: {},
+  detectionsByClass: {},
   lastUpdated: null,
 };
 
@@ -215,11 +220,13 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
   const fetchAllMetrics = useCallback(async () => {
     try {
       // Fetch all data sources in parallel
-      const [metricsResult, telemetryResult, healthResult, pipelineResult] = await Promise.allSettled([
+      const [metricsResult, telemetryResult, healthResult, pipelineResult, dlqResult, detectionStatsResult] = await Promise.allSettled([
         fetchAIMetrics(),
         fetchTelemetry(),
         fetchHealth(),
         fetchPipelineLatency(60),
+        fetchDlqStats(),
+        fetchDetectionStats(),
       ]);
 
       if (!mountedRef.current) return;
@@ -233,9 +240,29 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         healthResult.status === 'fulfilled' ? healthResult.value : null;
       const pipelineLatency: PipelineLatencyResponse | null =
         pipelineResult.status === 'fulfilled' ? pipelineResult.value : null;
+      const dlqStats: DLQStatsResponse | null =
+        dlqResult.status === 'fulfilled' ? dlqResult.value : null;
+      const detectionStats: DetectionStatsResponse | null =
+        detectionStatsResult.status === 'fulfilled' ? detectionStatsResult.value : null;
 
       // Extract AI model statuses
       const { rtdetr, nemotron } = extractAIStatuses(health);
+
+      // Build DLQ items map from the DLQ stats API (actual current counts)
+      // Falls back to Prometheus metrics counter (cumulative moves to DLQ) if API unavailable
+      const dlqItems: Record<string, number> = {};
+      if (dlqStats) {
+        // Use actual current DLQ counts from /api/dlq/stats
+        if (dlqStats.detection_queue_count > 0) {
+          dlqItems['dlq:detection_queue'] = dlqStats.detection_queue_count;
+        }
+        if (dlqStats.analysis_queue_count > 0) {
+          dlqItems['dlq:analysis_queue'] = dlqStats.analysis_queue_count;
+        }
+      } else if (metrics?.dlq_items) {
+        // Fallback to Prometheus metrics (note: this is cumulative, not current count)
+        Object.assign(dlqItems, metrics.dlq_items);
+      }
 
       // Combine all metrics into state
       setData({
@@ -244,13 +271,14 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         detectionLatency: metrics?.detection_latency ?? null,
         analysisLatency: metrics?.analysis_latency ?? null,
         pipelineLatency,
-        totalDetections: metrics?.total_detections ?? 0,
+        totalDetections: detectionStats?.total_detections ?? metrics?.total_detections ?? 0,
         totalEvents: metrics?.total_events ?? 0,
         detectionQueueDepth: telemetry?.queues?.detection_queue ?? metrics?.detection_queue_depth ?? 0,
         analysisQueueDepth: telemetry?.queues?.analysis_queue ?? metrics?.analysis_queue_depth ?? 0,
         pipelineErrors: metrics?.pipeline_errors ?? {},
         queueOverflows: metrics?.queue_overflows ?? {},
-        dlqItems: metrics?.dlq_items ?? {},
+        dlqItems,
+        detectionsByClass: detectionStats?.detections_by_class ?? {},
         lastUpdated: new Date().toISOString(),
       });
 

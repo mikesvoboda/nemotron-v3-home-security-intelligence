@@ -5,6 +5,137 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# ============================================================================
+# Enrichment Data Schemas (NEM-1067)
+# ============================================================================
+# These schemas provide type safety and validation for the enrichment_data
+# JSONB field stored in Detection records.
+
+
+class VehicleEnrichmentData(BaseModel):
+    """Schema for vehicle enrichment data in detection records.
+
+    Used to validate and type vehicle-related enrichment data extracted
+    from the AI pipeline (vehicle classification, damage detection).
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",  # Ignore extra fields for backward compatibility
+        json_schema_extra={
+            "example": {
+                "vehicle_type": "sedan",
+                "vehicle_color": "blue",
+                "has_damage": False,
+                "is_commercial": False,
+            }
+        },
+    )
+
+    vehicle_type: str | None = Field(
+        None, description="Type of vehicle (sedan, suv, truck, van, etc.)"
+    )
+    vehicle_color: str | None = Field(None, description="Primary color of the vehicle")
+    has_damage: bool = Field(False, description="Whether vehicle damage was detected")
+    is_commercial: bool = Field(False, description="Whether the vehicle is commercial/delivery")
+
+
+class PersonEnrichmentData(BaseModel):
+    """Schema for person enrichment data in detection records.
+
+    Used to validate and type person-related enrichment data extracted
+    from the AI pipeline (clothing classification, action recognition).
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",  # Ignore extra fields for backward compatibility
+        json_schema_extra={
+            "example": {
+                "clothing_description": "dark jacket, blue jeans",
+                "action": "walking",
+                "carrying": ["backpack"],
+                "is_suspicious": False,
+            }
+        },
+    )
+
+    clothing_description: str | None = Field(
+        None, description="Description of clothing (upper, lower)"
+    )
+    action: str | None = Field(None, description="Detected action (walking, running, standing)")
+    carrying: list[str] = Field(
+        default_factory=list, description="List of items person is carrying"
+    )
+    is_suspicious: bool = Field(False, description="Whether appearance is flagged as suspicious")
+
+
+class PetEnrichmentData(BaseModel):
+    """Schema for pet enrichment data in detection records.
+
+    Used to validate and type pet-related enrichment data for
+    false positive reduction (distinguishing pets from intruders).
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",  # Ignore extra fields for backward compatibility
+        json_schema_extra={
+            "example": {
+                "pet_type": "dog",
+                "breed": "golden retriever",
+            }
+        },
+    )
+
+    pet_type: str | None = Field(None, description="Type of pet (dog, cat)")
+    breed: str | None = Field(None, description="Detected breed if identifiable")
+
+
+class EnrichmentDataSchema(BaseModel):
+    """Schema for the composite enrichment_data JSONB field.
+
+    This schema provides type safety for the enrichment_data field
+    on DetectionResponse, ensuring consistent structure and validation
+    of AI pipeline results.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",  # Ignore extra fields for backward compatibility
+        json_schema_extra={
+            "example": {
+                "vehicle": {
+                    "vehicle_type": "sedan",
+                    "vehicle_color": "blue",
+                    "has_damage": False,
+                    "is_commercial": False,
+                },
+                "person": {
+                    "clothing_description": "dark jacket",
+                    "action": "walking",
+                    "carrying": ["backpack"],
+                    "is_suspicious": False,
+                },
+                "pet": None,
+                "weather": "sunny",
+                "errors": [],
+            }
+        },
+    )
+
+    vehicle: VehicleEnrichmentData | None = Field(
+        None, description="Vehicle classification and damage detection results"
+    )
+    person: PersonEnrichmentData | None = Field(
+        None, description="Person clothing and action recognition results"
+    )
+    pet: PetEnrichmentData | None = Field(
+        None, description="Pet classification results for false positive reduction"
+    )
+    weather: str | None = Field(
+        None, description="Weather condition classification (sunny, cloudy, rainy)"
+    )
+    errors: list[str] = Field(
+        default_factory=list, description="Errors encountered during enrichment"
+    )
+
 
 class DetectionResponse(BaseModel):
     """Schema for detection response."""
@@ -32,17 +163,20 @@ class DetectionResponse(BaseModel):
                 "video_height": None,
                 "enrichment_data": {
                     "vehicle": {
-                        "type": "sedan",
-                        "color": "blue",
-                        "damage": [],
-                        "confidence": 0.92,
+                        "vehicle_type": "sedan",
+                        "vehicle_color": "blue",
+                        "has_damage": False,
+                        "is_commercial": False,
                     },
                     "person": {
-                        "clothing": "dark jacket",
+                        "clothing_description": "dark jacket",
                         "action": "walking",
-                        "carrying": "backpack",
-                        "confidence": 0.95,
+                        "carrying": ["backpack"],
+                        "is_suspicious": False,
                     },
+                    "pet": None,
+                    "weather": "sunny",
+                    "errors": [],
                 },
             }
         },
@@ -70,6 +204,7 @@ class DetectionResponse(BaseModel):
     video_height: int | None = Field(None, description="Video resolution height")
 
     # AI enrichment data (vehicle classification, pet identification, etc.)
+    # Kept as dict for backward compatibility - use validate_enrichment_data() to get typed data
     enrichment_data: dict[str, Any] | None = Field(
         None,
         description="AI enrichment data including vehicle classification, pet identification, "
@@ -110,3 +245,34 @@ class DetectionListResponse(BaseModel):
     count: int = Field(..., description="Total number of detections matching filters")
     limit: int = Field(..., description="Maximum number of results returned")
     offset: int = Field(..., description="Number of results skipped")
+
+
+class DetectionStatsResponse(BaseModel):
+    """Schema for detection statistics response.
+
+    Returns aggregate statistics about detections including counts by object class.
+    Used by the AI Performance page to display detection class distribution.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_detections": 107,
+                "detections_by_class": {
+                    "person": 23,
+                    "car": 20,
+                    "truck": 6,
+                    "bicycle": 1,
+                },
+                "average_confidence": 0.87,
+            }
+        }
+    )
+
+    total_detections: int = Field(..., description="Total number of detections")
+    detections_by_class: dict[str, int] = Field(
+        ..., description="Detection counts grouped by object class (e.g., person, car, truck)"
+    )
+    average_confidence: float | None = Field(
+        None, description="Average confidence score across all detections"
+    )

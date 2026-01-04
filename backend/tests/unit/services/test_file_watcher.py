@@ -89,6 +89,7 @@ def file_watcher(temp_camera_root, mock_redis_client):
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
         debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
+        stability_time=0.1,  # Very short stability time for fast tests
     )
     return watcher
 
@@ -438,16 +439,22 @@ async def test_debounce_multiple_events(file_watcher, temp_camera_root, mock_red
     image_path = camera_dir / "test.jpg"
     create_valid_test_image(image_path)
 
-    # Trigger multiple events for same file
-    await file_watcher._schedule_file_processing(str(image_path))
-    await file_watcher._schedule_file_processing(str(image_path))
-    await file_watcher._schedule_file_processing(str(image_path))
+    # Mock stability check to return immediately for fast test
+    with patch.object(
+        file_watcher, "_wait_for_file_stability", new_callable=AsyncMock
+    ) as mock_stability:
+        mock_stability.return_value = True
 
-    # Wait for debounce delay + processing
-    await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+        # Trigger multiple events for same file
+        await file_watcher._schedule_file_processing(str(image_path))
+        await file_watcher._schedule_file_processing(str(image_path))
+        await file_watcher._schedule_file_processing(str(image_path))
 
-    # Should only process once
-    assert mock_redis_client.add_to_queue_safe.await_count == 1
+        # Wait for debounce delay + processing
+        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+
+        # Should only process once
+        assert mock_redis_client.add_to_queue_safe.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -462,15 +469,21 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
     image2 = camera_dir / "test2.jpg"
     create_valid_test_image(image2)
 
-    # Schedule both files
-    await file_watcher._schedule_file_processing(str(image1))
-    await file_watcher._schedule_file_processing(str(image2))
+    # Mock stability check to return immediately for fast test
+    with patch.object(
+        file_watcher, "_wait_for_file_stability", new_callable=AsyncMock
+    ) as mock_stability:
+        mock_stability.return_value = True
 
-    # Wait for debounce delay + processing
-    await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+        # Schedule both files
+        await file_watcher._schedule_file_processing(str(image1))
+        await file_watcher._schedule_file_processing(str(image2))
 
-    # Should process both files
-    assert mock_redis_client.add_to_queue_safe.await_count == 2
+        # Wait for debounce delay + processing
+        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+
+        # Should process both files
+        assert mock_redis_client.add_to_queue_safe.await_count == 2
 
 
 # Start/Stop tests
@@ -626,30 +639,36 @@ async def test_full_workflow(file_watcher, temp_camera_root, mock_redis_client):
         image_path = camera_dir / "workflow_test.jpg"
         create_valid_test_image(image_path)
 
-        # Manually schedule (simulating watchdog event)
-        await file_watcher._schedule_file_processing(str(image_path))
+        # Mock stability check for fast test
+        with patch.object(
+            file_watcher, "_wait_for_file_stability", new_callable=AsyncMock
+        ) as mock_stability:
+            mock_stability.return_value = True
 
-        # Wait for debounce + processing
-        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+            # Manually schedule (simulating watchdog event)
+            await file_watcher._schedule_file_processing(str(image_path))
 
-        # Verify queue was called at least once (watchdog may trigger it too)
-        assert mock_redis_client.add_to_queue_safe.await_count >= 1
+            # Wait for debounce + processing
+            await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
-        # Check that the image was queued with correct data
-        found_correct_call = False
-        for call in mock_redis_client.add_to_queue_safe.call_args_list:
-            if len(call[0]) >= 2:
-                queue_name = call[0][0]
-                data = call[0][1]
-                if (
-                    queue_name == "detection_queue"
-                    and data["camera_id"] == "camera1"
-                    and data["file_path"] == str(image_path)
-                ):
-                    found_correct_call = True
-                    break
+            # Verify queue was called at least once (watchdog may trigger it too)
+            assert mock_redis_client.add_to_queue_safe.await_count >= 1
 
-        assert found_correct_call, "Expected queue call with correct data not found"
+            # Check that the image was queued with correct data
+            found_correct_call = False
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
+                if len(call[0]) >= 2:
+                    queue_name = call[0][0]
+                    data = call[0][1]
+                    if (
+                        queue_name == "detection_queue"
+                        and data["camera_id"] == "camera1"
+                        and data["file_path"] == str(image_path)
+                    ):
+                        found_correct_call = True
+                        break
+
+            assert found_correct_call, "Expected queue call with correct data not found"
 
     finally:
         # Stop watcher
@@ -1469,17 +1488,23 @@ async def test_task_cleanup_callback_prevents_memory_leak(file_watcher, temp_cam
     img = Image.new("RGB", (100, 100), color="magenta")
     img.save(image_path)
 
-    # Schedule file processing
-    await file_watcher._schedule_file_processing(str(image_path))
+    # Mock stability check for fast test
+    with patch.object(
+        file_watcher, "_wait_for_file_stability", new_callable=AsyncMock
+    ) as mock_stability:
+        mock_stability.return_value = True
 
-    # Task should be in pending_tasks
-    assert str(image_path) in file_watcher._pending_tasks
+        # Schedule file processing
+        await file_watcher._schedule_file_processing(str(image_path))
 
-    # Wait for debounce + processing to complete
-    await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+        # Task should be in pending_tasks
+        assert str(image_path) in file_watcher._pending_tasks
 
-    # Task should be cleaned up from pending_tasks (no memory leak)
-    assert str(image_path) not in file_watcher._pending_tasks
+        # Wait for debounce + processing to complete
+        await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+
+        # Task should be cleaned up from pending_tasks (no memory leak)
+        assert str(image_path) not in file_watcher._pending_tasks
 
 
 @pytest.mark.asyncio
@@ -1550,18 +1575,24 @@ async def test_multiple_files_cleaned_up_independently(file_watcher, temp_camera
         img.save(image_path)
         image_paths.append(str(image_path))
 
-    # Schedule all files
-    for path in image_paths:
-        await file_watcher._schedule_file_processing(path)
+    # Mock stability check for fast test
+    with patch.object(
+        file_watcher, "_wait_for_file_stability", new_callable=AsyncMock
+    ) as mock_stability:
+        mock_stability.return_value = True
 
-    # All should be in pending_tasks
-    assert len(file_watcher._pending_tasks) == 5
+        # Schedule all files
+        for path in image_paths:
+            await file_watcher._schedule_file_processing(path)
 
-    # Wait for all to complete
-    await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+        # All should be in pending_tasks
+        assert len(file_watcher._pending_tasks) == 5
 
-    # All should be cleaned up
-    assert len(file_watcher._pending_tasks) == 0
+        # Wait for all to complete
+        await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+
+        # All should be cleaned up
+        assert len(file_watcher._pending_tasks) == 0
 
 
 # Pipeline Start Time Tracking Tests (bead 4mje.3)
@@ -1630,3 +1661,267 @@ async def test_process_file_records_pipeline_start_time(
 
     # Verify timestamp is same as main timestamp (file detection time)
     assert data["pipeline_start_time"] == data["timestamp"]
+
+
+# File stability check tests (NEM-1069)
+
+
+@pytest.mark.asyncio
+async def test_wait_for_file_stability_file_becomes_stable(file_watcher, temp_camera_root):
+    """Test _wait_for_file_stability returns True when file size stops changing."""
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "stable.jpg"
+
+    # Create an image file (stable from the start)
+    create_valid_test_image(image_path)
+
+    # File should become stable quickly since it's not being modified
+    result = await file_watcher._wait_for_file_stability(str(image_path), stability_time=0.2)
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.timeout(30)
+async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, mock_redis_client):
+    """Test _wait_for_file_stability returns False when file keeps changing."""
+    # Create watcher with short stability time for faster test
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        stability_time=0.3,  # Short stability time
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    file_path = camera_dir / "unstable.txt"
+    file_path.write_text("initial")
+
+    # Event to coordinate test
+    started_modifying = asyncio.Event()
+    stop_modifying = asyncio.Event()
+
+    async def keep_modifying():
+        """Keep modifying the file to simulate ongoing FTP upload."""
+        i = 0
+        # Signal that we've started
+        started_modifying.set()
+        while not stop_modifying.is_set():
+            # Modify more frequently than the check interval (0.5s)
+            await asyncio.sleep(0.1)
+            # Write different amounts to ensure size changes
+            file_path.write_text(f"content_{i}_" * (100 + i * 10))
+            i += 1
+
+    # Start modifying the file in the background
+    modify_task = asyncio.create_task(keep_modifying())
+
+    try:
+        # Wait for modifier to start
+        await asyncio.wait_for(started_modifying.wait(), timeout=1.0)
+        # Give it a moment to make a modification
+        await asyncio.sleep(0.15)
+
+        # File should never stabilize because we keep modifying it
+        result = await watcher._wait_for_file_stability(str(file_path), stability_time=0.3)
+        assert result is False
+    finally:
+        stop_modifying.set()
+        modify_task.cancel()
+        try:
+            await modify_task
+        except asyncio.CancelledError:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_wait_for_file_stability_file_deleted_during_check(file_watcher, temp_camera_root):
+    """Test _wait_for_file_stability returns False when file is deleted."""
+    camera_dir = temp_camera_root / "camera1"
+    file_path = camera_dir / "deleted.txt"
+    file_path.write_text("will be deleted")
+
+    async def delete_file():
+        """Delete the file after a short delay."""
+        await asyncio.sleep(0.1)
+        file_path.unlink()
+
+    # Start delete task
+    delete_task = asyncio.create_task(delete_file())
+
+    try:
+        # File should return False because it was deleted
+        result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=1.0)
+        assert result is False
+    finally:
+        delete_task.cancel()
+        try:
+            await delete_task
+        except asyncio.CancelledError:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_wait_for_file_stability_nonexistent_file(file_watcher):
+    """Test _wait_for_file_stability returns False for nonexistent file."""
+    result = await file_watcher._wait_for_file_stability(
+        "/path/to/nonexistent/file.jpg", stability_time=0.2
+    )
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_wait_for_file_stability_custom_stability_time(file_watcher, temp_camera_root):
+    """Test _wait_for_file_stability respects custom stability_time parameter."""
+    import time
+
+    camera_dir = temp_camera_root / "camera1"
+    file_path = camera_dir / "custom_time.txt"
+    file_path.write_text("content")
+
+    start = time.monotonic()
+
+    # With very short stability time, should return quickly
+    result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.1)
+
+    elapsed = time.monotonic() - start
+
+    assert result is True
+    # Should complete in roughly stability_time + 1 check interval
+    assert elapsed < 1.0
+
+
+@pytest.mark.asyncio
+async def test_wait_for_file_stability_default_stability_time(temp_camera_root, mock_redis_client):
+    """Test _wait_for_file_stability uses default stability_time of 2.0 seconds."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    file_path = camera_dir / "default_time.txt"
+    file_path.write_text("content")
+
+    # Create a mock to verify timing behavior
+    import time
+
+    start = time.monotonic()
+
+    result = await watcher._wait_for_file_stability(str(file_path))
+
+    elapsed = time.monotonic() - start
+
+    assert result is True
+    # With 2.0s stability time and 0.5s check interval, takes at least 2.0s
+    assert elapsed >= 2.0
+
+
+@pytest.mark.asyncio
+async def test_process_file_waits_for_stability(temp_camera_root, mock_redis_client):
+    """Test that _process_file calls stability check before processing."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "stability_test.jpg"
+    create_valid_test_image(image_path)
+
+    # Mock the stability check
+    with patch.object(
+        watcher, "_wait_for_file_stability", new_callable=AsyncMock
+    ) as mock_stability:
+        mock_stability.return_value = True
+
+        await watcher._process_file(str(image_path))
+
+        # Stability check should be called
+        mock_stability.assert_awaited_once_with(str(image_path))
+
+        # File should be queued (stability check passed)
+        mock_redis_client.add_to_queue_safe.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_process_file_skips_unstable_file(temp_camera_root, mock_redis_client, caplog):
+    """Test that _process_file skips files that never stabilize."""
+    import logging
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "unstable_test.jpg"
+    create_valid_test_image(image_path)
+
+    # Mock the stability check to return False (file never stabilized)
+    with patch.object(
+        watcher, "_wait_for_file_stability", new_callable=AsyncMock
+    ) as mock_stability:
+        mock_stability.return_value = False
+
+        with caplog.at_level(logging.WARNING):
+            await watcher._process_file(str(image_path))
+
+        # Stability check should be called
+        mock_stability.assert_awaited_once()
+
+        # File should NOT be queued (stability check failed)
+        mock_redis_client.add_to_queue_safe.assert_not_awaited()
+
+        # Warning should be logged
+        assert any(
+            "never stabilized" in record.message.lower() or "stability" in record.message.lower()
+            for record in caplog.records
+        )
+
+
+@pytest.mark.asyncio
+async def test_file_watcher_stability_time_configurable(temp_camera_root, mock_redis_client):
+    """Test that FileWatcher stability_time is configurable via constructor."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        stability_time=5.0,  # Custom stability time
+    )
+
+    assert watcher.stability_time == 5.0
+
+
+@pytest.mark.asyncio
+async def test_stability_check_file_grows_then_stabilizes(file_watcher, temp_camera_root):
+    """Test stability check handles file that grows then stops (simulating FTP upload)."""
+    camera_dir = temp_camera_root / "camera1"
+    file_path = camera_dir / "growing.bin"
+    file_path.write_bytes(b"x" * 1000)
+
+    async def simulate_upload():
+        """Simulate file being uploaded in chunks."""
+        for i in range(3):
+            await asyncio.sleep(0.15)
+            current_content = file_path.read_bytes()
+            file_path.write_bytes(current_content + b"x" * 1000)
+        # After 3 chunks, stop uploading (file stabilizes)
+
+    # Start simulated upload
+    upload_task = asyncio.create_task(simulate_upload())
+
+    try:
+        # Should detect stability after upload completes
+        result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.5)
+        assert result is True
+    finally:
+        if not upload_task.done():
+            upload_task.cancel()
+            try:
+                await upload_task
+            except asyncio.CancelledError:
+                pass

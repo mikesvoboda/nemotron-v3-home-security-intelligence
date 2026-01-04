@@ -13,7 +13,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
+from backend.api.schemas.detections import (
+    DetectionListResponse,
+    DetectionResponse,
+    DetectionStatsResponse,
+    EnrichmentDataSchema,
+    PersonEnrichmentData,
+    PetEnrichmentData,
+    VehicleEnrichmentData,
+)
 from backend.api.schemas.enrichment import EnrichmentResponse
 from backend.api.validators import validate_date_range
 from backend.core.database import get_db
@@ -196,6 +204,58 @@ async def list_detections(
     }
 
 
+@router.get("/stats", response_model=DetectionStatsResponse)
+async def get_detection_stats(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get aggregate detection statistics including class distribution.
+
+    Returns:
+    - Total detection count
+    - Detection counts grouped by object class (person, car, truck, etc.)
+    - Average confidence score across all detections
+
+    Used by the AI Performance page to display detection class distribution charts.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DetectionStatsResponse with aggregate detection statistics
+    """
+    # Get total count
+    total_query = select(func.count()).select_from(Detection)
+    total_result = await db.execute(total_query)
+    total_detections = total_result.scalar() or 0
+
+    # Get counts by object class using GROUP BY
+    class_query = (
+        select(Detection.object_type, func.count().label("count"))
+        .where(Detection.object_type.isnot(None))
+        .group_by(Detection.object_type)
+        .order_by(func.count().desc())
+    )
+    class_result = await db.execute(class_query)
+    class_rows = class_result.all()
+
+    # Build detections_by_class dict
+    detections_by_class: dict[str, int] = {}
+    for object_type, count in class_rows:
+        if object_type:
+            detections_by_class[object_type] = count
+
+    # Get average confidence
+    avg_query = select(func.avg(Detection.confidence)).where(Detection.confidence.isnot(None))
+    avg_result = await db.execute(avg_query)
+    avg_confidence = avg_result.scalar()
+
+    return {
+        "total_detections": total_detections,
+        "detections_by_class": detections_by_class,
+        "average_confidence": float(avg_confidence) if avg_confidence else None,
+    }
+
+
 @router.get("/{detection_id}", response_model=DetectionResponse)
 async def get_detection(
     detection_id: int,
@@ -280,6 +340,80 @@ def _extract_vehicle_from_enrichment(enrichment_data: dict[str, Any]) -> dict[st
         vehicle_response["damage_types"] = vd.get("damage_types", [])
 
     return vehicle_response
+
+
+def validate_enrichment_data(enrichment_data: dict[str, Any] | None) -> EnrichmentDataSchema | None:
+    """Validate and convert raw enrichment data to typed EnrichmentDataSchema.
+
+    This function converts raw JSONB enrichment data from the database into a
+    typed EnrichmentDataSchema for use in DetectionResponse. It extracts the
+    relevant fields and creates typed models for vehicle, person, and pet data.
+
+    Args:
+        enrichment_data: Raw JSONB enrichment data from the Detection model
+
+    Returns:
+        EnrichmentDataSchema if data exists, None otherwise
+    """
+    if enrichment_data is None:
+        return None
+
+    # Extract vehicle data using typed model
+    vehicle: VehicleEnrichmentData | None = None
+    vehicle_classifications = enrichment_data.get("vehicle_classifications", {})
+    if vehicle_classifications:
+        first_key = next(iter(vehicle_classifications))
+        vc = vehicle_classifications[first_key]
+        vehicle_damage = enrichment_data.get("vehicle_damage", {})
+        has_damage = False
+        if first_key in vehicle_damage:
+            has_damage = vehicle_damage[first_key].get("has_damage", False)
+
+        vehicle = VehicleEnrichmentData(
+            vehicle_type=vc.get("vehicle_type"),
+            vehicle_color=None,  # Color not currently captured in enrichment
+            has_damage=has_damage,
+            is_commercial=vc.get("is_commercial", False),
+        )
+
+    # Extract person data using typed model
+    person: PersonEnrichmentData | None = None
+    clothing_classifications = enrichment_data.get("clothing_classifications", {})
+    if clothing_classifications:
+        first_key = next(iter(clothing_classifications))
+        cc = clothing_classifications[first_key]
+        raw_desc = cc.get("raw_description", "")
+        carrying_str = cc.get("carrying", "")
+        carrying_list = [carrying_str] if carrying_str else []
+
+        person = PersonEnrichmentData(
+            clothing_description=raw_desc if raw_desc else None,
+            action=None,  # Action not in clothing classification
+            carrying=carrying_list,
+            is_suspicious=cc.get("is_suspicious", False),
+        )
+
+    # Extract pet data using typed model
+    pet: PetEnrichmentData | None = None
+    pet_classifications = enrichment_data.get("pet_classifications", {})
+    if pet_classifications:
+        first_key = next(iter(pet_classifications))
+        pc = pet_classifications[first_key]
+        pet = PetEnrichmentData(
+            pet_type=pc.get("animal_type"),
+            breed=None,  # Breed not currently captured
+        )
+
+    # Extract errors (sanitized for API exposure)
+    errors = _sanitize_errors(enrichment_data.get("errors", []))
+
+    return EnrichmentDataSchema(
+        vehicle=vehicle,
+        person=person,
+        pet=pet,
+        weather=None,  # Weather not currently in enrichment pipeline
+        errors=errors,
+    )
 
 
 def _transform_enrichment_data(

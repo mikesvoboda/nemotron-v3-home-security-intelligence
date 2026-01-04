@@ -20,7 +20,6 @@ import HostSystemPanel from './HostSystemPanel';
 import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
-import SeverityConfigPanel from './SeverityConfigPanel';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
@@ -33,12 +32,10 @@ import {
   fetchConfig,
   fetchCircuitBreakers,
   resetCircuitBreaker,
-  fetchSeverityMetadata,
   type GPUStats,
   type TelemetryResponse,
   type ServiceStatus,
   type CircuitBreakersResponse,
-  type SeverityMetadataResponse,
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 
@@ -131,11 +128,6 @@ export default function SystemMonitoringPage() {
   const [circuitBreakers, setCircuitBreakers] = useState<CircuitBreakersResponse | null>(null);
   const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
   const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
-
-  // State for severity metadata
-  const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
-  const [severityLoading, setSeverityLoading] = useState(true);
-  const [severityError, setSeverityError] = useState<string | null>(null);
 
   // Use the health status hook for service health
   const {
@@ -385,26 +377,6 @@ export default function SystemMonitoringPage() {
     }
 
     void loadCircuitBreakers();
-  }, []);
-
-  // Fetch severity metadata
-  useEffect(() => {
-    async function loadSeverityMetadata() {
-      setSeverityLoading(true);
-      setSeverityError(null);
-
-      try {
-        const data = await fetchSeverityMetadata();
-        setSeverityMetadata(data);
-      } catch (err) {
-        console.error('Failed to load severity metadata:', err);
-        setSeverityError(err instanceof Error ? err.message : 'Failed to load severity metadata');
-      } finally {
-        setSeverityLoading(false);
-      }
-    }
-
-    void loadSeverityMetadata();
   }, []);
 
   // Handler for resetting circuit breakers
@@ -735,23 +707,14 @@ export default function SystemMonitoringPage() {
             />
           </div>
 
-          {/* Row 5: Circuit Breakers and Severity Configuration */}
-          <div className="xl:col-span-2">
+          {/* Row 5: Circuit Breakers (full width) */}
+          <div className="lg:col-span-2 xl:col-span-4">
             <CircuitBreakerPanel
               data={circuitBreakers}
               loading={circuitBreakersLoading}
               error={circuitBreakersError}
               onReset={handleResetCircuitBreaker}
               data-testid="circuit-breaker-panel-section"
-            />
-          </div>
-
-          <div className="xl:col-span-2">
-            <SeverityConfigPanel
-              data={severityMetadata}
-              loading={severityLoading}
-              error={severityError}
-              data-testid="severity-config-panel-section"
             />
           </div>
         </div>

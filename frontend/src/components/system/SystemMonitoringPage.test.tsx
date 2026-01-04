@@ -98,10 +98,7 @@ vi.mock('./CircuitBreakerPanel', () => ({
   default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
 }));
 
-vi.mock('./SeverityConfigPanel', () => ({
-  default: () => <div data-testid="severity-config-panel">Severity Config Panel</div>,
-}));
-
+// SeverityConfigPanel was moved to Settings page (NEM-1142)
 // PipelineTelemetry was removed in favor of PipelineMetricsPanel
 
 describe('SystemMonitoringPage', () => {
@@ -196,14 +193,8 @@ describe('SystemMonitoringPage', () => {
       message: 'Reset successful',
     });
 
-    // Mock severity metadata API
-    (api.fetchSeverityMetadata as Mock).mockResolvedValue({
-      definitions: [
-        { severity: 'low', label: 'Low', description: 'Routine', color: '#22c55e', priority: 3, min_score: 0, max_score: 29 },
-        { severity: 'critical', label: 'Critical', description: 'Urgent', color: '#ef4444', priority: 0, min_score: 85, max_score: 100 },
-      ],
-      thresholds: { low_max: 29, medium_max: 59, high_max: 84 },
-    });
+    // SeverityConfigPanel was moved to Settings page (NEM-1142)
+    // fetchSeverityMetadata mock removed
 
     (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
       health: mockHealthResponse,

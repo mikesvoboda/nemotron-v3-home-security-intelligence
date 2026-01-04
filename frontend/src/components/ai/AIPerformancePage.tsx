@@ -232,6 +232,7 @@ export default function AIPerformancePage() {
             {/* Insights Charts */}
             <InsightsCharts
               totalDetections={data.totalDetections}
+              detectionsByClass={data.detectionsByClass}
             />
 
             {/* Model Zoo Section - Status Cards and Latency Chart */}
