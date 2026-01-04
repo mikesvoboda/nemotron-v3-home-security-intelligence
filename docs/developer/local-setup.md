@@ -70,11 +70,15 @@ podman ps
 ### 5. Environment
 
 ```bash
-# Copy example environment
+# Run the setup script to generate .env with secure credentials (recommended)
+./setup.sh
+
+# Or manually copy and edit:
 cp .env.example .env
 
-# Edit as needed
-# DATABASE_URL=postgresql+asyncpg://security:security_dev_password@localhost:5432/security
+# Generate a secure password: openssl rand -base64 32
+# Then edit .env:
+# DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 # REDIS_URL=redis://localhost:6379/0
 ```
 

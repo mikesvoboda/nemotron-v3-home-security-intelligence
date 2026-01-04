@@ -175,6 +175,12 @@ A list of everything the AI identified:
 - Object type (Person, Vehicle, Animal, etc.)
 - Confidence percentage (how sure the AI is)
 
+### AI Enrichment Analysis
+
+Below the Detected Objects list, you may see an **AI Enrichment Analysis** panel with additional context extracted by specialized AI models. This includes vehicle types, person clothing, license plates, pet identification, weather conditions, and image quality.
+
+For detailed information on enrichment data, see [AI Enrichment Data in Event Details](ai-enrichment.md).
+
 ### Notes Section
 
 A text box where you can add your own notes. Click **Save Notes** to store them.
@@ -246,6 +252,7 @@ Mark as Reviewed
 
 ## See Also
 
+- [AI Enrichment Data](ai-enrichment.md) - Detailed AI analysis in event details
 - [Dashboard Basics](dashboard-basics.md) - Main dashboard overview
 - [Risk Levels Reference](../reference/config/risk-levels.md) - Technical details on risk scoring
 - [Troubleshooting Index](../reference/troubleshooting/index.md) - Common problems and solutions

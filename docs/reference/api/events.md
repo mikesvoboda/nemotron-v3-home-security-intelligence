@@ -27,7 +27,7 @@ Returns events with filtering and pagination.
 
 | Parameter     | Type     | Description                                          |
 | ------------- | -------- | ---------------------------------------------------- |
-| `camera_id`   | string   | Filter by camera UUID                                |
+| `camera_id`   | string   | Filter by camera ID (e.g., "front_door")             |
 | `risk_level`  | string   | Filter by level: `low`, `medium`, `high`, `critical` |
 | `start_date`  | datetime | ISO 8601 date/time (events after this time)          |
 | `end_date`    | datetime | ISO 8601 date/time (events before this time)         |
@@ -43,7 +43,7 @@ Returns events with filtering and pagination.
   "events": [
     {
       "id": 1,
-      "camera_id": "uuid-string",
+      "camera_id": "front_door",
       "started_at": "2025-01-15T14:30:00Z",
       "ended_at": "2025-01-15T14:32:00Z",
       "risk_score": 75,
@@ -89,7 +89,7 @@ Returns aggregated event statistics.
   },
   "events_by_camera": [
     {
-      "camera_id": "uuid",
+      "camera_id": "front_door",
       "camera_name": "Front Door",
       "event_count": 45
     }

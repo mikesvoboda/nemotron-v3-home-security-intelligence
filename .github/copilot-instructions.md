@@ -70,7 +70,7 @@ export function EventCard({ event, onSelect }: EventCardProps) {
 
 - Unit tests alongside implementation
 - Integration tests for API endpoints
-- 90%+ coverage requirement
+- 85% unit / 95% combined backend coverage requirement
 - Mock external services in tests
 
 ## Domain Context

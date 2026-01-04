@@ -81,7 +81,7 @@ If tests fail to run:
 
 1. Ensure all dependencies are installed: `npm install`
 2. Clear cache: `rm -rf node_modules && npm install`
-3. Check Node.js version: `node --version` (requires Node.js 18+)
+3. Check Node.js version: `node --version` (requires Node.js 20.19+ or 22.12+)
 
 ## CI/CD Integration
 

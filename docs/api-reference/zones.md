@@ -31,10 +31,10 @@ List all zones for a specific camera.
 
 **Parameters:**
 
-| Name        | Type    | In    | Required | Description                       |
-| ----------- | ------- | ----- | -------- | --------------------------------- |
-| `camera_id` | string  | path  | Yes      | UUID of the camera                |
-| `enabled`   | boolean | query | No       | Filter by enabled/disabled status |
+| Name        | Type    | In    | Required | Description                                                     |
+| ----------- | ------- | ----- | -------- | --------------------------------------------------------------- |
+| `camera_id` | string  | path  | Yes      | Normalized camera ID (e.g., "front_door", "backyard", "garage") |
+| `enabled`   | boolean | query | No       | Filter by enabled/disabled status                               |
 
 **Response:** `200 OK`
 
@@ -42,8 +42,8 @@ List all zones for a specific camera.
 {
   "zones": [
     {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "camera_id": "456e7890-e89b-12d3-a456-426614174000",
+      "id": "zone_entry_1",
+      "camera_id": "front_door",
       "name": "Front Door",
       "zone_type": "entry_point",
       "coordinates": [
@@ -81,10 +81,10 @@ List all zones for a specific camera.
 
 ```bash
 # List all zones for a camera
-curl http://localhost:8000/api/cameras/456e7890-e89b-12d3-a456-426614174000/zones
+curl http://localhost:8000/api/cameras/front_door/zones
 
 # Filter by enabled status
-curl "http://localhost:8000/api/cameras/456e7890-e89b-12d3-a456-426614174000/zones?enabled=true"
+curl "http://localhost:8000/api/cameras/front_door/zones?enabled=true"
 ```
 
 ---
@@ -97,9 +97,9 @@ Create a new zone for a camera.
 
 **Parameters:**
 
-| Name        | Type   | In   | Required | Description        |
-| ----------- | ------ | ---- | -------- | ------------------ |
-| `camera_id` | string | path | Yes      | UUID of the camera |
+| Name        | Type   | In   | Required | Description                                                     |
+| ----------- | ------ | ---- | -------- | --------------------------------------------------------------- |
+| `camera_id` | string | path | Yes      | Normalized camera ID (e.g., "front_door", "backyard", "garage") |
 
 **Request Body:**
 
@@ -136,8 +136,8 @@ Create a new zone for a camera.
 
 ```json
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "camera_id": "456e7890-e89b-12d3-a456-426614174000",
+  "id": "zone_entry_1",
+  "camera_id": "front_door",
   "name": "Front Door",
   "zone_type": "entry_point",
   "coordinates": [
@@ -165,7 +165,7 @@ Create a new zone for a camera.
 **Example Request:**
 
 ```bash
-curl -X POST http://localhost:8000/api/cameras/456e7890-e89b-12d3-a456-426614174000/zones \
+curl -X POST http://localhost:8000/api/cameras/front_door/zones \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Front Door",
@@ -185,17 +185,17 @@ Get a specific zone by ID.
 
 **Parameters:**
 
-| Name        | Type   | In   | Required | Description        |
-| ----------- | ------ | ---- | -------- | ------------------ |
-| `camera_id` | string | path | Yes      | UUID of the camera |
-| `zone_id`   | string | path | Yes      | UUID of the zone   |
+| Name        | Type   | In   | Required | Description                                                     |
+| ----------- | ------ | ---- | -------- | --------------------------------------------------------------- |
+| `camera_id` | string | path | Yes      | Normalized camera ID (e.g., "front_door", "backyard", "garage") |
+| `zone_id`   | string | path | Yes      | Zone ID                                                         |
 
 **Response:** `200 OK`
 
 ```json
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "camera_id": "456e7890-e89b-12d3-a456-426614174000",
+  "id": "zone_entry_1",
+  "camera_id": "front_door",
   "name": "Front Door",
   "zone_type": "entry_point",
   "coordinates": [
@@ -223,7 +223,7 @@ Get a specific zone by ID.
 **Example Request:**
 
 ```bash
-curl http://localhost:8000/api/cameras/456e7890-e89b-12d3-a456-426614174000/zones/123e4567-e89b-12d3-a456-426614174000
+curl http://localhost:8000/api/cameras/front_door/zones/zone_entry_1
 ```
 
 ---
@@ -236,10 +236,10 @@ Update an existing zone. Only provided fields are updated.
 
 **Parameters:**
 
-| Name        | Type   | In   | Required | Description        |
-| ----------- | ------ | ---- | -------- | ------------------ |
-| `camera_id` | string | path | Yes      | UUID of the camera |
-| `zone_id`   | string | path | Yes      | UUID of the zone   |
+| Name        | Type   | In   | Required | Description                                                     |
+| ----------- | ------ | ---- | -------- | --------------------------------------------------------------- |
+| `camera_id` | string | path | Yes      | Normalized camera ID (e.g., "front_door", "backyard", "garage") |
+| `zone_id`   | string | path | Yes      | Zone ID                                                         |
 
 **Request Body:**
 
@@ -266,8 +266,8 @@ Update an existing zone. Only provided fields are updated.
 
 ```json
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "camera_id": "456e7890-e89b-12d3-a456-426614174000",
+  "id": "zone_entry_1",
+  "camera_id": "front_door",
   "name": "Front Door - Updated",
   "zone_type": "entry_point",
   "coordinates": [
@@ -296,7 +296,7 @@ Update an existing zone. Only provided fields are updated.
 **Example Request:**
 
 ```bash
-curl -X PUT http://localhost:8000/api/cameras/456e7890-e89b-12d3-a456-426614174000/zones/123e4567-e89b-12d3-a456-426614174000 \
+curl -X PUT http://localhost:8000/api/cameras/front_door/zones/zone_entry_1 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Front Door - Updated",
@@ -314,10 +314,10 @@ Delete a zone.
 
 **Parameters:**
 
-| Name        | Type   | In   | Required | Description        |
-| ----------- | ------ | ---- | -------- | ------------------ |
-| `camera_id` | string | path | Yes      | UUID of the camera |
-| `zone_id`   | string | path | Yes      | UUID of the zone   |
+| Name        | Type   | In   | Required | Description                                                     |
+| ----------- | ------ | ---- | -------- | --------------------------------------------------------------- |
+| `camera_id` | string | path | Yes      | Normalized camera ID (e.g., "front_door", "backyard", "garage") |
+| `zone_id`   | string | path | Yes      | Zone ID                                                         |
 
 **Response:** `204 No Content`
 
@@ -333,7 +333,7 @@ No response body.
 **Example Request:**
 
 ```bash
-curl -X DELETE http://localhost:8000/api/cameras/456e7890-e89b-12d3-a456-426614174000/zones/123e4567-e89b-12d3-a456-426614174000
+curl -X DELETE http://localhost:8000/api/cameras/front_door/zones/zone_entry_1
 ```
 
 ---
@@ -387,19 +387,19 @@ Full zone response model.
 
 **Source:** [`ZoneResponse`](../../backend/api/schemas/zone.py:240)
 
-| Field         | Type     | Description                            |
-| ------------- | -------- | -------------------------------------- |
-| `id`          | string   | Zone UUID                              |
-| `camera_id`   | string   | Camera ID this zone belongs to         |
-| `name`        | string   | Zone name                              |
-| `zone_type`   | string   | Type of zone                           |
-| `coordinates` | array    | Array of normalized [x, y] points      |
-| `shape`       | string   | Shape of the zone                      |
-| `color`       | string   | Hex color for UI display               |
-| `enabled`     | boolean  | Whether zone is active                 |
-| `priority`    | integer  | Priority for overlapping zones (0-100) |
-| `created_at`  | datetime | Timestamp when zone was created        |
-| `updated_at`  | datetime | Timestamp when zone was last updated   |
+| Field         | Type     | Description                               |
+| ------------- | -------- | ----------------------------------------- |
+| `id`          | string   | Zone ID                                   |
+| `camera_id`   | string   | Normalized camera ID (e.g., "front_door") |
+| `name`        | string   | Zone name                                 |
+| `zone_type`   | string   | Type of zone                              |
+| `coordinates` | array    | Array of normalized [x, y] points         |
+| `shape`       | string   | Shape of the zone                         |
+| `color`       | string   | Hex color for UI display                  |
+| `enabled`     | boolean  | Whether zone is active                    |
+| `priority`    | integer  | Priority for overlapping zones (0-100)    |
+| `created_at`  | datetime | Timestamp when zone was created           |
+| `updated_at`  | datetime | Timestamp when zone was last updated      |
 
 ### ZoneCreate
 

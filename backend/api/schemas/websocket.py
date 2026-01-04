@@ -230,7 +230,7 @@ class WebSocketEventData(BaseModel):
         id: Unique event identifier
         event_id: Legacy alias for id (for backward compatibility)
         batch_id: Detection batch identifier
-        camera_id: UUID of the camera that captured the event
+        camera_id: Normalized camera ID (e.g., "front_door")
         risk_score: Risk assessment score (0-100)
         risk_level: Risk classification (validated against RiskLevel enum)
         summary: Human-readable description of the event
@@ -241,7 +241,7 @@ class WebSocketEventData(BaseModel):
     id: int = Field(..., description="Unique event identifier")
     event_id: int = Field(..., description="Legacy alias for id (backward compatibility)")
     batch_id: str = Field(..., description="Detection batch identifier")
-    camera_id: str = Field(..., description="UUID of the camera that captured the event")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
     risk_score: int = Field(..., ge=0, le=100, description="Risk assessment score (0-100)")
     risk_level: RiskLevel = Field(
         ..., description='Risk classification ("low", "medium", "high", "critical")'
@@ -432,14 +432,14 @@ class WebSocketSceneChangeData(BaseModel):
 
     Fields:
         id: Unique scene change identifier
-        camera_id: UUID of the camera where change was detected
+        camera_id: Normalized camera ID (e.g., "front_door")
         detected_at: ISO 8601 timestamp when the change was detected
         change_type: Type of change (view_blocked, angle_changed, view_tampered, unknown)
         similarity_score: SSIM score (0-1, lower means more different from baseline)
     """
 
     id: int = Field(..., description="Unique scene change identifier")
-    camera_id: str = Field(..., description="UUID of the camera where change was detected")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
     detected_at: str = Field(..., description="ISO 8601 timestamp when the change was detected")
     change_type: str = Field(
         ..., description="Type of change (view_blocked, angle_changed, view_tampered, unknown)"

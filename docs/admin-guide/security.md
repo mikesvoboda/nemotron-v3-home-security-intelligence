@@ -747,8 +747,8 @@ chown app:app data/logs/
 2. **Update regularly:**
 
    ```bash
-   # Python dependencies
-   pip install --upgrade -r requirements.txt
+   # Python dependencies (using uv)
+   uv sync --extra dev --upgrade
 
    # Node dependencies
    cd frontend && npm update

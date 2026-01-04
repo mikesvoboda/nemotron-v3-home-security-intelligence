@@ -366,7 +366,7 @@ See `user-guide/AGENTS.md` for detailed information.
 ### Starting a New Session
 
 1. **Check project status** - Read root `AGENTS.md` or `CLAUDE.md`
-2. **Check available work** - Run `bd ready` or `bd list --label phase-N`
+2. **Check available work** - Use [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) or MCP tools to find available tasks
 3. **Refer to implementation plan** - Find task details and phase breakdown
 4. **Refer to design spec** - Understand architecture/API contracts
 

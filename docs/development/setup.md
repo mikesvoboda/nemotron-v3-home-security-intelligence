@@ -6,7 +6,7 @@ source_refs:
   - scripts/validate.sh:1
   - pyproject.toml:1
   - .pre-commit-config.yaml:1
-  - backend/requirements.txt:1
+  - uv.lock:1
   - frontend/package.json:1
 ---
 
@@ -136,7 +136,9 @@ Key environment variables to configure:
 
 ```bash
 # Database (PostgreSQL required)
-DATABASE_URL=postgresql+asyncpg://security:security_dev_password@localhost:5432/security
+# IMPORTANT: Run ./setup.sh to generate .env with a secure password, or set manually:
+# Generate password: openssl rand -base64 32
+DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -176,7 +178,7 @@ This runs ([scripts/validate.sh](../../scripts/validate.sh:1)):
 1. **Ruff linting** - Python code style
 2. **Ruff formatting** - Python code formatting
 3. **MyPy** - Python type checking
-4. **Pytest** - Backend tests with 90%+ coverage
+4. **Pytest** - Backend tests with 95% combined coverage
 5. **ESLint** - Frontend linting
 6. **TypeScript** - Frontend type checking
 7. **Prettier** - Frontend formatting
@@ -298,7 +300,7 @@ podman-compose -f docker-compose.prod.yml up -d postgres
 Check connection:
 
 ```bash
-psql postgresql://security:security_dev_password@localhost:5432/security
+psql postgresql://security:<your-password>@localhost:5432/security
 ```
 
 ### Import Errors in Tests

@@ -28,12 +28,15 @@ These guides help you understand what you see when you open the app.
 
 **Dashboard Deep Dives (Focused Guides):**
 
-| Guide                                                | Description                            | Time    |
-| ---------------------------------------------------- | -------------------------------------- | ------- |
-| [Dashboard Basics](user/dashboard-basics.md)         | Layout, header, sidebar, quick stats   | ~8 min  |
-| [Viewing Events](user/viewing-events.md)             | Activity feed, timeline, event details | ~10 min |
-| [Understanding Alerts](user/understanding-alerts.md) | Risk levels and how to respond         | ~8 min  |
-| [Dashboard Settings](user/dashboard-settings.md)     | Configuration and quick reference      | ~5 min  |
+| Guide                                                | Description                                      | Time    |
+| ---------------------------------------------------- | ------------------------------------------------ | ------- |
+| [Dashboard Basics](user/dashboard-basics.md)         | Layout, header, sidebar, quick stats             | ~8 min  |
+| [Viewing Events](user/viewing-events.md)             | Activity feed, timeline, event details           | ~10 min |
+| [AI Enrichment Data](user/ai-enrichment.md)          | Advanced AI analysis in event details            | ~8 min  |
+| [AI Audit Dashboard](user/ai-audit.md)               | AI quality metrics and recommendations           | ~8 min  |
+| [Understanding Alerts](user/understanding-alerts.md) | Risk levels and how to respond                   | ~8 min  |
+| [Dashboard Settings](user/dashboard-settings.md)     | Configuration and quick reference                | ~5 min  |
+| [System Monitoring](user/system-monitoring.md)       | System health, circuit breakers, troubleshooting | ~12 min |
 
 ---
 
@@ -179,17 +182,19 @@ The AI is designed to help you, not replace your judgment:
 
 Complete list of guides for using the system:
 
-| Guide                                                        | Description                       |
-| ------------------------------------------------------------ | --------------------------------- |
-| [Getting Started](user-guide/getting-started.md)             | Introduction and first steps      |
-| [Dashboard Overview](user-guide/dashboard-overview.md)       | Main screen layout and components |
-| [Using the Dashboard](user-guide/using-the-dashboard.md)     | Complete feature walkthrough      |
-| [Understanding Alerts](user-guide/understanding-alerts.md)   | Risk levels and how to respond    |
-| [Alerts & Notifications](user-guide/alerts-notifications.md) | Alert page and notification setup |
-| [Event Timeline](user-guide/event-timeline.md)               | Browsing and filtering events     |
-| [Full-Text Search](user-guide/search.md)                     | Finding specific events           |
-| [Settings](user-guide/settings.md)                           | Configuring the system            |
-| [Risk Levels Reference](reference/config/risk-levels.md)     | Official risk score definitions   |
+| Guide                                                        | Description                        |
+| ------------------------------------------------------------ | ---------------------------------- |
+| [Getting Started](user-guide/getting-started.md)             | Introduction and first steps       |
+| [Dashboard Overview](user-guide/dashboard-overview.md)       | Main screen layout and components  |
+| [Using the Dashboard](user-guide/using-the-dashboard.md)     | Complete feature walkthrough       |
+| [Understanding Alerts](user-guide/understanding-alerts.md)   | Risk levels and how to respond     |
+| [Alerts & Notifications](user-guide/alerts-notifications.md) | Alert page and notification setup  |
+| [Event Timeline](user-guide/event-timeline.md)               | Browsing and filtering events      |
+| [Full-Text Search](user-guide/search.md)                     | Finding specific events            |
+| [Settings](user-guide/settings.md)                           | Configuring the system             |
+| [AI Audit Dashboard](user/ai-audit.md)                       | AI quality metrics and auditing    |
+| [System Monitoring](user/system-monitoring.md)               | System health and circuit breakers |
+| [Risk Levels Reference](reference/config/risk-levels.md)     | Official risk score definitions    |
 
 ---
 

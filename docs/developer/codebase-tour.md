@@ -214,8 +214,8 @@ frontend/src/services/
 ai/
 ├── rtdetr/
 │   ├── model.py          # FastAPI server for RT-DETRv2
-│   ├── Dockerfile        # Container build
-│   └── requirements.txt  # PyTorch, transformers
+│   └── Dockerfile        # Container build
+│                         # (Dependencies in pyproject.toml)
 │
 └── nemotron/
     ├── config.json       # llama.cpp configuration

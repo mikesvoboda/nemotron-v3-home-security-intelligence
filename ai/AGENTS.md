@@ -145,7 +145,7 @@ The backend communicates with AI services via HTTP clients:
 | ------------ | --------------------------------------------- | ------------------- |
 | `MODEL_PATH` | `/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | GGUF model path     |
 | `PORT`       | `8091`                                        | Server port         |
-| `GPU_LAYERS` | `30`                                          | Layers on GPU       |
+| `GPU_LAYERS` | `35`                                          | Layers on GPU       |
 | `CTX_SIZE`   | `131072`                                      | Context window size |
 | `PARALLEL`   | `1`                                           | Parallel requests   |
 
@@ -207,7 +207,7 @@ Simple llama-server startup for 4B model:
 Advanced startup for 30B model with auto-recovery:
 
 - Context: 12288 tokens
-- GPU layers: 45
+- GPU layers: 35
 - Startup timeout: 90 seconds
 - Log file: `/tmp/nemotron.log`
 

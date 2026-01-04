@@ -296,7 +296,7 @@ def test_path_traversal_blocked(client, temp_foscam_dir):
 
 ## Coverage Goals
 
-- **Target**: 95%+ for integration paths
+- **Combined Target**: 95%+ for all backend code (unit + integration)
 - **Focus**: Critical user workflows and API contracts
 - **Areas**:
   - All API endpoints (CRUD operations)

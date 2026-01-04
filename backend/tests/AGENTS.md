@@ -62,10 +62,10 @@ pytest backend/tests/benchmarks/ -v --benchmark-only
 ### Parallel execution
 
 ```bash
-# Unit tests: parallel with worksteal scheduler (~10s for 2957 tests)
+# Unit tests: parallel with worksteal scheduler (~10s for 7193 tests)
 uv run pytest backend/tests/unit/ -n auto --dist=worksteal
 
-# Integration tests: serial due to shared database state (~70s for 626 tests)
+# Integration tests: serial due to shared database state (~70s for 1499 tests)
 uv run pytest backend/tests/integration/ -n0
 ```
 
@@ -131,10 +131,12 @@ podman-compose -f docker-compose.prod.yml up -d postgres redis
 pytest backend/tests/ -v
 ```
 
-Default URLs:
+Default URLs (set in `.env` or via `./setup.sh`):
 
-- PostgreSQL: `postgresql+asyncpg://security:security_dev_password@localhost:5432/security`
+- PostgreSQL: `postgresql+asyncpg://security:<your-password>@localhost:5432/security`
 - Redis: `redis://localhost:6379/15` (DB 15 for test isolation)
+
+> **Note:** Tests use the password configured in your `.env` file. Run `./setup.sh` to generate secure credentials.
 
 ### Parallel Test Isolation
 
@@ -161,13 +163,13 @@ Timeouts are applied automatically based on test location:
 
 ## Coverage Requirements
 
-- **Target**: 95%+ coverage for all backend code
-- **CI Enforcement**: `--cov-fail-under=95` in GitHub Actions
+- **Unit Tests**: 85%+ coverage (CI unit test job)
+- **Combined**: 95%+ coverage for all backend code (`pyproject.toml` fail_under)
 - **Reports**: HTML reports via `--cov-report=html`
 
 ## Test Categories
 
-### Unit Tests (`unit/`) - 2957 tests
+### Unit Tests (`unit/`) - 7193 tests
 
 Tests for individual components in isolation with all external dependencies mocked.
 Includes property-based tests using **Hypothesis** for model invariants.
@@ -181,7 +183,7 @@ Categories:
 - **Middleware**: auth, rate limiting, TLS
 - **Alert System**: engine, dedup, models, notification
 
-### Integration Tests (`integration/`) - 626 tests
+### Integration Tests (`integration/`) - 1499 tests
 
 Tests for multi-component workflows with real database and mocked Redis.
 **Must run serially** (`-n0`) due to shared database state.

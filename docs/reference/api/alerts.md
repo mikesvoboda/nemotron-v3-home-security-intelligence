@@ -155,7 +155,7 @@ Tests a rule against historical events without creating alerts.
   "results": [
     {
       "event_id": 1,
-      "camera_id": "uuid",
+      "camera_id": "front_door",
       "risk_score": 65,
       "object_types": ["person"],
       "matches": true,
@@ -179,13 +179,13 @@ Tests a rule against historical events without creating alerts.
 
 ### Filtering Fields
 
-| Field            | Type  | Description                         |
-| ---------------- | ----- | ----------------------------------- |
-| `risk_threshold` | int   | Minimum risk score (0-100)          |
-| `object_types`   | array | Object types to match               |
-| `camera_ids`     | array | Camera UUIDs to match (empty = all) |
-| `zone_ids`       | array | Zone UUIDs to match                 |
-| `min_confidence` | float | Minimum detection confidence        |
+| Field            | Type  | Description                                            |
+| ---------------- | ----- | ------------------------------------------------------ |
+| `risk_threshold` | int   | Minimum risk score (0-100)                             |
+| `object_types`   | array | Object types to match                                  |
+| `camera_ids`     | array | Camera IDs to match (e.g., "front_door") (empty = all) |
+| `zone_ids`       | array | Zone IDs to match                                      |
+| `min_confidence` | float | Minimum detection confidence                           |
 
 ### Schedule
 

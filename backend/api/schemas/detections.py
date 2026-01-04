@@ -145,7 +145,7 @@ class DetectionResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "id": 1,
-                "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+                "camera_id": "front_door",
                 "file_path": "/export/foscam/front_door/20251223_120000.jpg",
                 "file_type": "image/jpeg",
                 "detected_at": "2025-12-23T12:00:00Z",
@@ -183,7 +183,7 @@ class DetectionResponse(BaseModel):
     )
 
     id: int = Field(..., description="Detection ID")
-    camera_id: str = Field(..., description="Camera UUID")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
     file_path: str = Field(..., description="Path to source image or video file")
     file_type: str | None = Field(None, description="MIME type of source file")
     detected_at: datetime = Field(..., description="Timestamp when detection was made")
@@ -221,7 +221,7 @@ class DetectionListResponse(BaseModel):
                 "detections": [
                     {
                         "id": 1,
-                        "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+                        "camera_id": "front_door",
                         "file_path": "/export/foscam/front_door/20251223_120000.jpg",
                         "file_type": "image/jpeg",
                         "detected_at": "2025-12-23T12:00:00Z",

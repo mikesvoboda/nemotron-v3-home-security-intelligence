@@ -199,7 +199,7 @@ Pydantic schemas for queue message payload validation with security validation.
 
 **Fields:**
 
-- `id: str` - Camera UUID
+- `id: str` - Normalized camera ID (e.g., "front_door")
 - `name: str` - Camera name
 - `folder_path: str` - File system path
 - `status: str` - Status (online, offline, error)
@@ -224,7 +224,7 @@ Pydantic schemas for queue message payload validation with security validation.
 **Fields:**
 
 - `id: int` - Event ID
-- `camera_id: str` - Camera UUID
+- `camera_id: str` - Normalized camera ID (e.g., "front_door")
 - `started_at: datetime` - Event start timestamp
 - `ended_at: datetime | None` - Event end timestamp
 - `risk_score: int | None` - Risk score 0-100
@@ -264,7 +264,7 @@ Pydantic schemas for queue message payload validation with security validation.
 
 **Fields:**
 
-- `camera_id: str` - Camera UUID
+- `camera_id: str` - Normalized camera ID (e.g., "front_door")
 - `camera_name: str` - Camera name
 - `event_count: int` - Events for this camera
 
@@ -285,7 +285,7 @@ Pydantic schemas for queue message payload validation with security validation.
 **Fields:**
 
 - `id: int` - Detection ID
-- `camera_id: str` - Camera UUID
+- `camera_id: str` - Normalized camera ID (e.g., "front_door")
 - `file_path: str` - Source image/video path
 - `file_type: str | None` - MIME type
 - `detected_at: datetime` - Detection timestamp
@@ -896,6 +896,228 @@ Configuration status with enabled channels and default settings.
 #### `NotificationHistoryEntry`, `NotificationHistoryResponse`
 
 Notification delivery history.
+
+---
+
+### AI Audit Schemas (`ai_audit.py`)
+
+Pydantic schemas for AI pipeline audit and self-evaluation endpoints.
+
+**Schemas:**
+
+| Schema                    | Purpose                                           |
+| ------------------------- | ------------------------------------------------- |
+| `ModelContributions`      | Flags for which AI models contributed to an event |
+| `QualityScores`           | Self-evaluation quality scores (1-5 scale)        |
+| `PromptImprovements`      | Suggestions for improving prompts                 |
+| `EventAuditResponse`      | Full audit response for a single event            |
+| `AuditStatsResponse`      | Aggregate audit statistics                        |
+| `ModelLeaderboardEntry`   | Single entry in model contribution leaderboard    |
+| `LeaderboardResponse`     | Model leaderboard ranked by contribution rate     |
+| `RecommendationItem`      | Single prompt improvement recommendation          |
+| `RecommendationsResponse` | Aggregated recommendations response               |
+| `BatchAuditRequest`       | Request for batch audit processing                |
+| `BatchAuditResponse`      | Response for batch audit request                  |
+
+---
+
+### Baseline Schemas (`baseline.py`)
+
+Pydantic schemas for camera baseline activity patterns and anomaly detection.
+
+**Schemas:**
+
+| Schema                    | Purpose                                                        |
+| ------------------------- | -------------------------------------------------------------- |
+| `DeviationInterpretation` | Enum for deviation interpretation (normal to far_above_normal) |
+| `HourlyPattern`           | Activity pattern for a specific hour                           |
+| `DailyPattern`            | Activity pattern for a specific day of the week                |
+| `ObjectBaseline`          | Baseline statistics for a specific object class                |
+| `CurrentDeviation`        | Current activity deviation from established baseline           |
+| `BaselineSummaryResponse` | Comprehensive baseline data for a camera                       |
+| `AnomalyEvent`            | Single anomaly event detected for a camera                     |
+| `AnomalyListResponse`     | Response for camera anomaly list endpoint                      |
+
+---
+
+### Clips Schemas (`clips.py`)
+
+Pydantic schemas for event clip generation and retrieval.
+
+**Schemas:**
+
+| Schema                 | Purpose                                                      |
+| ---------------------- | ------------------------------------------------------------ |
+| `ClipStatus`           | Enum for clip generation status (pending, completed, failed) |
+| `ClipInfoResponse`     | Response for clip info (availability, URL, duration)         |
+| `ClipGenerateRequest`  | Request for clip generation with time offsets                |
+| `ClipGenerateResponse` | Response after clip generation                               |
+
+---
+
+### Enrichment Data Schemas (`enrichment_data.py`)
+
+Pydantic schemas for validating the enrichment_data JSONB field in detections. Handles raw database format with graceful legacy data handling.
+
+**Schemas:**
+
+| Schema                       | Purpose                                          |
+| ---------------------------- | ------------------------------------------------ |
+| `LicensePlateItem`           | Single license plate detection with OCR          |
+| `FaceItem`                   | Single face detection with bounding box          |
+| `ViolenceDetectionData`      | Violence detection results                       |
+| `VehicleClassificationData`  | Vehicle type classification per-detection        |
+| `VehicleDamageData`          | Vehicle damage detection per-detection           |
+| `ClothingClassificationData` | Clothing analysis per-detection                  |
+| `ClothingSegmentationData`   | Clothing segmentation per-detection              |
+| `PetClassificationData`      | Pet classification per-detection                 |
+| `ImageQualityData`           | Image quality assessment results                 |
+| `EnrichmentDataSchema`       | Complete enrichment_data JSONB validation schema |
+| `EnrichmentValidationResult` | Validation result with warnings and errors       |
+
+**Functions:**
+
+| Function                   | Purpose                                               |
+| -------------------------- | ----------------------------------------------------- |
+| `validate_enrichment_data` | Validate enrichment data gracefully (with warnings)   |
+| `coerce_enrichment_data`   | Convenience function returning validated/coerced data |
+
+---
+
+### Enrichment Schemas (`enrichment.py`)
+
+Pydantic schemas for enrichment API endpoints - structured access to 18+ vision model results.
+
+**Schemas:**
+
+| Schema                     | Purpose                                           |
+| -------------------------- | ------------------------------------------------- |
+| `LicensePlateEnrichment`   | License plate detection and OCR results           |
+| `FaceEnrichment`           | Face detection results                            |
+| `VehicleEnrichment`        | Vehicle classification results                    |
+| `ClothingEnrichment`       | Clothing classification and segmentation          |
+| `ViolenceEnrichment`       | Violence detection results                        |
+| `WeatherEnrichment`        | Weather classification results                    |
+| `PoseEnrichment`           | Pose estimation results (placeholder)             |
+| `DepthEnrichment`          | Depth estimation results (placeholder)            |
+| `ImageQualityEnrichment`   | Image quality assessment                          |
+| `PetEnrichment`            | Pet classification for false positive reduction   |
+| `EnrichmentResponse`       | Structured enrichment data for a single detection |
+| `EventEnrichmentsResponse` | Enrichment data for all detections in an event    |
+
+---
+
+### Entity Schemas (`entities.py`)
+
+Pydantic schemas for entity re-identification API endpoints - tracking persons/vehicles across cameras.
+
+**Schemas:**
+
+| Schema                  | Purpose                                            |
+| ----------------------- | -------------------------------------------------- |
+| `EntityAppearance`      | Single entity appearance at a specific time/camera |
+| `EntitySummary`         | Entity overview without full appearance history    |
+| `EntityDetail`          | Detailed entity info including all appearances     |
+| `EntityListResponse`    | Paginated entity list response                     |
+| `EntityHistoryResponse` | Entity appearance history response                 |
+
+---
+
+### LLM Schemas (`llm.py`)
+
+Pydantic schemas for LLM (Nemotron) response validation with automatic coercion.
+
+**Enums:**
+
+| Enum                 | Purpose                                   |
+| -------------------- | ----------------------------------------- |
+| `RiskLevel`          | Risk levels (low, medium, high, critical) |
+| `ThreatLevel`        | Threat level for individual entities      |
+| `EntityType`         | Entity types (person, vehicle, pet)       |
+| `FlagSeverity`       | Security flag severity levels             |
+| `FlagType`           | Types of security flags                   |
+| `DetectionQuality`   | Detection quality assessment              |
+| `WeatherImpact`      | Weather impact on detection accuracy      |
+| `EnrichmentCoverage` | Level of enrichment data coverage         |
+
+**Schemas:**
+
+| Schema                  | Purpose                                         |
+| ----------------------- | ----------------------------------------------- |
+| `LLMEntity`             | Individual entity detected in security event    |
+| `LLMFlag`               | Security flag raised during analysis            |
+| `LLMConfidenceFactors`  | Confidence factors affecting reliability        |
+| `LLMRiskResponse`       | Primary schema for LLM risk assessment response |
+| `LLMResponseParseError` | Exception for unparseable LLM responses         |
+
+**Functions:**
+
+| Function                      | Purpose                              |
+| ----------------------------- | ------------------------------------ |
+| `validate_llm_response`       | Validate and parse LLM response data |
+| `infer_risk_level_from_score` | Infer risk level from numeric score  |
+
+---
+
+### Prompt Management Schemas (`prompt_management.py`)
+
+Pydantic schemas for prompt management API - configuration, versioning, testing, and import/export.
+
+**Enums:**
+
+| Enum          | Purpose                                                                    |
+| ------------- | -------------------------------------------------------------------------- |
+| `AIModelEnum` | Supported AI models (nemotron, florence2, yolo_world, xclip, fashion_clip) |
+
+**Model-specific Config Schemas:**
+
+| Schema              | Purpose                                   |
+| ------------------- | ----------------------------------------- |
+| `NemotronConfig`    | Nemotron risk analysis configuration      |
+| `Florence2Config`   | Florence-2 scene analysis configuration   |
+| `YoloWorldConfig`   | YOLO-World custom object detection config |
+| `XClipConfig`       | X-CLIP action recognition configuration   |
+| `FashionClipConfig` | Fashion-CLIP clothing analysis config     |
+
+**Request/Response Schemas:**
+
+| Schema                         | Purpose                                   |
+| ------------------------------ | ----------------------------------------- |
+| `ModelPromptConfig`            | Configuration for a specific AI model     |
+| `AllPromptsResponse`           | Response with all model configurations    |
+| `PromptUpdateRequest`          | Request to update a model's configuration |
+| `PromptTestRequest`            | Request to test a prompt modification     |
+| `PromptTestResult`             | Result of a prompt test                   |
+| `PromptVersionInfo`            | Information about a single version        |
+| `PromptHistoryResponse`        | Version history response                  |
+| `PromptRestoreRequest`         | Request to restore a version              |
+| `PromptRestoreResponse`        | Response after restoring a version        |
+| `PromptsExportResponse`        | Export of all configurations              |
+| `PromptsImportRequest`         | Request to import configurations          |
+| `PromptsImportResponse`        | Response after importing                  |
+| `PromptDiffEntry`              | Diff entry for a single model             |
+| `PromptsImportPreviewRequest`  | Request to preview import changes         |
+| `PromptsImportPreviewResponse` | Response with preview of changes          |
+
+---
+
+### Scene Change Schemas (`scene_change.py`)
+
+Pydantic schemas for scene change detection and acknowledgement.
+
+**Enums:**
+
+| Enum              | Purpose                                                              |
+| ----------------- | -------------------------------------------------------------------- |
+| `SceneChangeType` | Type of change (view_blocked, angle_changed, view_tampered, unknown) |
+
+**Schemas:**
+
+| Schema                           | Purpose                                     |
+| -------------------------------- | ------------------------------------------- |
+| `SceneChangeResponse`            | Single scene change with similarity score   |
+| `SceneChangeListResponse`        | List of scene changes for a camera          |
+| `SceneChangeAcknowledgeResponse` | Response after acknowledging a scene change |
 
 ---
 
