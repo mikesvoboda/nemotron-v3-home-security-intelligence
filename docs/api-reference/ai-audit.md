@@ -617,6 +617,7 @@ Response for batch audit request.
 
 ## Related Documentation
 
+- [Prompt Management API](prompts.md) - Manage AI model prompt configurations
 - [Events API](events.md) - Events are the primary data source for audits
 - [Enrichment API](enrichment.md) - Vision model results tracked by audits
 - [Model Zoo API](model-zoo.md) - AI model status monitoring

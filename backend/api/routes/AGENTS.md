@@ -28,7 +28,7 @@ Camera management CRUD endpoints and snapshot serving.
 | Method | Path                                | Purpose                                         |
 | ------ | ----------------------------------- | ----------------------------------------------- |
 | GET    | `/api/cameras`                      | List all cameras with optional status filter    |
-| GET    | `/api/cameras/{camera_id}`          | Get a specific camera by UUID                   |
+| GET    | `/api/cameras/{camera_id}`          | Get a specific camera by ID                     |
 | GET    | `/api/cameras/{camera_id}/snapshot` | Get latest snapshot image                       |
 | POST   | `/api/cameras`                      | Create a new camera                             |
 | PATCH  | `/api/cameras/{camera_id}`          | Update an existing camera                       |
@@ -60,7 +60,7 @@ Security event management, querying, and statistics.
 
 **Query Parameters (List):**
 
-- `camera_id` - Filter by camera UUID
+- `camera_id` - Filter by camera ID (e.g., "front_door")
 - `risk_level` - Filter by risk level (low, medium, high, critical)
 - `start_date` / `end_date` - Date range filter (ISO format)
 - `reviewed` - Filter by reviewed status
@@ -90,7 +90,7 @@ Object detection listing and thumbnail image serving.
 
 **Query Parameters (List):**
 
-- `camera_id` - Filter by camera UUID
+- `camera_id` - Filter by camera ID (e.g., "front_door")
 - `object_type` - Filter by object type (person, car, etc.)
 - `start_date` / `end_date` - Date range filter
 - `min_confidence` - Minimum confidence (0.0-1.0)
@@ -122,7 +122,7 @@ System and frontend log management.
 
 - `level` - Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `component` - Filter by component/module name
-- `camera_id` - Filter by associated camera UUID
+- `camera_id` - Filter by associated camera ID (e.g., "front_door")
 - `source` - Filter by source (backend, frontend)
 - `search` - Search in message text (case-insensitive)
 - `start_date` / `end_date` - Date range filter

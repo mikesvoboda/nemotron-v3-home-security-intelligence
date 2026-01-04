@@ -27,7 +27,7 @@ Returns detections with filtering and pagination.
 
 | Parameter        | Type     | Description                                  |
 | ---------------- | -------- | -------------------------------------------- |
-| `camera_id`      | string   | Filter by camera UUID                        |
+| `camera_id`      | string   | Filter by camera ID (e.g., "front_door")     |
 | `object_type`    | string   | Filter by type: `person`, `car`, `dog`, etc. |
 | `start_date`     | datetime | ISO 8601 date/time (detections after this)   |
 | `end_date`       | datetime | ISO 8601 date/time (detections before this)  |
@@ -42,7 +42,7 @@ Returns detections with filtering and pagination.
   "detections": [
     {
       "id": 1,
-      "camera_id": "uuid-string",
+      "camera_id": "front_door",
       "detected_at": "2025-01-15T14:30:15Z",
       "object_type": "person",
       "confidence": 0.95,

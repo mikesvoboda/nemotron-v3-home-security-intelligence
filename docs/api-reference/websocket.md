@@ -78,7 +78,7 @@ Sent when a new security event is created:
     "id": 1,
     "event_id": 1,
     "batch_id": "batch_abc123",
-    "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+    "camera_id": "front_door",
     "risk_score": 75,
     "risk_level": "high",
     "summary": "Person detected at front door",
@@ -94,7 +94,7 @@ Sent when a new security event is created:
 | `id`         | integer | Unique event identifier                         |
 | `event_id`   | integer | Legacy alias for id (backward compatibility)    |
 | `batch_id`   | string  | Detection batch identifier                      |
-| `camera_id`  | string  | UUID of camera that captured event              |
+| `camera_id`  | string  | Normalized camera ID (e.g., "front_door")       |
 | `risk_score` | integer | Risk assessment score (0-100)                   |
 | `risk_level` | string  | Risk level: `low`, `medium`, `high`, `critical` |
 | `summary`    | string  | Human-readable event description                |

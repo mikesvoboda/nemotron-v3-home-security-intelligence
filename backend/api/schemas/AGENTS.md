@@ -199,7 +199,7 @@ Pydantic schemas for queue message payload validation with security validation.
 
 **Fields:**
 
-- `id: str` - Camera UUID
+- `id: str` - Normalized camera ID (e.g., "front_door")
 - `name: str` - Camera name
 - `folder_path: str` - File system path
 - `status: str` - Status (online, offline, error)
@@ -224,7 +224,7 @@ Pydantic schemas for queue message payload validation with security validation.
 **Fields:**
 
 - `id: int` - Event ID
-- `camera_id: str` - Camera UUID
+- `camera_id: str` - Normalized camera ID (e.g., "front_door")
 - `started_at: datetime` - Event start timestamp
 - `ended_at: datetime | None` - Event end timestamp
 - `risk_score: int | None` - Risk score 0-100
@@ -264,7 +264,7 @@ Pydantic schemas for queue message payload validation with security validation.
 
 **Fields:**
 
-- `camera_id: str` - Camera UUID
+- `camera_id: str` - Normalized camera ID (e.g., "front_door")
 - `camera_name: str` - Camera name
 - `event_count: int` - Events for this camera
 
@@ -285,7 +285,7 @@ Pydantic schemas for queue message payload validation with security validation.
 **Fields:**
 
 - `id: int` - Detection ID
-- `camera_id: str` - Camera UUID
+- `camera_id: str` - Normalized camera ID (e.g., "front_door")
 - `file_path: str` - Source image/video path
 - `file_type: str | None` - MIME type
 - `detected_at: datetime` - Detection timestamp

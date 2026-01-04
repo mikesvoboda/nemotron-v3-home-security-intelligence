@@ -38,7 +38,7 @@ List detections with optional filtering and pagination.
 
 | Name             | Type     | In    | Required | Description                                                       |
 | ---------------- | -------- | ----- | -------- | ----------------------------------------------------------------- |
-| `camera_id`      | string   | query | No       | Filter by camera UUID                                             |
+| `camera_id`      | string   | query | No       | Filter by camera ID (e.g., "front_door")                          |
 | `object_type`    | string   | query | No       | Filter by object type: `person`, `car`, `vehicle`, `animal`, etc. |
 | `start_date`     | datetime | query | No       | Filter detections after this date (ISO 8601)                      |
 | `end_date`       | datetime | query | No       | Filter detections before this date (ISO 8601)                     |
@@ -53,7 +53,7 @@ List detections with optional filtering and pagination.
   "detections": [
     {
       "id": 1,
-      "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+      "camera_id": "front_door",
       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
       "file_type": "image/jpeg",
       "detected_at": "2025-12-23T12:00:00Z",
@@ -84,7 +84,7 @@ List detections with optional filtering and pagination.
 curl http://localhost:8000/api/detections
 
 # Filter by camera and object type
-curl "http://localhost:8000/api/detections?camera_id=123e4567&object_type=person"
+curl "http://localhost:8000/api/detections?camera_id=front_door&object_type=person"
 
 # Filter by confidence
 curl "http://localhost:8000/api/detections?min_confidence=0.8"
@@ -112,7 +112,7 @@ Get a specific detection by ID.
 ```json
 {
   "id": 1,
-  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "camera_id": "front_door",
   "file_path": "/export/foscam/front_door/20251223_120000.jpg",
   "file_type": "image/jpeg",
   "detected_at": "2025-12-23T12:00:00Z",
@@ -136,7 +136,7 @@ Get a specific detection by ID.
 | Field            | Type     | Description                                    |
 | ---------------- | -------- | ---------------------------------------------- |
 | `id`             | integer  | Detection ID                                   |
-| `camera_id`      | string   | Camera UUID                                    |
+| `camera_id`      | string   | Normalized camera ID (e.g., "front_door")      |
 | `file_path`      | string   | Path to source image or video file             |
 | `file_type`      | string   | MIME type of source file (nullable)            |
 | `detected_at`    | datetime | Timestamp when detection was made              |
@@ -354,25 +354,25 @@ Full detection response model.
 
 **Source:** [`DetectionResponse`](../../backend/api/schemas/detections.py:8)
 
-| Field            | Type     | Description                        |
-| ---------------- | -------- | ---------------------------------- |
-| `id`             | integer  | Detection ID                       |
-| `camera_id`      | string   | Camera UUID                        |
-| `file_path`      | string   | Path to source image or video file |
-| `file_type`      | string   | MIME type of source file           |
-| `detected_at`    | datetime | Detection timestamp                |
-| `object_type`    | string   | Type of detected object            |
-| `confidence`     | float    | Detection confidence (0-1)         |
-| `bbox_x`         | integer  | Bounding box X coordinate          |
-| `bbox_y`         | integer  | Bounding box Y coordinate          |
-| `bbox_width`     | integer  | Bounding box width                 |
-| `bbox_height`    | integer  | Bounding box height                |
-| `thumbnail_path` | string   | Path to thumbnail image            |
-| `media_type`     | string   | `image` or `video`                 |
-| `duration`       | float    | Video duration in seconds          |
-| `video_codec`    | string   | Video codec                        |
-| `video_width`    | integer  | Video width in pixels              |
-| `video_height`   | integer  | Video height in pixels             |
+| Field            | Type     | Description                               |
+| ---------------- | -------- | ----------------------------------------- |
+| `id`             | integer  | Detection ID                              |
+| `camera_id`      | string   | Normalized camera ID (e.g., "front_door") |
+| `file_path`      | string   | Path to source image or video file        |
+| `file_type`      | string   | MIME type of source file                  |
+| `detected_at`    | datetime | Detection timestamp                       |
+| `object_type`    | string   | Type of detected object                   |
+| `confidence`     | float    | Detection confidence (0-1)                |
+| `bbox_x`         | integer  | Bounding box X coordinate                 |
+| `bbox_y`         | integer  | Bounding box Y coordinate                 |
+| `bbox_width`     | integer  | Bounding box width                        |
+| `bbox_height`    | integer  | Bounding box height                       |
+| `thumbnail_path` | string   | Path to thumbnail image                   |
+| `media_type`     | string   | `image` or `video`                        |
+| `duration`       | float    | Video duration in seconds                 |
+| `video_codec`    | string   | Video codec                               |
+| `video_width`    | integer  | Video width in pixels                     |
+| `video_height`   | integer  | Video height in pixels                    |
 
 ### DetectionListResponse
 

@@ -40,7 +40,7 @@ List events with optional filtering and pagination.
 
 | Name          | Type     | In    | Required | Description                                                   |
 | ------------- | -------- | ----- | -------- | ------------------------------------------------------------- |
-| `camera_id`   | string   | query | No       | Filter by camera UUID                                         |
+| `camera_id`   | string   | query | No       | Filter by camera ID (e.g., "front_door")                      |
 | `risk_level`  | string   | query | No       | Filter by risk level: `low`, `medium`, `high`, `critical`     |
 | `start_date`  | datetime | query | No       | Filter events starting after this date (ISO 8601)             |
 | `end_date`    | datetime | query | No       | Filter events starting before this date (ISO 8601)            |
@@ -56,7 +56,7 @@ List events with optional filtering and pagination.
   "events": [
     {
       "id": 1,
-      "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+      "camera_id": "front_door",
       "started_at": "2025-12-23T12:00:00Z",
       "ended_at": "2025-12-23T12:02:30Z",
       "risk_score": 75,
@@ -81,7 +81,7 @@ List events with optional filtering and pagination.
 curl http://localhost:8000/api/events
 
 # Filter by camera and risk level
-curl "http://localhost:8000/api/events?camera_id=123e4567&risk_level=high"
+curl "http://localhost:8000/api/events?camera_id=front_door&risk_level=high"
 
 # Filter by date range
 curl "http://localhost:8000/api/events?start_date=2025-12-23T00:00:00Z&end_date=2025-12-24T00:00:00Z"
@@ -121,12 +121,12 @@ Get aggregated event statistics.
   },
   "events_by_camera": [
     {
-      "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+      "camera_id": "front_door",
       "camera_name": "Front Door",
       "event_count": 30
     },
     {
-      "camera_id": "456e7890-e89b-12d3-a456-426614174001",
+      "camera_id": "back_door",
       "camera_name": "Back Door",
       "event_count": 14
     }
@@ -183,7 +183,7 @@ Full-text search events using PostgreSQL full-text search.
   "results": [
     {
       "id": 1,
-      "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+      "camera_id": "front_door",
       "camera_name": "Front Door",
       "started_at": "2025-12-23T12:00:00Z",
       "ended_at": "2025-12-23T12:02:30Z",
@@ -311,7 +311,7 @@ Get a specific event by ID.
 ```json
 {
   "id": 1,
-  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "camera_id": "front_door",
   "started_at": "2025-12-23T12:00:00Z",
   "ended_at": "2025-12-23T12:02:30Z",
   "risk_score": 75,
@@ -372,7 +372,7 @@ Update an event's review status and/or notes.
 ```json
 {
   "id": 1,
-  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "camera_id": "front_door",
   "started_at": "2025-12-23T12:00:00Z",
   "ended_at": "2025-12-23T12:02:30Z",
   "risk_score": 75,
@@ -431,7 +431,7 @@ Get all detections associated with an event.
   "detections": [
     {
       "id": 1,
-      "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+      "camera_id": "front_door",
       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
       "file_type": "image/jpeg",
       "detected_at": "2025-12-23T12:00:00Z",
@@ -475,7 +475,7 @@ Full event response model.
 | Field             | Type           | Description                                     |
 | ----------------- | -------------- | ----------------------------------------------- |
 | `id`              | integer        | Event ID                                        |
-| `camera_id`       | string         | Camera UUID                                     |
+| `camera_id`       | string         | Normalized camera ID (e.g., "front_door")       |
 | `started_at`      | datetime       | Event start timestamp                           |
 | `ended_at`        | datetime       | Event end timestamp (nullable)                  |
 | `risk_score`      | integer        | Risk score 0-100 (nullable)                     |

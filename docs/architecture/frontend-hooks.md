@@ -1,6 +1,6 @@
 ---
 title: Frontend Hooks Architecture
-last_updated: 2025-12-30
+last_updated: 2026-01-04
 source_refs:
   - frontend/src/hooks/useWebSocket.ts:useWebSocket:22
   - frontend/src/hooks/useWebSocketStatus.ts:useWebSocketStatus:33
@@ -10,6 +10,14 @@ source_refs:
   - frontend/src/hooks/useGpuHistory.ts:useGpuHistory:55
   - frontend/src/hooks/useHealthStatus.ts:useHealthStatus:55
   - frontend/src/hooks/useStorageStats.ts:useStorageStats:66
+  - frontend/src/hooks/webSocketManager.ts:webSocketManager:420
+  - frontend/src/hooks/useSidebarContext.ts:useSidebarContext:12
+  - frontend/src/hooks/usePerformanceMetrics.ts:usePerformanceMetrics
+  - frontend/src/hooks/useAIMetrics.ts:useAIMetrics
+  - frontend/src/hooks/useServiceStatus.ts:useServiceStatus:115
+  - frontend/src/hooks/useDetectionEnrichment.ts:useDetectionEnrichment
+  - frontend/src/hooks/useModelZooStatus.ts:useModelZooStatus
+  - frontend/src/hooks/useSavedSearches.ts:useSavedSearches
 ---
 
 # Frontend Hooks Architecture
@@ -20,10 +28,12 @@ The frontend uses custom React hooks to manage real-time WebSocket connections, 
 
 The hook architecture follows a layered design:
 
-1. **Foundation Layer**: Low-level WebSocket connection management (`useWebSocket`)
-2. **Enhanced Layer**: Connection status tracking (`useWebSocketStatus`)
-3. **Domain Layer**: Feature-specific hooks for events, system status, and multi-channel management
-4. **REST Layer**: Polling-based hooks for health, GPU history, and storage stats
+1. **Infrastructure Layer**: Singleton WebSocket connection manager with deduplication (`webSocketManager`)
+2. **Foundation Layer**: Low-level WebSocket connection management (`useWebSocket`)
+3. **Enhanced Layer**: Connection status tracking (`useWebSocketStatus`)
+4. **Domain Layer**: Feature-specific hooks for events, system status, AI metrics, and multi-channel management
+5. **REST Layer**: Polling-based hooks for health, GPU history, storage stats, and AI model status
+6. **UI Layer**: Context hooks and localStorage persistence (`useSidebarContext`, `useSavedSearches`)
 
 All WebSocket URLs are constructed via `buildWebSocketUrl()` from the API service, which respects environment variables (`VITE_WS_BASE_URL`, `VITE_API_KEY`) and provides SSR-safe connection handling.
 
@@ -31,6 +41,10 @@ All WebSocket URLs are constructed via `buildWebSocketUrl()` from the API servic
 
 ```mermaid
 flowchart TB
+    subgraph Infrastructure["Infrastructure Layer"]
+        webSocketManager["webSocketManager<br/>Connection pooling singleton<br/>Reference counting, heartbeat"]
+    end
+
     subgraph Foundation["Foundation Layer"]
         useWebSocket["useWebSocket<br/>Low-level WS manager<br/>Auto-reconnect, message handling"]
     end
@@ -43,23 +57,38 @@ flowchart TB
         useEventStream["useEventStream<br/>Security events<br/>/ws/events"]
         useSystemStatus["useSystemStatus<br/>System health updates<br/>/ws/system"]
         useConnectionStatus["useConnectionStatus<br/>Multi-channel manager<br/>Events + System channels"]
+        useServiceStatus["useServiceStatus<br/>Service health tracking<br/>rtdetr, nemotron, redis"]
+        usePerformanceMetrics["usePerformanceMetrics<br/>Real-time performance<br/>Multi-resolution history"]
     end
 
     subgraph REST["REST Layer - Polling"]
         useGpuHistory["useGpuHistory<br/>GPU metrics history<br/>GET /api/system/gpu"]
         useHealthStatus["useHealthStatus<br/>Health monitoring<br/>GET /api/system/health"]
         useStorageStats["useStorageStats<br/>Storage metrics<br/>GET /api/system/storage"]
+        useAIMetrics["useAIMetrics<br/>AI pipeline metrics<br/>Multiple endpoints"]
+        useModelZooStatus["useModelZooStatus<br/>Model registry status<br/>GET /api/system/models"]
+        useDetectionEnrichment["useDetectionEnrichment<br/>Detection details<br/>GET /api/detections/:id/enrichment"]
     end
 
+    subgraph UI["UI Layer"]
+        useSidebarContext["useSidebarContext<br/>Mobile sidebar state<br/>Context-based"]
+        useSavedSearches["useSavedSearches<br/>Persisted searches<br/>localStorage"]
+    end
+
+    webSocketManager --> useWebSocket
     useWebSocket --> useWebSocketStatus
     useWebSocketStatus --> useConnectionStatus
     useWebSocket --> useEventStream
     useWebSocket --> useSystemStatus
+    useWebSocket --> useServiceStatus
+    useWebSocket --> usePerformanceMetrics
 
+    style Infrastructure fill:#ffcdd2
     style Foundation fill:#e1f5ff
     style Enhanced fill:#b3e5fc
     style Domain fill:#81d4fa
     style REST fill:#4fc3f7
+    style UI fill:#c8e6c9
 ```
 
 ## Hooks Reference
@@ -642,6 +671,198 @@ return (
 
 ---
 
+### webSocketManager
+
+**Purpose**: Singleton WebSocket connection manager that provides connection deduplication with reference counting.
+
+**Source**: `frontend/src/hooks/webSocketManager.ts:420`
+
+**Features**:
+
+- Connection deduplication: Multiple components subscribing to the same URL share one underlying WebSocket
+- Reference counting: Connections are only closed when all subscribers disconnect
+- Exponential backoff with jitter for reconnection attempts (base interval \* 2^attempt + random jitter)
+- Connection timeout handling (configurable, closes connection if CONNECTING state exceeds timeout)
+- Heartbeat support: Automatically responds to server ping messages with pong
+- Last heartbeat timestamp tracking for connection health monitoring
+- SSR-safe: Checks for `window.WebSocket` availability before connecting
+
+**Type Definitions**:
+
+```typescript
+type MessageHandler = (data: unknown) => void;
+type OpenHandler = () => void;
+type CloseHandler = () => void;
+type ErrorHandler = (error: Event) => void;
+type HeartbeatHandler = () => void;
+type MaxRetriesHandler = () => void;
+
+interface Subscriber {
+  id: string;
+  onMessage?: MessageHandler;
+  onOpen?: OpenHandler;
+  onClose?: CloseHandler;
+  onError?: ErrorHandler;
+  onHeartbeat?: HeartbeatHandler;
+  onMaxRetriesExhausted?: MaxRetriesHandler;
+}
+
+interface ConnectionConfig {
+  reconnect: boolean;
+  reconnectInterval: number;
+  maxReconnectAttempts: number;
+  connectionTimeout: number;
+  autoRespondToHeartbeat: boolean;
+}
+
+// Connection state query result
+interface ConnectionState {
+  isConnected: boolean;
+  reconnectCount: number;
+  hasExhaustedRetries: boolean;
+  lastHeartbeat: Date | null;
+}
+```
+
+**API Methods**:
+
+| Method                               | Description                                                |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `subscribe(url, subscriber, config)` | Subscribe to a WebSocket URL, returns unsubscribe function |
+| `send(url, data)`                    | Send a message on a connection, returns boolean success    |
+| `getConnectionState(url)`            | Get current connection state and retry info                |
+| `reconnect(url)`                     | Force reconnection (resets retry counter)                  |
+| `getSubscriberCount(url)`            | Get number of active subscribers for a URL                 |
+| `hasConnection(url)`                 | Check if a connection exists for a URL                     |
+| `clearAll()`                         | Close all connections                                      |
+| `reset()`                            | Clear all connections and reset subscriber counter         |
+
+**Example**:
+
+```typescript
+import { webSocketManager, generateSubscriberId } from './webSocketManager';
+
+// Subscribe to a WebSocket URL
+const subscriberId = generateSubscriberId();
+const unsubscribe = webSocketManager.subscribe(
+  'ws://localhost:8000/ws/events',
+  {
+    id: subscriberId,
+    onMessage: (data) => console.log('Received:', data),
+    onOpen: () => console.log('Connected'),
+    onClose: () => console.log('Disconnected'),
+    onHeartbeat: () => console.log('Heartbeat received'),
+    onMaxRetriesExhausted: () => console.log('Max retries reached'),
+  },
+  {
+    reconnect: true,
+    reconnectInterval: 3000,
+    maxReconnectAttempts: 5,
+    connectionTimeout: 10000,
+    autoRespondToHeartbeat: true,
+  }
+);
+
+// Send a message
+webSocketManager.send('ws://localhost:8000/ws/events', { type: 'subscribe', channel: 'alerts' });
+
+// Check connection state
+const state = webSocketManager.getConnectionState('ws://localhost:8000/ws/events');
+console.log(`Connected: ${state.isConnected}, Retries: ${state.reconnectCount}`);
+
+// Unsubscribe when done
+unsubscribe();
+```
+
+---
+
+### useSidebarContext
+
+**Purpose**: React context hook for managing mobile sidebar state in the Layout component.
+
+**Source**: `frontend/src/hooks/useSidebarContext.ts:12`
+
+**Features**:
+
+- Provides mobile menu open/close state
+- Toggle function for hamburger menu interaction
+- Must be used within Layout component (throws error otherwise)
+- Context-based state sharing between Layout and child components
+
+**Type Definitions**:
+
+```typescript
+interface SidebarContextType {
+  isMobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
+}
+```
+
+**Example**:
+
+```typescript
+import { useSidebarContext, SidebarContext } from './useSidebarContext';
+
+// In the Layout component (provider)
+function Layout({ children }) {
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const contextValue = {
+    isMobileMenuOpen,
+    setMobileMenuOpen,
+    toggleMobileMenu: () => setMobileMenuOpen((prev) => !prev),
+  };
+
+  return (
+    <SidebarContext.Provider value={contextValue}>
+      <Header />
+      <Sidebar />
+      <main>{children}</main>
+    </SidebarContext.Provider>
+  );
+}
+
+// In a child component (consumer)
+function Header() {
+  const { isMobileMenuOpen, toggleMobileMenu } = useSidebarContext();
+
+  return (
+    <header>
+      <button onClick={toggleMobileMenu} aria-expanded={isMobileMenuOpen}>
+        {isMobileMenuOpen ? 'Close Menu' : 'Open Menu'}
+      </button>
+    </header>
+  );
+}
+
+// In the Sidebar component (consumer)
+function Sidebar() {
+  const { isMobileMenuOpen, setMobileMenuOpen } = useSidebarContext();
+
+  return (
+    <aside className={isMobileMenuOpen ? 'sidebar-open' : 'sidebar-closed'}>
+      <nav>
+        <a href="/" onClick={() => setMobileMenuOpen(false)}>
+          Dashboard
+        </a>
+        <a href="/events" onClick={() => setMobileMenuOpen(false)}>
+          Events
+        </a>
+      </nav>
+    </aside>
+  );
+}
+```
+
+**Related Components**:
+
+- `Layout` - Provides the SidebarContext
+- `Header` - Contains hamburger menu button
+- `Sidebar` - Navigation menu that responds to mobile state
+
+---
+
 ## Usage Patterns
 
 ### Real-time Data Flow
@@ -819,16 +1040,26 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 
 ### Test Files
 
-| Hook                  | Test File                     | Coverage                                               |
-| --------------------- | ----------------------------- | ------------------------------------------------------ |
-| `useWebSocket`        | `useWebSocket.test.ts`        | Connection lifecycle, message handling, reconnects     |
-| `useWebSocketStatus`  | `useWebSocketStatus.test.ts`  | Channel status tracking, reconnect state               |
-| `useConnectionStatus` | `useConnectionStatus.test.ts` | Multi-channel status aggregation                       |
-| `useEventStream`      | `useEventStream.test.ts`      | Event buffering, envelope parsing, non-event filtering |
-| `useSystemStatus`     | `useSystemStatus.test.ts`     | Backend message transformation, type guards            |
-| `useGpuHistory`       | `useGpuHistory.test.ts`       | Polling, history buffer, start/stop controls           |
-| `useHealthStatus`     | `useHealthStatus.test.ts`     | REST polling, error handling, refresh                  |
-| `useStorageStats`     | `useStorageStats.test.ts`     | Storage polling, cleanup preview                       |
+| Hook/Module              | Test File                          | Coverage                                               |
+| ------------------------ | ---------------------------------- | ------------------------------------------------------ |
+| `useWebSocket`           | `useWebSocket.test.ts`             | Connection lifecycle, message handling, reconnects     |
+| `useWebSocket`           | `useWebSocket.timeout.test.ts`     | Timeout handling edge cases                            |
+| `webSocketManager`       | `webSocketManager.test.ts`         | Connection pooling, reference counting, subscriptions  |
+| `webSocketManager`       | `webSocketManager.timeout.test.ts` | Timeout and reconnection edge cases                    |
+| `useWebSocketStatus`     | `useWebSocketStatus.test.ts`       | Channel status tracking, reconnect state               |
+| `useConnectionStatus`    | `useConnectionStatus.test.ts`      | Multi-channel status aggregation                       |
+| `useEventStream`         | `useEventStream.test.ts`           | Event buffering, envelope parsing, non-event filtering |
+| `useSystemStatus`        | `useSystemStatus.test.ts`          | Backend message transformation, type guards            |
+| `useGpuHistory`          | `useGpuHistory.test.ts`            | Polling, history buffer, start/stop controls           |
+| `useHealthStatus`        | `useHealthStatus.test.ts`          | REST polling, error handling, refresh                  |
+| `useStorageStats`        | `useStorageStats.test.ts`          | Storage polling, cleanup preview                       |
+| `usePerformanceMetrics`  | `usePerformanceMetrics.test.ts`    | WebSocket filtering, multi-resolution history buffers  |
+| `useAIMetrics`           | `useAIMetrics.test.ts`             | Multi-endpoint polling, metrics aggregation            |
+| `useServiceStatus`       | `useServiceStatus.test.ts`         | Service health tracking, derived flags                 |
+| `useDetectionEnrichment` | `useDetectionEnrichment.test.ts`   | Conditional fetching, refetch capability               |
+| `useModelZooStatus`      | `useModelZooStatus.test.ts`        | Model registry polling, VRAM stats calculation         |
+| `useSavedSearches`       | `useSavedSearches.test.ts`         | localStorage persistence, cross-tab sync               |
+| `useSidebarContext`      | `useSidebarContext.test.tsx`       | Context provider/consumer, error handling              |
 
 ### Testing Best Practices
 

@@ -24,9 +24,41 @@ The Model Zoo system manages a collection of specialized AI models that enhance 
 - **Depth estimation** - Distance context for detections
 - **Pet classification** - False positive reduction
 
-**VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB, separate from the RT-DETRv2 detector (~650 MB) and Nemotron LLM (~21,700 MB) allocations.
+## VRAM Management
 
-**Loading Strategy**: Models are loaded sequentially (one at a time) to prevent VRAM fragmentation and ensure stable operation.
+The Model Zoo operates within a constrained VRAM budget, carefully coordinated with other GPU-resident services:
+
+| Component     | VRAM Allocation | Notes                           |
+| ------------- | --------------- | ------------------------------- |
+| Nemotron LLM  | ~21,700 MB      | Always loaded, risk analysis    |
+| RT-DETRv2     | ~650 MB         | Always loaded, object detection |
+| **Model Zoo** | **1,650 MB**    | On-demand models, shared budget |
+| **Total**     | ~24,000 MB      | RTX A5500 GPU capacity          |
+
+### Loading Strategy
+
+Models are loaded **sequentially** (one at a time) to:
+
+1. **Prevent VRAM fragmentation** - Sequential loading avoids memory fragmentation that can occur with concurrent allocations
+2. **Ensure stable operation** - A single loading operation is easier to roll back if it fails
+3. **Simplify error handling** - Clear ownership of VRAM during load operations
+4. **Enable predictable timing** - Pipeline can estimate enrichment completion times
+
+### Model Prioritization
+
+When multiple models are needed for batch processing, they are loaded based on:
+
+1. **Detection type triggers** - Person detections trigger face/pose models, vehicle detections trigger license plate models
+2. **VRAM fit** - Smaller models may be prioritized when VRAM is constrained
+3. **Configuration** - Disabled models are never loaded
+
+### Automatic Unloading
+
+Models are automatically unloaded when:
+
+- The enrichment pipeline completes processing for a batch
+- A higher-priority model needs the VRAM
+- The system enters degraded mode to free resources
 
 ## Endpoints Overview
 
@@ -94,13 +126,46 @@ Get the current status of all models in the Model Zoo.
 
 **Model Status Values:**
 
-| Status     | Description                                   |
-| ---------- | --------------------------------------------- |
-| `loaded`   | Model is currently loaded in GPU memory       |
-| `unloaded` | Model is not loaded but available for loading |
-| `disabled` | Model is disabled and will not be loaded      |
-| `loading`  | Model is currently being loaded               |
-| `error`    | Model failed to load due to an error          |
+| Status     | Description                                   | UI Color | Action Available     |
+| ---------- | --------------------------------------------- | -------- | -------------------- |
+| `loaded`   | Model is currently loaded in GPU memory       | Green    | Using VRAM           |
+| `unloaded` | Model is not loaded but available for loading | Gray     | Can be loaded        |
+| `disabled` | Model is disabled and will not be loaded      | Yellow   | Requires config edit |
+| `loading`  | Model is currently being loaded               | Blue     | In progress          |
+| `error`    | Model failed to load due to an error          | Red      | Check logs           |
+
+**State Transitions:**
+
+```
+                    ┌──────────────┐
+                    │   disabled   │ (config: enabled=false)
+                    └──────────────┘
+                           │
+                           │ (enable in config)
+                           ▼
+    ┌─────────────────────────────────────────────────────┐
+    │                                                     │
+    │  ┌──────────┐   load    ┌─────────┐   success  ┌──────────┐
+    │  │ unloaded │ ────────► │ loading │ ─────────► │  loaded  │
+    │  └──────────┘           └─────────┘            └──────────┘
+    │       ▲                      │                      │
+    │       │                      │ failure              │ unload
+    │       │                      ▼                      │
+    │       │                ┌─────────┐                  │
+    │       └────────────────│  error  │◄─────────────────┘
+    │          (retry)       └─────────┘    (on error)
+    │                                                     │
+    └─────────────────────────────────────────────────────┘
+```
+
+**Error Recovery:**
+
+When a model enters the `error` state:
+
+1. The error is logged with details about the failure
+2. The model remains available for retry on the next batch
+3. Subsequent batches will attempt to reload the model
+4. Persistent errors may indicate missing model files or VRAM exhaustion
 
 **Model Categories:**
 
@@ -449,6 +514,114 @@ async function fetchModelLatency(modelName, windowMinutes = 60) {
     p95Latency: validSnapshots.map((s) => s.stats.p95_ms),
   };
 }
+```
+
+---
+
+## Architecture
+
+### Model Zoo in the Pipeline
+
+The Model Zoo is invoked during the enrichment phase of batch processing:
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  File        │     │   RT-DETRv2  │     │    Batch     │     │  Enrichment  │
+│  Watcher     │────►│  Detection   │────►│  Aggregator  │────►│  Pipeline    │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────┬───────┘
+                                                                       │
+                                                                       ▼
+                                                               ┌───────────────┐
+                                                               │   Model Zoo   │
+                                                               │ ┌───────────┐ │
+                                                               │ │License Plt│ │
+                                                               │ │Face Detect│ │
+                                                               │ │VitPose    │ │
+                                                               │ │DepthAnyt. │ │
+                                                               │ │Fashion    │ │
+                                                               │ │Violence   │ │
+                                                               │ │...+12 more│ │
+                                                               │ └───────────┘ │
+                                                               └───────┬───────┘
+                                                                       │
+                                                                       ▼
+                                                               ┌───────────────┐
+                                                               │   Nemotron    │
+                                                               │  LLM Analysis │
+                                                               └───────────────┘
+```
+
+### Detection Triggers
+
+Each detection type triggers specific Model Zoo models:
+
+| Detection Label | Triggered Models                                                     |
+| --------------- | -------------------------------------------------------------------- |
+| `person`        | yolo11-face, vitpose-small, violence-detection, segformer-b2-clothes |
+| `car`, `truck`  | yolo11-license-plate, paddleocr, vehicle-segment-classification      |
+| `motorcycle`    | yolo11-license-plate, paddleocr                                      |
+| `cat`, `dog`    | pet-classifier                                                       |
+| (all frames)    | depth-anything-v2-small, weather-classification                      |
+
+### Context Manager Pattern
+
+Models are loaded via async context managers that guarantee cleanup:
+
+```python
+# Internal enrichment pipeline usage (not exposed via API)
+async with model_zoo.load("yolo11-license-plate") as model:
+    # Model is loaded and ready
+    results = await model.predict(image)
+# Model is automatically unloaded when context exits
+```
+
+This pattern ensures:
+
+- VRAM is always released, even on exceptions
+- Reference counting tracks concurrent usage
+- Multiple enrichments can share a loaded model
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Symptom                       | Likely Cause                     | Resolution                            |
+| ----------------------------- | -------------------------------- | ------------------------------------- |
+| All models show `unloaded`    | No batches processed yet         | Wait for detection activity           |
+| Model stuck in `loading`      | Large model, slow storage        | Check disk I/O, wait for completion   |
+| Model shows `error`           | Missing files or VRAM exhaustion | Check logs, verify model files exist  |
+| High latency spikes           | Model loading during inference   | Expected on first use, cache warms up |
+| `vram_used_mb` exceeds budget | Concurrent model loads (bug)     | Report issue, restart backend         |
+
+### Log Inspection
+
+Model Zoo operations are logged at INFO level:
+
+```bash
+# View Model Zoo logs
+docker logs backend 2>&1 | grep -i "model_zoo\|ModelManager"
+
+# Example output:
+# INFO  model_zoo: Loading model yolo11-license-plate from /models/...
+# INFO  model_zoo: Successfully loaded yolo11-license-plate (300 MB VRAM)
+# INFO  model_zoo: Unloading model yolo11-license-plate
+```
+
+### Metrics
+
+Model Zoo metrics are exposed via Prometheus at `/metrics`:
+
+```
+# Model load counts
+model_zoo_loads_total{model="yolo11-license-plate"} 42
+
+# Model latency histogram
+model_zoo_inference_seconds_bucket{model="yolo11-license-plate",le="0.1"} 35
+
+# VRAM usage gauge
+model_zoo_vram_used_bytes 314572800
 ```
 
 ---

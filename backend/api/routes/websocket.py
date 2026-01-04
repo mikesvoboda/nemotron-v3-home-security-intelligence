@@ -214,7 +214,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
        - id: Unique event identifier
        - event_id: Legacy alias for id (for backward compatibility)
        - batch_id: Detection batch identifier
-       - camera_id: UUID of the camera that captured the event
+       - camera_id: Normalized camera ID (e.g., "front_door")
        - risk_score: Risk assessment score (0-100)
        - risk_level: Risk classification ("low", "medium", "high", "critical")
        - summary: Human-readable description of the event

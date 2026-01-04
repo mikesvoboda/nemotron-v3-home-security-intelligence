@@ -13,7 +13,7 @@ class EventResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "id": 1,
-                "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+                "camera_id": "front_door",
                 "started_at": "2025-12-23T12:00:00Z",
                 "ended_at": "2025-12-23T12:02:30Z",
                 "risk_score": 75,
@@ -31,7 +31,7 @@ class EventResponse(BaseModel):
     )
 
     id: int = Field(..., description="Event ID")
-    camera_id: str = Field(..., description="Camera UUID")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
     started_at: datetime = Field(..., description="Event start timestamp")
     ended_at: datetime | None = Field(None, description="Event end timestamp")
     risk_score: int | None = Field(None, description="Risk score (0-100)")
@@ -77,7 +77,7 @@ class EventListResponse(BaseModel):
                 "events": [
                     {
                         "id": 1,
-                        "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+                        "camera_id": "front_door",
                         "started_at": "2025-12-23T12:00:00Z",
                         "ended_at": "2025-12-23T12:02:30Z",
                         "risk_score": 75,
@@ -131,14 +131,14 @@ class EventsByCamera(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+                "camera_id": "front_door",
                 "camera_name": "Front Door",
                 "event_count": 15,
             }
         }
     )
 
-    camera_id: str = Field(..., description="Camera UUID")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
     camera_name: str = Field(..., description="Camera name")
     event_count: int = Field(..., description="Number of events for this camera")
 
@@ -158,12 +158,12 @@ class EventStatsResponse(BaseModel):
                 },
                 "events_by_camera": [
                     {
-                        "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+                        "camera_id": "front_door",
                         "camera_name": "Front Door",
                         "event_count": 30,
                     },
                     {
-                        "camera_id": "456e7890-e89b-12d3-a456-426614174001",
+                        "camera_id": "back_door",
                         "camera_name": "Back Door",
                         "event_count": 14,
                     },

@@ -110,7 +110,7 @@ class CameraResponse(BaseModel):
         from_attributes=True,
         json_schema_extra={
             "example": {
-                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "id": "front_door",
                 "name": "Front Door Camera",
                 "folder_path": "/export/foscam/front_door",
                 "status": "online",
@@ -120,7 +120,9 @@ class CameraResponse(BaseModel):
         },
     )
 
-    id: str = Field(..., description="Camera UUID")
+    id: str = Field(
+        ..., description="Normalized camera ID derived from folder name (e.g., 'front_door')"
+    )
     name: str = Field(..., description="Camera name")
     folder_path: str = Field(..., description="File system path for camera uploads")
     status: CameraStatus = Field(..., description="Camera status (online, offline, error, unknown)")
@@ -136,7 +138,7 @@ class CameraListResponse(BaseModel):
             "example": {
                 "cameras": [
                     {
-                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                        "id": "front_door",
                         "name": "Front Door Camera",
                         "folder_path": "/export/foscam/front_door",
                         "status": "online",
