@@ -67,13 +67,6 @@ function formatNumber(n: number): string {
 }
 
 /**
- * Format number with locale-aware thousand separators (e.g., 1,611)
- */
-function formatNumberWithCommas(n: number): string {
-  return n.toLocaleString();
-}
-
-/**
  * QueueDepthCard - Shows a single queue's depth with status
  */
 interface QueueDepthCardProps {
@@ -190,16 +183,16 @@ export default function PipelineHealthPanel({
           <div className="space-y-4">
             {/* Pipeline Errors */}
             {totalErrors > 0 && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4" data-testid="pipeline-errors-section">
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <Text className="font-medium text-red-400">Pipeline Errors</Text>
-                  <Badge color="red" data-testid="pipeline-errors-badge">{formatNumberWithCommas(totalErrors)} total</Badge>
+                  <Badge color="red">{totalErrors} total</Badge>
                 </div>
                 <div className="space-y-1">
                   {Object.entries(pipelineErrors).map(([type, count]) => (
                     <div key={type} className="flex justify-between text-sm">
                       <Text className="text-gray-400">{type.replace(/_/g, ' ')}</Text>
-                      <Text className="text-red-300">{formatNumberWithCommas(count)}</Text>
+                      <Text className="text-red-300">{count}</Text>
                     </div>
                   ))}
                 </div>
@@ -208,16 +201,16 @@ export default function PipelineHealthPanel({
 
             {/* Queue Overflows */}
             {totalOverflows > 0 && (
-              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4" data-testid="queue-overflows-section">
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <Text className="font-medium text-yellow-400">Queue Overflows</Text>
-                  <Badge color="yellow" data-testid="queue-overflows-badge">{formatNumberWithCommas(totalOverflows)} total</Badge>
+                  <Badge color="yellow">{totalOverflows} total</Badge>
                 </div>
                 <div className="space-y-1">
                   {Object.entries(queueOverflows).map(([queue, count]) => (
                     <div key={queue} className="flex justify-between text-sm">
                       <Text className="text-gray-400">{queue}</Text>
-                      <Text className="text-yellow-300">{formatNumberWithCommas(count)}</Text>
+                      <Text className="text-yellow-300">{count}</Text>
                     </div>
                   ))}
                 </div>
@@ -232,13 +225,13 @@ export default function PipelineHealthPanel({
                     <Inbox className="h-4 w-4 text-orange-400" />
                     <Text className="font-medium text-orange-400">Dead Letter Queue</Text>
                   </div>
-                  <Badge color="orange" data-testid="dlq-total-badge">{formatNumberWithCommas(totalDlqItems)} items</Badge>
+                  <Badge color="orange" data-testid="dlq-total-badge">{totalDlqItems.toLocaleString()} items</Badge>
                 </div>
                 <div className="space-y-1">
                   {Object.entries(dlqItems).map(([queue, count]) => (
                     <div key={queue} className="flex justify-between text-sm" data-testid={`dlq-queue-${queue}`}>
                       <Text className="text-gray-400">{formatDlqQueueName(queue)}</Text>
-                      <Text className="text-orange-300">{formatNumberWithCommas(count)}</Text>
+                      <Text className="text-orange-300">{count.toLocaleString()}</Text>
                     </div>
                   ))}
                 </div>

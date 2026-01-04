@@ -178,7 +178,8 @@ async def create_camera(
     if existing_name_camera:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Camera with name '{camera_data.name}' already exists",
+            detail=f"Camera with name '{camera_data.name}' already exists "
+            f"(id: {existing_name_camera.id})",
         )
 
     # Check if a camera with the same folder_path already exists
@@ -190,7 +191,8 @@ async def create_camera(
     if existing_path_camera:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Camera with folder_path '{camera_data.folder_path}' already exists",
+            detail=f"Camera with folder_path '{camera_data.folder_path}' already exists "
+            f"(id: {existing_path_camera.id})",
         )
 
     # Create camera using normalized ID from the name
