@@ -267,6 +267,7 @@ class FileWatcher:
         camera_creator: Callable[[Camera], Any] | None = None,
         use_polling: bool | None = None,
         polling_interval: float | None = None,
+        stability_time: float = 2.0,
     ):
         """Initialize file watcher.
 
@@ -285,6 +286,9 @@ class FileWatcher:
                         If None, reads from settings.file_watcher_polling.
             polling_interval: Polling interval in seconds when using PollingObserver.
                              If None, reads from settings.file_watcher_polling_interval.
+            stability_time: Time in seconds that file size must remain unchanged
+                           before considering the file stable (for FTP uploads).
+                           Default is 2.0 seconds.
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
@@ -293,6 +297,7 @@ class FileWatcher:
         self.queue_name = queue_name
         self.auto_create_cameras = auto_create_cameras
         self._camera_creator = camera_creator
+        self.stability_time = stability_time
 
         # Track which cameras we've already tried to create (avoid repeated attempts)
         self._known_cameras: set[str] = set()
@@ -448,6 +453,69 @@ class FileWatcher:
             logger.warning(f"Could not extract camera ID from path: {file_path}")
             return None, None
 
+    async def _wait_for_file_stability(
+        self, file_path: str, stability_time: float | None = None
+    ) -> bool:
+        """Wait until file size stops changing for stability_time seconds.
+
+        This ensures FTP uploads are complete before processing. The method polls
+        the file size and waits until it remains unchanged for the specified
+        stability period.
+
+        Args:
+            file_path: Path to the file to check
+            stability_time: Time in seconds the file must be stable.
+                           If None, uses self.stability_time (default 2.0s).
+
+        Returns:
+            True if file became stable, False if file never stabilized,
+            was deleted, or doesn't exist.
+        """
+        if stability_time is None:
+            stability_time = self.stability_time
+
+        # Skip stability check if disabled (stability_time <= 0)
+        if stability_time <= 0:
+            return True
+
+        last_size: int = -1
+        stable_since: float | None = None
+        check_interval: float = 0.5  # Check every 0.5 seconds
+        max_checks: int = 20  # Maximum ~10 seconds total wait time
+
+        for _ in range(max_checks):
+            try:
+                current_size = Path(file_path).stat().st_size
+            except (FileNotFoundError, OSError):
+                # File was deleted or became inaccessible
+                logger.warning(
+                    f"File disappeared during stability check: {file_path}",
+                    extra={"file_path": file_path},
+                )
+                return False
+
+            if current_size == last_size:
+                # Size unchanged - check if stable long enough
+                if stable_since is not None and time.monotonic() - stable_since >= stability_time:
+                    logger.debug(
+                        f"File stable after {stability_time:.1f}s: {file_path}",
+                        extra={"file_path": file_path, "file_size": current_size},
+                    )
+                    return True
+            else:
+                # Size changed - reset stability timer
+                last_size = current_size
+                stable_since = time.monotonic()
+
+            await asyncio.sleep(check_interval)
+
+        # Reached max checks without stabilizing
+        logger.warning(
+            f"File never stabilized after {max_checks * check_interval:.1f}s: {file_path}",
+            extra={"file_path": file_path, "last_size": last_size},
+        )
+        return False
+
     async def _ensure_camera_exists(self, camera_id: str, folder_name: str) -> None:
         """Ensure camera record exists in database, creating if necessary.
 
@@ -560,6 +628,14 @@ class FileWatcher:
             logger.debug(
                 f"Skipping unsupported file: {file_path}",
                 extra={"camera_id": camera_id, "file_path": file_path},
+            )
+            return
+
+        # Wait for file stability (ensures FTP uploads are complete)
+        if not await self._wait_for_file_stability(file_path):
+            logger.warning(
+                f"Skipping file that never stabilized (may still be uploading): {file_path}",
+                extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
             )
             return
 

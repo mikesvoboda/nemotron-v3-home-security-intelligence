@@ -867,6 +867,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/detections/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Detection Stats
+         * @description Get aggregate detection statistics including class distribution.
+         *
+         *     Returns:
+         *     - Total detection count
+         *     - Detection counts grouped by object class (person, car, truck, etc.)
+         *     - Average confidence score across all detections
+         *
+         *     Used by the AI Performance page to display detection class distribution charts.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         DetectionStatsResponse with aggregate detection statistics
+         */
+        get: operations["get_detection_stats_api_detections_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections/{detection_id}": {
         parameters: {
             query?: never;
@@ -4841,18 +4874,22 @@ export interface components {
          *       "confidence": 0.95,
          *       "detected_at": "2025-12-23T12:00:00Z",
          *       "enrichment_data": {
+         *         "errors": [],
          *         "person": {
          *           "action": "walking",
-         *           "carrying": "backpack",
-         *           "clothing": "dark jacket",
-         *           "confidence": 0.95
+         *           "carrying": [
+         *             "backpack"
+         *           ],
+         *           "clothing_description": "dark jacket",
+         *           "is_suspicious": false
          *         },
          *         "vehicle": {
-         *           "color": "blue",
-         *           "confidence": 0.92,
-         *           "damage": [],
-         *           "type": "sedan"
-         *         }
+         *           "has_damage": false,
+         *           "is_commercial": false,
+         *           "vehicle_color": "blue",
+         *           "vehicle_type": "sedan"
+         *         },
+         *         "weather": "sunny"
          *       },
          *       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
          *       "file_type": "image/jpeg",
@@ -4957,6 +4994,42 @@ export interface components {
             enrichment_data?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * DetectionStatsResponse
+         * @description Schema for detection statistics response.
+         *
+         *     Returns aggregate statistics about detections including counts by object class.
+         *     Used by the AI Performance page to display detection class distribution.
+         * @example {
+         *       "average_confidence": 0.87,
+         *       "detections_by_class": {
+         *         "bicycle": 1,
+         *         "car": 20,
+         *         "person": 23,
+         *         "truck": 6
+         *       },
+         *       "total_detections": 107
+         *     }
+         */
+        DetectionStatsResponse: {
+            /**
+             * Total Detections
+             * @description Total number of detections
+             */
+            total_detections: number;
+            /**
+             * Detections By Class
+             * @description Detection counts grouped by object class (e.g., person, car, truck)
+             */
+            detections_by_class: {
+                [key: string]: number;
+            };
+            /**
+             * Average Confidence
+             * @description Average confidence score across all detections
+             */
+            average_confidence?: number | null;
         };
         /**
          * DeviationInterpretation
@@ -9830,6 +9903,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_detection_stats_api_detections_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionStatsResponse"];
                 };
             };
         };

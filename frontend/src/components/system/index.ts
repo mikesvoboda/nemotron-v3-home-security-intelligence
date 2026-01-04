@@ -46,9 +46,10 @@ export type {
   ThroughputPoint,
 } from './PipelineMetricsPanel';
 
-// Circuit Breaker and Severity panels (NEM-500)
+// Circuit Breaker panel (NEM-500)
 export { default as CircuitBreakerPanel } from './CircuitBreakerPanel';
 export type { CircuitBreakerPanelProps } from './CircuitBreakerPanel';
 
+// SeverityConfigPanel kept for potential other uses, but severity editing moved to Settings page (NEM-1142)
 export { default as SeverityConfigPanel } from './SeverityConfigPanel';
 export type { SeverityConfigPanelProps } from './SeverityConfigPanel';
