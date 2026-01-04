@@ -69,8 +69,8 @@ workflows/
 
 **Matrix Build:**
 
-- Backend: `./backend/Dockerfile.prod`
-- Frontend: `./frontend/Dockerfile.prod`
+- Backend: `./backend/Dockerfile` (target: `prod`)
+- Frontend: `./frontend/Dockerfile` (target: `prod`)
 
 **Permissions:**
 

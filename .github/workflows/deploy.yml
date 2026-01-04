@@ -23,10 +23,12 @@ jobs:
         image:
           - name: backend
             context: .
-            dockerfile: ./backend/Dockerfile.prod
+            dockerfile: ./backend/Dockerfile
+            target: prod
           - name: frontend
             context: ./frontend
-            dockerfile: ./frontend/Dockerfile.prod
+            dockerfile: ./frontend/Dockerfile
+            target: prod
         platform:
           - runner: ubuntu-latest
             arch: linux/amd64
@@ -76,6 +78,7 @@ jobs:
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
+          target: ${{ matrix.image.target }}
           platforms: ${{ matrix.platform.arch }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
