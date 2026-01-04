@@ -1751,7 +1751,7 @@ class TestHealthCheckTimeout:
         )
 
         async def slow_health_check() -> bool:
-            await asyncio.sleep(1.0)  # Will timeout
+            await asyncio.sleep(0.2)  # Longer than 0.05s timeout
             return True
 
         manager.register_service(
