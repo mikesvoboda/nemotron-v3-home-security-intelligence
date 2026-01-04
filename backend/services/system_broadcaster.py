@@ -119,6 +119,9 @@ class SystemBroadcaster:
             name="system_broadcaster",
         )
 
+        # Degraded mode flag - set when all recovery attempts have been exhausted
+        self._is_degraded = False
+
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
 
@@ -168,6 +171,18 @@ class SystemBroadcaster:
             Current WebSocketCircuitState (CLOSED, OPEN, or HALF_OPEN)
         """
         return self._circuit_breaker.get_state()
+
+    def is_degraded(self) -> bool:
+        """Check if the broadcaster is in degraded mode.
+
+        Degraded mode is entered when all recovery attempts have been exhausted.
+        In this state, the broadcaster cannot reliably broadcast real-time updates
+        but may still accept WebSocket connections.
+
+        Returns:
+            True if broadcaster is in degraded mode, False otherwise
+        """
+        return self._is_degraded
 
     async def connect(self, websocket: WebSocket) -> None:
         """Add a WebSocket connection to the broadcaster.
@@ -365,6 +380,7 @@ class SystemBroadcaster:
             self._pubsub_listening = True
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
             self._circuit_breaker.reset()  # Reset circuit breaker on successful start
+            self._is_degraded = False  # Clear degraded mode on successful start
             self._listener_task = asyncio.create_task(self._listen_for_updates())
             logger.info(
                 f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
@@ -519,6 +535,7 @@ class SystemBroadcaster:
                 "recovery blocked to allow system stabilization"
             )
             self._pubsub_listening = False
+            self._is_degraded = True  # Enter degraded mode
             # Broadcast degraded state to connected clients
             await self._broadcast_degraded_state()
             return
@@ -529,6 +546,7 @@ class SystemBroadcaster:
                 "attempts. Giving up - manual restart required."
             )
             self._pubsub_listening = False
+            self._is_degraded = True  # Enter degraded mode
             # Broadcast degraded state to connected clients
             await self._broadcast_degraded_state()
             return
@@ -551,6 +569,7 @@ class SystemBroadcaster:
             logger.error("Failed to re-establish pub/sub connection")
             self._circuit_breaker.record_failure()
             self._pubsub_listening = False
+            self._is_degraded = True  # Enter degraded mode
             await self._broadcast_degraded_state()
 
     async def _get_system_status(self) -> dict:
