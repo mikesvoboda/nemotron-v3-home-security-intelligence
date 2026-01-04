@@ -268,6 +268,41 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 - `async analyze_detection_fast_path(camera_id, detection_id)` - Immediate analysis
 - `async health_check()` - Check if LLM server is reachable
 
+### event_broadcaster.py
+
+**Purpose:** Distributes security events to frontend clients via WebSocket.
+
+**Channel:** `security_events` (Redis pub/sub)
+
+**Message Format:**
+
+```json
+{
+  "type": "event",
+  "data": {
+    "id": "uuid",
+    "camera_id": "front_door",
+    "risk_score": 75,
+    "summary": "Person detected at front door",
+    "created_at": "2024-01-15T10:30:00Z",
+    "detections": [...]
+  }
+}
+```
+
+**Key Features:**
+
+- WebSocket broadcast to all connected clients
+- Redis pub/sub for horizontal scaling
+- Automatic reconnection handling
+- Message queuing during disconnection
+
+**Public API:**
+
+- `EventBroadcaster(redis_client)`
+- `async broadcast_event(event)` - Broadcast event to all clients
+- `CHANNEL_NAME` - Canonical channel name ("security_events")
+
 ### context_enricher.py
 
 **Purpose:** Aggregates contextual information from multiple sources for LLM prompts.
