@@ -503,6 +503,30 @@ jobs:
           flags: backend-integration
           fail_ci_if_error: false
 
+  # Summary job for branch protection - aggregates all integration test shards
+  integration-tests-summary:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    needs:
+      [
+        integration-tests-api,
+        integration-tests-websocket,
+        integration-tests-services,
+        integration-tests-models,
+      ]
+    if: always()
+    steps:
+      - name: Check integration test results
+        run: |
+          if [ "${{ needs.integration-tests-api.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-websocket.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-services.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-models.result }}" == "failure" ]; then
+            echo "One or more integration test jobs failed"
+            exit 1
+          fi
+          echo "All integration tests passed"
+
   dead-code:
     name: Dead Code Detection
     runs-on: ubuntu-latest
@@ -643,6 +667,21 @@ jobs:
           files: frontend/coverage/lcov.info
           flags: frontend-shard-${{ matrix.shard }}
           fail_ci_if_error: false
+
+  # Summary job for branch protection - aggregates all Vitest shards
+  frontend-tests-summary:
+    name: Frontend Tests (Vitest)
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+    if: always()
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.frontend-tests.result }}" == "failure" ]; then
+            echo "One or more Vitest shards failed"
+            exit 1
+          fi
+          echo "All Vitest shards passed"
 
   api-coverage:
     name: API Endpoint Coverage
