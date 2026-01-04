@@ -90,12 +90,6 @@ class MockRedisClient:
     async def exists(self, *keys: str) -> int:
         return sum(1 for key in keys if key in self._store)
 
-    async def add_to_queue(self, queue_name: str, data: Any) -> int:
-        if queue_name not in self._queues:
-            self._queues[queue_name] = []
-        self._queues[queue_name].append(data)
-        return len(self._queues[queue_name])
-
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         if self._queues.get(queue_name):
             return self._queues[queue_name].pop(0)

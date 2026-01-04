@@ -59,9 +59,9 @@ async def create_event(
     event: Event,
     redis: RedisClient = Depends(get_redis)
 ):
-    # Add event to processing queue
-    await redis.add_to_queue("events_queue", event.dict())
-    return {"status": "queued"}
+    # Add event to processing queue with backpressure handling
+    result = await redis.add_to_queue_safe("events_queue", event.dict())
+    return {"status": "queued", "queue_length": result.queue_length}
 ```
 
 ### Application Startup/Shutdown
@@ -86,15 +86,17 @@ async def shutdown():
 ### Add to Queue
 
 ```python
-# Add dictionary (auto-serialized to JSON)
-await redis.add_to_queue("detections", {
+# Add dictionary (auto-serialized to JSON) with backpressure handling
+result = await redis.add_to_queue_safe("detections", {
     "camera_id": 1,
     "timestamp": "2024-01-01T12:00:00",
     "objects": ["person", "car"]
 })
+if result.success:
+    print(f"Added to queue, length: {result.queue_length}")
 
-# Add string
-await redis.add_to_queue("logs", "System started")
+# Add string with backpressure handling
+result = await redis.add_to_queue_safe("logs", "System started")
 ```
 
 ### Get from Queue
@@ -267,12 +269,14 @@ Real-time messaging using Redis Pub/Sub:
 ### Detection Processing Queue
 
 ```python
-# Producer: Add detection to queue
-await redis.add_to_queue("detections", {
+# Producer: Add detection to queue with backpressure handling
+result = await redis.add_to_queue_safe("detections", {
     "camera_id": 1,
     "image_path": "/data/image.jpg",
     "timestamp": "2024-01-01T12:00:00"
 })
+if not result.success:
+    logger.warning(f"Queue full: {result.error}")
 
 # Consumer: Process detections in batch
 async def process_detections():

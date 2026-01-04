@@ -28,8 +28,8 @@ async def example_queue_operations():
                 "timestamp": datetime.now().isoformat(),
                 "objects": ["person", "car"],
             }
-            length = await client.add_to_queue(queue_name, detection)
-            print(f"   Added detection {i + 1}, queue length: {length}")
+            result = await client.add_to_queue_safe(queue_name, detection)
+            print(f"   Added detection {i + 1}, queue length: {result.queue_length}")
 
         # Check queue length
         length = await client.get_queue_length(queue_name)

@@ -34,8 +34,6 @@ def temp_camera_root(tmp_path, integration_env):
 def mock_redis_client():
     """Mock Redis client for capturing queue operations."""
     mock_client = AsyncMock()
-    # Legacy method (deprecated)
-    mock_client.add_to_queue = AsyncMock(return_value=1)
     # Safe method with backpressure handling - this is what FileWatcher actually uses
     mock_client.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)

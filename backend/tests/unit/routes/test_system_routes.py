@@ -2172,7 +2172,6 @@ async def test_record_stage_latency_sets_ttl() -> None:
     don't expire while inactive stages eventually do.
     """
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
     redis.expire = AsyncMock(return_value=True)
 
     await system_routes.record_stage_latency(redis, "detect", 100.0)  # type: ignore[arg-type]

@@ -90,7 +90,7 @@ pytest -m e2e -v
 
 - In-memory Redis mock with all required methods
 - Tracks batch data in Python dict
-- Supports `get`, `set`, `delete`, `add_to_queue`, `publish`, `keys`
+- Supports `get`, `set`, `delete`, `add_to_queue_safe`, `publish`, `keys`
 - Provides `_test_data` for test verification
 
 #### `mock_detector_response` (test_pipeline_integration.py)
