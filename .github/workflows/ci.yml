@@ -607,13 +607,13 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest ${{ matrix.shard }}/4)
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 3
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -628,11 +628,11 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Run tests (shard ${{ matrix.shard }}/4)
-        # Shard tests across 4 runners for faster execution
+      - name: Run tests (shard ${{ matrix.shard }}/8)
+        # Shard tests across 8 runners for faster execution and isolation
         # Coverage thresholds disabled for shards (each shard only has partial coverage)
         # --teardownTimeout ensures vitest exits even if cleanup hangs
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/4 --teardownTimeout=5000
+        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --teardownTimeout=5000
 
   api-coverage:
     name: API Endpoint Coverage
