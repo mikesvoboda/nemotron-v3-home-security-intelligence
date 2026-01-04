@@ -106,61 +106,6 @@ test.describe('AI Audit Quality Metrics', () => {
   });
 });
 
-test.describe('AI Audit Model Contribution Chart', () => {
-  let aiAuditPage: AIAuditPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-    aiAuditPage = new AIAuditPage(page);
-    await aiAuditPage.goto();
-    await aiAuditPage.waitForPageLoad();
-  });
-
-  test('model contribution chart is visible', async () => {
-    await aiAuditPage.waitForDataLoad();
-    await expect(aiAuditPage.modelContributionChart).toBeVisible();
-  });
-
-  test('chart has model contribution title', async ({ page }) => {
-    await aiAuditPage.waitForDataLoad();
-    // Use locator.filter to find the text within the contribution chart
-    const chart = page.getByTestId('model-contribution-chart');
-    await expect(chart.getByText(/Contribution/i).first()).toBeVisible({ timeout: 10000 });
-  });
-});
-
-test.describe('AI Audit Model Leaderboard', () => {
-  let aiAuditPage: AIAuditPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-    aiAuditPage = new AIAuditPage(page);
-    await aiAuditPage.goto();
-    await aiAuditPage.waitForPageLoad();
-  });
-
-  test('model leaderboard is visible', async () => {
-    await aiAuditPage.waitForDataLoad();
-    await expect(aiAuditPage.modelLeaderboard).toBeVisible();
-  });
-
-  test('leaderboard title says Model Leaderboard', async ({ page }) => {
-    await aiAuditPage.waitForDataLoad();
-    await expect(page.getByText('Model Leaderboard')).toBeVisible();
-  });
-
-  test('leaderboard has model entries', async () => {
-    await aiAuditPage.waitForDataLoad();
-    const modelCount = await aiAuditPage.getLeaderboardModelCount();
-    expect(modelCount).toBeGreaterThan(0);
-  });
-
-  test('leaderboard shows RT-DETR model', async ({ page }) => {
-    await aiAuditPage.waitForDataLoad();
-    await expect(page.getByText('RT-DETR').first()).toBeVisible({ timeout: 10000 });
-  });
-});
-
 test.describe('AI Audit Recommendations Panel', () => {
   let aiAuditPage: AIAuditPage;
 

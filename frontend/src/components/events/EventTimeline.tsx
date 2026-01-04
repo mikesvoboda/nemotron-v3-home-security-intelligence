@@ -99,17 +99,21 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // URL search params for deep-linking (e.g., /timeline?camera=cam-1)
   const [searchParams] = useSearchParams();
 
-  // Initialize camera filter from URL query parameter
-  // Updates when searchParams changes (e.g., navigating from dashboard camera click)
+  // Initialize filters from URL query parameters
+  // Updates when searchParams changes (e.g., navigating from dashboard camera click or AI Performance risk chart)
   useEffect(() => {
     const cameraParam = searchParams.get('camera');
-    if (cameraParam) {
+    const riskLevelParam = searchParams.get('risk_level');
+
+    // Only update if we have at least one parameter
+    if (cameraParam || riskLevelParam) {
       setFilters((prev) => ({
         ...prev,
-        camera_id: cameraParam,
+        ...(cameraParam && { camera_id: cameraParam }),
+        ...(riskLevelParam && { risk_level: riskLevelParam }),
         offset: 0,
       }));
-      // Show filters panel when coming from dashboard camera click
+      // Show filters panel when coming with URL parameters
       setShowFilters(true);
     }
   }, [searchParams]);

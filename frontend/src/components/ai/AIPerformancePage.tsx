@@ -6,21 +6,34 @@
  * - Latency metrics with percentiles
  * - Pipeline health (queues, errors, DLQ)
  * - Detection/event throughput statistics
+ * - Model Zoo section with contribution rates and leaderboard
  *
  * This page provides a focused view of AI performance separate from
  * the general System monitoring page.
  */
 
-import { Text, Callout } from '@tremor/react';
-import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Text, Callout, Title } from '@tremor/react';
+import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2, Layers } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
 
 import InsightsCharts from './InsightsCharts';
 import LatencyPanel from './LatencyPanel';
+import ModelContributionChart from './ModelContributionChart';
+import ModelLeaderboard from './ModelLeaderboard';
 import ModelStatusCards from './ModelStatusCards';
+import ModelZooSection from './ModelZooSection';
 import PipelineHealthPanel from './PipelineHealthPanel';
 import { useAIMetrics } from '../../hooks/useAIMetrics';
-import { fetchConfig } from '../../services/api';
+import {
+  fetchConfig,
+  fetchAiAuditStats,
+  fetchModelLeaderboard,
+} from '../../services/api';
+
+import type {
+  AiAuditStatsResponse,
+  AiAuditLeaderboardResponse,
+} from '../../services/api';
 
 /**
  * AIPerformancePage - Main AI performance dashboard
@@ -34,7 +47,25 @@ export default function AIPerformancePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
 
-  // Fetch Grafana URL from config
+  // Model Zoo data state
+  const [auditStats, setAuditStats] = useState<AiAuditStatsResponse | null>(null);
+  const [leaderboard, setLeaderboard] = useState<AiAuditLeaderboardResponse | null>(null);
+
+  // Load Model Zoo data (contribution rates and leaderboard)
+  const loadModelZooData = useCallback(async () => {
+    try {
+      const [statsData, leaderboardData] = await Promise.all([
+        fetchAiAuditStats({ days: 7 }),
+        fetchModelLeaderboard({ days: 7 }),
+      ]);
+      setAuditStats(statsData);
+      setLeaderboard(leaderboardData);
+    } catch (err) {
+      console.error('Failed to fetch Model Zoo data:', err);
+    }
+  }, []);
+
+  // Fetch Grafana URL from config and Model Zoo data
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -48,12 +79,13 @@ export default function AIPerformancePage() {
       }
     };
     void loadConfig();
-  }, []);
+    void loadModelZooData();
+  }, [loadModelZooData]);
 
   // Handle manual refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refresh();
+    await Promise.all([refresh(), loadModelZooData()]);
     setIsRefreshing(false);
   };
 
@@ -201,6 +233,31 @@ export default function AIPerformancePage() {
             <InsightsCharts
               totalDetections={data.totalDetections}
             />
+
+            {/* Model Zoo Section - Status Cards and Latency Chart */}
+            <ModelZooSection />
+
+            {/* Model Zoo Analytics Section */}
+            <div data-testid="model-zoo-analytics-section">
+              <div className="mb-4 flex items-center gap-2">
+                <Layers className="h-5 w-5 text-[#76B900]" />
+                <Title className="text-white">Model Zoo Analytics</Title>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Model Contribution Chart */}
+                {auditStats && (
+                  <ModelContributionChart contributionRates={auditStats.model_contribution_rates} />
+                )}
+
+                {/* Model Leaderboard */}
+                {leaderboard && (
+                  <ModelLeaderboard
+                    entries={leaderboard.entries}
+                    periodDays={leaderboard.period_days}
+                  />
+                )}
+              </div>
+            </div>
 
             {/* Last Updated */}
             {data.lastUpdated && (

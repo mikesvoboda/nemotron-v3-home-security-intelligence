@@ -49,16 +49,6 @@ vi.mock('../../services/api', () => ({
       audits_by_day: [],
     })
   ),
-  fetchModelLeaderboard: vi.fn(() =>
-    Promise.resolve({
-      entries: [
-        { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
-        { model_name: 'florence', contribution_rate: 0.85, quality_correlation: null, event_count: 850 },
-        { model_name: 'image_quality', contribution_rate: 0.7, quality_correlation: null, event_count: 700 },
-      ],
-      period_days: 7,
-    })
-  ),
   fetchAuditRecommendations: vi.fn(() =>
     Promise.resolve({
       recommendations: [
@@ -127,20 +117,6 @@ describe('AIAuditPage', () => {
     renderWithRouter();
     await waitFor(() => {
       expect(screen.getByTestId('quality-score-trends')).toBeInTheDocument();
-    });
-  });
-
-  it('renders model contribution chart', async () => {
-    renderWithRouter();
-    await waitFor(() => {
-      expect(screen.getByTestId('model-contribution-chart')).toBeInTheDocument();
-    });
-  });
-
-  it('renders model leaderboard', async () => {
-    renderWithRouter();
-    await waitFor(() => {
-      expect(screen.getByTestId('model-leaderboard')).toBeInTheDocument();
     });
   });
 

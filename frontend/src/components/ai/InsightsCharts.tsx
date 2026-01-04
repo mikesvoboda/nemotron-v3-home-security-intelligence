@@ -3,17 +3,21 @@
  *
  * Displays:
  * - Detection class distribution (DonutChart showing person/vehicle/animal/package counts)
- * - Risk score distribution (BarChart showing events by risk level: low/medium/high/critical)
+ * - Risk score distribution (clickable bar chart showing events by risk level: low/medium/high/critical)
  *
  * Data sources:
  * - Detection counts from useDetectionStats hook (fetches from /api/detections/stats)
  * - Risk distribution from /api/events/stats endpoint
+ *
+ * Interactivity:
+ * - Clicking on a risk level bar navigates to the Timeline page with that risk level filter applied
  */
 
-import { Card, Title, Text, DonutChart, BarChart } from '@tremor/react';
+import { Card, Title, Text, DonutChart } from '@tremor/react';
 import { clsx } from 'clsx';
 import { PieChart, BarChart3, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { fetchEventStats } from '../../services/api';
 
@@ -31,9 +35,14 @@ export interface DetectionClassData {
  * Risk level distribution for the bar chart
  */
 export interface RiskDistributionData {
+  /** Display name (e.g., "Low", "Medium") */
   name: string;
+  /** Event count for this risk level */
   count: number;
+  /** Tremor color name for styling */
   color: string;
+  /** URL-safe risk level key (e.g., "low", "medium") for navigation */
+  riskLevelKey: string;
 }
 
 export interface InsightsChartsProps {
@@ -103,6 +112,7 @@ function transformRiskData(eventStats: EventStatsResponse | null): RiskDistribut
     name: RISK_LABELS[level] || level,
     count: events_by_risk_level[level as keyof typeof events_by_risk_level] || 0,
     color: RISK_COLORS[level] || 'gray',
+    riskLevelKey: level,
   }));
 }
 
@@ -123,6 +133,7 @@ export default function InsightsCharts({
   totalDetections,
   className,
 }: InsightsChartsProps) {
+  const navigate = useNavigate();
   const [eventStats, setEventStats] = useState<EventStatsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -253,21 +264,87 @@ export default function InsightsCharts({
           </div>
         ) : riskData.length > 0 && totalEventCount > 0 ? (
           <div className="space-y-4">
-            <BarChart
-              className="h-48"
-              data={riskData}
-              index="name"
-              categories={['count']}
-              colors={['emerald', 'yellow', 'orange', 'red']}
-              valueFormatter={(value) => formatCount(value)}
-              showAnimation
-              showLegend={false}
-              showGridLines={false}
+            {/* Custom clickable bar chart */}
+            <div
+              className="flex h-48 items-end justify-around gap-4 px-4"
               data-testid="risk-bar-chart"
-            />
+              role="group"
+              aria-label="Risk score distribution bar chart"
+            >
+              {riskData.map((item) => {
+                // Calculate bar height as percentage of max count
+                const maxCount = Math.max(...riskData.map((d) => d.count));
+                const heightPercent = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+                // Minimum bar height for visibility (10% if count > 0)
+                const minHeight = item.count > 0 ? Math.max(heightPercent, 10) : 0;
+
+                return (
+                  <button
+                    key={item.riskLevelKey}
+                    onClick={() => {
+                      void navigate(`/timeline?risk_level=${item.riskLevelKey}`);
+                    }}
+                    className={clsx(
+                      'group relative flex w-full max-w-[80px] flex-col items-center',
+                      'cursor-pointer transition-transform hover:scale-105',
+                      'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                      'rounded-t-md'
+                    )}
+                    style={{ height: '100%' }}
+                    title={`Click to view ${item.count} ${item.name.toLowerCase()} risk events`}
+                    aria-label={`${item.name}: ${item.count} events. Click to view in timeline.`}
+                    data-testid={`risk-bar-${item.riskLevelKey}`}
+                  >
+                    {/* Tooltip on hover */}
+                    <div
+                      className={clsx(
+                        'absolute -top-10 z-10 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-white shadow-lg',
+                        'opacity-0 transition-opacity group-hover:opacity-100',
+                        'bg-gray-900 border border-gray-700'
+                      )}
+                    >
+                      Click to view {item.count} events
+                    </div>
+                    {/* Bar container */}
+                    <div className="relative flex h-full w-full flex-col justify-end">
+                      {/* The bar */}
+                      <div
+                        className={clsx(
+                          'w-full rounded-t-md transition-all duration-200',
+                          'group-hover:opacity-80 group-hover:ring-2 group-hover:ring-white/30',
+                          item.color === 'green' && 'bg-green-500',
+                          item.color === 'yellow' && 'bg-yellow-500',
+                          item.color === 'orange' && 'bg-orange-500',
+                          item.color === 'red' && 'bg-red-500'
+                        )}
+                        style={{ height: `${minHeight}%`, minHeight: item.count > 0 ? '8px' : '0' }}
+                      />
+                    </div>
+                    {/* Label below bar */}
+                    <div className="mt-2 text-center">
+                      <Text className="text-xs text-gray-400 group-hover:text-white">
+                        {item.name}
+                      </Text>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Summary counts below the chart - also clickable */}
             <div className="grid grid-cols-2 gap-4 border-t border-gray-800 pt-4 md:grid-cols-4">
               {riskData.map((item) => (
-                <div key={item.name} className="text-center">
+                <button
+                  key={item.name}
+                  onClick={() => {
+                      void navigate(`/timeline?risk_level=${item.riskLevelKey}`);
+                    }}
+                  className={clsx(
+                    'text-center cursor-pointer rounded-md p-2 transition-colors',
+                    'hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-[#76B900]'
+                  )}
+                  title={`Click to view ${item.count} ${item.name.toLowerCase()} risk events`}
+                  data-testid={`risk-count-${item.riskLevelKey}`}
+                >
                   <Text
                     className={clsx(
                       'text-2xl font-bold',
@@ -280,7 +357,7 @@ export default function InsightsCharts({
                     {formatCount(item.count)}
                   </Text>
                   <Text className="text-xs text-gray-400">{item.name}</Text>
-                </div>
+                </button>
               ))}
             </div>
             <Text className="text-center text-xs text-gray-500">
