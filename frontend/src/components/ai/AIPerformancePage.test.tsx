@@ -20,6 +20,11 @@ vi.mock('../../hooks/useAIMetrics', () => ({
   default: (...args: unknown[]): unknown => mockUseAIMetrics(...args),
 }));
 
+// Mock child components
+vi.mock('../ai-performance/AIPerformanceSummaryRow', () => ({
+  default: () => <div data-testid="ai-performance-summary-row">AI Performance Summary Row</div>,
+}));
+
 // Mock the fetchConfig and fetchEventStats APIs
 vi.mock('../../services/api', () => ({
   fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: 'http://localhost:3002' })),

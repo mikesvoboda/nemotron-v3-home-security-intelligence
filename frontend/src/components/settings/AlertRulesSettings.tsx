@@ -22,6 +22,7 @@ import {
   deleteAlertRule,
   fetchAlertRules,
   fetchCameras,
+  fetchSeverityMetadata,
   testAlertRule,
   updateAlertRule,
   type AlertRule,
@@ -31,7 +32,9 @@ import {
   type AlertSeverity,
   type Camera,
   type RuleTestResponse,
+  type SeverityMetadataResponse,
 } from '../../services/api';
+import SeverityConfigPanel from '../system/SeverityConfigPanel';
 
 // Days of the week for schedule selector
 const DAYS_OF_WEEK = [
@@ -113,9 +116,34 @@ export default function AlertRulesSettings() {
   const [submitting, setSubmitting] = useState(false);
   const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
 
+  // State for severity metadata
+  const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
+  const [severityLoading, setSeverityLoading] = useState(true);
+  const [severityError, setSeverityError] = useState<string | null>(null);
+
   // Load rules and cameras on mount
   useEffect(() => {
     void loadData();
+  }, []);
+
+  // Fetch severity metadata
+  useEffect(() => {
+    async function loadSeverityMetadata() {
+      setSeverityLoading(true);
+      setSeverityError(null);
+
+      try {
+        const data = await fetchSeverityMetadata();
+        setSeverityMetadata(data);
+      } catch (err) {
+        console.error('Failed to load severity metadata:', err);
+        setSeverityError(err instanceof Error ? err.message : 'Failed to load severity metadata');
+      } finally {
+        setSeverityLoading(false);
+      }
+    }
+
+    void loadSeverityMetadata();
   }, []);
 
   function getEmptyFormData(): AlertRuleFormData {
@@ -399,6 +427,14 @@ export default function AlertRulesSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Severity Configuration Panel */}
+      <SeverityConfigPanel
+        data={severityMetadata}
+        loading={severityLoading}
+        error={severityError}
+        data-testid="severity-config-panel-section"
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
