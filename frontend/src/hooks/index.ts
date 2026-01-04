@@ -65,3 +65,6 @@ export type {
   UseModelZooStatusOptions,
   UseModelZooStatusReturn,
 } from './useModelZooStatus';
+
+export { useSavedSearches } from './useSavedSearches';
+export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';

@@ -179,15 +179,11 @@ export default function AIPerformancePage() {
               analysisLatency={data.analysisLatency}
             />
 
-            {/* Latency Panel with Time-Series History */}
+            {/* Latency Panel */}
             <LatencyPanel
               detectionLatency={data.detectionLatency}
               analysisLatency={data.analysisLatency}
               pipelineLatency={data.pipelineLatency}
-              showHistory={true}
-              historyWindowMinutes={60}
-              historyLimit={100}
-              historyPollingInterval={30000}
             />
 
             {/* Pipeline Health Panel */}

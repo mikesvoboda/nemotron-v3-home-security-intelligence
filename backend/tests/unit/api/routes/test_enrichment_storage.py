@@ -15,21 +15,29 @@ import pytest
 
 
 @pytest.fixture
-async def sample_camera_for_enrichment(test_db):
-    """Create a sample camera for enrichment tests."""
+def sample_camera_data():
+    """Return camera data for creating test cameras.
+
+    Each test should create its own camera within its session context
+    to ensure proper isolation and foreign key relationships.
+    """
+    return {
+        "id": str(uuid.uuid4()),
+        "name": f"Enrichment Test Camera {uuid.uuid4().hex[:8]}",
+        "folder_path": f"/export/foscam/enrichment_test_{uuid.uuid4().hex[:8]}",
+        "status": "online",
+    }
+
+
+async def create_test_camera(session, camera_data: dict):
+    """Helper to create a camera within a session context."""
     from backend.models.camera import Camera
 
-    async with test_db() as session:
-        camera = Camera(
-            id=str(uuid.uuid4()),
-            name=f"Enrichment Test Camera {uuid.uuid4().hex[:8]}",
-            folder_path=f"/export/foscam/enrichment_test_{uuid.uuid4().hex[:8]}",
-            status="online",
-        )
-        session.add(camera)
-        await session.commit()
-        await session.refresh(camera)
-        return camera
+    camera = Camera(**camera_data)
+    session.add(camera)
+    await session.commit()
+    await session.refresh(camera)
+    return camera
 
 
 @pytest.fixture
@@ -72,15 +80,16 @@ class TestDetectionModelEnrichmentData:
     """Tests for Detection model enrichment_data column."""
 
     @pytest.mark.asyncio
-    async def test_detection_model_has_enrichment_data_column(
-        self, test_db, sample_camera_for_enrichment
-    ):
+    async def test_detection_model_has_enrichment_data_column(self, test_db, sample_camera_data):
         """Test that Detection model has enrichment_data column."""
         from backend.models.detection import Detection
 
         async with test_db() as session:
+            # Create camera in the same session to ensure FK relationship
+            camera = await create_test_camera(session, sample_camera_data)
+
             detection = Detection(
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 file_path="/export/foscam/test/image.jpg",
                 file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
@@ -101,14 +110,17 @@ class TestDetectionModelEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_detection_stores_enrichment_data_json(
-        self, test_db, sample_camera_for_enrichment, sample_enrichment_data
+        self, test_db, sample_camera_data, sample_enrichment_data
     ):
         """Test that enrichment data is stored as JSON in Detection model."""
         from backend.models.detection import Detection
 
         async with test_db() as session:
+            # Create camera in the same session to ensure FK relationship
+            camera = await create_test_camera(session, sample_camera_data)
+
             detection = Detection(
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 file_path="/export/foscam/test/image.jpg",
                 file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
@@ -132,7 +144,7 @@ class TestDetectionModelEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_detection_enrichment_data_retrieved_from_database(
-        self, test_db, sample_camera_for_enrichment, sample_enrichment_data
+        self, test_db, sample_camera_data, sample_enrichment_data
     ):
         """Test that enrichment data is correctly retrieved from database."""
         from sqlalchemy import select
@@ -140,8 +152,11 @@ class TestDetectionModelEnrichmentData:
         from backend.models.detection import Detection
 
         async with test_db() as session:
+            # Create camera in the same session to ensure FK relationship
+            camera = await create_test_camera(session, sample_camera_data)
+
             detection = Detection(
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 file_path="/export/foscam/test/retrieve_test.jpg",
                 file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
@@ -244,7 +259,7 @@ class TestDetectionsAPIEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_get_detection_returns_enrichment_data(
-        self, test_db, sample_camera_for_enrichment, sample_enrichment_data
+        self, test_db, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/detections/{id} returns enrichment_data."""
         from httpx import ASGITransport, AsyncClient
@@ -252,10 +267,13 @@ class TestDetectionsAPIEnrichmentData:
         from backend.main import app
         from backend.models.detection import Detection
 
-        # Create detection with enrichment data
+        # Create camera and detection with enrichment data
         async with test_db() as session:
+            # Create camera in the same session to ensure FK relationship
+            camera = await create_test_camera(session, sample_camera_data)
+
             detection = Detection(
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 file_path="/export/foscam/test/api_test.jpg",
                 file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
@@ -282,7 +300,7 @@ class TestDetectionsAPIEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_list_detections_returns_enrichment_data(
-        self, test_db, sample_camera_for_enrichment, sample_enrichment_data
+        self, test_db, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/detections returns enrichment_data for each detection."""
         from httpx import ASGITransport, AsyncClient
@@ -290,10 +308,13 @@ class TestDetectionsAPIEnrichmentData:
         from backend.main import app
         from backend.models.detection import Detection
 
-        # Create detection with enrichment data
+        # Create camera and detection with enrichment data
         async with test_db() as session:
+            # Create camera in the same session to ensure FK relationship
+            camera = await create_test_camera(session, sample_camera_data)
+
             detection = Detection(
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 file_path="/export/foscam/test/list_api_test.jpg",
                 file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
@@ -307,7 +328,7 @@ class TestDetectionsAPIEnrichmentData:
             )
             session.add(detection)
             await session.commit()
-            camera_id = sample_camera_for_enrichment.id
+            camera_id = camera.id
 
         # Test API response
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -334,7 +355,7 @@ class TestEventDetectionsEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_get_event_detections_includes_enrichment_data(
-        self, test_db, sample_camera_for_enrichment, sample_enrichment_data
+        self, test_db, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/events/{id}/detections returns enrichment_data."""
         from httpx import ASGITransport, AsyncClient
@@ -343,10 +364,13 @@ class TestEventDetectionsEnrichmentData:
         from backend.models.detection import Detection
         from backend.models.event import Event
 
-        # Create detection with enrichment data
+        # Create camera, detection and event with enrichment data
         async with test_db() as session:
+            # Create camera in the same session to ensure FK relationship
+            camera = await create_test_camera(session, sample_camera_data)
+
             detection = Detection(
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 file_path="/export/foscam/test/event_detection.jpg",
                 file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
@@ -365,7 +389,7 @@ class TestEventDetectionsEnrichmentData:
             # Create event referencing this detection
             event = Event(
                 batch_id=str(uuid.uuid4()),
-                camera_id=sample_camera_for_enrichment.id,
+                camera_id=camera.id,
                 started_at=datetime.now(UTC),
                 ended_at=datetime.now(UTC),
                 risk_score=50,

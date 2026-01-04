@@ -1,5 +1,5 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ProcessingSettings from './ProcessingSettings';
 import * as api from '../../services/api';
@@ -20,8 +20,13 @@ describe('ProcessingSettings', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     // Always mock updateConfig to prevent errors
     vi.mocked(api.updateConfig).mockResolvedValue(mockConfig);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders component with title', () => {
@@ -255,14 +260,13 @@ describe('ProcessingSettings', () => {
       expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument();
     });
 
-    // Wait for the success message to disappear (real time, no fake timers)
-    await waitFor(
-      () => {
-        expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument();
-      },
-      { timeout: 4000 }
-    );
-  }, 10000);
+    // Advance time by 3 seconds to clear the success message
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument();
+  });
 
   it('displays error message when save fails', async () => {
     vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);

@@ -232,8 +232,8 @@ class TestTTLExpiration:
     ) -> None:
         """Test that refresh extends the TTL of a key."""
         key = f"{test_prefix}:refresh_ttl"
-        initial_ttl = 3  # 3 seconds (increased for CI stability)
-        new_ttl = 15  # 15 seconds
+        initial_ttl = 1  # Reduced from 3 seconds
+        new_ttl = 5  # Reduced from 15 seconds
 
         await cache_service.set(key, "value", ttl=initial_ttl)
 
@@ -244,8 +244,8 @@ class TestTTLExpiration:
         result = await cache_service.refresh(key, ttl=new_ttl)
         assert result is True
 
-        # Wait for initial TTL to pass
-        await asyncio.sleep(initial_ttl + 1)
+        # Wait for initial TTL to pass (now only ~2s total wait)
+        await asyncio.sleep(initial_ttl + 0.5)  # Reduced buffer from 1s to 0.5s
 
         # Key should still exist due to extended TTL
         value = await cache_service.get(key)

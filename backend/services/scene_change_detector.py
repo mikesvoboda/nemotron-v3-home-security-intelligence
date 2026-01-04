@@ -188,9 +188,13 @@ class SceneChangeDetector:
 
         similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
 
+        # Clamp similarity to [0, 1] range to handle floating point precision issues
+        # SSIM can return slightly negative values when comparing very different images
+        clamped_similarity = max(0.0, min(1.0, float(similarity)))
+
         return SceneChangeResult(
-            change_detected=similarity < self._threshold,
-            similarity_score=float(similarity),
+            change_detected=clamped_similarity < self._threshold,
+            similarity_score=clamped_similarity,
             is_first_frame=False,
         )
 

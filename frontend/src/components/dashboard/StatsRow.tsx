@@ -247,6 +247,7 @@ export default function StatsRow({
             <div
               className={`h-2 w-2 rounded-full ${statusColor} ${systemStatus === 'healthy' ? 'animate-pulse' : ''}`}
               data-testid="status-indicator"
+              role="status"
               aria-label={`System status: ${statusLabel}`}
             />
             <div className="text-2xl font-bold text-white" data-testid="system-status-label">

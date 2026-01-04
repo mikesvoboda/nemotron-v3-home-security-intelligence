@@ -752,61 +752,77 @@ class PipelineLatencyResponse(BaseModel):
     )
 
 
-class LatencySample(BaseModel):
-    """A single latency sample for time-series visualization."""
+class LatencyHistoryStageStats(BaseModel):
+    """Latency statistics for a single stage in a history snapshot."""
 
-    timestamp: float = Field(
+    avg_ms: float = Field(..., description="Average latency in milliseconds")
+    p50_ms: float = Field(..., description="50th percentile (median) latency")
+    p95_ms: float = Field(..., description="95th percentile latency")
+    p99_ms: float = Field(..., description="99th percentile latency")
+    sample_count: int = Field(..., description="Number of samples in this bucket", ge=0)
+
+
+class LatencyHistorySnapshot(BaseModel):
+    """Single time-bucket snapshot of pipeline latency metrics."""
+
+    timestamp: str = Field(
         ...,
-        description="Unix timestamp when the sample was recorded",
+        description="Bucket start time (ISO format)",
     )
-    stage: str = Field(
+    stages: dict[str, LatencyHistoryStageStats | None] = Field(
         ...,
-        description="Pipeline stage name (watch_to_detect, detect_to_batch, etc.)",
-    )
-    latency_ms: float = Field(
-        ...,
-        description="Latency in milliseconds",
-        ge=0,
+        description="Latency stats for each pipeline stage (None if no samples)",
     )
 
 
 class PipelineLatencyHistoryResponse(BaseModel):
     """Response schema for pipeline latency history endpoint.
 
-    Provides raw latency samples for time-series visualization.
-    Samples are sorted by timestamp in descending order (most recent first).
+    Provides time-series latency data for charting and trend analysis.
+    Each snapshot contains aggregated metrics for a time bucket.
     """
 
-    samples: list[LatencySample] = Field(
-        default_factory=list,
-        description="List of latency samples for time-series visualization",
+    snapshots: list[LatencyHistorySnapshot] = Field(
+        ...,
+        description="Chronologically ordered latency snapshots",
     )
     window_minutes: int = Field(
         ...,
-        description="Time window used for filtering samples",
+        description="Time window covered by the history",
+        ge=1,
+    )
+    bucket_seconds: int = Field(
+        ...,
+        description="Bucket size for aggregation",
         ge=1,
     )
     timestamp: datetime = Field(
         ...,
-        description="Timestamp of response",
+        description="Timestamp when history was retrieved",
     )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "samples": [
+                "snapshots": [
                     {
-                        "timestamp": 1735393800.0,
-                        "stage": "watch_to_detect",
-                        "latency_ms": 50.0,
-                    },
-                    {
-                        "timestamp": 1735393795.0,
-                        "stage": "detect_to_batch",
-                        "latency_ms": 100.0,
+                        "timestamp": "2025-12-28T10:00:00+00:00",
+                        "stages": {
+                            "watch_to_detect": {
+                                "avg_ms": 50.0,
+                                "p50_ms": 45.0,
+                                "p95_ms": 120.0,
+                                "p99_ms": 150.0,
+                                "sample_count": 15,
+                            },
+                            "detect_to_batch": None,
+                            "batch_to_analyze": None,
+                            "total_pipeline": None,
+                        },
                     },
                 ],
                 "window_minutes": 60,
+                "bucket_seconds": 60,
                 "timestamp": "2025-12-28T10:30:00Z",
             }
         }
@@ -1833,30 +1849,7 @@ class ModelRegistryResponse(BaseModel):
                 "vram_budget_mb": 1650,
                 "vram_used_mb": 300,
                 "vram_available_mb": 1350,
-                "models": [
-                    {
-                        "name": "yolo11-license-plate",
-                        "display_name": "YOLO11 License Plate",
-                        "vram_mb": 300,
-                        "status": "loaded",
-                        "category": "detection",
-                        "enabled": True,
-                        "available": True,
-                        "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
-                        "load_count": 1,
-                    },
-                    {
-                        "name": "yolo11-face",
-                        "display_name": "YOLO11 Face Detection",
-                        "vram_mb": 200,
-                        "status": "unloaded",
-                        "category": "detection",
-                        "enabled": True,
-                        "available": False,
-                        "path": "/models/model-zoo/yolo11-face-detection/model.pt",
-                        "load_count": 0,
-                    },
-                ],
+                "models": [],
                 "loading_strategy": "sequential",
                 "max_concurrent_models": 1,
             }
