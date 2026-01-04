@@ -2398,21 +2398,32 @@ export interface paths {
          * Update Severity Thresholds
          * @description Update severity threshold configuration.
          *
-         *     Allows users to customize the risk score boundaries for each severity level.
-         *     The thresholds must satisfy: 0 <= low_max < medium_max < high_max <= 100
-         *     to ensure contiguous, non-overlapping severity ranges.
+         *     Updates the risk score thresholds for severity levels. The thresholds
+         *     define how risk scores (0-100) are mapped to severity levels:
+         *     - LOW: 0 to low_max
+         *     - MEDIUM: low_max+1 to medium_max
+         *     - HIGH: medium_max+1 to high_max
+         *     - CRITICAL: high_max+1 to 100
          *
          *     Requires API key authentication when api_key_enabled is True in settings.
          *     Provide the API key via X-API-Key header.
+         *
+         *     Validation:
+         *     - Thresholds must be strictly ordered: low_max < medium_max < high_max
+         *     - All thresholds must be between 1 and 99
+         *     - This ensures contiguous, non-overlapping ranges covering 0-100
+         *
+         *     Note: Changes only affect new events. Existing events retain their
+         *     original severity assignment.
          *
          *     Args:
          *         update: New threshold values
          *
          *     Returns:
-         *         SeverityMetadataResponse with updated severity definitions
+         *         SeverityMetadataResponse with updated definitions and thresholds
          *
          *     Raises:
-         *         HTTPException 400: If thresholds are not contiguous or overlap
+         *         HTTPException 400: If thresholds are not strictly ordered
          */
         put: operations["update_severity_thresholds_api_system_severity_put"];
         post?: never;
@@ -2655,6 +2666,72 @@ export interface paths {
          *         HTTPException: 404 if model not found in registry
          */
         get: operations["get_model_api_system_models__model_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/model-zoo/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Zoo Status
+         * @description Get status information for all Model Zoo models.
+         *
+         *     Returns status information for all 18 Model Zoo models, including:
+         *     - Current status (loaded, unloaded, disabled)
+         *     - VRAM usage when loaded
+         *     - Last usage timestamp
+         *     - Category grouping for UI display
+         *
+         *     This endpoint is optimized for the compact status card display
+         *     in the AI Performance page.
+         *
+         *     Returns:
+         *         ModelZooStatusResponse with all model statuses
+         */
+        get: operations["get_model_zoo_status_api_system_model_zoo_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/model-zoo/latency/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Zoo Latency History
+         * @description Get latency history for a specific Model Zoo model.
+         *
+         *     Returns time-series latency data for the dropdown-controlled chart.
+         *     Each bucket contains aggregated statistics (avg, p50, p95).
+         *
+         *     Args:
+         *         model: Model name to get history for
+         *         since: Number of minutes of history to return (default 60)
+         *         bucket_seconds: Size of each time bucket in seconds (default 60)
+         *
+         *     Returns:
+         *         ModelLatencyHistoryResponse with chronologically ordered snapshots
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found in registry
+         */
+        get: operations["get_model_zoo_latency_history_api_system_model_zoo_latency_history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6414,6 +6491,109 @@ export interface components {
             cross_camera: boolean;
         };
         /**
+         * ModelLatencyHistoryResponse
+         * @description Response schema for Model Zoo latency history endpoint.
+         *
+         *     Returns time-series latency data for a specific Model Zoo model.
+         *     Used to populate the dropdown-controlled latency chart.
+         * @example {
+         *       "bucket_seconds": 60,
+         *       "display_name": "YOLO11 License Plate",
+         *       "has_data": true,
+         *       "model_name": "yolo11-license-plate",
+         *       "snapshots": [
+         *         {
+         *           "stats": {
+         *             "avg_ms": 45,
+         *             "p50_ms": 42,
+         *             "p95_ms": 68,
+         *             "sample_count": 15
+         *           },
+         *           "timestamp": "2026-01-04T10:00:00+00:00"
+         *         }
+         *       ],
+         *       "timestamp": "2026-01-04T10:30:00Z",
+         *       "window_minutes": 60
+         *     }
+         */
+        ModelLatencyHistoryResponse: {
+            /**
+             * Model Name
+             * @description Name of the model this data is for
+             */
+            model_name: string;
+            /**
+             * Display Name
+             * @description Human-readable display name
+             */
+            display_name: string;
+            /**
+             * Snapshots
+             * @description Chronologically ordered latency snapshots
+             */
+            snapshots: components["schemas"]["ModelLatencyHistorySnapshot"][];
+            /**
+             * Window Minutes
+             * @description Time window covered by the history
+             */
+            window_minutes: number;
+            /**
+             * Bucket Seconds
+             * @description Bucket size for aggregation
+             */
+            bucket_seconds: number;
+            /**
+             * Has Data
+             * @description Whether any latency data exists for this model
+             */
+            has_data: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp when history was retrieved
+             */
+            timestamp: string;
+        };
+        /**
+         * ModelLatencyHistorySnapshot
+         * @description Single time-bucket snapshot of Model Zoo model latency.
+         */
+        ModelLatencyHistorySnapshot: {
+            /**
+             * Timestamp
+             * @description Bucket start time (ISO format)
+             */
+            timestamp: string;
+            /** @description Latency statistics for this time bucket (None if no data) */
+            stats?: components["schemas"]["ModelLatencyStageStats"] | null;
+        };
+        /**
+         * ModelLatencyStageStats
+         * @description Latency statistics for a Model Zoo model at a point in time.
+         */
+        ModelLatencyStageStats: {
+            /**
+             * Avg Ms
+             * @description Average latency in milliseconds
+             */
+            avg_ms: number;
+            /**
+             * P50 Ms
+             * @description 50th percentile (median) latency in milliseconds
+             */
+            p50_ms: number;
+            /**
+             * P95 Ms
+             * @description 95th percentile latency in milliseconds
+             */
+            p95_ms: number;
+            /**
+             * Sample Count
+             * @description Number of samples in this time bucket
+             */
+            sample_count: number;
+        };
+        /**
          * ModelLeaderboardEntry
          * @description Single entry in model leaderboard.
          */
@@ -6546,6 +6726,109 @@ export interface components {
              * @default 0
              */
             load_count: number;
+        };
+        /**
+         * ModelZooStatusItem
+         * @description Status information for a single Model Zoo model.
+         *
+         *     Used in the compact status card display for Model Zoo models.
+         */
+        ModelZooStatusItem: {
+            /**
+             * Name
+             * @description Model identifier (e.g., 'yolo11-license-plate')
+             */
+            name: string;
+            /**
+             * Display Name
+             * @description Human-readable display name
+             */
+            display_name: string;
+            /**
+             * Category
+             * @description Model category (detection, classification, segmentation, etc.)
+             */
+            category: string;
+            /** @description Current status: loaded (green), unloaded (gray), disabled (yellow) */
+            status: components["schemas"]["ModelStatusEnum"];
+            /**
+             * Vram Mb
+             * @description VRAM usage in megabytes when loaded
+             */
+            vram_mb: number;
+            /**
+             * Last Used At
+             * @description Timestamp of last model usage (null if never used)
+             */
+            last_used_at?: string | null;
+            /**
+             * Enabled
+             * @description Whether the model is enabled for use
+             */
+            enabled: boolean;
+        };
+        /**
+         * ModelZooStatusResponse
+         * @description Response schema for Model Zoo status endpoint.
+         *
+         *     Returns status information for all 18 Model Zoo models organized by category.
+         *     Used to populate the compact status cards in the UI.
+         * @example {
+         *       "disabled_count": 3,
+         *       "loaded_count": 0,
+         *       "models": [
+         *         {
+         *           "category": "detection",
+         *           "display_name": "YOLO11 License Plate",
+         *           "enabled": true,
+         *           "name": "yolo11-license-plate",
+         *           "status": "unloaded",
+         *           "vram_mb": 300
+         *         }
+         *       ],
+         *       "timestamp": "2026-01-04T10:30:00Z",
+         *       "total_models": 18,
+         *       "vram_budget_mb": 1650,
+         *       "vram_used_mb": 0
+         *     }
+         */
+        ModelZooStatusResponse: {
+            /**
+             * Models
+             * @description List of all Model Zoo models with their current status
+             */
+            models: components["schemas"]["ModelZooStatusItem"][];
+            /**
+             * Total Models
+             * @description Total number of models in the registry
+             */
+            total_models: number;
+            /**
+             * Loaded Count
+             * @description Number of currently loaded models
+             */
+            loaded_count: number;
+            /**
+             * Disabled Count
+             * @description Number of disabled models
+             */
+            disabled_count: number;
+            /**
+             * Vram Budget Mb
+             * @description Total VRAM budget for Model Zoo
+             */
+            vram_budget_mb: number;
+            /**
+             * Vram Used Mb
+             * @description Currently used VRAM
+             */
+            vram_used_mb: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
+             */
+            timestamp: string;
         };
         /**
          * NotificationChannel
@@ -7860,31 +8143,38 @@ export interface components {
             high_max: number;
         };
         /**
-         * SeverityThresholdsUpdate
+         * SeverityThresholdsUpdateRequest
          * @description Request schema for updating severity thresholds.
          *
-         *     Thresholds must satisfy: 0 <= low_max < medium_max < high_max <= 100
-         *     This ensures contiguous, non-overlapping severity ranges.
+         *     The thresholds must form contiguous ranges from 0-100:
+         *     - LOW: 0 to low_max (inclusive)
+         *     - MEDIUM: low_max+1 to medium_max (inclusive)
+         *     - HIGH: medium_max+1 to high_max (inclusive)
+         *     - CRITICAL: high_max+1 to 100 (inclusive)
+         *
+         *     Validation rules:
+         *     - 0 < low_max < medium_max < high_max < 100
+         *     - This ensures all ranges are valid and cover 0-100 without gaps or overlaps
          * @example {
          *       "high_max": 84,
          *       "low_max": 29,
          *       "medium_max": 59
          *     }
          */
-        SeverityThresholdsUpdate: {
+        SeverityThresholdsUpdateRequest: {
             /**
              * Low Max
-             * @description Maximum risk score for LOW severity (0 to this value = LOW)
+             * @description Maximum risk score for LOW severity (1-98)
              */
             low_max: number;
             /**
              * Medium Max
-             * @description Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM)
+             * @description Maximum risk score for MEDIUM severity (2-99)
              */
             medium_max: number;
             /**
              * High Max
-             * @description Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH)
+             * @description Maximum risk score for HIGH severity (3-99)
              */
             high_max: number;
         };
@@ -11264,7 +11554,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SeverityThresholdsUpdate"];
+                "application/json": components["schemas"]["SeverityThresholdsUpdateRequest"];
             };
         };
         responses: {
@@ -11439,6 +11729,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_model_zoo_status_api_system_model_zoo_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelZooStatusResponse"];
+                };
+            };
+        };
+    };
+    get_model_zoo_latency_history_api_system_model_zoo_latency_history_get: {
+        parameters: {
+            query: {
+                /** @description Model name to get latency history for (e.g., 'yolo11-license-plate') */
+                model: string;
+                /** @description Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours) */
+                since?: number;
+                /** @description Size of each time bucket in seconds (10-3600, i.e., 10 seconds to 1 hour) */
+                bucket_seconds?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelLatencyHistoryResponse"];
                 };
             };
             /** @description Validation Error */
