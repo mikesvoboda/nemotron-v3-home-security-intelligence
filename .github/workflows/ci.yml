@@ -29,7 +29,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -59,7 +59,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -98,7 +98,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -183,7 +183,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -265,7 +265,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -347,7 +347,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -429,7 +429,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -539,7 +539,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -567,7 +567,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -918,7 +918,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
@@ -976,7 +976,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: 'latest'
+          version: '0.9.18'
           cache: true
 
       - name: Set up Python
