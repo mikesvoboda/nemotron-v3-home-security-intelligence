@@ -55,22 +55,41 @@ def _clean_llm_response(text: str) -> str:
     """Clean common LLM response artifacts.
 
     Removes:
-    - <think>...</think> reasoning blocks
+    - <think>...</think> reasoning blocks that appear BEFORE JSON
     - Markdown code blocks (```json ... ```)
     - Leading/trailing whitespace
+
+    Preserves:
+    - <think> patterns that appear inside JSON values/keys (edge case)
     """
-    cleaned = text
+    cleaned = text.strip()
 
-    # Remove <think>...</think> reasoning blocks (complete)
-    cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL)
-
-    # Handle incomplete <think> blocks (no closing tag)
-    if "<think>" in cleaned:
-        # Try to find JSON after the think block
+    # Remove think blocks that appear BEFORE any JSON
+    # This preserves <think> patterns that might legitimately appear inside JSON strings
+    while True:
+        json_start = cleaned.find("{")
         think_start = cleaned.find("<think>")
-        json_start = cleaned.find("{", think_start)
-        if json_start > think_start:
-            cleaned = cleaned[json_start:]
+
+        # If no think block, or think appears after JSON starts, we're done
+        if think_start == -1 or (json_start != -1 and think_start > json_start):
+            break
+
+        # Think block appears before JSON (or no JSON yet) - find its end
+        think_end = cleaned.find("</think>", think_start)
+
+        if think_end != -1:
+            # Complete think block - remove it entirely
+            think_end += len("</think>")
+            cleaned = cleaned[:think_start] + cleaned[think_end:]
+        else:
+            # Incomplete think block (no closing tag)
+            if json_start != -1:
+                # There's JSON after the incomplete think - skip to JSON
+                cleaned = cleaned[json_start:]
+            else:
+                # No JSON and incomplete think - just remove the opening tag
+                cleaned = cleaned[:think_start] + cleaned[think_start + len("<think>") :]
+            break
 
     # Remove markdown code blocks
     # Handle ```json ... ``` format - only at line boundaries to avoid corrupting JSON content

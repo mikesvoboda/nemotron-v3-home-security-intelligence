@@ -970,9 +970,11 @@ Array of alerts when metrics exceed configured thresholds:
 | `redis_hit_ratio` | <50%    | <10%     |
 
 #### Complete Example
+
 =======
 Sent periodically with detailed system performance metrics:
->>>>>>> 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
+
+> > > > > > > 414ed391 (docs: expand AGENTS.md and architecture documentation (NEM-1165, NEM-1167, NEM-1168, NEM-1169, NEM-1170, NEM-1171, NEM-1172))
 
 ```json
 {
