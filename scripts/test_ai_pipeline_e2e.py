@@ -142,6 +142,63 @@ def classify_pet(image_path: str, client: httpx.Client) -> tuple[dict, float]:
     return {}, elapsed
 
 
+def parse_timestamp_from_filename(filename_stem: str) -> str:
+    """Parse timestamp from a filename stem.
+
+    Attempts to extract a timestamp from the filename. Foscam cameras typically
+    produce filenames like: MDAlarm_20250103_153045.jpg (date_time format).
+
+    NEM-1096: Handles non-standard filename formats gracefully by logging a
+    warning and returning "unknown" instead of crashing.
+
+    Args:
+        filename_stem: The filename without extension (e.g., "MDAlarm_20250103_153045")
+
+    Returns:
+        Extracted timestamp string, or "unknown" if parsing fails
+    """
+    try:
+        # Expected format: {prefix}_{date}_{time} or just {date}_{time}
+        # Example: MDAlarm_20250103_153045 -> "20250103_153045"
+        if "_" not in filename_stem:
+            print(f"  [Warning] Non-standard filename format (no underscore): {filename_stem}")
+            return "unknown"
+
+        parts = filename_stem.split("_")
+        if len(parts) < 2:
+            print(f"  [Warning] Non-standard filename format (insufficient parts): {filename_stem}")
+            return "unknown"
+
+        # Try to find date and time parts (8 digits for date, 6 for time)
+        # Common patterns:
+        # - MDAlarm_20250103_153045 -> parts[1] = date, parts[2] = time
+        # - 20250103_153045 -> parts[0] = date, parts[1] = time
+        # - camera_front_20250103_153045 -> last two parts are date and time
+        for idx in range(len(parts) - 1):
+            date_part = parts[idx]
+            time_part = parts[idx + 1]
+            # Check if these look like date (8 digits) and time (6 digits)
+            if (
+                len(date_part) == 8
+                and date_part.isdigit()
+                and len(time_part) == 6
+                and time_part.isdigit()
+            ):
+                return f"{date_part}_{time_part}"
+
+        # Fallback: return the last part which may be a timestamp
+        last_part = parts[-1]
+        if last_part.isdigit() and len(last_part) >= 6:
+            return last_part
+
+        print(f"  [Warning] Could not parse timestamp from filename: {filename_stem}")
+        return "unknown"
+
+    except Exception as e:
+        print(f"  [Warning] Error parsing timestamp from {filename_stem}: {e}")
+        return "unknown"
+
+
 def analyze_with_nemotron(results: list[PipelineResult], client: httpx.Client) -> tuple[str, float]:
     """Send aggregated results to Nemotron for risk analysis.
 
@@ -161,7 +218,8 @@ DETECTION SUMMARY:
     for i, result in enumerate(results, 1):
         # Build image header
         image_path = Path(result.image_path)
-        timestamp = image_path.stem.split("_")[-1] if "_" in image_path.stem else "unknown"
+        # NEM-1096: Use robust timestamp parsing with graceful error handling
+        timestamp = parse_timestamp_from_filename(image_path.stem)
         prompt_parts.append(
             f"""
 --- Image {i}: {image_path.name} ---
@@ -243,11 +301,11 @@ def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -
         result.detections = detections
         result.timings["detection"] = elapsed
         if verbose:
-            print(f"    ✓ Detection: {len(detections)} objects ({elapsed:.2f}s)")
+            print(f"    [OK] Detection: {len(detections)} objects ({elapsed:.2f}s)")
     except Exception as e:
         result.errors.append(f"Detection failed: {e}")
         if verbose:
-            print(f"    ✗ Detection failed: {e}")
+            print(f"    [FAIL] Detection failed: {e}")
 
     # 2. Florence-2 Caption
     try:
@@ -256,11 +314,11 @@ def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -
         result.timings["caption"] = elapsed
         if verbose:
             preview = caption[:80] + "..." if len(caption) > 80 else caption
-            print(f'    ✓ Caption: "{preview}" ({elapsed:.2f}s)')
+            print(f'    [OK] Caption: "{preview}" ({elapsed:.2f}s)')
     except Exception as e:
         result.errors.append(f"Caption failed: {e}")
         if verbose:
-            print(f"    ✗ Caption failed: {e}")
+            print(f"    [FAIL] Caption failed: {e}")
 
     # 3. CLIP Embedding
     try:
@@ -268,11 +326,11 @@ def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -
         result.embeddings = embedding
         result.timings["embedding"] = elapsed
         if verbose:
-            print(f"    ✓ CLIP Embedding: {len(embedding)}-dim ({elapsed:.2f}s)")
+            print(f"    [OK] CLIP Embedding: {len(embedding)}-dim ({elapsed:.2f}s)")
     except Exception as e:
         result.errors.append(f"Embedding failed: {e}")
         if verbose:
-            print(f"    ✗ Embedding failed: {e}")
+            print(f"    [FAIL] Embedding failed: {e}")
 
     # 4. Vehicle Classification
     try:
@@ -283,14 +341,14 @@ def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -
             if vehicle.get("predictions"):
                 top = vehicle["predictions"][0]
                 print(
-                    f"    ✓ Vehicle: {top.get('label', 'none')} ({top.get('confidence', 0):.2f}) ({elapsed:.2f}s)"
+                    f"    [OK] Vehicle: {top.get('label', 'none')} ({top.get('confidence', 0):.2f}) ({elapsed:.2f}s)"
                 )
             else:
-                print(f"    ✓ Vehicle: no vehicle detected ({elapsed:.2f}s)")
+                print(f"    [OK] Vehicle: no vehicle detected ({elapsed:.2f}s)")
     except Exception as e:
         result.errors.append(f"Vehicle classification failed: {e}")
         if verbose:
-            print(f"    ✗ Vehicle classification failed: {e}")
+            print(f"    [FAIL] Vehicle classification failed: {e}")
 
     # 5. Pet Classification
     try:
@@ -301,14 +359,14 @@ def process_image(image_path: str, client: httpx.Client, verbose: bool = True) -
             if pet.get("predictions"):
                 top = pet["predictions"][0]
                 print(
-                    f"    ✓ Pet: {top.get('label', 'none')} ({top.get('confidence', 0):.2f}) ({elapsed:.2f}s)"
+                    f"    [OK] Pet: {top.get('label', 'none')} ({top.get('confidence', 0):.2f}) ({elapsed:.2f}s)"
                 )
             else:
-                print(f"    ✓ Pet: no pet detected ({elapsed:.2f}s)")
+                print(f"    [OK] Pet: no pet detected ({elapsed:.2f}s)")
     except Exception as e:
         result.errors.append(f"Pet classification failed: {e}")
         if verbose:
-            print(f"    ✗ Pet classification failed: {e}")
+            print(f"    [FAIL] Pet classification failed: {e}")
 
     return result
 
@@ -347,13 +405,13 @@ def main():  # noqa: PLR0912
     status = check_services()
     all_healthy = True
     for name, healthy in status.items():
-        icon = "✓" if healthy else "✗"
+        icon = "[OK]" if healthy else "[FAIL]"
         print(f"   {icon} {name}: {'healthy' if healthy else 'NOT AVAILABLE'}")
         if not healthy:
             all_healthy = False
 
     if not all_healthy:
-        print("\n⚠ Some services unavailable. Results may be incomplete.")
+        print("\n[Warning] Some services unavailable. Results may be incomplete.")
 
     # Select images
     if args.images:
@@ -391,10 +449,10 @@ def main():  # noqa: PLR0912
         print("\n4. Running Nemotron risk analysis...")
         try:
             analysis, elapsed = analyze_with_nemotron(results, client)
-            print(f"   ✓ Analysis complete ({elapsed:.2f}s)")
+            print(f"   [OK] Analysis complete ({elapsed:.2f}s)")
         except Exception as e:
             analysis = ""
-            print(f"   ✗ Analysis failed: {e}")
+            print(f"   [FAIL] Analysis failed: {e}")
 
     # Save fixtures if requested
     if args.save_fixtures:
