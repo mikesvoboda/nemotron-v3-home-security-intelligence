@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import SystemMonitoringPage from './SystemMonitoringPage';
 import * as useHealthStatusHook from '../../hooks/useHealthStatus';
+import * as useModelZooStatusHook from '../../hooks/useModelZooStatus';
 import * as usePerformanceMetricsHook from '../../hooks/usePerformanceMetrics';
 import * as api from '../../services/api';
 
@@ -10,6 +11,7 @@ import * as api from '../../services/api';
 vi.mock('../../services/api');
 vi.mock('../../hooks/useHealthStatus');
 vi.mock('../../hooks/usePerformanceMetrics');
+vi.mock('../../hooks/useModelZooStatus');
 
 // Mock child components
 vi.mock('../dashboard/GpuStats', () => ({
@@ -100,6 +102,19 @@ vi.mock('./CircuitBreakerPanel', () => ({
 
 vi.mock('./SeverityConfigPanel', () => ({
   default: () => <div data-testid="severity-config-panel">Severity Config Panel</div>,
+}));
+
+// Mock new System page components
+vi.mock('./SystemSummaryRow', () => ({
+  default: () => <div data-testid="system-summary-row">System Summary Row</div>,
+}));
+
+vi.mock('./PipelineFlowVisualization', () => ({
+  default: () => <div data-testid="pipeline-flow-visualization">Pipeline Flow Visualization</div>,
+}));
+
+vi.mock('./InfrastructureStatusGrid', () => ({
+  default: () => <div data-testid="infrastructure-status-grid">Infrastructure Status Grid</div>,
 }));
 
 // PipelineTelemetry was removed in favor of PipelineMetricsPanel
@@ -209,6 +224,25 @@ describe('SystemMonitoringPage', () => {
       health: mockHealthResponse,
       services: mockHealthResponse.services,
       overallStatus: 'healthy',
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+
+    // Mock fetchReadiness for workers data (used by PipelineFlowVisualization)
+    (api.fetchReadiness as Mock).mockResolvedValue({
+      ready: true,
+      workers: [
+        { name: 'file_watcher', running: true },
+        { name: 'batch_aggregator', running: true },
+        { name: 'cleanup_service', running: true },
+      ],
+    });
+
+    // Setup mock for useModelZooStatus (used by ModelZooPanel)
+    (useModelZooStatusHook.useModelZooStatus as Mock).mockReturnValue({
+      models: [],
+      vramStats: null,
       isLoading: false,
       error: null,
       refresh: vi.fn(),

@@ -448,7 +448,7 @@ describe('usePerformanceMetrics', () => {
           queues: { detection: 0, analysis: 0 },
         },
         databases: {
-          postgres: {
+          postgresql: {
             status: 'healthy',
             connections_active: 5,
             connections_max: 30,
@@ -480,7 +480,7 @@ describe('usePerformanceMetrics', () => {
       expect(result.current.current?.ai_models.rtdetr).toBeDefined();
       expect(result.current.current?.nemotron?.slots_active).toBe(1);
       expect(result.current.current?.inference?.rtdetr_latency_ms.avg).toBe(45);
-      expect(result.current.current?.databases.postgres).toBeDefined();
+      expect(result.current.current?.databases.postgresql).toBeDefined();
       expect(result.current.current?.databases.redis).toBeDefined();
       expect(result.current.current?.host?.cpu_percent).toBe(12);
       expect(result.current.current?.containers).toHaveLength(2);

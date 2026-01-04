@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SeverityThresholds from './SeverityThresholds';
@@ -322,6 +323,326 @@ describe('SeverityThresholds', () => {
       expect(screen.getByText('21-50')).toBeInTheDocument();
       expect(screen.getByText('51-80')).toBeInTheDocument();
       expect(screen.getByText('81-100')).toBeInTheDocument();
+    });
+  });
+
+  describe('editing functionality', () => {
+    it('shows Edit Thresholds button when loaded', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+    });
+
+    it('enters edit mode when Edit Thresholds is clicked', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      // Should show input fields
+      expect(screen.getByTestId('threshold-input-low')).toBeInTheDocument();
+      expect(screen.getByTestId('threshold-input-medium')).toBeInTheDocument();
+      expect(screen.getByTestId('threshold-input-high')).toBeInTheDocument();
+
+      // Should show Save and Reset buttons
+      expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /reset/i })).toBeInTheDocument();
+    });
+
+    it('shows correct initial values in edit inputs', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      expect(screen.getByTestId('threshold-input-low')).toHaveValue(29);
+      expect(screen.getByTestId('threshold-input-medium')).toHaveValue(59);
+      expect(screen.getByTestId('threshold-input-high')).toHaveValue(84);
+    });
+
+    it('updates ranges dynamically when thresholds are changed', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+
+      render(<SeverityThresholds />);
+
+      // Wait for data to load and table to render
+      await waitFor(() => {
+        expect(screen.getByRole('table')).toBeInTheDocument();
+      });
+
+      // Click the edit button
+      fireEvent.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      // Wait for edit mode to be active
+      await waitFor(() => {
+        expect(screen.getByTestId('threshold-input-low')).toBeInTheDocument();
+      });
+
+      // Change the low threshold value
+      const lowInput = screen.getByTestId('threshold-input-low');
+      fireEvent.change(lowInput, { target: { value: '25' } });
+
+      // Should show updated range text in table (0-25 for low)
+      await waitFor(() => {
+        expect(screen.getByText('0-25')).toBeInTheDocument();
+      });
+      // Should show updated range for medium (26-59)
+      expect(screen.getByText('26-59')).toBeInTheDocument();
+    });
+
+    it('resets to original values when Reset is clicked', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      const lowInput = screen.getByTestId('threshold-input-low');
+      await user.clear(lowInput);
+      await user.type(lowInput, '25');
+
+      await user.click(screen.getByRole('button', { name: /reset/i }));
+
+      // Should exit edit mode
+      expect(screen.queryByTestId('threshold-input-low')).not.toBeInTheDocument();
+
+      // Should show original values
+      expect(screen.getByText('0-29')).toBeInTheDocument();
+    });
+
+    it('validates that low_max is less than medium_max', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      // Set low_max higher than medium_max
+      const lowInput = screen.getByTestId('threshold-input-low');
+      await user.clear(lowInput);
+      await user.type(lowInput, '65');
+
+      await waitFor(() => {
+        expect(screen.getByText(/Low max must be less than Medium max/i)).toBeInTheDocument();
+      });
+
+      // Save button should be disabled due to validation error
+      expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    });
+
+    it('validates that medium_max is less than high_max', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      // Set medium_max higher than high_max
+      const mediumInput = screen.getByTestId('threshold-input-medium');
+      await user.clear(mediumInput);
+      await user.type(mediumInput, '90');
+
+      await waitFor(() => {
+        expect(screen.getByText(/Medium max must be less than High max/i)).toBeInTheDocument();
+      });
+    });
+
+    it('validates boundary values', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      // Set low_max to 0 (invalid - should be >= 1)
+      const lowInput = screen.getByTestId('threshold-input-low');
+      fireEvent.change(lowInput, { target: { value: '0' } });
+
+      // Use getAllByText since error appears in both summary and inline
+      await waitFor(() => {
+        const errorMessages = screen.getAllByText(/Low max must be between 1 and 98/i);
+        expect(errorMessages.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('saves thresholds successfully', async () => {
+      const updatedConfig = {
+        ...mockSeverityConfig,
+        thresholds: {
+          low_max: 25,
+          medium_max: 59,
+          high_max: 84,
+        },
+        definitions: mockSeverityConfig.definitions.map((d) => {
+          if (d.severity === 'low') return { ...d, max_score: 25 };
+          if (d.severity === 'medium') return { ...d, min_score: 26 };
+          return d;
+        }),
+      };
+
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      vi.mocked(api.updateSeverityThresholds).mockResolvedValue(updatedConfig);
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threshold-input-low')).toBeInTheDocument();
+      });
+
+      const lowInput = screen.getByTestId('threshold-input-low');
+      fireEvent.change(lowInput, { target: { value: '25' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      await waitFor(() => {
+        expect(api.updateSeverityThresholds).toHaveBeenCalledWith({
+          low_max: 25,
+          medium_max: 59,
+          high_max: 84,
+        });
+      });
+
+      // Should show success message
+      await waitFor(() => {
+        expect(screen.getByText(/saved successfully/i)).toBeInTheDocument();
+      });
+
+      // Should exit edit mode
+      expect(screen.queryByTestId('threshold-input-low')).not.toBeInTheDocument();
+    });
+
+    it('displays error when save fails', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      vi.mocked(api.updateSeverityThresholds).mockRejectedValue(new Error('Save failed'));
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threshold-input-low')).toBeInTheDocument();
+      });
+
+      const lowInput = screen.getByTestId('threshold-input-low');
+      fireEvent.change(lowInput, { target: { value: '25' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Failed to save severity thresholds/i)).toBeInTheDocument();
+      });
+    });
+
+    it('disables Save button when no changes made', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      const user = userEvent.setup();
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      // Save button should be disabled since no changes were made
+      expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    });
+
+    it('shows Saving... text while saving', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+      vi.mocked(api.updateSeverityThresholds).mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit thresholds/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /edit thresholds/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threshold-input-low')).toBeInTheDocument();
+      });
+
+      const lowInput = screen.getByTestId('threshold-input-low');
+      fireEvent.change(lowInput, { target: { value: '25' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /saving/i })).toBeInTheDocument();
+      });
+    });
+
+    it('does not show Edit button during loading', () => {
+      vi.mocked(api.fetchSeverityConfig).mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+
+      render(<SeverityThresholds />);
+
+      expect(screen.queryByRole('button', { name: /edit thresholds/i })).not.toBeInTheDocument();
+    });
+
+    it('does not show Edit button when error occurs', async () => {
+      vi.mocked(api.fetchSeverityConfig).mockRejectedValue(new Error('Network error'));
+
+      render(<SeverityThresholds />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Failed to load severity thresholds/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /edit thresholds/i })).not.toBeInTheDocument();
     });
   });
 });

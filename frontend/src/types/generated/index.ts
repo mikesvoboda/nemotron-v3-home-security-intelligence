@@ -119,6 +119,7 @@ export type SeverityEnum = components['schemas']['SeverityEnum'];
 export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
 export type SeverityThresholds = components['schemas']['SeverityThresholds'];
 export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
+export type SeverityThresholdsUpdateRequest = components['schemas']['SeverityThresholdsUpdateRequest'];
 
 // Zone types
 export type Zone = components['schemas']['ZoneResponse'];

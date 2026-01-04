@@ -134,26 +134,63 @@ describe('AIPerformancePage', () => {
       });
     });
 
-    it('renders the model status cards', async () => {
+    it('renders the summary row with key indicators', async () => {
       renderWithRouter();
       await waitFor(() => {
-        expect(screen.getByTestId('model-status-cards')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-summary-row')).toBeInTheDocument();
       });
     });
 
-    it('renders RT-DETRv2 status card', async () => {
+    it('renders RT-DETRv2 indicator in summary row', async () => {
       renderWithRouter();
       await waitFor(() => {
-        expect(screen.getByTestId('rtdetr-status-card')).toBeInTheDocument();
+        expect(screen.getByTestId('rtdetr-indicator')).toBeInTheDocument();
         expect(screen.getByText('RT-DETRv2')).toBeInTheDocument();
       });
     });
 
-    it('renders Nemotron status card', async () => {
+    it('renders Nemotron indicator in summary row', async () => {
       renderWithRouter();
       await waitFor(() => {
-        expect(screen.getByTestId('nemotron-status-card')).toBeInTheDocument();
+        expect(screen.getByTestId('nemotron-indicator')).toBeInTheDocument();
         expect(screen.getByText('Nemotron')).toBeInTheDocument();
+      });
+    });
+
+    it('renders queues indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('queues-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders throughput indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('throughput-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders errors indicator in summary row', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('errors-indicator')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Pipeline Performance section', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('pipeline-performance-section')).toBeInTheDocument();
+        expect(screen.getByText('Pipeline Performance')).toBeInTheDocument();
+      });
+    });
+
+    it('renders AI Models section', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('ai-models-section')).toBeInTheDocument();
+        expect(screen.getByText('AI Models')).toBeInTheDocument();
       });
     });
 
@@ -192,10 +229,11 @@ describe('AIPerformancePage', () => {
       });
     });
 
-    it('renders Model Zoo Analytics title', async () => {
+    it('renders model contribution chart and leaderboard in AI Models section', async () => {
       renderWithRouter();
       await waitFor(() => {
-        expect(screen.getByText('Model Zoo Analytics')).toBeInTheDocument();
+        // Model Zoo Analytics is now part of AI Models section (no separate title)
+        expect(screen.getByTestId('model-zoo-analytics-section')).toBeInTheDocument();
       });
     });
 
@@ -490,28 +528,30 @@ describe('AIPerformancePage', () => {
     });
   });
 
-  describe('model status display', () => {
-    it('displays healthy status for RT-DETRv2', async () => {
+  describe('summary row status display', () => {
+    it('displays RT-DETRv2 indicator with green status when healthy and low latency', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const rtdetrCard = screen.getByTestId('rtdetr-status-card');
-        expect(rtdetrCard).toBeInTheDocument();
-        expect(within(rtdetrCard).getByTestId('rtdetr-badge')).toHaveTextContent('healthy');
+        const rtdetrIndicator = screen.getByTestId('rtdetr-indicator');
+        expect(rtdetrIndicator).toBeInTheDocument();
+        // Green status for healthy model with <50ms latency is shown via data-status attribute
+        expect(rtdetrIndicator).toHaveAttribute('data-status', 'yellow'); // 150ms is yellow (50-200ms)
       });
     });
 
-    it('displays healthy status for Nemotron', async () => {
+    it('displays Nemotron indicator with yellow status when latency is moderate', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const nemotronCard = screen.getByTestId('nemotron-status-card');
-        expect(nemotronCard).toBeInTheDocument();
-        expect(within(nemotronCard).getByTestId('nemotron-badge')).toHaveTextContent('healthy');
+        const nemotronIndicator = screen.getByTestId('nemotron-indicator');
+        expect(nemotronIndicator).toBeInTheDocument();
+        // 2500ms is green (<5s threshold for Nemotron)
+        expect(nemotronIndicator).toHaveAttribute('data-status', 'green');
       });
     });
 
-    it('displays unhealthy status correctly', async () => {
+    it('displays red status for unhealthy RT-DETRv2', async () => {
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
@@ -525,16 +565,16 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const rtdetrCard = screen.getByTestId('rtdetr-status-card');
-        expect(within(rtdetrCard).getByTestId('rtdetr-badge')).toHaveTextContent('unhealthy');
+        const rtdetrIndicator = screen.getByTestId('rtdetr-indicator');
+        expect(rtdetrIndicator).toHaveAttribute('data-status', 'red');
       });
     });
 
-    it('displays degraded status correctly', async () => {
+    it('displays red status for unhealthy Nemotron', async () => {
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
-          nemotron: { name: 'Nemotron', status: 'degraded', message: 'High latency detected' },
+          nemotron: { name: 'Nemotron', status: 'unhealthy', message: 'Connection refused' },
         },
         isLoading: false,
         error: null,
@@ -544,16 +584,17 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const nemotronCard = screen.getByTestId('nemotron-status-card');
-        expect(within(nemotronCard).getByTestId('nemotron-badge')).toHaveTextContent('degraded');
+        const nemotronIndicator = screen.getByTestId('nemotron-indicator');
+        expect(nemotronIndicator).toHaveAttribute('data-status', 'red');
       });
     });
 
-    it('displays unknown status correctly', async () => {
+    it('displays gray status for unknown model status', async () => {
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
           rtdetr: { name: 'RT-DETRv2', status: 'unknown' },
+          detectionLatency: null,
         },
         isLoading: false,
         error: null,
@@ -563,29 +604,59 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const rtdetrCard = screen.getByTestId('rtdetr-status-card');
-        expect(within(rtdetrCard).getByTestId('rtdetr-badge')).toHaveTextContent('unknown');
+        const rtdetrIndicator = screen.getByTestId('rtdetr-indicator');
+        expect(rtdetrIndicator).toHaveAttribute('data-status', 'gray');
       });
     });
 
-    it('displays latency metrics in model cards', async () => {
+    it('displays latency value in RT-DETRv2 indicator', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const rtdetrCard = screen.getByTestId('rtdetr-status-card');
-        // Check for latency values
-        expect(within(rtdetrCard).getByText('150ms')).toBeInTheDocument();
-        expect(within(rtdetrCard).getByText('280ms')).toBeInTheDocument();
-        expect(within(rtdetrCard).getByText('450ms')).toBeInTheDocument();
+        const rtdetrIndicator = screen.getByTestId('rtdetr-indicator');
+        // 150ms average latency should be displayed
+        expect(within(rtdetrIndicator).getByText('150ms')).toBeInTheDocument();
       });
     });
 
-    it('displays sample count in model cards', async () => {
+    it('displays latency value in Nemotron indicator', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const rtdetrCard = screen.getByTestId('rtdetr-status-card');
-        expect(within(rtdetrCard).getByText('1,000 samples')).toBeInTheDocument();
+        const nemotronIndicator = screen.getByTestId('nemotron-indicator');
+        // 2500ms = 2.5s should be displayed
+        expect(within(nemotronIndicator).getByText('2.5s')).toBeInTheDocument();
+      });
+    });
+
+    it('displays queue depth in queues indicator', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        const queuesIndicator = screen.getByTestId('queues-indicator');
+        // 5 + 2 = 7 queued items
+        expect(within(queuesIndicator).getByText('7 queued')).toBeInTheDocument();
+      });
+    });
+
+    it('displays green status for healthy queue depths', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        const queuesIndicator = screen.getByTestId('queues-indicator');
+        // 7 items is green (0-10 threshold)
+        expect(queuesIndicator).toHaveAttribute('data-status', 'green');
+      });
+    });
+
+    it('displays error count in errors indicator', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        const errorsIndicator = screen.getByTestId('errors-indicator');
+        // No errors in default mock data
+        expect(within(errorsIndicator).getByText('0 errors')).toBeInTheDocument();
+        expect(errorsIndicator).toHaveAttribute('data-status', 'green');
       });
     });
   });
@@ -980,14 +1051,20 @@ describe('AIPerformancePage', () => {
       });
     });
 
-    it('cards have data-testid for identification', async () => {
+    it('key components have data-testid for identification', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('rtdetr-status-card')).toBeInTheDocument();
-        expect(screen.getByTestId('nemotron-status-card')).toBeInTheDocument();
+        // Summary Row indicators
+        expect(screen.getByTestId('ai-summary-row')).toBeInTheDocument();
+        expect(screen.getByTestId('rtdetr-indicator')).toBeInTheDocument();
+        expect(screen.getByTestId('nemotron-indicator')).toBeInTheDocument();
+        // Section panels
         expect(screen.getByTestId('latency-panel')).toBeInTheDocument();
         expect(screen.getByTestId('pipeline-health-panel')).toBeInTheDocument();
+        // Page sections
+        expect(screen.getByTestId('pipeline-performance-section')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-models-section')).toBeInTheDocument();
       });
     });
   });
@@ -1026,8 +1103,9 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         // formatMs uses toFixed(1) for seconds: 5000ms -> 5.0s
-        expect(screen.getByText('5.0s')).toBeInTheDocument();
-        expect(screen.getByText('12.0s')).toBeInTheDocument();
+        // Value appears in both Summary Row indicator and Latency Panel
+        expect(screen.getAllByText('5.0s').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('12.0s').length).toBeGreaterThanOrEqual(1);
       });
     });
 

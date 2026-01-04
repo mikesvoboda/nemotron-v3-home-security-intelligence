@@ -9,7 +9,7 @@
  */
 
 import { Text, Callout, Select, SelectItem } from '@tremor/react';
-import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play } from 'lucide-react';
+import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play, Settings } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
@@ -19,12 +19,15 @@ import {
   fetchAiAuditStats,
   fetchAuditRecommendations,
 } from '../../services/api';
+import { PromptPlayground } from '../ai-audit';
 
 import type {
   AiAuditStatsResponse,
   AiAuditRecommendationsResponse,
+  AiAuditRecommendationItem,
 } from '../../services/api';
 import type { BatchAuditResponse } from '../../services/auditApi';
+import type { RecommendationContext } from '../ai-audit';
 
 /**
  * AIAuditPage - Main AI audit dashboard
@@ -45,6 +48,10 @@ export default function AIAuditPage() {
   // Batch audit modal state
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchSuccess, setBatchSuccess] = useState<string | null>(null);
+
+  // Prompt Playground state
+  const [isPlaygroundOpen, setIsPlaygroundOpen] = useState(false);
+  const [playgroundRecommendation, setPlaygroundRecommendation] = useState<RecommendationContext | undefined>(undefined);
 
   // Load data
   const loadData = useCallback(async (showLoading = true) => {
@@ -93,6 +100,23 @@ export default function AIAuditPage() {
     setTimeout(() => setBatchSuccess(null), 5000);
     // Refresh data to show updated stats
     void loadData(false);
+  };
+
+  // Handle opening Prompt Playground from a recommendation
+  const handleOpenPlayground = (recommendation: AiAuditRecommendationItem) => {
+    setPlaygroundRecommendation({
+      suggestion: recommendation.suggestion,
+      category: recommendation.category,
+      // Default to nemotron since most prompt recommendations target it
+      model: 'nemotron',
+    });
+    setIsPlaygroundOpen(true);
+  };
+
+  // Handle opening Prompt Playground directly (without recommendation)
+  const handleOpenPlaygroundDirect = () => {
+    setPlaygroundRecommendation(undefined);
+    setIsPlaygroundOpen(true);
   };
 
   // Loading state
@@ -181,6 +205,16 @@ export default function AIAuditPage() {
               </Select>
             </div>
 
+            {/* Prompt Playground Button */}
+            <button
+              onClick={handleOpenPlaygroundDirect}
+              className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              data-testid="open-playground-button"
+            >
+              <Settings className="h-4 w-4" />
+              Prompt Playground
+            </button>
+
             {/* Trigger Batch Audit Button */}
             <button
               onClick={() => setIsBatchModalOpen(true)}
@@ -247,6 +281,7 @@ export default function AIAuditPage() {
               <RecommendationsPanel
                 recommendations={recommendations.recommendations}
                 totalEventsAnalyzed={recommendations.total_events_analyzed}
+                onOpenPlayground={handleOpenPlayground}
               />
             )}
 
@@ -263,6 +298,13 @@ export default function AIAuditPage() {
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onSuccess={handleBatchAuditSuccess}
+      />
+
+      {/* Prompt Playground Panel */}
+      <PromptPlayground
+        isOpen={isPlaygroundOpen}
+        onClose={() => setIsPlaygroundOpen(false)}
+        recommendation={playgroundRecommendation}
       />
     </div>
   );

@@ -89,6 +89,7 @@ export type {
   SeverityDefinitionResponse,
   SeverityThresholds,
   SeverityMetadataResponse,
+  SeverityThresholdsUpdateRequest,
 } from '../types/generated';
 
 // Import concrete types for use in this module
@@ -128,6 +129,7 @@ import type {
   ReadinessResponse,
   SearchResponse as GeneratedSearchResponse,
   SeverityMetadataResponse as GeneratedSeverityMetadataResponse,
+  SeverityThresholdsUpdateRequest,
   SystemConfig,
   SystemConfigUpdate,
   SystemStats,
@@ -1710,6 +1712,32 @@ export async function fetchSeverityMetadata(): Promise<GeneratedSeverityMetadata
 
 // Alias for backward compatibility - use existing SeverityMetadataResponse type
 export const fetchSeverityConfig = fetchSeverityMetadata;
+
+/**
+ * Update severity threshold configuration
+ *
+ * Updates the risk score thresholds for severity levels. The thresholds
+ * define how risk scores (0-100) are mapped to severity levels:
+ * - LOW: 0 to low_max
+ * - MEDIUM: low_max+1 to medium_max
+ * - HIGH: medium_max+1 to high_max
+ * - CRITICAL: high_max+1 to 100
+ *
+ * Validation rules:
+ * - Thresholds must be strictly ordered: low_max < medium_max < high_max
+ * - All thresholds must be between 1 and 99
+ *
+ * @param thresholds - New threshold values
+ * @returns SeverityMetadataResponse with updated definitions and thresholds
+ */
+export async function updateSeverityThresholds(
+  thresholds: SeverityThresholdsUpdateRequest
+): Promise<GeneratedSeverityMetadataResponse> {
+  return fetchApi<GeneratedSeverityMetadataResponse>('/api/system/severity', {
+    method: 'PUT',
+    body: JSON.stringify(thresholds),
+  });
+}
 
 // ============================================================================
 // Enrichment Endpoints

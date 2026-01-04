@@ -1,9 +1,18 @@
 /**
  * AI Audit Components
  *
- * Components for the AI Audit page features.
- * PromptPlayground and VersionHistory will be added in a future PR.
+ * Components for the AI Audit page features including:
+ * - PromptPlayground: Interactive prompt testing and editing
  */
 
-// TODO: Add PromptPlayground export when implementation is complete
-// TODO: Add VersionHistory export when implementation is complete
+export { default as PromptPlayground } from './PromptPlayground';
+export type {
+  PromptPlaygroundProps,
+  AIModelEnum,
+  ModelPromptConfig,
+  AllPromptsResponse,
+  PromptTestRequest,
+  PromptTestResult,
+  PromptVersionInfo,
+  RecommendationContext,
+} from './PromptPlayground';

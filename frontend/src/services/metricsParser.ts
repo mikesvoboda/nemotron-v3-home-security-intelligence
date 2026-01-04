@@ -97,6 +97,8 @@ export interface AIMetrics {
   queue_overflows: Record<string, number>;
   /** Items moved to DLQ by queue */
   dlq_items: Record<string, number>;
+  /** Detections by object class (person, vehicle, etc.) */
+  detections_by_class: Record<string, number>;
   /** Raw timestamp of when metrics were fetched */
   timestamp: string;
 }
@@ -362,6 +364,7 @@ export function parseAIMetrics(text: string): AIMetrics {
     pipeline_errors: getCountersByLabel(metrics, 'hsi_pipeline_errors_total', 'error_type'),
     queue_overflows: getCountersByLabel(metrics, 'hsi_queue_overflow_total', 'queue_name'),
     dlq_items: getCountersByLabel(metrics, 'hsi_queue_items_moved_to_dlq_total', 'queue_name'),
+    detections_by_class: getCountersByLabel(metrics, 'hsi_detections_by_class_total', 'object_class'),
     timestamp: new Date().toISOString(),
   };
 }

@@ -17,10 +17,19 @@ import CircuitBreakerPanel from './CircuitBreakerPanel';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
+import InfrastructureStatusGrid, {
+  type InfrastructureCardId,
+  type InfrastructureData,
+} from './InfrastructureStatusGrid';
 import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
+import PipelineFlowVisualization, {
+  type PipelineStageData,
+  type BackgroundWorkerStatus,
+  type TotalLatency,
+} from './PipelineFlowVisualization';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
-import SeverityConfigPanel from './SeverityConfigPanel';
+import SystemSummaryRow from './SystemSummaryRow';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
@@ -32,13 +41,13 @@ import {
   fetchGPUStats,
   fetchConfig,
   fetchCircuitBreakers,
+  fetchReadiness,
   resetCircuitBreaker,
-  fetchSeverityMetadata,
   type GPUStats,
   type TelemetryResponse,
   type ServiceStatus,
   type CircuitBreakersResponse,
-  type SeverityMetadataResponse,
+  type WorkerStatus,
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 
@@ -132,10 +141,13 @@ export default function SystemMonitoringPage() {
   const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
   const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
 
-  // State for severity metadata
-  const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
-  const [severityLoading, setSeverityLoading] = useState(true);
-  const [severityError, setSeverityError] = useState<string | null>(null);
+  // State for workers (used by PipelineFlowVisualization)
+  const [workers, setWorkers] = useState<WorkerStatus[]>([]);
+  const [workersLoading, setWorkersLoading] = useState(true);
+  const [workersError, setWorkersError] = useState<string | null>(null);
+
+  // State for InfrastructureStatusGrid accordion
+  const [expandedInfraCard, setExpandedInfraCard] = useState<InfrastructureCardId | null>(null);
 
   // Use the health status hook for service health
   const {
@@ -276,6 +288,144 @@ export default function SystemMonitoringPage() {
     });
   });
 
+  // Transform data for PipelineFlowVisualization component
+  const pipelineStages: PipelineStageData[] = [
+    {
+      id: 'file-watcher',
+      name: 'Files',
+      icon: 'folder',
+      metrics: {
+        throughput: performanceData?.inference?.throughput?.detections_per_minute
+          ? `${performanceData.inference.throughput.detections_per_minute.toFixed(1)}/min`
+          : undefined,
+        pending: workers.find((w) => w.name === 'file_watcher')?.running ? undefined : 0,
+      },
+    },
+    {
+      id: 'rtdetr',
+      name: 'Detect',
+      icon: 'search',
+      metrics: {
+        queueDepth: telemetry?.queues?.detection_queue ?? 0,
+        avgLatency: performanceData?.inference?.rtdetr_latency_ms?.avg ?? null,
+        p95Latency: performanceData?.inference?.rtdetr_latency_ms?.p95 ?? null,
+      },
+    },
+    {
+      id: 'batch',
+      name: 'Batch',
+      icon: 'package',
+      metrics: {
+        pending: telemetry?.queues?.analysis_queue ?? 0,
+        avgLatency: performanceData?.inference?.pipeline_latency_ms?.avg
+          ? (performanceData.inference.pipeline_latency_ms.avg - (performanceData.inference?.rtdetr_latency_ms?.avg ?? 0) - (performanceData.inference?.nemotron_latency_ms?.avg ?? 0))
+          : null,
+      },
+    },
+    {
+      id: 'nemotron',
+      name: 'Analyze',
+      icon: 'brain',
+      metrics: {
+        queueDepth: telemetry?.queues?.analysis_queue ?? 0,
+        avgLatency: performanceData?.inference?.nemotron_latency_ms?.avg ?? null,
+        p95Latency: performanceData?.inference?.nemotron_latency_ms?.p95 ?? null,
+      },
+    },
+  ];
+
+  // Transform workers for PipelineFlowVisualization
+  const pipelineWorkers: BackgroundWorkerStatus[] = workers.map((worker) => ({
+    id: worker.name,
+    name: worker.name
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+      .replace(/^(.{10}).*/, '$1...'), // Truncate long names
+    status: worker.running ? 'running' : 'stopped',
+  }));
+
+  // Calculate total pipeline latency
+  const pipelineTotalLatency: TotalLatency = {
+    avg: performanceData?.inference?.pipeline_latency_ms?.avg ?? 0,
+    p95: performanceData?.inference?.pipeline_latency_ms?.p95 ?? 0,
+    p99: performanceData?.inference?.pipeline_latency_ms?.p99 ?? 0,
+  };
+
+  // Transform data for InfrastructureStatusGrid component
+  const infrastructureData: InfrastructureData = {
+    postgresql: postgresMetrics
+      ? {
+          status: postgresMetrics.status as 'healthy' | 'degraded' | 'unhealthy',
+          latency_ms: 0, // Not available in current metrics
+          pool_active: postgresMetrics.connections_active,
+          pool_max: postgresMetrics.connections_max,
+          active_queries: 0, // Not available in current metrics
+          db_size_gb: 0, // Not available in current metrics
+        }
+      : null,
+    redis: redisMetrics
+      ? {
+          status: redisMetrics.status as 'healthy' | 'degraded' | 'unhealthy',
+          ops_per_sec: 0, // Not available in current metrics
+          memory_mb: redisMetrics.memory_mb,
+          connected_clients: redisMetrics.connected_clients,
+          hit_rate: redisMetrics.hit_ratio,
+        }
+      : null,
+    containers: containerMetrics.length > 0
+      ? {
+          status: containerMetrics.every((c) => c.status === 'running' && c.health === 'healthy')
+            ? 'healthy'
+            : containerMetrics.some((c) => c.status !== 'running')
+            ? 'unhealthy'
+            : 'degraded',
+          running: containerMetrics.filter((c) => c.status === 'running').length,
+          total: containerMetrics.length,
+          containers: containerMetrics.map((c) => ({
+            name: c.name,
+            status: c.status as 'running' | 'stopped' | 'restarting',
+            cpu_percent: 0, // Not available in current metrics
+            memory_mb: 0, // Not available in current metrics
+            restart_count: 0, // Not available in current metrics
+          })),
+        }
+      : null,
+    host: hostMetrics
+      ? {
+          status: hostMetrics.cpu_percent > 90 || (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) > 0.9
+            ? 'unhealthy'
+            : hostMetrics.cpu_percent > 75 || (hostMetrics.ram_used_gb / hostMetrics.ram_total_gb) > 0.75
+            ? 'degraded'
+            : 'healthy',
+          cpu_percent: hostMetrics.cpu_percent,
+          memory_used_gb: hostMetrics.ram_used_gb,
+          memory_total_gb: hostMetrics.ram_total_gb,
+          disk_used_gb: hostMetrics.disk_used_gb,
+          disk_total_gb: hostMetrics.disk_total_gb,
+        }
+      : null,
+    circuits: circuitBreakers
+      ? (() => {
+          const breakersList = Object.values(circuitBreakers.circuit_breakers);
+          return {
+            status: breakersList.every((b) => b.state === 'closed')
+              ? 'healthy'
+              : breakersList.some((b) => b.state === 'open')
+              ? 'unhealthy'
+              : 'degraded',
+            healthy: breakersList.filter((b) => b.state === 'closed').length,
+            total: breakersList.length,
+            breakers: breakersList.map((b) => ({
+              name: b.name,
+              state: b.state,
+              failure_count: b.failure_count ?? 0,
+            })),
+          };
+        })()
+      : null,
+  };
+
   // Throughput history for PipelineMetricsPanel
   const [throughputHistory, setThroughputHistory] = useState<ThroughputPoint[]>([]);
   const prevTelemetryRef = useRef<TelemetryResponse | null>(null);
@@ -387,24 +537,31 @@ export default function SystemMonitoringPage() {
     void loadCircuitBreakers();
   }, []);
 
-  // Fetch severity metadata
+  // Fetch workers data for PipelineFlowVisualization
   useEffect(() => {
-    async function loadSeverityMetadata() {
-      setSeverityLoading(true);
-      setSeverityError(null);
+    async function loadWorkers() {
+      setWorkersLoading(true);
+      setWorkersError(null);
 
       try {
-        const data = await fetchSeverityMetadata();
-        setSeverityMetadata(data);
+        const response = await fetchReadiness();
+        setWorkers(response.workers || []);
       } catch (err) {
-        console.error('Failed to load severity metadata:', err);
-        setSeverityError(err instanceof Error ? err.message : 'Failed to load severity metadata');
+        console.error('Failed to load workers:', err);
+        setWorkersError(err instanceof Error ? err.message : 'Failed to load workers');
       } finally {
-        setSeverityLoading(false);
+        setWorkersLoading(false);
       }
     }
 
-    void loadSeverityMetadata();
+    void loadWorkers();
+
+    // Poll for worker updates every 10 seconds
+    const interval = setInterval(() => {
+      void loadWorkers();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Handler for resetting circuit breakers
@@ -550,6 +707,36 @@ export default function SystemMonitoringPage() {
             data-testid="system-performance-alerts"
           />
         )}
+
+        {/* System Summary Row - Quick health overview with clickable indicators */}
+        <SystemSummaryRow
+          className="mb-6"
+          data-testid="system-summary-row"
+        />
+
+        {/* Pipeline Flow Visualization - Visual diagram of pipeline stages */}
+        <div className="mb-6" id="section-pipeline">
+          <PipelineFlowVisualization
+            stages={pipelineStages}
+            workers={pipelineWorkers}
+            totalLatency={pipelineTotalLatency}
+            isLoading={workersLoading}
+            error={workersError}
+            data-testid="pipeline-flow-visualization"
+          />
+        </div>
+
+        {/* Infrastructure Status Grid - Compact 5-card grid with accordion details */}
+        <div className="mb-6" id="section-infra">
+          <InfrastructureStatusGrid
+            data={infrastructureData}
+            loading={loading || healthLoading}
+            error={healthError}
+            onCardClick={setExpandedInfraCard}
+            expandedCard={expandedInfraCard}
+            data-testid="infrastructure-status-grid"
+          />
+        </div>
 
         {/*
           Dense Grid Layout - Grafana-style dashboard
@@ -735,23 +922,14 @@ export default function SystemMonitoringPage() {
             />
           </div>
 
-          {/* Row 5: Circuit Breakers and Severity Configuration */}
-          <div className="xl:col-span-2">
+          {/* Row 5: Circuit Breakers (full width now that Severity moved to Settings) */}
+          <div className="lg:col-span-2 xl:col-span-4">
             <CircuitBreakerPanel
               data={circuitBreakers}
               loading={circuitBreakersLoading}
               error={circuitBreakersError}
               onReset={handleResetCircuitBreaker}
               data-testid="circuit-breaker-panel-section"
-            />
-          </div>
-
-          <div className="xl:col-span-2">
-            <SeverityConfigPanel
-              data={severityMetadata}
-              loading={severityLoading}
-              error={severityError}
-              data-testid="severity-config-panel-section"
             />
           </div>
         </div>

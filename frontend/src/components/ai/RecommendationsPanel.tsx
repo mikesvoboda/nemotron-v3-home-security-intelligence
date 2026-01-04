@@ -7,7 +7,7 @@
 
 import { Card, Title, Badge, Text, Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Lightbulb, AlertTriangle, Info } from 'lucide-react';
+import { Lightbulb, AlertTriangle, Info, ArrowRight } from 'lucide-react';
 
 import type { AiAuditRecommendationItem } from '../../services/api';
 
@@ -16,6 +16,8 @@ export interface RecommendationsPanelProps {
   recommendations: AiAuditRecommendationItem[];
   /** Total events analyzed */
   totalEventsAnalyzed: number;
+  /** Callback when user clicks to open a recommendation in Prompt Playground */
+  onOpenPlayground?: (recommendation: AiAuditRecommendationItem) => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -86,6 +88,7 @@ function groupByCategory(recommendations: AiAuditRecommendationItem[]): Map<stri
 export default function RecommendationsPanel({
   recommendations,
   totalEventsAnalyzed,
+  onOpenPlayground,
   className,
 }: RecommendationsPanelProps) {
   const groupedRecommendations = groupByCategory(recommendations);
@@ -178,6 +181,20 @@ export default function RecommendationsPanel({
                             <Text className="text-xs text-gray-500">
                               {item.frequency}x
                             </Text>
+                            {onOpenPlayground && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenPlayground(item);
+                                }}
+                                className="ml-2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-700 hover:text-[#76B900]"
+                                aria-label="Open in Prompt Playground"
+                                title="Open in Prompt Playground"
+                                data-testid={`open-playground-${category}-${index}`}
+                              >
+                                <ArrowRight className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </li>
                       ))}

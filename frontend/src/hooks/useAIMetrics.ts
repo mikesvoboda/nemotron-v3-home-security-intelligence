@@ -9,11 +9,12 @@
  * - /api/system/telemetry - Queue depths and basic latency stats
  * - /api/system/health - AI service health status
  * - /api/system/pipeline-latency - Detailed pipeline latency percentiles
+ * - /api/dlq/stats - Current DLQ counts (actual queue depth)
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { fetchTelemetry, fetchHealth, type TelemetryResponse, type HealthResponse } from '../services/api';
+import { fetchTelemetry, fetchHealth, fetchDlqStats, type TelemetryResponse, type HealthResponse, type DLQStatsResponse } from '../services/api';
 import { fetchAIMetrics, type AIMetrics, type AILatencyMetrics } from '../services/metricsParser';
 
 /**
@@ -80,6 +81,8 @@ export interface AIPerformanceState {
   queueOverflows: Record<string, number>;
   /** Items in DLQ by queue */
   dlqItems: Record<string, number>;
+  /** Detections by object class (person, vehicle, etc.) */
+  detectionsByClass: Record<string, number>;
   /** Last update timestamp */
   lastUpdated: string | null;
 }
@@ -124,6 +127,7 @@ const initialState: AIPerformanceState = {
   pipelineErrors: {},
   queueOverflows: {},
   dlqItems: {},
+  detectionsByClass: {},
   lastUpdated: null,
 };
 
@@ -215,11 +219,12 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
   const fetchAllMetrics = useCallback(async () => {
     try {
       // Fetch all data sources in parallel
-      const [metricsResult, telemetryResult, healthResult, pipelineResult] = await Promise.allSettled([
+      const [metricsResult, telemetryResult, healthResult, pipelineResult, dlqStatsResult] = await Promise.allSettled([
         fetchAIMetrics(),
         fetchTelemetry(),
         fetchHealth(),
         fetchPipelineLatency(60),
+        fetchDlqStats(),
       ]);
 
       if (!mountedRef.current) return;
@@ -233,9 +238,27 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         healthResult.status === 'fulfilled' ? healthResult.value : null;
       const pipelineLatency: PipelineLatencyResponse | null =
         pipelineResult.status === 'fulfilled' ? pipelineResult.value : null;
+      const dlqStats: DLQStatsResponse | null =
+        dlqStatsResult.status === 'fulfilled' ? dlqStatsResult.value : null;
 
       // Extract AI model statuses
       const { rtdetr, nemotron } = extractAIStatuses(health);
+
+      // Build DLQ items from /api/dlq/stats (actual queue depth) if available,
+      // otherwise fall back to Prometheus counter (may be stale/reset)
+      let dlqItems: Record<string, number> = {};
+      if (dlqStats) {
+        // Use actual DLQ counts from Redis
+        if (dlqStats.detection_queue_count > 0) {
+          dlqItems['dlq:detection_queue'] = dlqStats.detection_queue_count;
+        }
+        if (dlqStats.analysis_queue_count > 0) {
+          dlqItems['dlq:analysis_queue'] = dlqStats.analysis_queue_count;
+        }
+      } else {
+        // Fallback to Prometheus metrics if DLQ API unavailable
+        dlqItems = metrics?.dlq_items ?? {};
+      }
 
       // Combine all metrics into state
       setData({
@@ -250,7 +273,8 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         analysisQueueDepth: telemetry?.queues?.analysis_queue ?? metrics?.analysis_queue_depth ?? 0,
         pipelineErrors: metrics?.pipeline_errors ?? {},
         queueOverflows: metrics?.queue_overflows ?? {},
-        dlqItems: metrics?.dlq_items ?? {},
+        dlqItems,
+        detectionsByClass: metrics?.detections_by_class ?? {},
         lastUpdated: new Date().toISOString(),
       });
 
