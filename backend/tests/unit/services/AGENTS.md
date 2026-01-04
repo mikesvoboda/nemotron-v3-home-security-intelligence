@@ -91,7 +91,7 @@ def mock_redis():
     redis.get.return_value = None
     redis.set.return_value = True
     redis.publish.return_value = True
-    redis.add_to_queue.return_value = True
+    redis.add_to_queue_safe.return_value = QueueAddResult(success=True, queue_length=1)
     return redis
 ```
 

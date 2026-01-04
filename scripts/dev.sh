@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Development server management script
 # Usage: ./scripts/dev.sh [start|stop|status|restart]
 

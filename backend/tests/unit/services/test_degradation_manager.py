@@ -148,7 +148,6 @@ class TestDegradationManager:
     def mock_redis(self) -> MagicMock:
         """Create a mock Redis client."""
         redis = MagicMock()
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=True, queue_length=1)
         )
@@ -488,7 +487,6 @@ class TestDegradationManagerRecovery:
     def mock_redis(self) -> MagicMock:
         """Create a mock Redis client."""
         redis = MagicMock()
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=True, queue_length=1)
         )
@@ -563,7 +561,6 @@ class TestDegradationManagerModes:
         """Create a mock Redis client."""
         redis = MagicMock()
         redis.ping = AsyncMock(return_value=True)
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=True, queue_length=1)
         )
@@ -701,7 +698,6 @@ class TestDegradationMinimalMode:
         """Create a mock Redis client."""
         redis = MagicMock()
         redis.ping = AsyncMock(return_value=True)
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=True, queue_length=1)
         )
@@ -1109,7 +1105,6 @@ class TestProcessQueuedJobs:
     def mock_redis(self) -> MagicMock:
         """Create a mock Redis client."""
         redis = MagicMock()
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.get_from_queue = AsyncMock(return_value=None)
         redis.ping = AsyncMock(return_value=True)
         return redis
@@ -1238,8 +1233,6 @@ class TestDrainMemoryQueueToRedis:
     async def test_drain_memory_queue_failure(self) -> None:
         """Test drain_memory_queue_to_redis handles Redis failure."""
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(side_effect=Exception("Redis error"))
-
         manager = DegradationManager(redis_client=mock_redis)
         manager._redis_healthy = True
 
@@ -1330,8 +1323,6 @@ class TestHealthCheckLoop:
         """Test that health check loop runs health checks."""
         mock_redis = MagicMock()
         mock_redis.ping = AsyncMock(return_value=True)
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
-
         manager = DegradationManager(redis_client=mock_redis, check_interval=0.05)
 
         health_check = AsyncMock(return_value=True)
@@ -1454,8 +1445,6 @@ class TestQueueJobForLaterRedisFallback:
     async def test_queue_job_redis_failure_fallback_to_memory(self) -> None:
         """Test queueing falls back to memory when Redis fails."""
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(side_effect=Exception("Redis error"))
-
         manager = DegradationManager(redis_client=mock_redis)
 
         success = await manager.queue_job_for_later("detection", {"file": "test.jpg"})

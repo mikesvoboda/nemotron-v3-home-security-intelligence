@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Docker Compose Deployment Test Script
 # Tests that all services start correctly, are healthy, and can communicate
 

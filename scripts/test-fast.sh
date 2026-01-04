@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Fast parallel test runner with timing report
 #
 # Usage:

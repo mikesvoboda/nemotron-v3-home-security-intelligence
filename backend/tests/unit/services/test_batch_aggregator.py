@@ -83,8 +83,6 @@ def mock_redis_instance(mock_redis_client):
     mock_instance.set = AsyncMock(return_value=True)
     mock_instance.get_queue_length_with_retry = AsyncMock(return_value=0)
     mock_instance.get_from_queue_with_retry = AsyncMock(return_value=None)
-    # Legacy method (deprecated)
-    mock_instance.add_to_queue = AsyncMock(return_value=1)
     # Safe method with backpressure handling
     mock_instance.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)

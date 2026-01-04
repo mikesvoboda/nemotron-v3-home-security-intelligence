@@ -326,36 +326,34 @@ async def test_health_check_failure(redis_client, mock_redis_client):
 
 
 @pytest.mark.asyncio
-async def test_add_to_queue_with_dict(redis_client, mock_redis_client):
-    """Test adding a dictionary to a queue (with trimming disabled)."""
+async def test_add_to_queue_safe_with_dict(redis_client, mock_redis_client):
+    """Test adding a dictionary to a queue using add_to_queue_safe."""
     mock_redis_client.rpush.return_value = 1
+    mock_redis_client.llen.return_value = 0
 
     data = {"key": "value", "number": 42}
-    # Pass max_size=0 to disable trimming (default is 10000 which enables trimming)
-    result = await redis_client.add_to_queue("test_queue", data, max_size=0)
+    result = await redis_client.add_to_queue_safe("test_queue", data)
 
-    assert result == 1
+    assert result.success is True
+    assert result.queue_length == 1
     mock_redis_client.rpush.assert_awaited_once()
     # Verify JSON serialization happened
     call_args = mock_redis_client.rpush.call_args[0]
     assert call_args[0] == "test_queue"
     assert '"key": "value"' in call_args[1]
-    # With max_size=0, no trimming occurs
-    mock_redis_client.ltrim.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_add_to_queue_with_string(redis_client, mock_redis_client):
-    """Test adding a string to a queue (with trimming disabled)."""
+async def test_add_to_queue_safe_with_string(redis_client, mock_redis_client):
+    """Test adding a string to a queue using add_to_queue_safe."""
     mock_redis_client.rpush.return_value = 2
+    mock_redis_client.llen.return_value = 1
 
-    # Pass max_size=0 to disable trimming (default is 10000 which enables trimming)
-    result = await redis_client.add_to_queue("test_queue", "simple_string", max_size=0)
+    result = await redis_client.add_to_queue_safe("test_queue", "simple_string")
 
-    assert result == 2
+    assert result.success is True
+    assert result.queue_length == 2
     mock_redis_client.rpush.assert_awaited_once_with("test_queue", "simple_string")
-    # With max_size=0, no trimming occurs
-    mock_redis_client.ltrim.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -860,9 +858,11 @@ async def test_redis_integration_queue_operations():
     # Clear any existing data
     await client.clear_queue(queue_name)
 
-    # Add items
-    await client.add_to_queue(queue_name, {"id": 1, "data": "test1"})
-    await client.add_to_queue(queue_name, {"id": 2, "data": "test2"})
+    # Add items using add_to_queue_safe
+    result1 = await client.add_to_queue_safe(queue_name, {"id": 1, "data": "test1"})
+    assert result1.success is True
+    result2 = await client.add_to_queue_safe(queue_name, {"id": 2, "data": "test2"})
+    assert result2.success is True
 
     # Check length
     length = await client.get_queue_length(queue_name)
@@ -932,24 +932,6 @@ async def test_redis_integration_cache_operations():
 
 
 # Backpressure Tests
-
-
-@pytest.mark.asyncio
-async def test_add_to_queue_logs_warning_on_overflow(redis_client, mock_redis_client, caplog):
-    """Test that add_to_queue logs warning when trimming occurs."""
-    # Setup: queue already at max capacity, rpush returns count exceeding max
-    mock_redis_client.llen.return_value = 10
-    mock_redis_client.rpush.return_value = 11  # One more than max
-
-    import logging
-
-    with caplog.at_level(logging.WARNING):
-        result = await redis_client.add_to_queue("test_queue", "data", max_size=10)
-
-    assert result == 11
-    mock_redis_client.ltrim.assert_awaited_once()
-    # Check that warning was logged
-    assert any("overflow" in record.message.lower() for record in caplog.records)
 
 
 @pytest.mark.asyncio

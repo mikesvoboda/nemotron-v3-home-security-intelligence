@@ -28,7 +28,6 @@ def mock_redis() -> MagicMock:
     from backend.core.redis import RedisClient
 
     redis = MagicMock(spec=RedisClient)
-    redis.add_to_queue = AsyncMock(return_value=1)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.get_from_queue = AsyncMock(return_value=None)
     redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
@@ -185,8 +184,6 @@ class TestRequeueEndpoint:
                 "queue_name": "detection_queue",
             }
         )
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
-
         response = client.post("/api/dlq/requeue/dlq:detection_queue")
 
         assert response.status_code == 200
@@ -217,8 +214,6 @@ class TestRequeueEndpoint:
                 "queue_name": "analysis_queue",
             }
         )
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
-
         response = client.post("/api/dlq/requeue/dlq:analysis_queue")
 
         assert response.status_code == 200
@@ -243,8 +238,6 @@ class TestRequeueAllEndpoint:
         }
         mock_redis.get_queue_length = AsyncMock(return_value=2)
         mock_redis.pop_from_queue_nonblocking = AsyncMock(side_effect=[job_data, job_data, None])
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
-
         response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
 
         assert response.status_code == 200
@@ -288,8 +281,6 @@ class TestRequeueAllEndpoint:
         mock_redis.get_queue_length = AsyncMock(return_value=max_iterations + 1000)
         # Always return a job (simulating infinite queue)
         mock_redis.pop_from_queue_nonblocking = AsyncMock(return_value=job_data)
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
-
         response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
 
         assert response.status_code == 200

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Verify ESLint configuration
 
 cd "$(dirname "$0")"

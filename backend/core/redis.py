@@ -5,7 +5,6 @@ import contextlib
 import json
 import random
 import ssl
-import warnings
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -549,55 +548,6 @@ class RedisClient:
             }
 
     # Queue operations
-
-    async def add_to_queue(self, queue_name: str, data: Any, max_size: int = 10000) -> int:
-        """Add item to the end of a queue (RPUSH) with optional size limit.
-
-        .. deprecated:: 1.0.0
-            This method uses legacy behavior that can silently drop items.
-            Use :meth:`add_to_queue_safe` instead for proper backpressure handling.
-
-        Args:
-            queue_name: Name of the queue (Redis list key)
-            data: Data to add (will be JSON-serialized if not a string)
-            max_size: Maximum queue size (default 10000). After RPUSH, queue is
-                trimmed to keep only the last max_size items (newest). Set to 0
-                to disable trimming.
-
-        Returns:
-            Length of the queue after adding the item
-
-        Note:
-            This method is deprecated and will be removed in a future version.
-            Migrate to add_to_queue_safe() for production use.
-        """
-        warnings.warn(
-            "add_to_queue() is deprecated and can silently drop data. "
-            "Use add_to_queue_safe() with an explicit overflow_policy instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        client = self._ensure_connected()
-        serialized = json.dumps(data) if not isinstance(data, str) else data
-        result = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
-        # Trim to max_size (keep newest items)
-        if max_size > 0:
-            # Calculate and log any dropped items
-            if result > max_size:
-                dropped_count = result - max_size
-                logger.warning(
-                    f"Queue '{queue_name}' overflow: trimming {dropped_count} oldest items "
-                    f"(queue size {result} exceeds max {max_size}). "
-                    "Consider using add_to_queue_safe() for proper backpressure handling.",
-                    extra={
-                        "queue_name": queue_name,
-                        "queue_length": result,
-                        "max_size": max_size,
-                        "dropped_count": dropped_count,
-                    },
-                )
-            await client.ltrim(queue_name, -max_size, -1)  # type: ignore[misc]
-        return result
 
     async def add_to_queue_safe(  # noqa: PLR0912
         self,

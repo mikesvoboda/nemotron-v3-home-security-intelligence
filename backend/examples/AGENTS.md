@@ -44,7 +44,7 @@ Comprehensive demonstration of Redis client usage patterns in the home security 
 **Operations Demonstrated:**
 
 - `clear_queue(queue_name)` - Reset queue state
-- `add_to_queue(queue_name, data)` - Push detection to queue (RPUSH)
+- `add_to_queue_safe(queue_name, data)` - Push detection to queue with backpressure handling
 - `get_queue_length(queue_name)` - Check queue size (LLEN)
 - `peek_queue(queue_name, start, end)` - View items without removing (LRANGE)
 - `get_from_queue(queue_name, timeout)` - Pop item for processing (BLPOP)
@@ -222,12 +222,13 @@ async def test_detection_queue_integration():
     client = RedisClient()
     await client.connect()
 
-    # Simulate file watcher
-    await client.add_to_queue("detection_queue", {
+    # Simulate file watcher with backpressure handling
+    result = await client.add_to_queue_safe("detection_queue", {
         "file_path": "/export/foscam/test/image.jpg",
         "camera_id": "test_camera",
         "media_type": "image"
     })
+    assert result.success is True
 
     # Simulate detector
     item = await client.get_from_queue("detection_queue", timeout=1)

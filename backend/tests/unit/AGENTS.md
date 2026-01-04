@@ -169,7 +169,9 @@ def mock_redis_client():
     mock_client = AsyncMock(spec=RedisClient)
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
-    mock_client.add_to_queue = AsyncMock()
+    mock_client.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
     mock_client.publish = AsyncMock()
     return mock_client
 ```

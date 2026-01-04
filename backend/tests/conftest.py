@@ -333,6 +333,84 @@ async def _reset_db_schema() -> None:
             await conn.execute(unlock_sql)
 
 
+def _get_table_deletion_order(metadata: object) -> list[str]:
+    """Compute the correct table deletion order based on foreign key relationships.
+
+    Uses a topological sort to determine the order in which tables should be deleted
+    to respect foreign key constraints. Tables that reference other tables must be
+    deleted before the tables they reference.
+
+    Args:
+        metadata: SQLAlchemy MetaData object containing table definitions
+
+    Returns:
+        List of table names in the order they should be deleted (leaf tables first,
+        parent tables last)
+    """
+    from collections import defaultdict
+
+    # Build a dependency graph: table -> set of tables it references
+    # A table "depends on" another if it has a FK pointing to it
+    dependencies: dict[str, set[str]] = defaultdict(set)
+    all_tables: set[str] = set()
+
+    for table in metadata.tables.values():  # type: ignore[attr-defined]
+        table_name = table.name
+        all_tables.add(table_name)
+        for fk in table.foreign_keys:
+            # fk.column.table.name is the table being referenced
+            referenced_table = fk.column.table.name
+            dependencies[table_name].add(referenced_table)
+            all_tables.add(referenced_table)
+
+    # Topological sort using Kahn's algorithm
+    # We want tables with dependencies to come FIRST (delete children before parents)
+    # So we invert the typical topological sort order
+
+    # Build reverse dependency graph: table -> tables that depend on it
+    dependents: dict[str, set[str]] = defaultdict(set)
+    for table, deps in dependencies.items():
+        for dep in deps:
+            dependents[dep].add(table)
+
+    # Start with tables that have dependents but no dependencies (parent tables)
+    # and tables with no relationships at all
+    # We'll process in reverse order to get children first
+
+    # Count how many tables each table references (in-degree in dependency graph)
+    in_degree: dict[str, int] = {table: len(dependencies[table]) for table in all_tables}
+
+    # Tables with no dependencies can be processed first in normal topo sort
+    # But we want children first, so we'll collect all and reverse
+    result: list[str] = []
+    queue: list[str] = [table for table in all_tables if in_degree[table] == 0]
+
+    while queue:
+        # Process a table with no remaining dependencies
+        table = queue.pop(0)
+        result.append(table)
+
+        # Remove this table from dependencies of other tables
+        for dependent in dependents[table]:
+            in_degree[dependent] -= 1
+            if in_degree[dependent] == 0:
+                queue.append(dependent)
+
+    # Reverse to get deletion order (children/leaf tables first, parents last)
+    result.reverse()
+
+    # Handle any remaining tables (circular dependencies - shouldn't happen with proper schema)
+    remaining = all_tables - set(result)
+    if remaining:
+        logger.warning(
+            "Circular dependencies detected in schema",
+            extra={"remaining_tables": sorted(remaining)},
+        )
+        result.extend(sorted(remaining))
+
+    return result
+
+
 async def _cleanup_test_cameras() -> None:
     """Delete all test camera data created by tests using isolated_db.
 
@@ -340,54 +418,31 @@ async def _cleanup_test_cameras() -> None:
     (respecting foreign key constraints) to prevent orphaned entries from
     accumulating in the database.
 
+    Uses automatic FK ordering based on SQLAlchemy metadata to determine
+    the correct deletion order. Tables with foreign key references are
+    deleted before the tables they reference.
+
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine, get_session
+    from backend.models.camera import Base as ModelsBase
 
     try:
         engine = get_engine()
         if engine is None:
             return
 
+        # Get the correct deletion order from FK relationships
+        deletion_order = _get_table_deletion_order(ModelsBase.metadata)
+
         async with get_session() as session:
             # Delete all test-related data in correct order (respecting FK constraints)
-            # Tables with foreign keys must be deleted before their parent tables
-            # Order: leaf tables first, parent tables last
-            #
-            # Dependency tree:
-            # - alerts -> alert_rules, events
-            # - audit_logs -> (standalone)
-            # - activity_baselines -> cameras
-            # - class_baselines -> cameras
-            # - detections -> cameras, events
-            # - events -> cameras
-            # - event_audits -> events
-            # - gpu_stats -> (standalone)
-            # - logs -> (standalone)
-            # - api_keys -> (standalone)
-            # - zones -> (standalone)
-            # - cameras -> (parent)
-
-            # First: Delete tables with foreign key references
-            await session.execute(text("DELETE FROM alerts"))
-            await session.execute(text("DELETE FROM event_audits"))
-            await session.execute(text("DELETE FROM detections"))
-            await session.execute(text("DELETE FROM activity_baselines"))
-            await session.execute(text("DELETE FROM class_baselines"))
-            await session.execute(text("DELETE FROM events"))
-
-            # Second: Delete tables without FK references (standalone)
-            await session.execute(text("DELETE FROM alert_rules"))
-            await session.execute(text("DELETE FROM audit_logs"))
-            await session.execute(text("DELETE FROM gpu_stats"))
-            await session.execute(text("DELETE FROM logs"))
-            await session.execute(text("DELETE FROM api_keys"))
-            await session.execute(text("DELETE FROM zones"))
-
-            # Last: Delete parent tables
-            await session.execute(text("DELETE FROM cameras"))
+            # Order is automatically determined from foreign key relationships
+            for table_name in deletion_order:
+                # Safe: table_name comes from SQLAlchemy metadata, not user input
+                await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
 
             await session.commit()
     except Exception as e:

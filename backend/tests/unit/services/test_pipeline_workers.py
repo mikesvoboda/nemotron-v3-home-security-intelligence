@@ -186,7 +186,6 @@ def mock_redis_client():
         await asyncio.sleep(0.01)  # Yield control to event loop
 
     client.get_from_queue = mock_get_from_queue
-    client.add_to_queue = AsyncMock(return_value=1)
     client.get = AsyncMock(return_value=None)
     client.set = AsyncMock(return_value=True)
     client.delete = AsyncMock(return_value=1)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Unified Test Runner
 # Runs all tests with code coverage enforcement:

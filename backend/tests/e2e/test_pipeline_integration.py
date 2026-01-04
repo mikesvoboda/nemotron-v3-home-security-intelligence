@@ -128,7 +128,6 @@ async def mock_redis_client():
     mock_redis.get = AsyncMock(side_effect=mock_get)
     mock_redis.set = AsyncMock(side_effect=mock_set)
     mock_redis.delete = AsyncMock(side_effect=mock_delete)
-    mock_redis.add_to_queue = AsyncMock(side_effect=mock_add_to_queue)
     mock_redis.publish = AsyncMock(side_effect=mock_publish)
 
     # Mock internal _client for batch timeout checks (using scan_iter instead of keys)

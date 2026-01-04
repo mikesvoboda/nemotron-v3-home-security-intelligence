@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # GPU Runner Setup Script for GitHub Actions
 # Run with: sudo ./scripts/setup-gpu-runner.sh
 

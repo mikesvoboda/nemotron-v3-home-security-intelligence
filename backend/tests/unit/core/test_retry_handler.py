@@ -152,7 +152,6 @@ class TestRetryHandler:
     def mock_redis(self) -> MagicMock:
         """Create a mock Redis client."""
         redis = MagicMock()
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=True, queue_length=1)
         )
@@ -590,7 +589,6 @@ class TestDLQCircuitBreaker:
     def mock_redis(self) -> MagicMock:
         """Create a mock Redis client."""
         redis = MagicMock()
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=True, queue_length=1)
         )
@@ -839,7 +837,6 @@ class TestDLQJobLossLogging:
     def mock_redis(self) -> MagicMock:
         """Create a mock Redis client."""
         redis = MagicMock()
-        redis.add_to_queue = AsyncMock(return_value=1)
         redis.add_to_queue_safe = AsyncMock(
             return_value=QueueAddResult(success=False, queue_length=10000, error="Queue full")
         )

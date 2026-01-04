@@ -89,7 +89,6 @@ def mock_redis_client():
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
     mock_client.delete = AsyncMock(return_value=1)
-    mock_client.add_to_queue = AsyncMock(return_value=1)
     # add_to_queue_safe is the preferred method with backpressure handling
     mock_client.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
@@ -973,7 +972,7 @@ class TestEdgeCases:
 
         assert summary["detection_count"] == 0
         # Empty batches should not be queued for analysis
-        mock_redis_client.add_to_queue.assert_not_called()
+        mock_redis_client.add_to_queue_safe.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_malformed_queue_item_handling(self, mock_redis_client):
