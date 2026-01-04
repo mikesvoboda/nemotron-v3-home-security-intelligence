@@ -69,11 +69,14 @@ grafana/
 
 ### Accessing Grafana
 
-1. Start monitoring stack: `podman-compose -f docker-compose.prod.yml up -d` (or just grafana service)
-2. Open http://localhost:3000
-3. Default login: admin/admin
+1. Start monitoring stack: `podman-compose --profile monitoring -f docker-compose.prod.yml up -d`
+2. Open http://localhost:3002
+3. Anonymous access allows viewing dashboards (Viewer role only)
+4. To make changes, log in: admin/admin (change via `GF_ADMIN_PASSWORD` env var)
 
 Note: This project uses **Podman** for container management, not Docker.
+
+**Security:** Anonymous access is restricted to Viewer role. Administrators must log in to modify dashboards, data sources, or settings.
 
 ### Dashboard Navigation
 

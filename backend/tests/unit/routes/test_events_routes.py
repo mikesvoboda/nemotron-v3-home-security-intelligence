@@ -2338,3 +2338,123 @@ async def test_export_events_multiple_events() -> None:
     from fastapi.responses import StreamingResponse
 
     assert isinstance(response, StreamingResponse)
+
+
+# =============================================================================
+# Date Range Validation Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_events_invalid_date_range_returns_400() -> None:
+    """Test that list_events returns HTTP 400 when start_date > end_date."""
+    from fastapi import HTTPException
+
+    db = AsyncMock()
+
+    # start_date is after end_date
+    start_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
+    end_date = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await events_routes.list_events(
+            camera_id=None,
+            risk_level=None,
+            start_date=start_date,
+            end_date=end_date,
+            reviewed=None,
+            object_type=None,
+            limit=50,
+            offset=0,
+            db=db,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "start_date" in exc_info.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_list_events_equal_dates_is_valid() -> None:
+    """Test that list_events accepts start_date == end_date (edge case)."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event()
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    # Same date for start and end should be valid
+    same_date = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=same_date,
+        end_date=same_date,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    assert response["count"] == 1
+
+
+@pytest.mark.asyncio
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_invalid_date_range_returns_400(
+    mock_get_cache: MagicMock,
+) -> None:
+    """Test that get_event_stats returns HTTP 400 when start_date > end_date."""
+    from fastapi import HTTPException
+
+    db = AsyncMock()
+
+    # start_date is after end_date
+    start_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
+    end_date = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await events_routes.get_event_stats(
+            start_date=start_date,
+            end_date=end_date,
+            db=db,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "start_date" in exc_info.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_export_events_invalid_date_range_returns_400() -> None:
+    """Test that export_events returns HTTP 400 when start_date > end_date."""
+    from fastapi import HTTPException
+
+    db = AsyncMock()
+    mock_request = MagicMock()
+
+    # start_date is after end_date
+    start_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
+    end_date = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await events_routes.export_events(
+            request=mock_request,
+            camera_id=None,
+            risk_level=None,
+            start_date=start_date,
+            end_date=end_date,
+            reviewed=None,
+            db=db,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "start_date" in exc_info.value.detail.lower()

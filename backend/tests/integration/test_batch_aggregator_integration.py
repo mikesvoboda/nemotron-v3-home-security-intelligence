@@ -108,18 +108,44 @@ def mock_redis_client():
         # In real Redis this sets expiration; for testing we just return True
         return True
 
+    class MockPipeline:
+        """Mock Redis pipeline that collects commands and executes them."""
+
+        def __init__(self, storage_ref: dict[str, str]):
+            self._commands: list[tuple[str, tuple]] = []
+            self._storage = storage_ref
+
+        def get(self, key: str) -> MockPipeline:
+            """Add GET command to pipeline."""
+            self._commands.append(("get", (key,)))
+            return self
+
+        async def execute(self) -> list:
+            """Execute all commands and return results."""
+            results = []
+            for cmd, args in self._commands:
+                if cmd == "get":
+                    results.append(self._storage.get(args[0]))
+            return results
+
+    def mock_pipeline() -> MockPipeline:
+        """Create a new mock pipeline."""
+        return MockPipeline(storage)
+
     mock_client.get = mock_get
     mock_client.set = mock_set
     mock_client.delete = mock_delete
     mock_client.add_to_queue = mock_add_to_queue
     mock_client.add_to_queue_safe = mock_add_to_queue_safe
+    mock_client.pipeline = mock_pipeline
 
-    # Internal client for scan_iter and list operations
+    # Internal client for scan_iter, list operations, and pipeline
     mock_internal = MagicMock()
     mock_internal.scan_iter = mock_scan_iter
     mock_internal.rpush = mock_rpush  # AsyncMock will be called with await
     mock_internal.lrange = mock_lrange  # AsyncMock will be called with await
     mock_internal.expire = mock_expire  # AsyncMock will be called with await
+    mock_internal.pipeline = mock_pipeline  # Pipeline method on inner client
     mock_client._client = mock_internal
 
     # Expose internal storage for assertions

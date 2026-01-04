@@ -122,6 +122,12 @@ class MockRedisClient:
 
         inner_client.expire = _expire_impl
 
+        # pipeline - create a pipeline for batch operations
+        def _pipeline_impl() -> MockRedisPipeline:
+            return MockRedisPipeline(parent._store)
+
+        inner_client.pipeline = _pipeline_impl
+
         return inner_client
 
     def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
@@ -263,6 +269,38 @@ class MockRedisClient:
     def get_batch_keys(self) -> list[str]:
         """Get all batch:*:current keys for timeout checking."""
         return [k for k in self._store if k.endswith(":current") and k.startswith("batch:")]
+
+    def pipeline(self) -> MockRedisPipeline:
+        """Create a mock Redis pipeline for batch operations."""
+        return MockRedisPipeline(self._store)
+
+
+class MockRedisPipeline:
+    """Mock Redis pipeline that collects commands and executes them."""
+
+    def __init__(self, storage: dict[str, Any]) -> None:
+        self._commands: list[tuple[str, tuple]] = []
+        self._storage = storage
+
+    def get(self, key: str) -> MockRedisPipeline:
+        """Add GET command to pipeline."""
+        self._commands.append(("get", (key,)))
+        return self
+
+    async def execute(self) -> list[Any]:
+        """Execute all commands and return results."""
+        results = []
+        for cmd, args in self._commands:
+            if cmd == "get":
+                value = self._storage.get(args[0])
+                if value is not None and isinstance(value, str):
+                    try:
+                        results.append(json.loads(value))
+                    except json.JSONDecodeError:
+                        results.append(value)
+                else:
+                    results.append(value)
+        return results
 
 
 def create_test_image(path: Path) -> None:

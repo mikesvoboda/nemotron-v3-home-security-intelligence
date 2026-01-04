@@ -49,6 +49,7 @@ class Event(Base):
     is_fast_path: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Cached object types from related detections (comma-separated string)
     # Populated by the batch aggregator when events are created
+    # Has a GIN trigram index (idx_events_object_types_trgm) for efficient LIKE/ILIKE queries
     object_types: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Path to generated video clip for this event (optional)
@@ -70,6 +71,8 @@ class Event(Base):
     )
 
     # Indexes for common queries
+    # Note: idx_events_object_types_trgm (GIN trigram index on object_types) is created
+    # via Alembic migration as it requires pg_trgm extension and gin_trgm_ops operator class
     __table_args__ = (
         Index("idx_events_camera_id", "camera_id"),
         Index("idx_events_started_at", "started_at"),

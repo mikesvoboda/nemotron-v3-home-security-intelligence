@@ -525,10 +525,10 @@ class TestQueryParameterValidation:
         response = await client.get(
             "/api/events?start_date=2025-12-31T00:00:00Z&end_date=2020-01-01T00:00:00Z"
         )
-        # Should return 200 with empty results (no events in invalid range)
-        assert response.status_code == 200
+        # API validates date range and returns 400 for inverted ranges
+        assert response.status_code == 400
         data = response.json()
-        assert data["events"] == []
+        assert "start_date" in data["detail"].lower() or "end_date" in data["detail"].lower()
 
     @pytest.mark.asyncio
     async def test_events_with_extreme_pagination(self, client, mock_redis):

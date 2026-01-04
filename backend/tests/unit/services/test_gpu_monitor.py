@@ -1327,3 +1327,191 @@ async def test_poll_loop_calculates_inference_fps(mock_pynvml, mock_database_ses
         # The calculation should have been called during the poll loop
         # At least once during the store_stats call
         assert mock_calc.call_count >= 1
+
+
+# =============================================================================
+# Configurable HTTP Client Timeout Tests (NEM-1121)
+# =============================================================================
+
+
+def test_gpu_monitor_default_http_timeout(mock_pynvml):
+    """Test that GPUMonitor uses default HTTP timeout from settings."""
+    monitor = GPUMonitor()
+
+    # Should use default timeout from settings (or default value)
+    assert hasattr(monitor, "_http_timeout")
+    assert monitor._http_timeout > 0
+    # Default should be 5-10 seconds
+    assert 5.0 <= monitor._http_timeout <= 10.0
+
+
+def test_gpu_monitor_custom_http_timeout(mock_pynvml):
+    """Test that GPUMonitor accepts custom HTTP timeout."""
+    monitor = GPUMonitor(http_timeout=15.0)
+
+    assert monitor._http_timeout == 15.0
+
+
+@pytest.mark.asyncio
+async def test_ai_container_query_uses_configured_timeout(mock_pynvml):
+    """Test that AI container HTTP client uses the configured timeout."""
+    monitor = GPUMonitor(http_timeout=7.5)
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # RT-DETRv2 returns empty response
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {}
+        mock_client.get.return_value = mock_resp
+
+        await monitor._get_gpu_stats_from_ai_containers()
+
+        # Verify AsyncClient was created with the correct timeout
+        mock_client_class.assert_called_once()
+        call_kwargs = mock_client_class.call_args.kwargs
+        assert "timeout" in call_kwargs
+        assert call_kwargs["timeout"] == 7.5
+
+
+@pytest.mark.asyncio
+async def test_ai_container_query_timeout_handling(mock_pynvml):
+    """Test that AI container query handles HTTP timeout gracefully."""
+    monitor = GPUMonitor(http_timeout=0.1)  # Very short timeout
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # Simulate timeout error
+        import httpx
+
+        mock_client.get.side_effect = httpx.TimeoutException("Connection timed out")
+
+        # Should return None instead of raising
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+        assert stats is None
+
+
+@patch("backend.services.gpu_monitor.get_settings")
+def test_gpu_monitor_http_timeout_from_settings(mock_get_settings, mock_pynvml):
+    """Test that GPUMonitor reads HTTP timeout from settings when not provided."""
+    mock_settings = MagicMock()
+    mock_settings.gpu_http_timeout = 8.0
+    mock_settings.gpu_poll_interval_seconds = 5.0
+    mock_settings.gpu_stats_history_minutes = 60
+    mock_get_settings.return_value = mock_settings
+
+    monitor = GPUMonitor()
+
+    assert monitor._http_timeout == 8.0
+
+
+# =============================================================================
+# NEM-1123: Error Logging Context Tests
+# =============================================================================
+
+
+def test_gpu_stats_error_logging_includes_context(mock_pynvml, caplog):
+    """Test that GPU stats collection errors include context (NEM-1123).
+
+    When GPU stats collection fails, the error log should include:
+    - Timestamp of when the error occurred
+    - GPU ID (index)
+    - Operation being performed
+    """
+    import logging
+
+    monitor = GPUMonitor()
+
+    # Make utilization fail
+    mock_pynvml.nvmlDeviceGetUtilizationRates.side_effect = Exception("GPU util error")
+
+    with caplog.at_level(logging.DEBUG):
+        stats = monitor.get_current_stats()
+
+    # Stats should still return with None values for failed metrics
+    assert stats["gpu_name"] == "NVIDIA RTX A5500"
+    assert stats["gpu_utilization"] is None
+    # Memory should still work
+    assert stats["memory_used"] == 8192
+
+
+@pytest.mark.asyncio
+async def test_store_stats_error_logging_includes_context(mock_pynvml, caplog):
+    """Test that database store errors include context (NEM-1123).
+
+    When storing stats to database fails, the error log should include:
+    - GPU name
+    - Operation (store_stats)
+    """
+    import logging
+
+    monitor = GPUMonitor()
+    stats = monitor.get_current_stats()
+
+    with (
+        patch("backend.services.gpu_monitor.get_session") as mock_get_session,
+        caplog.at_level(logging.ERROR),
+    ):
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+        mock_session.commit.side_effect = Exception("Database error")
+        mock_get_session.return_value = mock_session
+
+        await monitor._store_stats(stats)
+
+    # Should have logged an error with context
+    assert any("Failed to store GPU stats" in record.message for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_broadcast_stats_error_logging_includes_context(
+    mock_pynvml, mock_broadcaster, caplog
+):
+    """Test that broadcast errors include context (NEM-1123).
+
+    When broadcasting stats fails, the error log should include:
+    - Operation (broadcast_stats)
+    """
+    import logging
+
+    monitor = GPUMonitor(broadcaster=mock_broadcaster)
+    stats = monitor.get_current_stats()
+
+    mock_broadcaster.broadcast_gpu_stats.side_effect = Exception("Broadcast error")
+
+    with caplog.at_level(logging.ERROR):
+        await monitor._broadcast_stats(stats)
+
+    # Should have logged an error with context
+    assert any("Failed to broadcast GPU stats" in record.message for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_poll_loop_error_logging_includes_context(mock_pynvml, mock_database_session, caplog):
+    """Test that poll loop errors include context (NEM-1123).
+
+    When the poll loop encounters an error, the error log should include:
+    - Operation being performed
+    """
+    import logging
+
+    monitor = GPUMonitor(poll_interval=0.05)
+
+    async def get_stats_error():
+        raise Exception("Simulated poll error")
+
+    with (
+        patch.object(monitor, "get_current_stats_async", side_effect=get_stats_error),
+        caplog.at_level(logging.ERROR),
+    ):
+        await monitor.start()
+        await asyncio.sleep(0.1)
+        await monitor.stop()
+
+    # Should have logged an error from the poll loop
+    assert any("Error in GPU monitor poll loop" in record.message for record in caplog.records)

@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.clips import (
     ClipGenerateRequest,
     ClipGenerateResponse,
@@ -25,9 +26,11 @@ from backend.api.schemas.events import (
     EventUpdate,
 )
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
+from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger
 from backend.core.metrics import record_event_reviewed
+from backend.core.sanitization import sanitize_error_for_response
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -95,6 +98,53 @@ def parse_severity_filter(severity_str: str | None) -> list[str]:
     return severity_levels
 
 
+# Characters that can trigger formula injection in spreadsheet applications
+# These characters at the start of a cell can execute formulas when opened in
+# Excel, LibreOffice Calc, Google Sheets, or other spreadsheet applications.
+CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def sanitize_csv_value(value: str | None) -> str:
+    """Sanitize a value for safe CSV export to prevent formula injection.
+
+    CSV injection (also known as formula injection) occurs when data
+    exported to CSV is opened in spreadsheet applications. Cells starting
+    with certain characters (=, +, -, @, tab, carriage return) can be
+    interpreted as formulas, potentially executing malicious code.
+
+    This function prefixes dangerous values with a single quote (')
+    which tells spreadsheet applications to treat the cell as text.
+
+    Reference:
+    - OWASP CSV Injection: https://owasp.org/www-community/attacks/CSV_Injection
+
+    Args:
+        value: The string value to sanitize, or None
+
+    Returns:
+        The sanitized string value. Returns empty string if value is None.
+
+    Examples:
+        >>> sanitize_csv_value("=HYPERLINK(...)")
+        "'=HYPERLINK(...)"
+        >>> sanitize_csv_value("Normal text")
+        "Normal text"
+        >>> sanitize_csv_value(None)
+        ""
+    """
+    if value is None:
+        return ""
+
+    if not value:
+        return value
+
+    # Check if the first character is a dangerous injection prefix
+    if value[0] in CSV_INJECTION_PREFIXES:
+        return f"'{value}"
+
+    return value
+
+
 @router.get("", response_model=EventListResponse)
 async def list_events(
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -124,7 +174,13 @@ async def list_events(
 
     Returns:
         EventListResponse containing filtered events and pagination info
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
     """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     # Build base query
     query = select(Event)
 
@@ -234,7 +290,13 @@ async def get_event_stats(
 
     Returns:
         EventStatsResponse with aggregated statistics
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
     """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     # Generate cache key based on date filters
     # Check isinstance() to handle case when tests pass Query objects directly
     start_str = start_date.isoformat() if isinstance(start_date, datetime) else None
@@ -378,7 +440,11 @@ async def search_events_endpoint(
 
     Raises:
         HTTPException: 400 if any severity value is invalid
+        HTTPException: 400 if start_date is after end_date
     """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     # Parse comma-separated filter values with validation
     camera_ids = [c.strip() for c in camera_id.split(",")] if camera_id else []
     # Support both 'severity' and 'risk_level' parameters for consistency with list_events
@@ -444,8 +510,12 @@ async def export_events(
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.EXPORT)),
 ) -> StreamingResponse:
     """Export events as CSV file for external analysis or record-keeping.
+
+    This endpoint is rate-limited to 10 requests per minute per client IP
+    to prevent abuse and protect against data exfiltration attacks.
 
     Exports events with the following fields:
     - Event ID, camera name, timestamps
@@ -453,16 +523,25 @@ async def export_events(
     - Detection count, reviewed status
 
     Args:
+        request: FastAPI request object
         camera_id: Optional camera ID to filter by
         risk_level: Optional risk level to filter by (low, medium, high, critical)
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         reviewed: Optional filter by reviewed status
         db: Database session
+        _rate_limit: Rate limiter dependency (10 req/min, no burst)
 
     Returns:
         StreamingResponse with CSV file containing exported events
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+        HTTPException: 400 if start_date is after end_date
     """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     # Build base query
     query = select(Event)
 
@@ -519,15 +598,21 @@ async def export_events(
         started_at_str = event.started_at.isoformat() if event.started_at else ""
         ended_at_str = event.ended_at.isoformat() if event.ended_at else ""
 
+        # Sanitize string fields to prevent CSV injection attacks
+        # Fields that could contain user-influenced data must be sanitized
+        safe_camera_name = sanitize_csv_value(camera_name)
+        safe_summary = sanitize_csv_value(event.summary)
+        safe_risk_level = sanitize_csv_value(event.risk_level)
+
         writer.writerow(
             [
                 event.id,
-                camera_name,
+                safe_camera_name,
                 started_at_str,
                 ended_at_str,
                 event.risk_score if event.risk_score is not None else "",
-                event.risk_level or "",
-                event.summary or "",
+                safe_risk_level,
+                safe_summary,
                 detection_count,
                 "Yes" if event.reviewed else "No",
             ]
@@ -1063,10 +1148,13 @@ async def generate_event_clip(
 
     except Exception as e:
         logger.error(f"Clip generation failed for event {event_id}: {e}", exc_info=True)
+        # Sanitize exception message to prevent information leakage (NEM-1059)
+        # Full error details are logged server-side above
+        safe_message = sanitize_error_for_response(e, context="generating clip")
         return ClipGenerateResponse(
             event_id=event.id,
             status=ClipStatus.FAILED,
             clip_url=None,
             generated_at=None,
-            message=f"Clip generation failed: {e!s}",
+            message=safe_message,
         )

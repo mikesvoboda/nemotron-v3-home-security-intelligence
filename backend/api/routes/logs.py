@@ -13,6 +13,7 @@ from backend.api.schemas.logs import (
     LogsResponse,
     LogStats,
 )
+from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.models.log import Log
 
@@ -32,7 +33,14 @@ async def list_logs(
     offset: int = Query(0, ge=0, description="Page offset"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """List logs with optional filtering and pagination."""
+    """List logs with optional filtering and pagination.
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+    """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     query = select(Log)
 
     # Apply filters

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import AnomalyListResponse, BaselineSummaryResponse
@@ -725,18 +726,13 @@ async def get_camera_scene_changes(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = camera_result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
-    # Build query for scene changes
-    query = select(SceneChange).where(SceneChange.camera_id == camera_id)
+    # Optimized: Build query for scene changes with eager-loaded camera relationship
+    # This enables single query when results exist (NEM-1060)
+    query = (
+        select(SceneChange)
+        .options(joinedload(SceneChange.camera))
+        .where(SceneChange.camera_id == camera_id)
+    )
 
     # Apply acknowledged filter if provided
     if acknowledged is not None:
@@ -749,7 +745,17 @@ async def get_camera_scene_changes(
     query = query.offset(offset).limit(limit)
 
     changes_result = await db.execute(query)
-    scene_changes = changes_result.scalars().all()
+    scene_changes = changes_result.unique().scalars().all()
+
+    # If no results, verify camera exists (fallback query only when needed)
+    if not scene_changes:
+        camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
+        camera = camera_result.scalar_one_or_none()
+        if not camera:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Camera with id {camera_id} not found",
+            )
 
     # Convert to response models
     scene_change_responses = [
@@ -800,25 +806,26 @@ async def acknowledge_scene_change(
     """
     from datetime import UTC, datetime
 
-    # Verify camera exists
-    camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = camera_result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
-    # Get scene change
+    # Optimized: Single query with JOIN to fetch scene change and verify camera exists
+    # This reduces database round trips from 2 to 1 (NEM-1060)
     change_result = await db.execute(
-        select(SceneChange).where(
-            SceneChange.id == scene_change_id, SceneChange.camera_id == camera_id
-        )
+        select(SceneChange)
+        .options(joinedload(SceneChange.camera))
+        .where(SceneChange.id == scene_change_id, SceneChange.camera_id == camera_id)
     )
-    scene_change = change_result.scalar_one_or_none()
+    scene_change = change_result.unique().scalar_one_or_none()
 
     if not scene_change:
+        # Scene change not found - need to determine if it's because camera doesn't exist
+        # or because scene change doesn't exist for this camera
+        camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
+        camera = camera_result.scalar_one_or_none()
+
+        if not camera:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Camera with id {camera_id} not found",
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Scene change with id {scene_change_id} not found for camera {camera_id}",

@@ -75,6 +75,7 @@ class RedisClient:
     def __init__(
         self,
         redis_url: str | None = None,
+        password: str | None = None,
         ssl_enabled: bool | None = None,
         ssl_cert_reqs: str | None = None,
         ssl_ca_certs: str | None = None,
@@ -86,6 +87,8 @@ class RedisClient:
 
         Args:
             redis_url: Redis connection URL. If not provided, uses settings.
+            password: Redis password for authentication. If not provided, uses settings.
+                Set to None for no authentication (local development).
             ssl_enabled: Enable SSL/TLS encryption. If None, uses settings.
             ssl_cert_reqs: SSL certificate verification mode ('none', 'optional', 'required').
                 If None, uses settings.
@@ -105,6 +108,10 @@ class RedisClient:
         self._base_delay = 1.0  # Base delay in seconds
         self._max_delay = 30.0  # Maximum delay cap in seconds
         self._jitter_factor = 0.25  # Random jitter 0-25% of delay
+
+        # Password authentication - use provided value or fall back to settings
+        # Note: password=None means "use settings", to explicitly disable, use password=""
+        self._password = password if password is not None else settings.redis_password
 
         # SSL/TLS settings - use provided values or fall back to settings
         self._ssl_enabled = ssl_enabled if ssl_enabled is not None else settings.redis_ssl_enabled
@@ -457,6 +464,11 @@ class RedisClient:
                     "max_connections": 10,
                 }
 
+                # Add password if configured (non-empty string)
+                # Empty string is treated as no password for backward compatibility
+                if self._password:
+                    pool_kwargs["password"] = self._password
+
                 # Add SSL context if enabled
                 if ssl_context:
                     pool_kwargs["ssl"] = ssl_context
@@ -469,7 +481,8 @@ class RedisClient:
                 # Test connection
                 await self._client.ping()  # type: ignore
                 ssl_msg = " with SSL/TLS" if ssl_context else ""
-                logger.info(f"Successfully connected to Redis{ssl_msg}")
+                auth_msg = " with authentication" if self._password else ""
+                logger.info(f"Successfully connected to Redis{ssl_msg}{auth_msg}")
                 return
             except (ConnectionError, TimeoutError) as e:
                 logger.warning(

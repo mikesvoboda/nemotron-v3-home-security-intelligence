@@ -1773,3 +1773,141 @@ async def test_redis_connect_without_ssl(mock_redis_pool, mock_redis_client):
         assert "ssl" not in call_kwargs
 
         await client.disconnect()
+
+
+# ==============================================================================
+# Password Authentication Tests (NEM-1089)
+# NOTE: S105/S106 are false positives - these are test fixtures, not real passwords
+# ==============================================================================
+
+
+def test_redis_client_password_from_constructor():
+    """Test that RedisClient accepts password via constructor."""
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        password="test_password",  # noqa: S106 - Test fixture
+    )
+
+    assert client._password == "test_password"  # noqa: S105 - Test fixture
+
+
+def test_redis_client_password_none_by_default():
+    """Test that RedisClient password defaults to None (no auth)."""
+    client = RedisClient(redis_url="redis://localhost:6379/0")
+
+    assert client._password is None
+
+
+def test_redis_client_password_from_settings():
+    """Test that RedisClient uses password from settings when not provided in constructor."""
+    with patch("backend.core.redis.get_settings") as mock_get_settings:
+        mock_settings = MagicMock()
+        mock_settings.redis_url = "redis://localhost:6379/0"
+        mock_settings.redis_password = "settings_password"  # noqa: S105 - Test fixture
+        mock_settings.redis_ssl_enabled = False
+        mock_settings.redis_ssl_cert_reqs = "required"
+        mock_settings.redis_ssl_ca_certs = None
+        mock_settings.redis_ssl_certfile = None
+        mock_settings.redis_ssl_keyfile = None
+        mock_settings.redis_ssl_check_hostname = True
+        mock_get_settings.return_value = mock_settings
+
+        client = RedisClient()
+
+        assert client._password == "settings_password"  # noqa: S105 - Test fixture
+
+
+def test_redis_client_constructor_password_overrides_settings():
+    """Test that constructor password takes precedence over settings."""
+    with patch("backend.core.redis.get_settings") as mock_get_settings:
+        mock_settings = MagicMock()
+        mock_settings.redis_url = "redis://localhost:6379/0"
+        mock_settings.redis_password = "settings_password"  # noqa: S105 - Test fixture
+        mock_settings.redis_ssl_enabled = False
+        mock_settings.redis_ssl_cert_reqs = "required"
+        mock_settings.redis_ssl_ca_certs = None
+        mock_settings.redis_ssl_certfile = None
+        mock_settings.redis_ssl_keyfile = None
+        mock_settings.redis_ssl_check_hostname = True
+        mock_get_settings.return_value = mock_settings
+
+        client = RedisClient(password="constructor_password")  # noqa: S106 - Test fixture
+
+        assert client._password == "constructor_password"  # noqa: S105 - Test fixture
+
+
+@pytest.mark.asyncio
+async def test_redis_connect_with_password(mock_redis_pool, mock_redis_client):
+    """Test that connect() passes password to ConnectionPool when provided."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            password="test_password",  # noqa: S106 - Test fixture
+        )
+        await client.connect()
+
+        # Verify ConnectionPool.from_url was called with password parameter
+        call_kwargs = mock_redis_pool.from_url.call_args[1]
+        assert "password" in call_kwargs
+        assert call_kwargs["password"] == "test_password"  # noqa: S105 - Test fixture
+
+        await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_redis_connect_without_password(mock_redis_pool, mock_redis_client):
+    """Test that connect() does not pass password when not provided."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            password=None,
+        )
+        await client.connect()
+
+        # Verify ConnectionPool.from_url was called without password parameter
+        call_kwargs = mock_redis_pool.from_url.call_args[1]
+        assert call_kwargs.get("password") is None
+
+        await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_redis_connect_with_empty_password(mock_redis_pool, mock_redis_client):
+    """Test that connect() does not pass password when empty string provided."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            password="",
+        )
+        await client.connect()
+
+        # Empty string should be treated as None (no password)
+        call_kwargs = mock_redis_pool.from_url.call_args[1]
+        assert call_kwargs.get("password") is None
+
+        await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_redis_connect_with_password_and_ssl(mock_redis_pool, mock_redis_client):
+    """Test that connect() can use both password and SSL together."""
+    import ssl
+
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            password="secure_password",  # noqa: S106 - Test fixture
+            ssl_enabled=True,
+            ssl_cert_reqs="none",
+            ssl_check_hostname=False,
+        )
+        await client.connect()
+
+        # Verify both password and SSL are passed
+        call_kwargs = mock_redis_pool.from_url.call_args[1]
+        assert "password" in call_kwargs
+        assert call_kwargs["password"] == "secure_password"  # noqa: S105 - Test fixture
+        assert "ssl" in call_kwargs
+        assert isinstance(call_kwargs["ssl"], ssl.SSLContext)
+
+        await client.disconnect()

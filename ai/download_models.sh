@@ -117,8 +117,42 @@ else
     if [ -n "$FOUND_MODEL" ]; then
         echo "[FOUND] Existing Nemotron model: $FOUND_MODEL"
         echo "        Creating symlink to: $NEMOTRON_MODEL"
-        ln -sf "$FOUND_MODEL" "$NEMOTRON_MODEL"
-        echo "[OK] Nemotron model linked"
+
+        # NEM-1091: Improved symlink error handling
+        # Check if target already exists and is a symlink pointing to the same file
+        if [ -L "$NEMOTRON_MODEL" ]; then
+            EXISTING_TARGET=$(readlink -f "$NEMOTRON_MODEL" 2>/dev/null || true)
+            FOUND_MODEL_RESOLVED=$(readlink -f "$FOUND_MODEL" 2>/dev/null || echo "$FOUND_MODEL")
+            if [ "$EXISTING_TARGET" = "$FOUND_MODEL_RESOLVED" ]; then
+                echo "[SKIP] Symlink already exists and points to the correct target"
+            else
+                echo "[INFO] Updating symlink (was pointing to: $EXISTING_TARGET)"
+                rm -f "$NEMOTRON_MODEL"
+                ln -sf "$FOUND_MODEL" "$NEMOTRON_MODEL" || {
+                    echo "[ERROR] Failed to create symlink"
+                    echo "        Source: $FOUND_MODEL"
+                    echo "        Target: $NEMOTRON_MODEL"
+                    echo "        Check permissions and that the target directory exists"
+                    exit 1
+                }
+                echo "[OK] Nemotron model linked"
+            fi
+        elif [ -e "$NEMOTRON_MODEL" ]; then
+            # Target exists but is not a symlink (regular file)
+            echo "[ERROR] Target path exists and is not a symlink: $NEMOTRON_MODEL"
+            echo "        Remove or rename the existing file first"
+            exit 1
+        else
+            # Create new symlink
+            ln -sf "$FOUND_MODEL" "$NEMOTRON_MODEL" || {
+                echo "[ERROR] Failed to create symlink"
+                echo "        Source: $FOUND_MODEL"
+                echo "        Target: $NEMOTRON_MODEL"
+                echo "        Check permissions and that the target directory exists"
+                exit 1
+            }
+            echo "[OK] Nemotron model linked"
+        fi
     else
         echo "[DOWNLOAD] Nemotron-3-Nano-30B-A3B (Q4_K_M) - ~18GB"
         echo "           This may take 10-30 minutes depending on connection speed"

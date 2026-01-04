@@ -17,6 +17,7 @@ import pytest
 
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus
 from backend.services.alert_dedup import (
+    AlertCreationError,
     AlertDeduplicationService,
     DedupResult,
     build_dedup_key,
@@ -202,6 +203,226 @@ class TestValidateDedupKey:
         service = AlertDeduplicationService(mock_session)
         # Should not raise
         service._validate_dedup_key("front_door:person:entry_zone")
+
+    # ==========================================================================
+    # Character pattern validation tests (NEM-1107)
+    # ==========================================================================
+
+    def test_valid_alphanumeric_key(self, mock_session: AsyncMock) -> None:
+        """Test that alphanumeric keys are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("camera1")
+        service._validate_dedup_key("frontDoor123")
+        service._validate_dedup_key("CAMERA01")
+
+    def test_valid_key_with_underscores(self, mock_session: AsyncMock) -> None:
+        """Test that keys with underscores are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("front_door")
+        service._validate_dedup_key("camera_01_front")
+        service._validate_dedup_key("a_b_c_d")
+
+    def test_valid_key_with_hyphens(self, mock_session: AsyncMock) -> None:
+        """Test that keys with hyphens are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("front-door")
+        service._validate_dedup_key("camera-01-front")
+        service._validate_dedup_key("a-b-c-d")
+
+    def test_valid_key_with_colons(self, mock_session: AsyncMock) -> None:
+        """Test that keys with colons (separators) are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise
+        service._validate_dedup_key("camera:person")
+        service._validate_dedup_key("front_door:person:zone1")
+        service._validate_dedup_key("cam-01:vehicle:entry-zone")
+
+    def test_valid_key_with_all_allowed_chars(self, mock_session: AsyncMock) -> None:
+        """Test that keys with all allowed characters are valid."""
+        service = AlertDeduplicationService(mock_session)
+        # Should not raise - mix of alphanumeric, underscore, hyphen, colon
+        service._validate_dedup_key("front_door-01:person:entry-zone_A")
+        service._validate_dedup_key("CAM_01-front:Person123:Zone-A_1")
+
+    def test_sql_injection_single_quote_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that SQL injection via single quotes is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera'; DROP TABLE alerts;--")
+
+    def test_sql_injection_double_quote_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that SQL injection via double quotes is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key('camera"; DROP TABLE alerts;--')
+
+    def test_command_injection_semicolon_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that command injection via semicolons is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera;rm -rf /")
+
+    def test_path_traversal_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that path traversal attempts are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera/../../../etc/passwd")
+
+    def test_newline_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that newline injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\nmalicious")
+
+    def test_carriage_return_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that carriage return injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\rmalicious")
+
+    def test_tab_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that tab injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\tmalicious")
+
+    def test_null_byte_injection_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that null byte injection is rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\x00malicious")
+
+    def test_angle_brackets_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that angle brackets (XSS vectors) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera<script>alert(1)</script>")
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera>test")
+
+    def test_curly_braces_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that curly braces are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera{test}")
+
+    def test_square_brackets_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that square brackets are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera[0]")
+
+    def test_parentheses_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that parentheses are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera(test)")
+
+    def test_dollar_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that dollar signs (variable expansion) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera$HOME")
+
+    def test_backtick_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that backticks (command substitution) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera`whoami`")
+
+    def test_pipe_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that pipe characters are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera|cat /etc/passwd")
+
+    def test_ampersand_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that ampersand characters are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera&rm -rf /")
+
+    def test_at_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that at signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera@example.com")
+
+    def test_exclamation_mark_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that exclamation marks are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera!test")
+
+    def test_percent_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that percent signs (URL encoding) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera%00malicious")
+
+    def test_asterisk_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that asterisks (glob patterns) are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera*")
+
+    def test_question_mark_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that question marks are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera?test=1")
+
+    def test_equals_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that equals signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera=test")
+
+    def test_plus_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that plus signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera+test")
+
+    def test_hash_sign_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that hash signs are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera#test")
+
+    def test_backslash_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that backslashes are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\\test")
+
+    def test_forward_slash_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that forward slashes are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera/test")
+
+    def test_unicode_characters_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that non-ASCII unicode characters are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        # Test zero-width space (invisible character)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\u200btest")
+        # Test fullwidth underscore character (U+FF3F)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\uff3ftest")
+        # Test emoji
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("camera\U0001f4f7test")
+
+    def test_space_in_middle_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that spaces in the middle of keys are rejected."""
+        service = AlertDeduplicationService(mock_session)
+        with pytest.raises(ValueError, match="invalid characters"):
+            service._validate_dedup_key("front door:person")
 
 
 # =============================================================================
@@ -801,16 +1022,14 @@ class TestEdgeCases:
         assert result.is_duplicate is False
 
     @pytest.mark.asyncio
-    async def test_unicode_in_dedup_key(self, mock_session: AsyncMock) -> None:
-        """Test handling of unicode characters in dedup key."""
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
-
+    async def test_unicode_in_dedup_key_rejected(self, mock_session: AsyncMock) -> None:
+        """Test that unicode characters in dedup key are rejected (NEM-1107)."""
         service = AlertDeduplicationService(mock_session)
-        result = await service.check_duplicate("camera_1:person")
 
-        assert result.is_duplicate is False
+        # Unicode characters should be rejected by stricter validation
+        # Using escape sequence to ensure fullwidth underscore (U+FF3F) is preserved
+        with pytest.raises(ValueError, match="invalid characters"):
+            await service.check_duplicate("camera\uff3f1:person")
 
     @pytest.mark.asyncio
     async def test_negative_seconds_remaining_clamped_to_zero(
@@ -917,3 +1136,252 @@ class TestBuildDedupKeyEdgeCases:
         key1 = build_dedup_key("cam1", "person", "zone1")
         key2 = build_dedup_key("cam1", "person", "zone1")
         assert key1 == key2
+
+
+# =============================================================================
+# NEM-1105: Database Error Handling Tests
+# =============================================================================
+
+
+class TestDatabaseErrorHandling:
+    """Tests for database error handling in AlertDeduplicationService (NEM-1105)."""
+
+    @pytest.mark.asyncio
+    async def test_check_duplicate_handles_database_error(self, mock_session: AsyncMock) -> None:
+        """Test that check_duplicate handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Database connection lost")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Database connection lost"):
+            await service.check_duplicate("front_door:person", cooldown_seconds=300)
+
+    @pytest.mark.asyncio
+    async def test_get_cooldown_for_rule_handles_database_error(
+        self, mock_session: AsyncMock
+    ) -> None:
+        """Test that get_cooldown_for_rule handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Database timeout")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Database timeout"):
+            await service.get_cooldown_for_rule("some-rule-id")
+
+    @pytest.mark.asyncio
+    async def test_create_alert_handles_flush_error(self, mock_session: AsyncMock) -> None:
+        """Test that create_alert_if_not_duplicate handles flush errors."""
+        # First call (check_duplicate) succeeds with no duplicate
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        # But flush fails
+        mock_session.flush.side_effect = Exception("Database write failed")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError, match="Database operation failed"):
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="front_door:person",
+                cooldown_seconds=300,
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_recent_alerts_handles_database_error(self, mock_session: AsyncMock) -> None:
+        """Test that get_recent_alerts_for_key handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Query execution failed")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Query execution failed"):
+            await service.get_recent_alerts_for_key("front_door:person")
+
+    @pytest.mark.asyncio
+    async def test_get_duplicate_stats_handles_database_error(
+        self, mock_session: AsyncMock
+    ) -> None:
+        """Test that get_duplicate_stats handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Database read error")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Database read error"):
+            await service.get_duplicate_stats()
+
+
+# =============================================================================
+# AlertCreationError Tests (NEM-1105)
+# =============================================================================
+
+
+class TestAlertCreationError:
+    """Tests for AlertCreationError exception class (NEM-1105)."""
+
+    def test_exception_is_subclass_of_exception(self) -> None:
+        """Test that AlertCreationError is a proper Exception subclass."""
+        assert issubclass(AlertCreationError, Exception)
+
+    def test_exception_can_be_instantiated_with_message(self) -> None:
+        """Test that AlertCreationError can be created with a message."""
+        error = AlertCreationError("Test error message")
+        assert str(error) == "Test error message"
+
+    def test_exception_can_be_raised_and_caught(self) -> None:
+        """Test that AlertCreationError can be raised and caught."""
+        with pytest.raises(AlertCreationError, match="Test error"):
+            raise AlertCreationError("Test error")
+
+    def test_exception_preserves_cause(self) -> None:
+        """Test that AlertCreationError preserves the original exception cause."""
+        original_error = ValueError("Original error")
+        try:
+            try:
+                raise original_error
+            except ValueError as e:
+                raise AlertCreationError("Wrapped error") from e
+        except AlertCreationError as e:
+            assert e.__cause__ is original_error
+            assert isinstance(e.__cause__, ValueError)
+
+
+class TestAlertCreationErrorHandling:
+    """Tests for AlertCreationError handling in create_alert_if_not_duplicate (NEM-1105)."""
+
+    @pytest.mark.asyncio
+    async def test_flush_error_raises_alert_creation_error(self, mock_session: AsyncMock) -> None:
+        """Test that flush errors are wrapped in AlertCreationError."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Constraint violation")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError) as exc_info:
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="front_door:person",
+                cooldown_seconds=300,
+            )
+
+        assert "Database operation failed" in str(exc_info.value)
+        assert exc_info.value.__cause__ is not None
+
+    @pytest.mark.asyncio
+    async def test_error_preserves_original_exception_type(self, mock_session: AsyncMock) -> None:
+        """Test that original exception is preserved as cause."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        original_error = RuntimeError("Connection reset")
+        mock_session.flush.side_effect = original_error
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError) as exc_info:
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="test_key",
+                cooldown_seconds=300,
+            )
+
+        assert exc_info.value.__cause__ is original_error
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+
+    @pytest.mark.asyncio
+    async def test_error_message_contains_original_error(self, mock_session: AsyncMock) -> None:
+        """Test that error message contains the original error message."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Unique constraint violated")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError) as exc_info:
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="test_key",
+                cooldown_seconds=300,
+            )
+
+        assert "Unique constraint violated" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_error_logging_called_on_failure(self, mock_session: AsyncMock) -> None:
+        """Test that error is logged when alert creation fails."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Database error")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with patch("backend.services.alert_dedup.logger") as mock_logger:
+            with pytest.raises(AlertCreationError):
+                await service.create_alert_if_not_duplicate(
+                    event_id=42,
+                    dedup_key="camera1:person",
+                    cooldown_seconds=300,
+                )
+
+            mock_logger.error.assert_called_once()
+            call_args = mock_logger.error.call_args
+            assert call_args[0][0] == "Failed to create alert in database"
+            extra = call_args[1]["extra"]
+            assert extra["event_id"] == 42
+            assert extra["dedup_key"] == "camera1:person"
+            assert extra["error_type"] == "Exception"
+            assert "Database error" in extra["error"]
+
+    @pytest.mark.asyncio
+    async def test_session_add_not_reverted_on_error(self, mock_session: AsyncMock) -> None:
+        """Test that session.add is called even when flush fails."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Flush failed")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError):
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="test_key",
+                cooldown_seconds=300,
+            )
+
+        # session.add should have been called before the error
+        mock_session.add.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_various_database_exceptions_wrapped(self, mock_session: AsyncMock) -> None:
+        """Test that various database exception types are wrapped in AlertCreationError."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        exception_types = [
+            ValueError("Invalid data"),
+            RuntimeError("Connection lost"),
+            TimeoutError("Query timeout"),
+            OSError("IO error"),
+        ]
+
+        service = AlertDeduplicationService(mock_session)
+
+        for exc in exception_types:
+            mock_session.flush.side_effect = exc
+            mock_session.add.reset_mock()
+
+            with pytest.raises(AlertCreationError) as exc_info:
+                await service.create_alert_if_not_duplicate(
+                    event_id=1,
+                    dedup_key="test_key",
+                    cooldown_seconds=300,
+                )
+
+            assert exc_info.value.__cause__ is exc

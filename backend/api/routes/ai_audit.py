@@ -338,14 +338,24 @@ async def trigger_batch_audit(
     result = await db.execute(query)
     events = result.scalars().all()
 
+    if not events:
+        return BatchAuditResponse(
+            queued_count=0,
+            message="No events found matching criteria",
+        )
+
+    # Batch load existing audits to avoid N+1 queries
+    event_ids = [event.id for event in events]
+    audits_result = await db.execute(select(EventAudit).where(EventAudit.event_id.in_(event_ids)))
+    audits_by_event_id = {audit.event_id: audit for audit in audits_result.scalars().all()}
+
     # Get audit service for processing
     service = get_audit_service()
     queued_count = 0
 
     for event in events:
-        # Check if audit exists
-        audit_result = await db.execute(select(EventAudit).where(EventAudit.event_id == event.id))
-        audit = audit_result.scalar_one_or_none()
+        # Check if audit exists from batch-loaded map
+        audit = audits_by_event_id.get(event.id)
 
         if audit is None:
             # Create partial audit if missing

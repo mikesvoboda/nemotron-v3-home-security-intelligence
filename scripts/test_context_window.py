@@ -47,9 +47,16 @@ def generate_large_prompt(target_tokens: int) -> str:
     """Generate a prompt with approximately target_tokens tokens.
 
     Uses a realistic security analysis scenario with repeated detection data.
-    Rough estimate: 1 token ≈ 4 characters for English text.
+    Rough estimate: 1 token ~ 4 characters for English text.
+
+    NEM-1095: Uses efficient list.append() + ''.join() pattern instead of
+    string concatenation with += which is O(n^2) for large prompts.
     """
-    base_prompt = """You are a home security AI analyst. Analyze the following detection events and provide a risk assessment.
+    # Use list for efficient string building (O(n) vs O(n^2) for += concatenation)
+    prompt_parts: list[str] = []
+
+    prompt_parts.append(
+        """You are a home security AI analyst. Analyze the following detection events and provide a risk assessment.
 
 SYSTEM CONTEXT:
 - Location: Residential property with 8 cameras
@@ -59,6 +66,7 @@ SYSTEM CONTEXT:
 
 DETECTION EVENTS:
 """
+    )
 
     # Each detection block is roughly 200 tokens
     detection_template = """
@@ -106,7 +114,6 @@ Event #{event_id}:
     ]
     descriptions = ["person", "individual", "figure", "visitor", "delivery worker"]
 
-    prompt = base_prompt
     event_id = 1
 
     # Estimate: base_prompt ~100 tokens, each detection ~200 tokens
@@ -114,31 +121,34 @@ Event #{event_id}:
     num_detections = (target_tokens - 500) // 200  # Leave room for response
 
     for i in range(num_detections):
-        prompt += detection_template.format(
-            event_id=event_id,
-            minute=i % 60,
-            second=(i * 7) % 60,
-            camera=cameras[i % len(cameras)],
-            conf=85 + (i % 10),
-            x1=10 + (i % 30),
-            y1=20 + (i % 25),
-            x2=50 + (i % 30),
-            y2=70 + (i % 20),
-            vconf=80 + (i % 15),
-            vtype=vehicle_types[i % len(vehicle_types)],
-            color=colors[i % len(colors)],
-            vcolor=colors[(i + 1) % len(colors)],
-            desc=descriptions[i % len(descriptions)],
-            zone=zones[i % len(zones)],
-            sim=75 + (i % 20),
-            other_cam=(i + 3) % 8,
-            clothing=clothing[i % len(clothing)],
-            segment=vehicle_types[i % len(vehicle_types)],
-            baseline=baselines[i % len(baselines)],
+        prompt_parts.append(
+            detection_template.format(
+                event_id=event_id,
+                minute=i % 60,
+                second=(i * 7) % 60,
+                camera=cameras[i % len(cameras)],
+                conf=85 + (i % 10),
+                x1=10 + (i % 30),
+                y1=20 + (i % 25),
+                x2=50 + (i % 30),
+                y2=70 + (i % 20),
+                vconf=80 + (i % 15),
+                vtype=vehicle_types[i % len(vehicle_types)],
+                color=colors[i % len(colors)],
+                vcolor=colors[(i + 1) % len(colors)],
+                desc=descriptions[i % len(descriptions)],
+                zone=zones[i % len(zones)],
+                sim=75 + (i % 20),
+                other_cam=(i + 3) % 8,
+                clothing=clothing[i % len(clothing)],
+                segment=vehicle_types[i % len(vehicle_types)],
+                baseline=baselines[i % len(baselines)],
+            )
         )
         event_id += 1
 
-    prompt += """
+    prompt_parts.append(
+        """
 ANALYSIS REQUEST:
 Based on the above detection events, provide:
 1. Overall risk score (0-100)
@@ -148,8 +158,10 @@ Based on the above detection events, provide:
 5. Cross-camera correlation summary
 
 Be concise but thorough."""
+    )
 
-    return prompt
+    # Join all parts efficiently in one operation
+    return "".join(prompt_parts)
 
 
 def estimate_tokens(text: str) -> int:

@@ -12,6 +12,7 @@ from backend.api.schemas.audit import (
     AuditLogResponse,
     AuditLogStats,
 )
+from backend.api.validators import validate_date_range
 from backend.core.database import get_db
 from backend.models.audit import AuditLog
 from backend.services.audit import AuditService
@@ -52,7 +53,13 @@ async def list_audit_logs(
 
     Returns:
         AuditLogListResponse containing filtered logs and pagination info
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
     """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
     logs, total_count = await AuditService.get_audit_logs(
         db=db,
         action=action,

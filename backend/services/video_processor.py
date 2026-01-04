@@ -593,6 +593,165 @@ class VideoProcessor:
             logger.error(f"Failed to extract frames from {video_path}: {e}")
             return []
 
+    async def extract_frames_for_detection_batch(  # noqa: PLR0911, PLR0912
+        self,
+        video_path: str,
+        interval_seconds: float = 2.0,
+        max_frames: int = 30,
+        size: tuple[int, int] | None = None,
+    ) -> list[str]:
+        """Extract multiple frames from a video using a single FFmpeg call.
+
+        NEM-1062: Optimized batch frame extraction using FFmpeg's select filter.
+        This method extracts all frames in a single FFmpeg invocation instead of
+        calling FFmpeg once per frame, significantly reducing subprocess overhead.
+
+        Uses the -vf select filter with FPS filter to extract frames at regular
+        intervals throughout the video for use in object detection.
+
+        This is an OPTIONAL operation that returns an empty list on failure rather
+        than raising an exception. Callers should handle empty results gracefully.
+
+        Args:
+            video_path: Path to the video file
+            interval_seconds: Time between frame extractions (default: 2.0 seconds)
+            max_frames: Maximum number of frames to extract (default: 30)
+            size: Optional frame dimensions. If None, uses original resolution.
+
+        Returns:
+            List of paths to extracted frame images.
+            Returns empty list for: invalid path, metadata extraction failure,
+            invalid duration, ffmpeg failures, or timeouts.
+        """
+        try:
+            validated_path = _validate_video_path(video_path)
+        except ValueError as e:
+            logger.error(f"Video path validation failed: {e}")
+            return []
+
+        # Validate interval_seconds and max_frames to prevent command injection
+        try:
+            validated_interval = _validate_interval_seconds(interval_seconds)
+        except ValueError as e:
+            logger.error(f"Interval validation failed: {e}")
+            return []
+
+        try:
+            validated_max_frames = _validate_max_frames(max_frames)
+        except ValueError as e:
+            logger.error(f"Max frames validation failed: {e}")
+            return []
+
+        # Validate size if provided
+        validated_size: tuple[int, int] | None = None
+        if size is not None:
+            try:
+                validated_size = _validate_size(size)
+            except ValueError as e:
+                logger.error(f"Size validation failed: {e}")
+                return []
+
+        try:
+            # Get video duration
+            metadata = await self.get_video_metadata(video_path)
+            duration = metadata.get("duration", 0)
+
+            if duration <= 0:
+                logger.warning(f"Video has no duration or invalid duration: {video_path}")
+                return []
+
+            # Calculate how many frames to extract
+            num_frames = min(validated_max_frames, int((duration - 0.5) / validated_interval) + 1)
+            if num_frames <= 0:
+                # Video too short, extract at least one frame
+                num_frames = 1
+
+            logger.info(
+                f"Batch extracting {num_frames} frames from {video_path} "
+                f"(duration: {duration:.1f}s, interval: {validated_interval}s)"
+            )
+
+            # Create output directory for frames
+            video_stem = validated_path.stem
+            frames_dir = self.output_dir / f"{video_stem}_frames"
+            frames_dir.mkdir(parents=True, exist_ok=True)
+
+            # Build video filter chain for batch extraction
+            # Uses fps filter to control frame rate, then select to limit frames
+            # format=yuvj420p: Convert to full-range YUV for JPEG encoding
+            # fps=1/interval: Extract one frame every 'interval' seconds
+            # setpts=N/FRAME_RATE/TB: Reset timestamps for proper frame ordering
+            video_filters = ["format=yuvj420p"]
+
+            # Use fps filter to extract at regular intervals
+            # fps=1/interval extracts 1 frame per interval seconds
+            video_filters.append(f"fps=1/{validated_interval}")
+
+            # Apply scale filter if size is specified
+            if validated_size:
+                video_filters.append(
+                    f"scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease"
+                )
+
+            vf_arg = ",".join(video_filters)
+
+            # Output pattern for numbered frames
+            output_pattern = str(frames_dir / "%04d.jpg")
+
+            # Build single FFmpeg command for batch extraction
+            # Note: We use -ss to skip the first 0.5 seconds to avoid black frames
+            # -frames:v limits the total number of extracted frames
+            cmd = [
+                "ffmpeg",
+                "-y",  # Overwrite output files
+                "-ss",
+                "0.5",  # Skip first 0.5 seconds (input seeking for speed)
+                "-i",
+                str(validated_path),  # Input file
+                "-vf",
+                vf_arg,  # Video filters (fps extraction + format + optional scaling)
+                "-frames:v",
+                str(num_frames),  # Limit number of output frames
+                "-q:v",
+                "2",  # High quality JPEG
+                output_pattern,  # Output file pattern
+            ]
+
+            result = await asyncio.to_thread(
+                subprocess.run,
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,  # Longer timeout for batch operation
+            )
+
+            if result.returncode != 0:
+                logger.error(f"FFmpeg batch frame extraction failed: {result.stderr}")
+                return []
+
+            # Collect extracted frame paths
+            # FFmpeg outputs frames as 0001.jpg, 0002.jpg, etc.
+            extracted_frames: list[str] = []
+            for i in range(1, num_frames + 1):
+                frame_path = frames_dir / f"{i:04d}.jpg"
+                if frame_path.exists():
+                    extracted_frames.append(str(frame_path))
+
+            logger.info(
+                f"Successfully batch extracted {len(extracted_frames)} frames from {video_path}"
+            )
+            return extracted_frames
+
+        except VideoProcessingError as e:
+            logger.error(f"Video processing error for {video_path}: {e}")
+            return []
+        except subprocess.TimeoutExpired:
+            logger.error(f"Timeout during batch frame extraction from {video_path}")
+            return []
+        except Exception as e:
+            logger.error(f"Failed to batch extract frames from {video_path}: {e}")
+            return []
+
     def cleanup_extracted_frames(self, video_path: str) -> bool:
         """Clean up extracted frames directory for a video.
 

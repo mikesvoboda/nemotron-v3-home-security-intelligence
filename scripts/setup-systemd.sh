@@ -11,6 +11,26 @@
 
 set -e
 
+# Container name sanitization function (NEM-1124)
+# Only allows alphanumeric characters, hyphens, and underscores
+# to prevent command injection attacks
+sanitize_container_name() {
+    local name="$1"
+    # Validate: only allow alphanumeric, hyphen, underscore
+    # Must start with alphanumeric
+    if [[ ! "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*$ ]]; then
+        echo -e "${RED}Error: Invalid container name detected: $name${NC}" >&2
+        echo "Container names must only contain alphanumeric characters, hyphens, and underscores." >&2
+        return 1
+    fi
+    # Limit length to prevent issues
+    if [[ ${#name} -gt 128 ]]; then
+        echo -e "${RED}Error: Container name too long: $name${NC}" >&2
+        return 1
+    fi
+    echo "$name"
+}
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,9 +101,11 @@ echo ""
 echo "Generating systemd unit files..."
 GENERATED=0
 for container in $CONTAINERS; do
-    echo -n "  - $container: "
-    SERVICE_FILE="$SYSTEMD_USER_DIR/${container}.service"
-    if podman generate systemd --new --name "$container" > "$SERVICE_FILE" 2>/dev/null; then
+    # Sanitize container name to prevent command injection (NEM-1124)
+    sanitized_container=$(sanitize_container_name "$container") || continue
+    echo -n "  - $sanitized_container: "
+    SERVICE_FILE="$SYSTEMD_USER_DIR/${sanitized_container}.service"
+    if podman generate systemd --new --name "$sanitized_container" > "$SERVICE_FILE" 2>/dev/null; then
         echo -e "${GREEN}OK${NC}"
         GENERATED=$((GENERATED + 1))
     else
@@ -103,12 +125,14 @@ echo -e "${GREEN}Generated $GENERATED systemd unit files${NC}"
 echo ""
 echo "Adding container cleanup to all services..."
 for container in $CONTAINERS; do
-    SERVICE_FILE="$SYSTEMD_USER_DIR/${container}.service"
+    # Sanitize container name to prevent command injection (NEM-1124)
+    sanitized_container=$(sanitize_container_name "$container") || continue
+    SERVICE_FILE="$SYSTEMD_USER_DIR/${sanitized_container}.service"
     if [[ -f "$SERVICE_FILE" ]]; then
         # Add ExecStartPre to remove orphaned containers before ExecStart
         if ! grep -q "ExecStartPre=.*podman rm" "$SERVICE_FILE"; then
-            sed -i "/^ExecStart=/i # Cleanup any orphaned container before starting (fixes stuck container restarts)\nExecStartPre=-/usr/bin/podman rm -f --ignore $container" "$SERVICE_FILE"
-            echo -e "  - $container: ${GREEN}cleanup added${NC}"
+            sed -i "/^ExecStart=/i # Cleanup any orphaned container before starting (fixes stuck container restarts)\nExecStartPre=-/usr/bin/podman rm -f --ignore $sanitized_container" "$SERVICE_FILE"
+            echo -e "  - $sanitized_container: ${GREEN}cleanup added${NC}"
         fi
     fi
 done
@@ -144,7 +168,9 @@ echo ""
 echo "Enabling services for auto-start..."
 ENABLED=0
 for container in $CONTAINERS; do
-    SERVICE_NAME="${container}.service"
+    # Sanitize container name to prevent command injection (NEM-1124)
+    sanitized_container=$(sanitize_container_name "$container") || continue
+    SERVICE_NAME="${sanitized_container}.service"
     if systemctl --user enable "$SERVICE_NAME" 2>/dev/null; then
         echo -e "  - $SERVICE_NAME: ${GREEN}enabled${NC}"
         ENABLED=$((ENABLED + 1))

@@ -16,6 +16,7 @@ See backend/tests/AGENTS.md for full documentation on test conventions.
 
 from __future__ import annotations
 
+import logging
 import os
 import socket
 import sys
@@ -24,6 +25,9 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+# NEM-1061: Logger for test cleanup handlers
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -70,7 +74,12 @@ def _check_tcp_connection(host: str = "localhost", port: int = 5432) -> bool:
         result = sock.connect_ex((host, port))
         sock.close()
         return result == 0
-    except Exception:
+    except Exception as e:
+        # NEM-1061: Log suppressed exception for debugging
+        logger.debug(
+            "TCP connection check failed",
+            extra={"host": host, "port": port, "error": str(e)},
+        )
         return False
 
 
@@ -381,8 +390,12 @@ async def _cleanup_test_cameras() -> None:
             await session.execute(text("DELETE FROM cameras"))
 
             await session.commit()
-    except Exception:  # noqa: S110
-        pass
+    except Exception as e:
+        # NEM-1061: Log suppressed exception for debugging
+        logger.debug(
+            "Test cleanup failed during table deletion",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
 
 
 @pytest.fixture(scope="function")

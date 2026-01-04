@@ -11,13 +11,13 @@ records are properly cleaned up when parent records are deleted.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import func, select
 
+from backend.core.time_utils import utc_now
 from backend.models import (
     ActivityBaseline,
     Alert,
@@ -36,11 +36,6 @@ from backend.tests.conftest import unique_id
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-
-
-def utc_now() -> datetime:
-    """Return current UTC time as a timezone-aware datetime."""
-    return datetime.now(UTC)
 
 
 # Mark all tests as integration tests requiring real PostgreSQL database

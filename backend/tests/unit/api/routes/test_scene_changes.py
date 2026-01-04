@@ -28,12 +28,21 @@ class TestGetCameraSceneChanges:
         from backend.api.routes.cameras import get_camera_scene_changes
 
         mock_db = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
+
+        # First query: scene changes with joinedload returns empty (optimized query)
+        mock_changes_result = MagicMock()
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = []
+
+        # Second query: camera check (fallback when no scene changes found)
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = None
+
+        mock_db.execute.side_effect = [mock_changes_result, mock_camera_result]
 
         with pytest.raises(Exception) as exc_info:
-            await get_camera_scene_changes("nonexistent_camera", db=mock_db)
+            await get_camera_scene_changes(
+                "nonexistent_camera", acknowledged=None, limit=50, offset=0, db=mock_db
+            )
 
         assert exc_info.value.status_code == 404
         assert "not found" in str(exc_info.value.detail).lower()
@@ -45,18 +54,18 @@ class TestGetCameraSceneChanges:
 
         mock_db = AsyncMock()
 
-        # Mock camera query
+        # First query: scene changes with joinedload returns empty (optimized query)
+        mock_changes_result = MagicMock()
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = []
+
+        # Second query: camera check (fallback when no scene changes found)
         mock_camera = MagicMock()
         mock_camera.id = "test_camera"
         mock_camera.name = "Test Camera"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-        # Mock scene changes query
-        mock_changes_result = MagicMock()
-        mock_changes_result.scalars.return_value.all.return_value = []
-
-        mock_db.execute.side_effect = [mock_camera_result, mock_changes_result]
+        mock_db.execute.side_effect = [mock_changes_result, mock_camera_result]
 
         result = await get_camera_scene_changes(
             "test_camera", acknowledged=None, limit=50, offset=0, db=mock_db
@@ -75,14 +84,7 @@ class TestGetCameraSceneChanges:
 
         mock_db = AsyncMock()
 
-        # Mock camera query
-        mock_camera = MagicMock()
-        mock_camera.id = "front_door"
-        mock_camera.name = "Front Door"
-        mock_camera_result = MagicMock()
-        mock_camera_result.scalar_one_or_none.return_value = mock_camera
-
-        # Mock scene changes
+        # Mock scene changes with eagerly loaded camera (optimized single query)
         now = datetime.now(UTC)
         mock_change1 = MagicMock(spec=SceneChange)
         mock_change1.id = 1
@@ -104,13 +106,14 @@ class TestGetCameraSceneChanges:
         mock_change2.acknowledged_at = now - timedelta(minutes=30)
         mock_change2.file_path = "/path/to/image2.jpg"
 
+        # Single query with joinedload returns scene changes
         mock_changes_result = MagicMock()
-        mock_changes_result.scalars.return_value.all.return_value = [
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = [
             mock_change1,
             mock_change2,
         ]
 
-        mock_db.execute.side_effect = [mock_camera_result, mock_changes_result]
+        mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
             "front_door", acknowledged=None, limit=50, offset=0, db=mock_db
@@ -135,13 +138,7 @@ class TestGetCameraSceneChanges:
 
         mock_db = AsyncMock()
 
-        # Mock camera query
-        mock_camera = MagicMock()
-        mock_camera.id = "test_camera"
-        mock_camera_result = MagicMock()
-        mock_camera_result.scalar_one_or_none.return_value = mock_camera
-
-        # Mock scene changes - only unacknowledged
+        # Mock scene changes - only unacknowledged (optimized single query)
         now = datetime.now(UTC)
         mock_change = MagicMock(spec=SceneChange)
         mock_change.id = 1
@@ -153,10 +150,13 @@ class TestGetCameraSceneChanges:
         mock_change.acknowledged_at = None
         mock_change.file_path = None
 
+        # Single query with joinedload returns filtered scene changes
         mock_changes_result = MagicMock()
-        mock_changes_result.scalars.return_value.all.return_value = [mock_change]
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = [
+            mock_change
+        ]
 
-        mock_db.execute.side_effect = [mock_camera_result, mock_changes_result]
+        mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
             "test_camera", acknowledged=False, limit=50, offset=0, db=mock_db
@@ -176,9 +176,16 @@ class TestAcknowledgeSceneChange:
         from backend.api.routes.cameras import acknowledge_scene_change
 
         mock_db = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
+
+        # First query: scene change with joinedload returns None (optimized query)
+        mock_change_result = MagicMock()
+        mock_change_result.unique.return_value.scalar_one_or_none.return_value = None
+
+        # Second query: camera check (fallback) - camera not found
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = None
+
+        mock_db.execute.side_effect = [mock_change_result, mock_camera_result]
 
         mock_request = MagicMock()
 
@@ -196,17 +203,17 @@ class TestAcknowledgeSceneChange:
 
         mock_db = AsyncMock()
 
-        # Mock camera query - camera exists
+        # First query: scene change with joinedload returns None (optimized query)
+        mock_change_result = MagicMock()
+        mock_change_result.unique.return_value.scalar_one_or_none.return_value = None
+
+        # Second query: camera check (fallback) - camera exists
         mock_camera = MagicMock()
         mock_camera.id = "test_camera"
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-        # Mock scene change query - not found
-        mock_change_result = MagicMock()
-        mock_change_result.scalar_one_or_none.return_value = None
-
-        mock_db.execute.side_effect = [mock_camera_result, mock_change_result]
+        mock_db.execute.side_effect = [mock_change_result, mock_camera_result]
 
         mock_request = MagicMock()
 
@@ -224,13 +231,7 @@ class TestAcknowledgeSceneChange:
 
         mock_db = AsyncMock()
 
-        # Mock camera query
-        mock_camera = MagicMock()
-        mock_camera.id = "front_door"
-        mock_camera_result = MagicMock()
-        mock_camera_result.scalar_one_or_none.return_value = mock_camera
-
-        # Mock scene change
+        # Mock scene change with eagerly loaded camera (optimized single query)
         now = datetime.now(UTC)
         mock_change = MagicMock(spec=SceneChange)
         mock_change.id = 1
@@ -242,10 +243,11 @@ class TestAcknowledgeSceneChange:
         mock_change.acknowledged_at = None
         mock_change.file_path = "/path/to/image.jpg"
 
+        # Single query with joinedload returns scene change
         mock_change_result = MagicMock()
-        mock_change_result.scalar_one_or_none.return_value = mock_change
+        mock_change_result.unique.return_value.scalar_one_or_none.return_value = mock_change
 
-        mock_db.execute.side_effect = [mock_camera_result, mock_change_result]
+        mock_db.execute.return_value = mock_change_result
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
 
@@ -271,13 +273,7 @@ class TestAcknowledgeSceneChange:
 
         mock_db = AsyncMock()
 
-        # Mock camera query
-        mock_camera = MagicMock()
-        mock_camera.id = "front_door"
-        mock_camera_result = MagicMock()
-        mock_camera_result.scalar_one_or_none.return_value = mock_camera
-
-        # Mock already acknowledged scene change
+        # Mock already acknowledged scene change with eagerly loaded camera
         now = datetime.now(UTC)
         mock_change = MagicMock(spec=SceneChange)
         mock_change.id = 1
@@ -289,10 +285,11 @@ class TestAcknowledgeSceneChange:
         mock_change.acknowledged_at = now - timedelta(hours=1)
         mock_change.file_path = "/path/to/image.jpg"
 
+        # Single query with joinedload returns scene change
         mock_change_result = MagicMock()
-        mock_change_result.scalar_one_or_none.return_value = mock_change
+        mock_change_result.unique.return_value.scalar_one_or_none.return_value = mock_change
 
-        mock_db.execute.side_effect = [mock_camera_result, mock_change_result]
+        mock_db.execute.return_value = mock_change_result
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
 

@@ -9,18 +9,11 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import select
 
+from backend.core.time_utils import utc_now_naive
 from backend.models import Camera, Detection, Event, GPUStats
 
 # Import unique_id helper from conftest for test isolation
 from backend.tests.conftest import unique_id
-
-
-def utc_now_naive() -> datetime:
-    """Return current UTC time as a naive datetime (for DB compatibility)."""
-    from datetime import UTC
-
-    return datetime.now(UTC).replace(tzinfo=None)
-
 
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
