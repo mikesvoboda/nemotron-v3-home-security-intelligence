@@ -1763,6 +1763,61 @@ describe('EventTimeline', () => {
     });
   });
 
+  describe('URL Parameter Filtering', () => {
+    it('applies risk_level filter from URL parameter', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?risk_level=high' });
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ risk_level: 'high', offset: 0 }),
+          expect.anything()
+        );
+      });
+
+      // Filter panel should be visible
+      expect(screen.getByLabelText('Risk Level')).toBeInTheDocument();
+    });
+
+    it('applies camera filter from URL parameter', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?camera=camera-1' });
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ camera_id: 'camera-1', offset: 0 }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('applies both camera and risk_level filters from URL parameters', async () => {
+      renderWithProviders(<EventTimeline />, {
+        route: '/timeline?camera=camera-1&risk_level=critical',
+      });
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({
+            camera_id: 'camera-1',
+            risk_level: 'critical',
+            offset: 0,
+          }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('shows filter panel when risk_level URL parameter is present', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/timeline?risk_level=medium' });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Risk Level')).toBeInTheDocument();
+      });
+
+      // Filter panel should be visible (showing Hide Filters button)
+      expect(screen.getByText('Hide Filters')).toBeInTheDocument();
+    });
+  });
+
   describe('Event Detail Modal', () => {
     it('opens modal when clicking on event card', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

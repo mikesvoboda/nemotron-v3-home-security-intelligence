@@ -1,11 +1,11 @@
 /**
- * AIAuditPage - Dashboard for AI model contribution and quality metrics
+ * AIAuditPage - Dashboard for AI quality metrics and recommendations
  *
  * Displays aggregate statistics from the AI pipeline audit system including:
  * - Quality score metrics and trends
- * - Model contribution rates chart
- * - Model leaderboard with rankings
  * - Prompt improvement recommendations
+ *
+ * Note: Model contribution rates and leaderboard are now on the AI Performance page
  */
 
 import { Text, Callout, Select, SelectItem } from '@tremor/react';
@@ -13,19 +13,15 @@ import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play } from 'lucide-r
 import { useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
-import ModelContributionChart from './ModelContributionChart';
-import ModelLeaderboard from './ModelLeaderboard';
 import QualityScoreTrends from './QualityScoreTrends';
 import RecommendationsPanel from './RecommendationsPanel';
 import {
   fetchAiAuditStats,
-  fetchModelLeaderboard,
   fetchAuditRecommendations,
 } from '../../services/api';
 
 import type {
   AiAuditStatsResponse,
-  AiAuditLeaderboardResponse,
   AiAuditRecommendationsResponse,
 } from '../../services/api';
 import type { BatchAuditResponse } from '../../services/auditApi';
@@ -36,7 +32,6 @@ import type { BatchAuditResponse } from '../../services/auditApi';
 export default function AIAuditPage() {
   // Data state
   const [stats, setStats] = useState<AiAuditStatsResponse | null>(null);
-  const [leaderboard, setLeaderboard] = useState<AiAuditLeaderboardResponse | null>(null);
   const [recommendations, setRecommendations] = useState<AiAuditRecommendationsResponse | null>(
     null
   );
@@ -59,14 +54,12 @@ export default function AIAuditPage() {
     setError(null);
 
     try {
-      const [statsData, leaderboardData, recommendationsData] = await Promise.all([
+      const [statsData, recommendationsData] = await Promise.all([
         fetchAiAuditStats({ days: periodDays }),
-        fetchModelLeaderboard({ days: periodDays }),
         fetchAuditRecommendations({ days: periodDays }),
       ]);
 
       setStats(statsData);
-      setLeaderboard(leaderboardData);
       setRecommendations(recommendationsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load AI audit data');
@@ -249,21 +242,7 @@ export default function AIAuditPage() {
               fullyEvaluatedEvents={stats.fully_evaluated_events}
             />
 
-            {/* Charts Row */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Model Contribution Chart */}
-              <ModelContributionChart contributionRates={stats.model_contribution_rates} />
-
-              {/* Model Leaderboard */}
-              {leaderboard && (
-                <ModelLeaderboard
-                  entries={leaderboard.entries}
-                  periodDays={leaderboard.period_days}
-                />
-              )}
-            </div>
-
-            {/* Recommendations Panel */}
+            {/* Recommendations Panel (full width) */}
             {recommendations && (
               <RecommendationsPanel
                 recommendations={recommendations.recommendations}

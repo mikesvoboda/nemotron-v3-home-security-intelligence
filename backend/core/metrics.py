@@ -748,3 +748,227 @@ def record_pipeline_stage_latency(stage: str, latency_ms: float) -> None:
         latency_ms: Latency in milliseconds
     """
     get_pipeline_latency_tracker().record_stage_latency(stage, latency_ms)
+
+
+# =============================================================================
+# Model Zoo Latency Tracker
+# =============================================================================
+
+
+class ModelLatencyTracker:
+    """Track and analyze latency for Model Zoo models.
+
+    This class provides in-memory circular buffer storage for model
+    latency measurements with statistical analysis capabilities.
+
+    Model Zoo models tracked:
+    - yolo11-license-plate, yolo11-face, paddleocr, clip-vit-l, etc.
+    - All 18 models in the Model Zoo registry
+
+    Usage:
+        tracker = ModelLatencyTracker(max_samples=1000)
+        tracker.record_model_latency("yolo11-license-plate", 45.5)
+        stats = tracker.get_model_stats("yolo11-license-plate", window_minutes=5)
+        history = tracker.get_model_latency_history("yolo11-license-plate")
+    """
+
+    def __init__(self, max_samples: int = 1000) -> None:
+        """Initialize the model latency tracker.
+
+        Args:
+            max_samples: Maximum samples to keep per model (circular buffer size)
+        """
+        import time
+        from collections import deque
+        from threading import Lock
+
+        self._max_samples = max_samples
+        self._lock = Lock()
+        # Each model has a deque of (timestamp, latency_ms) tuples
+        self._samples: dict[str, deque[tuple[float, float]]] = {}
+        self._time = time  # Store reference for testing
+
+    def _get_or_create_deque(self, model_name: str) -> Any:
+        """Get or create a deque for a model.
+
+        Args:
+            model_name: Model identifier
+
+        Returns:
+            Deque for the model's latency samples
+        """
+        from collections import deque
+
+        if model_name not in self._samples:
+            self._samples[model_name] = deque(maxlen=self._max_samples)
+        return self._samples[model_name]
+
+    def record_model_latency(self, model_name: str, latency_ms: float) -> None:
+        """Record a latency sample for a Model Zoo model.
+
+        Args:
+            model_name: Model identifier (e.g., 'yolo11-license-plate')
+            latency_ms: Latency in milliseconds
+        """
+        timestamp = self._time.time()
+        with self._lock:
+            samples_deque = self._get_or_create_deque(model_name)
+            samples_deque.append((timestamp, latency_ms))
+
+    def get_model_stats(
+        self, model_name: str, window_minutes: int = 60
+    ) -> dict[str, float | int | None]:
+        """Get latency statistics for a single model.
+
+        Args:
+            model_name: Model identifier
+            window_minutes: Only include samples from the last N minutes
+
+        Returns:
+            Dictionary with statistics:
+            - avg_ms: Average latency
+            - p50_ms: 50th percentile (median)
+            - p95_ms: 95th percentile
+            - sample_count: Number of samples used
+        """
+        if model_name not in self._samples:
+            return {
+                "avg_ms": None,
+                "p50_ms": None,
+                "p95_ms": None,
+                "sample_count": 0,
+            }
+
+        cutoff = self._time.time() - (window_minutes * 60)
+
+        with self._lock:
+            samples = [latency for ts, latency in self._samples[model_name] if ts >= cutoff]
+
+        if not samples:
+            return {
+                "avg_ms": None,
+                "p50_ms": None,
+                "p95_ms": None,
+                "sample_count": 0,
+            }
+
+        sorted_samples = sorted(samples)
+        count = len(sorted_samples)
+
+        return {
+            "avg_ms": sum(sorted_samples) / count,
+            "p50_ms": self._percentile(sorted_samples, 50),
+            "p95_ms": self._percentile(sorted_samples, 95),
+            "sample_count": count,
+        }
+
+    def get_model_latency_history(
+        self, model_name: str, window_minutes: int = 60, bucket_seconds: int = 60
+    ) -> list[dict[str, Any]]:
+        """Get latency history for a specific model as time-series data.
+
+        Groups samples into time buckets and calculates statistics for each bucket.
+        Returns chronologically ordered snapshots suitable for time-series visualization.
+
+        Args:
+            model_name: Model identifier
+            window_minutes: Time window to retrieve (default 60 minutes)
+            bucket_seconds: Bucket size in seconds for aggregation (default 60 = 1 minute)
+
+        Returns:
+            List of snapshots, each containing:
+            - timestamp: Bucket start time (ISO format)
+            - stats: Latency stats for that bucket (None if no data)
+        """
+        from collections import defaultdict
+        from datetime import datetime
+
+        cutoff = self._time.time() - (window_minutes * 60)
+
+        # Collect samples within window, grouped by bucket
+        bucket_samples: dict[int, list[float]] = defaultdict(list)
+
+        with self._lock:
+            if model_name in self._samples:
+                for ts, latency in self._samples[model_name]:
+                    if ts >= cutoff:
+                        # Calculate bucket index
+                        bucket_idx = int((ts - cutoff) // bucket_seconds)
+                        bucket_samples[bucket_idx].append(latency)
+
+        # Generate all buckets in the window (including empty ones)
+        num_buckets = (window_minutes * 60) // bucket_seconds
+        snapshots = []
+
+        for bucket_idx in range(num_buckets):
+            bucket_start = cutoff + (bucket_idx * bucket_seconds)
+            timestamp = datetime.fromtimestamp(bucket_start, tz=UTC)
+
+            samples = bucket_samples.get(bucket_idx, [])
+            if samples:
+                sorted_samples = sorted(samples)
+                count = len(sorted_samples)
+                stats: dict[str, Any] | None = {
+                    "avg_ms": sum(sorted_samples) / count,
+                    "p50_ms": self._percentile(sorted_samples, 50),
+                    "p95_ms": self._percentile(sorted_samples, 95),
+                    "sample_count": count,
+                }
+            else:
+                stats = None
+
+            snapshots.append(
+                {
+                    "timestamp": timestamp.isoformat(),
+                    "stats": stats,
+                }
+            )
+
+        return snapshots
+
+    @staticmethod
+    def _percentile(sorted_samples: list[float], percentile: float) -> float:
+        """Calculate a percentile from a sorted list.
+
+        Args:
+            sorted_samples: Sorted list of values
+            percentile: Percentile to calculate (0-100)
+
+        Returns:
+            Value at the given percentile
+        """
+        if not sorted_samples:
+            return 0.0
+        index = int(len(sorted_samples) * percentile / 100)
+        index = min(index, len(sorted_samples) - 1)
+        return sorted_samples[index]
+
+
+# Global singleton instance for Model Zoo latency tracking
+_model_latency_tracker: ModelLatencyTracker | None = None
+
+
+def get_model_latency_tracker() -> ModelLatencyTracker | None:
+    """Get the global Model Zoo latency tracker instance.
+
+    Returns:
+        The singleton ModelLatencyTracker instance, or None if not initialized
+    """
+    global _model_latency_tracker  # noqa: PLW0603
+    if _model_latency_tracker is None:
+        _model_latency_tracker = ModelLatencyTracker()
+    return _model_latency_tracker
+
+
+def record_model_zoo_latency(model_name: str, latency_ms: float) -> None:
+    """Record a Model Zoo model latency measurement.
+
+    Convenience function that uses the global tracker instance.
+
+    Args:
+        model_name: Model identifier (e.g., 'yolo11-license-plate')
+        latency_ms: Latency in milliseconds
+    """
+    tracker = get_model_latency_tracker()
+    if tracker is not None:
+        tracker.record_model_latency(model_name, latency_ms)

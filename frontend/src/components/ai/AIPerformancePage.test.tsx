@@ -35,6 +35,31 @@ vi.mock('../../services/api', () => ({
       events_by_camera: [],
     })
   ),
+  fetchAiAuditStats: vi.fn(() =>
+    Promise.resolve({
+      total_events: 1000,
+      audited_events: 950,
+      fully_evaluated_events: 800,
+      avg_quality_score: 4.2,
+      avg_consistency_rate: 4.0,
+      avg_enrichment_utilization: 0.75,
+      model_contribution_rates: {
+        rtdetr: 1.0,
+        florence: 0.85,
+        clip: 0.6,
+      },
+      audits_by_day: [],
+    })
+  ),
+  fetchModelLeaderboard: vi.fn(() =>
+    Promise.resolve({
+      entries: [
+        { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
+        { model_name: 'florence', contribution_rate: 0.85, quality_correlation: null, event_count: 850 },
+      ],
+      period_days: 7,
+    })
+  ),
 }));
 
 // Default mock data for healthy state
@@ -157,6 +182,34 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
       await waitFor(() => {
         expect(screen.getByTestId('insights-charts')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Model Zoo Analytics section', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('model-zoo-analytics-section')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Model Zoo Analytics title', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByText('Model Zoo Analytics')).toBeInTheDocument();
+      });
+    });
+
+    it('renders model contribution chart in Model Zoo Analytics', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('model-contribution-chart')).toBeInTheDocument();
+      });
+    });
+
+    it('renders model leaderboard in Model Zoo Analytics', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('model-leaderboard')).toBeInTheDocument();
       });
     });
 
