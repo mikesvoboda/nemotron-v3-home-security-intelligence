@@ -997,6 +997,43 @@ class SeverityThresholds(BaseModel):
     )
 
 
+class SeverityThresholdsUpdate(BaseModel):
+    """Request schema for updating severity thresholds.
+
+    Thresholds must satisfy: 0 <= low_max < medium_max < high_max <= 100
+    This ensures contiguous, non-overlapping severity ranges.
+    """
+
+    low_max: int = Field(
+        ...,
+        description="Maximum risk score for LOW severity (0 to this value = LOW)",
+        ge=1,
+        le=98,
+    )
+    medium_max: int = Field(
+        ...,
+        description="Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM)",
+        ge=2,
+        le=99,
+    )
+    high_max: int = Field(
+        ...,
+        description="Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH)",
+        ge=3,
+        le=99,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "low_max": 29,
+                "medium_max": 59,
+                "high_max": 84,
+            }
+        }
+    )
+
+
 class SeverityMetadataResponse(BaseModel):
     """Response schema for severity metadata endpoint.
 

@@ -19,6 +19,7 @@ const createDefaultState = (): AIPerformanceState => ({
   pipelineErrors: {},
   queueOverflows: {},
   dlqItems: {},
+  detectionsByClass: {},
   lastUpdated: null,
 });
 

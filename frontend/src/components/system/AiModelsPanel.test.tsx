@@ -137,6 +137,18 @@ describe('AiModelsPanel', () => {
       expect(screen.getByTestId('rtdetr-card')).toBeInTheDocument();
       expect(screen.getByTestId('nemotron-card')).toBeInTheDocument();
     });
+
+    it('handles empty object aiModels gracefully', () => {
+      // This tests the fix for NEM-1141: when WebSocket returns empty ai_models {}
+      render(<AiModelsPanel aiModels={{}} />);
+
+      expect(screen.getByTestId('ai-models-panel')).toBeInTheDocument();
+      // Should show default cards with no data (same as null/undefined)
+      expect(screen.getByTestId('rtdetr-card')).toBeInTheDocument();
+      expect(screen.getByTestId('nemotron-card')).toBeInTheDocument();
+      // Verify the cards show "No data available" state
+      expect(screen.getAllByText('No data available')).toHaveLength(2);
+    });
   });
 
   describe('status indicators', () => {

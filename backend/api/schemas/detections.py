@@ -110,3 +110,34 @@ class DetectionListResponse(BaseModel):
     count: int = Field(..., description="Total number of detections matching filters")
     limit: int = Field(..., description="Maximum number of results returned")
     offset: int = Field(..., description="Number of results skipped")
+
+
+class DetectionStatsResponse(BaseModel):
+    """Schema for detection statistics response.
+
+    Returns aggregate statistics about detections including counts by object class.
+    Used by the AI Performance page to display detection class distribution.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_detections": 107,
+                "detections_by_class": {
+                    "person": 23,
+                    "car": 20,
+                    "truck": 6,
+                    "bicycle": 1,
+                },
+                "average_confidence": 0.87,
+            }
+        }
+    )
+
+    total_detections: int = Field(..., description="Total number of detections")
+    detections_by_class: dict[str, int] = Field(
+        ..., description="Detection counts grouped by object class (e.g., person, car, truck)"
+    )
+    average_confidence: float | None = Field(
+        None, description="Average confidence score across all detections"
+    )

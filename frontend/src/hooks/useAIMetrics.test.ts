@@ -9,6 +9,8 @@ import * as metricsParser from '../services/metricsParser';
 vi.mock('../services/api', () => ({
   fetchTelemetry: vi.fn(),
   fetchHealth: vi.fn(),
+  fetchDlqStats: vi.fn(),
+  fetchDetectionStats: vi.fn(),
 }));
 
 // Mock the metricsParser module
@@ -113,6 +115,18 @@ describe('useAIMetrics', () => {
     timestamp: '2025-12-28T10:30:00Z',
   };
 
+  const mockDlqStatsResponse: api.DLQStatsResponse = {
+    detection_queue_count: 1611,
+    analysis_queue_count: 5,
+    total_count: 1616,
+  };
+
+  const mockDetectionStatsResponse: api.DetectionStatsResponse = {
+    total_detections: 25000,
+    detections_by_class: { person: 15000, car: 8000, truck: 2000 },
+    average_confidence: 0.87,
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -120,6 +134,8 @@ describe('useAIMetrics', () => {
     vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue(mockMetricsResponse);
     vi.mocked(api.fetchTelemetry).mockResolvedValue(mockTelemetryResponse);
     vi.mocked(api.fetchHealth).mockResolvedValue(mockHealthResponse);
+    vi.mocked(api.fetchDlqStats).mockResolvedValue(mockDlqStatsResponse);
+    vi.mocked(api.fetchDetectionStats).mockResolvedValue(mockDetectionStatsResponse);
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockPipelineLatencyResponse),
@@ -136,6 +152,8 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDetectionStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -148,6 +166,8 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDetectionStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -161,6 +181,8 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDetectionStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -175,6 +197,8 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDetectionStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -186,6 +210,7 @@ describe('useAIMetrics', () => {
       expect(result.current.data.pipelineErrors).toEqual({});
       expect(result.current.data.queueOverflows).toEqual({});
       expect(result.current.data.dlqItems).toEqual({});
+      expect(result.current.data.detectionsByClass).toEqual({});
     });
 
     it('should start with null lastUpdated', () => {
@@ -193,6 +218,8 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchTelemetry).mockReturnValue(new Promise(() => {}));
       vi.mocked(api.fetchHealth).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDlqStats).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.fetchDetectionStats).mockReturnValue(new Promise(() => {}));
       mockFetch.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -202,7 +229,7 @@ describe('useAIMetrics', () => {
   });
 
   describe('successful data fetching', () => {
-    it('should fetch all 4 endpoints on mount', async () => {
+    it('should fetch all 6 endpoints on mount', async () => {
       renderHook(() => useAIMetrics({ enablePolling: false }));
 
       await waitFor(() => {
@@ -211,6 +238,8 @@ describe('useAIMetrics', () => {
 
       expect(api.fetchTelemetry).toHaveBeenCalledTimes(1);
       expect(api.fetchHealth).toHaveBeenCalledTimes(1);
+      expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
+      expect(api.fetchDetectionStats).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledWith('/api/system/pipeline-latency?window_minutes=60');
     });
 
@@ -283,23 +312,32 @@ describe('useAIMetrics', () => {
       expect(result.current.data.nemotron.name).toBe('Nemotron');
     });
 
-    it('should populate counters and error maps from metrics', async () => {
+    it('should populate counters and error maps from metrics, DLQ stats, and detection stats', async () => {
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data.totalDetections).toBe(15000);
+      // totalDetections should come from detection stats API (25000) not metrics (15000)
+      expect(result.current.data.totalDetections).toBe(25000);
       expect(result.current.data.totalEvents).toBe(3000);
       expect(result.current.data.pipelineErrors).toEqual({ timeout: 12, model_error: 3 });
       expect(result.current.data.queueOverflows).toEqual({
         detection_queue: 5,
         analysis_queue: 1,
       });
+      // DLQ items should come from /api/dlq/stats (actual current counts: 1611, 5)
+      // NOT from Prometheus metrics (cumulative counter: 8, 2)
       expect(result.current.data.dlqItems).toEqual({
-        'dlq:detection_queue': 8,
-        'dlq:analysis_queue': 2,
+        'dlq:detection_queue': 1611,
+        'dlq:analysis_queue': 5,
+      });
+      // detectionsByClass should come from detection stats API
+      expect(result.current.data.detectionsByClass).toEqual({
+        person: 15000,
+        car: 8000,
+        truck: 2000,
       });
     });
 
@@ -413,6 +451,8 @@ describe('useAIMetrics', () => {
       vi.mocked(metricsParser.fetchAIMetrics).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchTelemetry).mockRejectedValue(new Error('Failed'));
       vi.mocked(api.fetchHealth).mockRejectedValue(new Error('Failed'));
+      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('Failed'));
+      vi.mocked(api.fetchDetectionStats).mockRejectedValue(new Error('Failed'));
       mockFetch.mockRejectedValue(new Error('Failed'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
@@ -426,6 +466,8 @@ describe('useAIMetrics', () => {
       expect(result.current.data.analysisLatency).toBeNull();
       expect(result.current.data.pipelineLatency).toBeNull();
       expect(result.current.data.rtdetr.status).toBe('unknown');
+      expect(result.current.data.dlqItems).toEqual({});
+      expect(result.current.data.detectionsByClass).toEqual({});
       // No error set since Promise.allSettled handles failures gracefully
       expect(result.current.error).toBeNull();
     });
@@ -611,17 +653,18 @@ describe('useAIMetrics', () => {
 
       const originalDetections = result.current.data.totalDetections;
 
-      // Update mock to return different data
-      vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue({
-        ...mockMetricsResponse,
-        total_detections: 20000,
+      // Update mock to return different data - need to update detection stats API
+      // since it takes priority over metrics for totalDetections
+      vi.mocked(api.fetchDetectionStats).mockResolvedValue({
+        ...mockDetectionStatsResponse,
+        total_detections: 30000,
       });
 
       await act(async () => {
         await result.current.refresh();
       });
 
-      expect(result.current.data.totalDetections).toBe(20000);
+      expect(result.current.data.totalDetections).toBe(30000);
       expect(result.current.data.totalDetections).not.toBe(originalDetections);
     });
   });
@@ -778,6 +821,12 @@ describe('useAIMetrics', () => {
         queue_overflows: {},
         dlq_items: {},
       });
+      // Even with empty metrics dlq_items, should still use DLQ stats API
+      vi.mocked(api.fetchDlqStats).mockResolvedValue({
+        detection_queue_count: 0,
+        analysis_queue_count: 0,
+        total_count: 0,
+      });
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 
@@ -787,16 +836,11 @@ describe('useAIMetrics', () => {
 
       expect(result.current.data.pipelineErrors).toEqual({});
       expect(result.current.data.queueOverflows).toEqual({});
-      // When DLQ stats returns all zeros, fall back to Prometheus metrics
-      // Since Prometheus metrics has empty dlq_items, expect empty object
       expect(result.current.data.dlqItems).toEqual({});
     });
 
-    it('should return empty dlqItems when metrics return empty dlq_items', async () => {
-      vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue({
-        ...mockMetricsResponse,
-        dlq_items: {},
-      });
+    it('should fallback to metrics dlq_items when DLQ stats API fails', async () => {
+      vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('DLQ API unavailable'));
 
       const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
 
@@ -804,8 +848,13 @@ describe('useAIMetrics', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // dlqItems comes from metrics.dlq_items, should be empty when metrics returns empty
-      expect(result.current.data.dlqItems).toEqual({});
+      // Should fall back to metrics dlq_items (cumulative counter values)
+      expect(result.current.data.dlqItems).toEqual({
+        'dlq:detection_queue': 8,
+        'dlq:analysis_queue': 2,
+      });
+      // No error since partial data is still available
+      expect(result.current.error).toBeNull();
     });
 
     it('should handle missing queues in telemetry response', async () => {

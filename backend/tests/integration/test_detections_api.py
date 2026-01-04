@@ -187,3 +187,120 @@ class TestGetDetectionImage:
         response = await async_client.get(f"/api/detections/{sample_detection.id}/image")
         # Should return 404 since the test file doesn't actually exist
         assert response.status_code == 404
+
+
+class TestGetDetectionStats:
+    """Tests for GET /api/detections/stats endpoint (NEM-1128).
+
+    This endpoint returns aggregate statistics about detections including:
+    - Total detection count
+    - Detection counts grouped by object class (person, car, truck, etc.)
+    - Average confidence score
+    """
+
+    async def test_get_detection_stats_empty(self, async_client, clean_detections):
+        """Test getting stats when no detections exist."""
+        response = await async_client.get("/api/detections/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_detections"] == 0
+        assert data["detections_by_class"] == {}
+        assert data["average_confidence"] is None
+
+    async def test_get_detection_stats_with_single_detection(self, async_client, sample_detection):
+        """Test getting stats with a single detection."""
+        response = await async_client.get("/api/detections/stats")
+        assert response.status_code == 200
+        data = response.json()
+        # Should have at least the detection created by fixture
+        assert data["total_detections"] >= 1
+        assert "person" in data["detections_by_class"]
+        assert data["detections_by_class"]["person"] >= 1
+        assert data["average_confidence"] is not None
+        assert 0 <= data["average_confidence"] <= 1
+
+    async def test_get_detection_stats_class_distribution(
+        self, async_client, clean_detections, integration_db
+    ):
+        """Test that stats correctly groups detections by class."""
+        import uuid
+
+        from backend.core.database import get_session
+        from backend.models.camera import Camera
+        from backend.models.detection import Detection
+
+        # First verify database is empty after clean_detections
+        response = await async_client.get("/api/detections/stats")
+        assert response.status_code == 200
+        assert response.json()["total_detections"] == 0
+
+        # Create camera first (required for FK constraint)
+        camera_id = str(uuid.uuid4())
+        unique_suffix = uuid.uuid4().hex[:8]
+        async with get_session() as db:
+            camera = Camera(
+                id=camera_id,
+                name=f"Test Camera {unique_suffix}",
+                folder_path=f"/export/foscam/test_{unique_suffix}",
+                status="online",
+            )
+            db.add(camera)
+            await db.commit()
+
+        # Create detections with different object types
+        async with get_session() as db:
+            detections_data = [
+                ("person", 0.95),
+                ("person", 0.90),
+                ("person", 0.85),
+                ("car", 0.92),
+                ("car", 0.88),
+                ("truck", 0.80),
+            ]
+            for obj_type, conf in detections_data:
+                detection = Detection(
+                    camera_id=camera_id,
+                    file_path=f"/export/foscam/test_{obj_type}_{conf}.jpg",
+                    file_type="image/jpeg",
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                    object_type=obj_type,
+                    confidence=conf,
+                    bbox_x=100,
+                    bbox_y=150,
+                    bbox_width=200,
+                    bbox_height=400,
+                )
+                db.add(detection)
+            await db.commit()
+
+        response = await async_client.get("/api/detections/stats")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify total count
+        assert data["total_detections"] == 6
+
+        # Verify class distribution
+        assert data["detections_by_class"]["person"] == 3
+        assert data["detections_by_class"]["car"] == 2
+        assert data["detections_by_class"]["truck"] == 1
+
+        # Verify average confidence (sum: 0.95+0.90+0.85+0.92+0.88+0.80 = 5.30, avg = 0.883...)
+        assert data["average_confidence"] is not None
+        assert 0.88 <= data["average_confidence"] <= 0.89
+
+    async def test_get_detection_stats_response_schema(self, async_client, sample_detection):
+        """Test that the response conforms to the expected schema."""
+        response = await async_client.get("/api/detections/stats")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify required fields exist
+        assert "total_detections" in data
+        assert "detections_by_class" in data
+        assert "average_confidence" in data
+
+        # Verify field types
+        assert isinstance(data["total_detections"], int)
+        assert isinstance(data["detections_by_class"], dict)
+        assert data["average_confidence"] is None or isinstance(data["average_confidence"], float)
