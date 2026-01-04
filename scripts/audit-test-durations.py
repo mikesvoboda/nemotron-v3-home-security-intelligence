@@ -132,6 +132,17 @@ SLOW_TEST_PATTERNS = [
     r"test_migrate_beads_to_linear.*TestLinearClientRetryLogging.*",
     # VitPose loader exception tests - model loading overhead
     r"test_vitpose_loader.*test_extract_pose_from_crop_exception",
+    # File watcher stability tests - use actual sleep() for file stability timing
+    r"test_file_watcher.*test_wait_for_file_stability",
+    r"test_file_watcher.*test_stability_check_file_grows",
+    r"test_file_watcher.*test_process_file_queues_with_normalized_id",
+    r"test_file_watcher.*test_process_file_triggers_auto_create",
+    # Video support tests - file processing with stability checks
+    r"test_video_support.*TestFileWatcherVideoProcessing",
+    # Vehicle classifier loader tests - model initialization overhead
+    r"test_vehicle_classifier_loader.*test_classify_vehicle_runtime_error",
+    # System broadcaster degradation tests - reconnection timing
+    r"test_system_broadcaster.*is_degraded.*reestablish",
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely

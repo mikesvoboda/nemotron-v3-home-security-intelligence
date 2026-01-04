@@ -196,6 +196,7 @@ describe('SystemMonitoringPage', () => {
     // SeverityConfigPanel was moved to Settings page (NEM-1142)
     // fetchSeverityMetadata mock removed
 
+
     (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
       health: mockHealthResponse,
       services: mockHealthResponse.services,

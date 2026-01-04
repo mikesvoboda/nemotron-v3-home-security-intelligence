@@ -29,6 +29,7 @@ import {
   fetchAiAuditStats,
   fetchModelLeaderboard,
 } from '../../services/api';
+import AIPerformanceSummaryRow from '../ai-performance/AIPerformanceSummaryRow';
 
 import type {
   AiAuditStatsResponse,
@@ -203,6 +204,19 @@ export default function AIPerformancePage() {
         {/* Main Content */}
         {hasData && (
           <div className="space-y-6">
+            {/* Summary Row */}
+            <AIPerformanceSummaryRow
+              rtdetr={data.rtdetr}
+              nemotron={data.nemotron}
+              detectionLatency={data.detectionLatency}
+              analysisLatency={data.analysisLatency}
+              detectionQueueDepth={data.detectionQueueDepth}
+              analysisQueueDepth={data.analysisQueueDepth}
+              totalDetections={data.totalDetections}
+              totalEvents={data.totalEvents}
+              totalErrors={Object.values(data.pipelineErrors).reduce((sum, count) => sum + count, 0)}
+            />
+
             {/* Model Status Cards */}
             <ModelStatusCards
               rtdetr={data.rtdetr}
