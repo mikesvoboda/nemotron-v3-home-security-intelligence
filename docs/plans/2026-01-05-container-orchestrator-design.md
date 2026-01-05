@@ -6,17 +6,24 @@
 
 ## Overview
 
-Design for a backend service that manages the lifecycle of AI service containers (RT-DETR, Nemotron, Florence, CLIP, Enrichment). The orchestrator provides eager startup, health monitoring, and self-healing with automatic restarts and failure limits.
+Design for a backend service that manages the lifecycle of all deployment containers:
+
+- **AI Services:** RT-DETR, Nemotron, Florence, CLIP, Enrichment
+- **Infrastructure:** PostgreSQL, Redis
+- **Monitoring:** Grafana, Prometheus, Redis Exporter, JSON Exporter
+
+The orchestrator provides eager startup, health monitoring, and self-healing with automatic restarts and failure limits.
 
 ## Goals
 
-- Start all enabled AI services on backend boot
-- Monitor health of AI containers every 30 seconds
+- Start all enabled services on backend boot
+- Monitor health of all containers every 30 seconds
 - Auto-restart failed containers with exponential backoff
 - Disable services after repeated failures to prevent restart loops
 - Persist state across backend restarts
 - Provide REST API and WebSocket updates for UI integration
 - Cross-platform support (Linux, macOS, Windows)
+- Respect service categories and dependencies (infrastructure vs AI vs monitoring)
 
 ## Architecture
 
@@ -39,17 +46,42 @@ Design for a backend service that manages the lifecycle of AI service containers
 │  └──────────────────────────┼────────────────────────────┘  │
 └─────────────────────────────┼───────────────────────────────┘
                               ▼
-        ┌─────────┬─────────┬─────────┬─────────┬─────────┐
-        │RT-DETR  │Nemotron │Florence │  CLIP   │Enrichment│
-        │ :8090   │ :8091   │ :8092   │ :8093   │  :8094  │
-        └─────────┴─────────┴─────────┴─────────┴─────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    INFRASTRUCTURE                           │
+│  ┌──────────────┐  ┌──────────────┐                        │
+│  │  PostgreSQL  │  │    Redis     │                        │
+│  │    :5432     │  │    :6379     │                        │
+│  └──────────────┘  └──────────────┘                        │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      AI SERVICES                            │
+│  ┌─────────┬─────────┬─────────┬─────────┬─────────┐       │
+│  │RT-DETR  │Nemotron │Florence │  CLIP   │Enrichment│       │
+│  │ :8090   │ :8091   │ :8092   │ :8093   │  :8094  │       │
+│  └─────────┴─────────┴─────────┴─────────┴─────────┘       │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      MONITORING                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Prometheus  │  │   Grafana    │  │Redis Exporter│      │
+│  │    :9090     │  │    :3000     │  │    :9121     │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **Components:**
 
-- **Discovery Service:** Finds AI containers by name pattern on startup
+- **Discovery Service:** Finds containers by name pattern on startup (AI, infrastructure, monitoring)
 - **Health Monitor:** Periodic health checks (every 30s), tracks failure counts
 - **Lifecycle Manager:** Start/stop/restart containers, respects backoff and failure limits
+
+**Service Categories:**
+
+| Category       | Services                                           | Restart Policy        |
+| -------------- | -------------------------------------------------- | --------------------- |
+| Infrastructure | PostgreSQL, Redis                                  | Critical - aggressive |
+| AI Services    | RT-DETR, Nemotron, Florence, CLIP, Enrichment      | Standard backoff      |
+| Monitoring     | Prometheus, Grafana, Redis Exporter, JSON Exporter | Lenient               |
 
 ## Key Decisions
 
@@ -64,16 +96,29 @@ Design for a backend service that manages the lifecycle of AI service containers
 
 ## Data Model
 
+### ServiceCategory
+
+```python
+class ServiceCategory(Enum):
+    INFRASTRUCTURE = "infrastructure"  # PostgreSQL, Redis - critical, aggressive restart
+    AI = "ai"                          # RT-DETR, Nemotron, etc. - standard backoff
+    MONITORING = "monitoring"          # Grafana, Prometheus - lenient, optional
+```
+
 ### ManagedService
 
 ```python
 @dataclass
 class ManagedService:
-    name: str                      # "ai-detector", "ai-llm", etc.
+    name: str                      # "postgres", "ai-detector", "grafana", etc.
     container_id: str | None       # Docker container ID
-    image: str                     # "ghcr.io/.../backend:latest"
-    port: int                      # 8090, 8091, etc.
-    health_endpoint: str           # "/health"
+    image: str                     # "postgres:16-alpine", "ghcr.io/.../backend:latest"
+    port: int                      # 5432, 8090, 3000, etc.
+    health_endpoint: str | None    # "/health" or None for non-HTTP health checks
+    health_cmd: str | None         # Alternative: "pg_isready", "redis-cli ping"
+
+    # Classification
+    category: ServiceCategory      # infrastructure, ai, monitoring
 
     # State
     status: ServiceStatus          # running, stopped, unhealthy, disabled
@@ -85,11 +130,19 @@ class ManagedService:
     last_restart_at: datetime | None
     restart_count: int             # Total restarts since backend boot
 
-    # Limits
+    # Limits (defaults vary by category)
     max_failures: int = 5          # Disable after N consecutive failures
     restart_backoff_base: float = 5.0   # Exponential backoff: 5s, 10s, 20s...
     restart_backoff_max: float = 300.0  # Cap at 5 minutes
 ```
+
+### Category-Specific Defaults
+
+| Category       | max_failures | backoff_base | backoff_max | Grace Period |
+| -------------- | ------------ | ------------ | ----------- | ------------ |
+| Infrastructure | 10           | 2.0s         | 60s         | 10s          |
+| AI             | 5            | 5.0s         | 300s        | 60-180s      |
+| Monitoring     | 3            | 10.0s        | 600s        | 30s          |
 
 ### ServiceStatus
 
@@ -111,6 +164,51 @@ class ServiceStatus(Enum):
 
 ## Health Monitoring
 
+### Health Check Methods
+
+Services can use either HTTP health endpoints or Docker exec commands:
+
+```python
+async def check_health(service: ManagedService, docker: DockerClient) -> bool:
+    """
+    Check service health using appropriate method.
+
+    - HTTP endpoint: GET request to health_endpoint
+    - Command: Docker exec with health_cmd
+    """
+    if service.health_endpoint:
+        # HTTP health check (AI services, Grafana, Prometheus)
+        return await check_http_health(service)
+    elif service.health_cmd:
+        # Command health check (PostgreSQL, Redis)
+        return await check_cmd_health(service, docker)
+    else:
+        # Fallback: container running = healthy
+        return True
+
+async def check_http_health(service: ManagedService, timeout: float = 5.0) -> bool:
+    """HTTP GET to health endpoint."""
+    url = f"http://localhost:{service.port}{service.health_endpoint}"
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.get(url)
+            return response.status_code == 200
+        except (httpx.RequestError, httpx.TimeoutException):
+            return False
+
+async def check_cmd_health(service: ManagedService, docker: DockerClient) -> bool:
+    """Execute health command inside container."""
+    try:
+        exit_code = await docker.exec_run(
+            service.container_id,
+            service.health_cmd,
+            timeout=5,
+        )
+        return exit_code == 0
+    except Exception:
+        return False
+```
+
 ### Main Loop (every 30 seconds)
 
 ```python
@@ -129,8 +227,8 @@ async def orchestration_loop():
                 await handle_stopped_container(service)
                 continue
 
-            # 3. Check health endpoint
-            healthy = await check_health(service)
+            # 3. Check health (HTTP or command-based)
+            healthy = await check_health(service, docker)
 
             if healthy:
                 service.failure_count = 0  # Reset on success
@@ -179,27 +277,126 @@ backoff = min(base * 2^failure_count, max)
 
 ```python
 async def discover_services():
-    """Find AI containers by name pattern and register them."""
+    """Find containers by name pattern and register them."""
 
-    patterns = {
-        "ai-detector": {"port": 8090, "health": "/health"},
-        "ai-llm": {"port": 8091, "health": "/health"},
-        "ai-florence": {"port": 8092, "health": "/health"},
-        "ai-clip": {"port": 8093, "health": "/health"},
-        "ai-enrichment": {"port": 8094, "health": "/health"},
+    # Infrastructure services (critical)
+    INFRASTRUCTURE_CONFIGS = {
+        "postgres": ServiceConfig(
+            display_name="PostgreSQL",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=5432,
+            health_cmd="pg_isready -U security",
+            startup_grace_period=10,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
+        "redis": ServiceConfig(
+            display_name="Redis",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=6379,
+            health_cmd="redis-cli ping",
+            startup_grace_period=10,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
     }
+
+    # AI services (standard)
+    AI_CONFIGS = {
+        "ai-detector": ServiceConfig(
+            display_name="RT-DETRv2",
+            category=ServiceCategory.AI,
+            port=8090,
+            health_endpoint="/health",
+            startup_grace_period=60,
+        ),
+        "ai-llm": ServiceConfig(
+            display_name="Nemotron",
+            category=ServiceCategory.AI,
+            port=8091,
+            health_endpoint="/health",
+            startup_grace_period=120,
+        ),
+        "ai-florence": ServiceConfig(
+            display_name="Florence-2",
+            category=ServiceCategory.AI,
+            port=8092,
+            health_endpoint="/health",
+            startup_grace_period=60,
+        ),
+        "ai-clip": ServiceConfig(
+            display_name="CLIP",
+            category=ServiceCategory.AI,
+            port=8093,
+            health_endpoint="/health",
+            startup_grace_period=60,
+        ),
+        "ai-enrichment": ServiceConfig(
+            display_name="Enrichment",
+            category=ServiceCategory.AI,
+            port=8094,
+            health_endpoint="/health",
+            startup_grace_period=180,
+        ),
+    }
+
+    # Monitoring services (optional profile)
+    MONITORING_CONFIGS = {
+        "prometheus": ServiceConfig(
+            display_name="Prometheus",
+            category=ServiceCategory.MONITORING,
+            port=9090,
+            health_endpoint="/-/healthy",
+            startup_grace_period=30,
+            max_failures=3,
+            restart_backoff_base=10.0,
+            restart_backoff_max=600.0,
+        ),
+        "grafana": ServiceConfig(
+            display_name="Grafana",
+            category=ServiceCategory.MONITORING,
+            port=3000,
+            health_endpoint="/api/health",
+            startup_grace_period=30,
+            max_failures=3,
+            restart_backoff_base=10.0,
+            restart_backoff_max=600.0,
+        ),
+        "redis-exporter": ServiceConfig(
+            display_name="Redis Exporter",
+            category=ServiceCategory.MONITORING,
+            port=9121,
+            health_endpoint="/metrics",
+            startup_grace_period=15,
+            max_failures=3,
+        ),
+        "json-exporter": ServiceConfig(
+            display_name="JSON Exporter",
+            category=ServiceCategory.MONITORING,
+            port=7979,
+            health_endpoint="/metrics",
+            startup_grace_period=15,
+            max_failures=3,
+        ),
+    }
+
+    ALL_CONFIGS = {**INFRASTRUCTURE_CONFIGS, **AI_CONFIGS, **MONITORING_CONFIGS}
 
     containers = await docker.containers.list(all=True)
 
     for container in containers:
-        for pattern, config in patterns.items():
+        for pattern, config in ALL_CONFIGS.items():
             if pattern in container.name:
                 registry.register(ManagedService(
                     name=pattern,
                     container_id=container.id,
                     image=container.image.tags[0],
-                    port=config["port"],
-                    health_endpoint=config["health"],
+                    port=config.port,
+                    health_endpoint=config.health_endpoint,
+                    health_cmd=config.health_cmd,
+                    category=config.category,
                 ))
 ```
 
@@ -269,6 +466,8 @@ Backend Starts
 
 ```
 GET /api/system/services
+GET /api/system/services?category=ai          # Filter by category
+GET /api/system/services?category=infrastructure
 ```
 
 Response:
@@ -277,8 +476,23 @@ Response:
 {
   "services": [
     {
+      "name": "postgres",
+      "display_name": "PostgreSQL",
+      "category": "infrastructure",
+      "status": "running",
+      "enabled": true,
+      "container_id": "def456...",
+      "image": "postgres:16-alpine",
+      "port": 5432,
+      "failure_count": 0,
+      "restart_count": 0,
+      "last_restart_at": null,
+      "uptime_seconds": 86400
+    },
+    {
       "name": "ai-detector",
       "display_name": "RT-DETRv2",
+      "category": "ai",
       "status": "running",
       "enabled": true,
       "container_id": "abc123...",
@@ -288,8 +502,27 @@ Response:
       "restart_count": 2,
       "last_restart_at": "2026-01-05T10:30:00Z",
       "uptime_seconds": 3600
+    },
+    {
+      "name": "grafana",
+      "display_name": "Grafana",
+      "category": "monitoring",
+      "status": "running",
+      "enabled": true,
+      "container_id": "ghi789...",
+      "image": "grafana/grafana:10.2.3",
+      "port": 3000,
+      "failure_count": 0,
+      "restart_count": 0,
+      "last_restart_at": null,
+      "uptime_seconds": 7200
     }
   ],
+  "by_category": {
+    "infrastructure": { "total": 2, "healthy": 2, "unhealthy": 0 },
+    "ai": { "total": 5, "healthy": 3, "unhealthy": 2 },
+    "monitoring": { "total": 4, "healthy": 4, "unhealthy": 0 }
+  },
   "timestamp": "2026-01-05T15:45:00Z"
 }
 ```
@@ -357,15 +590,36 @@ DOCKER_HOST=unix:///var/run/docker.sock
 
 ## Error Handling
 
-| Scenario                          | Behavior                                            |
-| --------------------------------- | --------------------------------------------------- |
-| Docker API unavailable            | Log error, disable orchestration, backend continues |
-| Container image missing           | Mark as `NOT_FOUND`, alert, don't retry             |
-| GPU OOM during start              | Treat as failure, backoff and retry                 |
-| Network port conflict             | Treat as failure, log detailed error                |
-| Container starts but health fails | Wait for grace period before counting failure       |
-| Backend restarts mid-recovery     | Redis restores state, continues backoff             |
-| User manually stops container     | Restart if enabled, respect if disabled             |
+| Scenario                          | Behavior                                                  |
+| --------------------------------- | --------------------------------------------------------- |
+| Docker API unavailable            | Log error, disable orchestration, backend continues       |
+| Container image missing           | Mark as `NOT_FOUND`, alert, don't retry                   |
+| GPU OOM during start              | Treat as failure, backoff and retry                       |
+| Network port conflict             | Treat as failure, log detailed error                      |
+| Container starts but health fails | Wait for grace period before counting failure             |
+| Backend restarts mid-recovery     | Redis restores state, continues backoff                   |
+| User manually stops container     | Restart if enabled, respect if disabled                   |
+| PostgreSQL/Redis restart          | Backend has connection retry logic, orchestrator proceeds |
+| Monitoring service down           | Lower priority, lenient restart policy                    |
+
+### Dependency Considerations
+
+The backend depends on PostgreSQL and Redis. When these services restart:
+
+1. **PostgreSQL:** SQLAlchemy connection pool automatically reconnects
+2. **Redis:** Redis client retries with exponential backoff
+
+The orchestrator does NOT need to coordinate with the backend before restarting infrastructure services because:
+
+- The backend has built-in connection resilience
+- Brief downtime (< 30s) is acceptable for self-healing
+- The orchestrator itself persists state to Redis, so it handles Redis restarts gracefully
+
+**Restart Order (when multiple services need restart):**
+
+1. Infrastructure (PostgreSQL, Redis) - highest priority
+2. AI Services - standard priority
+3. Monitoring - lowest priority
 
 ### Logging Strategy
 
