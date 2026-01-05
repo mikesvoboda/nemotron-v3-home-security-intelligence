@@ -494,7 +494,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: coverage-integration-*
           path: coverage-reports/
@@ -760,7 +760,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: frontend-coverage-shard-*
           path: coverage-reports/
