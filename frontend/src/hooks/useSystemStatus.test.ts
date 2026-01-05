@@ -87,6 +87,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should connect to the correct WebSocket URL', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     renderHook(() => useSystemStatus());
 
     expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
@@ -202,6 +205,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should ignore invalid messages missing required fields', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
     const invalidMessages = [
@@ -223,6 +229,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should ignore messages with partial data fields', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
     const partialMessage = {
@@ -242,6 +251,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should ignore message if health field is missing', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
     const invalidMessage = {
@@ -269,6 +281,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should ignore message if gpu field is missing', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
     const invalidMessage = {
@@ -289,6 +304,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should ignore message if cameras field is missing', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
     const invalidMessage = {
@@ -315,6 +333,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should ignore message if timestamp field is missing', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useSystemStatus());
 
     const invalidMessage = {
@@ -341,6 +362,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should reflect connection status from useWebSocket', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { result, rerender } = renderHook(() => useSystemStatus());
 
     expect(result.current.isConnected).toBe(true);
@@ -421,6 +445,9 @@ describe('useSystemStatus', () => {
   });
 
   it('should maintain handleMessage callback stability', () => {
+    // Prevent REST API from resolving to avoid state update after test
+    vi.spyOn(apiModule, 'fetchHealth').mockReturnValue(new Promise(() => {}));
+
     const { rerender } = renderHook(() => useSystemStatus());
 
     const firstCallback = onMessageCallback;

@@ -1464,3 +1464,437 @@ async def test_close_batch_handles_partial_gather_failure(batch_aggregator, mock
     # Verify we still get a valid summary
     assert summary["batch_id"] == batch_id
     assert summary["camera_id"] == camera_id
+
+
+# =============================================================================
+# Property-Based Tests (Hypothesis)
+# =============================================================================
+
+from hypothesis import HealthCheck, given  # noqa: E402
+from hypothesis import settings as hypothesis_settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from backend.tests.strategies import (  # noqa: E402
+    confidence_scores,
+    object_types,
+    positive_integers,
+)
+
+
+class TestBatchAggregatorProperties:
+    """Property-based tests for BatchAggregator using Hypothesis."""
+
+    # -------------------------------------------------------------------------
+    # Detection Count Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        detection_count=st.integers(min_value=1, max_value=50),
+    )
+    @hypothesis_settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_close_batch_detection_count_equals_list_length(
+        self,
+        detection_count: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: closed batch detection_count equals length of detections list.
+
+        This ensures no detections are lost during batch aggregation.
+        """
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        batch_id = "test_batch"
+        camera_id = "front_door"
+        detections = [str(i) for i in range(1, detection_count + 1)]
+
+        async def mock_get(key):
+            if key == f"batch:{batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{batch_id}:started_at":
+                return str(time.time() - 60)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance._client.lrange.return_value = detections
+
+        summary = await aggregator.close_batch(batch_id)
+
+        assert summary["detection_count"] == len(summary["detections"])
+        assert summary["detection_count"] == detection_count
+
+    @given(
+        detection_ids=st.lists(
+            positive_integers,
+            min_size=1,
+            max_size=20,
+            unique=True,
+        )
+    )
+    @hypothesis_settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_all_detections_preserved_in_batch(
+        self,
+        detection_ids: list[int],
+        mock_redis_instance,
+    ) -> None:
+        """Property: All detection IDs are preserved when closing a batch.
+
+        No detections should be duplicated or lost during batch processing.
+        """
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        batch_id = "preservation_test"
+        camera_id = "back_door"
+        detections = [str(d) for d in detection_ids]
+
+        async def mock_get(key):
+            if key == f"batch:{batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{batch_id}:started_at":
+                return str(time.time() - 60)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance._client.lrange.return_value = detections
+
+        summary = await aggregator.close_batch(batch_id)
+
+        # All detection IDs should be in the summary
+        assert set(summary["detections"]) == set(detection_ids)
+        # No duplicates
+        assert len(summary["detections"]) == len(detection_ids)
+
+    # -------------------------------------------------------------------------
+    # Fast Path Decision Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        confidence=confidence_scores,
+        object_type=object_types,
+    )
+    @hypothesis_settings(
+        max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_fast_path_decision_is_deterministic(
+        self,
+        confidence: float,
+        object_type: str,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Fast path decision is deterministic for same inputs."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person", "car"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            result1 = aggregator._should_use_fast_path(confidence, object_type)
+            result2 = aggregator._should_use_fast_path(confidence, object_type)
+            result3 = aggregator._should_use_fast_path(confidence, object_type)
+
+            assert result1 == result2 == result3, "Fast path decision should be deterministic"
+
+    @given(
+        threshold=st.floats(min_value=0.5, max_value=1.0, allow_nan=False, allow_infinity=False),
+        confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+    )
+    @hypothesis_settings(
+        max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_fast_path_respects_threshold(
+        self,
+        threshold: float,
+        confidence: float,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Fast path is only triggered when confidence >= threshold."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = threshold
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            result = aggregator._should_use_fast_path(confidence, "person")
+
+            if confidence >= threshold:
+                assert result is True, (
+                    f"Fast path should trigger for confidence {confidence} >= threshold {threshold}"
+                )
+            else:
+                assert result is False, (
+                    f"Fast path should not trigger for confidence {confidence} < threshold {threshold}"
+                )
+
+    @given(
+        object_type=object_types,
+    )
+    @hypothesis_settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_fast_path_object_type_matching_is_case_insensitive(
+        self,
+        object_type: str,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Object type matching for fast path is case-insensitive."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person", "car", "truck"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            # Test lowercase
+            result_lower = aggregator._should_use_fast_path(0.95, object_type.lower())
+            # Test uppercase
+            result_upper = aggregator._should_use_fast_path(0.95, object_type.upper())
+            # Test mixed case
+            result_mixed = aggregator._should_use_fast_path(0.95, object_type.title())
+
+            # All should return the same result
+            assert result_lower == result_upper == result_mixed, (
+                "Object type matching should be case-insensitive"
+            )
+
+    # -------------------------------------------------------------------------
+    # Detection ID Normalization Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        detection_id=st.one_of(
+            positive_integers,
+            positive_integers.map(str),
+        )
+    )
+    @hypothesis_settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_detection_id_normalized_to_int(
+        self,
+        detection_id: int | str,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Detection IDs are normalized to integers regardless of input type."""
+        from backend.services.batch_aggregator import BatchAggregator
+
+        # Reset mock state for each hypothesis example
+        mock_redis_instance.reset_mock()
+        mock_redis_instance._client.reset_mock()
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Mock: No existing batch
+        mock_redis_instance.get.return_value = None
+        mock_redis_instance._client.rpush.return_value = 1
+
+        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = "test_batch"
+
+            batch_id = await aggregator.add_detection(
+                camera_id="front_door",
+                detection_id=detection_id,
+                _file_path="/path/to/file.jpg",
+            )
+
+        # Should succeed and return batch ID
+        assert batch_id == "test_batch"
+
+        # RPUSH should have been called with string representation of int
+        rpush_calls = mock_redis_instance._client.rpush.call_args_list
+        assert len(rpush_calls) >= 1
+        # The value passed to rpush should be the string of the int
+        expected_id = str(int(detection_id))
+        assert expected_id in str(rpush_calls[-1])  # Check most recent call
+
+    @given(
+        invalid_id=st.text(min_size=1, alphabet="abcdefghijklmnopqrstuvwxyz"),
+    )
+    @hypothesis_settings(
+        max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_invalid_detection_id_raises_error(
+        self,
+        invalid_id: str,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Non-numeric detection IDs raise ValueError."""
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        with pytest.raises(ValueError, match="Detection IDs must be numeric"):
+            await aggregator.add_detection(
+                camera_id="front_door",
+                detection_id=invalid_id,
+                _file_path="/path/to/file.jpg",
+            )
+
+    # -------------------------------------------------------------------------
+    # Timeout Configuration Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        batch_window=st.integers(min_value=30, max_value=300),
+        idle_timeout=st.integers(min_value=10, max_value=60),
+    )
+    @hypothesis_settings(
+        max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_timeout_configuration_respected(
+        self,
+        batch_window: int,
+        idle_timeout: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Configured timeout values are properly stored."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = batch_window
+            mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            assert aggregator._batch_window == batch_window
+            assert aggregator._idle_timeout == idle_timeout
+
+    # -------------------------------------------------------------------------
+    # Atomic List Operations Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        values=st.lists(positive_integers, min_size=1, max_size=100),
+    )
+    @hypothesis_settings(
+        max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_atomic_list_get_all_converts_to_integers(
+        self,
+        values: list[int],
+        mock_redis_instance,
+    ) -> None:
+        """Property: _atomic_list_get_all converts string values to integers."""
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Mock LRANGE to return string values
+        mock_redis_instance._client.lrange.return_value = [str(v) for v in values]
+
+        result = await aggregator._atomic_list_get_all("test:key")
+
+        # All values should be integers
+        assert all(isinstance(v, int) for v in result)
+        # Values should match original
+        assert result == values
+
+    @given(
+        value=positive_integers,
+        ttl=st.integers(min_value=60, max_value=7200),
+    )
+    @hypothesis_settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_atomic_list_append_returns_list_length(
+        self,
+        value: int,
+        ttl: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: _atomic_list_append returns the list length after append."""
+        from backend.services.batch_aggregator import BatchAggregator
+
+        # Reset mock state for each hypothesis example
+        mock_redis_instance.reset_mock()
+        mock_redis_instance._client.reset_mock()
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Mock RPUSH to return a specific length
+        expected_length = 42
+        mock_redis_instance._client.rpush.return_value = expected_length
+        mock_redis_instance._client.expire.return_value = True
+
+        result = await aggregator._atomic_list_append("test:key", value, ttl)
+
+        assert result == expected_length
+        mock_redis_instance._client.rpush.assert_called_once_with("test:key", str(value))
+        mock_redis_instance._client.expire.assert_called_once_with("test:key", ttl)
+
+    # -------------------------------------------------------------------------
+    # Queue Data Format Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        detection_count=st.integers(min_value=1, max_value=30),
+    )
+    @hypothesis_settings(
+        max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_queue_data_contains_all_required_fields(
+        self,
+        detection_count: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Queue data contains batch_id, camera_id, detection_ids, timestamp."""
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        batch_id = "queue_format_test"
+        camera_id = "test_camera"
+        detections = [str(i) for i in range(1, detection_count + 1)]
+
+        async def mock_get(key):
+            if key == f"batch:{batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{batch_id}:started_at":
+                return str(time.time() - 60)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance._client.lrange.return_value = detections
+
+        await aggregator.close_batch(batch_id)
+
+        # Verify queue was called
+        assert mock_redis_instance.add_to_queue_safe.called
+
+        # Get the queue data
+        queue_call = mock_redis_instance.add_to_queue_safe.call_args
+        queue_data = queue_call[0][1]
+
+        # Verify all required fields are present
+        assert "batch_id" in queue_data
+        assert "camera_id" in queue_data
+        assert "detection_ids" in queue_data
+        assert "timestamp" in queue_data
+
+        # Verify field types
+        assert isinstance(queue_data["batch_id"], str)
+        assert isinstance(queue_data["camera_id"], str)
+        assert isinstance(queue_data["detection_ids"], list)
+        assert isinstance(queue_data["timestamp"], float)
+
+        # Verify detection_ids are integers
+        assert all(isinstance(d, int) for d in queue_data["detection_ids"])
+        assert len(queue_data["detection_ids"]) == detection_count

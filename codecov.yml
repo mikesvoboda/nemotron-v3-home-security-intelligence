@@ -1,0 +1,99 @@
+# Codecov configuration
+# https://docs.codecov.io/docs/codecov-yaml
+
+coverage:
+  # How to calculate the coverage percentage
+  precision: 2
+  round: down
+  range: '70...100'
+
+  # Status checks that appear on PRs
+  status:
+    # Project coverage - overall repository coverage
+    project:
+      default:
+        # Target coverage percentage (must meet or exceed)
+        target: 90%
+        # Allowed coverage decrease before failing
+        threshold: 1%
+        # Only compare against coverage from the same CI run
+        if_ci_failed: error
+        # Don't fail if not enough data
+        informational: false
+
+      # Backend unit tests - stricter threshold
+      backend-unit:
+        target: 85%
+        threshold: 1%
+        flags:
+          - backend-unit
+
+      # Backend integration tests
+      backend-integration:
+        target: 50%
+        threshold: 2%
+        flags:
+          - backend-integration
+
+      # Frontend coverage
+      frontend:
+        target: 80%
+        threshold: 2%
+        flags:
+          - frontend
+
+    # Patch coverage - coverage of changed lines
+    patch:
+      default:
+        # New code should have at least 80% coverage
+        target: 80%
+        threshold: 5%
+        # Only check if there are enough lines changed
+        if_ci_failed: error
+
+# Flags for different test types
+flags:
+  backend-unit:
+    paths:
+      - backend/
+    carryforward: true
+
+  backend-integration:
+    paths:
+      - backend/
+    carryforward: true
+
+  frontend:
+    paths:
+      - frontend/src/
+    carryforward: true
+
+# Comment settings for PRs
+comment:
+  # Layout of the comment
+  layout: 'reach,diff,flags,files,footer'
+  # Show coverage changes
+  behavior: default
+  # Require base report to compare
+  require_base: false
+  # Show files without coverage changes
+  hide_project_coverage: false
+
+# Ignore paths that shouldn't affect coverage
+ignore:
+  - 'backend/tests/**/*'
+  - 'backend/examples/**/*'
+  - 'frontend/tests/**/*'
+  - 'frontend/src/test/**/*'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.ts'
+  - '**/node_modules/**'
+  - '**/__pycache__/**'
+  - 'docs/**/*'
+  - 'scripts/**/*'
+  - 'ai/**/*'
+
+# GitHub integration settings
+github_checks:
+  annotations: true

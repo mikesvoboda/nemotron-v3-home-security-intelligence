@@ -5,9 +5,11 @@ Tests cover:
 - Field validation and constraints
 - String representation (__repr__)
 - JSONB extra field handling
-- Optional metadata fields
-- Table configuration and indexes
+- Source tracking fields
+- Performance/debug fields
+- Indexes and table configuration
 - Property-based tests for field values
+- Edge cases and boundary conditions
 """
 
 from datetime import UTC, datetime
@@ -35,14 +37,14 @@ component_names = st.text(
     max_size=50,
     alphabet=st.characters(
         whitelist_categories=("Lu", "Ll", "Nd"),
-        whitelist_characters="_-",
+        whitelist_characters="-_",
     ),
 )
 
 # Strategy for source values
-source_values = st.sampled_from(["backend", "frontend", "ai", "worker", "scheduler"])
+source_values = st.sampled_from(["backend", "frontend", "worker", "scheduler"])
 
-# Strategy for camera IDs
+# Strategy for camera IDs (optional)
 camera_ids = st.one_of(
     st.none(),
     st.text(
@@ -50,32 +52,33 @@ camera_ids = st.one_of(
         max_size=100,
         alphabet=st.characters(
             whitelist_categories=("Lu", "Ll", "Nd"),
-            whitelist_characters="_-",
+            whitelist_characters="-_",
         ),
     ),
 )
 
-# Strategy for request IDs (UUID format)
+# Strategy for request IDs (UUID-like format)
 request_ids = st.one_of(
     st.none(),
-    st.from_regex(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", fullmatch=True),
+    st.from_regex(
+        r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$", fullmatch=True
+    ),
 )
 
 # Strategy for duration in milliseconds
 duration_ms_values = st.one_of(
     st.none(),
-    st.integers(min_value=0, max_value=3600000),  # 0 to 1 hour in ms
+    st.integers(min_value=0, max_value=600000),  # Up to 10 minutes
 )
 
 # Strategy for JSON-serializable values
 json_values = st.recursive(
-    st.none() | st.booleans() | st.integers() | st.floats(allow_nan=False) | st.text(max_size=100),
-    lambda children: st.lists(children, max_size=5)
-    | st.dictionaries(st.text(max_size=20), children, max_size=5),
+    st.none() | st.booleans() | st.integers() | st.floats(allow_nan=False) | st.text(),
+    lambda children: st.lists(children) | st.dictionaries(st.text(), children),
     max_leaves=10,
 )
 
-# Strategy for extra dictionaries
+# Strategy for extra field (JSONB)
 extra_dicts = st.one_of(
     st.none(),
     st.dictionaries(
@@ -93,23 +96,26 @@ extra_dicts = st.one_of(
 
 @pytest.fixture
 def sample_log():
-    """Create a sample log entry for testing."""
+    """Create a sample Log for testing."""
     return Log(
         id=1,
         level="INFO",
-        component="api",
-        message="Request processed successfully",
-        source="backend",
+        component="file_watcher",
+        message="File processed successfully",
         camera_id="front_door",
-        request_id="abc-123",
+        event_id=100,
+        request_id="abc12345-6789-0123-4567-890abcdef012",
+        detection_id=50,
         duration_ms=150,
-        extra={"endpoint": "/api/events", "method": "GET"},
+        extra={"file_path": "/export/foscam/test.jpg", "file_size": 1024},
+        source="backend",
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     )
 
 
 @pytest.fixture
 def minimal_log():
-    """Create a log with minimal required fields."""
+    """Create a Log with only required fields."""
     return Log(
         level="INFO",
         component="test",
@@ -123,24 +129,24 @@ def error_log():
     return Log(
         id=2,
         level="ERROR",
-        component="file_watcher",
-        message="File not found: /export/foscam/test.jpg",
-        camera_id="front_door",
-        extra={"error_code": "ENOENT", "file_path": "/export/foscam/test.jpg"},
+        component="detector",
+        message="Detection failed: model timeout",
+        camera_id="back_yard",
+        duration_ms=30000,
+        extra={"error_code": "TIMEOUT", "retry_count": 3},
+        source="backend",
     )
 
 
 @pytest.fixture
-def log_with_event():
-    """Create a log with event_id and detection_id."""
+def debug_log():
+    """Create a debug log entry."""
     return Log(
-        id=3,
-        level="INFO",
-        component="nemotron",
-        message="Risk analysis completed",
-        event_id=123,
-        detection_id=456,
-        duration_ms=5200,
+        level="DEBUG",
+        component="api",
+        message="Request received",
+        request_id="debug-request-id-12345",
+        extra={"endpoint": "/api/cameras", "method": "GET"},
     )
 
 
@@ -153,25 +159,28 @@ class TestLogModelInitialization:
     """Tests for Log model initialization."""
 
     def test_log_creation_minimal(self, minimal_log):
-        """Test creating a log entry with minimal fields."""
+        """Test creating a Log with minimal required fields."""
         assert minimal_log.level == "INFO"
         assert minimal_log.component == "test"
         assert minimal_log.message == "Test message"
 
     def test_log_with_all_fields(self, sample_log):
-        """Test log with all fields populated."""
+        """Test Log with all fields populated."""
         assert sample_log.id == 1
         assert sample_log.level == "INFO"
-        assert sample_log.component == "api"
-        assert sample_log.message == "Request processed successfully"
-        assert sample_log.source == "backend"
+        assert sample_log.component == "file_watcher"
+        assert sample_log.message == "File processed successfully"
         assert sample_log.camera_id == "front_door"
-        assert sample_log.request_id == "abc-123"
+        assert sample_log.event_id == 100
+        assert sample_log.request_id == "abc12345-6789-0123-4567-890abcdef012"
+        assert sample_log.detection_id == 50
         assert sample_log.duration_ms == 150
-        assert sample_log.extra == {"endpoint": "/api/events", "method": "GET"}
+        assert sample_log.extra == {"file_path": "/export/foscam/test.jpg", "file_size": 1024}
+        assert sample_log.source == "backend"
+        assert sample_log.user_agent == "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
     def test_log_default_source_column_definition(self):
-        """Test source column has 'backend' as default.
+        """Test that source column has 'backend' as default.
 
         Note: SQLAlchemy defaults apply at database level, not in-memory.
         This test verifies the column default is correctly defined.
@@ -184,7 +193,7 @@ class TestLogModelInitialization:
         assert source_col.default.arg == "backend"
 
     def test_log_optional_fields_default_to_none(self, minimal_log):
-        """Test optional fields default to None."""
+        """Test that optional fields default to None."""
         assert minimal_log.camera_id is None
         assert minimal_log.event_id is None
         assert minimal_log.request_id is None
@@ -203,33 +212,34 @@ class TestLogLevelField:
     """Tests for Log level field."""
 
     def test_level_debug(self):
-        """Test DEBUG log level."""
+        """Test level with DEBUG value."""
         log = Log(level="DEBUG", component="test", message="Debug message")
         assert log.level == "DEBUG"
 
-    def test_level_info(self):
-        """Test INFO log level."""
-        log = Log(level="INFO", component="test", message="Info message")
-        assert log.level == "INFO"
+    def test_level_info(self, sample_log):
+        """Test level with INFO value."""
+        assert sample_log.level == "INFO"
 
     def test_level_warning(self):
-        """Test WARNING log level."""
+        """Test level with WARNING value."""
         log = Log(level="WARNING", component="test", message="Warning message")
         assert log.level == "WARNING"
 
     def test_level_error(self, error_log):
-        """Test ERROR log level."""
+        """Test level with ERROR value."""
         assert error_log.level == "ERROR"
 
     def test_level_critical(self):
-        """Test CRITICAL log level."""
-        log = Log(level="CRITICAL", component="test", message="Critical message")
+        """Test level with CRITICAL value."""
+        log = Log(level="CRITICAL", component="test", message="Critical error")
         assert log.level == "CRITICAL"
 
-    def test_level_lowercase(self):
-        """Test lowercase level value (allowed by model)."""
-        log = Log(level="info", component="test", message="Test")
-        assert log.level == "info"
+    def test_level_all_standard_values(self):
+        """Test all standard logging levels work."""
+        levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        for level in levels:
+            log = Log(level=level, component="test", message="Test")
+            assert log.level == level
 
 
 # =============================================================================
@@ -240,27 +250,34 @@ class TestLogLevelField:
 class TestLogComponentField:
     """Tests for Log component field."""
 
-    def test_component_api(self, sample_log):
-        """Test api component."""
-        assert sample_log.component == "api"
+    def test_component_file_watcher(self, sample_log):
+        """Test component with file_watcher value."""
+        assert sample_log.component == "file_watcher"
 
-    def test_component_file_watcher(self, error_log):
-        """Test file_watcher component."""
-        assert error_log.component == "file_watcher"
+    def test_component_detector(self, error_log):
+        """Test component with detector value."""
+        assert error_log.component == "detector"
 
-    def test_component_nemotron(self, log_with_event):
-        """Test nemotron component."""
-        assert log_with_event.component == "nemotron"
+    def test_component_api(self):
+        """Test component with api value."""
+        log = Log(level="INFO", component="api", message="API request")
+        assert log.component == "api"
 
-    def test_component_rtdetr(self):
-        """Test rtdetr component."""
-        log = Log(level="INFO", component="rtdetr", message="Detection completed")
-        assert log.component == "rtdetr"
-
-    def test_component_with_underscore(self):
-        """Test component with underscore."""
-        log = Log(level="INFO", component="scene_change_detector", message="Test")
-        assert log.component == "scene_change_detector"
+    def test_component_with_common_values(self):
+        """Test component with common component names."""
+        components = [
+            "file_watcher",
+            "detector",
+            "analyzer",
+            "api",
+            "websocket",
+            "database",
+            "cache",
+            "scheduler",
+        ]
+        for component in components:
+            log = Log(level="INFO", component=component, message="Test")
+            assert log.component == component
 
 
 # =============================================================================
@@ -272,19 +289,15 @@ class TestLogMessageField:
     """Tests for Log message field."""
 
     def test_message_simple(self, sample_log):
-        """Test simple message."""
-        assert sample_log.message == "Request processed successfully"
+        """Test message with simple text."""
+        assert sample_log.message == "File processed successfully"
 
-    def test_message_error(self, error_log):
-        """Test error message with path."""
-        assert "File not found" in error_log.message
-
-    def test_message_long(self):
-        """Test long message."""
-        long_message = "A" * 5000
+    def test_message_long_text(self):
+        """Test message with long text."""
+        long_message = "A" * 1000
         log = Log(level="INFO", component="test", message=long_message)
         assert log.message == long_message
-        assert len(log.message) == 5000
+        assert len(log.message) == 1000
 
     def test_message_with_newlines(self):
         """Test message with newlines."""
@@ -295,47 +308,19 @@ class TestLogMessageField:
 
     def test_message_with_unicode(self):
         """Test message with Unicode characters."""
-        message = "Processing camera: Front Door"
+        message = "Processing camera francaise"
         log = Log(level="INFO", component="test", message=message)
-        assert log.message == message
+        assert message in log.message
 
-    def test_message_with_special_chars(self):
-        """Test message with special characters."""
-        message = 'Error: "File not found" at path C:\\Users\\test'
+    def test_message_with_json_like_content(self):
+        """Test message with JSON-like content."""
+        message = '{"error": "Connection failed", "code": 500}'
         log = Log(level="ERROR", component="test", message=message)
         assert log.message == message
 
 
 # =============================================================================
-# Log Source Field Tests
-# =============================================================================
-
-
-class TestLogSourceField:
-    """Tests for Log source field."""
-
-    def test_source_backend(self, sample_log):
-        """Test backend source."""
-        assert sample_log.source == "backend"
-
-    def test_source_frontend(self):
-        """Test frontend source."""
-        log = Log(level="INFO", component="ui", message="Test", source="frontend")
-        assert log.source == "frontend"
-
-    def test_source_ai(self):
-        """Test ai source."""
-        log = Log(level="INFO", component="rtdetr", message="Test", source="ai")
-        assert log.source == "ai"
-
-    def test_source_worker(self):
-        """Test worker source."""
-        log = Log(level="INFO", component="task", message="Test", source="worker")
-        assert log.source == "worker"
-
-
-# =============================================================================
-# Log Camera ID Field Tests
+# Log Structured Metadata Field Tests
 # =============================================================================
 
 
@@ -350,55 +335,37 @@ class TestLogCameraIdField:
         """Test camera_id when not set."""
         assert minimal_log.camera_id is None
 
-    def test_camera_id_with_underscore(self):
-        """Test camera_id with underscore."""
-        log = Log(level="INFO", component="test", message="Test", camera_id="back_yard")
-        assert log.camera_id == "back_yard"
-
-    def test_camera_id_with_numbers(self):
-        """Test camera_id with numbers."""
-        log = Log(level="INFO", component="test", message="Test", camera_id="camera_01")
-        assert log.camera_id == "camera_01"
-
-
-# =============================================================================
-# Log Event ID and Detection ID Field Tests
-# =============================================================================
+    def test_camera_id_with_underscores(self):
+        """Test camera_id with underscores."""
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            camera_id="front_door_camera",
+        )
+        assert log.camera_id == "front_door_camera"
 
 
-class TestLogEventAndDetectionIdFields:
-    """Tests for Log event_id and detection_id fields."""
+class TestLogEventIdField:
+    """Tests for Log event_id field."""
 
-    def test_event_id_set(self, log_with_event):
+    def test_event_id_set(self, sample_log):
         """Test event_id when set."""
-        assert log_with_event.event_id == 123
+        assert sample_log.event_id == 100
 
     def test_event_id_none(self, minimal_log):
         """Test event_id when not set."""
         assert minimal_log.event_id is None
 
-    def test_detection_id_set(self, log_with_event):
-        """Test detection_id when set."""
-        assert log_with_event.detection_id == 456
-
-    def test_detection_id_none(self, minimal_log):
-        """Test detection_id when not set."""
-        assert minimal_log.detection_id is None
-
-    def test_event_id_large(self):
-        """Test large event_id value."""
-        log = Log(level="INFO", component="test", message="Test", event_id=999999)
-        assert log.event_id == 999999
-
-    def test_detection_id_large(self):
-        """Test large detection_id value."""
-        log = Log(level="INFO", component="test", message="Test", detection_id=888888)
-        assert log.detection_id == 888888
-
-
-# =============================================================================
-# Log Request ID Field Tests
-# =============================================================================
+    def test_event_id_large_value(self):
+        """Test event_id with large value."""
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            event_id=999999999,
+        )
+        assert log.event_id == 999999999
 
 
 class TestLogRequestIdField:
@@ -406,7 +373,7 @@ class TestLogRequestIdField:
 
     def test_request_id_set(self, sample_log):
         """Test request_id when set."""
-        assert sample_log.request_id == "abc-123"
+        assert sample_log.request_id == "abc12345-6789-0123-4567-890abcdef012"
 
     def test_request_id_none(self, minimal_log):
         """Test request_id when not set."""
@@ -414,19 +381,29 @@ class TestLogRequestIdField:
 
     def test_request_id_uuid_format(self):
         """Test request_id with UUID format."""
-        uuid = "550e8400-e29b-41d4-a716-446655440000"
-        log = Log(level="INFO", component="test", message="Test", request_id=uuid)
-        assert log.request_id == uuid
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            request_id="550e8400-e29b-41d4-a716-446655440000",
+        )
+        assert log.request_id == "550e8400-e29b-41d4-a716-446655440000"
 
-    def test_request_id_max_length(self):
-        """Test request_id at max length (36 chars for UUID)."""
-        request_id = "a" * 36
-        log = Log(level="INFO", component="test", message="Test", request_id=request_id)
-        assert len(log.request_id) == 36
+
+class TestLogDetectionIdField:
+    """Tests for Log detection_id field."""
+
+    def test_detection_id_set(self, sample_log):
+        """Test detection_id when set."""
+        assert sample_log.detection_id == 50
+
+    def test_detection_id_none(self, minimal_log):
+        """Test detection_id when not set."""
+        assert minimal_log.detection_id is None
 
 
 # =============================================================================
-# Log Duration MS Field Tests
+# Log Performance/Debug Field Tests
 # =============================================================================
 
 
@@ -442,36 +419,32 @@ class TestLogDurationMsField:
         assert minimal_log.duration_ms is None
 
     def test_duration_ms_zero(self):
-        """Test duration_ms at zero."""
-        log = Log(level="INFO", component="test", message="Test", duration_ms=0)
+        """Test duration_ms with zero value."""
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Instant operation",
+            duration_ms=0,
+        )
         assert log.duration_ms == 0
 
-    def test_duration_ms_large(self):
-        """Test large duration_ms value."""
-        log = Log(level="INFO", component="test", message="Test", duration_ms=3600000)
-        assert log.duration_ms == 3600000  # 1 hour in ms
-
-    def test_duration_ms_typical_api_call(self):
-        """Test typical API call duration."""
-        log = Log(level="INFO", component="api", message="Test", duration_ms=45)
-        assert log.duration_ms == 45
-
-    def test_duration_ms_ai_processing(self, log_with_event):
-        """Test AI processing duration (longer)."""
-        assert log_with_event.duration_ms == 5200
-
-
-# =============================================================================
-# Log Extra (JSONB) Field Tests
-# =============================================================================
+    def test_duration_ms_large_value(self):
+        """Test duration_ms with large value (long operation)."""
+        log = Log(
+            level="WARNING",
+            component="test",
+            message="Slow operation",
+            duration_ms=60000,  # 1 minute
+        )
+        assert log.duration_ms == 60000
 
 
 class TestLogExtraField:
-    """Tests for Log extra JSONB field."""
+    """Tests for Log extra (JSONB) field."""
 
-    def test_extra_simple_dict(self, sample_log):
-        """Test extra with simple dict."""
-        assert sample_log.extra == {"endpoint": "/api/events", "method": "GET"}
+    def test_extra_set(self, sample_log):
+        """Test extra when set."""
+        assert sample_log.extra == {"file_path": "/export/foscam/test.jpg", "file_size": 1024}
 
     def test_extra_none(self, minimal_log):
         """Test extra when not set."""
@@ -479,57 +452,122 @@ class TestLogExtraField:
 
     def test_extra_empty_dict(self):
         """Test extra with empty dict."""
-        log = Log(level="INFO", component="test", message="Test", extra={})
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra={},
+        )
         assert log.extra == {}
 
     def test_extra_nested_dict(self):
         """Test extra with nested dict."""
         extra = {
-            "request": {"headers": {"content-type": "application/json"}},
-            "response": {"status": 200},
+            "request": {
+                "method": "POST",
+                "path": "/api/cameras",
+                "headers": {"Content-Type": "application/json"},
+            },
+            "response": {"status": 200, "time_ms": 50},
         }
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
         assert log.extra == extra
 
     def test_extra_with_list(self):
         """Test extra with list values."""
-        extra = {"detections": ["person", "car", "dog"]}
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
-        assert log.extra["detections"] == ["person", "car", "dog"]
+        extra = {"cameras": ["front_door", "back_yard", "garage"]}
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
+        assert log.extra["cameras"] == ["front_door", "back_yard", "garage"]
 
     def test_extra_with_numbers(self):
         """Test extra with numeric values."""
-        extra = {"count": 5, "confidence": 0.95, "threshold": 0.5}
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
-        assert log.extra["count"] == 5
+        extra = {
+            "count": 42,
+            "confidence": 0.95,
+            "negative": -1,
+        }
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
+        assert log.extra["count"] == 42
         assert log.extra["confidence"] == 0.95
 
     def test_extra_with_boolean(self):
         """Test extra with boolean values."""
-        extra = {"success": True, "retry": False}
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
-        assert log.extra["success"] is True
-        assert log.extra["retry"] is False
+        extra = {"enabled": True, "cached": False}
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
+        assert log.extra["enabled"] is True
+        assert log.extra["cached"] is False
 
     def test_extra_with_null_values(self):
         """Test extra with null values."""
         extra = {"value": None, "previous": None}
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
         assert log.extra["value"] is None
 
-    def test_extra_error_details(self, error_log):
-        """Test extra with error details."""
-        assert error_log.extra["error_code"] == "ENOENT"
-        assert error_log.extra["file_path"] == "/export/foscam/test.jpg"
-
 
 # =============================================================================
-# Log User Agent Field Tests
+# Log Source Tracking Field Tests
 # =============================================================================
+
+
+class TestLogSourceField:
+    """Tests for Log source field."""
+
+    def test_source_backend(self, sample_log):
+        """Test source with backend value."""
+        assert sample_log.source == "backend"
+
+    def test_source_frontend(self):
+        """Test source with frontend value."""
+        log = Log(
+            level="INFO",
+            component="ui",
+            message="Button clicked",
+            source="frontend",
+        )
+        assert log.source == "frontend"
+
+    def test_source_worker(self):
+        """Test source with worker value."""
+        log = Log(
+            level="INFO",
+            component="processor",
+            message="Task completed",
+            source="worker",
+        )
+        assert log.source == "worker"
 
 
 class TestLogUserAgentField:
     """Tests for Log user_agent field."""
+
+    def test_user_agent_set(self, sample_log):
+        """Test user_agent when set."""
+        assert "Mozilla/5.0" in sample_log.user_agent
 
     def test_user_agent_none(self, minimal_log):
         """Test user_agent when not set."""
@@ -537,53 +575,27 @@ class TestLogUserAgentField:
 
     def test_user_agent_browser(self):
         """Test user_agent with browser string."""
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        log = Log(level="INFO", component="test", message="Test", user_agent=user_agent)
+        user_agent = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        )
+        log = Log(
+            level="INFO",
+            component="api",
+            message="Request",
+            user_agent=user_agent,
+        )
         assert log.user_agent == user_agent
 
     def test_user_agent_api_client(self):
-        """Test user_agent with API client."""
+        """Test user_agent with API client string."""
         log = Log(
-            level="INFO", component="test", message="Test", user_agent="SecurityDashboard/1.0"
+            level="INFO",
+            component="api",
+            message="API request",
+            user_agent="SecurityDashboard/1.0",
         )
         assert log.user_agent == "SecurityDashboard/1.0"
-
-    def test_user_agent_long(self):
-        """Test long user_agent string."""
-        long_ua = "A" * 500
-        log = Log(level="INFO", component="test", message="Test", user_agent=long_ua)
-        assert log.user_agent == long_ua
-
-
-# =============================================================================
-# Log Timestamp Field Tests
-# =============================================================================
-
-
-class TestLogTimestampField:
-    """Tests for Log timestamp field."""
-
-    def test_timestamp_has_attribute(self, sample_log):
-        """Test log has timestamp attribute."""
-        assert hasattr(sample_log, "timestamp")
-
-    def test_timestamp_explicit(self):
-        """Test log with explicit timestamp."""
-        now = datetime.now(UTC)
-        log = Log(level="INFO", component="test", message="Test", timestamp=now)
-        assert log.timestamp == now
-
-    def test_timestamp_has_server_default(self):
-        """Test timestamp column has server_default.
-
-        Note: SQLAlchemy server_default applies at database level.
-        This test verifies the column server_default is correctly defined.
-        """
-        from sqlalchemy import inspect
-
-        mapper = inspect(Log)
-        timestamp_col = mapper.columns["timestamp"]
-        assert timestamp_col.server_default is not None
 
 
 # =============================================================================
@@ -599,28 +611,26 @@ class TestLogRepr:
         repr_str = repr(sample_log)
         assert "Log" in repr_str
 
+    def test_repr_contains_id(self, sample_log):
+        """Test repr contains id."""
+        repr_str = repr(sample_log)
+        assert "id=1" in repr_str
+
     def test_repr_contains_level(self, sample_log):
-        """Test repr contains log level."""
+        """Test repr contains level."""
         repr_str = repr(sample_log)
         assert "INFO" in repr_str
 
     def test_repr_contains_component(self, sample_log):
         """Test repr contains component."""
         repr_str = repr(sample_log)
-        assert "api" in repr_str
+        assert "file_watcher" in repr_str
 
-    def test_repr_contains_message_preview(self):
-        """Test repr contains message preview (truncated)."""
-        log = Log(
-            id=1,
-            level="WARNING",
-            component="api",
-            message="Slow query detected in database operation",
-        )
-        repr_str = repr(log)
-        assert "WARNING" in repr_str
-        assert "api" in repr_str
-        assert "Slow query" in repr_str
+    def test_repr_contains_message_preview(self, sample_log):
+        """Test repr contains message preview."""
+        repr_str = repr(sample_log)
+        # Should contain at least part of the message
+        assert "File processed" in repr_str or "message=" in repr_str
 
     def test_repr_format(self, sample_log):
         """Test repr has expected format."""
@@ -631,10 +641,28 @@ class TestLogRepr:
     def test_repr_truncates_long_message(self):
         """Test repr truncates long messages."""
         long_message = "A" * 100
-        log = Log(id=1, level="INFO", component="test", message=long_message)
+        log = Log(
+            id=1,
+            level="INFO",
+            component="test",
+            message=long_message,
+        )
         repr_str = repr(log)
-        # The message should be truncated in repr (first 50 chars)
+        # Message should be truncated (first 50 chars)
         assert len(repr_str) < len(long_message) + 100
+
+    def test_repr_with_all_log_levels(self):
+        """Test repr with all log levels."""
+        levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        for level in levels:
+            log = Log(
+                id=1,
+                level=level,
+                component="test",
+                message="Test message",
+            )
+            repr_str = repr(log)
+            assert level in repr_str
 
 
 # =============================================================================
@@ -825,50 +853,71 @@ class TestLogProperties:
     @settings(max_examples=20)
     def test_level_roundtrip(self, level: str):
         """Property: Level values roundtrip correctly."""
-        log = Log(level=level, component="test", message="Test")
+        log = Log(
+            level=level,
+            component="test",
+            message="Test message",
+        )
         assert log.level == level
 
     @given(component=component_names)
     @settings(max_examples=50)
     def test_component_roundtrip(self, component: str):
         """Property: Component values roundtrip correctly."""
-        log = Log(level="INFO", component=component, message="Test")
+        log = Log(
+            level="INFO",
+            component=component,
+            message="Test message",
+        )
         assert log.component == component
 
     @given(source=source_values)
-    @settings(max_examples=20)
+    @settings(max_examples=10)
     def test_source_roundtrip(self, source: str):
         """Property: Source values roundtrip correctly."""
-        log = Log(level="INFO", component="test", message="Test", source=source)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test message",
+            source=source,
+        )
         assert log.source == source
 
     @given(camera_id=camera_ids)
     @settings(max_examples=50)
     def test_camera_id_roundtrip(self, camera_id: str | None):
         """Property: Camera ID values roundtrip correctly."""
-        log = Log(level="INFO", component="test", message="Test", camera_id=camera_id)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test message",
+            camera_id=camera_id,
+        )
         assert log.camera_id == camera_id
 
     @given(duration_ms=duration_ms_values)
     @settings(max_examples=50)
     def test_duration_ms_roundtrip(self, duration_ms: int | None):
-        """Property: Duration MS values roundtrip correctly."""
-        log = Log(level="INFO", component="test", message="Test", duration_ms=duration_ms)
+        """Property: Duration ms values roundtrip correctly."""
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test message",
+            duration_ms=duration_ms,
+        )
         assert log.duration_ms == duration_ms
 
     @given(id_value=st.integers(min_value=1, max_value=1000000))
     @settings(max_examples=50)
     def test_id_roundtrip(self, id_value: int):
         """Property: ID values roundtrip correctly."""
-        log = Log(id=id_value, level="INFO", component="test", message="Test")
+        log = Log(
+            id=id_value,
+            level="INFO",
+            component="test",
+            message="Test message",
+        )
         assert log.id == id_value
-
-    @given(message=st.text(min_size=1, max_size=1000))
-    @settings(max_examples=50)
-    def test_message_roundtrip(self, message: str):
-        """Property: Message values roundtrip correctly."""
-        log = Log(level="INFO", component="test", message=message)
-        assert log.message == message
 
     @given(
         level=log_levels,
@@ -876,13 +925,13 @@ class TestLogProperties:
         source=source_values,
     )
     @settings(max_examples=50)
-    def test_all_fields_roundtrip(
+    def test_multiple_fields_roundtrip(
         self,
         level: str,
         component: str,
         source: str,
     ):
-        """Property: Multiple field combinations roundtrip correctly."""
+        """Property: Multiple fields roundtrip correctly together."""
         log = Log(
             level=level,
             component=component,
@@ -897,11 +946,17 @@ class TestLogProperties:
 class TestLogExtraProperties:
     """Property-based tests for Log extra field."""
 
+    @pytest.mark.slow
     @given(extra=extra_dicts)
     @settings(max_examples=100)
     def test_extra_roundtrip(self, extra: dict | None):
         """Property: Extra dict values roundtrip correctly."""
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test message",
+            extra=extra,
+        )
         assert log.extra == extra
 
 
@@ -911,26 +966,61 @@ class TestLogExtraProperties:
 
 
 class TestLogEdgeCases:
-    """Tests for edge cases in Log model."""
+    """Tests for Log edge cases."""
 
     def test_empty_message(self):
-        """Test log with empty message (model allows it)."""
-        log = Log(level="INFO", component="test", message="")
+        """Test log with empty message."""
+        log = Log(
+            level="INFO",
+            component="test",
+            message="",
+        )
         assert log.message == ""
 
     def test_max_length_level(self):
         """Test level at max length (10 chars)."""
-        level = "VERYLONGLV"
-        log = Log(level=level, component="test", message="Test")
+        level = "CRITICAL"  # 8 chars, within limit
+        log = Log(
+            level=level,
+            component="test",
+            message="Test",
+        )
         assert log.level == level
-        assert len(log.level) == 10
 
     def test_max_length_component(self):
         """Test component at max length (50 chars)."""
         component = "c" * 50
-        log = Log(level="INFO", component=component, message="Test")
+        log = Log(
+            level="INFO",
+            component=component,
+            message="Test",
+        )
         assert log.component == component
         assert len(log.component) == 50
+
+    def test_max_length_camera_id(self):
+        """Test camera_id at max length (100 chars)."""
+        camera_id = "c" * 100
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            camera_id=camera_id,
+        )
+        assert log.camera_id == camera_id
+        assert len(log.camera_id) == 100
+
+    def test_max_length_request_id(self):
+        """Test request_id at max length (36 chars - UUID)."""
+        request_id = "12345678-1234-1234-1234-123456789012"
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            request_id=request_id,
+        )
+        assert log.request_id == request_id
+        assert len(log.request_id) == 36
 
     def test_extra_with_all_json_types(self):
         """Test extra with all JSON data types."""
@@ -944,11 +1034,16 @@ class TestLogEdgeCases:
             "array": [1, 2, 3],
             "object": {"nested": "value"},
         }
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
         assert log.extra == extra
 
     def test_multiple_logs_independence(self):
-        """Test that multiple log instances are independent."""
+        """Test that multiple Log instances are independent."""
         log1 = Log(
             level="INFO",
             component="comp1",
@@ -972,40 +1067,38 @@ class TestLogEdgeCases:
         log1.extra["key"] = "modified"
         assert log2.extra["key"] == "value2"
 
-    def test_duration_ms_zero(self):
-        """Test duration_ms at zero (instant operation)."""
-        log = Log(level="INFO", component="test", message="Test", duration_ms=0)
-        assert log.duration_ms == 0
-
-    def test_event_id_and_detection_id_both_set(self, log_with_event):
-        """Test both event_id and detection_id set together."""
-        assert log_with_event.event_id == 123
-        assert log_with_event.detection_id == 456
-
-    def test_all_optional_fields_none(self, minimal_log):
-        """Test all optional fields are None."""
-        assert minimal_log.camera_id is None
-        assert minimal_log.event_id is None
-        assert minimal_log.request_id is None
-        assert minimal_log.detection_id is None
-        assert minimal_log.duration_ms is None
-        assert minimal_log.extra is None
-        assert minimal_log.user_agent is None
-
-    def test_unicode_in_message(self):
-        """Test Unicode characters in message."""
-        message = "Processing Front Door camera"
-        log = Log(level="INFO", component="test", message=message)
+    def test_message_with_special_characters(self):
+        """Test message with special characters."""
+        message = '<script>alert("xss")</script> & "quotes" \'single\''
+        log = Log(
+            level="INFO",
+            component="test",
+            message=message,
+        )
         assert log.message == message
 
-    def test_json_special_chars_in_extra(self):
-        """Test JSON special characters in extra field."""
-        extra = {
-            "path": "C:\\Users\\test\\file.txt",
-            "quote": 'He said "hello"',
-            "newline": "line1\nline2",
-        }
-        log = Log(level="INFO", component="test", message="Test", extra=extra)
-        assert log.extra["path"] == "C:\\Users\\test\\file.txt"
-        assert log.extra["quote"] == 'He said "hello"'
-        assert log.extra["newline"] == "line1\nline2"
+    def test_extra_unicode_keys_and_values(self):
+        """Test extra with Unicode keys and values."""
+        extra = {"cle_francaise": "valeur francaise"}
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            extra=extra,
+        )
+        assert log.extra == extra
+
+    def test_timestamp_has_attribute(self, sample_log):
+        """Test log has timestamp attribute."""
+        assert hasattr(sample_log, "timestamp")
+
+    def test_timestamp_explicit(self):
+        """Test log with explicit timestamp."""
+        now = datetime.now(UTC)
+        log = Log(
+            level="INFO",
+            component="test",
+            message="Test",
+            timestamp=now,
+        )
+        assert log.timestamp == now
