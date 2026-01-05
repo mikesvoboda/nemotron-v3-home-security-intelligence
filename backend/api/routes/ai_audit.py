@@ -251,13 +251,12 @@ async def evaluate_event(
     service = get_audit_service()
     updated_audit = await service.run_full_evaluation(audit, event, db)
 
-    # Log the audit entry for AI re-evaluation
+    # Log the audit entry for AI re-evaluation (actor auto-derived from request)
     await AuditService.log_action(
         db=db,
         action=AuditAction.AI_REEVALUATED,
         resource_type="event",
         resource_id=str(event_id),
-        actor="anonymous",
         details={
             "is_force": force,
             "overall_quality_score": updated_audit.overall_quality_score,

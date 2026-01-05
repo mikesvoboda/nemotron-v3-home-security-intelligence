@@ -10,6 +10,50 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models.audit import AuditAction, AuditLog, AuditStatus
 
 
+def get_actor_from_request(request: Request | None) -> str:
+    """Extract actor identification from request context.
+
+    Priority order for actor identification:
+    1. API key (masked): If X-API-Key header present, use masked version (first 8 chars + "...")
+    2. Client IP: If no API key, use the client's IP address
+    3. "unknown": Fallback if no identification available
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        String identifying the actor (e.g., "api_key:abc12345...", "ip:192.168.1.1", "unknown")
+    """
+    if request is None:
+        return "unknown"
+
+    # Try to get API key from header or query params
+    api_key = request.headers.get("X-API-Key")
+    if not api_key:
+        api_key = request.query_params.get("api_key")
+
+    if api_key:
+        # Mask the API key - show first 8 chars only for identification
+        masked_key = api_key[:8] + "..." if len(api_key) > 8 else api_key[:4] + "..."
+        return "api_key:" + masked_key
+
+    # Fall back to client IP
+    ip_address = None
+    if request.client:
+        ip_address = request.client.host
+
+    # Check for X-Forwarded-For header (proxy scenarios)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # Use the first IP in the chain (original client)
+        ip_address = forwarded_for.split(",")[0].strip()
+
+    if ip_address:
+        return "ip:" + ip_address  # nosemgrep: directly-returned-format-string
+
+    return "unknown"
+
+
 class AuditService:
     """Service for creating and querying audit logs."""
 
@@ -18,7 +62,7 @@ class AuditService:
         db: AsyncSession,
         action: AuditAction | str,
         resource_type: str,
-        actor: str = "anonymous",
+        actor: str | None = None,
         resource_id: str | None = None,
         details: dict[str, Any] | None = None,
         request: Request | None = None,
@@ -30,10 +74,10 @@ class AuditService:
             db: Database session
             action: The action being performed (from AuditAction enum or string)
             resource_type: Type of resource being acted upon (event, alert, rule, camera, settings)
-            actor: User identifier or "system" for automated actions
+            actor: User identifier, "system" for automated actions, or None to auto-detect from request
             resource_id: Optional ID of the specific resource
             details: Optional dict with action-specific details
-            request: Optional FastAPI request to extract IP and user agent
+            request: Optional FastAPI request to extract IP, user agent, and actor if not provided
             status: Success or failure status
 
         Returns:
@@ -42,6 +86,10 @@ class AuditService:
         # Extract action value if enum
         action_str = action.value if isinstance(action, AuditAction) else action
         status_str = status.value if isinstance(status, AuditStatus) else status
+
+        # Auto-derive actor from request if not explicitly provided
+        if actor is None:
+            actor = get_actor_from_request(request)
 
         # Extract request info
         ip_address = None

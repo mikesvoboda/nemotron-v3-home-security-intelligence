@@ -1237,6 +1237,8 @@ export interface paths {
          * @description Acknowledge a scene change alert.
          *
          *     Marks a scene change as acknowledged to indicate it has been reviewed.
+         *     This operation is idempotent - re-acknowledging an already-acknowledged
+         *     scene change will return 200 OK with the existing acknowledgement data.
          *
          *     Args:
          *         camera_id: ID of the camera
@@ -1245,10 +1247,17 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         SceneChangeAcknowledgeResponse confirming acknowledgement
+         *         SceneChangeAcknowledgeResponse confirming acknowledgement.
+         *         For already-acknowledged changes, returns the existing acknowledgement data.
          *
          *     Raises:
          *         HTTPException: 404 if camera or scene change not found
+         *
+         *     Note:
+         *         NEM-1354: This endpoint is idempotent. If the scene change is already
+         *         acknowledged, it returns 200 OK with the existing acknowledgement data
+         *         rather than modifying the database or returning an error. This allows
+         *         clients to safely retry acknowledgement requests without side effects.
          */
         post: operations["acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post"];
         delete?: never;
@@ -1687,7 +1696,8 @@ export interface paths {
          *     re-identification. Entities are grouped by their embedding clusters.
          *
          *     Args:
-         *         entity_type: Filter by entity type ('person' or 'vehicle')
+         *         entity_type: Filter by entity type ('person' or 'vehicle').
+         *             Returns 400 Bad Request if an invalid type is provided.
          *         camera_id: Filter by camera ID
          *         since: Filter entities seen since this timestamp
          *         limit: Maximum number of results (1-1000, default 50)
@@ -1696,6 +1706,9 @@ export interface paths {
          *
          *     Returns:
          *         EntityListResponse with filtered entities and pagination info
+         *
+         *     Raises:
+         *         HTTPException: 400 Bad Request if entity_type is invalid
          */
         get: operations["list_entities_api_entities_get"];
         put?: never;
@@ -4020,6 +4033,11 @@ export interface components {
          *
          *     If start_time > end_time, the schedule spans midnight (e.g., 22:00-06:00).
          *     Empty days array means all days. No schedule = always active (vacation mode).
+         *
+         *     Validation:
+         *     - Days must be valid day names (monday-sunday)
+         *     - Times must be valid HH:MM format with hours 00-23, minutes 00-59
+         *     - Start and end times are validated but can span midnight
          * @example {
          *       "days": [
          *         "monday",
@@ -4041,12 +4059,12 @@ export interface components {
             days?: string[] | null;
             /**
              * Start Time
-             * @description Start time in HH:MM format
+             * @description Start time in HH:MM format (00:00-23:59)
              */
             start_time?: string | null;
             /**
              * End Time
-             * @description End time in HH:MM format
+             * @description End time in HH:MM format (00:00-23:59)
              */
             end_time?: string | null;
             /**
@@ -11941,7 +11959,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Scene change acknowledged successfully (or already acknowledged) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -11949,6 +11967,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SceneChangeAcknowledgeResponse"];
                 };
+            };
+            /** @description Camera or scene change not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

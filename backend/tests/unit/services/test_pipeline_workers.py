@@ -1830,7 +1830,8 @@ async def test_manager_get_status_with_no_workers(mock_redis_client):
 def mock_video_processor():
     """Create a mock video processor."""
     processor = MagicMock()
-    processor.extract_frames_for_detection = AsyncMock(return_value=[])
+    # Use the batch method as it's the optimized version used in pipeline (NEM-1329)
+    processor.extract_frames_for_detection_batch = AsyncMock(return_value=[])
     processor.cleanup_extracted_frames = MagicMock(return_value=True)
     processor.get_video_metadata = AsyncMock(
         return_value={
@@ -1866,8 +1867,8 @@ async def test_detection_worker_processes_video_item(
 
     mock_redis_client.get_from_queue = mock_get_from_queue
 
-    # Setup video processor to return frames
-    mock_video_processor.extract_frames_for_detection = AsyncMock(
+    # Setup video processor to return frames (using batch method per NEM-1329)
+    mock_video_processor.extract_frames_for_detection_batch = AsyncMock(
         return_value=["/data/thumbnails/frame_0.jpg", "/data/thumbnails/frame_1.jpg"]
     )
 
@@ -1898,7 +1899,7 @@ async def test_detection_worker_processes_video_item(
 
     # Verify video was processed
     assert worker.stats.items_processed == 1
-    mock_video_processor.extract_frames_for_detection.assert_called_once()
+    mock_video_processor.extract_frames_for_detection_batch.assert_called_once()
     # Should have called detect_objects for each frame
     assert mock_detector_client.detect_objects.call_count == 2
     # Cleanup should have been called
@@ -1928,7 +1929,7 @@ async def test_detection_worker_handles_video_with_no_frames(
     mock_redis_client.get_from_queue = mock_get_from_queue
 
     # Setup video processor to return empty frames (extraction failed)
-    mock_video_processor.extract_frames_for_detection = AsyncMock(return_value=[])
+    mock_video_processor.extract_frames_for_detection_batch = AsyncMock(return_value=[])
 
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
@@ -1998,7 +1999,7 @@ async def test_detection_worker_processes_image_item(
     # Verify image was processed
     assert worker.stats.items_processed == 1
     # Video processor should NOT have been called for image
-    mock_video_processor.extract_frames_for_detection.assert_not_called()
+    mock_video_processor.extract_frames_for_detection_batch.assert_not_called()
     mock_video_processor.cleanup_extracted_frames.assert_not_called()
     # Detector should have been called once for the image
     mock_detector_client.detect_objects.assert_called_once()
@@ -2048,7 +2049,7 @@ async def test_detection_worker_defaults_to_image_media_type(
 
     # Should process as image (default)
     assert worker.stats.items_processed == 1
-    mock_video_processor.extract_frames_for_detection.assert_not_called()
+    mock_video_processor.extract_frames_for_detection_batch.assert_not_called()
 
 
 # =============================================================================

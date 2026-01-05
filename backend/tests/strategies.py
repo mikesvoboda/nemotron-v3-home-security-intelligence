@@ -593,7 +593,10 @@ def bbox_and_image_strategy(
 # Search and Query Strategies
 # =============================================================================
 
-# Valid search queries (simple terms)
+# Reserved keywords that should not be generated as search terms
+_SEARCH_RESERVED_KEYWORDS = {"AND", "OR", "NOT"}
+
+# Valid search queries (simple terms, excluding reserved keywords)
 search_terms = st.text(
     min_size=1,
     max_size=50,
@@ -601,7 +604,7 @@ search_terms = st.text(
         whitelist_categories=("Lu", "Ll", "Nd"),
         whitelist_characters=" -_",
     ),
-).filter(lambda x: len(x.strip()) > 0)
+).filter(lambda x: len(x.strip()) > 0 and x.strip().upper() not in _SEARCH_RESERVED_KEYWORDS)
 
 # Boolean operators for search
 search_operators = st.sampled_from(["AND", "OR", "NOT", "and", "or", "not"])

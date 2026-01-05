@@ -12,7 +12,111 @@ from unittest.mock import MagicMock
 import pytest
 
 from backend.models.audit import AuditAction, AuditLog, AuditStatus
-from backend.services.audit import AuditService
+from backend.services.audit import AuditService, get_actor_from_request
+
+
+class TestGetActorFromRequest:
+    """Tests for the get_actor_from_request function."""
+
+    def test_returns_unknown_when_request_is_none(self):
+        """Test that None request returns 'unknown'."""
+        result = get_actor_from_request(None)
+        assert result == "unknown"
+
+    def test_returns_masked_api_key_from_header(self):
+        """Test extraction of API key from X-API-Key header."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = lambda key, _default=None: {
+            "X-API-Key": "abcdefgh12345678",
+        }.get(key, _default)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = MagicMock(return_value=None)
+
+        result = get_actor_from_request(mock_request)
+        assert result == "api_key:abcdefgh..."
+
+    def test_returns_masked_api_key_from_query_param(self):
+        """Test extraction of API key from query parameter."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = MagicMock(return_value=None)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = lambda key, _default=None: {
+            "api_key": "xyz98765432",  # pragma: allowlist secret
+        }.get(key, _default)
+
+        result = get_actor_from_request(mock_request)
+        assert result == "api_key:xyz98765..."
+
+    def test_returns_short_api_key_masked(self):
+        """Test that short API keys are masked correctly."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = lambda key, _default=None: {
+            "X-API-Key": "short",
+        }.get(key, _default)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = MagicMock(return_value=None)
+
+        result = get_actor_from_request(mock_request)
+        # Short key (5 chars) should show first 4 chars + "..."
+        assert result == "api_key:shor..."
+
+    def test_returns_client_ip_when_no_api_key(self):
+        """Test extraction of client IP when no API key present."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = MagicMock(return_value=None)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = MagicMock(return_value=None)
+        mock_request.client = MagicMock()
+        mock_request.client.host = "192.168.1.100"
+
+        result = get_actor_from_request(mock_request)
+        assert result == "ip:192.168.1.100"
+
+    def test_returns_forwarded_ip_when_proxy_present(self):
+        """Test extraction of IP from X-Forwarded-For header."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = lambda key, _default=None: {
+            "x-forwarded-for": "203.0.113.50, 10.0.0.1",
+        }.get(key, _default)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = MagicMock(return_value=None)
+        mock_request.client = MagicMock()
+        mock_request.client.host = "10.0.0.1"
+
+        result = get_actor_from_request(mock_request)
+        assert result == "ip:203.0.113.50"
+
+    def test_returns_unknown_when_no_client_info(self):
+        """Test fallback to 'unknown' when no identification available."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = MagicMock(return_value=None)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = MagicMock(return_value=None)
+        mock_request.client = None
+
+        result = get_actor_from_request(mock_request)
+        assert result == "unknown"
+
+    def test_api_key_takes_precedence_over_ip(self):
+        """Test that API key identification takes precedence over IP."""
+        mock_request = MagicMock()
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = lambda key, _default=None: {
+            "X-API-Key": "myapikey12345",
+        }.get(key, _default)
+        mock_request.query_params = MagicMock()
+        mock_request.query_params.get = MagicMock(return_value=None)
+        mock_request.client = MagicMock()
+        mock_request.client.host = "192.168.1.1"
+
+        result = get_actor_from_request(mock_request)
+        assert result == "api_key:myapikey..."
 
 
 class TestAuditLogModel:
@@ -735,8 +839,10 @@ class TestAuditServiceErrorHandling:
             await AuditService.get_audit_logs(db=mock_db_session_with_errors)
 
     @pytest.mark.asyncio
-    async def test_log_action_with_none_actor(self, mock_db_session_with_errors):
-        """Test log_action handles None actor value."""
+    async def test_log_action_with_none_actor_auto_derives_unknown(
+        self, mock_db_session_with_errors
+    ):
+        """Test log_action auto-derives 'unknown' when actor is None and no request."""
 
         async def async_flush():
             pass
@@ -744,15 +850,15 @@ class TestAuditServiceErrorHandling:
         mock_db_session_with_errors.add = MagicMock()
         mock_db_session_with_errors.flush = async_flush
 
-        # Should handle None actor gracefully
+        # When actor is None and no request, should derive "unknown"
         result = await AuditService.log_action(
             db=mock_db_session_with_errors,
             action=AuditAction.SETTINGS_CHANGED,
             resource_type="settings",
-            actor=None,  # type: ignore
+            actor=None,  # Will be auto-derived to "unknown" without request
         )
 
-        assert result.actor is None
+        assert result.actor == "unknown"
 
     @pytest.mark.asyncio
     async def test_log_action_with_empty_details(self, mock_db_session_with_errors):

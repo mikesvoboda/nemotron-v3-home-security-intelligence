@@ -314,7 +314,7 @@ class TestExtractClothingFromEnrichment:
                     "top_category": "jacket",
                     "is_suspicious": True,
                     "is_service_uniform": False,
-                    "raw_description": "black jacket",  # No comma, uses top_category
+                    "raw_description": "black jacket",  # No comma, single-item description
                 }
             }
         }
@@ -322,8 +322,8 @@ class TestExtractClothingFromEnrichment:
         result = _extract_clothing_from_enrichment(data)
 
         assert result is not None
-        # When raw_description has no comma, we use top_category as upper
-        assert result["upper"] == "jacket"
+        # When raw_description has no comma, it's used as a single clothing item
+        assert result["upper"] == "black jacket"
         assert result["lower"] is None
         assert result["is_suspicious"] is True
 

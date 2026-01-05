@@ -27,7 +27,9 @@ from backend.api.schemas.prompt_management import (
     PromptTestRequest,
     PromptTestResult,
     PromptUpdateRequest,
+    PromptVersionConflictError,
     PromptVersionInfo,
+    validate_config_for_model,
 )
 from backend.core.database import get_db
 from backend.services.prompt_service import get_prompt_service
@@ -142,6 +144,18 @@ async def test_prompt(
 
     Returns 429 Too Many Requests if rate limit is exceeded.
     """
+    # Validate config structure for the specific model
+    validation_errors = validate_config_for_model(request.model, request.config)
+    if validation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Invalid configuration for model",
+                "model": request.model.value,
+                "errors": validation_errors,
+            },
+        )
+
     service = get_prompt_service()
 
     result = await service.test_prompt(
@@ -352,15 +366,45 @@ async def update_prompt_for_model(
     """Update prompt configuration for a specific AI model.
 
     Creates a new version of the configuration while preserving history.
+    Validates the configuration structure before saving.
+
+    Supports optimistic locking via expected_version in the request body.
+    If expected_version is provided and doesn't match the current version,
+    returns 409 Conflict to indicate concurrent modification.
     """
+    # Validate config structure for the specific model
+    validation_errors = validate_config_for_model(model, request.config)
+    if validation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Invalid configuration for model",
+                "model": model.value,
+                "errors": validation_errors,
+            },
+        )
+
     service = get_prompt_service()
 
-    new_version = await service.update_prompt_for_model(
-        session=db,
-        model=model.value,
-        config=request.config,
-        change_description=request.change_description,
-    )
+    try:
+        new_version = await service.update_prompt_for_model(
+            session=db,
+            model=model.value,
+            config=request.config,
+            change_description=request.change_description,
+            expected_version=request.expected_version,
+        )
+    except PromptVersionConflictError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Concurrent modification detected",
+                "model": e.model,
+                "expected_version": e.expected_version,
+                "actual_version": e.actual_version,
+                "suggestion": "Please refresh and retry your update with the latest version",
+            },
+        ) from e
 
     return ModelPromptConfig(
         model=model,

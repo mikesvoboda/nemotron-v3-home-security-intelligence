@@ -382,7 +382,11 @@ class TestAcknowledgeSceneChange:
 
     @pytest.mark.asyncio
     async def test_acknowledge_already_acknowledged(self) -> None:
-        """Test acknowledging an already acknowledged scene change."""
+        """Test acknowledging an already acknowledged scene change returns success.
+
+        NEM-1354: The endpoint should be idempotent - re-acknowledging
+        should return 200 OK with existing acknowledgement data.
+        """
         from backend.api.routes.cameras import acknowledge_scene_change
         from backend.models.scene_change import SceneChange, SceneChangeType
 
@@ -390,6 +394,7 @@ class TestAcknowledgeSceneChange:
 
         # Mock already acknowledged scene change with eagerly loaded camera
         now = datetime.now(UTC)
+        original_acknowledged_at = now - timedelta(hours=1)
         mock_change = MagicMock(spec=SceneChange)
         mock_change.id = 1
         mock_change.camera_id = "front_door"
@@ -397,7 +402,7 @@ class TestAcknowledgeSceneChange:
         mock_change.change_type = SceneChangeType.VIEW_BLOCKED
         mock_change.similarity_score = 0.25
         mock_change.acknowledged = True
-        mock_change.acknowledged_at = now - timedelta(hours=1)
+        mock_change.acknowledged_at = original_acknowledged_at
         mock_change.file_path = "/path/to/image.jpg"
 
         # Single query with joinedload returns scene change
@@ -416,10 +421,118 @@ class TestAcknowledgeSceneChange:
                 "front_door", 1, request=mock_request, db=mock_db
             )
 
-        # Should still return success even if already acknowledged
+        # Should return success with existing acknowledgement data
         assert isinstance(result, SceneChangeAcknowledgeResponse)
         assert result.id == 1
         assert result.acknowledged is True
+        assert result.acknowledged_at == original_acknowledged_at
+
+        # NEM-1354: Idempotency - should NOT modify the database or create audit log
+        mock_db.commit.assert_not_called()
+        mock_db.refresh.assert_not_called()
+        mock_audit.log_action.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_acknowledge_idempotent_multiple_calls(self) -> None:
+        """Test that multiple acknowledge calls on same scene change are idempotent.
+
+        NEM-1354: Verify that re-acknowledging returns the same data as the
+        first acknowledgement without side effects.
+        """
+        from backend.api.routes.cameras import acknowledge_scene_change
+        from backend.models.scene_change import SceneChange, SceneChangeType
+
+        mock_db = AsyncMock()
+
+        # Mock already acknowledged scene change
+        now = datetime.now(UTC)
+        original_acknowledged_at = now - timedelta(minutes=30)
+        mock_change = MagicMock(spec=SceneChange)
+        mock_change.id = 42
+        mock_change.camera_id = "backyard"
+        mock_change.detected_at = now - timedelta(hours=1)
+        mock_change.change_type = SceneChangeType.ANGLE_CHANGED
+        mock_change.similarity_score = 0.35
+        mock_change.acknowledged = True
+        mock_change.acknowledged_at = original_acknowledged_at
+        mock_change.file_path = None
+
+        mock_change_result = MagicMock()
+        mock_change_result.unique.return_value.scalar_one_or_none.return_value = mock_change
+
+        mock_db.execute.return_value = mock_change_result
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+
+        mock_request = MagicMock()
+
+        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+            mock_audit.log_action = AsyncMock()
+
+            # First call
+            result1 = await acknowledge_scene_change(
+                "backyard", 42, request=mock_request, db=mock_db
+            )
+
+            # Second call (simulating retry)
+            result2 = await acknowledge_scene_change(
+                "backyard", 42, request=mock_request, db=mock_db
+            )
+
+        # Both calls should return identical results
+        assert result1.id == result2.id == 42
+        assert result1.acknowledged == result2.acknowledged is True
+        assert result1.acknowledged_at == result2.acknowledged_at == original_acknowledged_at
+
+        # Neither call should have modified the database
+        mock_db.commit.assert_not_called()
+        mock_db.refresh.assert_not_called()
+        # No audit logs created for idempotent returns
+        mock_audit.log_action.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_acknowledge_preserves_original_timestamp(self) -> None:
+        """Test that re-acknowledging preserves the original acknowledgement timestamp.
+
+        NEM-1354: Ensure idempotent acknowledgement returns the original
+        acknowledged_at timestamp, not a new one.
+        """
+        from backend.api.routes.cameras import acknowledge_scene_change
+        from backend.models.scene_change import SceneChange, SceneChangeType
+
+        mock_db = AsyncMock()
+
+        # Create a specific timestamp for the original acknowledgement
+        original_time = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
+        mock_change = MagicMock(spec=SceneChange)
+        mock_change.id = 100
+        mock_change.camera_id = "driveway"
+        mock_change.detected_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+        mock_change.change_type = SceneChangeType.VIEW_TAMPERED
+        mock_change.similarity_score = 0.18
+        mock_change.acknowledged = True
+        mock_change.acknowledged_at = original_time
+        mock_change.file_path = "/images/change.jpg"
+
+        mock_change_result = MagicMock()
+        mock_change_result.unique.return_value.scalar_one_or_none.return_value = mock_change
+
+        mock_db.execute.return_value = mock_change_result
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+
+        mock_request = MagicMock()
+
+        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+            mock_audit.log_action = AsyncMock()
+            result = await acknowledge_scene_change(
+                "driveway", 100, request=mock_request, db=mock_db
+            )
+
+        # Should return the exact original timestamp
+        assert result.acknowledged_at == original_time
+        # The mock object's acknowledged_at should NOT have been modified
+        assert mock_change.acknowledged_at == original_time
 
 
 class TestSceneChangeSchemas:
