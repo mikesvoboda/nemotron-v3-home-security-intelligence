@@ -32,8 +32,11 @@ from backend.core import close_db, get_settings, init_db
 from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.models.camera import Camera
+from backend.services.audit_service import get_audit_service
+from backend.services.background_evaluator import BackgroundEvaluator
 from backend.services.circuit_breaker import CircuitBreakerConfig, get_circuit_breaker
 from backend.services.cleanup_service import CleanupService
+from backend.services.evaluation_queue import get_evaluation_queue
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
 from backend.services.gpu_monitor import GPUMonitor
@@ -353,6 +356,29 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await cleanup_service.start()
     print("Cleanup service initialized")
 
+    # Initialize background evaluator for AI audit evaluation when GPU is idle
+    # This processes pending evaluations automatically instead of requiring manual clicks
+    background_evaluator: BackgroundEvaluator | None = None
+    if redis_client is not None and settings.background_evaluation_enabled:
+        evaluation_queue = get_evaluation_queue(redis_client)
+        audit_service = get_audit_service()
+        background_evaluator = BackgroundEvaluator(
+            redis_client=redis_client,
+            gpu_monitor=gpu_monitor,
+            evaluation_queue=evaluation_queue,
+            audit_service=audit_service,
+            gpu_idle_threshold=settings.background_evaluation_gpu_idle_threshold,
+            idle_duration_required=settings.background_evaluation_idle_duration,
+            poll_interval=settings.background_evaluation_poll_interval,
+            enabled=settings.background_evaluation_enabled,
+        )
+        await background_evaluator.start()
+        print(
+            f"Background evaluator initialized "
+            f"(idle threshold: {settings.background_evaluation_gpu_idle_threshold}%, "
+            f"idle duration: {settings.background_evaluation_idle_duration}s)"
+        )
+
     # Initialize service health monitor for auto-recovery of AI services
     # Note: This monitors RT-DETRv2 and Nemotron services for health and can trigger restarts
     # Redis is excluded since the application handles Redis failures gracefully already
@@ -417,6 +443,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     if service_health_monitor is not None:
         await service_health_monitor.stop()
         print("Service health monitor stopped")
+
+    # Stop background evaluator (before GPU monitor since it depends on it)
+    if background_evaluator is not None:
+        await background_evaluator.stop()
+        print("Background evaluator stopped")
 
     await cleanup_service.stop()
     print("Cleanup service stopped")
