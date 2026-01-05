@@ -146,7 +146,14 @@ describe('AlertRulesSettings', () => {
 
   describe('Initial Load', () => {
     it('should show loading state initially', () => {
+      // Make all APIs never resolve to avoid state updates after test
       vi.mocked(api.fetchAlertRules).mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+      vi.mocked(api.fetchCameras).mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+      vi.mocked(api.fetchSeverityMetadata).mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
 

@@ -12,6 +12,12 @@ Tests use PostgreSQL and Redis via testcontainers or local instances.
 Configure TEST_DATABASE_URL/TEST_REDIS_URL environment variables for overrides.
 
 See backend/tests/AGENTS.md for full documentation on test conventions.
+
+Hypothesis Configuration:
+- default: 100 examples, reasonable timeouts for local development
+- ci: 200 examples, extended deadline for slower CI environments
+- fast: 10 examples for quick smoke tests during development
+- debug: 10 examples with verbose output for debugging failures
 """
 
 from __future__ import annotations
@@ -25,6 +31,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from hypothesis import HealthCheck, Phase, Verbosity
+from hypothesis import settings as hypothesis_settings
 
 # NEM-1061: Logger for test cleanup handlers
 logger = logging.getLogger(__name__)
@@ -37,6 +45,55 @@ if TYPE_CHECKING:
 backend_path = Path(__file__).parent.parent
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
+
+
+# =============================================================================
+# Hypothesis Settings Profiles
+# =============================================================================
+# Configure different profiles for various testing scenarios.
+# Use with: pytest --hypothesis-profile=ci
+
+# Default profile for local development
+hypothesis_settings.register_profile(
+    "default",
+    max_examples=100,
+    deadline=1000,  # 1 second per example
+    suppress_health_check=[HealthCheck.too_slow],
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.shrink],
+)
+
+# CI profile with more examples and extended deadline
+hypothesis_settings.register_profile(
+    "ci",
+    max_examples=200,
+    deadline=5000,  # 5 seconds per example (CI is slower)
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.shrink],
+    derandomize=False,  # Keep randomization for better coverage
+)
+
+# Fast profile for quick smoke tests during development
+hypothesis_settings.register_profile(
+    "fast",
+    max_examples=10,
+    deadline=500,  # 500ms per example
+    suppress_health_check=[HealthCheck.too_slow],
+    phases=[Phase.explicit, Phase.generate],  # Skip shrinking for speed
+)
+
+# Debug profile for investigating failures
+hypothesis_settings.register_profile(
+    "debug",
+    max_examples=10,
+    deadline=None,  # No deadline when debugging
+    verbosity=Verbosity.verbose,
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.shrink],
+    report_multiple_bugs=True,
+)
+
+# Load profile from environment or use default
+_hypothesis_profile = os.environ.get("HYPOTHESIS_PROFILE", "default")
+hypothesis_settings.load_profile(_hypothesis_profile)
 
 
 def pytest_configure(config: pytest.Config) -> None:
