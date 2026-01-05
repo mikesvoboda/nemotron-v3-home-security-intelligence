@@ -1,0 +1,30 @@
+# Flaky Tests Quarantine Manifest
+# ================================
+# Tests listed here are known to be flaky (fail intermittently) and are quarantined.
+# Quarantined tests still run but their failures don't block CI.
+#
+# Format: One test node ID per line
+# Example: backend/tests/unit/services/test_example.py::TestClass::test_method
+#
+# To add a test to quarantine:
+# 1. Add the test node ID below
+# 2. OR mark the test with @pytest.mark.flaky decorator
+#
+# To analyze flakiness:
+# python scripts/analyze-flaky-tests.py flaky-test-results/
+#
+# Tests are automatically detected as flaky if they:
+# - Fail then pass on retry (detected by pytest-rerunfailures)
+# - Have a pass rate < 90% across multiple CI runs
+#
+# Review this file periodically and:
+# - Fix the root cause of flakiness
+# - Remove tests from quarantine once fixed
+# - Add newly discovered flaky tests
+#
+# Last updated: 2026-01-05
+# ============================================================================
+
+# Example entries (uncomment and modify as needed):
+# backend/tests/integration/test_websocket_broadcast.py::test_reconnection_stability
+# backend/tests/unit/services/test_redis_pubsub.py::test_concurrent_subscriptions

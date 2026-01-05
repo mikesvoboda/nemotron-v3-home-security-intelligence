@@ -11,7 +11,10 @@ workflows/
   AGENTS.md              # This file
   ci.yml                 # Main CI pipeline
   deploy.yml             # Docker image build and push to GHCR
+  preview-deploy.yml     # PR preview container builds
   ai-code-review.yml     # GPT-powered automated code review
+  linear-ci-status.yml   # Linear issue status sync from CI/CD events
+  linear-github-sync.yml # Linear to GitHub issue sync
   nightly.yml            # Nightly benchmarks and analysis
   gpu-tests.yml          # GPU integration tests
   sast.yml               # Static Application Security Testing
@@ -78,6 +81,57 @@ workflows/
 - `contents: read`
 - `packages: write`
 
+### preview-deploy.yml - PR Preview Containers
+
+**Trigger:** Pull request events (opened, synchronize, reopened, closed)
+
+**Purpose:** Build preview containers for PRs to enable local testing before merge.
+
+**Jobs:**
+
+| Job             | Condition         | Description                            |
+| --------------- | ----------------- | -------------------------------------- |
+| build-preview   | PR opened/updated | Build and push containers with PR tags |
+| comment-preview | After build       | Post docker-compose instructions to PR |
+| cleanup-preview | PR closed         | Delete preview images from GHCR        |
+
+**Image Tags:**
+
+- `ghcr.io/{owner}/{repo}/backend:pr-{number}`
+- `ghcr.io/{owner}/{repo}/frontend:pr-{number}`
+
+**Workflow:**
+
+1. Open PR against main
+2. Workflow builds backend and frontend containers with PR-specific tags
+3. Comment posted with docker-compose.preview.yml snippet
+4. Testers pull images and run locally
+5. On PR close, cleanup job marks images for deletion
+
+**Permissions:**
+
+- `contents: read`
+- `packages: write`
+- `pull-requests: write`
+
+**Features:**
+
+- Builds in parallel (backend and frontend)
+- Uses GHA cache for faster rebuilds
+- Comments update on subsequent pushes (not duplicated)
+- Graceful cleanup (non-blocking if deletion fails)
+
+**Local Testing:**
+
+```bash
+# Pull preview images
+docker pull ghcr.io/{owner}/{repo}/backend:pr-123
+docker pull ghcr.io/{owner}/{repo}/frontend:pr-123
+
+# Run with docker-compose (see PR comment for snippet)
+docker compose -f docker-compose.preview.yml up -d
+```
+
 ### ai-code-review.yml - AI-Powered Review
 
 **Trigger:** PR opened/synchronized (excludes drafts and dependabot)
@@ -97,6 +151,60 @@ workflows/
 - Performance issues
 - Best practices
 - Potential bugs
+
+### linear-ci-status.yml - Linear CI Status Sync
+
+**Trigger:** CI workflow completion, push to main, manual dispatch
+
+**Purpose:** Automatically update Linear issue status based on CI/CD events.
+
+**Jobs:**
+
+| Job            | Trigger                   | Action                     |
+| -------------- | ------------------------- | -------------------------- |
+| ci-completion  | CI workflow_run completed | Move issue to "In Review"  |
+| pr-merged      | Push to main              | Move issue to "Done"       |
+| manual-trigger | workflow_dispatch         | Check/move issues manually |
+
+**Features:**
+
+- Extracts Linear issue IDs from PR title and branch name (e.g., `NEM-123`, `nem-123`)
+- On CI success: Moves issues from "Todo" or "In Progress" to "In Review"
+- On CI failure: Adds a comment to the issue with workflow link
+- On PR merge: Moves issues to "Done"
+- Handles multiple issues in a single PR
+- Skips gracefully when no issue ID found
+- Non-blocking (informational) - doesn't fail CI if Linear update fails
+
+**Issue ID Patterns Recognized:**
+
+- `NEM-123` - Standard format
+- `nem-123` - Lowercase
+- `NEM_123` - Underscore separator
+- Multiple IDs in same PR title/branch
+
+**Manual Actions:**
+
+- `check` - Display current status of linked issues
+- `move-to-review` - Move issues to "In Review"
+- `move-to-done` - Move issues to "Done"
+
+### linear-github-sync.yml - Linear-GitHub Issue Sync
+
+**Trigger:** Daily schedule (6am UTC), manual dispatch, Linear webhook
+
+**Purpose:** Sync Linear task completions to GitHub issues.
+
+**Modes:**
+
+- `audit` - Report matching issues without closing
+- `close` - Close matched GitHub issues
+
+**Process:**
+
+1. Query Linear for completed issues
+2. Match to GitHub issues by title similarity
+3. Close matched GitHub issues (in close mode)
 
 ### nightly.yml - Nightly Analysis
 

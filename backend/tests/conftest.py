@@ -18,6 +18,11 @@ Hypothesis Configuration:
 - ci: 200 examples, extended deadline for slower CI environments
 - fast: 10 examples for quick smoke tests during development
 - debug: 10 examples with verbose output for debugging failures
+
+Flaky Test Detection:
+- Tests marked with @pytest.mark.flaky are quarantined (failures don't fail CI)
+- Test outcomes are tracked in FLAKY_TEST_RESULTS_FILE for analysis
+- Use pytest-rerunfailures with --reruns flag for automatic retry
 """
 
 from __future__ import annotations
@@ -96,6 +101,20 @@ _hypothesis_profile = os.environ.get("HYPOTHESIS_PROFILE", "default")
 hypothesis_settings.load_profile(_hypothesis_profile)
 
 
+# =============================================================================
+# Flaky Test Detection and Quarantine System
+# =============================================================================
+# Tracks test outcomes for flakiness analysis and handles quarantined tests.
+# Results are written to a JSON file for aggregation across CI runs.
+
+# File to store flaky test tracking data (set via FLAKY_TEST_RESULTS_FILE env var)
+FLAKY_TEST_RESULTS_FILE = os.environ.get("FLAKY_TEST_RESULTS_FILE", "")
+
+# Track test outcomes during this run (nodeid -> list of outcomes)
+# Outcome format: {"outcome": "passed"|"failed"|"skipped", "rerun": bool, "duration": float}
+_test_outcomes: dict[str, list[dict]] = {}
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest before test collection.
 
@@ -110,14 +129,18 @@ def pytest_configure(config: pytest.Config) -> None:
     # This is needed because some modules import settings at module level
     os.environ.setdefault(
         "DATABASE_URL",
-        "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+        "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",  # pragma: allowlist secret
+    )
+
+    # Register flaky marker to prevent warnings
+    config.addinivalue_line(
+        "markers",
+        "flaky: mark test as flaky (known to fail intermittently, quarantined)",
     )
 
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
-DEFAULT_DEV_POSTGRES_URL = (
-    "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
-)
+DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
 
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
@@ -185,6 +208,113 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             continue
 
         # Unit tests use default (1s from pyproject.toml)
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo) -> Generator[None]:
+    """Track test outcomes for flakiness analysis.
+
+    This hook captures test outcomes (pass/fail/skip) and tracks reruns
+    for tests using pytest-rerunfailures. Results are aggregated for
+    flakiness scoring.
+
+    Flaky tests (marked with @pytest.mark.flaky) have their failures
+    recorded but don't fail CI - they are quarantined.
+    """
+    outcome = yield
+    report = outcome.get_result()
+
+    # Only track call phase (not setup/teardown)
+    if call.when != "call":
+        return
+
+    nodeid = item.nodeid
+    is_flaky = item.get_closest_marker("flaky") is not None
+
+    # Detect if this is a rerun from pytest-rerunfailures
+    is_rerun = hasattr(item, "execution_count") and item.execution_count > 1
+
+    # Build outcome record
+    outcome_record = {
+        "outcome": report.outcome,
+        "duration": report.duration,
+        "rerun": is_rerun,
+        "flaky_marked": is_flaky,
+    }
+
+    # Track this outcome
+    if nodeid not in _test_outcomes:
+        _test_outcomes[nodeid] = []
+    _test_outcomes[nodeid].append(outcome_record)
+
+    # For flaky-marked tests, convert failures to xfail (expected failure)
+    # This makes them non-blocking in CI while still reporting them
+    if is_flaky and report.outcome == "failed":
+        # Log the quarantined failure
+        logger.info(
+            "Quarantined flaky test failure",
+            extra={
+                "test": nodeid,
+                "duration": report.duration,
+                "is_rerun": is_rerun,
+            },
+        )
+        # Mark as xfail (expected failure) - doesn't fail CI
+        report.outcome = "skipped"
+        report.wasxfail = "Quarantined flaky test"
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Write flaky test tracking data at end of test session.
+
+    Outputs a JSON file with test outcomes for aggregation across CI runs.
+    This data is used by scripts/analyze-flaky-tests.py to detect flaky tests.
+    """
+    import json
+    from datetime import UTC, datetime
+
+    if not FLAKY_TEST_RESULTS_FILE:
+        return
+
+    # Build results summary
+    results = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "exit_status": exitstatus,
+        "tests": {},
+    }
+
+    for nodeid, outcomes in _test_outcomes.items():
+        # Calculate pass rate
+        total = len(outcomes)
+        passed = sum(1 for o in outcomes if o["outcome"] == "passed")
+        failed = sum(1 for o in outcomes if o["outcome"] == "failed")
+        reruns = sum(1 for o in outcomes if o.get("rerun", False))
+
+        results["tests"][nodeid] = {
+            "outcomes": outcomes,
+            "total_runs": total,
+            "passed": passed,
+            "failed": failed,
+            "reruns": reruns,
+            "pass_rate": passed / total if total > 0 else 0,
+            "flaky_marked": any(o.get("flaky_marked", False) for o in outcomes),
+        }
+
+    # Write results file (append-friendly JSON lines format)
+    try:
+        results_path = Path(FLAKY_TEST_RESULTS_FILE)
+        results_path.parent.mkdir(parents=True, exist_ok=True)
+        with results_path.open("a") as f:
+            f.write(json.dumps(results) + "\n")
+        logger.info(
+            "Wrote flaky test tracking data",
+            extra={"file": str(results_path), "test_count": len(results["tests"])},
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to write flaky test tracking data",
+            extra={"error": str(e), "file": FLAKY_TEST_RESULTS_FILE},
+        )
 
 
 def get_test_db_url() -> str:

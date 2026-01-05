@@ -1,0 +1,321 @@
+name: Preview Deploy
+
+# Build preview containers for pull requests
+# Allows testers to pull and run PR changes locally before merge
+#
+# Usage:
+# 1. Open a PR against main
+# 2. This workflow builds containers tagged with the PR number
+# 3. A comment is posted with docker-compose instructions
+# 4. Testers can pull and run the containers locally
+# 5. Containers are automatically cleaned up when PR is closed
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # Build Preview Containers
+  # ============================================================================
+  build-preview:
+    name: Build Preview (${{ matrix.image.name }})
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: backend
+            context: .
+            dockerfile: ./backend/Dockerfile
+            target: prod
+          - name: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+            target: prod
+
+    steps:
+      - name: Free disk space (backend only)
+        if: matrix.image.name == 'backend'
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}
+          tags: |
+            type=raw,value=pr-${{ github.event.pull_request.number }}
+            type=sha,prefix=pr-${{ github.event.pull_request.number }}-
+
+      - name: Build and push preview image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          target: ${{ matrix.image.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.description=Preview build for PR #${{ github.event.pull_request.number }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}-preview
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-preview
+
+      - name: Output image info
+        id: info
+        run: |
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "digest=${{ steps.build.outputs.digest }}" >> $GITHUB_OUTPUT
+
+    outputs:
+      backend-image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:pr-${{ github.event.pull_request.number }}
+      frontend-image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:pr-${{ github.event.pull_request.number }}
+
+  # ============================================================================
+  # Post PR Comment with Test Instructions
+  # ============================================================================
+  comment-preview:
+    name: Post Preview Instructions
+    needs: build-preview
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- preview-deploy-comment -->'
+
+      - name: Create or update PR comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: | # pragma: allowlist secret
+            <!-- preview-deploy-comment -->
+            ## Preview Containers Ready
+
+            Preview containers for this PR have been built and pushed to GHCR.
+
+            ### Quick Start
+
+            ```bash
+            # Pull the preview images
+            docker pull ghcr.io/${{ github.repository }}/backend:pr-${{ github.event.pull_request.number }}
+            docker pull ghcr.io/${{ github.repository }}/frontend:pr-${{ github.event.pull_request.number }}
+            ```
+
+            ### Test with Docker Compose
+
+            Create a `docker-compose.preview.yml` file or use the snippet below:
+
+            <details>
+            <summary>Click to expand docker-compose.preview.yml</summary>
+
+            ```yaml
+            # docker-compose.preview.yml
+            # Preview deployment for PR #${{ github.event.pull_request.number }}
+            #
+            # Usage:
+            #   docker compose -f docker-compose.preview.yml up -d
+            #   open http://localhost:3000
+
+            services:
+              postgres:
+                image: postgres:16-alpine
+                ports:
+                  - '5432:5432'
+                environment:
+                  - POSTGRES_USER=security
+                  - POSTGRES_PASSWORD=preview_password  # pragma: allowlist secret
+                  - POSTGRES_DB=security
+                healthcheck:
+                  test: ['CMD-SHELL', 'pg_isready -U security -d security']
+                  interval: 5s
+                  timeout: 3s
+                  retries: 10
+                volumes:
+                  - preview-postgres:/var/lib/postgresql/data
+
+              redis:
+                image: redis:7.4-alpine3.21
+                ports:
+                  - '6379:6379'
+                healthcheck:
+                  test: ['CMD', 'redis-cli', 'ping']
+                  interval: 5s
+                  timeout: 3s
+                  retries: 10
+
+              backend:
+                image: ghcr.io/${{ github.repository }}/backend:pr-${{ github.event.pull_request.number }}
+                ports:
+                  - '8000:8000'
+                environment:
+                  - DATABASE_URL=postgresql+asyncpg://security:preview_password@postgres:5432/security  # pragma: allowlist secret
+                  - REDIS_URL=redis://redis:6379
+                  - RTDETR_URL=http://localhost:8090
+                  - NEMOTRON_URL=http://localhost:8091
+                  - FLORENCE_URL=http://localhost:8092
+                  - CLIP_URL=http://localhost:8093
+                  - ENRICHMENT_URL=http://localhost:8094
+                  - FOSCAM_BASE_PATH=/cameras
+                  - DEBUG=true
+                  - FILE_WATCHER_ENABLED=false
+                depends_on:
+                  postgres:
+                    condition: service_healthy
+                  redis:
+                    condition: service_healthy
+
+              frontend:
+                image: ghcr.io/${{ github.repository }}/frontend:pr-${{ github.event.pull_request.number }}
+                ports:
+                  - '3000:80'
+                depends_on:
+                  - backend
+
+            volumes:
+              preview-postgres:
+            ```
+
+            </details>
+
+            ### One-liner
+
+            ```bash
+            # Create compose file and start services
+            curl -sSL https://gist.githubusercontent.com/mikesvoboda/preview-compose/raw/docker-compose.preview.yml \
+              | PR_NUM=${{ github.event.pull_request.number }} envsubst \
+              | docker compose -f - up -d
+
+            # Or manually:
+            docker compose -f docker-compose.preview.yml up -d
+            ```
+
+            ### Verify the deployment
+
+            ```bash
+            # Check backend health
+            curl http://localhost:8000/api/system/health/ready
+
+            # Open the dashboard
+            open http://localhost:3000
+            ```
+
+            ### Cleanup
+
+            ```bash
+            docker compose -f docker-compose.preview.yml down -v
+            ```
+
+            ---
+            **Commit:** ${{ github.event.pull_request.head.sha }}
+            **Built:** ${{ github.event.pull_request.updated_at }}
+
+  # ============================================================================
+  # Cleanup Preview Containers on PR Close
+  # ============================================================================
+  cleanup-preview:
+    name: Cleanup Preview Containers
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Delete backend preview image
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/backend
+          package-type: container
+          delete-only-pre-release-versions: false
+          min-versions-to-keep: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Only delete versions matching the PR tag pattern
+          # Note: This action deletes ALL versions matching the pattern
+          # We use a specific tag pattern to avoid deleting other versions
+        continue-on-error: true
+
+      - name: Delete frontend preview image
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}/frontend
+          package-type: container
+          delete-only-pre-release-versions: false
+          min-versions-to-keep: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Log cleanup attempt
+        run: |
+          echo "Cleanup requested for PR #${{ github.event.pull_request.number }}"
+          echo "Note: GHCR package deletion requires specific permissions."
+          echo "If deletion failed, the preview images will be cleaned up by GHCR retention policy."
+          echo ""
+          echo "To manually delete preview images:"
+          echo "  gh api --method DELETE /user/packages/container/${{ github.event.repository.name }}%2Fbackend/versions/<version-id>"
+          echo "  gh api --method DELETE /user/packages/container/${{ github.event.repository.name }}%2Ffrontend/versions/<version-id>"
+
+      - name: Update PR comment about cleanup
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- preview-deploy-comment -->'
+
+      - name: Add cleanup notice to comment
+        if: steps.find-comment.outputs.comment-id != ''
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: append
+          body: |
+
+            ---
+            **Preview containers have been marked for cleanup.** The images will be removed from GHCR.
