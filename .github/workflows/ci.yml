@@ -1268,7 +1268,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         if: ${{ !matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: ${{ matrix.target.scan-type }}
           scan-ref: ${{ matrix.target.scan-ref }}
@@ -1281,7 +1281,7 @@ jobs:
 
       - name: Run Trivy config scanner
         if: ${{ matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: ${{ matrix.target.scan-type }}
           scan-ref: ${{ matrix.target.scan-ref }}
