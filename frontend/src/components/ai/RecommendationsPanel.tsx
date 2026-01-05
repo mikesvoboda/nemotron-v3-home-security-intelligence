@@ -184,10 +184,11 @@ export default function RecommendationsPanel({
                             {onExploreRecommendation && (
                               <button
                                 onClick={() => onExploreRecommendation(item)}
-                                className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
+                                className="flex items-center gap-1.5 rounded-md border border-[#76B900]/30 bg-[#76B900]/5 px-2.5 py-1 text-xs font-medium text-[#76B900] transition-all hover:border-[#76B900]/50 hover:bg-[#76B900]/15"
                                 data-testid={`explore-recommendation-${category}-${index}`}
                                 title="Open in Prompt Playground"
                               >
+                                <span>Edit</span>
                                 <ArrowRight className="h-3 w-3" />
                               </button>
                             )}
