@@ -206,6 +206,58 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         </p>
       </div>
 
+      {/* Info Box - What gets logged */}
+      <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
+        <div className="flex items-start gap-3">
+          <svg
+            className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div>
+            <h3 className="font-medium text-blue-300">What gets logged</h3>
+            <p className="mt-1 text-sm text-gray-300">
+              The audit log automatically records system operations for security and
+              compliance purposes. Actions that create audit entries include:
+            </p>
+            <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-sm text-gray-400 sm:grid-cols-2">
+              <li className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                Settings changes
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                Event reviews
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                AI re-evaluations
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                Camera configurations
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                Alert rule changes
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                Media exports
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       {/* Statistics Cards */}
       <div className="mb-6">
         <AuditStatsCards

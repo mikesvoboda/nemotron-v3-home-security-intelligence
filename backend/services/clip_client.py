@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
@@ -123,6 +124,14 @@ class CLIPClient:
             pool=settings.ai_health_timeout,
         )
 
+        # Initialize circuit breaker for CLIP service protection
+        self._circuit_breaker = CircuitBreaker(
+            name="clip",
+            failure_threshold=settings.clip_cb_failure_threshold,
+            recovery_timeout=settings.clip_cb_recovery_timeout,
+            half_open_max_calls=settings.clip_cb_half_open_max_calls,
+        )
+
         logger.info(f"CLIPClient initialized with base_url={self._base_url}")
 
     def _encode_image_to_base64(self, image: Image.Image) -> str:
@@ -139,6 +148,21 @@ class CLIPClient:
         image.save(buffer, format="PNG")
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
+
+    def _check_circuit_breaker(self) -> None:
+        """Check if circuit breaker allows the request.
+
+        Raises:
+            CLIPUnavailableError: If circuit breaker is open and rejecting requests
+        """
+        if not self._circuit_breaker.allow_request():
+            state = self._circuit_breaker.get_state()
+            logger.warning(f"CLIP circuit breaker is {state.value}, rejecting request")
+            record_pipeline_error("clip_circuit_open")
+            raise CLIPUnavailableError(
+                f"CLIP service circuit breaker is open (state: {state.value}). "
+                "Service is temporarily unavailable."
+            )
 
     async def check_health(self) -> bool:
         """Check if CLIP service is healthy and reachable.
@@ -177,7 +201,11 @@ class CLIPClient:
 
         Raises:
             CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+                or if the circuit breaker is open
         """
+        # Check circuit breaker before making request
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug("Sending embedding request to CLIP service...")
@@ -230,10 +258,15 @@ class CLIPClient:
 
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(f"CLIP embedding completed: {len(embedding)} dims in {duration_ms}ms")
             return embedding
 
         except httpx.ConnectError as e:
+            # Record failure with circuit breaker for connection errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_connection_error")
             logger.error(
@@ -247,6 +280,8 @@ class CLIPClient:
             ) from e
 
         except httpx.TimeoutException as e:
+            # Record failure with circuit breaker for timeouts
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_timeout")
             logger.error(
@@ -265,6 +300,8 @@ class CLIPClient:
 
             # 5xx errors are server-side failures that should be retried
             if status_code >= 500:
+                # Record failure with circuit breaker for server errors
+                self._circuit_breaker.record_failure()
                 record_pipeline_error("clip_server_error")
                 logger.error(
                     f"CLIP returned server error: {status_code} - {e}",
@@ -277,6 +314,7 @@ class CLIPClient:
                 ) from e
 
             # 4xx errors are client errors (bad request, etc.)
+            # Don't record circuit breaker failure for client errors (user's fault)
             record_pipeline_error("clip_client_error")
             logger.error(
                 f"CLIP returned client error: {status_code} - {e}",
@@ -289,10 +327,12 @@ class CLIPClient:
             ) from e
 
         except CLIPUnavailableError:
-            # Re-raise our own exceptions
+            # Re-raise our own exceptions (circuit breaker already recorded if needed)
             raise
 
         except Exception as e:
+            # Record failure with circuit breaker for unexpected errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_unexpected_error")
             logger.error(
@@ -330,9 +370,12 @@ class CLIPClient:
             - similarity_to_baseline: cosine similarity in [-1, 1]
 
         Raises:
-            CLIPUnavailableError: If the service is unavailable
+            CLIPUnavailableError: If the service is unavailable or circuit breaker is open
             ValueError: If baseline_embedding has wrong dimension
         """
+        # Check circuit breaker before making request
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         # Validate baseline embedding dimension
@@ -394,6 +437,9 @@ class CLIPClient:
 
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(
                 f"CLIP anomaly score completed: score={anomaly_score_val:.3f}, "
                 f"similarity={similarity:.3f} in {duration_ms}ms"
@@ -401,6 +447,8 @@ class CLIPClient:
             return anomaly_score_val, similarity
 
         except httpx.ConnectError as e:
+            # Record failure with circuit breaker for connection errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_anomaly_connection_error")
             logger.error(
@@ -414,6 +462,8 @@ class CLIPClient:
             ) from e
 
         except httpx.TimeoutException as e:
+            # Record failure with circuit breaker for timeouts
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_anomaly_timeout")
             logger.error(
@@ -431,6 +481,8 @@ class CLIPClient:
             status_code = e.response.status_code
 
             if status_code >= 500:
+                # Record failure with circuit breaker for server errors
+                self._circuit_breaker.record_failure()
                 record_pipeline_error("clip_anomaly_server_error")
                 logger.error(
                     f"CLIP anomaly score returned server error: {status_code} - {e}",
@@ -442,6 +494,7 @@ class CLIPClient:
                     original_error=e,
                 ) from e
 
+            # Don't record circuit breaker failure for client errors
             record_pipeline_error("clip_anomaly_client_error")
             logger.error(
                 f"CLIP anomaly score returned client error: {status_code} - {e}",
@@ -454,9 +507,12 @@ class CLIPClient:
             ) from e
 
         except CLIPUnavailableError:
+            # Re-raise our own exceptions (circuit breaker already recorded if needed)
             raise
 
         except Exception as e:
+            # Record failure with circuit breaker for unexpected errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_anomaly_unexpected_error")
             logger.error(
@@ -484,10 +540,14 @@ class CLIPClient:
 
         Raises:
             CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+                or if the circuit breaker is open
             ValueError: If labels list is empty
         """
         if not labels:
             raise ValueError("Labels list cannot be empty")
+
+        # Check circuit breaker before making request
+        self._check_circuit_breaker()
 
         start_time = time.time()
 
@@ -533,12 +593,17 @@ class CLIPClient:
 
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(
                 f"CLIP classification completed: top_label='{top_label}' in {duration_ms}ms"
             )
             return scores, top_label
 
         except httpx.ConnectError as e:
+            # Record failure with circuit breaker for connection errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_connection_error")
             logger.error(
@@ -552,6 +617,8 @@ class CLIPClient:
             ) from e
 
         except httpx.TimeoutException as e:
+            # Record failure with circuit breaker for timeouts
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_timeout")
             logger.error(
@@ -569,6 +636,8 @@ class CLIPClient:
             status_code = e.response.status_code
 
             if status_code >= 500:
+                # Record failure with circuit breaker for server errors
+                self._circuit_breaker.record_failure()
                 record_pipeline_error("clip_server_error")
                 logger.error(
                     f"CLIP returned server error: {status_code} - {e}",
@@ -580,6 +649,7 @@ class CLIPClient:
                     original_error=e,
                 ) from e
 
+            # Don't record circuit breaker failure for client errors
             record_pipeline_error("clip_client_error")
             logger.error(
                 f"CLIP returned client error: {status_code} - {e}",
@@ -592,9 +662,12 @@ class CLIPClient:
             ) from e
 
         except CLIPUnavailableError:
+            # Re-raise our own exceptions (circuit breaker already recorded if needed)
             raise
 
         except Exception as e:
+            # Record failure with circuit breaker for unexpected errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_unexpected_error")
             logger.error(
@@ -619,7 +692,11 @@ class CLIPClient:
 
         Raises:
             CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+                or if the circuit breaker is open
         """
+        # Check circuit breaker before making request
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug("Sending similarity request to CLIP service...")
@@ -665,10 +742,15 @@ class CLIPClient:
 
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(f"CLIP similarity completed: {sim_score:.4f} in {duration_ms}ms")
             return sim_score
 
         except httpx.ConnectError as e:
+            # Record failure with circuit breaker for connection errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_connection_error")
             logger.error(
@@ -682,6 +764,8 @@ class CLIPClient:
             ) from e
 
         except httpx.TimeoutException as e:
+            # Record failure with circuit breaker for timeouts
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_timeout")
             logger.error(
@@ -699,6 +783,8 @@ class CLIPClient:
             status_code = e.response.status_code
 
             if status_code >= 500:
+                # Record failure with circuit breaker for server errors
+                self._circuit_breaker.record_failure()
                 record_pipeline_error("clip_server_error")
                 logger.error(
                     f"CLIP returned server error: {status_code} - {e}",
@@ -710,6 +796,7 @@ class CLIPClient:
                     original_error=e,
                 ) from e
 
+            # Don't record circuit breaker failure for client errors
             record_pipeline_error("clip_client_error")
             logger.error(
                 f"CLIP returned client error: {status_code} - {e}",
@@ -722,9 +809,12 @@ class CLIPClient:
             ) from e
 
         except CLIPUnavailableError:
+            # Re-raise our own exceptions (circuit breaker already recorded if needed)
             raise
 
         except Exception as e:
+            # Record failure with circuit breaker for unexpected errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_unexpected_error")
             logger.error(
@@ -749,10 +839,14 @@ class CLIPClient:
 
         Raises:
             CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+                or if the circuit breaker is open
             ValueError: If texts list is empty
         """
         if not texts:
             raise ValueError("Texts list cannot be empty")
+
+        # Check circuit breaker before making request
+        self._check_circuit_breaker()
 
         start_time = time.time()
 
@@ -799,12 +893,17 @@ class CLIPClient:
 
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(
                 f"CLIP batch similarity completed: {len(similarities)} scores in {duration_ms}ms"
             )
             return similarities
 
         except httpx.ConnectError as e:
+            # Record failure with circuit breaker for connection errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_connection_error")
             logger.error(
@@ -818,6 +917,8 @@ class CLIPClient:
             ) from e
 
         except httpx.TimeoutException as e:
+            # Record failure with circuit breaker for timeouts
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_timeout")
             logger.error(
@@ -836,6 +937,8 @@ class CLIPClient:
 
             # 5xx errors are server-side failures that should be retried
             if status_code >= 500:
+                # Record failure with circuit breaker for server errors
+                self._circuit_breaker.record_failure()
                 record_pipeline_error("clip_server_error")
                 logger.error(
                     f"CLIP returned server error: {status_code} - {e}",
@@ -847,7 +950,7 @@ class CLIPClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors (bad request, etc.)
+            # 4xx errors are client errors (bad request, etc.) - don't record circuit breaker failure
             record_pipeline_error("clip_client_error")
             logger.error(
                 f"CLIP returned client error: {status_code} - {e}",
@@ -860,10 +963,12 @@ class CLIPClient:
             ) from e
 
         except CLIPUnavailableError:
-            # Re-raise our own exceptions
+            # Re-raise our own exceptions (circuit breaker already recorded if needed)
             raise
 
         except Exception as e:
+            # Record failure with circuit breaker for unexpected errors
+            self._circuit_breaker.record_failure()
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("clip_unexpected_error")
             logger.error(

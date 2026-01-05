@@ -107,8 +107,10 @@ function isBackendSystemStatus(data: unknown): data is BackendSystemStatus {
   );
 }
 
-// REST API polling interval when WebSocket fails (30 seconds)
-const POLLING_INTERVAL = 30000;
+// REST API polling interval when WebSocket fails
+// Use shorter interval (5 seconds) during fallback for faster data updates
+// and quicker detection of backend recovery
+const FALLBACK_POLLING_INTERVAL = 5000;
 
 export function useConnectionStatus(): UseConnectionStatusReturn {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
@@ -133,6 +135,9 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     }
   }, []);
 
+  // Track if we should trigger reconnect after successful health check
+  const shouldAutoReconnectRef = useRef(false);
+
   // REST API polling fallback function
   /* v8 ignore start -- polling fallback is triggered by onMaxRetriesExhausted which requires
    * real WebSocket connection exhaustion. Mock setup cannot reliably trigger this callback. */
@@ -140,6 +145,13 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     try {
       // Fetch health status
       const health = await fetchHealth();
+
+      // If health check succeeds during polling fallback, backend is back online
+      // Set flag to trigger WebSocket reconnection
+      if (health.status === 'healthy' || health.status === 'degraded') {
+        shouldAutoReconnectRef.current = true;
+      }
+
       // Get GPU status safely
       const gpuService = health.services?.gpu;
       const gpuIsHealthy = gpuService?.status === 'healthy';
@@ -216,9 +228,13 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
       }
     } catch {
       // Polling failure is expected when server is down - silently ignore
+      shouldAutoReconnectRef.current = false;
     }
   }, []);
   /* v8 ignore stop */
+
+  // Reference to retry function (will be set after WebSocket hooks are created)
+  const retryConnectionRef = useRef<(() => void) | null>(null);
 
   // Start/stop polling based on WebSocket state
   /* v8 ignore start -- part of polling fallback system, requires onMaxRetriesExhausted trigger */
@@ -226,14 +242,22 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     if (pollingIntervalRef.current) return; // Already polling
 
     setIsPollingFallback(true);
+    shouldAutoReconnectRef.current = false;
 
     // Immediate first poll
     void pollRestApi();
 
-    // Set up interval - wrap in void to handle the floating promise
+    // Set up interval with shorter polling during fallback (5s instead of 30s)
+    // This provides faster data updates and quicker backend recovery detection
     pollingIntervalRef.current = setInterval(() => {
       void pollRestApi();
-    }, POLLING_INTERVAL);
+
+      // If health check succeeded, trigger WebSocket reconnection
+      if (shouldAutoReconnectRef.current && retryConnectionRef.current) {
+        shouldAutoReconnectRef.current = false;
+        retryConnectionRef.current();
+      }
+    }, FALLBACK_POLLING_INTERVAL);
   }, [pollRestApi]);
 
   const stopPolling = useCallback(() => {
@@ -241,6 +265,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
       setIsPollingFallback(false);
+      shouldAutoReconnectRef.current = false;
     }
   }, []);
   /* v8 ignore stop */
@@ -297,6 +322,11 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     connectEvents();
     connectSystem();
   }, [stopPolling, connectEvents, connectSystem]);
+
+  // Update ref so auto-reconnect can access this function
+  useEffect(() => {
+    retryConnectionRef.current = retryConnection;
+  }, [retryConnection]);
 
   const summary = useMemo((): ConnectionStatusSummary => {
     const anyReconnecting =
