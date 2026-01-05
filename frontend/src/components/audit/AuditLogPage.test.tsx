@@ -106,6 +106,20 @@ describe('AuditLogPage', () => {
       });
     });
 
+    it('displays info box explaining what creates audit entries', async () => {
+      render(<AuditLogPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading audit logs...')).not.toBeInTheDocument();
+      });
+
+      // Info box should explain what actions create audit entries
+      expect(screen.getByText(/What gets logged/i)).toBeInTheDocument();
+      expect(screen.getByText(/Settings changes/i)).toBeInTheDocument();
+      expect(screen.getByText(/Event reviews/i)).toBeInTheDocument();
+      expect(screen.getByText(/AI re-evaluations/i)).toBeInTheDocument();
+    });
+
     it('displays loading state initially', async () => {
       render(<AuditLogPage />);
 
@@ -455,8 +469,12 @@ describe('AuditLogPage', () => {
         expect(screen.getByText('No Audit Entries Found')).toBeInTheDocument();
       });
 
+      // Empty state now includes helpful guidance
       expect(
-        screen.getByText('No audit logs match the current filters')
+        screen.getByText(/No audit logs match the current filters/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Try these actions to generate entries/i)
       ).toBeInTheDocument();
     });
   });

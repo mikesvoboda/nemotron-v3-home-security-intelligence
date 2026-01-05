@@ -66,6 +66,7 @@ class TestAuditAction:
         assert AuditAction.EVENT_REVIEWED.value == "event_reviewed"
         assert AuditAction.EVENT_DISMISSED.value == "event_dismissed"
         assert AuditAction.SETTINGS_CHANGED.value == "settings_changed"
+        assert AuditAction.AI_REEVALUATED.value == "ai_reevaluated"
         assert AuditAction.MEDIA_EXPORTED.value == "media_exported"
         assert AuditAction.RULE_CREATED.value == "rule_created"
         assert AuditAction.CAMERA_CREATED.value == "camera_created"

@@ -5,8 +5,8 @@
  * percentile displays, and color coding logic.
  */
 
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 
 import LatencyPanel from './LatencyPanel';
 
@@ -400,6 +400,119 @@ describe('LatencyPanel', () => {
       expect(screen.getByText('Nemotron Analysis')).toBeInTheDocument();
       expect(screen.getByText('1,000 samples')).toBeInTheDocument();
       expect(screen.getByText('500 samples')).toBeInTheDocument();
+    });
+  });
+
+  describe('LatencyHistoryChart - sparse data handling', () => {
+    const originalFetch = globalThis.fetch;
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    /**
+     * Creates mock sparse latency history data where most values are null
+     * and only a few isolated data points exist
+     */
+    const createSparseHistoryResponse = () => ({
+      snapshots: [
+        { timestamp: '2025-01-03T12:00:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:01:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:02:00Z', stages: { total_pipeline: { avg_ms: 150000, p50_ms: 140000, p95_ms: 200000, p99_ms: 250000, sample_count: 5 } } },
+        { timestamp: '2025-01-03T12:03:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:04:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:05:00Z', stages: { total_pipeline: { avg_ms: 180000, p50_ms: 170000, p95_ms: 220000, p99_ms: 280000, sample_count: 3 } } },
+        { timestamp: '2025-01-03T12:06:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:07:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:08:00Z', stages: { total_pipeline: null } },
+        { timestamp: '2025-01-03T12:09:00Z', stages: { total_pipeline: { avg_ms: 160000, p50_ms: 150000, p95_ms: 190000, p99_ms: 240000, sample_count: 4 } } },
+      ],
+      window_minutes: 60,
+      bucket_seconds: 60,
+      timestamp: '2025-01-03T12:09:30Z',
+    });
+
+    it('renders latency history card', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(createSparseHistoryResponse()),
+      });
+
+      render(<LatencyPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-history-card')).toBeInTheDocument();
+      });
+    });
+
+    it('renders latency chart when sparse data is present', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(createSparseHistoryResponse()),
+      });
+
+      render(<LatencyPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-chart')).toBeInTheDocument();
+      });
+    });
+
+    it('displays chart even with mostly null values (sparse data)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(createSparseHistoryResponse()),
+      });
+
+      render(<LatencyPanel />);
+
+      // Wait for the chart to render with sparse data
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-chart')).toBeInTheDocument();
+      });
+
+      // Verify chart is visible (not displaying empty state)
+      expect(screen.queryByText(/No latency data available/)).not.toBeInTheDocument();
+    });
+
+    it('displays loading state before data loads', () => {
+      globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})); // Never resolves
+
+      render(<LatencyPanel />);
+
+      expect(screen.getByText('Loading latency history...')).toBeInTheDocument();
+    });
+
+    it('displays error state when fetch fails', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      });
+
+      render(<LatencyPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Error:/)).toBeInTheDocument();
+      });
+    });
+
+    it('displays empty state when no snapshots are returned', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            snapshots: [],
+            window_minutes: 60,
+            bucket_seconds: 60,
+            timestamp: '2025-01-03T12:00:00Z',
+          }),
+      });
+
+      render(<LatencyPanel />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No latency data available/)).toBeInTheDocument();
+      });
     });
   });
 });
