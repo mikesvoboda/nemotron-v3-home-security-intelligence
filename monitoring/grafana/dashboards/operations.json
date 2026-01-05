@@ -19,7 +19,30 @@
   "id": null,
   "links": [],
   "liveNow": true,
-  "panels": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "panels": [],
+      "title": "Quick Time Range",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "datasource", "uid": "-- Dashboard --" },
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "code": { "language": "plaintext", "showLineNumbers": false },
+        "content": "<div style=\"display: flex; gap: 10px; justify-content: center; padding: 5px;\">\n  <a href=\"d/hsi-operations?from=now-15m&to=now\" style=\"padding: 8px 16px; background: #3274d9; color: white; border-radius: 4px; text-decoration: none;\">15m</a>\n  <a href=\"d/hsi-operations?from=now-1h&to=now\" style=\"padding: 8px 16px; background: #3274d9; color: white; border-radius: 4px; text-decoration: none;\">1h</a>\n  <a href=\"d/hsi-operations?from=now-6h&to=now\" style=\"padding: 8px 16px; background: #3274d9; color: white; border-radius: 4px; text-decoration: none;\">6h</a>\n  <a href=\"d/hsi-operations?from=now-24h&to=now\" style=\"padding: 8px 16px; background: #3274d9; color: white; border-radius: 4px; text-decoration: none;\">24h</a>\n  <a href=\"d/hsi-operations?from=now-7d&to=now\" style=\"padding: 8px 16px; background: #3274d9; color: white; border-radius: 4px; text-decoration: none;\">7d</a>\n</div>",
+        "mode": "html"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    }
+  ],
   "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
