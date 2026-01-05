@@ -532,6 +532,29 @@ jobs:
     name: Contract Tests (API Schema)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -552,9 +575,12 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
           REDIS_URL: redis://localhost:6379/15
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: |
           uv run pytest backend/tests/contracts/ \
             -n0 \
+            --timeout=30 \
             -v \
             --junit-xml=test-results-contracts.xml \
             --durations=10
