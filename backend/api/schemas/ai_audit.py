@@ -117,6 +117,140 @@ class RecommendationItem(BaseModel):
     priority: str  # high, medium, low
 
 
+class ExampleImprovement(BaseModel):
+    """Example of how a suggestion could improve a specific event's analysis.
+
+    Shows the potential impact of applying a suggestion by comparing
+    before/after risk scores for a real event.
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "eventId": 142,
+                "beforeScore": 65,
+                "estimatedAfterScore": 40,
+            }
+        },
+    )
+
+    event_id: int = Field(
+        ...,
+        alias="eventId",
+        description="The event ID used as an example",
+    )
+    before_score: int = Field(
+        ...,
+        ge=0,
+        le=100,
+        alias="beforeScore",
+        description="Risk score with original prompt",
+    )
+    estimated_after_score: int = Field(
+        ...,
+        ge=0,
+        le=100,
+        alias="estimatedAfterScore",
+        description="Estimated risk score if suggestion is applied",
+    )
+
+
+class EnrichedSuggestion(BaseModel):
+    """Enhanced suggestion schema for smart prompt modification.
+
+    Extends the basic recommendation with fields for:
+    - Smart application: Identifies where and how to insert the suggestion
+    - Learning mode: Explains impact with evidence from actual events
+
+    Used by the Prompt Playground to transform AI audit recommendations
+    into actionable prompt improvements through a progressive disclosure UX.
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "category": "missing_context",
+                "suggestion": "Time since last detected motion or event",
+                "priority": "high",
+                "frequency": 3,
+                "targetSection": "Camera & Time Context",
+                "insertionPoint": "append",
+                "proposedVariable": "{time_since_last_event}",
+                "proposedLabel": "Time Since Last Event:",
+                "impactExplanation": "Adding time-since-last-event helps the AI distinguish between routine activity and unusual timing patterns. Events occurring shortly after previous motion are often less suspicious than isolated incidents.",
+                "sourceEventIds": [142, 156, 189],
+                "exampleImprovement": {
+                    "eventId": 142,
+                    "beforeScore": 65,
+                    "estimatedAfterScore": 40,
+                },
+            }
+        },
+    )
+
+    # Existing fields from RecommendationItem (no alias needed - single-word or standard)
+    category: str = Field(
+        ...,
+        description="Suggestion category: missing_context, unused_data, model_gaps, format_suggestions",
+    )
+    suggestion: str = Field(
+        ...,
+        description="The improvement suggestion text",
+    )
+    priority: str = Field(
+        ...,
+        description="Priority level: high, medium, low",
+    )
+    frequency: int = Field(
+        ...,
+        ge=0,
+        description="How many events mentioned this suggestion",
+    )
+
+    # Smart application fields
+    target_section: str = Field(
+        ...,
+        alias="targetSection",
+        description="Target section header in the prompt (e.g., 'Camera & Time Context')",
+    )
+    insertion_point: str = Field(
+        ...,
+        alias="insertionPoint",
+        description="Where to insert: append, prepend, or replace",
+    )
+    proposed_variable: str = Field(
+        ...,
+        alias="proposedVariable",
+        description="The variable to add (e.g., '{time_since_last_event}')",
+    )
+    proposed_label: str = Field(
+        ...,
+        alias="proposedLabel",
+        description="Human-readable label for the variable (e.g., 'Time Since Last Event:')",
+    )
+
+    # Learning mode fields
+    impact_explanation: str = Field(
+        ...,
+        alias="impactExplanation",
+        description="Explanation of why this suggestion matters and its expected impact",
+    )
+    source_event_ids: list[int] = Field(
+        default_factory=list,
+        alias="sourceEventIds",
+        description="IDs of events that triggered this suggestion",
+    )
+
+    # Optional improvement estimate
+    example_improvement: ExampleImprovement | None = Field(
+        None,
+        alias="exampleImprovement",
+        description="Optional example showing before/after scores for a specific event",
+    )
+
+
 class RecommendationsResponse(BaseModel):
     """Aggregated recommendations response."""
 
@@ -376,3 +510,110 @@ class PromptImportResponse(BaseModel):
     skipped_count: int = Field(..., ge=0, description="Number of models skipped")
     errors: list[str] = Field(default_factory=list, description="Any errors encountered")
     message: str
+
+
+# =============================================================================
+# Database-backed Prompt Config Schemas (for Playground Save functionality)
+# =============================================================================
+
+
+class PromptConfigRequest(BaseModel):
+    """Request to update a model's prompt configuration (database-backed).
+
+    Used by the Prompt Playground "Save" functionality to persist
+    prompt configurations to the database.
+    """
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    system_prompt: str = Field(
+        ...,
+        min_length=1,
+        alias="systemPrompt",
+        description="Full system prompt text for the model",
+    )
+    temperature: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=2.0,
+        description="LLM temperature setting (0-2)",
+    )
+    max_tokens: int = Field(
+        default=2048,
+        ge=100,
+        le=8192,
+        alias="maxTokens",
+        description="Maximum tokens in response (100-8192)",
+    )
+
+
+class PromptConfigResponse(BaseModel):
+    """Response containing a model's prompt configuration (database-backed).
+
+    Returned when retrieving or updating prompt configurations.
+    """
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    model: str = Field(..., description="Model name")
+    system_prompt: str = Field(
+        ...,
+        alias="systemPrompt",
+        description="Full system prompt text for the model",
+    )
+    temperature: float = Field(..., description="LLM temperature setting (0-2)")
+    max_tokens: int = Field(
+        ...,
+        alias="maxTokens",
+        description="Maximum tokens in response (100-8192)",
+    )
+    version: int = Field(..., ge=1, description="Configuration version number")
+    updated_at: datetime = Field(
+        ...,
+        alias="updatedAt",
+        description="When the configuration was last updated",
+    )
+
+
+# =============================================================================
+# A/B Testing Schemas (Prompt Playground)
+# =============================================================================
+
+
+class CustomTestPromptRequest(BaseModel):
+    """Request to test a custom prompt against an existing event.
+
+    This is used for A/B testing in the Prompt Playground - testing a
+    modified prompt without persisting results to the database.
+    """
+
+    event_id: int = Field(..., ge=1, description="Event ID to test the prompt against")
+    custom_prompt: str = Field(..., min_length=1, description="Custom prompt text to test")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="LLM temperature setting")
+    max_tokens: int = Field(default=2048, ge=100, le=8192, description="Maximum tokens in response")
+    model: str = Field(default="nemotron", description="Model name to use for testing")
+
+
+class CustomTestPromptResponse(BaseModel):
+    """Response from testing a custom prompt against an event.
+
+    Results are NOT persisted - this is for A/B testing only.
+    """
+
+    risk_score: int = Field(..., ge=0, le=100, description="Computed risk score (0-100)")
+    risk_level: str = Field(..., description="Risk level: low, medium, high, or critical")
+    reasoning: str = Field(..., description="LLM reasoning for the risk assessment")
+    summary: str = Field(..., description="Brief summary of the event analysis")
+    entities: list[dict] = Field(
+        default_factory=list, description="Detected entities in the analysis"
+    )
+    flags: list[dict] = Field(
+        default_factory=list, description="Risk flags identified in the analysis"
+    )
+    recommended_action: str = Field(
+        default="", description="Recommended action based on risk analysis"
+    )
+    processing_time_ms: int = Field(
+        ..., ge=0, description="Time taken for inference in milliseconds"
+    )
+    tokens_used: int = Field(..., ge=0, description="Number of tokens used in inference")

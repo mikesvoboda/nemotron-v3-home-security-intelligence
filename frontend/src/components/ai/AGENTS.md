@@ -44,6 +44,8 @@ The AI pages consolidate AI-related metrics into dedicated views:
 | `QualityScoreTrends.test.tsx`    | Test suite for QualityScoreTrends                  |
 | `RecommendationsPanel.tsx`       | Grouped prompt improvement suggestions             |
 | `RecommendationsPanel.test.tsx`  | Test suite for RecommendationsPanel                |
+| `SuggestionDiffView.tsx`         | GitHub-style diff view for prompt suggestions      |
+| `SuggestionDiffView.test.tsx`    | Test suite for SuggestionDiffView                  |
 | `index.ts`                       | Barrel exports                                     |
 | `AGENTS.md`                      | This documentation file                            |
 
@@ -227,6 +229,36 @@ Displays grouped prompt improvement suggestions from AI audit analysis.
 - Frequency counts
 - Expandable accordion sections
 - Click handler to open PromptPlayground with selected recommendation
+
+### SuggestionDiffView.tsx
+
+GitHub-style diff view showing what will change when a suggestion is applied.
+
+**Features:**
+
+- Header banner displaying the suggestion text
+- Section indicator showing the target section name
+- Line-by-line diff display with:
+  - Green background (`bg-green-900/30`) for additions
+  - Red background (`bg-red-900/30`) for removals
+  - Gray background for context lines
+  - Line numbers in left gutter
+  - Monospace font for code-like appearance
+- Impact explanation section
+- Empty state for no changes
+- Accessible ARIA labels for screen readers
+
+**Props:**
+
+- `originalPrompt`: The original prompt text
+- `suggestion`: EnrichedSuggestion with metadata
+- `diff`: Array of DiffLine objects
+- `className`: Optional additional CSS classes
+
+**Exported Types:**
+
+- `DiffLine`: Interface for diff line data
+- `SuggestionDiffViewProps`: Component props interface
 
 ## Data Flow
 

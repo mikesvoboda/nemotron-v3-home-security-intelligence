@@ -11,6 +11,7 @@ from .event import Event
 from .event_audit import EventAudit
 from .gpu_stats import GPUStats
 from .log import Log
+from .prompt_config import PromptConfig
 from .scene_change import SceneChange, SceneChangeType
 from .zone import Zone, ZoneShape, ZoneType
 
@@ -33,6 +34,7 @@ __all__ = [
     "EventAudit",
     "GPUStats",
     "Log",
+    "PromptConfig",
     "SceneChange",
     "SceneChangeType",
     "Severity",

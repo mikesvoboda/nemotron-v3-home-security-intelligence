@@ -1,5 +1,9 @@
 """API schemas for request/response validation."""
 
+from .ai_audit import (
+    EnrichedSuggestion,
+    ExampleImprovement,
+)
 from .alerts import (
     AlertCreate,
     AlertListResponse,
@@ -141,9 +145,11 @@ __all__ = [
     "DeliveryResultResponse",
     "DepthEnrichment",
     "DeviationInterpretation",
+    "EnrichedSuggestion",
     "EnrichmentDataSchema",
     "EnrichmentResponse",
     "EventEnrichmentsResponse",
+    "ExampleImprovement",
     "FaceEnrichment",
     "HourlyPattern",
     "ImageQualityEnrichment",
