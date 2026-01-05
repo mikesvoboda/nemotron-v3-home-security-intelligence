@@ -93,6 +93,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Initialize database
+        working-directory: backend
         run: |
           uv run alembic upgrade head
 
