@@ -90,6 +90,18 @@ export interface ApiMockConfig {
   aiAuditRecommendations?: typeof mockAiAuditRecommendations.normal;
   aiAuditError?: boolean;
 
+  // Entities
+  entities?: Array<{
+    id: string;
+    entity_type: 'person' | 'vehicle';
+    first_seen: string;
+    last_seen: string;
+    appearance_count: number;
+    cameras_seen: string[];
+    thumbnail_url?: string;
+  }>;
+  entitiesError?: boolean;
+
   // WebSocket behavior
   wsConnectionFail?: boolean;
 }
@@ -657,6 +669,27 @@ export async function setupApiMocks(
           count: mergedConfig.auditLogs?.length || 0,
           limit: 50,
           offset: 0,
+        }),
+      });
+    }
+  });
+
+  // Entities endpoint
+  await page.route('**/api/entities*', async (route) => {
+    if (mergedConfig.entitiesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch entities' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          entities: mergedConfig.entities || [],
+          total: mergedConfig.entities?.length || 0,
+          count: mergedConfig.entities?.length || 0,
         }),
       });
     }

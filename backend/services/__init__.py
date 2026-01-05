@@ -5,6 +5,11 @@ from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_
 from .audit import AuditService, audit_service
 from .audit_service import AuditService as AIAuditService
 from .audit_service import get_audit_service, reset_audit_service
+from .background_evaluator import (
+    BackgroundEvaluator,
+    get_background_evaluator,
+    reset_background_evaluator,
+)
 from .baseline import BaselineService, get_baseline_service, reset_baseline_service
 from .batch_aggregator import BatchAggregator
 from .cache_service import (
@@ -63,6 +68,11 @@ from .enrichment_pipeline import (
     LicensePlateResult,
     get_enrichment_pipeline,
     reset_enrichment_pipeline,
+)
+from .evaluation_queue import (
+    EvaluationQueue,
+    get_evaluation_queue,
+    reset_evaluation_queue,
 )
 from .event_broadcaster import EventBroadcaster, get_broadcaster, stop_broadcaster
 from .face_detector import (
@@ -202,6 +212,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "AlertDeduplicationService",
     "AlertRuleEngine",
     "AuditService",
+    "BackgroundEvaluator",
     "BaselineContext",
     "BaselineService",
     "BatchAggregator",
@@ -234,6 +245,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "EntityEmbedding",
     "EntityMatch",
     "EnvironmentContext",
+    "EvaluationQueue",
     "EvaluationResult",
     "EventBroadcaster",
     "FaceDetection",
@@ -287,6 +299,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "detection_in_zone",
     "get_alert_engine",
     "get_available_models",
+    "get_background_evaluator",
     "get_baseline_service",
     "get_broadcaster",
     "get_cache_service",
@@ -297,6 +310,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_degradation_manager",
     "get_enabled_models",
     "get_enrichment_pipeline",
+    "get_evaluation_queue",
     "get_florence_extractor",
     "get_highest_priority_zone",
     "get_model_config",
@@ -321,6 +335,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "read_plates",
     "read_single_plate",
     "refresh_event_search_vector",
+    "reset_background_evaluator",
     "reset_baseline_service",
     "reset_cache_service",
     "reset_circuit_breaker_registry",
@@ -329,6 +344,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_dedupe_service",
     "reset_degradation_manager",
     "reset_enrichment_pipeline",
+    "reset_evaluation_queue",
     "reset_florence_extractor",
     "reset_model_manager",
     "reset_model_zoo",

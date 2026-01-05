@@ -90,6 +90,7 @@ from backend.services.vision_extractor import (
 )
 from backend.services.weather_loader import (
     WeatherResult,
+    classify_weather,
 )
 
 logger = get_logger(__name__)
@@ -820,6 +821,7 @@ class EnrichmentPipeline:
         reid_enabled: bool = True,
         scene_change_enabled: bool = True,
         violence_detection_enabled: bool = True,
+        weather_classification_enabled: bool = True,
         clothing_classification_enabled: bool = True,
         clothing_segmentation_enabled: bool = True,
         vehicle_damage_detection_enabled: bool = True,
@@ -842,6 +844,7 @@ class EnrichmentPipeline:
             reid_enabled: Enable CLIP re-identification
             scene_change_enabled: Enable scene change detection
             violence_detection_enabled: Enable violence detection (runs when 2+ persons)
+            weather_classification_enabled: Enable SigLIP weather classification (runs on full frame)
             clothing_classification_enabled: Enable FashionCLIP clothing classification
             clothing_segmentation_enabled: Enable SegFormer clothing segmentation
             vehicle_damage_detection_enabled: Enable YOLOv11 vehicle damage detection
@@ -867,6 +870,7 @@ class EnrichmentPipeline:
         self.reid_enabled = reid_enabled
         self.scene_change_enabled = scene_change_enabled
         self.violence_detection_enabled = violence_detection_enabled
+        self.weather_classification_enabled = weather_classification_enabled
         self.clothing_classification_enabled = clothing_classification_enabled
         self.clothing_segmentation_enabled = clothing_segmentation_enabled
         self.vehicle_damage_detection_enabled = vehicle_damage_detection_enabled
@@ -1207,6 +1211,15 @@ class EnrichmentPipeline:
                     error_msg = f"Violence detection failed: {e}"
                     logger.error(error_msg)
                     result.errors.append(error_msg)
+
+        # Run weather classification on full frame (environmental context)
+        if self.weather_classification_enabled and pil_image:
+            try:
+                result.weather_classification = await self._classify_weather(pil_image)
+            except Exception as e:
+                error_msg = f"Weather classification failed: {e}"
+                logger.error(error_msg)
+                result.errors.append(error_msg)
 
         # Run clothing classification on person crops
         if self.clothing_classification_enabled and pil_image:
@@ -1785,6 +1798,41 @@ class EnrichmentPipeline:
             logger.error(f"Violence detection error: {e}")
             raise
 
+    async def _classify_weather(self, image: Image.Image) -> WeatherResult:
+        """Run weather classification on a full frame image.
+
+        This method loads the weather classification model, runs inference,
+        and returns the classification result. Weather context helps Nemotron
+        calibrate risk assessments based on visibility and environmental conditions.
+
+        Args:
+            image: PIL Image (full frame) to classify
+
+        Returns:
+            WeatherResult with condition and confidence
+
+        Raises:
+            RuntimeError: If weather classification fails
+        """
+        try:
+            async with self.model_manager.load("weather-classification") as model_data:
+                record_enrichment_model_call("weather")
+                result = await classify_weather(model_data, image)
+                # Record semantic metric for enrichment model call
+                record_enrichment_model_call("weather-classification")
+                logger.info(
+                    f"Weather classified as {result.simple_condition} "
+                    f"({result.confidence:.0%} confidence)"
+                )
+                return result
+
+        except KeyError as e:
+            logger.warning("weather-classification model not available in MODEL_ZOO")
+            raise RuntimeError("weather-classification model not configured") from e
+        except Exception as e:
+            logger.error(f"Weather classification error: {e}")
+            raise
+
     async def _classify_person_clothing(
         self,
         persons: list[DetectionInput],
@@ -2151,12 +2199,18 @@ _enrichment_pipeline: EnrichmentPipeline | None = None
 def get_enrichment_pipeline() -> EnrichmentPipeline:
     """Get or create the global EnrichmentPipeline instance.
 
+    The pipeline is initialized with the global Redis client (if available)
+    to enable Re-ID functionality for entity tracking.
+
     Returns:
         Global EnrichmentPipeline instance
     """
     global _enrichment_pipeline  # noqa: PLW0603
     if _enrichment_pipeline is None:
-        _enrichment_pipeline = EnrichmentPipeline()
+        from backend.core.redis import get_redis_client_sync
+
+        redis_client = get_redis_client_sync()
+        _enrichment_pipeline = EnrichmentPipeline(redis_client=redis_client)
     return _enrichment_pipeline
 
 

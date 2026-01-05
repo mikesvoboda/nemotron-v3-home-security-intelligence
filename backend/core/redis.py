@@ -1068,6 +1068,101 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("bool", await client.expire(key, seconds))
 
+    # Sorted set operations for priority queues
+
+    async def zadd(self, key: str, mapping: dict[str, float | int]) -> int:
+        """Add members to a sorted set with scores.
+
+        Args:
+            key: Sorted set key
+            mapping: Dictionary of {member: score} pairs
+
+        Returns:
+            Number of new elements added (not counting score updates)
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.zadd(key, mapping))
+
+    async def zpopmax(self, key: str, count: int = 1) -> list[tuple[str, float]]:
+        """Remove and return the member(s) with highest score(s).
+
+        Args:
+            key: Sorted set key
+            count: Number of elements to pop (default: 1)
+
+        Returns:
+            List of (member, score) tuples
+        """
+        client = self._ensure_connected()
+        result = await client.zpopmax(key, count)
+        return cast("list[tuple[str, float]]", result)
+
+    async def zcard(self, key: str) -> int:
+        """Return the number of elements in a sorted set.
+
+        Args:
+            key: Sorted set key
+
+        Returns:
+            Number of elements in the sorted set
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.zcard(key))
+
+    async def zrange(self, key: str, start: int, stop: int) -> list[str]:
+        """Return elements in a sorted set by index range.
+
+        Args:
+            key: Sorted set key
+            start: Start index (0-based)
+            stop: Stop index (inclusive, -1 for last)
+
+        Returns:
+            List of members in the specified range
+        """
+        client = self._ensure_connected()
+        result = await client.zrange(key, start, stop)
+        return cast("list[str]", result)
+
+    async def zrem(self, key: str, *members: str) -> int:
+        """Remove members from a sorted set.
+
+        Args:
+            key: Sorted set key
+            *members: Members to remove
+
+        Returns:
+            Number of members removed
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.zrem(key, *members))
+
+    async def zscore(self, key: str, member: str) -> float | None:
+        """Get the score of a member in a sorted set.
+
+        Args:
+            key: Sorted set key
+            member: Member to get score for
+
+        Returns:
+            Score of the member, or None if member doesn't exist
+        """
+        client = self._ensure_connected()
+        result = await client.zscore(key, member)
+        return cast("float | None", result)
+
+    async def llen(self, key: str) -> int:
+        """Get the length of a list.
+
+        Args:
+            key: List key
+
+        Returns:
+            Length of the list
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.llen(key))  # type: ignore[misc]
+
 
 # Global Redis client instance
 _redis_client: RedisClient | None = None
@@ -1182,6 +1277,24 @@ async def init_redis() -> RedisClient:
             await client.connect()
             _redis_client = client
 
+    return _redis_client
+
+
+def get_redis_client_sync() -> RedisClient | None:
+    """Get the global Redis client synchronously.
+
+    This function returns the already-initialized Redis client without
+    awaiting connection. Use this when you need Redis access from synchronous
+    code and the client has already been initialized during app startup.
+
+    Returns:
+        RedisClient if already initialized, None otherwise
+
+    Note:
+        This is designed for singleton initializers like get_enrichment_pipeline()
+        that need Redis access but are called synchronously. The Redis client
+        should already be initialized via init_redis() during app startup.
+    """
     return _redis_client
 
 

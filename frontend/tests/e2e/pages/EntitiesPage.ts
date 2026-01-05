@@ -1,8 +1,7 @@
 /**
  * EntitiesPage - Page Object for the Entities page
  *
- * Note: This page is a "Coming Soon" placeholder.
- * The page object provides selectors for the current placeholder content.
+ * This page displays tracked people and vehicles with filtering capabilities.
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -15,12 +14,24 @@ export class EntitiesPage extends BasePage {
   readonly pageSubtitle: Locator;
   readonly usersIcon: Locator;
 
-  // Coming Soon Section
-  readonly comingSoonHeading: Locator;
-  readonly comingSoonDescription: Locator;
-  readonly featureList: Locator;
-  readonly featureItems: Locator;
-  readonly checkBackMessage: Locator;
+  // Filter buttons
+  readonly allFilterButton: Locator;
+  readonly personFilterButton: Locator;
+  readonly vehicleFilterButton: Locator;
+
+  // Refresh button
+  readonly refreshButton: Locator;
+
+  // Empty state
+  readonly emptyStateMessage: Locator;
+  readonly emptyStateHeading: Locator;
+
+  // Entity grid
+  readonly entityGrid: Locator;
+  readonly entityCards: Locator;
+
+  // Loading state
+  readonly loadingIndicator: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -30,12 +41,24 @@ export class EntitiesPage extends BasePage {
     this.pageSubtitle = page.getByText(/Track and identify people and vehicles/i);
     this.usersIcon = page.locator('svg.lucide-users').first();
 
-    // Coming Soon Section
-    this.comingSoonHeading = page.getByRole('heading', { name: /Coming Soon/i });
-    this.comingSoonDescription = page.getByText(/The Entities feature is currently under development/i);
-    this.featureList = page.locator('ul');
-    this.featureItems = page.locator('ul li');
-    this.checkBackMessage = page.getByText(/Check back for updates/i);
+    // Filter buttons - text content within buttons
+    this.allFilterButton = page.locator('button').filter({ hasText: 'All' }).first();
+    this.personFilterButton = page.locator('button').filter({ hasText: 'Persons' });
+    this.vehicleFilterButton = page.locator('button').filter({ hasText: 'Vehicles' });
+
+    // Refresh button - has aria-label
+    this.refreshButton = page.getByRole('button', { name: /Refresh entities/i });
+
+    // Empty state
+    this.emptyStateMessage = page.getByText(/No tracked entities have been detected/i);
+    this.emptyStateHeading = page.getByRole('heading', { name: /No Entities Found/i });
+
+    // Entity grid
+    this.entityGrid = page.locator('.grid');
+    this.entityCards = page.locator('[data-testid="entity-card"]');
+
+    // Loading state
+    this.loadingIndicator = page.getByText(/Loading entities/i);
   }
 
   /**
@@ -50,26 +73,45 @@ export class EntitiesPage extends BasePage {
    */
   async waitForEntitiesLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for filter buttons to be visible (indicates page has loaded)
+    await expect(this.allFilterButton).toBeVisible({ timeout: this.pageLoadTimeout });
   }
 
   /**
-   * Check if coming soon message is displayed
+   * Get the number of entity cards displayed
    */
-  async hasComingSoonMessage(): Promise<boolean> {
-    return this.comingSoonHeading.isVisible().catch(() => false);
+  async getEntityCount(): Promise<number> {
+    return this.entityCards.count();
   }
 
   /**
-   * Get the number of feature items listed
+   * Check if the page is in loading state
    */
-  async getFeatureCount(): Promise<number> {
-    return this.featureItems.count();
+  async isLoading(): Promise<boolean> {
+    return this.loadingIndicator.isVisible().catch(() => false);
   }
 
   /**
-   * Get feature item text by index
+   * Click refresh button
    */
-  async getFeatureText(index: number): Promise<string | null> {
-    return this.featureItems.nth(index).textContent();
+  async refresh(): Promise<void> {
+    await this.refreshButton.click();
+  }
+
+  /**
+   * Filter by entity type
+   */
+  async filterByType(type: 'all' | 'person' | 'vehicle'): Promise<void> {
+    switch (type) {
+      case 'all':
+        await this.allFilterButton.click();
+        break;
+      case 'person':
+        await this.personFilterButton.click();
+        break;
+      case 'vehicle':
+        await this.vehicleFilterButton.click();
+        break;
+    }
   }
 }

@@ -383,7 +383,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             enabled=True,
             available=False,
         ),
-        # BRISQUE image quality assessment via PyIQA
+        # BRISQUE image quality assessment via piq (Photosynthesis Image Quality)
         # No-reference image quality metric for detecting:
         # - Camera obstruction/tampering (sudden quality drop)
         # - Motion blur (fast movement detection)
@@ -391,11 +391,11 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # CPU-based, no VRAM required
         "brisque-quality": ModelConfig(
             name="brisque-quality",
-            path="pyiqa",  # Uses pyiqa library, not a model path
+            path="piq",  # Uses piq library, not a model path
             category="quality-assessment",
             vram_mb=0,  # CPU-based, no VRAM needed
             load_fn=load_brisque_model,
-            enabled=False,  # Disabled: pyiqa incompatible with NumPy 2.0 (np.sctypes removed)
+            enabled=True,  # Enabled: piq is NumPy 2.0 compatible
             available=False,
         ),
         # ResNet-50 Vehicle Segment Classification for detailed vehicle type ID

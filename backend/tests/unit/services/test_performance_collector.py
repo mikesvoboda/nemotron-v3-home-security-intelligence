@@ -169,6 +169,196 @@ class TestCollectGpuPynvml:
             assert result is None
 
 
+class TestCollectGpuFallback:
+    """Tests for _collect_gpu_fallback method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_converts_floats_to_ints(self) -> None:
+        """Test that GPU fallback correctly converts float values to int for temperature and power.
+
+        This test verifies that when the AI container health endpoint returns float values
+        for temperature and power_watts, they are cast to int before being passed to the
+        GpuMetrics schema, which expects int fields.
+
+        Regression test for NEM-1266: int_from_float validation error.
+        """
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+
+            collector = PerformanceCollector()
+
+            # Mock HTTP response with float values (as returned by some AI containers)
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "device": "NVIDIA RTX A5500",
+                "gpu_utilization": 45.5,
+                "vram_used_gb": 12.3,
+                "temperature": 65.7,  # Float value - should be converted to int
+                "power_watts": 125.3,  # Float value - should be converted to int
+                "status": "healthy",
+            }
+
+            with patch.object(collector, "_get_http_client") as mock_get_client:
+                mock_client = AsyncMock()
+                mock_client.get.return_value = mock_response
+                mock_get_client.return_value = mock_client
+
+                result = await collector._collect_gpu_fallback()
+
+                assert result is not None
+                # Verify values are integers (not floats)
+                assert isinstance(result["temperature"], int)
+                assert isinstance(result["power_watts"], int)
+                # Verify truncation behavior (int() truncates toward zero)
+                assert result["temperature"] == 65
+                assert result["power_watts"] == 125
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_handles_int_values(self) -> None:
+        """Test that GPU fallback works when API returns int values."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+
+            collector = PerformanceCollector()
+
+            # Mock HTTP response with int values
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "device": "NVIDIA RTX A5500",
+                "gpu_utilization": 45,
+                "vram_used_gb": 12,
+                "temperature": 65,  # Already int
+                "power_watts": 125,  # Already int
+                "status": "healthy",
+            }
+
+            with patch.object(collector, "_get_http_client") as mock_get_client:
+                mock_client = AsyncMock()
+                mock_client.get.return_value = mock_response
+                mock_get_client.return_value = mock_client
+
+                result = await collector._collect_gpu_fallback()
+
+                assert result is not None
+                assert result["temperature"] == 65
+                assert result["power_watts"] == 125
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_handles_missing_values(self) -> None:
+        """Test that GPU fallback uses default values when fields are missing."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+
+            collector = PerformanceCollector()
+
+            # Mock HTTP response with missing temperature and power_watts
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "device": "NVIDIA RTX A5500",
+                "gpu_utilization": 45.5,
+                "vram_used_gb": 12.3,
+                # temperature and power_watts missing - should default to 0
+                "status": "healthy",
+            }
+
+            with patch.object(collector, "_get_http_client") as mock_get_client:
+                mock_client = AsyncMock()
+                mock_client.get.return_value = mock_response
+                mock_get_client.return_value = mock_client
+
+                result = await collector._collect_gpu_fallback()
+
+                assert result is not None
+                assert result["temperature"] == 0
+                assert result["power_watts"] == 0
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_returns_none_on_error(self) -> None:
+        """Test that GPU fallback returns None on HTTP error."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+
+            collector = PerformanceCollector()
+
+            with patch.object(collector, "_get_http_client") as mock_get_client:
+                mock_client = AsyncMock()
+                mock_client.get.side_effect = Exception("Connection refused")
+                mock_get_client.return_value = mock_client
+
+                result = await collector._collect_gpu_fallback()
+
+                assert result is None
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_returns_none_on_non_200(self) -> None:
+        """Test that GPU fallback returns None on non-200 status."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+
+            collector = PerformanceCollector()
+
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+
+            with patch.object(collector, "_get_http_client") as mock_get_client:
+                mock_client = AsyncMock()
+                mock_client.get.return_value = mock_response
+                mock_get_client.return_value = mock_client
+
+                result = await collector._collect_gpu_fallback()
+
+                assert result is None
+
+
+class TestCollectGpuMetrics:
+    """Tests for collect_gpu_metrics integration."""
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_metrics_with_float_fallback_values(self) -> None:
+        """Test that collect_gpu_metrics successfully creates GpuMetrics from float values.
+
+        This is an integration test verifying the complete flow from fallback to schema.
+        The fallback method should convert floats to ints so GpuMetrics validates.
+
+        Regression test for NEM-1266: int_from_float validation error.
+        """
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+
+            collector = PerformanceCollector()
+            collector._pynvml_available = False  # Force fallback path
+
+            # Mock HTTP response with float values
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "device": "NVIDIA RTX A5500",
+                "gpu_utilization": 45.5,
+                "vram_used_gb": 12.3,
+                "temperature": 65.7,  # Float
+                "power_watts": 125.3,  # Float
+                "status": "healthy",
+            }
+
+            with patch.object(collector, "_get_http_client") as mock_get_client:
+                mock_client = AsyncMock()
+                mock_client.get.return_value = mock_response
+                mock_get_client.return_value = mock_client
+
+                # This should NOT raise ValidationError
+                result = await collector.collect_gpu_metrics()
+
+                assert result is not None
+                assert result.name == "NVIDIA RTX A5500"
+                assert result.temperature == 65  # Converted to int
+                assert result.power_watts == 125  # Converted to int
+                assert isinstance(result.temperature, int)
+                assert isinstance(result.power_watts, int)
+
+
 # =============================================================================
 # Host Metrics Tests
 # =============================================================================
