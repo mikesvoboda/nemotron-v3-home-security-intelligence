@@ -1,0 +1,252 @@
+name: Load Tests
+
+# Load testing verifies API performance under various traffic conditions.
+# Runs as a non-blocking check with smoke tests on PRs and scheduled stress tests weekly.
+#
+# Why non-blocking?
+# - Load test results can vary due to resource availability
+# - Failing thresholds don't always indicate real problems
+# - Performance baselines evolve over time
+#
+# Use the results to identify performance regressions, not to block PRs.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/load-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/load-tests.yml'
+  # Weekly comprehensive load test (Sunday at 3 AM UTC)
+  schedule:
+    - cron: '0 3 * * 0'
+  # Manual trigger for on-demand testing
+  workflow_dispatch:
+    inputs:
+      load_profile:
+        description: 'Load profile to use'
+        required: false
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - average
+          - stress
+          - spike
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - events
+          - cameras
+          - websocket
+          - mutations
+
+concurrency:
+  group: load-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # Load Testing with k6
+  # ============================================================================
+  load-tests:
+    name: k6 Load Tests
+    runs-on: ubuntu-latest
+    # Non-blocking: failures are informational
+    continue-on-error: true
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      REDIS_URL: redis://localhost:6379
+      BASE_URL: http://localhost:8000
+      WS_URL: ws://localhost:8000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Initialize database
+        run: |
+          uv run alembic upgrade head
+
+      - name: Start backend server
+        run: |
+          uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+          echo "Waiting for backend to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/api/system/health/ready > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              break
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+
+      - name: Determine load profile
+        id: profile
+        run: |
+          # Use smoke for PRs (fast), average for scheduled runs, or user-specified
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            PROFILE="${{ github.event.inputs.load_profile }}"
+            SUITE="${{ github.event.inputs.test_suite }}"
+          elif [ "${{ github.event_name }}" == "schedule" ]; then
+            PROFILE="average"
+            SUITE="all"
+          else
+            PROFILE="smoke"
+            SUITE="all"
+          fi
+          echo "profile=$PROFILE" >> $GITHUB_OUTPUT
+          echo "suite=$SUITE" >> $GITHUB_OUTPUT
+          echo "Using load profile: $PROFILE, test suite: $SUITE"
+
+      - name: Run load tests
+        id: load_tests
+        run: |
+          mkdir -p results
+          LOAD_PROFILE="${{ steps.profile.outputs.profile }}" \
+          BASE_URL="$BASE_URL" \
+          WS_URL="$WS_URL" \
+          k6 run \
+            --out "json=results/k6-results.json" \
+            --summary-export="results/k6-summary.json" \
+            --env "BASE_URL=$BASE_URL" \
+            --env "WS_URL=$WS_URL" \
+            --env "LOAD_PROFILE=${{ steps.profile.outputs.profile }}" \
+            "tests/load/${{ steps.profile.outputs.suite }}.js" \
+            2>&1 | tee results/k6-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Generate results summary
+        if: always()
+        run: |
+          echo "## Load Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Profile:** ${{ steps.profile.outputs.profile }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Suite:** ${{ steps.profile.outputs.suite }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "results/k6-summary.json" ]; then
+            echo "### Metrics Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat results/k6-summary.json | head -100 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f "results/k6-output.txt" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Test Output" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 results/k6-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload load test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: load-test-results
+          path: results/
+          retention-days: 14
+
+  # ============================================================================
+  # Summary Job
+  # ============================================================================
+  load-tests-summary:
+    name: Load Tests Summary
+    runs-on: ubuntu-latest
+    needs: [load-tests]
+    if: always()
+    steps:
+      - name: Check load test results
+        run: |
+          if [ "${{ needs.load-tests.result }}" == "failure" ]; then
+            echo "::warning::Load tests detected performance issues. Review the artifacts for details."
+            echo ""
+            echo "To run load tests locally:"
+            echo "  ./scripts/load-test.sh all smoke     # Quick smoke test"
+            echo "  ./scripts/load-test.sh all average   # Normal load test"
+            echo "  ./scripts/load-test.sh all stress    # Stress test"
+          else
+            echo "Load tests passed!"
+          fi
+
+      - name: Create Linear issue on failure
+        if: needs.load-tests.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          # Only create issue for failures on main branch pushes (not PRs)
+          curl -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "Load test failure on main",
+                  "description": "## Load Test Failure\n\nThe k6 load tests failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Review the load test results in the workflow artifacts\n2. Check for performance regressions in recent changes\n3. Run load tests locally to investigate:\n   ```bash\n   ./scripts/load-test.sh all smoke\n   ./scripts/load-test.sh all average\n   ```\n4. If thresholds need adjustment, update tests/load/config.js",
+                  "priority": 3,
+                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                }
+              }
+            }'

@@ -1,0 +1,217 @@
+name: API Compatibility
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/api/**'
+      - 'backend/models/**'
+      - 'backend/main.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/api/**'
+      - 'backend/models/**'
+      - 'backend/main.py'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+
+jobs:
+  # ============================================================================
+  # API Compatibility Check
+  # Detects breaking API changes between current branch and main
+  # ============================================================================
+
+  api-compatibility:
+    name: API Breaking Change Detection
+    runs-on: ubuntu-latest
+    # Non-blocking - reports breaking changes without failing CI
+    continue-on-error: true
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Install oasdiff
+        run: |
+          # Install oasdiff for OpenAPI schema comparison
+          curl -sSL https://github.com/Tufin/oasdiff/releases/download/v1.10.25/oasdiff_1.10.25_linux_amd64.tar.gz | tar xz -C /tmp
+          sudo mv /tmp/oasdiff /usr/local/bin/
+          oasdiff --version
+
+      - name: Generate current branch OpenAPI spec
+        id: current-spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          echo "Generating OpenAPI spec from current branch..."
+          uv run python -c "
+          from backend.main import app
+          import json
+          spec = app.openapi()
+          with open('openapi-current.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print(f'Generated OpenAPI spec with {len(spec.get(\"paths\", {}))} endpoints')
+          "
+
+      - name: Generate main branch OpenAPI spec
+        id: main-spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          echo "Fetching OpenAPI spec from main branch..."
+          # Stash any uncommitted changes
+          git stash --include-untracked || true
+
+          # Checkout main branch
+          git checkout origin/main
+
+          # Generate spec from main
+          uv run python -c "
+          from backend.main import app
+          import json
+          spec = app.openapi()
+          with open('openapi-main.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print(f'Generated OpenAPI spec with {len(spec.get(\"paths\", {}))} endpoints')
+          " || echo '{}' > openapi-main.json
+
+          # Return to original branch
+          git checkout -
+
+          # Restore stashed changes
+          git stash pop || true
+
+      - name: Run oasdiff breaking change detection
+        id: oasdiff
+        run: |
+          echo "## API Compatibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check for breaking changes
+          echo "### Breaking Changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run oasdiff breaking check
+          if oasdiff breaking openapi-main.json openapi-current.json --format text > breaking-changes.txt 2>&1; then
+            if [ -s breaking-changes.txt ]; then
+              echo "Breaking changes detected:"
+              cat breaking-changes.txt
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              cat breaking-changes.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=true" >> $GITHUB_OUTPUT
+            else
+              echo "No breaking changes detected"
+              echo "No breaking changes detected." >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            # oasdiff returns non-zero when breaking changes found
+            echo "Breaking changes detected:"
+            cat breaking-changes.txt
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat breaking-changes.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "HAS_BREAKING=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Generate full diff report
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Full API Diff" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run oasdiff diff for complete changelog
+          oasdiff diff openapi-main.json openapi-current.json --format text > full-diff.txt 2>&1 || true
+
+          if [ -s full-diff.txt ]; then
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>Click to expand full diff</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -500 full-diff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No API changes detected." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Summary statistics
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          MAIN_ENDPOINTS=$(jq '.paths | keys | length' openapi-main.json 2>/dev/null || echo "0")
+          CURRENT_ENDPOINTS=$(jq '.paths | keys | length' openapi-current.json 2>/dev/null || echo "0")
+          echo "| Metric | Main | Current |" >> $GITHUB_STEP_SUMMARY
+          echo "| ------ | ---- | ------- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoints | $MAIN_ENDPOINTS | $CURRENT_ENDPOINTS |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload OpenAPI specs as artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: openapi-specs
+          path: |
+            openapi-main.json
+            openapi-current.json
+            breaking-changes.txt
+            full-diff.txt
+          retention-days: 30
+
+      - name: Fail if breaking changes detected (informational)
+        if: steps.oasdiff.outputs.HAS_BREAKING == 'true'
+        run: |
+          echo "::warning::Breaking API changes detected. Review the changes above."
+          echo "This check is non-blocking but breaking changes should be reviewed carefully."
+          # Exit with success since continue-on-error: true handles this
+          exit 0
+
+  # ============================================================================
+  # Issue Creation Job (only on main branch failures)
+  # ============================================================================
+
+  create-issue-on-failure:
+    name: Create Linear Issue
+    runs-on: ubuntu-latest
+    needs: [api-compatibility]
+    if: needs.api-compatibility.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Create Linear issue on failure
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "Breaking API change detected",
+                  "description": "## Breaking API Change Detected\n\nA breaking API change was detected after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Breaking Changes Detected\n\nPossible issues include:\n- Removed endpoints\n- Removed required parameters\n- Changed response schemas\n- Type changes in request/response bodies\n\n### Action Required\n\n1. Review the API compatibility report in the workflow run\n2. If the breaking change is intentional:\n   - Update frontend API clients\n   - Update API documentation\n   - Consider API versioning for major changes\n3. If unintentional, revert or fix the change\n4. Run locally to investigate:\n   ```bash\n   ./scripts/check-api-compatibility.sh\n   ```",
+                  "priority": 2,
+                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                }
+              }
+            }'

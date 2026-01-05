@@ -23,7 +23,7 @@ import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
 # Configure logging
@@ -146,12 +146,11 @@ class BoundingBox(BaseModel):
 class Detection(BaseModel):
     """Single object detection result."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     class_name: str = Field(..., alias="class", description="Detected object class")
     confidence: float = Field(..., description="Detection confidence score (0-1)")
     bbox: BoundingBox = Field(..., description="Bounding box coordinates")
-
-    class Config:
-        populate_by_name = True
 
 
 class DetectionResponse(BaseModel):

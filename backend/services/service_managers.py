@@ -364,7 +364,9 @@ class ShellServiceManager(ServiceManager):
                 await process.wait()
                 return False
 
-            if process.returncode == 0:
+            # Log and return based on process exit code
+            success = process.returncode == 0
+            if success:
                 logger.info(
                     f"Restart command succeeded for {config.name}",
                     extra={
@@ -373,7 +375,6 @@ class ShellServiceManager(ServiceManager):
                         "stdout": stdout.decode().strip()[:500],  # Truncate long output
                     },
                 )
-                return True
             else:
                 logger.error(
                     f"Restart command failed for {config.name} with exit code {process.returncode}",
@@ -383,7 +384,17 @@ class ShellServiceManager(ServiceManager):
                         "stderr": stderr.decode().strip()[:500],
                     },
                 )
-                return False
+            return success
+
+        except FileNotFoundError:
+            # The restart script/command executable was not found
+            # This can happen if the script doesn't exist or isn't in PATH
+            logger.warning(
+                f"Restart skipped for {config.name}: command not found ({config.restart_cmd}). "
+                "Ensure the restart script exists and is executable, or disable restart for this service.",
+                extra={"service": config.name, "command": config.restart_cmd},
+            )
+            return False
 
         except Exception as e:
             logger.error(
@@ -560,6 +571,17 @@ class DockerServiceManager(ServiceManager):
                     },
                 )
                 return False
+
+        except FileNotFoundError:
+            # Docker/Podman CLI not available in this environment
+            # This is expected when running inside a container without docker CLI
+            logger.warning(
+                f"Docker restart skipped for {config.name}: docker/podman CLI not available. "
+                "This is expected when running inside a container. "
+                "Let the container orchestrator (Docker/Podman) handle restarts.",
+                extra={"service": config.name, "container": container_name},
+            )
+            return False
 
         except Exception as e:
             logger.error(

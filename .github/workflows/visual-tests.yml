@@ -1,0 +1,146 @@
+name: Visual Regression Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/visual-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/visual-tests.yml'
+  # Allow manual trigger for updating baselines
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Update baseline snapshots'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: visual-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  visual-regression:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    # Non-blocking for now while baselines are established
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: cd frontend && npx playwright install-deps chromium
+
+      - name: Run Visual Regression Tests
+        if: github.event.inputs.update_snapshots != 'true'
+        run: cd frontend && npx playwright test --project=visual-chromium
+
+      - name: Update Baseline Snapshots
+        if: github.event.inputs.update_snapshots == 'true'
+        run: cd frontend && npx playwright test --project=visual-chromium --update-snapshots
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-regression-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-test-results
+          path: frontend/test-results/
+          retention-days: 14
+
+      - name: Upload snapshot diff artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: snapshot-diffs
+          path: |
+            frontend/tests/e2e/visual/**/*-diff.png
+            frontend/tests/e2e/visual/**/*-actual.png
+          retention-days: 14
+
+      - name: Upload updated snapshots
+        if: github.event.inputs.update_snapshots == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: updated-snapshots
+          path: frontend/tests/e2e/visual/**/*.png
+          retention-days: 30
+
+  # Summary job for PR status
+  visual-tests-summary:
+    name: Visual Tests Summary
+    runs-on: ubuntu-latest
+    needs: [visual-regression]
+    if: always()
+    steps:
+      - name: Check visual test results
+        run: |
+          if [ "${{ needs.visual-regression.result }}" == "failure" ]; then
+            echo "::warning::Visual regression tests detected differences. Review the artifacts for details."
+            echo "If the changes are intentional, update the baselines by running:"
+            echo "  npx playwright test --project=visual-chromium --update-snapshots"
+            echo ""
+            echo "Or trigger the workflow manually with 'Update baseline snapshots' checked."
+          else
+            echo "Visual regression tests passed!"
+          fi
+
+      - name: Create Linear issue on failure
+        if: needs.visual-regression.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          # Only create issue for failures on main branch pushes (not PRs)
+          curl -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "Visual regression test failure on main",
+                  "description": "## Visual Regression Test Failure\n\nThe visual regression tests failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Review the snapshot diffs in the workflow artifacts\n2. If changes are intentional, update baselines:\n   ```bash\n   cd frontend && npx playwright test --project=visual-chromium --update-snapshots\n   ```\n3. If changes are unintentional, investigate and fix the UI regression",
+                  "priority": 3,
+                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                }
+              }
+            }'

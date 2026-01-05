@@ -619,3 +619,86 @@ async def test_docker_manager_restart_returns_false_when_restart_cmd_none(
     """Test that DockerServiceManager.restart returns False when restart_cmd is None."""
     result = await docker_manager.restart(config_no_restart)
     assert result is False
+
+
+# FileNotFoundError Handling Tests (NEM-1241)
+
+
+@pytest.mark.asyncio
+async def test_shell_restart_handles_file_not_found(shell_manager, sample_config):
+    """Test that ShellServiceManager handles FileNotFoundError gracefully.
+
+    This occurs when the restart script/command is not found (e.g., missing executable).
+    The fix for NEM-1241 ensures this doesn't crash but returns False with a warning.
+    """
+    with patch("asyncio.create_subprocess_exec") as mock_proc:
+        mock_proc.side_effect = FileNotFoundError(
+            "No such file or directory: 'ai/start_detector.sh'"
+        )
+
+        result = await shell_manager.restart(sample_config)
+
+        assert result is False
+
+
+@pytest.mark.asyncio
+async def test_docker_restart_handles_file_not_found(docker_manager):
+    """Test that DockerServiceManager handles FileNotFoundError gracefully.
+
+    This occurs when docker/podman CLI is not installed in the container.
+    The fix for NEM-1241 ensures this doesn't crash but returns False with a warning.
+    """
+    config = ServiceConfig(
+        name="rtdetr",
+        health_url="http://localhost:8090/health",
+        restart_cmd="docker restart rtdetr",
+    )
+
+    with patch("asyncio.create_subprocess_exec") as mock_proc:
+        mock_proc.side_effect = FileNotFoundError("No such file or directory: 'docker'")
+
+        result = await docker_manager.restart(config)
+
+        assert result is False
+
+
+@pytest.mark.asyncio
+async def test_shell_restart_file_not_found_logs_warning(shell_manager, sample_config):
+    """Test that FileNotFoundError in ShellServiceManager logs a warning, not error.
+
+    NEM-1241: Changed from ERROR to WARNING since this is an expected condition
+    when running in containerized environments.
+    """
+    with patch("asyncio.create_subprocess_exec") as mock_proc:
+        mock_proc.side_effect = FileNotFoundError("ai/start_detector.sh not found")
+
+        with patch("backend.services.service_managers.logger") as mock_logger:
+            await shell_manager.restart(sample_config)
+
+            # Should log warning, not error
+            mock_logger.warning.assert_called_once()
+            mock_logger.error.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_docker_restart_file_not_found_logs_warning(docker_manager):
+    """Test that FileNotFoundError in DockerServiceManager logs a warning, not error.
+
+    NEM-1241: Changed from ERROR to WARNING since this is an expected condition
+    when running in containerized environments without docker CLI.
+    """
+    config = ServiceConfig(
+        name="rtdetr",
+        health_url="http://localhost:8090/health",
+        restart_cmd="docker restart rtdetr",
+    )
+
+    with patch("asyncio.create_subprocess_exec") as mock_proc:
+        mock_proc.side_effect = FileNotFoundError("docker not found")
+
+        with patch("backend.services.service_managers.logger") as mock_logger:
+            await docker_manager.restart(config)
+
+            # Should log warning, not error
+            mock_logger.warning.assert_called_once()
+            mock_logger.error.assert_not_called()
