@@ -83,7 +83,8 @@ describe('useWebSocket', () => {
       expect.objectContaining({
         reconnect: true,
         reconnectInterval: 1000,
-        maxReconnectAttempts: 5,
+        // Default is now 15 for better backend restart resilience
+        maxReconnectAttempts: 15,
         connectionTimeout: 10000,
         autoRespondToHeartbeat: true,
       })

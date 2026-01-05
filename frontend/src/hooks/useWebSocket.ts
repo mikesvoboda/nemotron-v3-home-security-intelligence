@@ -60,7 +60,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     onHeartbeat,
     reconnect = true,
     reconnectInterval = 1000,
-    reconnectAttempts = 5,
+    // Default to 15 attempts for better resilience during backend restarts
+    // With exponential backoff (1s base, 30s max), this provides ~8+ minutes of retry
+    reconnectAttempts = 15,
     connectionTimeout = 10000,
     autoRespondToHeartbeat = true,
   } = options;
