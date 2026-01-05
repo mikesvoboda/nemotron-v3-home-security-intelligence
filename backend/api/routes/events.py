@@ -623,26 +623,31 @@ async def export_events(
     filename = f"events_export_{timestamp}.csv"
 
     # Log the export action
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.MEDIA_EXPORTED,
-        resource_type="event",
-        actor="anonymous",
-        details={
-            "export_type": "csv",
-            "filters": {
-                "camera_id": camera_id,
-                "risk_level": risk_level,
-                "start_date": start_date.isoformat() if start_date else None,
-                "end_date": end_date.isoformat() if end_date else None,
-                "reviewed": reviewed,
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.MEDIA_EXPORTED,
+            resource_type="event",
+            actor="anonymous",
+            details={
+                "export_type": "csv",
+                "filters": {
+                    "camera_id": camera_id,
+                    "risk_level": risk_level,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None,
+                    "reviewed": reviewed,
+                },
+                "event_count": len(events),
+                "filename": filename,
             },
-            "event_count": len(events),
-            "filename": filename,
-        },
-        request=request,
-    )
-    await db.commit()
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Don't fail the main operation - audit is non-critical
 
     # Return as streaming response with CSV content type
     output.seek(0)
@@ -766,21 +771,29 @@ async def update_event(
         action = AuditAction.EVENT_REVIEWED  # Default for notes-only updates
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=action,
-        resource_type="event",
-        resource_id=str(event_id),
-        actor="anonymous",  # No auth in this system
-        details={
-            "changes": changes,
-            "risk_level": event.risk_level,
-            "camera_id": event.camera_id,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=action,
+            resource_type="event",
+            resource_id=str(event_id),
+            actor="anonymous",  # No auth in this system
+            details={
+                "changes": changes,
+                "risk_level": event.risk_level,
+                "camera_id": event.camera_id,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the event changes since we rolled back
+        update_data_dict = update_data.model_dump(exclude_unset=True)
+        for key, value in update_data_dict.items():
+            setattr(event, key, value)
+        await db.commit()
     await db.refresh(event)
 
     # Parse detection_ids and calculate count

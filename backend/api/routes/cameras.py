@@ -216,21 +216,27 @@ async def create_camera(
     db.add(camera)
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.CAMERA_CREATED,
-        resource_type="camera",
-        resource_id=camera.id,
-        actor="anonymous",
-        details={
-            "name": camera.name,
-            "folder_path": camera.folder_path,
-            "status": camera.status,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_CREATED,
+            resource_type="camera",
+            resource_id=camera.id,
+            actor="anonymous",
+            details={
+                "name": camera.name,
+                "folder_path": camera.folder_path,
+                "status": camera.status,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-add camera since we rolled back the audit log
+        db.add(camera)
+        await db.commit()
     await db.refresh(camera)
 
     # Invalidate cameras cache
@@ -294,17 +300,25 @@ async def update_camera(
             changes[field] = {"old": old_value, "new": new_value}
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.CAMERA_UPDATED,
-        resource_type="camera",
-        resource_id=camera_id,
-        actor="anonymous",
-        details={"changes": changes},
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_UPDATED,
+            resource_type="camera",
+            resource_id=camera_id,
+            actor="anonymous",
+            details={"changes": changes},
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the update changes since we rolled back
+        update_data = camera_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(camera, field, value)
+        await db.commit()
     await db.refresh(camera)
 
     # Invalidate cameras cache
@@ -347,23 +361,29 @@ async def delete_camera(
         )
 
     # Log the audit entry before deletion
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.CAMERA_DELETED,
-        resource_type="camera",
-        resource_id=camera_id,
-        actor="anonymous",
-        details={
-            "name": camera.name,
-            "folder_path": camera.folder_path,
-            "status": camera.status,
-        },
-        request=request,
-    )
-
-    # Delete camera (cascade will handle related data)
-    await db.delete(camera)
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_DELETED,
+            resource_type="camera",
+            resource_id=camera_id,
+            actor="anonymous",
+            details={
+                "name": camera.name,
+                "folder_path": camera.folder_path,
+                "status": camera.status,
+            },
+            request=request,
+        )
+        # Delete camera (cascade will handle related data)
+        await db.delete(camera)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Retry deletion without audit log - deletion is the primary operation
+        await db.delete(camera)
+        await db.commit()
 
     # Invalidate cameras cache
     try:
@@ -994,21 +1014,28 @@ async def acknowledge_scene_change(
     scene_change.acknowledged_at = acknowledged_at
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.EVENT_REVIEWED,  # Reusing existing audit action
-        resource_type="scene_change",
-        resource_id=str(scene_change_id),
-        actor="anonymous",
-        details={
-            "camera_id": camera_id,
-            "change_type": scene_change.change_type.value,
-            "similarity_score": scene_change.similarity_score,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.EVENT_REVIEWED,  # Reusing existing audit action
+            resource_type="scene_change",
+            resource_id=str(scene_change_id),
+            actor="anonymous",
+            details={
+                "camera_id": camera_id,
+                "change_type": scene_change.change_type.value,
+                "similarity_score": scene_change.similarity_score,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the acknowledgement since we rolled back
+        scene_change.acknowledged = True
+        scene_change.acknowledged_at = acknowledged_at
+        await db.commit()
     await db.refresh(scene_change)
 
     return SceneChangeAcknowledgeResponse(

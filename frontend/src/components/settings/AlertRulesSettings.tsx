@@ -32,13 +32,14 @@ import {
   type AlertRuleUpdate,
   type AlertSeverity,
   type Camera,
+  type DayOfWeek,
   type RuleTestResponse,
   type SeverityMetadataResponse,
 } from '../../services/api';
 import SeverityConfigPanel from '../system/SeverityConfigPanel';
 
 // Days of the week for schedule selector
-const DAYS_OF_WEEK = [
+const DAYS_OF_WEEK: readonly { value: DayOfWeek; label: string }[] = [
   { value: 'monday', label: 'Mon' },
   { value: 'tuesday', label: 'Tue' },
   { value: 'wednesday', label: 'Wed' },
@@ -72,7 +73,7 @@ interface AlertRuleFormData {
   camera_ids: string[];
   min_confidence: number | null;
   schedule_enabled: boolean;
-  schedule_days: string[];
+  schedule_days: DayOfWeek[];
   schedule_start_time: string;
   schedule_end_time: string;
   schedule_timezone: string;

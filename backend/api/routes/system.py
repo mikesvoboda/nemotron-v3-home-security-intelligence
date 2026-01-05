@@ -1233,15 +1233,20 @@ async def patch_config(
 
     # Log the audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.SETTINGS_CHANGED,
+                resource_type="settings",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     return ConfigResponse(
         app_name=settings.app_name,
@@ -1342,16 +1347,21 @@ async def update_anomaly_config(
 
     # Log audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.CONFIG_UPDATED,
-            resource_type="anomaly_config",
-            resource_id="system",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.CONFIG_UPDATED,
+                resource_type="anomaly_config",
+                resource_id="system",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     return AnomalyConfig(
         threshold_stdev=service.anomaly_threshold_std,
@@ -1960,15 +1970,20 @@ async def update_severity_thresholds(
 
     # Log the audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="severity_thresholds",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.SETTINGS_CHANGED,
+                resource_type="severity_thresholds",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     logger.info(
         f"Severity thresholds updated: low_max={new_thresholds['low_max']}, "
