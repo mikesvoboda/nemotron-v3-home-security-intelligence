@@ -243,6 +243,7 @@ export default function Header() {
             eventsChannel={summary.eventsChannel}
             systemChannel={summary.systemChannel}
             onRetry={retryConnection}
+            isPollingFallback={isPollingFallback}
           />
         </div>
 

@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
+from backend.core.circuit_breaker import CircuitBreaker, CircuitState
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
@@ -498,6 +499,14 @@ class EnrichmentClient:
             pool=settings.ai_health_timeout,
         )
 
+        # Initialize circuit breaker with configuration
+        self._circuit_breaker = CircuitBreaker(
+            name="enrichment",
+            failure_threshold=settings.enrichment_cb_failure_threshold,
+            recovery_timeout=settings.enrichment_cb_recovery_timeout,
+            half_open_max_calls=settings.enrichment_cb_half_open_max_calls,
+        )
+
         logger.info(f"EnrichmentClient initialized with base_url={self._base_url}")
 
     def _encode_image_to_base64(self, image: Image.Image) -> str:
@@ -515,36 +524,75 @@ class EnrichmentClient:
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
 
+    def get_circuit_breaker_state(self) -> CircuitState:
+        """Get current circuit breaker state.
+
+        Returns:
+            Current CircuitState (CLOSED, OPEN, or HALF_OPEN)
+        """
+        return self._circuit_breaker.get_state()
+
+    def is_circuit_open(self) -> bool:
+        """Check if circuit breaker is open.
+
+        Returns:
+            True if circuit is open (requests are being rejected), False otherwise
+        """
+        return self._circuit_breaker.get_state() == CircuitState.OPEN
+
+    def reset_circuit_breaker(self) -> None:
+        """Manually reset circuit breaker to CLOSED state.
+
+        This clears all failure counts and returns the circuit to normal operation.
+        Use this after fixing underlying issues or for maintenance.
+        """
+        self._circuit_breaker.reset()
+
     async def check_health(self) -> dict[str, Any]:
         """Check if Enrichment service is healthy and get model status.
 
         Returns:
-            Dictionary with health status and model information
+            Dictionary with health status, model information, and circuit breaker state
         """
+        # Always include circuit breaker state in health response
+        circuit_state = self._circuit_breaker.get_state().value
+
         try:
             async with httpx.AsyncClient(timeout=self._health_timeout) as client:
                 response = await client.get(f"{self._base_url}/health")
                 response.raise_for_status()
-                return cast("dict[str, Any]", response.json())
+                result = cast("dict[str, Any]", response.json())
+                result["circuit_breaker_state"] = circuit_state
+                return result
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             logger.warning(f"Enrichment health check failed: {e}", exc_info=True)
-            return {"status": "unavailable", "error": str(e)}
+            return {
+                "status": "unavailable",
+                "error": str(e),
+                "circuit_breaker_state": circuit_state,
+            }
         except httpx.HTTPStatusError as e:
             logger.warning(f"Enrichment health check returned error status: {e}", exc_info=True)
-            return {"status": "error", "error": str(e)}
+            return {"status": "error", "error": str(e), "circuit_breaker_state": circuit_state}
         except Exception as e:
             logger.error(
                 f"Unexpected error during Enrichment health check: {sanitize_error(e)}",
                 exc_info=True,
             )
-            return {"status": "error", "error": str(e)}
+            return {"status": "error", "error": str(e), "circuit_breaker_state": circuit_state}
 
     async def is_healthy(self) -> bool:
         """Check if Enrichment service is healthy.
 
+        Returns True only if the service is healthy/degraded AND circuit breaker is not open.
+
         Returns:
-            True if service is healthy, False otherwise
+            True if service is healthy and circuit is not open, False otherwise
         """
+        # If circuit is open, service is not healthy from client perspective
+        if self.is_circuit_open():
+            return False
+
         health = await self.check_health()
         return health.get("status") in ("healthy", "degraded")
 
@@ -563,8 +611,15 @@ class EnrichmentClient:
             VehicleClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "vehicle-classify"
 
@@ -597,6 +652,9 @@ class EnrichmentClient:
             # Parse response
             result = response.json()
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return VehicleClassificationResult(
                 vehicle_type=result["vehicle_type"],
                 display_name=result["display_name"],
@@ -609,6 +667,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_vehicle_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -622,6 +681,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_vehicle_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment vehicle request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -638,6 +698,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_vehicle_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -648,7 +709,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_vehicle_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -660,6 +721,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_vehicle_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during vehicle classification: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},
@@ -685,8 +747,15 @@ class EnrichmentClient:
             PetClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "pet-classify"
 
@@ -719,6 +788,9 @@ class EnrichmentClient:
             # Parse response
             result = response.json()
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return PetClassificationResult(
                 pet_type=result["pet_type"],
                 breed=result["breed"],
@@ -730,6 +802,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_pet_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -743,6 +816,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_pet_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment pet request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -759,6 +833,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_pet_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -769,7 +844,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_pet_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -781,6 +856,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_pet_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during pet classification: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},
@@ -806,8 +882,15 @@ class EnrichmentClient:
             ClothingClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "clothing-classify"
 
@@ -840,6 +923,9 @@ class EnrichmentClient:
             # Parse response
             result = response.json()
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return ClothingClassificationResult(
                 clothing_type=result["clothing_type"],
                 color=result["color"],
@@ -855,6 +941,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_clothing_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -868,6 +955,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_clothing_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment clothing request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -884,6 +972,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_clothing_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -894,7 +983,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_clothing_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -906,6 +995,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_clothing_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during clothing classification: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},
@@ -929,8 +1019,15 @@ class EnrichmentClient:
             DepthEstimationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "depth-estimate"
 
@@ -961,6 +1058,9 @@ class EnrichmentClient:
             # Parse response
             result = response.json()
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return DepthEstimationResult(
                 depth_map_base64=result["depth_map_base64"],
                 min_depth=result["min_depth"],
@@ -972,6 +1072,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_depth_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -985,6 +1086,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_depth_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment depth request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1001,6 +1103,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_depth_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -1011,7 +1114,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_depth_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -1023,6 +1126,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_depth_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during depth estimation: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},
@@ -1054,8 +1158,15 @@ class EnrichmentClient:
             ObjectDistanceResult or None if bbox is invalid or on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "object-distance"
 
@@ -1117,6 +1228,9 @@ class EnrichmentClient:
             # Parse response
             result = response.json()
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return ObjectDistanceResult(
                 estimated_distance_m=result["estimated_distance_m"],
                 relative_depth=result["relative_depth"],
@@ -1127,6 +1241,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_distance_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1140,6 +1255,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_distance_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment distance request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1156,6 +1272,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_distance_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -1166,7 +1283,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_distance_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -1178,6 +1295,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_distance_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during distance estimation: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},
@@ -1205,8 +1323,15 @@ class EnrichmentClient:
             PoseAnalysisResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "pose-analyze"
 
@@ -1253,6 +1378,9 @@ class EnrichmentClient:
                 for kp in result["keypoints"]
             ]
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return PoseAnalysisResult(
                 keypoints=keypoints,
                 posture=result["posture"],
@@ -1263,6 +1391,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_pose_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1276,6 +1405,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_pose_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment pose request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1292,6 +1422,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_pose_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -1302,7 +1433,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_pose_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -1314,6 +1445,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_pose_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during pose analysis: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},
@@ -1342,8 +1474,15 @@ class EnrichmentClient:
             ActionClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable
+            EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Check circuit breaker before making request
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
         start_time = time.time()
         endpoint = "action-classify"
 
@@ -1382,6 +1521,9 @@ class EnrichmentClient:
             # Parse response
             result = response.json()
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             return ActionClassificationResult(
                 action=result["action"],
                 confidence=result["confidence"],
@@ -1394,6 +1536,7 @@ class EnrichmentClient:
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_action_connection_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Failed to connect to Enrichment service: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1407,6 +1550,7 @@ class EnrichmentClient:
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_action_timeout")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Enrichment action request timed out: {e}",
                 extra={"duration_ms": duration_ms},
@@ -1423,6 +1567,7 @@ class EnrichmentClient:
 
             if status_code >= 500:
                 record_pipeline_error("enrichment_action_server_error")
+                self._circuit_breaker.record_failure()
                 logger.error(
                     f"Enrichment returned server error: {status_code} - {e}",
                     extra={"duration_ms": duration_ms, "status_code": status_code},
@@ -1433,7 +1578,7 @@ class EnrichmentClient:
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't retry
+            # 4xx errors are client errors - don't affect circuit breaker
             record_pipeline_error("enrichment_action_client_error")
             logger.error(
                 f"Enrichment returned client error: {status_code} - {e}",
@@ -1445,6 +1590,7 @@ class EnrichmentClient:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("enrichment_action_unexpected_error")
+            self._circuit_breaker.record_failure()
             logger.error(
                 f"Unexpected error during action classification: {sanitize_error(e)}",
                 extra={"duration_ms": duration_ms},

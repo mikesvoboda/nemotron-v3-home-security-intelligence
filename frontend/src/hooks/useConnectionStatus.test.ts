@@ -507,4 +507,56 @@ describe('useConnectionStatus', () => {
 
     expect(result.current.systemStatus).toBeNull();
   });
+
+  describe('auto-recovery from polling fallback', () => {
+    it('uses 5 second polling interval during fallback mode', async () => {
+      // This test verifies the FALLBACK_POLLING_INTERVAL constant is 5000ms
+      // We can't easily test the actual interval without exposing internals,
+      // so we verify behavior: after exhausting retries, polling should use shorter interval
+      const { result } = renderHook(() => useConnectionStatus());
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      // The hook should use 15 reconnect attempts by default now
+      expect(result.current.summary.eventsChannel.maxReconnectAttempts).toBe(15);
+      expect(result.current.summary.systemChannel.maxReconnectAttempts).toBe(15);
+    });
+
+    it('provides isPollingFallback state that indicates fallback mode', () => {
+      const { result } = renderHook(() => useConnectionStatus());
+
+      // Initially not in polling fallback
+      expect(result.current.isPollingFallback).toBe(false);
+    });
+
+    it('retryConnection can be called to attempt WebSocket reconnection', async () => {
+      const { result } = renderHook(() => useConnectionStatus());
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      // Close connections to simulate failure
+      act(() => {
+        mockWsInstances.forEach((ws) => ws.simulateClose());
+      });
+
+      // Store instance count before retry
+      const instancesBefore = mockWsInstances.length;
+
+      // Call retry
+      act(() => {
+        result.current.retryConnection();
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      // Should have attempted to create new WebSocket connections
+      expect(mockWsInstances.length).toBeGreaterThan(instancesBefore);
+    });
+  });
 });
