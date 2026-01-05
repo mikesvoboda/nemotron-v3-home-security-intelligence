@@ -74,6 +74,9 @@ jobs:
   unit-tests:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
+    # Wait for lint to pass first - fail fast on code quality issues
+    # This saves CI minutes by not running expensive tests when lint fails
+    needs: [lint]
     services:
       postgres:
         image: postgres:16-alpine
@@ -146,7 +149,8 @@ jobs:
     name: Integration Tests (API)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [lint]
     services:
       postgres:
         image: postgres:16-alpine
@@ -228,7 +232,8 @@ jobs:
     name: Integration Tests (WebSocket)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [lint]
     services:
       postgres:
         image: postgres:16-alpine
@@ -310,7 +315,8 @@ jobs:
     name: Integration Tests (Services)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [lint]
     services:
       postgres:
         image: postgres:16-alpine
@@ -392,7 +398,8 @@ jobs:
     name: Integration Tests (Models)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [lint]
     services:
       postgres:
         image: postgres:16-alpine
@@ -704,6 +711,8 @@ jobs:
     name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [frontend-lint]
     # Allow shard 5 to fail - it has a hanging test that needs investigation
     continue-on-error: ${{ matrix.shard == 5 }}
     strategy:
@@ -797,6 +806,8 @@ jobs:
   frontend-e2e:
     name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [frontend-lint]
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -854,6 +865,8 @@ jobs:
   frontend-e2e-secondary:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
+    # Wait for lint to pass first - fail fast on code quality issues
+    needs: [frontend-lint]
     # Non-blocking: These browsers are slower and flakier, failures are informational
     continue-on-error: true
     strategy:
@@ -956,11 +969,12 @@ jobs:
     name: Build Docker (frontend)
     runs-on: ubuntu-latest
     continue-on-error: true
+    # Only needs lint/typecheck to verify code quality before building
+    # Tests (frontend-tests, frontend-e2e) run in parallel for CI speed
+    # Docker build doesn't depend on test results - only code correctness
     needs:
       - frontend-lint
       - frontend-typecheck
-      - frontend-tests
-      - frontend-e2e
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -1217,61 +1231,60 @@ jobs:
           echo "Frontend test count verification passed!"
 
   # ============================================================================
-  # Security Scanning Jobs
+  # Security Scanning Jobs (Matrix Strategy for Parallelization)
   # ============================================================================
 
-  trivy-backend:
-    name: Trivy Dependency Scan (Backend)
+  # Consolidated Trivy scans using matrix for parallel execution
+  trivy-scan:
+    name: Trivy Scan (${{ matrix.target.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: backend-deps
+            scan-type: fs
+            scan-ref: '.'
+            skip-dirs: 'frontend,node_modules,.git'
+            is-dockerfile: false
+          - name: backend-dockerfile
+            scan-type: config
+            scan-ref: 'backend/Dockerfile'
+            skip-dirs: ''
+            is-dockerfile: true
+          - name: frontend-deps
+            scan-type: fs
+            scan-ref: 'frontend'
+            skip-dirs: ''
+            is-dockerfile: false
+          - name: frontend-dockerfile
+            scan-type: config
+            scan-ref: 'frontend/Dockerfile'
+            skip-dirs: ''
+            is-dockerfile: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner (Python)
+      - name: Run Trivy vulnerability scanner
+        if: ${{ !matrix.target.is-dockerfile }}
         uses: aquasecurity/trivy-action@0.32.0
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
+          scan-type: ${{ matrix.target.scan-type }}
+          scan-ref: ${{ matrix.target.scan-ref }}
           scanners: 'vuln'
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
           ignore-unfixed: true
           format: 'table'
-          # Focus on Python dependencies
-          skip-dirs: 'frontend,node_modules,.git'
+          skip-dirs: ${{ matrix.target.skip-dirs }}
 
-      - name: Run Trivy on Dockerfile (backend)
+      - name: Run Trivy config scanner
+        if: ${{ matrix.target.is-dockerfile }}
         uses: aquasecurity/trivy-action@0.32.0
         with:
-          scan-type: 'config'
-          scan-ref: 'backend/Dockerfile'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-          format: 'table'
-
-  trivy-frontend:
-    name: Trivy Dependency Scan (Frontend)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner (Node.js)
-        uses: aquasecurity/trivy-action@0.32.0
-        with:
-          scan-type: 'fs'
-          scan-ref: 'frontend'
-          scanners: 'vuln'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-          ignore-unfixed: true
-          format: 'table'
-
-      - name: Run Trivy on Dockerfile (frontend)
-        uses: aquasecurity/trivy-action@0.32.0
-        with:
-          scan-type: 'config'
-          scan-ref: 'frontend/Dockerfile'
+          scan-type: ${{ matrix.target.scan-type }}
+          scan-ref: ${{ matrix.target.scan-ref }}
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
           format: 'table'

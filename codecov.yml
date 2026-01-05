@@ -1,5 +1,11 @@
 # Codecov configuration
 # https://docs.codecov.io/docs/codecov-yaml
+#
+# Coverage trend tracking and regression detection (NEM-1387)
+# - Project coverage target: 85%
+# - Patch coverage target: 80%
+# - Coverage regression blocks PR if > 1% decrease
+# - Critical paths require 90%+ coverage
 
 coverage:
   # How to calculate the coverage percentage
@@ -13,18 +19,19 @@ coverage:
     project:
       default:
         # Target coverage percentage (must meet or exceed)
-        target: 90%
-        # Allowed coverage decrease before failing
+        target: 85%
+        # Allowed coverage decrease before failing (blocks PR if > 1% decrease)
         threshold: 1%
         # Only compare against coverage from the same CI run
         if_ci_failed: error
-        # Don't fail if not enough data
+        # Block PR on coverage regression (not informational)
         informational: false
 
       # Backend unit tests - stricter threshold
       backend-unit:
         target: 85%
         threshold: 1%
+        informational: false
         flags:
           - backend-unit
 
@@ -32,6 +39,7 @@ coverage:
       backend-integration:
         target: 50%
         threshold: 2%
+        informational: false
         flags:
           - backend-integration
 
@@ -39,17 +47,35 @@ coverage:
       frontend:
         target: 80%
         threshold: 2%
+        informational: false
         flags:
           - frontend
+
+      # Critical paths - require 90%+ coverage
+      # These paths contain security-critical and core business logic
+      critical-paths:
+        target: 90%
+        threshold: 0.5%
+        informational: false
+        paths:
+          - backend/api/routes/
+          - backend/services/
+          - backend/core/security.py
+          - backend/core/auth.py
+          - frontend/src/hooks/
+          - frontend/src/services/
 
     # Patch coverage - coverage of changed lines
     patch:
       default:
         # New code should have at least 80% coverage
         target: 80%
-        threshold: 5%
+        # Stricter threshold for patch coverage
+        threshold: 1%
         # Only check if there are enough lines changed
         if_ci_failed: error
+        # Block PR if patch coverage is below target (not informational)
+        informational: false
 
 # Flags for different test types
 flags:
@@ -70,14 +96,16 @@ flags:
 
 # Comment settings for PRs
 comment:
-  # Layout of the comment
-  layout: 'reach,diff,flags,files,footer'
+  # Layout of the comment (reach, diff, flags, files per NEM-1387)
+  layout: 'reach,diff,flags,files'
   # Show coverage changes
   behavior: default
-  # Require base report to compare
-  require_base: false
+  # Require base report to compare (needed for trend tracking)
+  require_base: true
   # Show files without coverage changes
   hide_project_coverage: false
+  # Show the changes section
+  show_carryforward_flags: true
 
 # Ignore paths that shouldn't affect coverage
 ignore:

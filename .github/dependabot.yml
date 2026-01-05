@@ -1,57 +1,301 @@
+# Dependabot configuration for automated dependency updates
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
+
 updates:
-  # Python dependencies
+  # =============================================================================
+  # Python Dependencies (uv/pip ecosystem)
+  # =============================================================================
+  # pyproject.toml is at repository root, lockfile is uv.lock
   - package-ecosystem: 'pip'
-    directory: '/backend'
+    directory: '/'
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 5
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 10
     labels:
       - 'dependencies'
       - 'python'
     commit-message:
       prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    # Group minor and patch updates to reduce PR noise
+    groups:
+      python-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
 
-  # Node.js dependencies
+  # =============================================================================
+  # Node.js Dependencies (npm)
+  # =============================================================================
+  # frontend/package.json with package-lock.json
   - package-ecosystem: 'npm'
     directory: '/frontend'
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 5
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 10
     labels:
       - 'dependencies'
       - 'javascript'
     commit-message:
       prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    # Group minor and patch updates to reduce PR noise
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      # Group React ecosystem updates together
+      react:
+        applies-to: version-updates
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - 'react-router-dom'
+          - '@types/react'
+          - '@types/react-dom'
+      # Group testing libraries together
+      testing:
+        applies-to: version-updates
+        patterns:
+          - '@testing-library/*'
+          - '@playwright/test'
+          - 'vitest'
+          - '@vitest/*'
+      # Group ESLint ecosystem together
+      eslint:
+        applies-to: version-updates
+        patterns:
+          - 'eslint'
+          - 'eslint-plugin-*'
+          - 'typescript-eslint'
+          - '@eslint/*'
 
+  # =============================================================================
   # GitHub Actions
+  # =============================================================================
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 3
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 5
     labels:
       - 'dependencies'
       - 'github-actions'
     commit-message:
       prefix: 'chore(deps)'
+    groups:
+      github-actions-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
 
-  # Docker
+  # =============================================================================
+  # Docker Base Images
+  # =============================================================================
+  # Backend service
   - package-ecosystem: 'docker'
     directory: '/backend'
     schedule:
-      interval: 'monthly'
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
     labels:
       - 'dependencies'
       - 'docker'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
 
+  # Frontend service
   - package-ecosystem: 'docker'
     directory: '/frontend'
     schedule:
-      interval: 'monthly'
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
     labels:
       - 'dependencies'
       - 'docker'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+  # AI services - RT-DETR
+  - package-ecosystem: 'docker'
+    directory: '/ai/rtdetr'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'docker'
+      - 'ai'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+  # AI services - Nemotron
+  - package-ecosystem: 'docker'
+    directory: '/ai/nemotron'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'docker'
+      - 'ai'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+  # AI services - CLIP
+  - package-ecosystem: 'docker'
+    directory: '/ai/clip'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'docker'
+      - 'ai'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+  # AI services - Florence
+  - package-ecosystem: 'docker'
+    directory: '/ai/florence'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'docker'
+      - 'ai'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+  # AI services - Enrichment
+  - package-ecosystem: 'docker'
+    directory: '/ai/enrichment'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'docker'
+      - 'ai'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+  # FTP server
+  - package-ecosystem: 'docker'
+    directory: '/vsftpd'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Chicago'
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'docker'
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
