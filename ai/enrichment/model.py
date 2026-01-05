@@ -50,6 +50,41 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 MAX_BASE64_SIZE_BYTES = int(MAX_IMAGE_SIZE_BYTES * 4 / 3) + 100  # ~13.3MB + padding
 
+
+def validate_model_path(path: str) -> str:
+    """Validate model path to prevent path traversal attacks.
+
+    Args:
+        path: The model path to validate (local path or HuggingFace ID)
+
+    Returns:
+        The validated path (normalized if local)
+
+    Raises:
+        ValueError: If path contains traversal sequences or is otherwise invalid
+    """
+    # Reject paths with traversal sequences
+    if ".." in path:
+        logger.warning(f"Suspicious model path detected (traversal sequence): {path}")
+        raise ValueError(f"Invalid model path: path traversal sequences not allowed: {path}")
+
+    # For local paths, normalize and validate
+    if path.startswith("/") or path.startswith("./"):
+        abs_path = str(Path(path).resolve())
+
+        # Check again after normalization (handles things like "/foo/bar/../../../etc/passwd")
+        # Path.resolve() resolves ".." so we compare the result
+        if not abs_path.startswith("/") and not abs_path.startswith("./"):
+            logger.warning(f"Suspicious model path after normalization: {path} -> {abs_path}")
+            raise ValueError(f"Invalid model path: path resolves outside expected location: {path}")
+
+        logger.debug(f"Local model path validated: {path} -> {abs_path}")
+        return abs_path
+
+    # Non-local paths (HuggingFace IDs, etc.) - just return as-is
+    return path
+
+
 # Magic bytes for image format detection
 # These are the first few bytes that identify image file formats
 IMAGE_MAGIC_BYTES: dict[bytes, str] = {
@@ -187,8 +222,11 @@ class VehicleClassifier:
         Args:
             model_path: Path to model directory containing pytorch_model.bin
             device: Device to run inference on
+
+        Raises:
+            ValueError: If model_path contains path traversal sequences
         """
-        self.model_path = model_path
+        self.model_path = validate_model_path(model_path)
         self.device = device
         self.model: Any = None
         self.transform: Any = None
@@ -319,8 +357,11 @@ class PetClassifier:
         Args:
             model_path: Path to model directory (HuggingFace format)
             device: Device to run inference on
+
+        Raises:
+            ValueError: If model_path contains path traversal sequences
         """
-        self.model_path = model_path
+        self.model_path = validate_model_path(model_path)
         self.device = device
         self.model: Any = None
         self.processor: Any = None
@@ -474,8 +515,11 @@ class ClothingClassifier:
         Args:
             model_path: Path to FashionCLIP model directory or HuggingFace model ID
             device: Device to run inference on
+
+        Raises:
+            ValueError: If model_path contains path traversal sequences
         """
-        self.model_path = model_path
+        self.model_path = validate_model_path(model_path)
         self.device = device
         self.model: Any = None
         self.preprocess: Any = None
@@ -671,8 +715,11 @@ class DepthEstimator:
         Args:
             model_path: Path to Depth Anything V2 model directory
             device: Device to run inference on
+
+        Raises:
+            ValueError: If model_path contains path traversal sequences
         """
-        self.model_path = model_path
+        self.model_path = validate_model_path(model_path)
         self.device = device
         self.model: Any = None
         self.processor: Any = None

@@ -296,22 +296,24 @@ def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[s
 
     clothing_response: dict[str, Any] = {}
     if clothing_classifications:
-        first_key = next(iter(clothing_classifications))
-        cc = clothing_classifications[first_key]
-        # Parse raw description to extract upper/lower
-        raw_desc = cc.get("raw_description", "")
-        parts = raw_desc.split(", ") if ", " in raw_desc else [cc.get("top_category")]
-        clothing_response["upper"] = parts[0] if parts else None
-        clothing_response["lower"] = parts[1] if len(parts) > 1 else None
-        clothing_response["is_suspicious"] = cc.get("is_suspicious")
-        clothing_response["is_service_uniform"] = cc.get("is_service_uniform")
+        first_key = next(iter(clothing_classifications), None)
+        if first_key:
+            cc = clothing_classifications[first_key]
+            # Parse raw description to extract upper/lower
+            raw_desc = cc.get("raw_description", "")
+            parts = raw_desc.split(", ") if ", " in raw_desc else [cc.get("top_category")]
+            clothing_response["upper"] = parts[0] if parts else None
+            clothing_response["lower"] = parts[1] if len(parts) > 1 else None
+            clothing_response["is_suspicious"] = cc.get("is_suspicious")
+            clothing_response["is_service_uniform"] = cc.get("is_service_uniform")
 
     if clothing_segmentation:
-        first_key = next(iter(clothing_segmentation))
-        cs = clothing_segmentation[first_key]
-        clothing_response["has_face_covered"] = cs.get("has_face_covered")
-        clothing_response["has_bag"] = cs.get("has_bag")
-        clothing_response["clothing_items"] = cs.get("clothing_items")
+        first_key = next(iter(clothing_segmentation), None)
+        if first_key:
+            cs = clothing_segmentation[first_key]
+            clothing_response["has_face_covered"] = cs.get("has_face_covered")
+            clothing_response["has_bag"] = cs.get("has_bag")
+            clothing_response["clothing_items"] = cs.get("clothing_items")
 
     return clothing_response
 
@@ -322,7 +324,10 @@ def _extract_vehicle_from_enrichment(enrichment_data: dict[str, Any]) -> dict[st
     if not vehicle_classifications:
         return None
 
-    first_key = next(iter(vehicle_classifications))
+    first_key = next(iter(vehicle_classifications), None)
+    if not first_key:
+        return None
+
     vc = vehicle_classifications[first_key]
     vehicle_response = {
         "type": vc.get("vehicle_type"),
@@ -362,47 +367,50 @@ def validate_enrichment_data(enrichment_data: dict[str, Any] | None) -> Enrichme
     vehicle: VehicleEnrichmentData | None = None
     vehicle_classifications = enrichment_data.get("vehicle_classifications", {})
     if vehicle_classifications:
-        first_key = next(iter(vehicle_classifications))
-        vc = vehicle_classifications[first_key]
-        vehicle_damage = enrichment_data.get("vehicle_damage", {})
-        has_damage = False
-        if first_key in vehicle_damage:
-            has_damage = vehicle_damage[first_key].get("has_damage", False)
+        first_key = next(iter(vehicle_classifications), None)
+        if first_key:
+            vc = vehicle_classifications[first_key]
+            vehicle_damage = enrichment_data.get("vehicle_damage", {})
+            has_damage = False
+            if first_key in vehicle_damage:
+                has_damage = vehicle_damage[first_key].get("has_damage", False)
 
-        vehicle = VehicleEnrichmentData(
-            vehicle_type=vc.get("vehicle_type"),
-            vehicle_color=None,  # Color not currently captured in enrichment
-            has_damage=has_damage,
-            is_commercial=vc.get("is_commercial", False),
-        )
+            vehicle = VehicleEnrichmentData(
+                vehicle_type=vc.get("vehicle_type"),
+                vehicle_color=None,  # Color not currently captured in enrichment
+                has_damage=has_damage,
+                is_commercial=vc.get("is_commercial", False),
+            )
 
     # Extract person data using typed model
     person: PersonEnrichmentData | None = None
     clothing_classifications = enrichment_data.get("clothing_classifications", {})
     if clothing_classifications:
-        first_key = next(iter(clothing_classifications))
-        cc = clothing_classifications[first_key]
-        raw_desc = cc.get("raw_description", "")
-        carrying_str = cc.get("carrying", "")
-        carrying_list = [carrying_str] if carrying_str else []
+        first_key = next(iter(clothing_classifications), None)
+        if first_key:
+            cc = clothing_classifications[first_key]
+            raw_desc = cc.get("raw_description", "")
+            carrying_str = cc.get("carrying", "")
+            carrying_list = [carrying_str] if carrying_str else []
 
-        person = PersonEnrichmentData(
-            clothing_description=raw_desc if raw_desc else None,
-            action=None,  # Action not in clothing classification
-            carrying=carrying_list,
-            is_suspicious=cc.get("is_suspicious", False),
-        )
+            person = PersonEnrichmentData(
+                clothing_description=raw_desc if raw_desc else None,
+                action=None,  # Action not in clothing classification
+                carrying=carrying_list,
+                is_suspicious=cc.get("is_suspicious", False),
+            )
 
     # Extract pet data using typed model
     pet: PetEnrichmentData | None = None
     pet_classifications = enrichment_data.get("pet_classifications", {})
     if pet_classifications:
-        first_key = next(iter(pet_classifications))
-        pc = pet_classifications[first_key]
-        pet = PetEnrichmentData(
-            pet_type=pc.get("animal_type"),
-            breed=None,  # Breed not currently captured
-        )
+        first_key = next(iter(pet_classifications), None)
+        if first_key:
+            pc = pet_classifications[first_key]
+            pet = PetEnrichmentData(
+                pet_type=pc.get("animal_type"),
+                breed=None,  # Breed not currently captured
+            )
 
     # Extract errors (sanitized for API exposure)
     errors = _sanitize_errors(enrichment_data.get("errors", []))
@@ -500,14 +508,15 @@ def _transform_enrichment_data(
     pet_response: dict[str, Any] | None = None
     pet_classifications = enrichment_data.get("pet_classifications", {})
     if pet_classifications:
-        first_key = next(iter(pet_classifications))
-        pc = pet_classifications[first_key]
-        pet_response = {
-            "detected": True,
-            "type": pc.get("animal_type"),
-            "confidence": pc.get("confidence"),
-            "is_household_pet": pc.get("is_household_pet"),
-        }
+        first_key = next(iter(pet_classifications), None)
+        if first_key:
+            pc = pet_classifications[first_key]
+            pet_response = {
+                "detected": True,
+                "type": pc.get("animal_type"),
+                "confidence": pc.get("confidence"),
+                "is_household_pet": pc.get("is_household_pet"),
+            }
 
     return {
         "detection_id": detection_id,

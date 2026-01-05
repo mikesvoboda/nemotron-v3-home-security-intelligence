@@ -117,7 +117,7 @@ class TestGetPromptConfigEndpoint:
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
-        assert "Supported models" in response.json()["detail"]
+        # Note: Error message intentionally does not expose supported model list for security
 
     def test_get_prompt_config_no_config_exists_404(
         self,

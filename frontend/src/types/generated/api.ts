@@ -474,6 +474,9 @@ export interface paths {
          *
          *     Returns:
          *         PromptImportResponse with import results
+         *
+         *     Raises:
+         *         HTTPException: 400 if no prompts provided for import
          */
         post: operations["import_prompts_api_ai_audit_prompts_import_post"];
         delete?: never;
