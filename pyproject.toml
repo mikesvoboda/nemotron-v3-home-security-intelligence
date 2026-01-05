@@ -44,7 +44,7 @@ dependencies = [
     "transformers>=4.57.3",
     "torchreid>=0.2.5",
     "gdown>=5.2.0",
-    "pyiqa>=0.1.10",
+    "piq>=0.8.0",  # BRISQUE image quality - lightweight, only needs torchvision
     "open_clip_torch>=2.29.0",
     "accelerate>=1.12.0",
     # Container orchestration

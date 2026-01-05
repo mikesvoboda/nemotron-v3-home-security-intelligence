@@ -50,6 +50,7 @@ from backend.core.redis import (
     RedisClient,
     close_redis,
     get_redis,
+    get_redis_client_sync,
     get_redis_optional,
     init_redis,
 )
@@ -102,6 +103,7 @@ __all__ = [
     "get_mime_type",
     "get_mime_type_with_default",
     "get_redis",
+    "get_redis_client_sync",
     "get_redis_optional",
     "get_request_id",
     "get_session",

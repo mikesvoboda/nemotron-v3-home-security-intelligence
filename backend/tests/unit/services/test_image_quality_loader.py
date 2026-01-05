@@ -1,6 +1,7 @@
 """Unit tests for image_quality_loader service.
 
 Tests for the BRISQUE image quality assessment model loader and quality functions.
+Uses piq library (Photosynthesis Image Quality) for BRISQUE metric.
 """
 
 from unittest.mock import MagicMock
@@ -422,8 +423,8 @@ async def test_load_brisque_model_import_error(monkeypatch):
     import builtins
     import sys
 
-    # Remove pyiqa from imports if present
-    modules_to_hide = ["pyiqa"]
+    # Remove piq from imports if present
+    modules_to_hide = ["piq"]
     hidden_modules = {}
     for mod in modules_to_hide:
         for key in list(sys.modules.keys()):
@@ -434,14 +435,14 @@ async def test_load_brisque_model_import_error(monkeypatch):
     original_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
-        if name == "pyiqa" or name.startswith("pyiqa."):
+        if name == "piq" or name.startswith("piq."):
             raise ImportError(f"No module named '{name}'")
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", mock_import)
 
     try:
-        with pytest.raises(ImportError, match="pyiqa"):
+        with pytest.raises(ImportError, match="piq"):
             await load_brisque_model("")
     finally:
         sys.modules.update(hidden_modules)
@@ -452,10 +453,15 @@ async def test_load_brisque_model_runtime_error(monkeypatch):
     """Test load_brisque_model handles RuntimeError."""
     import sys
 
-    mock_pyiqa = MagicMock()
-    mock_pyiqa.create_metric.side_effect = RuntimeError("Failed to initialize metric")
+    mock_piq = MagicMock()
 
-    monkeypatch.setitem(sys.modules, "pyiqa", mock_pyiqa)
+    # Accessing piq.brisque raises an error
+    def raise_error(_: MagicMock) -> None:
+        raise RuntimeError("Failed to initialize metric")
+
+    type(mock_piq).brisque = property(raise_error)
+
+    monkeypatch.setitem(sys.modules, "piq", mock_piq)
 
     with pytest.raises(RuntimeError, match="Failed to load BRISQUE metric"):
         await load_brisque_model("")
@@ -471,18 +477,16 @@ async def test_load_brisque_model_success(monkeypatch):
     """Test load_brisque_model success path."""
     import sys
 
-    mock_metric = MagicMock()
+    mock_brisque_fn = MagicMock()
+    mock_piq = MagicMock()
+    mock_piq.brisque = mock_brisque_fn
 
-    mock_pyiqa = MagicMock()
-    mock_pyiqa.create_metric.return_value = mock_metric
-
-    monkeypatch.setitem(sys.modules, "pyiqa", mock_pyiqa)
+    monkeypatch.setitem(sys.modules, "piq", mock_piq)
 
     result = await load_brisque_model("")
 
-    assert "metric" in result
-    assert result["metric"] is mock_metric
-    mock_pyiqa.create_metric.assert_called_once_with("brisque", device="cpu")
+    assert "brisque_fn" in result
+    assert result["brisque_fn"] is mock_brisque_fn
 
 
 @pytest.mark.asyncio
@@ -490,19 +494,18 @@ async def test_load_brisque_model_ignores_path(monkeypatch):
     """Test load_brisque_model ignores the model_path argument."""
     import sys
 
-    mock_metric = MagicMock()
+    mock_brisque_fn = MagicMock()
+    mock_piq = MagicMock()
+    mock_piq.brisque = mock_brisque_fn
 
-    mock_pyiqa = MagicMock()
-    mock_pyiqa.create_metric.return_value = mock_metric
+    monkeypatch.setitem(sys.modules, "piq", mock_piq)
 
-    monkeypatch.setitem(sys.modules, "pyiqa", mock_pyiqa)
-
-    # Path is ignored since pyiqa uses built-in metric
+    # Path is ignored since piq uses built-in metric
     result = await load_brisque_model("/some/random/path")
 
-    assert "metric" in result
-    # Should still create brisque metric regardless of path
-    mock_pyiqa.create_metric.assert_called_once_with("brisque", device="cpu")
+    assert "brisque_fn" in result
+    # Should have the brisque function regardless of path
+    assert result["brisque_fn"] is mock_brisque_fn
 
 
 # =============================================================================
@@ -546,7 +549,7 @@ async def test_assess_image_quality_import_error(monkeypatch):
     from PIL import Image
 
     test_image = Image.new("RGB", (100, 100))
-    model_data = {"metric": MagicMock()}
+    model_data = {"brisque_fn": MagicMock()}
 
     # Remove torch and torchvision
     modules_to_hide = ["torch", "torchvision"]
@@ -602,13 +605,13 @@ async def test_assess_image_quality_success(monkeypatch):
     mock_torchvision = MagicMock()
     mock_torchvision.transforms = mock_transforms
 
-    # Create mock metric that returns a good score
-    mock_metric = MagicMock()
+    # Create mock brisque function that returns a good score
+    mock_brisque_fn = MagicMock()
     mock_score_tensor = MagicMock()
     mock_score_tensor.item.return_value = 25.0  # Good quality (low BRISQUE score)
-    mock_metric.return_value = mock_score_tensor
+    mock_brisque_fn.return_value = mock_score_tensor
 
-    model_data = {"metric": mock_metric}
+    model_data = {"brisque_fn": mock_brisque_fn}
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "torchvision", mock_torchvision)
@@ -685,8 +688,8 @@ def test_brisque_in_model_zoo():
     config = zoo["brisque-quality"]
     assert config.name == "brisque-quality"
     assert config.category == "quality-assessment"
-    # BRISQUE is currently disabled in model_zoo
-    assert config.enabled is False
+    # BRISQUE is enabled (piq library is NumPy 2.0 compatible)
+    assert config.enabled is True
     # BRISQUE is CPU-based, should have 0 VRAM
     assert config.vram_mb == 0
 
