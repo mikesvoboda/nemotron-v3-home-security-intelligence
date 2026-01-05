@@ -8,7 +8,7 @@ It also includes the Prompt Playground API for managing AI model configurations.
 import json
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,9 +45,11 @@ from backend.api.schemas.ai_audit import (
     RecommendationsResponse,
 )
 from backend.core.database import get_db
+from backend.models.audit import AuditAction
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 from backend.models.prompt_config import PromptConfig
+from backend.services.audit import AuditService
 from backend.services.audit_service import get_audit_service
 from backend.services.prompt_storage import SUPPORTED_MODELS, get_prompt_storage
 
@@ -172,6 +174,7 @@ async def get_event_audit(
 @router.post("/events/{event_id}/evaluate", response_model=EventAuditResponse)
 async def evaluate_event(
     event_id: int,
+    request: Request,
     force: bool = Query(False, description="Force re-evaluation even if already evaluated"),
     db: AsyncSession = Depends(get_db),
 ) -> EventAuditResponse:
@@ -182,6 +185,7 @@ async def evaluate_event(
 
     Args:
         event_id: The ID of the event to evaluate
+        request: HTTP request for audit logging
         force: If True, re-evaluate even if already evaluated
         db: Database session
 
@@ -218,6 +222,21 @@ async def evaluate_event(
     # Run full evaluation
     service = get_audit_service()
     updated_audit = await service.run_full_evaluation(audit, event, db)
+
+    # Log the audit entry for AI re-evaluation
+    await AuditService.log_action(
+        db=db,
+        action=AuditAction.AI_REEVALUATED,
+        resource_type="event",
+        resource_id=str(event_id),
+        actor="anonymous",
+        details={
+            "is_force": force,
+            "overall_quality_score": updated_audit.overall_quality_score,
+        },
+        request=request,
+    )
+    await db.commit()
 
     return _audit_to_response(updated_audit)
 

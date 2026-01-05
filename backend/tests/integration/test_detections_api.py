@@ -489,6 +489,155 @@ class TestGetDetectionEnrichment:
             assert "192.168" not in error
 
 
+class TestGetDetectionImageFullParameter:
+    """Tests for GET /api/detections/{detection_id}/image with full parameter (NEM-1261)."""
+
+    async def test_get_detection_image_full_true_returns_original(
+        self, async_client, sample_camera, integration_db, tmp_path
+    ):
+        """Test that full=true returns the original source image."""
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+
+        # Create a test image file
+        source_image = tmp_path / "source_image.jpg"
+        original_content = b"\xff\xd8\xff\xe0\x00\x10JFIF_original_content_here"
+        source_image.write_bytes(original_content)
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path=str(source_image),
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                thumbnail_path=None,  # No thumbnail
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+            detection_id = detection.id
+
+        response = await async_client.get(f"/api/detections/{detection_id}/image?full=true")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/jpeg"
+        # Should return original content, not a generated thumbnail
+        assert response.content == original_content
+
+    async def test_get_detection_image_full_false_returns_thumbnail(
+        self, async_client, sample_camera, integration_db, tmp_path
+    ):
+        """Test that full=false returns thumbnail as before."""
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+
+        # Create test files
+        source_image = tmp_path / "source_image.jpg"
+        thumbnail_image = tmp_path / "thumbnail_image.jpg"
+        source_content = b"\xff\xd8\xff\xe0source_content"
+        thumbnail_content = b"\xff\xd8\xff\xe0thumbnail_content"
+        source_image.write_bytes(source_content)
+        thumbnail_image.write_bytes(thumbnail_content)
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path=str(source_image),
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                thumbnail_path=str(thumbnail_image),
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+            detection_id = detection.id
+
+        # full=false should return thumbnail
+        response = await async_client.get(f"/api/detections/{detection_id}/image?full=false")
+        assert response.status_code == 200
+        assert response.content == thumbnail_content
+
+    async def test_get_detection_image_default_returns_thumbnail(
+        self, async_client, sample_camera, integration_db, tmp_path
+    ):
+        """Test that default (no full param) returns thumbnail."""
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+
+        # Create test files
+        source_image = tmp_path / "source_image.jpg"
+        thumbnail_image = tmp_path / "thumbnail_image.jpg"
+        source_content = b"\xff\xd8\xff\xe0source_content"
+        thumbnail_content = b"\xff\xd8\xff\xe0thumbnail_content"
+        source_image.write_bytes(source_content)
+        thumbnail_image.write_bytes(thumbnail_content)
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path=str(source_image),
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                thumbnail_path=str(thumbnail_image),
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+            detection_id = detection.id
+
+        # No full param - should return thumbnail (existing behavior)
+        response = await async_client.get(f"/api/detections/{detection_id}/image")
+        assert response.status_code == 200
+        assert response.content == thumbnail_content
+
+    async def test_get_detection_image_full_true_source_not_found(
+        self, async_client, sample_camera, integration_db
+    ):
+        """Test that full=true returns 404 when source file doesn't exist."""
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path="/nonexistent/path/missing_image.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+            detection_id = detection.id
+
+        response = await async_client.get(f"/api/detections/{detection_id}/image?full=true")
+        assert response.status_code == 404
+        data = response.json()
+        assert "not found" in data["detail"].lower()
+
+
 class TestGetDetectionImageAdvanced:
     """Advanced tests for GET /api/detections/{detection_id}/image endpoint."""
 

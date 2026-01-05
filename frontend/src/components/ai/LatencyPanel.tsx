@@ -324,7 +324,7 @@ function LatencyHistoryChart({ selectedStage, onStageChange }: LatencyHistoryCha
           showLegend={true}
           showGridLines={true}
           curveType="monotone"
-          connectNulls={false}
+          connectNulls={true}
           data-testid="latency-chart"
         />
       )}

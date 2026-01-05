@@ -187,13 +187,27 @@ describe('AuditTable', () => {
       render(<AuditTable {...defaultProps} logs={[]} totalCount={0} />);
 
       expect(screen.getByText('No Audit Entries Found')).toBeInTheDocument();
-      expect(screen.getByText('No audit logs match the current filters')).toBeInTheDocument();
     });
 
     it('displays correct count for empty state', () => {
       render(<AuditTable {...defaultProps} logs={[]} totalCount={0} />);
 
       expect(screen.getByText(/Showing 0-0 of 0 audit entries/)).toBeInTheDocument();
+    });
+
+    it('displays helpful guidance on how to generate entries', () => {
+      render(<AuditTable {...defaultProps} logs={[]} totalCount={0} />);
+
+      // Empty state should show guidance on what actions create audit entries
+      expect(screen.getByText(/Change system settings/i)).toBeInTheDocument();
+      expect(screen.getByText(/Mark events as reviewed/i)).toBeInTheDocument();
+    });
+
+    it('displays example actions that create audit entries', () => {
+      render(<AuditTable {...defaultProps} logs={[]} totalCount={0} />);
+
+      // Should show examples of actions
+      expect(screen.getByText(/Modify camera configurations/i)).toBeInTheDocument();
     });
   });
 

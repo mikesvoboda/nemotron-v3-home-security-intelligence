@@ -166,9 +166,50 @@ export default function AuditTable({
           </div>
         ) : logs.length === 0 ? (
           <div className="flex min-h-[400px] items-center justify-center">
-            <div className="text-center">
+            <div className="max-w-md text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800">
+                <svg
+                  className="h-6 w-6 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
               <p className="mb-2 text-lg font-semibold text-gray-300">No Audit Entries Found</p>
-              <p className="text-sm text-gray-500">No audit logs match the current filters</p>
+              <p className="mb-4 text-sm text-gray-500">
+                No audit logs match the current filters. Audit entries are automatically created when
+                you perform system operations.
+              </p>
+              <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 text-left">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Try these actions to generate entries:
+                </p>
+                <ul className="space-y-2 text-sm text-gray-400">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
+                    <span>Change system settings in the Settings page</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
+                    <span>Mark events as reviewed in the Events timeline</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
+                    <span>Modify camera configurations</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
+                    <span>Trigger AI re-evaluations on events</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         ) : (

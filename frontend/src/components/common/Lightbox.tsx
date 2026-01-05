@@ -1,5 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useState } from 'react';
 
 export interface LightboxImage {
@@ -55,11 +55,13 @@ export default function Lightbox({
   // by deriving initial state from props when modal opens
   const [lastOpenState, setLastOpenState] = useState(isOpen);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   // Derive state reset from prop changes (avoids set-state-in-effect)
   if (isOpen && !lastOpenState) {
     setLastOpenState(true);
     setCurrentIndex(initialIndex);
+    setIsImageLoading(true); // Start loading when lightbox opens
   } else if (!isOpen && lastOpenState) {
     setLastOpenState(false);
   }
@@ -68,14 +70,25 @@ export default function Lightbox({
   const goToPrevious = useCallback(() => {
     const newIndex = currentIndex > 0 ? currentIndex - 1 : imageArray.length - 1;
     setCurrentIndex(newIndex);
+    setIsImageLoading(true); // Start loading when navigating
     onIndexChange?.(newIndex);
   }, [currentIndex, imageArray.length, onIndexChange]);
 
   const goToNext = useCallback(() => {
     const newIndex = currentIndex < imageArray.length - 1 ? currentIndex + 1 : 0;
     setCurrentIndex(newIndex);
+    setIsImageLoading(true); // Start loading when navigating
     onIndexChange?.(newIndex);
   }, [currentIndex, imageArray.length, onIndexChange]);
+
+  // Handle image load
+  const handleImageLoad = useCallback(() => {
+    setIsImageLoading(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setIsImageLoading(false);
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -197,13 +210,25 @@ export default function Lightbox({
                     </button>
                   )}
 
-                  {/* Image */}
-                  <img
-                    src={currentImage.src}
-                    alt={currentImage.alt}
-                    className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
-                    data-testid="lightbox-image"
-                  />
+                  {/* Image with loading state */}
+                  <div className="relative">
+                    {isImageLoading && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center rounded-lg bg-gray-900/50"
+                        data-testid="lightbox-loading"
+                      >
+                        <Loader2 className="h-10 w-10 animate-spin text-[#76B900]" />
+                      </div>
+                    )}
+                    <img
+                      src={currentImage.src}
+                      alt={currentImage.alt}
+                      className={`max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl transition-opacity duration-200 ${isImageLoading ? 'opacity-50' : 'opacity-100'}`}
+                      data-testid="lightbox-image"
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                    />
+                  </div>
 
                   {/* Next button */}
                   {showNavigation && hasMultipleImages && (
