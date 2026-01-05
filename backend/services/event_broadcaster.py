@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import random
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -468,12 +469,16 @@ class EventBroadcaster:
                     return
 
                 if self._recovery_attempts <= self.MAX_RECOVERY_ATTEMPTS:
-                    # Exponential backoff: 1s, 2s, 4s, 8s, up to 30s max
-                    backoff = min(2 ** (self._recovery_attempts - 1), 30)
+                    # Exponential backoff with jitter: 1s, 2s, 4s, 8s, up to 30s max
+                    # Jitter prevents thundering herd when multiple instances recover
+                    # Using random.uniform is fine here - this is timing jitter, not cryptographic
+                    base_delay = min(2 ** (self._recovery_attempts - 1), 30)
+                    jitter = base_delay * random.uniform(0.1, 0.3)  # noqa: S311
+                    backoff = base_delay + jitter
                     logger.info(
                         f"Restarting event listener after error "
                         f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}) "
-                        f"in {backoff}s"
+                        f"in {backoff:.1f}s"
                     )
                     await asyncio.sleep(backoff)
                     if self._is_listening:

@@ -10,6 +10,7 @@ import {
   Edit2,
   Loader2,
   Plus,
+  RefreshCw,
   Shield,
   Trash2,
   X,
@@ -116,6 +117,10 @@ export default function AlertRulesSettings() {
   const [submitting, setSubmitting] = useState(false);
   const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
 
+  // State for camera loading (separate from rules)
+  const [camerasLoading, setCamerasLoading] = useState(false);
+  const [camerasError, setCamerasError] = useState<string | null>(null);
+
   // State for severity metadata
   const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
   const [severityLoading, setSeverityLoading] = useState(true);
@@ -124,6 +129,7 @@ export default function AlertRulesSettings() {
   // Load rules and cameras on mount
   useEffect(() => {
     void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData only needed on mount
   }, []);
 
   // Fetch severity metadata
@@ -170,13 +176,32 @@ export default function AlertRulesSettings() {
     try {
       setLoading(true);
       setError(null);
-      const [rulesData, camerasData] = await Promise.all([fetchAlertRules(), fetchCameras()]);
+      setCamerasError(null);
+
+      // Fetch rules first (required) - cameras can fail independently
+      const rulesData = await fetchAlertRules();
       setRules(rulesData.rules);
-      setCameras(camerasData);
+
+      // Fetch cameras separately - don't block on failure
+      await loadCameras();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCameras = async () => {
+    try {
+      setCamerasLoading(true);
+      setCamerasError(null);
+      const camerasData = await fetchCameras();
+      setCameras(camerasData);
+    } catch (err) {
+      console.error('Failed to load cameras:', err);
+      setCamerasError(err instanceof Error ? err.message : 'Failed to load cameras');
+    } finally {
+      setCamerasLoading(false);
     }
   };
 
@@ -866,28 +891,67 @@ export default function AlertRulesSettings() {
                           <span className="block text-sm font-medium text-text-primary">
                             Cameras
                           </span>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {cameras.map((camera) => (
-                              <button
-                                key={camera.id}
-                                type="button"
-                                onClick={() => {
-                                  const newCameras = formData.camera_ids.includes(camera.id)
-                                    ? formData.camera_ids.filter((c) => c !== camera.id)
-                                    : [...formData.camera_ids, camera.id];
-                                  setFormData({ ...formData, camera_ids: newCameras });
-                                }}
-                                className={clsx(
-                                  'rounded-full px-3 py-1 text-sm font-medium transition-colors',
-                                  formData.camera_ids.includes(camera.id)
-                                    ? 'bg-primary text-gray-900'
-                                    : 'bg-gray-700 text-text-secondary hover:bg-gray-600'
-                                )}
-                              >
-                                {camera.name}
-                              </button>
-                            ))}
-                          </div>
+                          {camerasError ? (
+                            <div
+                              className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3"
+                              data-testid="cameras-error"
+                            >
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                                <span className="text-sm text-red-400">
+                                  Failed to load cameras.
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void loadCameras();
+                                  }}
+                                  disabled={camerasLoading}
+                                  className="inline-flex items-center gap-1 text-sm font-medium text-red-500 hover:text-red-400 disabled:opacity-50"
+                                  data-testid="cameras-retry-button"
+                                >
+                                  {camerasLoading ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-3 w-3" />
+                                  )}
+                                  Retry
+                                </button>
+                              </div>
+                            </div>
+                          ) : camerasLoading ? (
+                            <div className="mt-2 flex items-center gap-2 text-sm text-text-secondary">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading cameras...
+                            </div>
+                          ) : cameras.length === 0 ? (
+                            <div className="mt-2 text-sm text-text-secondary">
+                              No cameras available
+                            </div>
+                          ) : (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {cameras.map((camera) => (
+                                <button
+                                  key={camera.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const newCameras = formData.camera_ids.includes(camera.id)
+                                      ? formData.camera_ids.filter((c) => c !== camera.id)
+                                      : [...formData.camera_ids, camera.id];
+                                    setFormData({ ...formData, camera_ids: newCameras });
+                                  }}
+                                  className={clsx(
+                                    'rounded-full px-3 py-1 text-sm font-medium transition-colors',
+                                    formData.camera_ids.includes(camera.id)
+                                      ? 'bg-primary text-gray-900'
+                                      : 'bg-gray-700 text-text-secondary hover:bg-gray-600'
+                                  )}
+                                >
+                                  {camera.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <p className="mt-1 text-xs text-text-secondary">
                             Leave empty to match all cameras
                           </p>
