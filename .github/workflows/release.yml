@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          # Get the previous tag for changelog generation
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag: $PREV_TAG"
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          # Get the current tag
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          echo "Generating changelog for $CURRENT_TAG"
+
+          # Determine the commit range
+          if [ -n "${{ steps.prev_tag.outputs.prev_tag }}" ]; then
+            RANGE="${{ steps.prev_tag.outputs.prev_tag }}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          # Generate changelog with categories
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          # Features (feat:)
+          FEATURES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^feat" 2>/dev/null || true)
+          if [ -n "$FEATURES" ]; then
+            echo "### Features" >> CHANGELOG.md
+            echo "$FEATURES" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Bug Fixes (fix:)
+          FIXES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^fix" 2>/dev/null || true)
+          if [ -n "$FIXES" ]; then
+            echo "### Bug Fixes" >> CHANGELOG.md
+            echo "$FIXES" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Security (security:)
+          SECURITY=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^security" 2>/dev/null || true)
+          if [ -n "$SECURITY" ]; then
+            echo "### Security" >> CHANGELOG.md
+            echo "$SECURITY" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Documentation (docs:)
+          DOCS=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^docs" 2>/dev/null || true)
+          if [ -n "$DOCS" ]; then
+            echo "### Documentation" >> CHANGELOG.md
+            echo "$DOCS" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Dependencies (chore(deps):)
+          DEPS=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^chore(deps)" 2>/dev/null || true)
+          if [ -n "$DEPS" ]; then
+            echo "### Dependencies" >> CHANGELOG.md
+            echo "$DEPS" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Performance (perf:)
+          PERF=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^perf" 2>/dev/null || true)
+          if [ -n "$PERF" ]; then
+            echo "### Performance" >> CHANGELOG.md
+            echo "$PERF" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Refactoring (refactor:)
+          REFACTOR=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^refactor" 2>/dev/null || true)
+          if [ -n "$REFACTOR" ]; then
+            echo "### Refactoring" >> CHANGELOG.md
+            echo "$REFACTOR" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Tests (test:)
+          TESTS=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^test" 2>/dev/null || true)
+          if [ -n "$TESTS" ]; then
+            echo "### Tests" >> CHANGELOG.md
+            echo "$TESTS" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # CI/CD (ci:)
+          CI=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^ci" 2>/dev/null || true)
+          if [ -n "$CI" ]; then
+            echo "### CI/CD" >> CHANGELOG.md
+            echo "$CI" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Other changes (chore: excluding deps)
+          CHORE=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^chore" --grep="^chore(deps)" --invert-grep 2>/dev/null || true)
+          if [ -n "$CHORE" ]; then
+            echo "### Other Changes" >> CHANGELOG.md
+            echo "$CHORE" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Extract Linear issue references (NEM-XXX pattern)
+          echo "" >> CHANGELOG.md
+          echo "### Related Linear Issues" >> CHANGELOG.md
+          LINEAR_ISSUES=$(git log $RANGE --pretty=format:"%s %b" 2>/dev/null | grep -oE "NEM-[0-9]+" | sort -u || true)
+          if [ -n "$LINEAR_ISSUES" ]; then
+            for issue in $LINEAR_ISSUES; do
+              echo "- [$issue](https://linear.app/nemotron-v3-home-security/issue/$issue)" >> CHANGELOG.md
+            done
+          else
+            echo "- No Linear issues referenced" >> CHANGELOG.md
+          fi
+          echo "" >> CHANGELOG.md
+
+          # Contributors
+          echo "### Contributors" >> CHANGELOG.md
+          git log $RANGE --pretty=format:"%an" 2>/dev/null | sort -u | while read contributor; do
+            echo "- $contributor" >> CHANGELOG.md
+          done
+          echo "" >> CHANGELOG.md
+
+          # Full commit list for reference
+          if [ -n "${{ steps.prev_tag.outputs.prev_tag }}" ]; then
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.prev_tag }}...$CURRENT_TAG" >> CHANGELOG.md
+          fi
+
+          cat CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -22,7 +22,10 @@ This directory contains GitHub-specific configuration files for the Home Securit
     AGENTS.md                 # Workflows directory guide
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
+    preview-deploy.yml        # PR preview container builds
     ai-code-review.yml        # GPT-powered code review
+    linear-ci-status.yml      # Linear issue status sync from CI/CD events
+    linear-github-sync.yml    # Linear to GitHub issue sync
     nightly.yml               # Nightly benchmarks and analysis
     gpu-tests.yml             # GPU integration tests
     sast.yml                  # Static Application Security Testing
@@ -142,6 +145,33 @@ This directory contains GitHub-specific configuration files for the Home Securit
 - `ghcr.io/{owner}/{repo}/backend:latest`
 - `ghcr.io/{owner}/{repo}/frontend:latest`
 
+### Preview Deploy Pipeline (preview-deploy.yml)
+
+**Trigger:** Pull request events (opened, synchronize, reopened, closed)
+
+**Purpose:** Build preview containers for pull requests to enable local testing before merge.
+
+**Jobs:**
+
+| Job             | When              | Description                            |
+| --------------- | ----------------- | -------------------------------------- |
+| build-preview   | PR opened/updated | Build and push containers with PR tags |
+| comment-preview | After build       | Post docker-compose instructions to PR |
+| cleanup-preview | PR closed         | Delete preview images from GHCR        |
+
+**Image Tags:**
+
+- `ghcr.io/{owner}/{repo}/backend:pr-{number}`
+- `ghcr.io/{owner}/{repo}/frontend:pr-{number}`
+
+**Usage:**
+
+1. Open a PR against main
+2. Workflow builds containers tagged with PR number
+3. PR comment includes docker-compose.preview.yml snippet
+4. Testers pull and run containers locally
+5. Containers cleaned up when PR closes
+
 ### Security Workflows
 
 | Workflow         | Tool            | Trigger              | Purpose                   |
@@ -256,10 +286,11 @@ runs-on: [self-hosted, gpu, rtx-a5500]
 
 ## Secrets Required
 
-| Secret        | Purpose                          | Used In       |
-| ------------- | -------------------------------- | ------------- |
-| GITHUB_TOKEN  | Auto-provided, PR comments, GHCR | All workflows |
-| CODECOV_TOKEN | (Optional) Coverage upload       | ci.yml        |
+| Secret         | Purpose                          | Used In                  |
+| -------------- | -------------------------------- | ------------------------ |
+| GITHUB_TOKEN   | Auto-provided, PR comments, GHCR | All workflows            |
+| CODECOV_TOKEN  | (Optional) Coverage upload       | ci.yml                   |
+| LINEAR_API_KEY | Linear API access                | linear-\*.yml, trivy.yml |
 
 ## Troubleshooting
 

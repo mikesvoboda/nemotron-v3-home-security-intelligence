@@ -1,0 +1,563 @@
+name: Linear CI Status Sync
+
+# This workflow automatically updates Linear issue status based on CI/CD events:
+# - When a PR passes all CI checks -> Move linked issue to "In Review"
+# - When a PR is merged to main -> Move linked issue to "Done"
+# - When CI fails -> Add a comment to the Linear issue
+
+on:
+  # Triggered when CI workflow completes on a PR
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+
+  # Triggered when a PR is merged to main
+  push:
+    branches: [main]
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to process (optional)'
+        required: false
+        type: string
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'check'
+        type: choice
+        options:
+          - check
+          - move-to-review
+          - move-to-done
+
+concurrency:
+  group: linear-ci-status-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  # Linear team ID for NEM team
+  LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'
+  # Linear workflow state UUIDs
+  LINEAR_STATE_TODO: '50ef9730-7d5e-43d6-b5e0-d7cac07af58f'
+  LINEAR_STATE_IN_PROGRESS: 'b88c8ae2-2545-4c1b-b83a-bf2dde2c03e7'
+  LINEAR_STATE_IN_REVIEW: 'ec90a3c4-c160-44fc-aa7e-82bdca77aa46'
+  LINEAR_STATE_DONE: '38267c1e-4458-4875-aa66-4b56381786e9'
+
+jobs:
+  # Handle CI completion on PRs
+  ci-completion:
+    name: Update Linear on CI Completion
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Get PR information
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get PR number from workflow_run event
+          # The head_sha is the commit SHA that triggered the workflow
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          REPO="${{ github.repository }}"
+
+          echo "Looking for PR with head SHA: $HEAD_SHA"
+
+          # Find the PR associated with this commit
+          PR_DATA=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" --jq '.[0] | {number: .number, title: .title, head_ref: .head.ref, merged: .merged}' || echo "{}")
+
+          if [ -z "$PR_DATA" ] || [ "$PR_DATA" = "{}" ]; then
+            echo "No PR found for commit $HEAD_SHA"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number // empty')
+          PR_TITLE=$(echo "$PR_DATA" | jq -r '.title // empty')
+          PR_BRANCH=$(echo "$PR_DATA" | jq -r '.head_ref // empty')
+
+          echo "Found PR #$PR_NUMBER: $PR_TITLE (branch: $PR_BRANCH)"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+          echo "branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Extract Linear issue IDs
+        id: extract-issues
+        if: steps.pr-info.outputs.found == 'true'
+        run: |
+          PR_TITLE="${{ steps.pr-info.outputs.title }}"
+          PR_BRANCH="${{ steps.pr-info.outputs.branch }}"
+
+          # Extract issue IDs from PR title and branch name
+          # Patterns: NEM-123, nem-123, NEM_123
+          ISSUE_IDS=""
+
+          # Extract from title (case-insensitive)
+          TITLE_MATCHES=$(echo "$PR_TITLE" | grep -oiE 'NEM[_-][0-9]+' | tr '[:lower:]' '[:upper:]' | tr '_' '-' | sort -u || true)
+          if [ -n "$TITLE_MATCHES" ]; then
+            ISSUE_IDS="$TITLE_MATCHES"
+          fi
+
+          # Extract from branch (case-insensitive)
+          BRANCH_MATCHES=$(echo "$PR_BRANCH" | grep -oiE 'NEM[_-][0-9]+' | tr '[:lower:]' '[:upper:]' | tr '_' '-' | sort -u || true)
+          if [ -n "$BRANCH_MATCHES" ]; then
+            ISSUE_IDS="$ISSUE_IDS $BRANCH_MATCHES"
+          fi
+
+          # Remove duplicates and format as comma-separated list
+          UNIQUE_IDS=$(echo "$ISSUE_IDS" | tr ' ' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+          if [ -z "$UNIQUE_IDS" ]; then
+            echo "No Linear issue IDs found in PR title or branch"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found Linear issue IDs: $UNIQUE_IDS"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "ids=$UNIQUE_IDS" >> "$GITHUB_OUTPUT"
+
+      - name: Update Linear issues on CI success
+        if: steps.extract-issues.outputs.found == 'true' && github.event.workflow_run.conclusion == 'success'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
+          PR_NUMBER="${{ steps.pr-info.outputs.number }}"
+          PR_TITLE="${{ steps.pr-info.outputs.title }}"
+
+          echo "CI passed - Moving issues to 'In Review': $ISSUE_IDS"
+
+          # Process each issue ID
+          IFS=',' read -ra IDS <<< "$ISSUE_IDS"
+          for ISSUE_ID in "${IDS[@]}"; do
+            echo "Processing $ISSUE_ID..."
+
+            # First, get the issue UUID from the identifier
+            ISSUE_UUID=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { id identifier state { id name } } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }' | jq -r '.data.issue.id // empty')
+
+            if [ -z "$ISSUE_UUID" ]; then
+              echo "Warning: Could not find issue $ISSUE_ID"
+              continue
+            fi
+
+            # Get current state
+            CURRENT_STATE=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { state { name } } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }' | jq -r '.data.issue.state.name // empty')
+
+            echo "Issue $ISSUE_ID is currently in state: $CURRENT_STATE"
+
+            # Only move to "In Review" if currently "In Progress" or "Todo"
+            if [ "$CURRENT_STATE" = "In Progress" ] || [ "$CURRENT_STATE" = "Todo" ]; then
+              echo "Moving $ISSUE_ID to 'In Review'..."
+
+              RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+                -H "Content-Type: application/json" \
+                -H "Authorization: $LINEAR_API_KEY" \
+                -d '{
+                  "query": "mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success issue { identifier state { name } } } }",
+                  "variables": {
+                    "id": "'"$ISSUE_UUID"'",
+                    "input": { "stateId": "'"$LINEAR_STATE_IN_REVIEW"'" }
+                  }
+                }')
+
+              SUCCESS=$(echo "$RESULT" | jq -r '.data.issueUpdate.success // false')
+              if [ "$SUCCESS" = "true" ]; then
+                echo "Successfully moved $ISSUE_ID to 'In Review'"
+              else
+                echo "Warning: Failed to update $ISSUE_ID: $RESULT"
+              fi
+            else
+              echo "Skipping $ISSUE_ID - already in state: $CURRENT_STATE"
+            fi
+          done
+
+      - name: Comment on Linear issues on CI failure
+        if: steps.extract-issues.outputs.found == 'true' && github.event.workflow_run.conclusion == 'failure'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
+          PR_NUMBER="${{ steps.pr-info.outputs.number }}"
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+
+          echo "CI failed - Adding comment to issues: $ISSUE_IDS"
+
+          # Process each issue ID
+          IFS=',' read -ra IDS <<< "$ISSUE_IDS"
+          for ISSUE_ID in "${IDS[@]}"; do
+            echo "Adding failure comment to $ISSUE_ID..."
+
+            # Get the issue UUID
+            ISSUE_UUID=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { id } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }' | jq -r '.data.issue.id // empty')
+
+            if [ -z "$ISSUE_UUID" ]; then
+              echo "Warning: Could not find issue $ISSUE_ID"
+              continue
+            fi
+
+            # Add a comment about CI failure
+            COMMENT="**CI Failed** on PR #$PR_NUMBER\n\n[View workflow run]($WORKFLOW_URL)\n\nThe CI checks failed. Please review the logs and fix any issues before the PR can be merged."
+
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$ISSUE_UUID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+
+            echo "Added CI failure comment to $ISSUE_ID"
+          done
+
+  # Handle PR merge to main
+  pr-merged:
+    name: Update Linear on PR Merge
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Get merged PR information
+        id: merged-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the commit message to find the PR number
+          # GitHub merge commits include "Merge pull request #123" or "(#123)"
+          COMMIT_MESSAGE=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}" --jq '.commit.message')
+
+          echo "Commit message: $COMMIT_MESSAGE"
+
+          # Extract PR number from merge commit message
+          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR number found in commit message"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found PR #$PR_NUMBER from merge commit"
+
+          # Get PR details
+          PR_DATA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER" --jq '{title: .title, head_ref: .head.ref}' || echo "{}")
+
+          if [ -z "$PR_DATA" ] || [ "$PR_DATA" = "{}" ]; then
+            echo "Could not get PR details"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_TITLE=$(echo "$PR_DATA" | jq -r '.title // empty')
+          PR_BRANCH=$(echo "$PR_DATA" | jq -r '.head_ref // empty')
+
+          echo "PR Title: $PR_TITLE"
+          echo "PR Branch: $PR_BRANCH"
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+          echo "branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Extract Linear issue IDs
+        id: extract-issues
+        if: steps.merged-pr.outputs.found == 'true'
+        run: |
+          PR_TITLE="${{ steps.merged-pr.outputs.title }}"
+          PR_BRANCH="${{ steps.merged-pr.outputs.branch }}"
+
+          # Extract issue IDs from PR title and branch name
+          ISSUE_IDS=""
+
+          # Extract from title (case-insensitive)
+          TITLE_MATCHES=$(echo "$PR_TITLE" | grep -oiE 'NEM[_-][0-9]+' | tr '[:lower:]' '[:upper:]' | tr '_' '-' | sort -u || true)
+          if [ -n "$TITLE_MATCHES" ]; then
+            ISSUE_IDS="$TITLE_MATCHES"
+          fi
+
+          # Extract from branch (case-insensitive)
+          BRANCH_MATCHES=$(echo "$PR_BRANCH" | grep -oiE 'NEM[_-][0-9]+' | tr '[:lower:]' '[:upper:]' | tr '_' '-' | sort -u || true)
+          if [ -n "$BRANCH_MATCHES" ]; then
+            ISSUE_IDS="$ISSUE_IDS $BRANCH_MATCHES"
+          fi
+
+          # Remove duplicates and format as comma-separated list
+          UNIQUE_IDS=$(echo "$ISSUE_IDS" | tr ' ' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+          if [ -z "$UNIQUE_IDS" ]; then
+            echo "No Linear issue IDs found in PR title or branch"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found Linear issue IDs: $UNIQUE_IDS"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "ids=$UNIQUE_IDS" >> "$GITHUB_OUTPUT"
+
+      - name: Move Linear issues to Done
+        if: steps.extract-issues.outputs.found == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
+          PR_NUMBER="${{ steps.merged-pr.outputs.number }}"
+
+          echo "PR #$PR_NUMBER merged - Moving issues to 'Done': $ISSUE_IDS"
+
+          # Process each issue ID
+          IFS=',' read -ra IDS <<< "$ISSUE_IDS"
+          for ISSUE_ID in "${IDS[@]}"; do
+            echo "Processing $ISSUE_ID..."
+
+            # Get the issue UUID and current state
+            ISSUE_DATA=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { id identifier state { id name } } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }')
+
+            ISSUE_UUID=$(echo "$ISSUE_DATA" | jq -r '.data.issue.id // empty')
+            CURRENT_STATE=$(echo "$ISSUE_DATA" | jq -r '.data.issue.state.name // empty')
+
+            if [ -z "$ISSUE_UUID" ]; then
+              echo "Warning: Could not find issue $ISSUE_ID"
+              continue
+            fi
+
+            echo "Issue $ISSUE_ID is currently in state: $CURRENT_STATE"
+
+            # Only move to "Done" if not already Done or Canceled
+            if [ "$CURRENT_STATE" != "Done" ] && [ "$CURRENT_STATE" != "Canceled" ] && [ "$CURRENT_STATE" != "Duplicate" ]; then
+              echo "Moving $ISSUE_ID to 'Done'..."
+
+              RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+                -H "Content-Type: application/json" \
+                -H "Authorization: $LINEAR_API_KEY" \
+                -d '{
+                  "query": "mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success issue { identifier state { name } } } }",
+                  "variables": {
+                    "id": "'"$ISSUE_UUID"'",
+                    "input": { "stateId": "'"$LINEAR_STATE_DONE"'" }
+                  }
+                }')
+
+              SUCCESS=$(echo "$RESULT" | jq -r '.data.issueUpdate.success // false')
+              if [ "$SUCCESS" = "true" ]; then
+                echo "Successfully moved $ISSUE_ID to 'Done'"
+              else
+                echo "Warning: Failed to update $ISSUE_ID: $RESULT"
+              fi
+            else
+              echo "Skipping $ISSUE_ID - already in terminal state: $CURRENT_STATE"
+            fi
+          done
+
+  # Manual trigger handler
+  manual-trigger:
+    name: Manual Linear Update
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Get PR information
+        id: pr-info
+        if: github.event.inputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.inputs.pr_number }}"
+
+          PR_DATA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER" --jq '{title: .title, head_ref: .head.ref, state: .state, merged: .merged}' || echo "{}")
+
+          if [ -z "$PR_DATA" ] || [ "$PR_DATA" = "{}" ]; then
+            echo "Could not find PR #$PR_NUMBER"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_TITLE=$(echo "$PR_DATA" | jq -r '.title // empty')
+          PR_BRANCH=$(echo "$PR_DATA" | jq -r '.head_ref // empty')
+
+          echo "Found PR #$PR_NUMBER: $PR_TITLE"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+          echo "branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Extract Linear issue IDs
+        id: extract-issues
+        if: steps.pr-info.outputs.found == 'true'
+        run: |
+          PR_TITLE="${{ steps.pr-info.outputs.title }}"
+          PR_BRANCH="${{ steps.pr-info.outputs.branch }}"
+
+          # Extract issue IDs from PR title and branch name
+          ISSUE_IDS=""
+
+          TITLE_MATCHES=$(echo "$PR_TITLE" | grep -oiE 'NEM[_-][0-9]+' | tr '[:lower:]' '[:upper:]' | tr '_' '-' | sort -u || true)
+          if [ -n "$TITLE_MATCHES" ]; then
+            ISSUE_IDS="$TITLE_MATCHES"
+          fi
+
+          BRANCH_MATCHES=$(echo "$PR_BRANCH" | grep -oiE 'NEM[_-][0-9]+' | tr '[:lower:]' '[:upper:]' | tr '_' '-' | sort -u || true)
+          if [ -n "$BRANCH_MATCHES" ]; then
+            ISSUE_IDS="$ISSUE_IDS $BRANCH_MATCHES"
+          fi
+
+          UNIQUE_IDS=$(echo "$ISSUE_IDS" | tr ' ' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+          if [ -z "$UNIQUE_IDS" ]; then
+            echo "No Linear issue IDs found"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found Linear issue IDs: $UNIQUE_IDS"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "ids=$UNIQUE_IDS" >> "$GITHUB_OUTPUT"
+
+      - name: Check current status
+        if: github.event.inputs.action == 'check' && steps.extract-issues.outputs.found == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
+
+          echo "Checking status of issues: $ISSUE_IDS"
+
+          IFS=',' read -ra IDS <<< "$ISSUE_IDS"
+          for ISSUE_ID in "${IDS[@]}"; do
+            ISSUE_DATA=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { identifier title state { name } url } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }')
+
+            IDENTIFIER=$(echo "$ISSUE_DATA" | jq -r '.data.issue.identifier // "Not found"')
+            TITLE=$(echo "$ISSUE_DATA" | jq -r '.data.issue.title // "N/A"')
+            STATE=$(echo "$ISSUE_DATA" | jq -r '.data.issue.state.name // "N/A"')
+            URL=$(echo "$ISSUE_DATA" | jq -r '.data.issue.url // "N/A"')
+
+            echo "---"
+            echo "Issue: $IDENTIFIER"
+            echo "Title: $TITLE"
+            echo "State: $STATE"
+            echo "URL: $URL"
+          done
+
+      - name: Move to In Review
+        if: github.event.inputs.action == 'move-to-review' && steps.extract-issues.outputs.found == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
+
+          echo "Moving issues to 'In Review': $ISSUE_IDS"
+
+          IFS=',' read -ra IDS <<< "$ISSUE_IDS"
+          for ISSUE_ID in "${IDS[@]}"; do
+            ISSUE_UUID=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { id } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }' | jq -r '.data.issue.id // empty')
+
+            if [ -z "$ISSUE_UUID" ]; then
+              echo "Warning: Could not find issue $ISSUE_ID"
+              continue
+            fi
+
+            RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+                "variables": {
+                  "id": "'"$ISSUE_UUID"'",
+                  "input": { "stateId": "'"$LINEAR_STATE_IN_REVIEW"'" }
+                }
+              }')
+
+            SUCCESS=$(echo "$RESULT" | jq -r '.data.issueUpdate.success // false')
+            echo "$ISSUE_ID: $SUCCESS"
+          done
+
+      - name: Move to Done
+        if: github.event.inputs.action == 'move-to-done' && steps.extract-issues.outputs.found == 'true'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          ISSUE_IDS="${{ steps.extract-issues.outputs.ids }}"
+
+          echo "Moving issues to 'Done': $ISSUE_IDS"
+
+          IFS=',' read -ra IDS <<< "$ISSUE_IDS"
+          for ISSUE_ID in "${IDS[@]}"; do
+            ISSUE_UUID=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "query GetIssue($id: String!) { issue(id: $id) { id } }",
+                "variables": { "id": "'"$ISSUE_ID"'" }
+              }' | jq -r '.data.issue.id // empty')
+
+            if [ -z "$ISSUE_UUID" ]; then
+              echo "Warning: Could not find issue $ISSUE_ID"
+              continue
+            fi
+
+            RESULT=$(curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+                "variables": {
+                  "id": "'"$ISSUE_UUID"'",
+                  "input": { "stateId": "'"$LINEAR_STATE_DONE"'" }
+                }
+              }')
+
+            SUCCESS=$(echo "$RESULT" | jq -r '.data.issueUpdate.success // false')
+            echo "$ISSUE_ID: $SUCCESS"
+          done

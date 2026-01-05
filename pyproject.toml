@@ -60,6 +60,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-xdist>=3.5.0",
     "pytest-timeout>=2.3.0",
+    "pytest-rerunfailures>=14.0",  # Flaky test detection - auto-retry failures
     "fakeredis>=2.20.0",
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
@@ -188,6 +189,7 @@ markers = [
     "slow: mark test as legitimately slow (30s timeout)",
     "benchmark: mark test as a benchmark test (requires pytest-benchmark)",
     "serial: mark test as requiring serial execution (no parallel)",
+    "flaky: mark test as flaky (known to fail intermittently, quarantined)",
 ]
 
 [tool.coverage.run]
