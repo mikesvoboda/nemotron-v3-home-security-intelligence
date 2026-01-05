@@ -676,7 +676,7 @@ def cache_and_ai_down(
 # =============================================================================
 
 
-def assert_degraded_response(response: Any, expected_warnings: list[str] | None = None) -> None:
+def assert_degraded_response(response: Any, _expected_warnings: list[str] | None = None) -> None:
     """Assert that a response indicates degraded operation.
 
     Args:
