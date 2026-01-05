@@ -4,40 +4,27 @@ These tests verify that enrichment data (vehicle classification, pet identificat
 person attributes, license plates, etc.) is correctly persisted to detections
 and returned in API responses.
 
-Following TDD: These tests are written BEFORE implementation.
+These are UNIT tests using mocks - no real database connections required.
+Integration tests with real database are in backend/tests/integration/.
 """
 
 import json
 import uuid
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 
 @pytest.fixture
 def sample_camera_data():
-    """Return camera data for creating test cameras.
-
-    Each test should create its own camera within its session context
-    to ensure proper isolation and foreign key relationships.
-    """
+    """Return camera data for creating test cameras."""
     return {
         "id": str(uuid.uuid4()),
         "name": f"Enrichment Test Camera {uuid.uuid4().hex[:8]}",
         "folder_path": f"/export/foscam/enrichment_test_{uuid.uuid4().hex[:8]}",
         "status": "online",
     }
-
-
-async def create_test_camera(session, camera_data: dict):
-    """Helper to create a camera within a session context."""
-    from backend.models.camera import Camera
-
-    camera = Camera(**camera_data)
-    session.add(camera)
-    await session.commit()
-    await session.refresh(camera)
-    return camera
 
 
 @pytest.fixture
@@ -79,106 +66,76 @@ def sample_enrichment_data():
 class TestDetectionModelEnrichmentData:
     """Tests for Detection model enrichment_data column."""
 
-    @pytest.mark.asyncio
-    async def test_detection_model_has_enrichment_data_column(self, test_db, sample_camera_data):
+    def test_detection_model_has_enrichment_data_column(self):
         """Test that Detection model has enrichment_data column."""
         from backend.models.detection import Detection
 
-        async with test_db() as session:
-            # Create camera in the same session to ensure FK relationship
-            camera = await create_test_camera(session, sample_camera_data)
+        # Verify the model class has the enrichment_data attribute
+        assert hasattr(Detection, "enrichment_data")
 
-            detection = Detection(
-                camera_id=camera.id,
-                file_path="/export/foscam/test/image.jpg",
-                file_type="image/jpeg",
-                detected_at=datetime.now(UTC),
-                object_type="person",
-                confidence=0.95,
-                bbox_x=100,
-                bbox_y=150,
-                bbox_width=200,
-                bbox_height=400,
-                enrichment_data=None,
-            )
-            session.add(detection)
-            await session.commit()
-            await session.refresh(detection)
+        # Create an instance with enrichment_data=None
+        detection = Detection(
+            camera_id=str(uuid.uuid4()),
+            file_path="/export/foscam/test/image.jpg",
+            file_type="image/jpeg",
+            detected_at=datetime.now(UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=150,
+            bbox_width=200,
+            bbox_height=400,
+            enrichment_data=None,
+        )
 
-            assert hasattr(detection, "enrichment_data")
-            assert detection.enrichment_data is None
+        assert hasattr(detection, "enrichment_data")
+        assert detection.enrichment_data is None
 
-    @pytest.mark.asyncio
-    async def test_detection_stores_enrichment_data_json(
-        self, test_db, sample_camera_data, sample_enrichment_data
-    ):
-        """Test that enrichment data is stored as JSON in Detection model."""
+    def test_detection_stores_enrichment_data_json(self, sample_enrichment_data):
+        """Test that enrichment data can be assigned to Detection model."""
         from backend.models.detection import Detection
 
-        async with test_db() as session:
-            # Create camera in the same session to ensure FK relationship
-            camera = await create_test_camera(session, sample_camera_data)
+        detection = Detection(
+            camera_id=str(uuid.uuid4()),
+            file_path="/export/foscam/test/image.jpg",
+            file_type="image/jpeg",
+            detected_at=datetime.now(UTC),
+            object_type="car",
+            confidence=0.92,
+            bbox_x=300,
+            bbox_y=200,
+            bbox_width=400,
+            bbox_height=300,
+            enrichment_data=sample_enrichment_data,
+        )
 
-            detection = Detection(
-                camera_id=camera.id,
-                file_path="/export/foscam/test/image.jpg",
-                file_type="image/jpeg",
-                detected_at=datetime.now(UTC),
-                object_type="car",
-                confidence=0.92,
-                bbox_x=300,
-                bbox_y=200,
-                bbox_width=400,
-                bbox_height=300,
-                enrichment_data=sample_enrichment_data,
-            )
-            session.add(detection)
-            await session.commit()
-            await session.refresh(detection)
+        # Verify enrichment_data is set correctly
+        assert detection.enrichment_data is not None
+        assert detection.enrichment_data["vehicle"]["type"] == "sedan"
+        assert detection.enrichment_data["pet"]["breed"] == "labrador"
+        assert detection.enrichment_data["license_plate"]["text"] == "ABC123"
 
-            # Verify enrichment_data is persisted correctly
-            assert detection.enrichment_data is not None
-            assert detection.enrichment_data["vehicle"]["type"] == "sedan"
-            assert detection.enrichment_data["pet"]["breed"] == "labrador"
-            assert detection.enrichment_data["license_plate"]["text"] == "ABC123"
-
-    @pytest.mark.asyncio
-    async def test_detection_enrichment_data_retrieved_from_database(
-        self, test_db, sample_camera_data, sample_enrichment_data
-    ):
-        """Test that enrichment data is correctly retrieved from database."""
-        from sqlalchemy import select
-
+    def test_detection_enrichment_data_is_dict_type(self, sample_enrichment_data):
+        """Test that enrichment data maintains dict type."""
         from backend.models.detection import Detection
 
-        async with test_db() as session:
-            # Create camera in the same session to ensure FK relationship
-            camera = await create_test_camera(session, sample_camera_data)
+        detection = Detection(
+            camera_id=str(uuid.uuid4()),
+            file_path="/export/foscam/test/retrieve_test.jpg",
+            file_type="image/jpeg",
+            detected_at=datetime.now(UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=150,
+            bbox_width=200,
+            bbox_height=400,
+            enrichment_data=sample_enrichment_data,
+        )
 
-            detection = Detection(
-                camera_id=camera.id,
-                file_path="/export/foscam/test/retrieve_test.jpg",
-                file_type="image/jpeg",
-                detected_at=datetime.now(UTC),
-                object_type="person",
-                confidence=0.95,
-                bbox_x=100,
-                bbox_y=150,
-                bbox_width=200,
-                bbox_height=400,
-                enrichment_data=sample_enrichment_data,
-            )
-            session.add(detection)
-            await session.commit()
-            detection_id = detection.id
-
-        # Retrieve in a new session to verify persistence
-        async with test_db() as session:
-            result = await session.execute(select(Detection).where(Detection.id == detection_id))
-            retrieved = result.scalar_one()
-
-            assert retrieved.enrichment_data is not None
-            assert retrieved.enrichment_data == sample_enrichment_data
+        # Verify it's a dict and can be accessed properly
+        assert isinstance(detection.enrichment_data, dict)
+        assert detection.enrichment_data == sample_enrichment_data
 
 
 class TestDetectionResponseSchema:
@@ -193,8 +150,6 @@ class TestDetectionResponseSchema:
 
     def test_detection_response_serializes_enrichment_data(self, sample_enrichment_data):
         """Test that DetectionResponse correctly serializes enrichment data."""
-        from datetime import datetime
-
         from backend.api.schemas.detections import DetectionResponse
 
         response = DetectionResponse(
@@ -225,8 +180,6 @@ class TestDetectionResponseSchema:
 
     def test_detection_response_handles_null_enrichment_data(self):
         """Test that DetectionResponse handles null enrichment data."""
-        from datetime import datetime
-
         from backend.api.schemas.detections import DetectionResponse
 
         response = DetectionResponse(
@@ -259,39 +212,59 @@ class TestDetectionsAPIEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_get_detection_returns_enrichment_data(
-        self, test_db, sample_camera_data, sample_enrichment_data
+        self, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/detections/{id} returns enrichment_data."""
         from httpx import ASGITransport, AsyncClient
 
+        from backend.core.database import get_db
         from backend.main import app
         from backend.models.detection import Detection
 
-        # Create camera and detection with enrichment data
-        async with test_db() as session:
-            # Create camera in the same session to ensure FK relationship
-            camera = await create_test_camera(session, sample_camera_data)
+        detection_id = 12345
+        camera_id = sample_camera_data["id"]
 
-            detection = Detection(
-                camera_id=camera.id,
-                file_path="/export/foscam/test/api_test.jpg",
-                file_type="image/jpeg",
-                detected_at=datetime.now(UTC),
-                object_type="car",
-                confidence=0.92,
-                bbox_x=300,
-                bbox_y=200,
-                bbox_width=400,
-                bbox_height=300,
-                enrichment_data=sample_enrichment_data,
-            )
-            session.add(detection)
-            await session.commit()
-            detection_id = detection.id
+        # Create mock detection with enrichment data
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = detection_id
+        mock_detection.camera_id = camera_id
+        mock_detection.file_path = "/export/foscam/test/api_test.jpg"
+        mock_detection.file_type = "image/jpeg"
+        mock_detection.detected_at = datetime.now(UTC)
+        mock_detection.object_type = "car"
+        mock_detection.confidence = 0.92
+        mock_detection.bbox_x = 300
+        mock_detection.bbox_y = 200
+        mock_detection.bbox_width = 400
+        mock_detection.bbox_height = 300
+        mock_detection.thumbnail_path = None
+        mock_detection.media_type = "image"
+        mock_detection.duration = None
+        mock_detection.video_codec = None
+        mock_detection.video_width = None
+        mock_detection.video_height = None
+        mock_detection.enrichment_data = sample_enrichment_data
 
-        # Test API response
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(f"/api/detections/{detection_id}")
+        # Create mock result that behaves like SQLAlchemy result
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+
+        # Mock the session
+        mock_session = AsyncMock()
+        mock_session.execute.return_value = mock_result
+
+        # Override FastAPI dependency
+        async def override_get_db():
+            yield mock_session
+
+        app.dependency_overrides[get_db] = override_get_db
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(f"/api/detections/{detection_id}")
+        finally:
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
         data = response.json()
@@ -300,54 +273,69 @@ class TestDetectionsAPIEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_list_detections_returns_enrichment_data(
-        self, test_db, sample_camera_data, sample_enrichment_data
+        self, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/detections returns enrichment_data for each detection."""
         from httpx import ASGITransport, AsyncClient
 
+        from backend.core.database import get_db
         from backend.main import app
         from backend.models.detection import Detection
 
-        # Create camera and detection with enrichment data
-        async with test_db() as session:
-            # Create camera in the same session to ensure FK relationship
-            camera = await create_test_camera(session, sample_camera_data)
+        camera_id = sample_camera_data["id"]
 
-            detection = Detection(
-                camera_id=camera.id,
-                file_path="/export/foscam/test/list_api_test.jpg",
-                file_type="image/jpeg",
-                detected_at=datetime.now(UTC),
-                object_type="person",
-                confidence=0.95,
-                bbox_x=100,
-                bbox_y=150,
-                bbox_width=200,
-                bbox_height=400,
-                enrichment_data=sample_enrichment_data,
-            )
-            session.add(detection)
-            await session.commit()
-            camera_id = camera.id
+        # Create mock detection with enrichment data
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 12345
+        mock_detection.camera_id = camera_id
+        mock_detection.file_path = "/export/foscam/test/list_api_test.jpg"
+        mock_detection.file_type = "image/jpeg"
+        mock_detection.detected_at = datetime.now(UTC)
+        mock_detection.object_type = "person"
+        mock_detection.confidence = 0.95
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 150
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+        mock_detection.thumbnail_path = None
+        mock_detection.media_type = "image"
+        mock_detection.duration = None
+        mock_detection.video_codec = None
+        mock_detection.video_width = None
+        mock_detection.video_height = None
+        mock_detection.enrichment_data = sample_enrichment_data
 
-        # Test API response
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(f"/api/detections?camera_id={camera_id}")
+        # Mock the scalars result
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [mock_detection]
+
+        # Mock count result
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 1
+
+        # Mock the session
+        mock_session = AsyncMock()
+        mock_session.execute.side_effect = [mock_count_result, mock_result]
+
+        # Override FastAPI dependency
+        async def override_get_db():
+            yield mock_session
+
+        app.dependency_overrides[get_db] = override_get_db
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(f"/api/detections?camera_id={camera_id}")
+        finally:
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
         data = response.json()
         assert "detections" in data
-        # Find our detection in the list
-        detection_found = False
-        for det in data["detections"]:
-            if (
-                "enrichment_data" in det
-                and det["enrichment_data"] is not None
-                and det["enrichment_data"].get("license_plate", {}).get("text") == "ABC123"
-            ):
-                detection_found = True
-                break
-        assert detection_found, "Detection with enrichment data not found in API response"
+        assert len(data["detections"]) == 1
+        assert "enrichment_data" in data["detections"][0]
+        assert data["detections"][0]["enrichment_data"] == sample_enrichment_data
 
 
 class TestEventDetectionsEnrichmentData:
@@ -355,56 +343,89 @@ class TestEventDetectionsEnrichmentData:
 
     @pytest.mark.asyncio
     async def test_get_event_detections_includes_enrichment_data(
-        self, test_db, sample_camera_data, sample_enrichment_data
+        self, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/events/{id}/detections returns enrichment_data."""
         from httpx import ASGITransport, AsyncClient
 
+        from backend.core.database import get_db
         from backend.main import app
         from backend.models.detection import Detection
         from backend.models.event import Event
 
-        # Create camera, detection and event with enrichment data
-        async with test_db() as session:
-            # Create camera in the same session to ensure FK relationship
-            camera = await create_test_camera(session, sample_camera_data)
+        event_id = 99999
+        detection_id = 12345
+        camera_id = sample_camera_data["id"]
 
-            detection = Detection(
-                camera_id=camera.id,
-                file_path="/export/foscam/test/event_detection.jpg",
-                file_type="image/jpeg",
-                detected_at=datetime.now(UTC),
-                object_type="person",
-                confidence=0.95,
-                bbox_x=100,
-                bbox_y=150,
-                bbox_width=200,
-                bbox_height=400,
-                enrichment_data=sample_enrichment_data,
-            )
-            session.add(detection)
-            await session.commit()
-            detection_id = detection.id
+        # Create mock detection with enrichment data
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = detection_id
+        mock_detection.camera_id = camera_id
+        mock_detection.file_path = "/export/foscam/test/event_detection.jpg"
+        mock_detection.file_type = "image/jpeg"
+        mock_detection.detected_at = datetime.now(UTC)
+        mock_detection.object_type = "person"
+        mock_detection.confidence = 0.95
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 150
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+        mock_detection.thumbnail_path = None
+        mock_detection.media_type = "image"
+        mock_detection.duration = None
+        mock_detection.video_codec = None
+        mock_detection.video_width = None
+        mock_detection.video_height = None
+        mock_detection.enrichment_data = sample_enrichment_data
 
-            # Create event referencing this detection
-            event = Event(
-                batch_id=str(uuid.uuid4()),
-                camera_id=camera.id,
-                started_at=datetime.now(UTC),
-                ended_at=datetime.now(UTC),
-                risk_score=50,
-                risk_level="medium",
-                summary="Test event with enrichment",
-                detection_ids=json.dumps([detection_id]),
-                reviewed=False,
-            )
-            session.add(event)
-            await session.commit()
-            event_id = event.id
+        # Create mock event
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = event_id
+        mock_event.batch_id = str(uuid.uuid4())
+        mock_event.camera_id = camera_id
+        mock_event.started_at = datetime.now(UTC)
+        mock_event.ended_at = datetime.now(UTC)
+        mock_event.risk_score = 50
+        mock_event.risk_level = "medium"
+        mock_event.summary = "Test event with enrichment"
+        mock_event.detection_ids = json.dumps([detection_id])
+        mock_event.reviewed = False
 
-        # Test API response
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(f"/api/events/{event_id}/detections")
+        # Mock event query result
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        # Mock count query result
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        # Mock detections query result
+        mock_detections_result = MagicMock()
+        mock_detections_result.scalars.return_value.all.return_value = [mock_detection]
+
+        # Mock the session - note: get_event_detections makes 3 db calls:
+        # 1. select Event by id
+        # 2. count detections
+        # 3. select detections
+        mock_session = AsyncMock()
+        mock_session.execute.side_effect = [
+            mock_event_result,
+            mock_count_result,
+            mock_detections_result,
+        ]
+
+        # Override FastAPI dependency
+        async def override_get_db():
+            yield mock_session
+
+        app.dependency_overrides[get_db] = override_get_db
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(f"/api/events/{event_id}/detections")
+        finally:
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
         data = response.json()
