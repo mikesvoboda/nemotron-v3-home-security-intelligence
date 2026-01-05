@@ -1,0 +1,190 @@
+name: Linear-GitHub Issue Sync
+
+# This workflow syncs Linear task completions to GitHub issues
+# - Runs daily at 6 AM UTC (audit only)
+# - Runs weekly on Sundays at 6 AM UTC (auto-close)
+# - Can be triggered manually with custom settings
+
+on:
+  # Daily audit at 6 AM UTC
+  schedule:
+    - cron: '0 6 * * *'
+
+  # Allow manual trigger with options
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Operation mode'
+        required: true
+        default: 'audit'
+        type: choice
+        options:
+          - audit
+          - close
+      batch_size:
+        description: 'Issues to close per batch'
+        required: false
+        default: '100'
+        type: string
+      batch_delay:
+        description: 'Seconds between batches'
+        required: false
+        default: '60'
+        type: string
+      rate_limit:
+        description: 'Seconds between API calls'
+        required: false
+        default: '1'
+        type: string
+      min_similarity:
+        description: 'Minimum title similarity (0-100)'
+        required: false
+        default: '80'
+        type: string
+      limit:
+        description: 'Max issues to process (empty = all)'
+        required: false
+        default: ''
+        type: string
+
+  # Trigger on webhook from Linear
+  repository_dispatch:
+    types: [linear-issue-updated]
+
+concurrency:
+  group: linear-github-sync
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  sync-issues:
+    name: Sync Linear to GitHub Issues
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install httpx
+
+      - name: Configure gh CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      # Daily scheduled run - audit only
+      - name: Daily Audit (scheduled)
+        if: github.event_name == 'schedule'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Running daily audit..."
+          python scripts/audit-linear-github-sync.py --output table
+
+      # Manual audit mode
+      - name: Manual Audit
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'audit'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LIMIT_ARG=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          fi
+
+          python scripts/audit-linear-github-sync.py \
+            --min-similarity ${{ github.event.inputs.min_similarity }} \
+            --close-matched \
+            $LIMIT_ARG \
+            --output table
+
+      # Manual close mode
+      - name: Manual Close
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'close'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LIMIT_ARG=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          fi
+
+          python scripts/audit-linear-github-sync.py \
+            --close-matched \
+            --no-dry-run \
+            --min-similarity ${{ github.event.inputs.min_similarity }} \
+            --batch-size ${{ github.event.inputs.batch_size }} \
+            --batch-delay ${{ github.event.inputs.batch_delay }} \
+            --rate-limit ${{ github.event.inputs.rate_limit }} \
+            $LIMIT_ARG \
+            --output table
+
+      # Handle Linear webhook events
+      - name: Handle Linear Webhook
+        if: github.event_name == 'repository_dispatch'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Received Linear webhook event"
+          echo "Issue: ${{ github.event.client_payload.issue_identifier }}"
+          echo "Status: ${{ github.event.client_payload.status }}"
+
+          # If the Linear issue was marked Done, close matching GitHub issue
+          if [ "${{ github.event.client_payload.status }}" = "Done" ]; then
+            ISSUE_TITLE="${{ github.event.client_payload.issue_title }}"
+            LINEAR_ID="${{ github.event.client_payload.issue_identifier }}"
+
+            echo "Searching for GitHub issues matching: $ISSUE_TITLE"
+
+            # Search for matching GitHub issue by title
+            MATCHING_ISSUES=$(gh issue list --state open --search "$ISSUE_TITLE" --json number,title --limit 5)
+            echo "$MATCHING_ISSUES" | jq -r '.[] | "  #\(.number): \(.title)"'
+
+            # Close first exact match
+            ISSUE_NUMBER=$(echo "$MATCHING_ISSUES" | jq -r '.[0].number // empty')
+            if [ -n "$ISSUE_NUMBER" ]; then
+              echo "Closing GitHub issue #$ISSUE_NUMBER"
+              gh issue comment "$ISSUE_NUMBER" --body "Closing: Matched to Linear task $LINEAR_ID (status: Done)
+
+              This issue has been migrated to Linear for tracking."
+              gh issue close "$ISSUE_NUMBER" --reason completed
+              echo "Successfully closed #$ISSUE_NUMBER"
+            else
+              echo "No matching GitHub issue found"
+            fi
+          fi
+
+  # Create summary on scheduled runs
+  summary:
+    name: Generate Summary
+    runs-on: ubuntu-latest
+    needs: sync-issues
+    if: always() && github.event_name == 'schedule'
+    permissions:
+      issues: write
+
+    steps:
+      - name: Create summary comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN_COUNT=$(gh issue list --repo ${{ github.repository }} --state open --json number | jq length)
+          echo "### Linear-GitHub Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Open GitHub Issues:** $OPEN_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To close matched issues, trigger the workflow manually with mode=close" >> $GITHUB_STEP_SUMMARY
