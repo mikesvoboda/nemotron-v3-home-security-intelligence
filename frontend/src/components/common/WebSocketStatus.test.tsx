@@ -562,4 +562,62 @@ describe('WebSocketStatus', () => {
       expect(onRetry).not.toHaveBeenCalled();
     });
   });
+
+  describe('Polling fallback indicator', () => {
+    it('shows polling indicator when isPollingFallback is true', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          isPollingFallback={true}
+        />
+      );
+
+      const pollingIndicator = screen.getByTestId('polling-indicator');
+      expect(pollingIndicator).toBeInTheDocument();
+      expect(pollingIndicator).toHaveTextContent(/polling/i);
+    });
+
+    it('does not show polling indicator when isPollingFallback is false', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'connected' })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+          isPollingFallback={false}
+        />
+      );
+
+      expect(screen.queryByTestId('polling-indicator')).not.toBeInTheDocument();
+    });
+
+    it('shows polling indicator when isPollingFallback is true even without explicit prop', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          isPollingFallback={true}
+        />
+      );
+
+      // Should show that we're using REST API polling as fallback
+      const pollingIndicator = screen.getByTestId('polling-indicator');
+      expect(pollingIndicator).toHaveClass('text-blue-400');
+    });
+
+    it('includes polling info in tooltip when in polling fallback mode', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          isPollingFallback={true}
+        />
+      );
+
+      // Hover to show tooltip
+      fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
+
+      const tooltip = screen.getByTestId('websocket-tooltip');
+      expect(tooltip).toHaveTextContent(/REST API/i);
+    });
+  });
 });

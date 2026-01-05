@@ -71,7 +71,9 @@ export function useWebSocketStatus(
     onMaxRetriesExhausted,
     reconnect = true,
     reconnectInterval = 1000, // Base interval for exponential backoff
-    reconnectAttempts = 5,
+    // Default to 15 attempts for better resilience during backend restarts
+    // With exponential backoff (1s base, 30s max), this provides ~8+ minutes of retry
+    reconnectAttempts = 15,
     connectionTimeout = 10000, // 10 second connection timeout
   } = options;
 

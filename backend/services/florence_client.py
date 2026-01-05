@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from backend.core.circuit_breaker import CircuitBreaker, CircuitState
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
@@ -158,6 +159,14 @@ class FlorenceClient:
             pool=settings.ai_health_timeout,
         )
 
+        # Initialize circuit breaker for Florence service
+        self._circuit_breaker = CircuitBreaker(
+            name="florence",
+            failure_threshold=getattr(settings, "florence_cb_failure_threshold", 5),
+            recovery_timeout=getattr(settings, "florence_cb_recovery_timeout", 60.0),
+            half_open_max_calls=getattr(settings, "florence_cb_half_open_max_calls", 3),
+        )
+
         logger.info(f"FlorenceClient initialized with base_url={self._base_url}")
 
     def _encode_image_to_base64(self, image: Image.Image) -> str:
@@ -176,12 +185,38 @@ class FlorenceClient:
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
 
+    def get_circuit_breaker_state(self) -> CircuitState:
+        """Get current circuit breaker state.
+
+        Returns:
+            Current CircuitState (CLOSED, OPEN, or HALF_OPEN)
+        """
+        return self._circuit_breaker.get_state()
+
+    def _check_circuit_breaker(self) -> None:
+        """Check if the circuit breaker allows the request to proceed.
+
+        Raises:
+            FlorenceUnavailableError: If circuit breaker is open
+        """
+        if not self._circuit_breaker.allow_request():
+            record_pipeline_error("florence_circuit_open")
+            raise FlorenceUnavailableError(
+                "Florence service circuit breaker is open - service temporarily unavailable"
+            )
+
     async def check_health(self) -> bool:
         """Check if Florence service is healthy and reachable.
 
         Returns:
-            True if Florence service is healthy, False otherwise
+            True if Florence service is healthy and circuit breaker is not open,
+            False otherwise
         """
+        # If circuit breaker is open, consider service unhealthy
+        if self._circuit_breaker.get_state() == CircuitState.OPEN:
+            logger.warning("Florence health check: circuit breaker is open")
+            return False
+
         try:
             async with httpx.AsyncClient(timeout=self._health_timeout) as client:
                 response = await client.get(f"{self._base_url}/health")
@@ -217,7 +252,11 @@ class FlorenceClient:
 
         Raises:
             FlorenceUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+                                     or if the circuit breaker is open
         """
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug(f"Sending extraction request with prompt: {prompt[:50]}...")
@@ -253,6 +292,9 @@ class FlorenceClient:
             if "result" not in result:
                 logger.warning(f"Malformed response from Florence (missing 'result'): {result}")
                 record_pipeline_error("florence_malformed_response")
+                # Don't count malformed response as failure for circuit breaker
+                # (server responded, just with unexpected format)
+                self._circuit_breaker.record_success()
                 return ""
 
             extracted_text: str = result["result"]
@@ -264,6 +306,9 @@ class FlorenceClient:
                 prompt.strip("<>").split(">")[0].lower() if prompt.startswith("<") else "extract"
             )
             record_florence_task(task_type)
+
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
 
             logger.debug(
                 f"Florence extraction completed: {len(extracted_text)} chars in {duration_ms}ms"
@@ -278,6 +323,8 @@ class FlorenceClient:
                 extra={"duration_ms": duration_ms},
                 exc_info=True,
             )
+            # Record failure with circuit breaker
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Failed to connect to Florence service: {e}",
                 original_error=e,
@@ -291,6 +338,8 @@ class FlorenceClient:
                 extra={"duration_ms": duration_ms},
                 exc_info=True,
             )
+            # Record failure with circuit breaker
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Florence request timed out: {e}",
                 original_error=e,
@@ -308,12 +357,15 @@ class FlorenceClient:
                     extra={"duration_ms": duration_ms, "status_code": status_code},
                     exc_info=True,
                 )
+                # Record failure with circuit breaker for server errors
+                self._circuit_breaker.record_failure()
                 raise FlorenceUnavailableError(
                     f"Florence returned server error: {status_code}",
                     original_error=e,
                 ) from e
 
             # 4xx errors are client errors (bad request, etc.) - don't retry
+            # and don't count against circuit breaker (our fault, not server's)
             record_pipeline_error("florence_client_error")
             logger.error(
                 f"Florence returned client error: {status_code} - {e}",
@@ -321,6 +373,10 @@ class FlorenceClient:
                 exc_info=True,
             )
             return ""
+
+        except FlorenceUnavailableError:
+            # Re-raise circuit breaker errors without modification
+            raise
 
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
@@ -330,6 +386,8 @@ class FlorenceClient:
                 extra={"duration_ms": duration_ms},
                 exc_info=True,
             )
+            # Record failure with circuit breaker
+            self._circuit_breaker.record_failure()
             # For unexpected errors, also raise to allow retry
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence extraction: {sanitize_error(e)}",
@@ -346,8 +404,11 @@ class FlorenceClient:
             Extracted text from the image, or empty string on error
 
         Raises:
-            FlorenceUnavailableError: If the service is unavailable
+            FlorenceUnavailableError: If the service is unavailable or circuit breaker is open
         """
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug("Sending OCR request...")
@@ -373,6 +434,7 @@ class FlorenceClient:
             if "text" not in result:
                 logger.warning(f"Malformed OCR response (missing 'text'): {result}")
                 record_pipeline_error("florence_ocr_malformed_response")
+                self._circuit_breaker.record_success()
                 return ""
 
             extracted_text: str = result["text"]
@@ -381,11 +443,15 @@ class FlorenceClient:
             # Record semantic metric for Florence OCR task
             record_florence_task("ocr")
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(f"Florence OCR completed: {len(extracted_text)} chars in {duration_ms}ms")
             return extracted_text
 
         except httpx.ConnectError as e:
             record_pipeline_error("florence_ocr_connection_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Failed to connect to Florence service for OCR: {e}",
                 original_error=e,
@@ -393,6 +459,7 @@ class FlorenceClient:
 
         except httpx.TimeoutException as e:
             record_pipeline_error("florence_ocr_timeout")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Florence OCR request timed out: {e}",
                 original_error=e,
@@ -402,6 +469,7 @@ class FlorenceClient:
             status_code = e.response.status_code
             if status_code >= 500:
                 record_pipeline_error("florence_ocr_server_error")
+                self._circuit_breaker.record_failure()
                 raise FlorenceUnavailableError(
                     f"Florence OCR returned server error: {status_code}",
                     original_error=e,
@@ -410,8 +478,13 @@ class FlorenceClient:
             logger.error(f"Florence OCR returned client error: {status_code} - {e}")
             return ""
 
+        except FlorenceUnavailableError:
+            # Re-raise circuit breaker errors without modification
+            raise
+
         except Exception as e:
             record_pipeline_error("florence_ocr_unexpected_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence OCR: {sanitize_error(e)}",
                 original_error=e,
@@ -427,8 +500,11 @@ class FlorenceClient:
             List of OCRRegion objects with text and bounding boxes
 
         Raises:
-            FlorenceUnavailableError: If the service is unavailable
+            FlorenceUnavailableError: If the service is unavailable or circuit breaker is open
         """
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug("Sending OCR with regions request...")
@@ -454,6 +530,7 @@ class FlorenceClient:
             if "regions" not in result:
                 logger.warning(f"Malformed OCR regions response (missing 'regions'): {result}")
                 record_pipeline_error("florence_ocr_regions_malformed_response")
+                self._circuit_breaker.record_success()
                 return []
 
             regions = [
@@ -464,6 +541,9 @@ class FlorenceClient:
             # Record semantic metric for Florence OCR with regions task
             record_florence_task("ocr_with_regions")
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(
                 f"Florence OCR regions completed: {len(regions)} regions in {duration_ms}ms"
             )
@@ -471,6 +551,7 @@ class FlorenceClient:
 
         except httpx.ConnectError as e:
             record_pipeline_error("florence_ocr_regions_connection_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Failed to connect to Florence service for OCR regions: {e}",
                 original_error=e,
@@ -478,6 +559,7 @@ class FlorenceClient:
 
         except httpx.TimeoutException as e:
             record_pipeline_error("florence_ocr_regions_timeout")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Florence OCR regions request timed out: {e}",
                 original_error=e,
@@ -487,6 +569,7 @@ class FlorenceClient:
             status_code = e.response.status_code
             if status_code >= 500:
                 record_pipeline_error("florence_ocr_regions_server_error")
+                self._circuit_breaker.record_failure()
                 raise FlorenceUnavailableError(
                     f"Florence OCR regions returned server error: {status_code}",
                     original_error=e,
@@ -495,8 +578,13 @@ class FlorenceClient:
             logger.error(f"Florence OCR regions returned client error: {status_code} - {e}")
             return []
 
+        except FlorenceUnavailableError:
+            # Re-raise circuit breaker errors without modification
+            raise
+
         except Exception as e:
             record_pipeline_error("florence_ocr_regions_unexpected_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence OCR regions: {sanitize_error(e)}",
                 original_error=e,
@@ -512,8 +600,11 @@ class FlorenceClient:
             List of Detection objects with labels and bounding boxes
 
         Raises:
-            FlorenceUnavailableError: If the service is unavailable
+            FlorenceUnavailableError: If the service is unavailable or circuit breaker is open
         """
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug("Sending object detection request...")
@@ -539,6 +630,7 @@ class FlorenceClient:
             if "detections" not in result:
                 logger.warning(f"Malformed detect response (missing 'detections'): {result}")
                 record_pipeline_error("florence_detect_malformed_response")
+                self._circuit_breaker.record_success()
                 return []
 
             detections = [
@@ -554,11 +646,15 @@ class FlorenceClient:
             # Record semantic metric for Florence detect task
             record_florence_task("detect")
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(f"Florence detect completed: {len(detections)} objects in {duration_ms}ms")
             return detections
 
         except httpx.ConnectError as e:
             record_pipeline_error("florence_detect_connection_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Failed to connect to Florence service for detection: {e}",
                 original_error=e,
@@ -566,6 +662,7 @@ class FlorenceClient:
 
         except httpx.TimeoutException as e:
             record_pipeline_error("florence_detect_timeout")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Florence detect request timed out: {e}",
                 original_error=e,
@@ -575,6 +672,7 @@ class FlorenceClient:
             status_code = e.response.status_code
             if status_code >= 500:
                 record_pipeline_error("florence_detect_server_error")
+                self._circuit_breaker.record_failure()
                 raise FlorenceUnavailableError(
                     f"Florence detect returned server error: {status_code}",
                     original_error=e,
@@ -583,8 +681,13 @@ class FlorenceClient:
             logger.error(f"Florence detect returned client error: {status_code} - {e}")
             return []
 
+        except FlorenceUnavailableError:
+            # Re-raise circuit breaker errors without modification
+            raise
+
         except Exception as e:
             record_pipeline_error("florence_detect_unexpected_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence detection: {sanitize_error(e)}",
                 original_error=e,
@@ -600,8 +703,11 @@ class FlorenceClient:
             List of CaptionedRegion objects with captions and bounding boxes
 
         Raises:
-            FlorenceUnavailableError: If the service is unavailable
+            FlorenceUnavailableError: If the service is unavailable or circuit breaker is open
         """
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
         start_time = time.time()
 
         logger.debug("Sending dense captioning request...")
@@ -627,6 +733,7 @@ class FlorenceClient:
             if "regions" not in result:
                 logger.warning(f"Malformed dense caption response (missing 'regions'): {result}")
                 record_pipeline_error("florence_dense_caption_malformed_response")
+                self._circuit_breaker.record_success()
                 return []
 
             regions = [
@@ -638,6 +745,9 @@ class FlorenceClient:
             # Record semantic metric for Florence dense caption task
             record_florence_task("dense_caption")
 
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
             logger.debug(
                 f"Florence dense caption completed: {len(regions)} regions in {duration_ms}ms"
             )
@@ -645,6 +755,7 @@ class FlorenceClient:
 
         except httpx.ConnectError as e:
             record_pipeline_error("florence_dense_caption_connection_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Failed to connect to Florence service for dense captioning: {e}",
                 original_error=e,
@@ -652,6 +763,7 @@ class FlorenceClient:
 
         except httpx.TimeoutException as e:
             record_pipeline_error("florence_dense_caption_timeout")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Florence dense caption request timed out: {e}",
                 original_error=e,
@@ -661,6 +773,7 @@ class FlorenceClient:
             status_code = e.response.status_code
             if status_code >= 500:
                 record_pipeline_error("florence_dense_caption_server_error")
+                self._circuit_breaker.record_failure()
                 raise FlorenceUnavailableError(
                     f"Florence dense caption returned server error: {status_code}",
                     original_error=e,
@@ -669,8 +782,13 @@ class FlorenceClient:
             logger.error(f"Florence dense caption returned client error: {status_code} - {e}")
             return []
 
+        except FlorenceUnavailableError:
+            # Re-raise circuit breaker errors without modification
+            raise
+
         except Exception as e:
             record_pipeline_error("florence_dense_caption_unexpected_error")
+            self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence dense captioning: {sanitize_error(e)}",
                 original_error=e,

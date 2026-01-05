@@ -623,6 +623,66 @@ class Settings(BaseSettings):
         description="Successful DLQ writes needed to close circuit from half-open state",
     )
 
+    # Enrichment circuit breaker settings
+    enrichment_cb_failure_threshold: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Number of Enrichment service failures before opening circuit breaker",
+    )
+    enrichment_cb_recovery_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=600.0,
+        description="Seconds to wait before attempting Enrichment service calls again after circuit opens",
+    )
+    enrichment_cb_half_open_max_calls: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum test calls allowed when Enrichment circuit is half-open",
+    )
+
+    # CLIP circuit breaker settings
+    clip_cb_failure_threshold: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Number of CLIP service failures before opening circuit breaker",
+    )
+    clip_cb_recovery_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=600.0,
+        description="Seconds to wait before attempting CLIP service calls again after circuit opens",
+    )
+    clip_cb_half_open_max_calls: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum test calls allowed when CLIP circuit is half-open",
+    )
+
+    # Florence circuit breaker settings
+    florence_cb_failure_threshold: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Number of Florence service failures before opening circuit breaker",
+    )
+    florence_cb_recovery_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=600.0,
+        description="Seconds to wait before attempting Florence service calls again after circuit opens",
+    )
+    florence_cb_half_open_max_calls: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum test calls allowed when Florence circuit is half-open",
+    )
+
     # Queue settings
     queue_max_size: int = Field(
         default=10000,
