@@ -1086,3 +1086,434 @@ class TestAuditToResponseConversion:
         assert response.scores.risk_justification == 4.0
         assert response.scores.consistency == 4.5
         assert response.scores.overall == 4.2
+
+
+class TestCustomTestPromptEndpoint:
+    """Tests for POST /api/ai-audit/test-prompt endpoint.
+
+    This endpoint allows testing a custom prompt against an existing event
+    for A/B testing in the Prompt Playground. Results are NOT persisted.
+    """
+
+    def test_test_prompt_returns_results(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test successful custom prompt testing returns expected results."""
+        mock_event = create_mock_event(
+            event_id=1,
+            risk_score=65,
+            summary="Person detected near front door",
+            reasoning="Person approaching property at night is suspicious.",
+        )
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Analyze this event for security risks.",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "model": "nemotron",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all expected fields are present
+        assert "risk_score" in data
+        assert "risk_level" in data
+        assert "reasoning" in data
+        assert "summary" in data
+        assert "entities" in data
+        assert "flags" in data
+        assert "recommended_action" in data
+        assert "processing_time_ms" in data
+        assert "tokens_used" in data
+
+        # Verify values are sensible
+        assert data["risk_score"] == 65  # Should match event's risk_score
+        assert data["risk_level"] == "high"  # 65 -> high
+        assert data["summary"] == "Person detected near front door"
+        assert data["reasoning"] == "Person approaching property at night is suspicious."
+        assert data["processing_time_ms"] >= 0
+        assert data["tokens_used"] > 0
+
+    def test_test_prompt_event_not_found_404(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that 404 is returned when event does not exist."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 999,
+                "custom_prompt": "Test prompt for non-existent event.",
+            },
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "Event 999 not found" in data["detail"]
+
+    def test_test_prompt_empty_prompt_400(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Test that 400 is returned when prompt is empty."""
+        # Test with completely empty string
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "",
+            },
+        )
+
+        assert response.status_code == 422  # Pydantic validation error (min_length=1)
+
+    def test_test_prompt_whitespace_only_prompt_400(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that 400 is returned when prompt contains only whitespace."""
+        # Need to pass Pydantic validation but fail our custom check
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "   ",  # Only whitespace
+            },
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "empty" in data["detail"].lower()
+
+    def test_test_prompt_with_default_parameters(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that default parameters are used when not specified."""
+        mock_event = create_mock_event(event_id=1, risk_score=30)
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        # Only required fields, no optional parameters
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Minimal test prompt.",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["risk_score"] == 30
+        assert data["risk_level"] == "medium"  # 30 -> medium
+
+    def test_test_prompt_risk_level_mapping(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test risk level mapping for various risk scores."""
+        test_cases = [
+            (10, "low"),  # < 25 -> low
+            (24, "low"),  # < 25 -> low
+            (25, "medium"),  # >= 25, < 50 -> medium
+            (49, "medium"),  # >= 25, < 50 -> medium
+            (50, "high"),  # >= 50, < 75 -> high
+            (74, "high"),  # >= 50, < 75 -> high
+            (75, "critical"),  # >= 75 -> critical
+            (100, "critical"),  # >= 75 -> critical
+        ]
+
+        for risk_score, expected_level in test_cases:
+            mock_event = create_mock_event(event_id=1, risk_score=risk_score)
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = mock_event
+            mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+            response = client.post(
+                "/api/ai-audit/test-prompt",
+                json={
+                    "event_id": 1,
+                    "custom_prompt": f"Test with score {risk_score}.",
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["risk_level"] == expected_level, (
+                f"Expected {expected_level} for score {risk_score}, got {data['risk_level']}"
+            )
+
+    def test_test_prompt_event_without_risk_score(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test handling of event with no risk score (defaults to 50)."""
+        mock_event = create_mock_event(event_id=1, risk_score=75)
+        mock_event.risk_score = None  # Override to None
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Test event with no score.",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["risk_score"] == 50  # Default value
+        assert data["risk_level"] == "high"  # 50 -> high
+
+    def test_test_prompt_invalid_event_id(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Test validation error for invalid event ID."""
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 0,  # Must be >= 1
+                "custom_prompt": "Test prompt.",
+            },
+        )
+
+        assert response.status_code == 422  # Pydantic validation error
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": -1,  # Negative
+                "custom_prompt": "Test prompt.",
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_test_prompt_invalid_temperature(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Test validation error for invalid temperature."""
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Test prompt.",
+                "temperature": 3.0,  # Max is 2.0
+            },
+        )
+
+        assert response.status_code == 422
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Test prompt.",
+                "temperature": -0.5,  # Min is 0.0
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_test_prompt_invalid_max_tokens(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Test validation error for invalid max_tokens."""
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Test prompt.",
+                "max_tokens": 50,  # Min is 100
+            },
+        )
+
+        assert response.status_code == 422
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Test prompt.",
+                "max_tokens": 10000,  # Max is 8192
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_test_prompt_tokens_estimation(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that tokens_used estimation is reasonable."""
+        mock_event = create_mock_event(event_id=1, risk_score=50)
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        # Short prompt
+        short_prompt = "Short test."
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": short_prompt,
+            },
+        )
+
+        assert response.status_code == 200
+        short_tokens = response.json()["tokens_used"]
+
+        # Long prompt
+        long_prompt = "A" * 1000  # 1000 characters
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": long_prompt,
+            },
+        )
+
+        assert response.status_code == 200
+        long_tokens = response.json()["tokens_used"]
+
+        # Long prompt should use more tokens
+        assert long_tokens > short_tokens
+
+    def test_test_prompt_event_with_no_summary_or_reasoning(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test handling of event with no summary or reasoning (uses defaults)."""
+        mock_event = create_mock_event(event_id=1, risk_score=40)
+        mock_event.summary = None
+        mock_event.reasoning = None
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        response = client.post(
+            "/api/ai-audit/test-prompt",
+            json={
+                "event_id": 1,
+                "custom_prompt": "Test with missing data.",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Should have fallback values
+        assert "not available" in data["summary"].lower() or data["summary"]
+        assert "not available" in data["reasoning"].lower() or data["reasoning"]
+
+
+class TestCustomTestPromptSchemas:
+    """Tests for CustomTestPromptRequest and CustomTestPromptResponse schemas."""
+
+    def test_request_with_all_fields(self) -> None:
+        """Test CustomTestPromptRequest with all fields."""
+        from backend.api.schemas.ai_audit import CustomTestPromptRequest
+
+        request = CustomTestPromptRequest(
+            event_id=1,
+            custom_prompt="Test prompt",
+            temperature=0.5,
+            max_tokens=1024,
+            model="nemotron",
+        )
+        assert request.event_id == 1
+        assert request.custom_prompt == "Test prompt"
+        assert request.temperature == 0.5
+        assert request.max_tokens == 1024
+        assert request.model == "nemotron"
+
+    def test_request_with_defaults(self) -> None:
+        """Test CustomTestPromptRequest uses defaults for optional fields."""
+        from backend.api.schemas.ai_audit import CustomTestPromptRequest
+
+        request = CustomTestPromptRequest(
+            event_id=1,
+            custom_prompt="Test prompt",
+        )
+        assert request.event_id == 1
+        assert request.custom_prompt == "Test prompt"
+        assert request.temperature == 0.7  # Default
+        assert request.max_tokens == 2048  # Default
+        assert request.model == "nemotron"  # Default
+
+    def test_response_creation(self) -> None:
+        """Test CustomTestPromptResponse creation."""
+        from backend.api.schemas.ai_audit import CustomTestPromptResponse
+
+        response = CustomTestPromptResponse(
+            risk_score=75,
+            risk_level="critical",
+            reasoning="High risk detected.",
+            summary="Person detected at night.",
+            entities=[{"type": "person", "confidence": 0.95}],
+            flags=[{"type": "time_of_day", "value": "night"}],
+            recommended_action="Alert - Immediate attention required",
+            processing_time_ms=150,
+            tokens_used=500,
+        )
+        assert response.risk_score == 75
+        assert response.risk_level == "critical"
+        assert len(response.entities) == 1
+        assert len(response.flags) == 1
+        assert response.processing_time_ms == 150
+        assert response.tokens_used == 500
+
+    def test_response_with_defaults(self) -> None:
+        """Test CustomTestPromptResponse uses defaults for optional fields."""
+        from backend.api.schemas.ai_audit import CustomTestPromptResponse
+
+        response = CustomTestPromptResponse(
+            risk_score=50,
+            risk_level="high",
+            reasoning="Moderate risk.",
+            summary="Activity detected.",
+            processing_time_ms=100,
+            tokens_used=200,
+        )
+        assert response.entities == []  # Default
+        assert response.flags == []  # Default
+        assert response.recommended_action == ""  # Default

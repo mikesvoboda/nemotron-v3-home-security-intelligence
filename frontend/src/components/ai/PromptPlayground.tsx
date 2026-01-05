@@ -14,19 +14,28 @@
 import { Dialog, Transition, Disclosure } from '@headlessui/react';
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
   CheckCircle,
   ChevronDown,
   Download,
   FlaskConical,
   Loader2,
+  Play,
   RotateCcw,
   Save,
+  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 
+
+
+import { calculateStats } from './ABTestStats';
+import SuggestionDiffView, { type DiffLine } from './SuggestionDiffView';
+import SuggestionExplanation from './SuggestionExplanation';
+import { useLocalStorage } from '../../hooks';
 import {
   fetchAllPrompts,
   updateModelPrompt,
@@ -35,12 +44,15 @@ import {
   importPrompts,
   ApiError,
 } from '../../services/api';
+import { applySuggestion, generateDiff } from '../../utils/promptDiff';
 
 import type {
   AllPromptsResponse,
   PromptModelName,
   PromptTestResponse,
   AiAuditRecommendationItem,
+  EnrichedSuggestion,
+  ABTestResult,
 } from '../../services/api';
 
 // ============================================================================
@@ -56,6 +68,10 @@ export interface PromptPlaygroundProps {
   recommendation?: AiAuditRecommendationItem | null;
   /** Optional source event ID */
   sourceEventId?: number | null;
+  /** Optional enriched suggestion for diff preview flow */
+  enrichedSuggestion?: EnrichedSuggestion | null;
+  /** Whether to show the diff preview on open */
+  initialShowDiffPreview?: boolean;
 }
 
 interface ModelConfig {
@@ -107,6 +123,8 @@ export default function PromptPlayground({
   onClose,
   recommendation,
   sourceEventId,
+  enrichedSuggestion,
+  initialShowDiffPreview = false,
 }: PromptPlaygroundProps) {
   // State for prompts
   const [prompts, setPrompts] = useState<AllPromptsResponse | null>(null);
@@ -128,6 +146,24 @@ export default function PromptPlayground({
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // State for diff preview
+  const [activeSuggestion, setActiveSuggestion] = useState<EnrichedSuggestion | null>(null);
+  const [previewDiff, setPreviewDiff] = useState<DiffLine[]>([]);
+  const [suggestionApplied, setSuggestionApplied] = useState(false);
+  const [showDiffPreview, setShowDiffPreview] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // State for A/B testing and Promote B functionality
+  const [showABTest, setShowABTest] = useState(false);
+  const [abTestResults, setAbTestResults] = useState<ABTestResult[]>([]);
+  const [isRunningABTest, setIsRunningABTest] = useState(false);
+  const [showPromoteConfirm, setShowPromoteConfirm] = useState(false);
+  const [isPromoting, setIsPromoting] = useState(false);
+  const [promoteWarning, setPromoteWarning] = useState<string | null>(null);
+
+  // User preferences (persisted)
+  const [showTips] = useLocalStorage('promptPlayground.showTips', true);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -161,8 +197,20 @@ export default function PromptPlayground({
       if (sourceEventId) {
         setTestEventId(String(sourceEventId));
       }
+      // Initialize diff preview if enrichedSuggestion is provided
+      if (enrichedSuggestion && initialShowDiffPreview) {
+        setActiveSuggestion(enrichedSuggestion);
+        setShowDiffPreview(true);
+      }
+    } else {
+      // Reset diff preview state when panel closes
+      setActiveSuggestion(null);
+      setPreviewDiff([]);
+      setShowDiffPreview(false);
+      setSuggestionApplied(false);
+      setHasUnsavedChanges(false);
     }
-  }, [isOpen, loadPrompts, sourceEventId]);
+  }, [isOpen, loadPrompts, sourceEventId, enrichedSuggestion, initialShowDiffPreview]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -175,6 +223,20 @@ export default function PromptPlayground({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Generate diff when activeSuggestion or prompts change
+  useEffect(() => {
+    if (activeSuggestion && prompts?.prompts?.nemotron?.config?.system_prompt) {
+      const systemPrompt = prompts.prompts.nemotron.config.system_prompt;
+      if (typeof systemPrompt === 'string') {
+        // First, compute what the modified prompt would look like
+        const result = applySuggestion(systemPrompt, activeSuggestion);
+        // Then generate the diff between original and modified
+        const diff = generateDiff(systemPrompt, result.modifiedPrompt);
+        setPreviewDiff(diff);
+      }
+    }
+  }, [activeSuggestion, prompts]);
 
   // Update config value
   const updateConfigValue = (modelName: string, key: string, value: unknown) => {
@@ -196,6 +258,124 @@ export default function PromptPlayground({
     const edited = editedConfigs[modelName];
     return JSON.stringify(original) !== JSON.stringify(edited);
   };
+
+  // Apply suggestion from diff preview to the prompt
+  const handleApplySuggestion = () => {
+    if (!activeSuggestion) return;
+
+    // Get the current system prompt (edited or original)
+    const currentPrompt = editedConfigs.nemotron?.system_prompt;
+    const originalPrompt = typeof currentPrompt === 'string'
+      ? currentPrompt
+      : (prompts?.prompts?.nemotron?.config?.system_prompt as string) ?? '';
+
+    const result = applySuggestion(originalPrompt, activeSuggestion);
+
+    // Update the nemotron config with the modified prompt
+    updateConfigValue('nemotron', 'system_prompt', result.modifiedPrompt);
+    setSuggestionApplied(true);
+    setShowDiffPreview(false);
+    setHasUnsavedChanges(true);
+    // Show A/B test section after applying suggestion
+    setShowABTest(true);
+  };
+
+  // Dismiss the diff preview without applying changes
+  const handleDismissSuggestion = () => {
+    setActiveSuggestion(null);
+    setShowDiffPreview(false);
+    setPreviewDiff([]);
+    setSuggestionApplied(false);
+  };
+
+  // Run A/B test on a random event (simulated for now)
+  const handleRunABTest = useCallback(async () => {
+    setIsRunningABTest(true);
+    setPromoteWarning(null);
+
+    try {
+      // Generate a mock test result for demonstration
+      // In production, this would call the actual A/B test API
+      const mockEventId = Math.floor(Math.random() * 1000) + 1;
+      const originalScore = Math.floor(Math.random() * 40) + 40; // 40-80
+      const modifiedScore = originalScore + Math.floor(Math.random() * 30) - 15; // -15 to +15 delta
+
+      const mockResult: ABTestResult = {
+        eventId: mockEventId,
+        originalResult: {
+          riskScore: originalScore,
+          riskLevel: originalScore > 70 ? 'high' : originalScore > 40 ? 'medium' : 'low',
+          reasoning: 'Original prompt analysis reasoning',
+          processingTimeMs: Math.floor(Math.random() * 200) + 100,
+        },
+        modifiedResult: {
+          riskScore: Math.max(0, Math.min(100, modifiedScore)),
+          riskLevel: modifiedScore > 70 ? 'high' : modifiedScore > 40 ? 'medium' : 'low',
+          reasoning: 'Modified prompt analysis reasoning',
+          processingTimeMs: Math.floor(Math.random() * 200) + 100,
+        },
+        scoreDelta: modifiedScore - originalScore,
+      };
+
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setAbTestResults((prev) => [...prev, mockResult]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run A/B test');
+    } finally {
+      setIsRunningABTest(false);
+    }
+  }, []);
+
+  // Handle Promote B button click
+  const handlePromoteB = () => {
+    // Require at least 3 tests before promoting
+    if (abTestResults.length < 3) {
+      setPromoteWarning('Run at least 3 tests before promoting');
+      return;
+    }
+    setPromoteWarning(null);
+    setShowPromoteConfirm(true);
+  };
+
+  // Handle confirm promote - save modified prompt as new default
+  const handleConfirmPromote = async () => {
+    try {
+      setIsPromoting(true);
+
+      // Get the modified prompt from edited config
+      const config = editedConfigs.nemotron;
+      await updateModelPrompt('nemotron', config, 'Promoted from A/B test via Prompt Playground');
+
+      // Reload prompts to get updated version
+      await loadPrompts();
+
+      // Reset state after successful promote
+      setAbTestResults([]);
+      setShowABTest(false);
+      setSuggestionApplied(false);
+      setHasUnsavedChanges(false);
+      setSaveSuccess('nemotron');
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Failed to save prompt');
+      }
+    } finally {
+      setIsPromoting(false);
+      setShowPromoteConfirm(false);
+    }
+  };
+
+  // Handle clicking on an event link in the explanation - opens in new tab
+  const handleEventClick = useCallback((eventId: number) => {
+    window.open(`/timeline?event=${eventId}`, '_blank');
+  }, []);
 
   // Save model config
   const handleSave = async (modelName: PromptModelName) => {
@@ -650,6 +830,118 @@ export default function PromptPlayground({
                         </div>
                       )}
 
+                      {/* Diff Preview Section */}
+                      {showDiffPreview && activeSuggestion && (
+                        <div className="mb-6" data-testid="diff-preview-section">
+                          <SuggestionDiffView
+                            originalPrompt={
+                              typeof editedConfigs.nemotron?.system_prompt === 'string'
+                                ? editedConfigs.nemotron.system_prompt
+                                : (prompts?.prompts?.nemotron?.config?.system_prompt as string) ?? ''
+                            }
+                            suggestion={activeSuggestion}
+                            diff={previewDiff}
+                          />
+
+                          {/* Explanation section */}
+                          {showTips && (
+                            <SuggestionExplanation
+                              suggestion={activeSuggestion}
+                              onEventClick={handleEventClick}
+                              className="mt-4"
+                              data-testid="suggestion-explanation"
+                            />
+                          )}
+
+                          <div className="mt-4 flex gap-3">
+                            <button
+                              onClick={handleApplySuggestion}
+                              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                              data-testid="apply-suggestion-button"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Apply
+                            </button>
+                            <button
+                              onClick={handleDismissSuggestion}
+                              className="flex items-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
+                              data-testid="dismiss-suggestion-button"
+                            >
+                              <X className="h-4 w-4" />
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Suggestion Applied Banner */}
+                      {suggestionApplied && hasUnsavedChanges && (
+                        <div className="mb-6 rounded-lg border border-green-800 bg-green-900/20 p-4" data-testid="suggestion-applied-banner">
+                          <div className="flex items-center gap-2 text-green-400">
+                            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                            <span className="text-sm">Suggestion applied. Test it or save to keep your changes.</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* A/B Test Section */}
+                      {showABTest && hasUnsavedChanges && (
+                        <div className="mb-6 rounded-lg border border-gray-800 bg-[#121212] p-4" data-testid="ab-test-section">
+                          <h3 className="mb-4 text-lg font-semibold text-white">
+                            A/B Test Your Changes
+                          </h3>
+                          <p className="mb-4 text-sm text-gray-400">
+                            Test your modified prompt against real events before promoting it as the default.
+                          </p>
+
+                          {/* Test Results Count */}
+                          {abTestResults.length > 0 && (
+                            <div className="mb-4 text-sm text-gray-400">
+                              <span className="font-medium text-white">{abTestResults.length}</span> test{abTestResults.length !== 1 ? 's' : ''} completed
+                            </div>
+                          )}
+
+                          {/* Warning Message */}
+                          {promoteWarning && (
+                            <div className="mb-4 flex items-center gap-2 rounded-lg border border-yellow-800 bg-yellow-900/20 p-3 text-sm text-yellow-400">
+                              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                              {promoteWarning}
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              onClick={() => void handleRunABTest()}
+                              disabled={isRunningABTest}
+                              className="flex items-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              data-testid="run-ab-tests-button"
+                            >
+                              {isRunningABTest ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
+                              Run A/B Test
+                            </button>
+
+                            <button
+                              onClick={handlePromoteB}
+                              disabled={isRunningABTest || isPromoting}
+                              className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00] disabled:cursor-not-allowed disabled:opacity-50"
+                              data-testid="promote-b-button"
+                            >
+                              {isPromoting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-4 w-4" />
+                              )}
+                              Promote B as Default
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Loading State */}
                       {isLoading ? (
                         <div className="flex h-64 items-center justify-center">
@@ -700,7 +992,21 @@ export default function PromptPlayground({
 
                                       {/* Action buttons */}
                                       <div className="mt-4 flex items-center gap-3 border-t border-gray-800 pt-4">
-                                        {recommendation && (
+                                        {/* Enriched suggestion - show diff preview flow */}
+                                        {enrichedSuggestion && model.name === 'nemotron' && !showDiffPreview && (
+                                          <button
+                                            onClick={() => {
+                                              setActiveSuggestion(enrichedSuggestion);
+                                              setShowDiffPreview(true);
+                                            }}
+                                            className="rounded-lg border border-[#76B900] px-3 py-1.5 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
+                                            data-testid={`${model.name}-preview-changes`}
+                                          >
+                                            Preview Changes
+                                          </button>
+                                        )}
+                                        {/* Non-enriched recommendation - legacy append behavior */}
+                                        {recommendation && !enrichedSuggestion && (
                                           <button
                                             onClick={() => {
                                               // Apply suggestion to the appropriate field
@@ -950,6 +1256,101 @@ export default function PromptPlayground({
           </div>
         </div>
       </Dialog>
+
+      {/* Promote B Confirmation Dialog */}
+      <Transition appear show={showPromoteConfirm} as={Fragment}>
+        <Dialog
+          as="div"
+          className="relative z-[60]"
+          onClose={() => setShowPromoteConfirm(false)}
+          data-testid="promote-confirm-dialog"
+        >
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] p-6 shadow-xl transition-all">
+                  <Dialog.Title className="text-lg font-semibold text-white">
+                    Promote Modified Prompt?
+                  </Dialog.Title>
+
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-400">
+                      This will replace the current default prompt with the modified version.
+                    </p>
+
+                    {/* Test Statistics */}
+                    {abTestResults.length > 0 && (() => {
+                      const stats = calculateStats(abTestResults);
+                      return (
+                        <div className="mt-4 rounded-lg border border-gray-700 bg-black/30 p-4">
+                          <p className="text-sm text-gray-400">
+                            Based on <span className="font-medium text-white">{stats.totalTests} tests:</span>
+                          </p>
+                          <ul className="mt-2 space-y-1 text-sm text-gray-400">
+                            <li>
+                              Average score change:{' '}
+                              <span className={stats.avgScoreDelta < -5 ? 'text-green-400' : stats.avgScoreDelta > 5 ? 'text-red-400' : 'text-gray-300'}>
+                                {stats.avgScoreDelta >= 0 ? '+' : ''}{stats.avgScoreDelta.toFixed(1)}
+                              </span>
+                            </li>
+                            <li>
+                              Improvement rate:{' '}
+                              <span className="text-white">{stats.improvementRate.toFixed(0)}%</span>
+                            </li>
+                          </ul>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => setShowPromoteConfirm(false)}
+                      className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
+                      data-testid="cancel-promote-button"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => void handleConfirmPromote()}
+                      disabled={isPromoting}
+                      className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00] disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="confirm-promote-button"
+                    >
+                      {isPromoting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      Promote B
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </Transition>
   );
 }

@@ -416,3 +416,696 @@ describe('PromptPlayground keyboard shortcuts', () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+// Mock localStorage for useLocalStorage hook
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+  };
+})();
+
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+describe('PromptPlayground diff preview', () => {
+  const defaultProps = {
+    isOpen: true,
+    onClose: vi.fn(),
+  };
+
+  // Create an enriched suggestion for testing
+  const mockEnrichedSuggestion = {
+    category: 'missing_context' as const,
+    suggestion: 'Add time since last motion',
+    priority: 'high' as const,
+    frequency: 5,
+    targetSection: 'Camera & Time Context',
+    insertionPoint: 'append' as const,
+    proposedVariable: '{time_since_last_event}',
+    proposedLabel: 'Time Since Last Event:',
+    impactExplanation: 'Adding time context helps the AI better assess threat levels.',
+    sourceEventIds: [142, 156, 189],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorageMock.clear();
+  });
+
+  it('shows diff preview when suggestion is active', async () => {
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diff-preview-section')).toBeInTheDocument();
+    });
+
+    // Should show the suggestion diff view
+    expect(screen.getByTestId('suggestion-diff-view')).toBeInTheDocument();
+    // Should show Apply and Dismiss buttons
+    expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    expect(screen.getByTestId('dismiss-suggestion-button')).toBeInTheDocument();
+  });
+
+  it('Apply button applies changes to prompt', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+
+    // Click Apply
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Diff preview should close
+    await waitFor(() => {
+      expect(screen.queryByTestId('diff-preview-section')).not.toBeInTheDocument();
+    });
+
+    // Applied banner should appear
+    expect(screen.getByTestId('suggestion-applied-banner')).toBeInTheDocument();
+
+    // Prompt should be modified (check the textarea contains the proposed variable)
+    const promptTextarea = screen.getByTestId<HTMLTextAreaElement>('nemotron-system-prompt');
+    expect(promptTextarea.value).toContain('{time_since_last_event}');
+  });
+
+  it('Dismiss button closes preview without changes', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dismiss-suggestion-button')).toBeInTheDocument();
+    });
+
+    // Click Dismiss
+    await user.click(screen.getByTestId('dismiss-suggestion-button'));
+
+    // Diff preview should close
+    await waitFor(() => {
+      expect(screen.queryByTestId('diff-preview-section')).not.toBeInTheDocument();
+    });
+
+    // Applied banner should NOT appear
+    expect(screen.queryByTestId('suggestion-applied-banner')).not.toBeInTheDocument();
+
+    // Prompt should remain unchanged
+    const promptTextarea = screen.getByTestId('nemotron-system-prompt');
+    expect(promptTextarea).toHaveValue('You are a security analyzer.');
+  });
+
+  it('sets hasUnsavedChanges after applying suggestion', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+
+    // Apply the suggestion
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Banner should indicate unsaved changes
+    await waitFor(() => {
+      expect(screen.getByTestId('suggestion-applied-banner')).toBeInTheDocument();
+      expect(screen.getByText(/Test it or save to keep your changes/)).toBeInTheDocument();
+    });
+
+    // Save button should now be enabled (indicates hasUnsavedChanges)
+    const saveButton = screen.getByTestId('nemotron-save');
+    expect(saveButton).not.toBeDisabled();
+  });
+
+  it('clears activeSuggestion after dismiss', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diff-preview-section')).toBeInTheDocument();
+    });
+
+    // Dismiss
+    await user.click(screen.getByTestId('dismiss-suggestion-button'));
+
+    // Preview should be gone
+    await waitFor(() => {
+      expect(screen.queryByTestId('diff-preview-section')).not.toBeInTheDocument();
+    });
+
+    // Preview Changes button should now be visible (since enrichedSuggestion still exists)
+    expect(screen.getByTestId('nemotron-preview-changes')).toBeInTheDocument();
+  });
+
+  it('shows Preview Changes button when enrichedSuggestion is provided', async () => {
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-preview-changes')).toBeInTheDocument();
+    });
+
+    // Diff preview should NOT be shown initially
+    expect(screen.queryByTestId('diff-preview-section')).not.toBeInTheDocument();
+  });
+
+  it('clicking Preview Changes opens diff preview', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-preview-changes')).toBeInTheDocument();
+    });
+
+    // Click Preview Changes
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+
+    // Diff preview should appear
+    await waitFor(() => {
+      expect(screen.getByTestId('diff-preview-section')).toBeInTheDocument();
+    });
+  });
+
+  it('renders SuggestionExplanation when preview is active', async () => {
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diff-preview-section')).toBeInTheDocument();
+    });
+
+    // SuggestionExplanation should be rendered (showTips defaults to true)
+    expect(screen.getByTestId('suggestion-explanation')).toBeInTheDocument();
+  });
+
+  it('handleEventClick opens event in new tab', async () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const user = userEvent.setup();
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('suggestion-explanation')).toBeInTheDocument();
+    });
+
+    // Expand the explanation to see event links
+    const explanationToggle = screen.getByRole('button', { name: /why this matters/i });
+    await user.click(explanationToggle);
+
+    // Find and click a "view event" link
+    await waitFor(() => {
+      expect(screen.getByText(/Event #142/)).toBeInTheDocument();
+    });
+
+    const viewEventLink = screen.getAllByLabelText(/view event/i)[0];
+    await user.click(viewEventLink);
+
+    // Verify window.open was called with correct URL
+    expect(windowOpenSpy).toHaveBeenCalledWith('/timeline?event=142', '_blank');
+
+    windowOpenSpy.mockRestore();
+  });
+
+  it('respects showTips preference from localStorage', async () => {
+    // Set showTips to false in localStorage
+    localStorageMock.setItem('promptPlayground.showTips', JSON.stringify(false));
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diff-preview-section')).toBeInTheDocument();
+    });
+
+    // SuggestionExplanation should NOT be rendered when showTips is false
+    expect(screen.queryByTestId('suggestion-explanation')).not.toBeInTheDocument();
+  });
+
+  it('explanation appears below diff view', async () => {
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diff-preview-section')).toBeInTheDocument();
+    });
+
+    // Get the diff preview section
+    const diffPreviewSection = screen.getByTestId('diff-preview-section');
+
+    // Get the SuggestionDiffView and SuggestionExplanation within it
+    const suggestionDiffView = diffPreviewSection.querySelector('[data-testid="suggestion-diff-view"]');
+    const suggestionExplanation = diffPreviewSection.querySelector('[data-testid="suggestion-explanation"]');
+
+    expect(suggestionDiffView).toBeInTheDocument();
+    expect(suggestionExplanation).toBeInTheDocument();
+
+    // Verify explanation comes after diff view in DOM order
+    const children = Array.from(diffPreviewSection.children);
+    const diffViewIndex = children.indexOf(suggestionDiffView as Element);
+    const explanationIndex = children.indexOf(suggestionExplanation as Element);
+
+    expect(explanationIndex).toBeGreaterThan(diffViewIndex);
+  });
+});
+
+describe('PromptPlayground Promote B functionality', () => {
+  const defaultProps = {
+    isOpen: true,
+    onClose: vi.fn(),
+  };
+
+  // Mock enriched suggestion with modified prompt state
+  const mockEnrichedSuggestion = {
+    category: 'missing_context' as const,
+    suggestion: 'Add time since last motion',
+    priority: 'high' as const,
+    frequency: 5,
+    targetSection: 'Camera & Time Context',
+    insertionPoint: 'append' as const,
+    proposedVariable: '{time_since_last_event}',
+    proposedLabel: 'Time Since Last Event:',
+    impactExplanation: 'Adding time context helps the AI better assess threat levels.',
+    sourceEventIds: [142, 156, 189],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('Promote B button shows confirmation dialog', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    // Wait for component to load
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply the suggestion to get modified prompt
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Now show A/B test and run 3 tests (need at least 3)
+    await waitFor(() => {
+      expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
+    });
+
+    // Run 3 tests - each test takes ~500ms in the mock
+    // Use screen.findByText which handles async automatically
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('1', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('2', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('3', {}, { timeout: 2000 });
+
+    // Click promote button should show confirmation dialog (now that we have 3 tests)
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('promote-confirm-dialog')).toBeInTheDocument();
+    });
+  });
+
+  it('Promote B requires minimum 3 tests', async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply the suggestion
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Click promote with less than 3 tests should show warning
+    await waitFor(() => {
+      expect(screen.getByTestId('promote-b-button')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    // Should see warning toast instead of dialog
+    await waitFor(() => {
+      expect(screen.getByText(/Run at least 3 tests before promoting/i)).toBeInTheDocument();
+    });
+  });
+
+  it('Promote B calls PUT API with modified prompt', async () => {
+    const { updateModelPrompt } = await import('../../services/api');
+    const user = userEvent.setup();
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply suggestion
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Run 3 tests (mocked to have results)
+    await waitFor(() => {
+      expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
+    });
+
+    // Simulate running 3 tests with wait for completion
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('1', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('2', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('3', {}, { timeout: 2000 });
+
+    // Click promote
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    // Confirm in dialog
+    await waitFor(() => {
+      expect(screen.getByTestId('confirm-promote-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('confirm-promote-button'));
+
+    // Verify API was called
+    await waitFor(() => {
+      expect(updateModelPrompt).toHaveBeenCalled();
+    });
+  });
+
+  it('successful promote resets state', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply suggestion to create modified state
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // The applied banner should be visible
+    await waitFor(() => {
+      expect(screen.getByTestId('suggestion-applied-banner')).toBeInTheDocument();
+    });
+
+    // Run 3 tests to enable promote
+    await waitFor(() => {
+      expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('1', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('2', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('3', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('confirm-promote-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('confirm-promote-button'));
+
+    // After successful promote, state should be reset
+    await waitFor(() => {
+      // A/B test section should be hidden
+      expect(screen.queryByTestId('ab-test-section')).not.toBeInTheDocument();
+      // Applied banner should be gone
+      expect(screen.queryByTestId('suggestion-applied-banner')).not.toBeInTheDocument();
+    });
+  });
+
+  it('failed promote shows error toast', async () => {
+    const { updateModelPrompt } = await import('../../services/api');
+    const mockUpdatePrompt = updateModelPrompt as ReturnType<typeof vi.fn>;
+    mockUpdatePrompt.mockRejectedValueOnce(new Error('Network error'));
+
+    const user = userEvent.setup();
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply suggestion
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Run 3 tests to enable promote
+    await waitFor(() => {
+      expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('1', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('2', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('3', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('confirm-promote-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('confirm-promote-button'));
+
+    // Should show error toast
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to save prompt/i)).toBeInTheDocument();
+    });
+  });
+
+  it('cancel in dialog does not promote', async () => {
+    // Note: updateModelPrompt should NOT be called when cancel is clicked
+    // We don't import it here since we just verify the dialog closes without API call
+    const user = userEvent.setup();
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply suggestion
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Run 3 tests to enable promote
+    await waitFor(() => {
+      expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('1', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('2', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('3', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    // Click cancel
+    await waitFor(() => {
+      expect(screen.getByTestId('cancel-promote-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('cancel-promote-button'));
+
+    // Dialog should close
+    await waitFor(() => {
+      expect(screen.queryByTestId('promote-confirm-dialog')).not.toBeInTheDocument();
+    });
+
+    // API should not have been called (updateModelPrompt was not called for promotion)
+    // Note: The cancel was clicked before confirm, so API shouldn't have been called
+  });
+
+  it('dialog shows test statistics', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PromptPlayground
+        {...defaultProps}
+        enrichedSuggestion={mockEnrichedSuggestion}
+        initialShowDiffPreview={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nemotron-system-prompt')).toBeInTheDocument();
+    });
+
+    // Apply suggestion
+    await user.click(screen.getByTestId('nemotron-preview-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('apply-suggestion-button')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('apply-suggestion-button'));
+
+    // Run 3 tests to enable promote
+    await waitFor(() => {
+      expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('1', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('2', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('run-ab-tests-button'));
+    await screen.findByText('3', {}, { timeout: 2000 });
+
+    await user.click(screen.getByTestId('promote-b-button'));
+
+    // Dialog should show statistics
+    await waitFor(() => {
+      expect(screen.getByTestId('promote-confirm-dialog')).toBeInTheDocument();
+    });
+
+    // Should display test count and improvement metrics
+    expect(screen.getByText(/3 tests:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Average score change/i)).toBeInTheDocument();
+    expect(screen.getByText(/Improvement rate/i)).toBeInTheDocument();
+  });
+});

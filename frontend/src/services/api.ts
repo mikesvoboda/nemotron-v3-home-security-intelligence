@@ -2527,3 +2527,112 @@ export async function fetchEntityHistory(entityId: string): Promise<EntityHistor
     `/api/entities/${encodeURIComponent(entityId)}/history`
   );
 }
+
+// ============================================================================
+// Enriched Suggestion Types (Prompt Playground)
+// ============================================================================
+
+/**
+ * Example of how a suggestion could improve a specific event's analysis.
+ *
+ * Shows the potential impact of applying a suggestion by comparing
+ * before/after risk scores for a real event.
+ */
+export interface ExampleImprovement {
+  /** The event ID used as an example */
+  eventId: number;
+  /** Risk score with original prompt (0-100) */
+  beforeScore: number;
+  /** Estimated risk score if suggestion is applied (0-100) */
+  estimatedAfterScore: number;
+}
+
+/**
+ * Enhanced suggestion schema for smart prompt modification.
+ *
+ * Extends the basic recommendation with fields for:
+ * - Smart application: Identifies where and how to insert the suggestion
+ * - Learning mode: Explains impact with evidence from actual events
+ *
+ * Used by the Prompt Playground to transform AI audit recommendations
+ * into actionable prompt improvements through a progressive disclosure UX.
+ */
+export interface EnrichedSuggestion {
+  /**
+   * Suggestion category.
+   * - missing_context: Context that should be added to the prompt
+   * - unused_data: Data in the prompt that is not being utilized
+   * - model_gaps: Missing model integrations or capabilities
+   * - format_suggestions: Structural or formatting improvements
+   */
+  category: 'missing_context' | 'unused_data' | 'model_gaps' | 'format_suggestions';
+
+  /** The improvement suggestion text */
+  suggestion: string;
+
+  /** Priority level for this suggestion */
+  priority: 'high' | 'medium' | 'low';
+
+  /** How many events mentioned this suggestion */
+  frequency: number;
+
+  /** Target section header in the prompt (e.g., 'Camera & Time Context') */
+  targetSection: string;
+
+  /** Where to insert the suggestion: append, prepend, or replace */
+  insertionPoint: 'append' | 'prepend' | 'replace';
+
+  /** The variable to add (e.g., '{time_since_last_event}') */
+  proposedVariable: string;
+
+  /** Human-readable label for the variable (e.g., 'Time Since Last Event:') */
+  proposedLabel: string;
+
+  /** Explanation of why this suggestion matters and its expected impact */
+  impactExplanation: string;
+
+  /** IDs of events that triggered this suggestion */
+  sourceEventIds: number[];
+
+  /** Optional example showing before/after scores for a specific event */
+  exampleImprovement?: ExampleImprovement;
+}
+
+// ============================================================================
+// A/B Testing Types
+// ============================================================================
+
+/**
+ * Result from an A/B test comparing two prompts on a single event.
+ *
+ * Used by the PromptABTest component to display side-by-side comparison
+ * of original vs modified prompt performance on real events.
+ */
+export interface ABTestResult {
+  /** The event ID that was tested */
+  eventId: number;
+  /** Result from the original (A) prompt */
+  originalResult: {
+    /** Risk score from original prompt (0-100) */
+    riskScore: number;
+    /** Risk level classification (low, medium, high, critical) */
+    riskLevel: string;
+    /** LLM reasoning output */
+    reasoning: string;
+    /** Time taken for inference in milliseconds */
+    processingTimeMs: number;
+  };
+  /** Result from the modified (B) prompt */
+  modifiedResult: {
+    /** Risk score from modified prompt (0-100) */
+    riskScore: number;
+    /** Risk level classification (low, medium, high, critical) */
+    riskLevel: string;
+    /** LLM reasoning output */
+    reasoning: string;
+    /** Time taken for inference in milliseconds */
+    processingTimeMs: number;
+  };
+  /** Score difference: modified - original (negative = B produces lower risk) */
+  scoreDelta: number;
+}

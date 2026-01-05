@@ -68,3 +68,5 @@ export type {
 
 export { useSavedSearches } from './useSavedSearches';
 export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';
+
+export { useLocalStorage } from './useLocalStorage';
