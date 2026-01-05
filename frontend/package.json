@@ -77,7 +77,7 @@
     "vite": "^7.3.0",
     "vitest": "^4.0.16",
     "@stryker-mutator/core": "^8.7.1",
-    "@stryker-mutator/typescript-checker": "^8.7.1",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@stryker-mutator/vitest-runner": "^8.7.1"
   }
 }
