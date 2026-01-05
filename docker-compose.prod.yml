@@ -392,15 +392,16 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
-      # Anonymous access: Allow viewing dashboards without login (Viewer role only)
-      # SECURITY: Anonymous users are limited to Viewer role (read-only access)
-      # Administrators must log in to make changes
-      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
+      # SECURITY: Anonymous access disabled by default (requires login)
+      # To enable read-only dashboard viewing without login, set GF_AUTH_ANONYMOUS_ENABLED=true in .env
+      # When enabled, anonymous users are limited to Viewer role (read-only access)
+      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-false}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_AUTH_DISABLE_LOGIN_FORM=false
-      # Admin credentials - SECURITY: Change default password in .env
+      # SECURITY: Admin credentials - password must be explicitly set (no default)
+      # Generate a strong password: openssl rand -base64 32
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set - generate with: openssl rand -base64 32}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3002
       - GF_INSTALL_PLUGINS=marcusolsson-json-datasource

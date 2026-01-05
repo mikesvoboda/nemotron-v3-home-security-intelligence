@@ -738,7 +738,16 @@ async def import_prompts(request: PromptImportRequest) -> PromptImportResponse:
 
     Returns:
         PromptImportResponse with import results
+
+    Raises:
+        HTTPException: 400 if no prompts provided for import
     """
+    if not request.prompts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No prompts provided for import. Request body must contain at least one model configuration.",
+        )
+
     storage = get_prompt_storage()
 
     # Validate all configurations first
