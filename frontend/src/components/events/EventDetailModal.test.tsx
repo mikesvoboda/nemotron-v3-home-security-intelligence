@@ -94,62 +94,80 @@ describe('EventDetailModal', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('renders modal when isOpen is true and event is provided', () => {
+    it('renders modal when isOpen is true and event is provided', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
 
-    it('renders camera name as dialog title', () => {
+    it('renders camera name as dialog title', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
+      });
     });
 
-    it('renders formatted timestamp', () => {
+    it('renders formatted timestamp', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText(/January 15, 2024/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/January 15, 2024/)).toBeInTheDocument();
+      });
     });
 
-    it('renders risk badge with score', () => {
+    it('renders risk badge with score', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('High (65)')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('High (65)')).toBeInTheDocument();
+      });
     });
 
-    it('renders close button', () => {
+    it('renders close button', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      });
     });
   });
 
   describe('image display', () => {
-    it('renders full-size image when image_url is provided', () => {
+    it('renders full-size image when image_url is provided', async () => {
       render(<EventDetailModal {...mockProps} />);
-      const image = screen.getByAltText(/Front Door detection at/);
-      expect(image).toBeInTheDocument();
+      await waitFor(() => {
+        const image = screen.getByAltText(/Front Door detection at/);
+        expect(image).toBeInTheDocument();
+      });
     });
 
-    it('uses image_url over thumbnail_url when both are provided', () => {
+    it('uses image_url over thumbnail_url when both are provided', async () => {
       render(<EventDetailModal {...mockProps} />);
-      // Verify image is rendered
-      const image = screen.getByAltText(/Front Door detection at/);
-      expect(image).toBeInTheDocument();
-      expect(image.getAttribute('src')).toBe('https://example.com/image.jpg');
+      await waitFor(() => {
+        // Verify image is rendered
+        const image = screen.getByAltText(/Front Door detection at/);
+        expect(image).toBeInTheDocument();
+        expect(image.getAttribute('src')).toBe('https://example.com/image.jpg');
+      });
     });
 
-    it('falls back to thumbnail_url when image_url is not provided', () => {
+    it('falls back to thumbnail_url when image_url is not provided', async () => {
       const eventNoFullImage = { ...mockEvent, image_url: undefined };
       render(<EventDetailModal {...mockProps} event={eventNoFullImage} />);
-      // Verify image is rendered with thumbnail
-      const image = screen.getByAltText(/Front Door detection at/);
-      expect(image).toBeInTheDocument();
-      expect(image.getAttribute('src')).toBe('https://example.com/thumbnail.jpg');
+      await waitFor(() => {
+        // Verify image is rendered with thumbnail
+        const image = screen.getByAltText(/Front Door detection at/);
+        expect(image).toBeInTheDocument();
+        expect(image.getAttribute('src')).toBe('https://example.com/thumbnail.jpg');
+      });
     });
 
-    it('renders DetectionImage when detections have bounding boxes', () => {
+    it('renders DetectionImage when detections have bounding boxes', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByAltText(/Front Door detection at/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByAltText(/Front Door detection at/)).toBeInTheDocument();
+      });
     });
 
-    it('renders plain img when detections have no bounding boxes', () => {
+    it('renders plain img when detections have no bounding boxes', async () => {
       const eventNoBbox = {
         ...mockEvent,
         detections: [
@@ -158,67 +176,88 @@ describe('EventDetailModal', () => {
         ],
       };
       render(<EventDetailModal {...mockProps} event={eventNoBbox} />);
-      expect(screen.getByAltText(/Front Door at/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByAltText(/Front Door at/)).toBeInTheDocument();
+      });
     });
 
-    it('does not render image section when no image_url or thumbnail_url', () => {
+    it('does not render image section when no image_url or thumbnail_url', async () => {
       const eventNoImage = { ...mockEvent, image_url: undefined, thumbnail_url: undefined };
       render(<EventDetailModal {...mockProps} event={eventNoImage} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       const images = screen.queryAllByRole('img');
       expect(images.length).toBe(0);
     });
   });
 
   describe('AI summary and reasoning', () => {
-    it('renders AI summary section', () => {
+    it('renders AI summary section', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('AI Summary')).toBeInTheDocument();
-      expect(
-        screen.getByText('Person detected approaching the front entrance with a package')
-      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('AI Summary')).toBeInTheDocument();
+        expect(
+          screen.getByText('Person detected approaching the front entrance with a package')
+        ).toBeInTheDocument();
+      });
     });
 
-    it('renders AI reasoning when provided', () => {
+    it('renders AI reasoning when provided', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('AI Reasoning')).toBeInTheDocument();
-      expect(
-        screen.getByText(/The detected person is approaching the entrance during evening hours/)
-      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('AI Reasoning')).toBeInTheDocument();
+        expect(
+          screen.getByText(/The detected person is approaching the entrance during evening hours/)
+        ).toBeInTheDocument();
+      });
     });
 
-    it('does not render AI reasoning section when reasoning is undefined', () => {
+    it('does not render AI reasoning section when reasoning is undefined', async () => {
       const eventNoReasoning = { ...mockEvent, reasoning: undefined };
       render(<EventDetailModal {...mockProps} event={eventNoReasoning} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText('AI Reasoning')).not.toBeInTheDocument();
     });
 
-    it('does not render AI reasoning section when reasoning is empty', () => {
+    it('does not render AI reasoning section when reasoning is empty', async () => {
       const eventEmptyReasoning = { ...mockEvent, reasoning: '' };
       render(<EventDetailModal {...mockProps} event={eventEmptyReasoning} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText('AI Reasoning')).not.toBeInTheDocument();
     });
   });
 
   describe('detections list', () => {
-    it('renders detections section with count', () => {
+    it('renders detections section with count', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
+      });
     });
 
-    it('renders all detection labels', () => {
+    it('renders all detection labels', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('person')).toBeInTheDocument();
-      expect(screen.getByText('package')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('person')).toBeInTheDocument();
+        expect(screen.getByText('package')).toBeInTheDocument();
+      });
     });
 
-    it('renders detection confidence scores', () => {
+    it('renders detection confidence scores', async () => {
       render(<EventDetailModal {...mockProps} />);
-      // Percentages may appear multiple times in modal
-      expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        // Percentages may appear multiple times in modal
+        expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
+      });
     });
 
-    it('formats confidence as percentage with rounding', () => {
+    it('formats confidence as percentage with rounding', async () => {
       const eventWithRounding = {
         ...mockEvent,
         detections: [
@@ -227,120 +266,150 @@ describe('EventDetailModal', () => {
         ],
       };
       render(<EventDetailModal {...mockProps} event={eventWithRounding} />);
-      expect(screen.getAllByText('96%').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        expect(screen.getAllByText('96%').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
+      });
     });
 
-    it('does not render detections section when detections array is empty', () => {
+    it('does not render detections section when detections array is empty', async () => {
       const eventNoDetections = { ...mockEvent, detections: [] };
       render(<EventDetailModal {...mockProps} event={eventNoDetections} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText(/Detected Objects/)).not.toBeInTheDocument();
     });
 
-    it('renders single detection correctly', () => {
+    it('renders single detection correctly', async () => {
       const eventOneDetection = {
         ...mockEvent,
         detections: [{ label: 'person', confidence: 0.95 }],
       };
       render(<EventDetailModal {...mockProps} event={eventOneDetection} />);
-      expect(screen.getByText('Detected Objects (1)')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Detected Objects (1)')).toBeInTheDocument();
+      });
     });
   });
 
   describe('event metadata', () => {
-    it('renders event details section', () => {
+    it('renders event details section', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Event Details')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Event Details')).toBeInTheDocument();
+      });
     });
 
-    it('renders event ID', () => {
+    it('renders event ID', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Event ID')).toBeInTheDocument();
-      expect(screen.getByText('event-123')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Event ID')).toBeInTheDocument();
+        expect(screen.getByText('event-123')).toBeInTheDocument();
+      });
     });
 
-    it('renders camera name in metadata', () => {
+    it('renders camera name in metadata', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Camera')).toBeInTheDocument();
-      const frontDoorLabels = screen.getAllByText('Front Door');
-      expect(frontDoorLabels.length).toBeGreaterThanOrEqual(2); // Title and metadata
+      await waitFor(() => {
+        expect(screen.getByText('Camera')).toBeInTheDocument();
+        const frontDoorLabels = screen.getAllByText('Front Door');
+        expect(frontDoorLabels.length).toBeGreaterThanOrEqual(2); // Title and metadata
+      });
     });
 
-    it('renders risk score in metadata', () => {
+    it('renders risk score in metadata', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Risk Score')).toBeInTheDocument();
-      expect(screen.getByText('65 / 100')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Risk Score')).toBeInTheDocument();
+        expect(screen.getByText('65 / 100')).toBeInTheDocument();
+      });
     });
 
-    it('renders review status as pending when not reviewed', () => {
+    it('renders review status as pending when not reviewed', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Pending Review')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Pending Review')).toBeInTheDocument();
+      });
     });
 
-    it('renders review status as reviewed when reviewed', () => {
+    it('renders review status as reviewed when reviewed', async () => {
       const reviewedEvent = { ...mockEvent, reviewed: true };
       render(<EventDetailModal {...mockProps} event={reviewedEvent} />);
-      expect(screen.getByText('Reviewed')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Reviewed')).toBeInTheDocument();
+      });
     });
   });
 
   describe('duration display', () => {
-    it('displays duration in header when started_at and ended_at are provided', () => {
+    it('displays duration in header when started_at and ended_at are provided', async () => {
       const eventWithDuration = {
         ...mockEvent,
         started_at: '2024-01-15T10:00:00Z',
         ended_at: '2024-01-15T10:02:30Z', // 2m 30s duration
       };
       render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
-      // Duration is shown inline as "Duration: 2m 30s"
-      expect(screen.getAllByText(/Duration:/).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText(/2m 30s/).length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        // Duration is shown inline as "Duration: 2m 30s"
+        expect(screen.getAllByText(/Duration:/).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/2m 30s/).length).toBeGreaterThanOrEqual(1);
+      });
     });
 
-    it('displays duration in metadata section when started_at and ended_at are provided', () => {
+    it('displays duration in metadata section when started_at and ended_at are provided', async () => {
       const eventWithDuration = {
         ...mockEvent,
         started_at: '2024-01-15T10:00:00Z',
         ended_at: '2024-01-15T10:02:30Z',
       };
       render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
-      // Duration appears in header and metadata sections
-      const durationLabels = screen.getAllByText('Duration');
-      expect(durationLabels.length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        // Duration appears in header and metadata sections
+        const durationLabels = screen.getAllByText('Duration');
+        expect(durationLabels.length).toBeGreaterThanOrEqual(1);
+      });
     });
 
-    it('displays "ongoing" for events without ended_at', () => {
+    it('displays "ongoing" for events without ended_at', async () => {
       const ongoingEvent = {
         ...mockEvent,
         started_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
         ended_at: null,
       };
       render(<EventDetailModal {...mockProps} event={ongoingEvent} />);
-      // formatDuration returns "ongoing" for events without ended_at within 5 minutes
-      expect(screen.getAllByText(/ongoing/i).length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        // formatDuration returns "ongoing" for events without ended_at within 5 minutes
+        expect(screen.getAllByText(/ongoing/i).length).toBeGreaterThanOrEqual(1);
+      });
     });
 
-    it('does not display duration when started_at is not provided', () => {
+    it('does not display duration when started_at is not provided', async () => {
       render(<EventDetailModal {...mockProps} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByText(/Duration:/)).not.toBeInTheDocument();
     });
 
-    it('renders Timer icon with duration in header', () => {
+    it('renders Timer icon with duration in header', async () => {
       const eventWithDuration = {
         ...mockEvent,
         started_at: '2024-01-15T10:00:00Z',
         ended_at: '2024-01-15T10:02:30Z',
       };
       render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
-      // Duration text should be rendered with the Timer icon
-      // Verify the duration display exists (the Timer icon is adjacent to the duration text)
-      const durationDisplay = screen.getAllByText(/Duration:/);
-      expect(durationDisplay.length).toBeGreaterThanOrEqual(1);
-      // The Timer icon is rendered as part of the duration display
-      // We verify it indirectly by confirming the duration section exists
+      await waitFor(() => {
+        // Duration text should be rendered with the Timer icon
+        // Verify the duration display exists (the Timer icon is adjacent to the duration text)
+        const durationDisplay = screen.getAllByText(/Duration:/);
+        expect(durationDisplay.length).toBeGreaterThanOrEqual(1);
+        // The Timer icon is rendered as part of the duration display
+        // We verify it indirectly by confirming the duration section exists
+      });
     });
 
-    it('formats various duration lengths correctly', () => {
+    it('formats various duration lengths correctly', async () => {
       const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
       const testCases = [
         { duration: 30 * 1000, expected: '30s' }, // 30 seconds
@@ -349,27 +418,31 @@ describe('EventDetailModal', () => {
         { duration: 36 * 60 * 60 * 1000, expected: '1d 12h' }, // 1 day 12 hours
       ];
 
-      testCases.forEach(({ duration, expected }) => {
+      for (const { duration, expected } of testCases) {
         const eventWithDuration = {
           ...mockEvent,
           started_at: new Date(baseTime).toISOString(),
           ended_at: new Date(baseTime + duration).toISOString(),
         };
         const { unmount } = render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
-        // Duration appears in both header and metadata, so use getAllByText
-        const matches = screen.getAllByText(expected);
-        expect(matches.length).toBeGreaterThanOrEqual(1);
+        await waitFor(() => {
+          // Duration appears in both header and metadata, so use getAllByText
+          const matches = screen.getAllByText(expected);
+          expect(matches.length).toBeGreaterThanOrEqual(1);
+        });
         unmount();
-      });
+      }
     });
 
-    it('uses timestamp as fallback when started_at is not provided', () => {
+    it('uses timestamp as fallback when started_at is not provided', async () => {
       const eventWithEndedAt = {
         ...mockEvent,
         ended_at: '2024-01-15T10:02:30Z',
       };
       render(<EventDetailModal {...mockProps} event={eventWithEndedAt} />);
-      expect(screen.getAllByText(/Duration:/).length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        expect(screen.getAllByText(/Duration:/).length).toBeGreaterThanOrEqual(1);
+      });
     });
   });
 
@@ -378,6 +451,10 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} onClose={onClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      });
 
       const closeButton = screen.getByRole('button', { name: 'Close modal' });
       await user.click(closeButton);
@@ -389,6 +466,10 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} onClose={onClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       await user.keyboard('{Escape}');
 
@@ -402,6 +483,10 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onClose = vi.fn();
       render(<EventDetailModal {...mockProps} onClose={onClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       const dialog = screen.getByRole('dialog');
       const backdrop = dialog.parentElement?.parentElement?.firstChild as HTMLElement;
@@ -430,17 +515,22 @@ describe('EventDetailModal', () => {
   });
 
   describe('navigation', () => {
-    it('renders navigation buttons when onNavigate is provided', () => {
+    it('renders navigation buttons when onNavigate is provided', async () => {
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
-      expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+      });
     });
 
-    it('does not render navigation buttons when onNavigate is undefined', () => {
+    it('does not render navigation buttons when onNavigate is undefined', async () => {
       render(<EventDetailModal {...mockProps} onNavigate={undefined} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByRole('button', { name: 'Previous event' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Next event' })).not.toBeInTheDocument();
     });
@@ -449,6 +539,10 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
+      });
 
       const prevButton = screen.getByRole('button', { name: 'Previous event' });
       await user.click(prevButton);
@@ -462,6 +556,10 @@ describe('EventDetailModal', () => {
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+      });
+
       const nextButton = screen.getByRole('button', { name: 'Next event' });
       await user.click(nextButton);
 
@@ -474,6 +572,10 @@ describe('EventDetailModal', () => {
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.keyboard('{ArrowLeft}');
 
       await waitFor(() => {
@@ -485,6 +587,10 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
 
       await user.keyboard('{ArrowRight}');
 
@@ -512,6 +618,10 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<EventDetailModal {...mockProps} onNavigate={undefined} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
       await user.keyboard('{ArrowLeft}');
       await user.keyboard('{ArrowRight}');
 
@@ -521,28 +631,36 @@ describe('EventDetailModal', () => {
   });
 
   describe('mark as reviewed', () => {
-    it('renders mark as reviewed button when onMarkReviewed is provided and event is not reviewed', () => {
+    it('renders mark as reviewed button when onMarkReviewed is provided and event is not reviewed', async () => {
       const onMarkReviewed = vi.fn();
       render(<EventDetailModal {...mockProps} onMarkReviewed={onMarkReviewed} />);
 
-      expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      });
     });
 
-    it('does not render mark as reviewed button when event is already reviewed', () => {
+    it('does not render mark as reviewed button when event is already reviewed', async () => {
       const reviewedEvent = { ...mockEvent, reviewed: true };
       const onMarkReviewed = vi.fn();
       render(
         <EventDetailModal {...mockProps} event={reviewedEvent} onMarkReviewed={onMarkReviewed} />
       );
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(
         screen.queryByRole('button', { name: 'Mark event as reviewed' })
       ).not.toBeInTheDocument();
     });
 
-    it('does not render mark as reviewed button when onMarkReviewed is undefined', () => {
+    it('does not render mark as reviewed button when onMarkReviewed is undefined', async () => {
       render(<EventDetailModal {...mockProps} onMarkReviewed={undefined} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(
         screen.queryByRole('button', { name: 'Mark event as reviewed' })
       ).not.toBeInTheDocument();
@@ -553,6 +671,10 @@ describe('EventDetailModal', () => {
       const onMarkReviewed = vi.fn();
       render(<EventDetailModal {...mockProps} onMarkReviewed={onMarkReviewed} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      });
+
       const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
       await user.click(reviewButton);
 
@@ -562,218 +684,276 @@ describe('EventDetailModal', () => {
   });
 
   describe('accessibility', () => {
-    it('has role="dialog"', () => {
+    it('has role="dialog"', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
 
-    it('has aria-modal attribute', () => {
+    it('has aria-modal attribute', async () => {
       render(<EventDetailModal {...mockProps} />);
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveAttribute('aria-modal');
+      await waitFor(() => {
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveAttribute('aria-modal');
+      });
     });
 
-    it('has aria-labelledby pointing to title', () => {
+    it('has aria-labelledby pointing to title', async () => {
       render(<EventDetailModal {...mockProps} />);
-      const dialog = screen.getByRole('dialog');
-      const labelledBy = dialog.getAttribute('aria-labelledby');
-      // Headless UI sets this attribute, verify it exists
-      expect(labelledBy).not.toBeNull();
+      await waitFor(() => {
+        const dialog = screen.getByRole('dialog');
+        const labelledBy = dialog.getAttribute('aria-labelledby');
+        // Headless UI sets this attribute, verify it exists
+        expect(labelledBy).not.toBeNull();
+      });
     });
 
-    it('renders title with correct ID for aria-labelledby', () => {
+    it('renders title with correct ID for aria-labelledby', async () => {
       render(<EventDetailModal {...mockProps} />);
-      const title = screen.getByRole('heading', { name: 'Front Door' });
-      expect(title).toHaveAttribute('id', 'event-detail-title');
+      await waitFor(() => {
+        const title = screen.getByRole('heading', { name: 'Front Door' });
+        expect(title).toHaveAttribute('id', 'event-detail-title');
+      });
     });
 
-    it('close button has aria-label', () => {
+    it('close button has aria-label', async () => {
       render(<EventDetailModal {...mockProps} />);
-      const closeButton = screen.getByRole('button', { name: 'Close modal' });
-      expect(closeButton).toHaveAttribute('aria-label', 'Close modal');
+      await waitFor(() => {
+        const closeButton = screen.getByRole('button', { name: 'Close modal' });
+        expect(closeButton).toHaveAttribute('aria-label', 'Close modal');
+      });
     });
 
-    it('navigation buttons have aria-labels', () => {
+    it('navigation buttons have aria-labels', async () => {
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
 
-      expect(screen.getByRole('button', { name: 'Previous event' })).toHaveAttribute(
-        'aria-label',
-        'Previous event'
-      );
-      expect(screen.getByRole('button', { name: 'Next event' })).toHaveAttribute(
-        'aria-label',
-        'Next event'
-      );
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Previous event' })).toHaveAttribute(
+          'aria-label',
+          'Previous event'
+        );
+        expect(screen.getByRole('button', { name: 'Next event' })).toHaveAttribute(
+          'aria-label',
+          'Next event'
+        );
+      });
     });
 
-    it('mark as reviewed button has aria-label', () => {
+    it('mark as reviewed button has aria-label', async () => {
       const onMarkReviewed = vi.fn();
       render(<EventDetailModal {...mockProps} onMarkReviewed={onMarkReviewed} />);
 
-      const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
-      expect(reviewButton).toHaveAttribute('aria-label', 'Mark event as reviewed');
+      await waitFor(() => {
+        const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
+        expect(reviewButton).toHaveAttribute('aria-label', 'Mark event as reviewed');
+      });
     });
 
-    it('backdrop has aria-hidden', () => {
+    it('backdrop has aria-hidden', async () => {
       render(<EventDetailModal {...mockProps} />);
-      // Verify modal is accessible (dialog role present)
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toBeInTheDocument();
-      // Headless UI manages backdrop aria-hidden automatically
+      await waitFor(() => {
+        // Verify modal is accessible (dialog role present)
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toBeInTheDocument();
+        // Headless UI manages backdrop aria-hidden automatically
+      });
     });
   });
 
   describe('styling and layout', () => {
-    it('renders modal with proper structure', () => {
+    it('renders modal with proper structure', async () => {
       render(<EventDetailModal {...mockProps} />);
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toBeInTheDocument();
+      await waitFor(() => {
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toBeInTheDocument();
+      });
     });
 
-    it('renders header with title and close button', () => {
+    it('renders header with title and close button', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+      });
     });
 
-    it('renders main content sections', () => {
+    it('renders main content sections', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('AI Summary')).toBeInTheDocument();
-      expect(screen.getByText('Event Details')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('AI Summary')).toBeInTheDocument();
+        expect(screen.getByText('Event Details')).toBeInTheDocument();
+      });
     });
 
-    it('renders footer with appropriate spacing', () => {
+    it('renders footer with appropriate spacing', async () => {
       const onNavigate = vi.fn();
       render(<EventDetailModal {...mockProps} onNavigate={onNavigate} />);
-      expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+      });
     });
   });
 
   describe('edge cases', () => {
-    it('handles invalid timestamp gracefully', () => {
+    it('handles invalid timestamp gracefully', async () => {
       const eventInvalidTimestamp = { ...mockEvent, timestamp: 'invalid-date' };
       render(<EventDetailModal {...mockProps} event={eventInvalidTimestamp} />);
-      expect(screen.getByText('Invalid Date')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Invalid Date')).toBeInTheDocument();
+      });
     });
 
-    it('handles very long summary text', () => {
+    it('handles very long summary text', async () => {
       const longSummary =
         'This is a very long summary that describes an extremely complex security event with multiple elements and detailed analysis of what has occurred at this particular location and time with extensive contextual information that goes on and on.';
       const eventLongSummary = { ...mockEvent, summary: longSummary };
       render(<EventDetailModal {...mockProps} event={eventLongSummary} />);
-      expect(screen.getByText(longSummary)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(longSummary)).toBeInTheDocument();
+      });
     });
 
-    it('handles very long reasoning text', () => {
+    it('handles very long reasoning text', async () => {
       const longReasoning =
         'This is a very long reasoning text that provides extensive analysis and explanation of the security event including multiple factors, contextual elements, historical patterns, and detailed justification for the assigned risk score with numerous details.';
       const eventLongReasoning = { ...mockEvent, reasoning: longReasoning };
       render(<EventDetailModal {...mockProps} event={eventLongReasoning} />);
-      expect(screen.getByText(longReasoning)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(longReasoning)).toBeInTheDocument();
+      });
     });
 
-    it('handles detection with 100% confidence', () => {
+    it('handles detection with 100% confidence', async () => {
       const eventPerfectConfidence = {
         ...mockEvent,
         detections: [{ label: 'person', confidence: 1.0 }],
       };
       render(<EventDetailModal {...mockProps} event={eventPerfectConfidence} />);
-      expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
+      await waitFor(() => {
+        expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
+      });
     });
 
-    it('handles detection with 0% confidence', () => {
+    it('handles detection with 0% confidence', async () => {
       const eventZeroConfidence = {
         ...mockEvent,
         detections: [{ label: 'person', confidence: 0.0 }],
       };
       render(<EventDetailModal {...mockProps} event={eventZeroConfidence} />);
-      expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('handles risk score at boundary values', () => {
-      const boundaryScores = [0, 25, 50, 75, 100];
-
-      boundaryScores.forEach((score) => {
-        const eventBoundary = { ...mockEvent, risk_score: score };
-        const { unmount } = render(<EventDetailModal {...mockProps} event={eventBoundary} />);
-        expect(screen.getByText(`${score} / 100`)).toBeInTheDocument();
-        unmount();
+      await waitFor(() => {
+        expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1);
       });
     });
 
-    it('handles empty camera name', () => {
-      const eventEmptyCamera = { ...mockEvent, camera_name: '' };
-      render(<EventDetailModal {...mockProps} event={eventEmptyCamera} />);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    it('handles risk score at boundary values', async () => {
+      const boundaryScores = [0, 25, 50, 75, 100];
+
+      for (const score of boundaryScores) {
+        const eventBoundary = { ...mockEvent, risk_score: score };
+        const { unmount } = render(<EventDetailModal {...mockProps} event={eventBoundary} />);
+        await waitFor(() => {
+          expect(screen.getByText(`${score} / 100`)).toBeInTheDocument();
+        });
+        unmount();
+      }
     });
 
-    it('handles very long camera name', () => {
+    it('handles empty camera name', async () => {
+      const eventEmptyCamera = { ...mockEvent, camera_name: '' };
+      render(<EventDetailModal {...mockProps} event={eventEmptyCamera} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+    });
+
+    it('handles very long camera name', async () => {
       const longCameraName = 'Front Door Main Entrance Camera Position Alpha North Wing Building A';
       const eventLongCamera = { ...mockEvent, camera_name: longCameraName };
       render(<EventDetailModal {...mockProps} event={eventLongCamera} />);
-      expect(screen.getByRole('heading', { name: longCameraName })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: longCameraName })).toBeInTheDocument();
+      });
     });
 
-    it('handles many detections', () => {
+    it('handles many detections', async () => {
       const manyDetections = Array.from({ length: 20 }, (_, i) => ({
         label: `object-${i}`,
         confidence: 0.5 + i * 0.02,
       }));
       const eventManyDetections = { ...mockEvent, detections: manyDetections };
       render(<EventDetailModal {...mockProps} event={eventManyDetections} />);
-      expect(screen.getByText('Detected Objects (20)')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Detected Objects (20)')).toBeInTheDocument();
+      });
     });
   });
 
   describe('event transitions', () => {
-    it('handles event prop changing while modal is open', () => {
+    it('handles event prop changing while modal is open', async () => {
       const { rerender } = render(<EventDetailModal {...mockProps} />);
 
-      expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
+      });
 
       const newEvent = { ...mockEvent, id: 'event-456', camera_name: 'Back Door', risk_score: 30 };
       rerender(<EventDetailModal {...mockProps} event={newEvent} />);
 
-      expect(screen.getByRole('heading', { name: 'Back Door' })).toBeInTheDocument();
-      expect(screen.getByText('30 / 100')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Back Door' })).toBeInTheDocument();
+        expect(screen.getByText('30 / 100')).toBeInTheDocument();
+      });
     });
 
-    it('handles toggling isOpen prop', () => {
+    it('handles toggling isOpen prop', async () => {
       render(<EventDetailModal {...mockProps} isOpen={true} />);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
     });
   });
 
   describe('notes functionality', () => {
-    it('renders notes section with textarea', () => {
+    it('renders notes section with textarea', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('Notes')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Add notes about this event...')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Notes')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Add notes about this event...')).toBeInTheDocument();
+      });
     });
 
-    it('initializes notes textarea with event notes', () => {
+    it('initializes notes textarea with event notes', async () => {
       const eventWithNotes = { ...mockEvent, notes: 'Delivery person confirmed' };
       render(<EventDetailModal {...mockProps} event={eventWithNotes} />);
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
-        'Add notes about this event...'
-      );
-      expect(textarea.value).toBe('Delivery person confirmed');
+      await waitFor(() => {
+        const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+          'Add notes about this event...'
+        );
+        expect(textarea.value).toBe('Delivery person confirmed');
+      });
     });
 
-    it('initializes notes textarea as empty when event has no notes', () => {
+    it('initializes notes textarea as empty when event has no notes', async () => {
       const eventNoNotes = { ...mockEvent, notes: null };
       render(<EventDetailModal {...mockProps} event={eventNoNotes} />);
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
-        'Add notes about this event...'
-      );
-      expect(textarea.value).toBe('');
+      await waitFor(() => {
+        const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+          'Add notes about this event...'
+        );
+        expect(textarea.value).toBe('');
+      });
     });
 
     it('allows typing in notes textarea', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<EventDetailModal {...mockProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Add notes about this event...')).toBeInTheDocument();
+      });
 
       const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
         'Add notes about this event...'
@@ -784,15 +964,21 @@ describe('EventDetailModal', () => {
       expect(textarea.value).toBe('This is a test note');
     });
 
-    it('renders save notes button', () => {
+    it('renders save notes button', async () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByRole('button', { name: 'Save notes' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save notes' })).toBeInTheDocument();
+      });
     });
 
     it('calls onSaveNotes when save button is clicked', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Add notes about this event...')).toBeInTheDocument();
+      });
 
       const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
         'Add notes about this event...'
@@ -808,11 +994,13 @@ describe('EventDetailModal', () => {
       });
     });
 
-    it('disables save button when onSaveNotes is not provided', () => {
+    it('disables save button when onSaveNotes is not provided', async () => {
       render(<EventDetailModal {...mockProps} onSaveNotes={undefined} />);
 
-      const saveButton = screen.getByRole('button', { name: 'Save notes' });
-      expect(saveButton).toBeDisabled();
+      await waitFor(() => {
+        const saveButton = screen.getByRole('button', { name: 'Save notes' });
+        expect(saveButton).toBeDisabled();
+      });
     });
 
     it('shows saving state while saving notes', async () => {
@@ -824,6 +1012,10 @@ describe('EventDetailModal', () => {
       const onSaveNotes = vi.fn().mockReturnValue(savePromise);
 
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save notes' })).toBeInTheDocument();
+      });
 
       const saveButton = screen.getByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
@@ -842,6 +1034,10 @@ describe('EventDetailModal', () => {
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save notes' })).toBeInTheDocument();
+      });
 
       const saveButton = screen.getByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
@@ -871,7 +1067,9 @@ describe('EventDetailModal', () => {
         vi.advanceTimersByTime(3000);
       });
 
-      expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+      });
     });
 
     it('handles save errors gracefully', async () => {
@@ -895,8 +1093,12 @@ describe('EventDetailModal', () => {
       consoleSpy.mockRestore();
     });
 
-    it('updates notes text when event changes', () => {
+    it('updates notes text when event changes', async () => {
       const { rerender } = render(<EventDetailModal {...mockProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Add notes about this event...')).toBeInTheDocument();
+      });
 
       const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
         'Add notes about this event...'
@@ -906,7 +1108,9 @@ describe('EventDetailModal', () => {
       const eventWithNotes = { ...mockEvent, id: 'event-456', notes: 'Different notes' };
       rerender(<EventDetailModal {...mockProps} event={eventWithNotes} />);
 
-      expect(textarea.value).toBe('Different notes');
+      await waitFor(() => {
+        expect(textarea.value).toBe('Different notes');
+      });
     });
 
     it('clears saved indicator when event changes', async () => {
@@ -961,36 +1165,45 @@ describe('EventDetailModal', () => {
   });
 
   describe('flag event', () => {
-    it('renders flag event button when onFlagEvent is provided', () => {
+    it('renders flag event button when onFlagEvent is provided', async () => {
       const onFlagEvent = vi.fn();
       render(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
 
-      expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
+      });
     });
 
-    it('does not render flag event button when onFlagEvent is undefined', () => {
+    it('does not render flag event button when onFlagEvent is undefined', async () => {
       render(<EventDetailModal {...mockProps} onFlagEvent={undefined} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByRole('button', { name: 'Flag event' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Unflag event' })).not.toBeInTheDocument();
     });
 
-    it('shows "Flag Event" when event is not flagged', () => {
+    it('shows "Flag Event" when event is not flagged', async () => {
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn();
       render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
 
-      expect(screen.getByRole('button', { name: 'Flag event' })).toHaveTextContent('Flag Event');
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Flag event' })).toHaveTextContent('Flag Event');
+      });
     });
 
-    it('shows "Unflag Event" when event is flagged', () => {
+    it('shows "Unflag Event" when event is flagged', async () => {
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn();
       render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
 
-      expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent(
-        'Unflag Event'
-      );
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent(
+          'Unflag Event'
+        );
+      });
     });
 
     it('calls onFlagEvent with correct parameters when flagging unflagged event', async () => {
@@ -1066,7 +1279,7 @@ describe('EventDetailModal', () => {
       consoleSpy.mockRestore();
     });
 
-    it('applies different styling for flagged vs unflagged state', () => {
+    it('applies different styling for flagged vs unflagged state', async () => {
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn();
@@ -1075,45 +1288,58 @@ describe('EventDetailModal', () => {
         <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
       );
 
-      const flagButton = screen.getByRole('button', { name: 'Flag event' });
-      expect(flagButton).toHaveClass('bg-gray-800');
+      await waitFor(() => {
+        const flagButton = screen.getByRole('button', { name: 'Flag event' });
+        expect(flagButton).toHaveClass('bg-gray-800');
+      });
 
       rerender(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
 
-      const unflagButton = screen.getByRole('button', { name: 'Unflag event' });
-      expect(unflagButton).toHaveClass('bg-yellow-600');
+      await waitFor(() => {
+        const unflagButton = screen.getByRole('button', { name: 'Unflag event' });
+        expect(unflagButton).toHaveClass('bg-yellow-600');
+      });
     });
 
-    it('has correct aria-label for flagged state', () => {
+    it('has correct aria-label for flagged state', async () => {
       const eventFlagged = { ...mockEvent, flagged: true };
       const onFlagEvent = vi.fn();
       render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
 
-      const button = screen.getByRole('button', { name: 'Unflag event' });
-      expect(button).toHaveAttribute('aria-label', 'Unflag event');
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: 'Unflag event' });
+        expect(button).toHaveAttribute('aria-label', 'Unflag event');
+      });
     });
 
-    it('has correct aria-label for unflagged state', () => {
+    it('has correct aria-label for unflagged state', async () => {
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn();
       render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
 
-      const button = screen.getByRole('button', { name: 'Flag event' });
-      expect(button).toHaveAttribute('aria-label', 'Flag event');
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: 'Flag event' });
+        expect(button).toHaveAttribute('aria-label', 'Flag event');
+      });
     });
   });
 
   describe('download media', () => {
-    it('renders download media button when onDownloadMedia is provided', () => {
+    it('renders download media button when onDownloadMedia is provided', async () => {
       const onDownloadMedia = vi.fn();
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
-      expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
+      });
     });
 
-    it('does not render download media button when onDownloadMedia is undefined', () => {
+    it('does not render download media button when onDownloadMedia is undefined', async () => {
       render(<EventDetailModal {...mockProps} onDownloadMedia={undefined} />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
       expect(screen.queryByRole('button', { name: 'Download media' })).not.toBeInTheDocument();
     });
 
@@ -1174,12 +1400,14 @@ describe('EventDetailModal', () => {
       consoleSpy.mockRestore();
     });
 
-    it('has correct aria-label', () => {
+    it('has correct aria-label', async () => {
       const onDownloadMedia = vi.fn();
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
-      const button = screen.getByRole('button', { name: 'Download media' });
-      expect(button).toHaveAttribute('aria-label', 'Download media');
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: 'Download media' });
+        expect(button).toHaveAttribute('aria-label', 'Download media');
+      });
     });
 
     it('can be called multiple times', async () => {
@@ -1203,7 +1431,7 @@ describe('EventDetailModal', () => {
   });
 
   describe('integration', () => {
-    it('renders complete modal with all sections', () => {
+    it('renders complete modal with all sections', async () => {
       const onClose = vi.fn();
       const onMarkReviewed = vi.fn();
       const onNavigate = vi.fn();
@@ -1218,21 +1446,23 @@ describe('EventDetailModal', () => {
       );
 
       // Verify all major sections are present
-      expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
-      expect(screen.getByText(/January 15, 2024/)).toBeInTheDocument();
-      const badges = screen.getAllByText(/High.*65/);
-      expect(badges.length).toBeGreaterThan(0);
-      expect(screen.getByText('AI Summary')).toBeInTheDocument();
-      expect(screen.getByText('AI Reasoning')).toBeInTheDocument();
-      expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
-      expect(screen.getByText('Event Details')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Front Door' })).toBeInTheDocument();
+        expect(screen.getByText(/January 15, 2024/)).toBeInTheDocument();
+        const badges = screen.getAllByText(/High.*65/);
+        expect(badges.length).toBeGreaterThan(0);
+        expect(screen.getByText('AI Summary')).toBeInTheDocument();
+        expect(screen.getByText('AI Reasoning')).toBeInTheDocument();
+        expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
+        expect(screen.getByText('Event Details')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      });
     });
 
-    it('renders complete modal with all action buttons', () => {
+    it('renders complete modal with all action buttons', async () => {
       const onClose = vi.fn();
       const onMarkReviewed = vi.fn();
       const onNavigate = vi.fn();
@@ -1251,9 +1481,11 @@ describe('EventDetailModal', () => {
       );
 
       // Verify all action buttons are present
-      expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+      });
     });
 
     it('handles multiple interactions without errors', async () => {
@@ -1661,14 +1893,18 @@ describe('EventDetailModal', () => {
       vi.clearAllMocks();
     });
 
-    it('renders re-evaluate button', () => {
+    it('renders re-evaluate button', async () => {
       render(<EventDetailModal {...mockReEvalProps} />);
-      expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      });
     });
 
-    it('renders re-evaluate button with correct label', () => {
+    it('renders re-evaluate button with correct label', async () => {
       render(<EventDetailModal {...mockReEvalProps} />);
-      expect(screen.getByRole('button', { name: 'Re-evaluate AI analysis' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Re-evaluate AI analysis' })).toBeInTheDocument();
+      });
     });
 
     it('calls triggerEvaluation when re-evaluate button is clicked', async () => {
@@ -1716,6 +1952,10 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockReEvalProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      });
+
       const reEvalButton = screen.getByTestId('re-evaluate-button');
       await user.click(reEvalButton);
 
@@ -1734,13 +1974,21 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockReEvalProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      });
+
       const reEvalButton = screen.getByTestId('re-evaluate-button');
       await user.click(reEvalButton);
 
-      expect(screen.getByText('Re-evaluating...')).toBeInTheDocument();
-      expect(reEvalButton).toBeDisabled();
+      await waitFor(() => {
+        expect(screen.getByText('Re-evaluating...')).toBeInTheDocument();
+        expect(reEvalButton).toBeDisabled();
+      });
 
-      resolveEval!();
+      act(() => {
+        resolveEval!();
+      });
     });
 
     it('shows success message after successful re-evaluation', async () => {
@@ -1788,6 +2036,10 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockReEvalProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      });
+
       const reEvalButton = screen.getByTestId('re-evaluate-button');
       await user.click(reEvalButton);
 
@@ -1804,6 +2056,10 @@ describe('EventDetailModal', () => {
       );
 
       render(<EventDetailModal {...mockReEvalProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      });
 
       const reEvalButton = screen.getByTestId('re-evaluate-button');
       await user.click(reEvalButton);
@@ -1822,6 +2078,10 @@ describe('EventDetailModal', () => {
 
       const { rerender } = render(<EventDetailModal {...mockReEvalProps} />);
 
+      await waitFor(() => {
+        expect(screen.getByTestId('re-evaluate-button')).toBeInTheDocument();
+      });
+
       // Trigger an error
       const reEvalButton = screen.getByTestId('re-evaluate-button');
       await user.click(reEvalButton);
@@ -1835,14 +2095,18 @@ describe('EventDetailModal', () => {
       rerender(<EventDetailModal {...mockReEvalProps} event={newEvent} />);
 
       // Error should be cleared
-      expect(screen.queryByTestId('re-evaluate-error')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId('re-evaluate-error')).not.toBeInTheDocument();
+      });
     });
 
-    it('has correct aria-label for accessibility', () => {
+    it('has correct aria-label for accessibility', async () => {
       render(<EventDetailModal {...mockReEvalProps} />);
 
-      const reEvalButton = screen.getByTestId('re-evaluate-button');
-      expect(reEvalButton).toHaveAttribute('aria-label', 'Re-evaluate AI analysis');
+      await waitFor(() => {
+        const reEvalButton = screen.getByTestId('re-evaluate-button');
+        expect(reEvalButton).toHaveAttribute('aria-label', 'Re-evaluate AI analysis');
+      });
     });
   });
 });

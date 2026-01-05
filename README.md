@@ -17,6 +17,9 @@ no text overlays"
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 
+![Backend Coverage](https://img.shields.io/badge/backend_coverage-95%25-brightgreen)
+![Frontend Coverage](https://img.shields.io/badge/frontend_coverage-84%25-green)
+
 ## Why This Matters: AI on Your Hardware
 
 **Millions of people own NVIDIA GPUs that can run advanced AI models locally.** This project proves you don't need cloud APIs or data center hardware to build intelligent systems.
