@@ -755,7 +755,11 @@ async def update_event(
     if changes.get("reviewed", {}).get("new") is True:
         action = AuditAction.EVENT_REVIEWED
         # Record events reviewed metric for Prometheus (NEM-770)
-        record_event_reviewed()
+        try:
+            record_event_reviewed()
+        except Exception as e:
+            # Log but don't fail the request - metrics are non-critical
+            logger.warning(f"Failed to record event_reviewed metric: {e}")
     elif changes.get("reviewed", {}).get("new") is False:
         action = AuditAction.EVENT_DISMISSED
     else:

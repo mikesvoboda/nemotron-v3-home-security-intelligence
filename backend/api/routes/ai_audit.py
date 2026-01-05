@@ -45,6 +45,7 @@ from backend.api.schemas.ai_audit import (
     RecommendationsResponse,
 )
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.models.audit import AuditAction
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
@@ -52,6 +53,33 @@ from backend.models.prompt_config import PromptConfig
 from backend.services.audit import AuditService
 from backend.services.audit_service import get_audit_service
 from backend.services.prompt_storage import SUPPORTED_MODELS, get_prompt_storage
+
+logger = get_logger(__name__)
+
+
+def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> datetime:
+    """Safely parse an ISO format datetime string.
+
+    Handles malformed timestamps gracefully by returning a fallback value
+    and logging a warning.
+
+    Args:
+        value: ISO format datetime string to parse
+        fallback: Datetime to return if parsing fails (defaults to now UTC)
+
+    Returns:
+        Parsed datetime or fallback value
+    """
+    if fallback is None:
+        fallback = datetime.now(UTC)
+    if not value:
+        return fallback
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid datetime format: {value}, using fallback")
+        return fallback
+
 
 router = APIRouter(prefix="/api/ai-audit", tags=["ai-audit"])
 
@@ -436,9 +464,10 @@ def _validate_model_name(model: str) -> None:
         HTTPException: 404 if model is not supported
     """
     if model not in SUPPORTED_MODELS:
+        logger.warning(f"Invalid model requested: {model}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model}' not found. Supported models: {sorted(SUPPORTED_MODELS)}",
+            detail="Model not found",
         )
 
 
@@ -461,9 +490,7 @@ async def get_all_prompts() -> AllPromptsResponse:
             model_name=model_name,
             config=data.get("config", {}),
             version=data.get("version", 1),
-            updated_at=datetime.fromisoformat(
-                data.get("updated_at", datetime.now(UTC).isoformat())
-            ),
+            updated_at=safe_parse_datetime(data.get("updated_at")),
         )
 
     return AllPromptsResponse(prompts=prompts)
@@ -720,7 +747,7 @@ async def export_prompts() -> PromptExportResponse:
     export_data = storage.export_all()
 
     return PromptExportResponse(
-        exported_at=datetime.fromisoformat(export_data["exported_at"]),
+        exported_at=safe_parse_datetime(export_data.get("exported_at")),
         version=export_data["version"],
         prompts=export_data["prompts"],
     )
@@ -826,7 +853,7 @@ async def get_model_prompt(model: str) -> ModelPromptResponse:
         model_name=model,
         config=data.get("config", {}),
         version=data.get("version", 1),
-        updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now(UTC).isoformat())),
+        updated_at=safe_parse_datetime(data.get("updated_at")),
     )
 
 
@@ -992,9 +1019,10 @@ def _validate_db_model_name(model: str) -> None:
         HTTPException: 404 if model is not supported
     """
     if model not in DB_SUPPORTED_MODELS:
+        logger.warning(f"Invalid model requested: {model}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model}' not found. Supported models: {sorted(DB_SUPPORTED_MODELS)}",
+            detail="Model not found",
         )
 
 

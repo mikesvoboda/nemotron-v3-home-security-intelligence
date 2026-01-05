@@ -188,7 +188,7 @@ async def test_listen_for_events_processes_messages_and_sends() -> None:
 async def test_listen_for_events_restarts_after_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that _listen_for_events restarts listener after non-cancelled errors.
 
-    Uses exponential backoff: 1s on first retry, 2s on second, etc.
+    Uses exponential backoff with jitter: base 1s on first retry + 10-30% jitter.
     """
 
     class RedisThatErrors(_FakeRedis):
@@ -221,8 +221,10 @@ async def test_listen_for_events_restarts_after_error(monkeypatch: pytest.Monkey
     monkeypatch.setattr(asyncio, "create_task", _fake_create_task)
 
     await broadcaster._listen_for_events()
-    # First retry uses exponential backoff: 2^(1-1) = 1 second
-    assert sleep_calls == [1]
+    # First retry uses exponential backoff with jitter: base 1s + 10-30% jitter
+    # Expected range: 1.1 to 1.3 seconds
+    assert len(sleep_calls) == 1
+    assert 1.0 <= sleep_calls[0] <= 1.4, f"Expected ~1.1-1.3s with jitter, got {sleep_calls[0]}"
     assert broadcaster._listener_task is not None
     assert created
 
@@ -806,7 +808,10 @@ async def test_listen_for_events_does_not_restart_second_time_when_listening_fal
 
     await broadcaster._listen_for_events()
 
-    assert sleep_calls == [1]
+    # First retry uses exponential backoff with jitter: base 1s + 10-30% jitter
+    # Expected range: 1.1 to 1.3 seconds
+    assert len(sleep_calls) == 1
+    assert 1.0 <= sleep_calls[0] <= 1.4, f"Expected ~1.1-1.3s with jitter, got {sleep_calls[0]}"
     # Should not have created a new task since _is_listening became False
     assert create_task_calls == []
 
