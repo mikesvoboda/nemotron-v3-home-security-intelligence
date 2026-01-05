@@ -460,9 +460,12 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        # Validate prompt - check exact match or VQA prefix
-        is_vqa_prompt = request.prompt.startswith(VQA_PROMPT_PREFIX)
-        if not is_vqa_prompt and request.prompt not in SUPPORTED_PROMPTS:
+        # Validate prompt - check exact match or VQA prefix (case-insensitive)
+        # Use upper() for validation to prevent case-sensitivity bypass attacks
+        normalized_prompt = request.prompt.upper()
+        is_vqa_prompt = normalized_prompt.startswith(VQA_PROMPT_PREFIX.upper())
+        normalized_supported = {p.upper() for p in SUPPORTED_PROMPTS}
+        if not is_vqa_prompt and normalized_prompt not in normalized_supported:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported prompt: {request.prompt}. "
