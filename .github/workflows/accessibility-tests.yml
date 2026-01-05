@@ -1,0 +1,144 @@
+name: Accessibility Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/accessibility-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/accessibility-tests.yml'
+
+concurrency:
+  group: a11y-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  accessibility-tests:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    # Non-blocking - accessibility issues should not block PRs
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: cd frontend && npx playwright install-deps chromium
+
+      - name: Run Accessibility Tests
+        id: a11y-tests
+        run: |
+          cd frontend && npx playwright test --project=chromium tests/e2e/specs/accessibility.spec.ts --reporter=html,list
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: accessibility-test-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: accessibility-test-results
+          path: frontend/test-results/
+          retention-days: 14
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Accessibility Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.a11y-tests.outcome }}" == "success" ]; then
+            echo "All accessibility tests passed. WCAG 2.1 AA compliance verified." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Some accessibility tests failed. Review the test report artifact for details." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### What to do" >> $GITHUB_STEP_SUMMARY
+            echo "1. Download the **accessibility-test-report** artifact" >> $GITHUB_STEP_SUMMARY
+            echo "2. Open \`index.html\` to see detailed violation reports" >> $GITHUB_STEP_SUMMARY
+            echo "3. Fix violations following [WCAG 2.1 AA guidelines](https://www.w3.org/WAI/WCAG21/quickref/)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test framework:** axe-core via @axe-core/playwright" >> $GITHUB_STEP_SUMMARY
+          echo "**Standard:** WCAG 2.1 Level AA" >> $GITHUB_STEP_SUMMARY
+
+      - name: Set job outcome
+        if: always()
+        run: |
+          if [ "${{ steps.a11y-tests.outcome }}" == "failure" ]; then
+            exit 1
+          fi
+
+  # Summary job for PR status and Linear issue creation
+  accessibility-tests-summary:
+    name: Accessibility Tests Summary
+    runs-on: ubuntu-latest
+    needs: [accessibility-tests]
+    if: always()
+    steps:
+      - name: Check accessibility test results
+        run: |
+          if [ "${{ needs.accessibility-tests.result }}" == "failure" ]; then
+            echo "::warning::Accessibility tests detected violations. Review the artifacts for details."
+            echo ""
+            echo "Download the accessibility-test-report artifact and open index.html to see:"
+            echo "  - Which WCAG guidelines were violated"
+            echo "  - Specific elements with issues"
+            echo "  - Remediation suggestions"
+          else
+            echo "Accessibility tests passed! WCAG 2.1 AA compliance verified."
+          fi
+
+      - name: Create Linear issue on failure
+        if: needs.accessibility-tests.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "Accessibility test failure on main",
+                  "description": "## Accessibility Test Failure\n\nThe accessibility tests (WCAG 2.1 AA compliance) failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the accessibility-test-report artifact from the workflow run\n2. Open `index.html` to review the axe-core violation reports\n3. Fix accessibility violations following [WCAG 2.1 AA guidelines](https://www.w3.org/WAI/WCAG21/quickref/)\n\n### Common Issues\n\n- Missing alt text on images\n- Form inputs without labels\n- Insufficient color contrast\n- Missing ARIA attributes on interactive elements\n- Keyboard navigation issues",
+                  "priority": 3,
+                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                }
+              }
+            }'

@@ -157,7 +157,8 @@ ai-detector:
   ports:
     - '8090:8090'
   volumes:
-    - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
+    # :U tells Podman to recursively chown the volume to match container user
+    - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
   environment:
     - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
   deploy:

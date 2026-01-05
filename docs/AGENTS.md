@@ -11,6 +11,7 @@ docs/
   AGENTS.md                       # This file - guide to documentation
   README.md                       # Documentation navigation hub
   ROADMAP.md                      # Post-MVP roadmap ideas
+  MUTATION_TESTING.md             # Mutation testing guide (mutmut + Stryker)
   AI_SETUP.md                     # AI services setup guide
   RUNTIME_CONFIG.md               # Authoritative port/env reference
   DOCKER_DEPLOYMENT.md            # Docker deployment guide

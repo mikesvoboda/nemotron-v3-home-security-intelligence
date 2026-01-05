@@ -514,9 +514,51 @@ Tests use these strategies for parallel isolation:
 - Check module names match file structure
 - Activate virtual environment
 
+## Mutation Testing
+
+Mutation testing verifies that your tests actually catch bugs by making small changes (mutations) to source code and checking if tests fail.
+
+### Running Mutation Tests
+
+```bash
+# Run all mutation tests (backend + frontend)
+./scripts/mutation-test.sh
+
+# Backend only (mutmut)
+./scripts/mutation-test.sh --backend
+
+# Frontend only (Stryker)
+./scripts/mutation-test.sh --frontend
+
+# Specific backend module
+./scripts/mutation-test.sh --module backend/services/severity.py
+```
+
+### Target Modules
+
+Mutation testing starts with well-tested utility modules:
+
+| Backend Module                        | Frontend Module           |
+| ------------------------------------- | ------------------------- |
+| `backend/services/bbox_validation.py` | `src/utils/risk.ts`       |
+| `backend/services/severity.py`        | `src/utils/time.ts`       |
+|                                       | `src/utils/confidence.ts` |
+
+### Interpreting Results
+
+| Mutation Score | Rating    | Action Needed            |
+| -------------- | --------- | ------------------------ |
+| 90-100%        | Excellent | Maintain current quality |
+| 80-89%         | Good      | Minor improvements       |
+| 60-79%         | Fair      | Add targeted tests       |
+| Below 60%      | Poor      | Significant test gaps    |
+
+For detailed guidance, see [Mutation Testing Guide](../MUTATION_TESTING.md).
+
 ## Related Documentation
 
 - [Setup Guide](setup.md) - Development environment setup
 - [Contributing Guide](contributing.md) - PR process and code standards
 - [Code Patterns](patterns.md) - Testing patterns in detail
 - [backend/tests/AGENTS.md](../../backend/tests/AGENTS.md) - Test infrastructure overview
+- [Mutation Testing Guide](../MUTATION_TESTING.md) - Mutation testing with mutmut and Stryker

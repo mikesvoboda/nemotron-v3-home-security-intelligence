@@ -1,0 +1,223 @@
+name: Bundle Size Tracking
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/bundle-size.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/bundle-size.yml'
+
+concurrency:
+  group: bundle-size-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  bundle-size:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    # Non-blocking - bundle size regressions should not block PRs
+    continue-on-error: true
+    outputs:
+      result: ${{ steps.size-check.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          # Ensure production build for accurate size measurement
+          NODE_ENV: production
+
+      - name: Install size-limit
+        run: cd frontend && npm install --save-dev size-limit @size-limit/file
+
+      - name: Run size-limit check
+        id: size-check
+        run: |
+          cd frontend
+          npx size-limit --json > size-report.json 2>&1 || true
+          cat size-report.json
+
+      - name: Generate size report
+        id: size-report
+        run: |
+          cd frontend
+
+          # Calculate actual bundle sizes
+          MAIN_JS_SIZE=$(find dist/assets -name "*.js" -type f -exec stat -c%s {} + 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
+          CSS_SIZE=$(find dist/assets -name "*.css" -type f -exec stat -c%s {} + 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
+          TOTAL_SIZE=$(find dist -type f -exec stat -c%s {} + 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
+
+          # Convert to human-readable format
+          format_size() {
+            local size=$1
+            if [ $size -ge 1048576 ]; then
+              echo "$(echo "scale=2; $size/1048576" | bc) MB"
+            elif [ $size -ge 1024 ]; then
+              echo "$(echo "scale=2; $size/1024" | bc) KB"
+            else
+              echo "$size B"
+            fi
+          }
+
+          MAIN_JS_HR=$(format_size $MAIN_JS_SIZE)
+          CSS_HR=$(format_size $CSS_SIZE)
+          TOTAL_HR=$(format_size $TOTAL_SIZE)
+
+          # Thresholds in bytes
+          MAIN_JS_THRESHOLD=512000    # 500 KB
+          CSS_THRESHOLD=102400        # 100 KB
+          TOTAL_JS_THRESHOLD=1048576  # 1 MB
+
+          # Check against thresholds
+          FAILED=false
+          STATUS_MAIN_JS="pass"
+          STATUS_CSS="pass"
+          STATUS_TOTAL="pass"
+
+          if [ $MAIN_JS_SIZE -gt $MAIN_JS_THRESHOLD ]; then
+            STATUS_MAIN_JS="fail"
+            FAILED=true
+          fi
+
+          if [ $CSS_SIZE -gt $CSS_THRESHOLD ]; then
+            STATUS_CSS="fail"
+            FAILED=true
+          fi
+
+          if [ $MAIN_JS_SIZE -gt $TOTAL_JS_THRESHOLD ]; then
+            STATUS_TOTAL="fail"
+            FAILED=true
+          fi
+
+          # Create summary
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Asset | Size | Limit | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$STATUS_MAIN_JS" = "pass" ]; then
+            echo "| JavaScript | $MAIN_JS_HR | 500 KB | :white_check_mark: Pass |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| JavaScript | $MAIN_JS_HR | 500 KB | :x: Exceeded |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$STATUS_CSS" = "pass" ]; then
+            echo "| CSS | $CSS_HR | 100 KB | :white_check_mark: Pass |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| CSS | $CSS_HR | 100 KB | :x: Exceeded |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$STATUS_TOTAL" = "pass" ]; then
+            echo "| Total JS | $MAIN_JS_HR | 1 MB | :white_check_mark: Pass |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Total JS | $MAIN_JS_HR | 1 MB | :x: Exceeded |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Bundle | $TOTAL_HR | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # List individual files
+          echo "### Asset Details" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          find dist -type f -exec ls -lh {} \; 2>/dev/null | awk '{print $5, $9}' | sort -rh >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Set outputs for downstream jobs
+          echo "main_js_size=$MAIN_JS_SIZE" >> $GITHUB_OUTPUT
+          echo "css_size=$CSS_SIZE" >> $GITHUB_OUTPUT
+          echo "total_size=$TOTAL_SIZE" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+
+      - name: Create build stats JSON
+        run: |
+          cd frontend
+          cat > build-stats.json << EOF
+          {
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "sizes": {
+              "javascript": ${{ steps.size-report.outputs.main_js_size || 0 }},
+              "css": ${{ steps.size-report.outputs.css_size || 0 }},
+              "total": ${{ steps.size-report.outputs.total_size || 0 }}
+            },
+            "thresholds": {
+              "javascript": 512000,
+              "css": 102400,
+              "total_js": 1048576
+            },
+            "passed": ${{ steps.size-report.outputs.failed != 'true' }}
+          }
+          EOF
+          cat build-stats.json
+
+      - name: Upload build stats artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: bundle-size-stats
+          path: |
+            frontend/build-stats.json
+            frontend/size-report.json
+            frontend/dist/
+          retention-days: 30
+
+  # Summary job for status reporting and Linear issue creation
+  bundle-size-summary:
+    name: Bundle Size Summary
+    runs-on: ubuntu-latest
+    needs: [bundle-size]
+    if: always()
+    steps:
+      - name: Check bundle size results
+        run: |
+          if [ "${{ needs.bundle-size.result }}" == "failure" ]; then
+            echo "::warning::Bundle size check detected issues. Review the build stats artifact for details."
+            echo "Consider:"
+            echo "  - Code splitting for large components"
+            echo "  - Tree shaking unused dependencies"
+            echo "  - Lazy loading routes"
+          else
+            echo "Bundle size check passed!"
+          fi
+
+      - name: Create Linear issue on failure
+        if: needs.bundle-size.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "Bundle size regression on main",
+                  "description": "## Bundle Size Regression\n\nThe bundle size check failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Thresholds\n- JavaScript: 500 KB max\n- CSS: 100 KB max\n- Total JS: 1 MB max\n\n### Action Required\n\n1. Review the build stats artifact in the workflow run\n2. Identify which bundle(s) exceeded the threshold\n3. Consider optimizations:\n   - Code splitting for large components\n   - Tree shaking unused dependencies\n   - Lazy loading routes\n   - Removing unused CSS\n   - Compressing assets",
+                  "priority": 3,
+                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                }
+              }
+            }'

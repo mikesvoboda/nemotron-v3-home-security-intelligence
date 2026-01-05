@@ -79,6 +79,8 @@ dev = [
     # Dead code detection
     "vulture>=2.11",
     # Note: radon is provided by wily dependency (5.1.x)
+    # Mutation testing
+    "mutmut>=3.2.0",
 ]
 
 [tool.ruff]
@@ -240,3 +242,36 @@ print_blob = true  # Print failing examples for reproduction
 max_examples = 500
 deadline = 5000
 database = "directory:.hypothesis"
+
+# =============================================================================
+# Mutation Testing Configuration (mutmut)
+# =============================================================================
+# Mutation testing verifies test effectiveness by making small changes (mutants)
+# to source code and checking if tests catch them. A high mutation score indicates
+# tests effectively detect code changes.
+#
+# Target modules selected for mutation testing:
+# - bbox_validation.py: Pure logic, well-tested, critical for AI pipeline
+# - severity.py: Pure logic, well-tested, critical for risk assessment
+#
+# Usage:
+#   uv run mutmut run --paths-to-mutate backend/services/bbox_validation.py
+#   uv run mutmut results
+#   uv run mutmut show <mutant_id>
+#
+# See docs/MUTATION_TESTING.md for detailed guidance.
+[tool.mutmut]
+# Paths to mutate (start with well-tested, critical modules)
+paths_to_mutate = [
+    "backend/services/bbox_validation.py",
+    "backend/services/severity.py",
+]
+# Tests to run (must use absolute paths or pytest-compatible paths)
+tests_dir = "backend/tests/unit/services/"
+# Runner configuration
+runner = "python -m pytest -x -q --tb=no"
+# Skip mutations that are equivalent or hard to kill
+dict_synonyms = ["Struct", "NamedStruct"]
+# Parallel execution (use half of available cores)
+# Set to 0 for serial execution if debugging
+# parallel = "auto"

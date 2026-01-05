@@ -98,7 +98,9 @@ podman-compose -f docker-compose.prod.yml build ai-detector
 
 ```yaml
 volumes:
-  - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
+  # :U tells Podman to recursively chown the volume to match container user
+  # Docker ignores the :U flag, making this backward compatible
+  - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
 ```
 
 ### ai-llm (Nemotron)
