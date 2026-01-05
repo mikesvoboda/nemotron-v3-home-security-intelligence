@@ -34,6 +34,31 @@ from backend.services.prompts import MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
 
 logger = get_logger(__name__)
 
+
+def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> datetime:
+    """Safely parse an ISO format datetime string.
+
+    Handles malformed timestamps gracefully by returning a fallback value
+    and logging a warning.
+
+    Args:
+        value: ISO format datetime string to parse
+        fallback: Datetime to return if parsing fails (defaults to now UTC)
+
+    Returns:
+        Parsed datetime or fallback value
+    """
+    if fallback is None:
+        fallback = datetime.now(UTC)
+    if not value:
+        return fallback
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid datetime format: {value}, using fallback")
+        return fallback
+
+
 # Default storage path relative to backend directory
 DEFAULT_PROMPT_STORAGE_PATH = Path(__file__).parent.parent / "data" / "prompts"
 
@@ -168,7 +193,8 @@ class PromptStorageService:
     def _get_model_dir(self, model_name: str) -> Path:
         """Get the directory for a model's configurations."""
         if model_name not in SUPPORTED_MODELS:
-            raise ValueError(f"Unsupported model: {model_name}. Must be one of: {SUPPORTED_MODELS}")
+            logger.warning(f"Invalid model requested: {model_name}")
+            raise ValueError(f"Unsupported model: {model_name}")
         return self.storage_path / model_name
 
     def _get_current_path(self, model_name: str) -> Path:
@@ -375,9 +401,7 @@ class PromptStorageService:
                     PromptVersion(
                         version=data.get("version", version_num),
                         config=data.get("config", {}),
-                        created_at=datetime.fromisoformat(
-                            data.get("created_at", datetime.now(UTC).isoformat())
-                        ),
+                        created_at=safe_parse_datetime(data.get("created_at")),
                         created_by=data.get("created_by", "unknown"),
                         description=data.get("description"),
                     )
@@ -404,9 +428,7 @@ class PromptStorageService:
         return PromptVersion(
             version=data.get("version", version),
             config=data.get("config", {}),
-            created_at=datetime.fromisoformat(
-                data.get("created_at", datetime.now(UTC).isoformat())
-            ),
+            created_at=safe_parse_datetime(data.get("created_at")),
             created_by=data.get("created_by", "unknown"),
             description=data.get("description"),
         )
