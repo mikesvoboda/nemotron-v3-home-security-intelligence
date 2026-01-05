@@ -52,6 +52,9 @@ class WebSocketCircuitBreakerMetrics:
         last_failure_time: Timestamp of last failure (monotonic time)
         last_state_change: Timestamp of last state transition
         opened_at: Timestamp when circuit was last opened (monotonic time)
+        consecutive_half_open_failures: Count of consecutive HALF_OPEN failures for backoff
+        current_backoff_delay: Current exponential backoff delay in seconds
+        backoff_expires_at: Monotonic timestamp when backoff period expires
     """
 
     state: WebSocketCircuitState
@@ -62,6 +65,9 @@ class WebSocketCircuitBreakerMetrics:
     last_failure_time: float | None = None
     last_state_change: datetime | None = None
     opened_at: float | None = None
+    consecutive_half_open_failures: int = 0
+    current_backoff_delay: float = 0.0
+    backoff_expires_at: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary for serialization."""
@@ -76,6 +82,9 @@ class WebSocketCircuitBreakerMetrics:
                 self.last_state_change.isoformat() if self.last_state_change else None
             ),
             "opened_at": self.opened_at,
+            "consecutive_half_open_failures": self.consecutive_half_open_failures,
+            "current_backoff_delay": self.current_backoff_delay,
+            "backoff_expires_at": self.backoff_expires_at,
         }
 
 
@@ -112,6 +121,8 @@ class WebSocketCircuitBreaker:
         half_open_max_calls: int = 1,
         success_threshold: int = 1,
         name: str = "websocket",
+        backoff_base_delay: float = 1.0,
+        backoff_max_delay: float = 60.0,
     ) -> None:
         """Initialize WebSocket circuit breaker.
 
@@ -121,18 +132,27 @@ class WebSocketCircuitBreaker:
             half_open_max_calls: Maximum calls allowed in half-open state
             success_threshold: Successes needed in half-open to close circuit
             name: Name identifier for this circuit breaker
+            backoff_base_delay: Base delay for exponential backoff in HALF_OPEN state (seconds)
+            backoff_max_delay: Maximum delay for exponential backoff in HALF_OPEN state (seconds)
         """
         self._name = name
         self._failure_threshold = failure_threshold
         self._recovery_timeout = recovery_timeout
         self._half_open_max_calls = half_open_max_calls
         self._success_threshold = success_threshold
+        self._backoff_base_delay = backoff_base_delay
+        self._backoff_max_delay = backoff_max_delay
 
         # State tracking
         self._state = WebSocketCircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
         self._half_open_calls = 0
+
+        # Exponential backoff tracking for HALF_OPEN failures
+        self._consecutive_half_open_failures = 0
+        self._current_backoff_delay: float = 0.0
+        self._backoff_expires_at: float | None = None
 
         # Metrics tracking
         self._total_failures = 0
@@ -147,7 +167,9 @@ class WebSocketCircuitBreaker:
         logger.info(
             f"WebSocketCircuitBreaker '{name}' initialized: "
             f"failure_threshold={failure_threshold}, "
-            f"recovery_timeout={recovery_timeout}s"
+            f"recovery_timeout={recovery_timeout}s, "
+            f"backoff_base_delay={backoff_base_delay}s, "
+            f"backoff_max_delay={backoff_max_delay}s"
         )
 
     @property
@@ -174,6 +196,31 @@ class WebSocketCircuitBreaker:
     def last_failure_time(self) -> float | None:
         """Get last failure time (monotonic)."""
         return self._last_failure_time
+
+    @property
+    def backoff_base_delay(self) -> float:
+        """Get base delay for exponential backoff in seconds."""
+        return self._backoff_base_delay
+
+    @property
+    def backoff_max_delay(self) -> float:
+        """Get maximum delay for exponential backoff in seconds."""
+        return self._backoff_max_delay
+
+    @property
+    def consecutive_half_open_failures(self) -> int:
+        """Get count of consecutive HALF_OPEN failures for backoff calculation."""
+        return self._consecutive_half_open_failures
+
+    @property
+    def current_backoff_delay(self) -> float:
+        """Get current exponential backoff delay in seconds."""
+        return self._current_backoff_delay
+
+    @property
+    def backoff_expires_at(self) -> float | None:
+        """Get monotonic timestamp when backoff period expires."""
+        return self._backoff_expires_at
 
     def get_state(self) -> WebSocketCircuitState:
         """Get current circuit state.
@@ -289,17 +336,65 @@ class WebSocketCircuitBreaker:
             self.record_failure()
 
     def _should_attempt_recovery(self) -> bool:
-        """Check if recovery timeout has elapsed."""
+        """Check if recovery timeout and backoff period have elapsed.
+
+        Recovery is only attempted when:
+        1. The recovery_timeout has elapsed since the circuit opened
+        2. Any exponential backoff period (from previous HALF_OPEN failures) has expired
+
+        Returns:
+            True if recovery can be attempted, False otherwise
+        """
         if self._opened_at is None:
             return False
-        elapsed = time.monotonic() - self._opened_at
-        return elapsed >= self._recovery_timeout
+
+        current_time = time.monotonic()
+
+        # Check base recovery timeout
+        elapsed = current_time - self._opened_at
+        if elapsed < self._recovery_timeout:
+            return False
+
+        # Check exponential backoff if we have previous HALF_OPEN failures
+        return self._backoff_expires_at is None or current_time >= self._backoff_expires_at
+
+    def _calculate_backoff_delay(self) -> float:
+        """Calculate exponential backoff delay based on consecutive HALF_OPEN failures.
+
+        Formula: min(base_delay * 2^failures, max_delay)
+
+        Returns:
+            Backoff delay in seconds
+        """
+        if self._consecutive_half_open_failures == 0:
+            return 0.0
+        delay: float = self._backoff_base_delay * (2**self._consecutive_half_open_failures)
+        return min(delay, self._backoff_max_delay)
 
     def _transition_to_open(self) -> None:
-        """Transition circuit to OPEN state."""
+        """Transition circuit to OPEN state.
+
+        When transitioning from HALF_OPEN (indicating a failed recovery attempt),
+        increment the consecutive HALF_OPEN failure count and calculate exponential
+        backoff for the next recovery attempt.
+        """
         prev_state = self._state
+        current_time = time.monotonic()
+
+        # If transitioning from HALF_OPEN, apply exponential backoff
+        if prev_state == WebSocketCircuitState.HALF_OPEN:
+            self._consecutive_half_open_failures += 1
+            self._current_backoff_delay = self._calculate_backoff_delay()
+            self._backoff_expires_at = current_time + self._current_backoff_delay
+
+            logger.warning(
+                f"WebSocketCircuitBreaker '{self._name}' HALF_OPEN failed, "
+                f"applying backoff: {self._current_backoff_delay:.2f}s "
+                f"(consecutive failures: {self._consecutive_half_open_failures})"
+            )
+
         self._state = WebSocketCircuitState.OPEN
-        self._opened_at = time.monotonic()
+        self._opened_at = current_time
         self._success_count = 0
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
@@ -322,24 +417,10 @@ class WebSocketCircuitBreaker:
         )
 
     def _transition_to_closed(self) -> None:
-        """Transition circuit to CLOSED state."""
-        self._state = WebSocketCircuitState.CLOSED
-        self._failure_count = 0
-        self._success_count = 0
-        self._opened_at = None
-        self._half_open_calls = 0
-        self._last_state_change = datetime.now(UTC)
+        """Transition circuit to CLOSED state.
 
-        logger.info(
-            f"WebSocketCircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED "
-            "(service recovered)"
-        )
-
-    def reset(self) -> None:
-        """Manually reset circuit breaker to CLOSED state.
-
-        This clears all failure counts and returns the circuit to normal operation.
-        Use this after fixing underlying issues or for maintenance.
+        Resets all state including exponential backoff counters, as successful
+        recovery indicates the service is healthy again.
         """
         self._state = WebSocketCircuitState.CLOSED
         self._failure_count = 0
@@ -347,6 +428,34 @@ class WebSocketCircuitBreaker:
         self._opened_at = None
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
+
+        # Reset backoff on successful connection
+        self._consecutive_half_open_failures = 0
+        self._current_backoff_delay = 0.0
+        self._backoff_expires_at = None
+
+        logger.info(
+            f"WebSocketCircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED "
+            "(service recovered, backoff reset)"
+        )
+
+    def reset(self) -> None:
+        """Manually reset circuit breaker to CLOSED state.
+
+        This clears all failure counts, backoff state, and returns the circuit
+        to normal operation. Use this after fixing underlying issues or for maintenance.
+        """
+        self._state = WebSocketCircuitState.CLOSED
+        self._failure_count = 0
+        self._success_count = 0
+        self._opened_at = None
+        self._half_open_calls = 0
+        self._last_state_change = datetime.now(UTC)
+
+        # Reset backoff state
+        self._consecutive_half_open_failures = 0
+        self._current_backoff_delay = 0.0
+        self._backoff_expires_at = None
 
         logger.info(f"WebSocketCircuitBreaker '{self._name}' manually reset to CLOSED")
 
@@ -370,6 +479,9 @@ class WebSocketCircuitBreaker:
             last_failure_time=self._last_failure_time,
             last_state_change=self._last_state_change,
             opened_at=self._opened_at,
+            consecutive_half_open_failures=self._consecutive_half_open_failures,
+            current_backoff_delay=self._current_backoff_delay,
+            backoff_expires_at=self._backoff_expires_at,
         )
 
     def get_status(self) -> dict[str, Any]:
@@ -390,11 +502,18 @@ class WebSocketCircuitBreaker:
             "last_state_change": (
                 self._last_state_change.isoformat() if self._last_state_change else None
             ),
+            "backoff": {
+                "consecutive_half_open_failures": self._consecutive_half_open_failures,
+                "current_backoff_delay": self._current_backoff_delay,
+                "backoff_expires_at": self._backoff_expires_at,
+            },
             "config": {
                 "failure_threshold": self._failure_threshold,
                 "recovery_timeout": self._recovery_timeout,
                 "half_open_max_calls": self._half_open_max_calls,
                 "success_threshold": self._success_threshold,
+                "backoff_base_delay": self._backoff_base_delay,
+                "backoff_max_delay": self._backoff_max_delay,
             },
         }
 
