@@ -22,6 +22,9 @@ class AuditAction(str, Enum):
     SETTINGS_CHANGED = "settings_changed"
     CONFIG_UPDATED = "config_updated"
 
+    # AI pipeline actions
+    AI_REEVALUATED = "ai_reevaluated"
+
     # Media actions
     MEDIA_EXPORTED = "media_exported"
 
@@ -40,8 +43,8 @@ class AuditAction(str, Enum):
     LOGOUT = "logout"
 
     # API key actions
-    API_KEY_CREATED = "api_key_created"
-    API_KEY_REVOKED = "api_key_revoked"
+    API_KEY_CREATED = "api_key_created"  # pragma: allowlist secret
+    API_KEY_REVOKED = "api_key_revoked"  # pragma: allowlist secret
 
     # Notification actions
     NOTIFICATION_TEST = "notification_test"

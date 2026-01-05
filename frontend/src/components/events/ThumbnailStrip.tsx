@@ -98,10 +98,10 @@ export default function ThumbnailStrip({
               key={detection.id}
               onClick={() => onThumbnailClick?.(detection.id)}
               onDoubleClick={() => onThumbnailDoubleClick?.(detection.id)}
-              className={`group relative flex flex-shrink-0 flex-col items-center gap-2 rounded-lg p-2 transition-all ${
+              className={`group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all ${
                 isSelected
                   ? 'bg-[#76B900]/20 ring-2 ring-[#76B900]'
-                  : 'hover:bg-gray-800/50 focus:bg-gray-800/50'
+                  : 'hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50'
               }`}
               style={{ minWidth: '120px' }}
               aria-label={`View detection ${index + 1} at ${timestamp}. Double-click to enlarge.`}

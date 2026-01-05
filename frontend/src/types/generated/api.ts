@@ -155,6 +155,7 @@ export interface paths {
          *
          *     Args:
          *         event_id: The ID of the event to evaluate
+         *         request: HTTP request for audit logging
          *         force: If True, re-evaluate even if already evaluated
          *         db: Database session
          *
@@ -1399,22 +1400,27 @@ export interface paths {
         };
         /**
          * Get Detection Image
-         * @description Get detection image with bounding box overlay.
+         * @description Get detection image with bounding box overlay, or full-size original.
          *
          *     This endpoint is exempt from API key authentication because:
          *     1. It serves static image content accessed directly by browsers via <img> tags
          *     2. Detection IDs are not predictable (integer IDs require prior knowledge)
          *     3. It has rate limiting to prevent abuse
          *
-         *     Returns the thumbnail image with bounding box drawn around the detected object.
-         *     If thumbnail doesn't exist, generates it on the fly from the source image.
+         *     By default, returns the thumbnail image with bounding box drawn around the
+         *     detected object. If thumbnail doesn't exist, generates it on the fly from
+         *     the source image.
+         *
+         *     When full=true is passed, returns the original source image without any
+         *     bounding box overlay. This is used for the full-size image lightbox viewer.
          *
          *     Args:
          *         detection_id: Detection ID
+         *         full: If true, return the original full-size image instead of thumbnail
          *         db: Database session
          *
          *     Returns:
-         *         JPEG image with bounding box overlay
+         *         JPEG image (thumbnail with bounding box, or full-size original)
          *
          *     Raises:
          *         HTTPException: 404 if detection not found or image file doesn't exist
@@ -11617,7 +11623,10 @@ export interface operations {
     };
     get_detection_image_api_detections__detection_id__image_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Return full-size original image instead of thumbnail */
+                full?: boolean;
+            };
             header?: never;
             path: {
                 detection_id: number;

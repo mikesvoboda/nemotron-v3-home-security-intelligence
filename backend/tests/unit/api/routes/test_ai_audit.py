@@ -125,6 +125,7 @@ def mock_db_session() -> MagicMock:
     session.execute = AsyncMock()
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
+    session.flush = AsyncMock()
     session.add = MagicMock()
     return session
 
@@ -302,6 +303,101 @@ class TestEvaluateEventEndpoint:
         assert data["id"] == 1
         assert data["is_fully_evaluated"] is True
         mock_audit_service.run_full_evaluation.assert_called_once()
+
+    def test_evaluate_event_logs_audit_entry(
+        self,
+        mock_db_session: MagicMock,
+        mock_audit_service: MagicMock,
+    ) -> None:
+        """Test that AI re-evaluation logs an audit entry."""
+        from backend.core.database import get_db
+        from backend.models.audit import AuditAction
+        from backend.services.audit import AuditService
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        mock_event = create_mock_event(event_id=1)
+        mock_audit = create_mock_audit(audit_id=1, event_id=1, is_evaluated=False)
+        mock_updated_audit = create_mock_audit(
+            audit_id=1, event_id=1, is_evaluated=True, overall_score=4.0
+        )
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_audit_result = MagicMock()
+        mock_audit_result.scalar_one_or_none.return_value = mock_audit
+
+        mock_db_session.execute = AsyncMock(side_effect=[mock_event_result, mock_audit_result])
+        mock_audit_service.run_full_evaluation.return_value = mock_updated_audit
+
+        with (
+            patch("backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service),
+            patch.object(AuditService, "log_action", new_callable=AsyncMock) as mock_log_action,
+            TestClient(app) as test_client,
+        ):
+            response = test_client.post("/api/ai-audit/events/1/evaluate")
+
+            assert response.status_code == 200
+            # Verify audit logging was called with correct parameters
+            mock_log_action.assert_called_once()
+            call_args = mock_log_action.call_args
+            assert call_args.kwargs["action"] == AuditAction.AI_REEVALUATED
+            assert call_args.kwargs["resource_type"] == "event"
+            assert call_args.kwargs["resource_id"] == "1"
+            assert "is_force" in call_args.kwargs["details"]
+
+    def test_evaluate_event_force_logs_audit_with_force_flag(
+        self,
+        mock_db_session: MagicMock,
+        mock_audit_service: MagicMock,
+    ) -> None:
+        """Test that force re-evaluation logs audit entry with is_force=True."""
+        from backend.core.database import get_db
+        from backend.models.audit import AuditAction
+        from backend.services.audit import AuditService
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        mock_event = create_mock_event(event_id=1)
+        mock_audit = create_mock_audit(audit_id=1, event_id=1, is_evaluated=True, overall_score=4.0)
+        mock_updated_audit = create_mock_audit(
+            audit_id=1, event_id=1, is_evaluated=True, overall_score=4.5
+        )
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        mock_audit_result = MagicMock()
+        mock_audit_result.scalar_one_or_none.return_value = mock_audit
+
+        mock_db_session.execute = AsyncMock(side_effect=[mock_event_result, mock_audit_result])
+        mock_audit_service.run_full_evaluation.return_value = mock_updated_audit
+
+        with (
+            patch("backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service),
+            patch.object(AuditService, "log_action", new_callable=AsyncMock) as mock_log_action,
+            TestClient(app) as test_client,
+        ):
+            response = test_client.post("/api/ai-audit/events/1/evaluate?force=true")
+
+            assert response.status_code == 200
+            mock_log_action.assert_called_once()
+            call_args = mock_log_action.call_args
+            assert call_args.kwargs["action"] == AuditAction.AI_REEVALUATED
+            assert call_args.kwargs["details"]["is_force"] is True
 
     def test_evaluate_event_already_evaluated_no_force(
         self,

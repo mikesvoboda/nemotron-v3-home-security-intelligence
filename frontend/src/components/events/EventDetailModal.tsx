@@ -19,6 +19,7 @@ import EnrichmentPanel from './EnrichmentPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import {
   fetchEventDetections,
+  getDetectionFullImageUrl,
   getDetectionImageUrl,
   getDetectionVideoThumbnailUrl,
   getDetectionVideoUrl,
@@ -316,7 +317,8 @@ export default function EventDetailModal({
         return detection?.media_type !== 'video';
       })
       .map((detection) => ({
-        src: getDetectionImageUrl(detection.id),
+        // Use full-size original image for lightbox (without bounding box overlay)
+        src: getDetectionFullImageUrl(detection.id),
         alt: `Detection ${detection.object_type || 'object'} at ${formatDetectionTimestamp(detection.detected_at)}`,
         caption: detection.object_type
           ? `${detection.object_type}${detection.confidence !== undefined ? ` (${Math.round(detection.confidence * 100)}%)` : ''}`

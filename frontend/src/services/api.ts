@@ -1000,8 +1000,30 @@ export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogs
   return fetchApi<GeneratedLogsResponse>(endpoint);
 }
 
+/**
+ * Get the URL for a detection's thumbnail image (with bounding box).
+ * This URL can be used directly in an img src attribute.
+ *
+ * Note: Detection media endpoints are exempt from API key authentication.
+ *
+ * @param detectionId - The detection ID
+ * @returns The full URL to the detection's thumbnail image endpoint
+ */
 export function getDetectionImageUrl(detectionId: number): string {
   return `${BASE_URL}/api/detections/${detectionId}/image`;
+}
+
+/**
+ * Get the URL for a detection's full-size original image (without bounding box).
+ * This URL is used by the lightbox viewer to display the full-resolution image.
+ *
+ * Note: Detection media endpoints are exempt from API key authentication.
+ *
+ * @param detectionId - The detection ID
+ * @returns The full URL to the detection's full-size image endpoint
+ */
+export function getDetectionFullImageUrl(detectionId: number): string {
+  return `${BASE_URL}/api/detections/${detectionId}/image?full=true`;
 }
 
 /**

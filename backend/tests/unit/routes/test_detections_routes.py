@@ -508,7 +508,9 @@ async def test_get_detection_image_generate_thumbnail_on_fly(
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
-        result = await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
+        result = await detections_routes.get_detection_image(
+            detection_id=2, full=False, db=mock_db_session
+        )
 
     assert result.status_code == 200
     assert result.media_type == "image/jpeg"
@@ -536,7 +538,7 @@ async def test_get_detection_image_source_not_found(
 
     # Both thumbnail and source image don't exist
     with patch("os.path.exists", return_value=False), pytest.raises(HTTPException) as exc_info:
-        await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
+        await detections_routes.get_detection_image(detection_id=2, full=False, db=mock_db_session)
 
     assert exc_info.value.status_code == 404
     assert "Source image not found" in exc_info.value.detail
@@ -563,7 +565,7 @@ async def test_get_detection_image_thumbnail_generation_fails(
         patch("os.path.exists", side_effect=path_exists),
         pytest.raises(HTTPException) as exc_info,
     ):
-        await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
+        await detections_routes.get_detection_image(detection_id=2, full=False, db=mock_db_session)
 
     assert exc_info.value.status_code == 500
     assert "Failed to generate thumbnail image" in exc_info.value.detail
@@ -583,7 +585,7 @@ async def test_get_detection_image_read_error(
         patch("builtins.open", side_effect=OSError("Permission denied")),
         pytest.raises(HTTPException) as exc_info,
     ):
-        await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
+        await detections_routes.get_detection_image(detection_id=1, full=False, db=mock_db_session)
 
     assert exc_info.value.status_code == 500
     assert "Failed to read thumbnail image" in exc_info.value.detail
@@ -624,7 +626,9 @@ async def test_get_detection_image_thumbnail_path_exists_but_file_missing(
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
-        result = await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
+        result = await detections_routes.get_detection_image(
+            detection_id=1, full=False, db=mock_db_session
+        )
 
     assert result.status_code == 200
     # Thumbnail should be regenerated
@@ -657,7 +661,7 @@ async def test_get_detection_image_verifies_detection_data_for_thumbnail(
         patch("os.path.exists", side_effect=path_exists),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
-        await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
+        await detections_routes.get_detection_image(detection_id=2, full=False, db=mock_db_session)
 
     # Verify detection data passed to thumbnail generator
     call_kwargs = mock_thumbnail_gen.generate_thumbnail.call_args.kwargs
@@ -998,3 +1002,172 @@ def test_thumbnail_generator_initialized() -> None:
     """Test that thumbnail_generator is initialized at module level."""
     assert detections_routes.thumbnail_generator is not None
     assert hasattr(detections_routes.thumbnail_generator, "generate_thumbnail")
+
+
+# =============================================================================
+# Full Image Parameter Tests (NEM-1261)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_full_returns_original_image(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test getting full-size original image with full=true parameter.
+
+    When full=true is passed, the endpoint should return the original source
+    image instead of the thumbnail with bounding box overlay.
+    """
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    original_image_data = b"\xff\xd8\xff\xe0original_image_data"
+
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=original_image_data)),
+    ):
+        result = await detections_routes.get_detection_image(
+            detection_id=1, full=True, db=mock_db_session
+        )
+
+    assert result.status_code == 200
+    assert result.media_type == "image/jpeg"
+    assert result.body == original_image_data
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_full_skips_thumbnail_generation(
+    mock_db_session: AsyncMock, mock_detection_no_thumbnail: MagicMock
+) -> None:
+    """Test that full=true does not trigger thumbnail generation.
+
+    Even when no thumbnail exists, full=true should return the original
+    image directly without generating a thumbnail.
+    """
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection_no_thumbnail
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    original_image_data = b"\xff\xd8\xff\xe0original_image_data"
+
+    mock_thumbnail_gen = MagicMock()
+
+    with (
+        patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=original_image_data)),
+    ):
+        result = await detections_routes.get_detection_image(
+            detection_id=2, full=True, db=mock_db_session
+        )
+
+    # Thumbnail generator should NOT be called when full=true
+    mock_thumbnail_gen.generate_thumbnail.assert_not_called()
+    assert result.status_code == 200
+    assert result.body == original_image_data
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_full_source_not_found(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test full=true returns 404 when source image doesn't exist."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    with patch("os.path.exists", return_value=False), pytest.raises(HTTPException) as exc_info:
+        await detections_routes.get_detection_image(detection_id=1, full=True, db=mock_db_session)
+
+    assert exc_info.value.status_code == 404
+    assert "not found" in exc_info.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_full_false_returns_thumbnail(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test that full=false (or not set) returns thumbnail as before."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    thumbnail_data = b"\xff\xd8\xff\xe0thumbnail_data"
+
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=thumbnail_data)),
+    ):
+        result = await detections_routes.get_detection_image(
+            detection_id=1, full=False, db=mock_db_session
+        )
+
+    assert result.status_code == 200
+    assert result.body == thumbnail_data
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_default_returns_thumbnail(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test that default behavior (no full param) returns thumbnail."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    thumbnail_data = b"\xff\xd8\xff\xe0thumbnail_data"
+
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=thumbnail_data)),
+    ):
+        # No full parameter - should default to thumbnail
+        result = await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
+
+    assert result.status_code == 200
+    assert result.body == thumbnail_data
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_full_read_error(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test full=true returns 500 when reading source image fails."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", side_effect=OSError("Permission denied")),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await detections_routes.get_detection_image(detection_id=1, full=True, db=mock_db_session)
+
+    assert exc_info.value.status_code == 500
+    assert "failed to read" in exc_info.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_get_detection_image_full_cache_header(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
+    """Test that full=true response includes proper cache headers."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_detection
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+    image_data = b"\xff\xd8\xff\xe0image_data"
+
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=image_data)),
+    ):
+        result = await detections_routes.get_detection_image(
+            detection_id=1, full=True, db=mock_db_session
+        )
+
+    assert "Cache-Control" in result.headers
+    assert result.headers["Cache-Control"] == "public, max-age=3600"

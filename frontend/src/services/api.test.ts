@@ -31,6 +31,7 @@ import {
   getMediaUrl,
   getThumbnailUrl,
   getDetectionImageUrl,
+  getDetectionFullImageUrl,
   exportEventsCSV,
   searchEvents,
   fetchStorageStats,
@@ -1506,6 +1507,18 @@ describe('Detections API', () => {
       expect(url).toBe('/api/detections/123/image');
     });
   });
+
+  describe('getDetectionFullImageUrl', () => {
+    it('constructs full-size detection image URL correctly', () => {
+      const url = getDetectionFullImageUrl(123);
+      expect(url).toBe('/api/detections/123/image?full=true');
+    });
+
+    it('includes full=true query parameter', () => {
+      const url = getDetectionFullImageUrl(456);
+      expect(url).toContain('?full=true');
+    });
+  });
 });
 
 describe('Logs API', () => {
@@ -1616,10 +1629,12 @@ describe('Media URLs', () => {
     const mediaUrl = getMediaUrl('cam-1', 'test.jpg');
     const thumbnailUrl = getThumbnailUrl('thumb.jpg');
     const detectionImageUrl = getDetectionImageUrl(123);
+    const detectionFullImageUrl = getDetectionFullImageUrl(123);
 
     expect(mediaUrl).not.toContain('api_key');
     expect(thumbnailUrl).not.toContain('api_key');
     expect(detectionImageUrl).not.toContain('api_key');
+    expect(detectionFullImageUrl).not.toContain('api_key');
   });
 });
 
