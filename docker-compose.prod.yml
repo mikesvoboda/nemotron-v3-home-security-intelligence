@@ -70,7 +70,9 @@ services:
     ports:
       - '8090:8090'
     volumes:
-      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
+      # :U tells Podman to recursively chown the volume to match container user (rtdetr)
+      # Docker ignores the :U flag, making this backward compatible
+      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
     environment:
       - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
       - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}

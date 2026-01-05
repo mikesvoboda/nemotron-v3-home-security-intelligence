@@ -19,6 +19,7 @@ import io
 import logging
 import os
 import time
+import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,17 @@ import torch
 from fastapi import FastAPI, HTTPException
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
+
+# Suppress transformers deprecation warning for ConvNextFeatureExtractor
+# The warning states it will be removed in transformers v5, recommending ConvNextImageProcessor.
+# We use AutoImageProcessor which handles this automatically, so we can safely suppress the warning.
+# See: https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoImageProcessor
+warnings.filterwarnings(
+    "ignore",
+    message="The class ConvNextFeatureExtractor is deprecated",
+    category=FutureWarning,
+    module="transformers.models.convnext.feature_extraction_convnext",
+)
 
 # Configure logging
 logging.basicConfig(

@@ -49,6 +49,15 @@ frontend/tests/e2e/
 │   ├── responsive.spec.ts  # Responsive design tests
 │   ├── accessibility.spec.ts # WCAG 2.1 AA compliance tests
 │   └── error-handling.spec.ts  # Error state tests
+├── visual/             # Visual regression tests (screenshot comparison)
+│   ├── AGENTS.md       # Visual tests documentation
+│   ├── dashboard.visual.spec.ts   # Dashboard visual tests
+│   ├── timeline.visual.spec.ts    # Timeline visual tests
+│   ├── settings.visual.spec.ts    # Settings visual tests
+│   ├── system.visual.spec.ts      # System page visual tests
+│   ├── components.visual.spec.ts  # UI component visual tests
+│   ├── responsive.visual.spec.ts  # Responsive design visual tests
+│   └── *.png           # Baseline snapshot images (auto-generated)
 ├── utils/              # Test utility functions
 │   ├── AGENTS.md       # Utils documentation
 │   ├── index.ts        # Central utility exports
@@ -159,9 +168,9 @@ From `frontend/playwright.config.ts`:
 
 | Setting             | Value                                      |
 | ------------------- | ------------------------------------------ |
-| `testDir`           | `./tests/e2e/specs`                        |
+| `testDir`           | `./tests/e2e`                              |
 | `baseURL`           | `http://localhost:5173`                    |
-| `browsers`          | Chromium, Firefox, WebKit                  |
+| `browsers`          | Chromium, Firefox, WebKit + visual-chromium|
 | `timeout`           | 15 seconds                                 |
 | `expect.timeout`    | 3 seconds                                  |
 | `navigationTimeout` | 10 seconds                                 |
@@ -171,6 +180,14 @@ From `frontend/playwright.config.ts`:
 | `fullyParallel`     | true                                       |
 | `webServer.command` | `npm run dev:e2e`                          |
 
+**Visual Screenshot Settings:**
+
+| Setting           | Value     | Purpose                           |
+| ----------------- | --------- | --------------------------------- |
+| `maxDiffPixels`   | 100       | Allow up to 100 pixel differences |
+| `threshold`       | 0.2       | Per-pixel color difference        |
+| `animations`      | disabled  | Consistent screenshots            |
+
 **Artifacts on Failure:**
 
 - Screenshots saved to `test-results/`
@@ -178,6 +195,8 @@ From `frontend/playwright.config.ts`:
 - Videos retained on failure
 
 ## Test Categories
+
+### Functional E2E Tests (specs/)
 
 | Category   | Spec File                | Description                        |
 | ---------- | ------------------------ | ---------------------------------- |
@@ -194,6 +213,28 @@ From `frontend/playwright.config.ts`:
 | Settings   | `settings.spec.ts`       | Application settings               |
 | Responsive | `responsive.spec.ts`     | Mobile/tablet viewports            |
 | Errors     | `error-handling.spec.ts` | Error states and recovery          |
+
+### Visual Regression Tests (visual/)
+
+| Test File                   | Description                         | Screenshots |
+| --------------------------- | ----------------------------------- | ----------- |
+| `dashboard.visual.spec.ts`  | Dashboard page, stats, camera grid  | 6           |
+| `timeline.visual.spec.ts`   | Event timeline, cards, filters      | 6           |
+| `settings.visual.spec.ts`   | Settings tabs configuration         | 6           |
+| `system.visual.spec.ts`     | System monitoring panels            | 10          |
+| `components.visual.spec.ts` | Reusable UI components              | 15+         |
+| `responsive.visual.spec.ts` | 3 viewports x 4 pages               | 12+         |
+
+**Running visual tests:**
+```bash
+# Run visual tests only (Chromium)
+npx playwright test --project=visual-chromium
+
+# Update baseline snapshots
+npx playwright test --project=visual-chromium --update-snapshots
+```
+
+See `visual/AGENTS.md` for detailed visual testing documentation.
 
 ## Notes for AI Agents
 
@@ -227,4 +268,5 @@ From `frontend/playwright.config.ts`:
 1. **Fixtures**: `fixtures/index.ts` - Auto-mocking test function
 2. **Page Objects**: `pages/BasePage.ts` - Common selectors/methods
 3. **Simple Tests**: `specs/smoke.spec.ts` - Understand test patterns
-4. **Configuration**: `/frontend/playwright.config.ts`
+4. **Visual Tests**: `visual/dashboard.visual.spec.ts` - Screenshot comparison patterns
+5. **Configuration**: `/frontend/playwright.config.ts`

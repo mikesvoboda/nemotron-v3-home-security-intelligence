@@ -26,8 +26,9 @@ import { defineConfig, devices } from '@playwright/test';
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  // Test directory - use specs subdirectory for organized test files
-  testDir: './tests/e2e/specs',
+  // Test directory - includes both specs and visual test directories
+  // Visual tests are matched by the visual-chromium project using testMatch
+  testDir: './tests/e2e',
 
   // Run tests in files in parallel
   fullyParallel: true,
@@ -62,6 +63,19 @@ export default defineConfig({
   // Error state tests use explicit longer timeouts where needed
   expect: {
     timeout: 3000,
+    // Visual regression testing configuration
+    toHaveScreenshot: {
+      // Allow up to 100 pixels to differ (handles anti-aliasing differences)
+      maxDiffPixels: 100,
+      // Per-pixel color difference threshold (0-1)
+      threshold: 0.2,
+      // Disable animations for consistent screenshots
+      animations: 'disabled',
+    },
+    toMatchSnapshot: {
+      // Allow up to 100 pixels to differ
+      maxDiffPixels: 100,
+    },
   },
 
   // Shared settings for all the projects below
@@ -89,10 +103,19 @@ export default defineConfig({
   // All browsers defined; CI uses --project flag to select specific browser
   // This enables parallel browser testing in separate CI containers
   projects: [
+    // Visual regression tests - run only on Chromium for consistency
+    // Visual tests are in tests/e2e/visual/ directory
+    {
+      name: 'visual-chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /visual\/.*\.spec\.ts$/,
+    },
     // Desktop browsers
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      // Only run specs, exclude visual tests (run via visual-chromium project)
+      testMatch: /specs\/.*\.spec\.ts$/,
     },
     {
       name: 'firefox',
@@ -101,6 +124,8 @@ export default defineConfig({
         // Firefox can be slower - increase action timeout
         actionTimeout: 8000,
       },
+      // Only run specs, exclude visual tests
+      testMatch: /specs\/.*\.spec\.ts$/,
     },
     {
       name: 'webkit',
@@ -112,20 +137,28 @@ export default defineConfig({
       // WebKit needs longer test timeout for complex workflows
       // (CRUD operations, waitForResponse, etc.)
       timeout: 30000,
+      // Only run specs, exclude visual tests
+      testMatch: /specs\/.*\.spec\.ts$/,
     },
     // Mobile viewports (only run locally, not in CI parallel jobs)
     {
       name: 'mobile-chrome',
       use: { ...devices['Pixel 5'] },
+      // Only run specs, exclude visual tests
+      testMatch: /specs\/.*\.spec\.ts$/,
     },
     {
       name: 'mobile-safari',
       use: { ...devices['iPhone 12'] },
+      // Only run specs, exclude visual tests
+      testMatch: /specs\/.*\.spec\.ts$/,
     },
     // Tablet viewports
     {
       name: 'tablet',
       use: { ...devices['iPad (gen 7)'] },
+      // Only run specs, exclude visual tests
+      testMatch: /specs\/.*\.spec\.ts$/,
     },
   ],
 
