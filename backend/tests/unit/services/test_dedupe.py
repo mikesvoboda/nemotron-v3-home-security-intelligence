@@ -19,6 +19,8 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from backend.services.dedupe import (
     DEDUPE_KEY_PREFIX,
@@ -951,3 +953,251 @@ class TestEdgeCases:
             # Should fail-open on timeout
             assert is_dup is False
             assert file_hash == "known_hash"
+
+
+# =============================================================================
+# Hypothesis Property-Based Tests
+# =============================================================================
+# These tests use Hypothesis to discover edge cases through random input generation.
+# They verify invariants that must hold for all valid inputs.
+
+
+class TestDedupeHypothesis:
+    """Property-based tests for deduplication service using Hypothesis."""
+
+    @given(content=st.binary(min_size=1, max_size=10000))
+    @settings(max_examples=50)
+    def test_hash_is_deterministic(self, content: bytes) -> None:
+        """Property: Same file content always produces same hash."""
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            hash1 = compute_file_hash(temp_path)
+            hash2 = compute_file_hash(temp_path)
+            assert hash1 == hash2
+            assert hash1 is not None
+        finally:
+            Path(temp_path).unlink()
+
+    @given(
+        content1=st.binary(min_size=1, max_size=1000), content2=st.binary(min_size=1, max_size=1000)
+    )
+    @settings(max_examples=50)
+    def test_different_content_different_hash(self, content1: bytes, content2: bytes) -> None:
+        """Property: Different content produces different hashes (with high probability)."""
+        # Skip if contents happen to be the same
+        if content1 == content2:
+            return
+
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f1:
+            f1.write(content1)
+            path1 = f1.name
+
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f2:
+            f2.write(content2)
+            path2 = f2.name
+
+        try:
+            hash1 = compute_file_hash(path1)
+            hash2 = compute_file_hash(path2)
+            assert hash1 != hash2
+        finally:
+            Path(path1).unlink()
+            Path(path2).unlink()
+
+    @given(content=st.binary(min_size=1, max_size=5000))
+    @settings(max_examples=50)
+    def test_hash_is_valid_sha256_hex(self, content: bytes) -> None:
+        """Property: Hash output is always a valid SHA256 hex string."""
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = compute_file_hash(temp_path)
+            assert result is not None
+            # SHA256 hex is 64 characters
+            assert len(result) == 64
+            # All characters are valid hex
+            int(result, 16)  # Raises ValueError if not valid hex
+        finally:
+            Path(temp_path).unlink()
+
+    @given(content=st.binary(min_size=1, max_size=5000))
+    @settings(max_examples=30)
+    def test_hash_matches_hashlib_sha256(self, content: bytes) -> None:
+        """Property: Hash matches direct hashlib.sha256 computation."""
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = compute_file_hash(temp_path)
+            expected = hashlib.sha256(content).hexdigest()
+            assert result == expected
+        finally:
+            Path(temp_path).unlink()
+
+    @given(file_hash=st.from_regex(r"[a-f0-9]{64}", fullmatch=True))
+    @settings(max_examples=50)
+    def test_redis_key_format_is_consistent(self, file_hash: str) -> None:
+        """Property: Redis key format is always consistent with prefix."""
+        with patch("backend.services.dedupe.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(spec=[])
+            service = DedupeService()
+            key = service._get_redis_key(file_hash)
+
+            assert key.startswith(DEDUPE_KEY_PREFIX)
+            assert key == f"{DEDUPE_KEY_PREFIX}{file_hash}"
+
+    @given(ttl=st.integers(min_value=1, max_value=86400))
+    @settings(max_examples=30)
+    def test_custom_ttl_is_preserved(self, ttl: int) -> None:
+        """Property: Custom TTL is preserved in service configuration."""
+        with patch("backend.services.dedupe.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(spec=[])
+            service = DedupeService(ttl_seconds=ttl)
+            assert service._ttl_seconds == ttl
+
+
+class TestDedupeInvariantsHypothesis:
+    """Property tests for deduplication invariants."""
+
+    @given(content=st.binary(min_size=1, max_size=1000))
+    @settings(max_examples=30)
+    @pytest.mark.asyncio
+    async def test_mark_and_check_is_duplicate(self, content: bytes) -> None:
+        """Property: After marking, same content is detected as duplicate."""
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        mock_redis_client = AsyncMock()
+        mock_redis_client.exists = AsyncMock(side_effect=[0, 1])  # First not exists, then exists
+        mock_redis_client.set = AsyncMock(return_value=True)
+        mock_redis_client._client = AsyncMock()
+        mock_redis_client._client.ttl = AsyncMock(return_value=300)
+
+        try:
+            with patch("backend.services.dedupe.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(spec=[])
+                service = DedupeService(redis_client=mock_redis_client)
+
+                # First check - not duplicate
+                is_dup1, hash1 = await service.is_duplicate(temp_path)
+                assert is_dup1 is False
+
+                # Mark as processed
+                await service.mark_processed(temp_path, hash1)
+
+                # Second check - should be duplicate (mocked)
+                is_dup2, hash2 = await service.is_duplicate(temp_path)
+                assert is_dup2 is True
+                assert hash1 == hash2
+        finally:
+            Path(temp_path).unlink()
+
+    @given(
+        contents=st.lists(st.binary(min_size=10, max_size=500), min_size=2, max_size=5, unique=True)
+    )
+    @settings(max_examples=20)
+    def test_deduplication_never_increases_count(self, contents: list[bytes]) -> None:
+        """Property: Deduplication never increases the count of unique items.
+
+        This tests the fundamental property that if we have N unique files,
+        after deduplication we should have at most N unique entries.
+
+        Note: min_size=10 ensures files are not considered "empty" by the hashing logic.
+        """
+        # Compute hashes for all contents
+        hashes = set()
+        temp_paths = []
+
+        try:
+            for content in contents:
+                with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+                    f.write(content)
+                    temp_paths.append(f.name)
+
+            # Hash after all files are written and closed
+            for path in temp_paths:
+                file_hash = compute_file_hash(path)
+                if file_hash:
+                    hashes.add(file_hash)
+
+            # The number of unique hashes should never exceed the number of unique contents
+            assert len(hashes) <= len(contents)
+
+            # For truly unique contents, we expect the same number of hashes
+            # (This tests the collision-resistance of SHA256)
+            assert len(hashes) == len(contents)
+        finally:
+            for path in temp_paths:
+                Path(path).unlink()
+
+    @given(content=st.binary(min_size=1, max_size=1000))
+    @settings(max_examples=20)
+    @pytest.mark.asyncio
+    async def test_is_duplicate_and_mark_atomic(self, content: bytes) -> None:
+        """Property: is_duplicate_and_mark is atomic - either both check and mark happen or neither."""
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+
+        mock_redis_client = AsyncMock()
+        mock_redis_client.exists = AsyncMock(return_value=0)
+        mock_redis_client.set = AsyncMock(return_value=True)
+        mock_redis_client._client = AsyncMock()
+
+        try:
+            with patch("backend.services.dedupe.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(spec=[])
+                service = DedupeService(redis_client=mock_redis_client)
+
+                is_dup, file_hash = await service.is_duplicate_and_mark(temp_path)
+
+                # For a new file, is_dup should be False
+                assert is_dup is False
+                assert file_hash is not None
+
+                # Mark should have been called (atomic with check)
+                mock_redis_client.set.assert_awaited_once()
+        finally:
+            Path(temp_path).unlink()
+
+
+class TestHashCollisionResistanceHypothesis:
+    """Property tests for hash collision resistance."""
+
+    @given(
+        prefix=st.binary(min_size=1, max_size=100),
+        suffix=st.binary(min_size=1, max_size=100),
+    )
+    @settings(max_examples=30)
+    def test_small_changes_produce_different_hashes(self, prefix: bytes, suffix: bytes) -> None:
+        """Property: Small changes in content produce different hashes.
+
+        This verifies the avalanche effect of SHA256.
+        """
+        content1 = prefix + b"A" + suffix
+        content2 = prefix + b"B" + suffix
+
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f1:
+            f1.write(content1)
+            path1 = f1.name
+
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f2:
+            f2.write(content2)
+            path2 = f2.name
+
+        try:
+            hash1 = compute_file_hash(path1)
+            hash2 = compute_file_hash(path2)
+
+            # Single byte difference should produce completely different hash
+            assert hash1 != hash2
+        finally:
+            Path(path1).unlink()
+            Path(path2).unlink()

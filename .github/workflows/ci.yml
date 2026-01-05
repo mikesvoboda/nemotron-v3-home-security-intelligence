@@ -527,6 +527,75 @@ jobs:
           fi
           echo "All integration tests passed"
 
+  # Contract tests verify API schema compliance using Schemathesis
+  contract-tests:
+    name: API Contract Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run API contract tests
+        # Contract tests verify OpenAPI schema compliance
+        # -n0 runs tests serially to avoid database deadlocks
+        run: |
+          uv run pytest backend/tests/contracts/ \
+            -n0 \
+            --timeout=30 \
+            --junit-xml=test-results-contracts.xml \
+            --durations=10 \
+            -v
+
+      - name: Upload contract test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-contracts
+          path: test-results-contracts.xml
+          retention-days: 7
+
   dead-code:
     name: Dead Code Detection
     runs-on: ubuntu-latest
@@ -613,6 +682,28 @@ jobs:
         # Non-blocking initially - reports issues without failing CI
         continue-on-error: true
         run: cd frontend && npx knip
+
+  # Frontend dependency security audit
+  frontend-security:
+    name: Frontend Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: npm audit (HIGH/CRITICAL)
+        # Fail on high and critical vulnerabilities
+        run: cd frontend && npm audit --audit-level=high
 
   frontend-typecheck:
     name: Frontend Type Check (TypeScript)

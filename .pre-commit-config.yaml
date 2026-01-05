@@ -38,6 +38,17 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
 
+  # Secret detection - blocks commits containing secrets
+  # Uses .secrets.baseline for known false positives
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - --baseline
+          - .secrets.baseline
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline)$
+
   # Hadolint - Dockerfile linting
   # Requires: brew install hadolint (macOS) or download binary
   - repo: local

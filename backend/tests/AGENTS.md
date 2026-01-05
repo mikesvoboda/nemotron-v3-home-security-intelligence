@@ -12,6 +12,7 @@ backend/tests/
 ├── __init__.py              # Package initialization
 ├── unit/                    # Unit tests for isolated components (150 test files)
 ├── integration/             # Integration tests for API and multi-component workflows (55 test files)
+├── contracts/               # API contract tests using Schemathesis (1 test file)
 ├── e2e/                     # End-to-end pipeline integration tests (2 test files)
 ├── gpu/                     # GPU-specific AI service tests (1 test file)
 ├── benchmarks/              # Performance and complexity benchmarks (3 test files)
@@ -52,6 +53,9 @@ pytest backend/tests/integration/ -v
 
 # End-to-end tests
 pytest backend/tests/e2e/ -v
+
+# Contract tests (API schema validation)
+pytest backend/tests/contracts/ -v -n0
 
 # GPU tests (requires GPU services)
 pytest backend/tests/gpu/ -v -m gpu
@@ -199,6 +203,26 @@ Categories:
 - **Security**: Path traversal prevention, file type validation, error handling
 - **Database**: Migrations, model cascades, transaction rollback, Redis pub/sub
 
+### Contract Tests (`contracts/`) - 1 test file
+
+Consumer-driven contract tests that verify API schema compliance using Schemathesis.
+Ensures frontend and backend API compatibility by validating responses against OpenAPI schema.
+
+- `test_api_contracts.py`: Schema validation for critical endpoints (events, cameras, system, detections, AI audit)
+- Schemathesis-based fuzzing for automatic test generation from OpenAPI schema
+
+Critical endpoints tested:
+
+1. GET /api/events - Event listing with filters
+2. GET /api/events/{id} - Event detail
+3. GET /api/cameras - Camera listing
+4. GET /api/system/health - Health check
+5. GET /api/detections/{id} - Detection detail
+6. GET /api/system/gpu - GPU metrics
+7. GET /api/ai-audit/stats - AI audit statistics
+
+**Must run serially** (`-n0`) due to database initialization requirements.
+
 ### End-to-End Tests (`e2e/`) - 2 test files
 
 Complete pipeline tests from file detection to event creation.
@@ -270,6 +294,7 @@ Pre-push hook runs `pytest backend/tests/unit/ -v`.
 
 - `unit/AGENTS.md` - Unit test patterns
 - `integration/AGENTS.md` - Integration test architecture
+- `contracts/AGENTS.md` - Contract testing with Schemathesis
 - `e2e/AGENTS.md` - End-to-end pipeline testing
 - `benchmarks/AGENTS.md` - Performance benchmarks
 - `/backend/AGENTS.md` - Backend architecture

@@ -39,10 +39,95 @@ if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
 
+# =============================================================================
+# Hypothesis Configuration
+# =============================================================================
+# Property-based testing profiles for different execution contexts.
+# Usage:
+#   pytest --hypothesis-profile=ci       # Fast CI runs (fewer examples)
+#   pytest --hypothesis-profile=dev      # Development (default, more examples)
+#   pytest --hypothesis-profile=nightly  # Nightly runs (thorough testing)
+#   pytest --hypothesis-profile=debug    # Debugging (verbose, reproducible)
+
+
+def _configure_hypothesis_profiles() -> None:
+    """Configure Hypothesis profiles for property-based testing.
+
+    Profiles:
+    - ci: Fast profile for CI pipelines (fewer examples, shorter deadlines)
+    - dev: Default development profile (balanced exploration)
+    - nightly: Thorough profile for nightly runs (more examples, find edge cases)
+    - debug: Debugging profile (verbose, deterministic, fewer examples)
+    """
+    from hypothesis import Phase, Verbosity, settings
+
+    # CI Profile: Fast execution for pull request checks
+    # - 25 examples per test (vs 100 default) for speed
+    # - 200ms deadline to catch obvious performance issues
+    # - Skip shrinking to save time (CI just needs pass/fail)
+    settings.register_profile(
+        "ci",
+        max_examples=25,
+        deadline=200,  # milliseconds
+        suppress_health_check=[],
+        print_blob=True,  # Print reproducible example on failure
+        phases=[Phase.explicit, Phase.reuse, Phase.generate],  # Skip shrinking
+    )
+
+    # Dev Profile: Default development settings
+    # - 50 examples per test (balanced exploration)
+    # - 500ms deadline for reasonable performance
+    # - Full phase execution including shrinking
+    settings.register_profile(
+        "dev",
+        max_examples=50,
+        deadline=500,  # milliseconds
+        suppress_health_check=[],
+        print_blob=True,
+    )
+
+    # Nightly Profile: Thorough testing for edge case discovery
+    # - 200 examples per test (thorough exploration)
+    # - 2000ms deadline (allow slower operations)
+    # - Full phases including extensive shrinking
+    settings.register_profile(
+        "nightly",
+        max_examples=200,
+        deadline=2000,  # milliseconds
+        suppress_health_check=[],
+        print_blob=True,
+        phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target, Phase.shrink],
+    )
+
+    # Debug Profile: For investigating specific failures
+    # - 10 examples (focus on reproduction)
+    # - No deadline (allow debugging pauses)
+    # - Verbose output for understanding test execution
+    # - Deterministic with seed for reproducibility
+    settings.register_profile(
+        "debug",
+        max_examples=10,
+        deadline=None,  # No deadline for debugging
+        verbosity=Verbosity.verbose,
+        print_blob=True,
+        phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.shrink],
+    )
+
+    # Set default profile based on environment
+    # CI environments typically set CI=true
+    import os
+
+    if os.environ.get("CI"):
+        settings.load_profile("ci")
+    else:
+        settings.load_profile("dev")
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest before test collection.
 
     Sets environment variables needed before any test modules are imported.
+    Also configures Hypothesis profiles for property-based testing.
     """
     # Force pure-Python protobuf implementation for Python 3.14+ compatibility.
     # The C++ extension fails with "Metaclasses with custom tp_new are not supported."
@@ -55,6 +140,10 @@ def pytest_configure(config: pytest.Config) -> None:
         "DATABASE_URL",
         "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
     )
+
+    # Configure Hypothesis profiles for property-based testing
+    # See: https://hypothesis.readthedocs.io/en/latest/settings.html
+    _configure_hypothesis_profiles()
 
 
 # Default development PostgreSQL URL (matches docker-compose.yml)

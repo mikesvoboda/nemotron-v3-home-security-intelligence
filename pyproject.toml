@@ -239,3 +239,8 @@ print_blob = true  # Print failing examples for reproduction
 max_examples = 500
 deadline = 5000
 database = "directory:.hypothesis"
+
+[dependency-groups]
+dev = [
+    "schemathesis>=4.7.9",
+]

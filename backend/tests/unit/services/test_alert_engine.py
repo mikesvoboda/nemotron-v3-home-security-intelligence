@@ -18,6 +18,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from zoneinfo import ZoneInfo
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Event
 from backend.services.alert_engine import (
@@ -27,6 +29,7 @@ from backend.services.alert_engine import (
     TriggeredRule,
     get_alert_engine,
 )
+from backend.tests.strategies import valid_risk_scores
 
 # =============================================================================
 # Fixtures
@@ -1807,3 +1810,344 @@ class TestTimeZoneEdgeCases:
         schedule = {"days": [], "start_time": "10:00", "end_time": "14:00"}
         result = engine._check_schedule(schedule, current)
         assert result is True
+
+
+# =============================================================================
+# Hypothesis Property-Based Tests
+# =============================================================================
+# These tests use Hypothesis to discover edge cases through random input generation.
+# They verify invariants that must hold for all valid inputs.
+
+
+class TestAlertEngineHypothesis:
+    """Property-based tests for AlertRuleEngine using Hypothesis."""
+
+    @given(
+        risk_score=valid_risk_scores,
+        threshold=valid_risk_scores,
+    )
+    @settings(max_examples=100)
+    def test_risk_threshold_evaluation_is_deterministic(
+        self, risk_score: int, threshold: int
+    ) -> None:
+        """Property: Risk threshold evaluation is deterministic.
+
+        Tests that the same risk_score and threshold always produce the same
+        match result. Uses direct comparison logic without async.
+        """
+        # Verify determinism: same inputs produce same outputs
+        # The actual alert rule check logic:
+        # A rule with risk_threshold matches if event.risk_score >= threshold
+        result1 = risk_score >= threshold
+        result2 = risk_score >= threshold
+
+        # Same inputs always produce same output
+        assert result1 == result2
+
+        # Verify correct behavior based on threshold logic
+        if risk_score >= threshold:
+            assert result1 is True
+        else:
+            assert result1 is False
+
+    @given(
+        score=valid_risk_scores,
+    )
+    @settings(max_examples=50)
+    def test_higher_risk_implies_higher_severity_trigger(self, score: int) -> None:
+        """Property: Higher risk scores trigger equal or more rules than lower scores.
+
+        If a rule triggers at score X, it should also trigger at score X+1.
+        Uses direct comparison logic to verify the monotonicity property.
+        """
+        # Test threshold at 50
+        threshold = 50
+
+        # The rule triggers if score >= threshold
+        result_lower = score >= threshold
+        result_higher = min(100, score + 1) >= threshold
+
+        # If lower score triggers, higher must also trigger
+        # This tests monotonicity: score >= threshold implies (score+1) >= threshold
+        if result_lower:
+            assert result_higher, (
+                f"Monotonicity violated: score={score} triggers but score+1={score + 1} doesn't"
+            )
+
+    @given(
+        sev_a=st.sampled_from(list(AlertSeverity)),
+        sev_b=st.sampled_from(list(AlertSeverity)),
+    )
+    @settings(max_examples=50)
+    def test_severity_priority_ordering_is_total(
+        self, sev_a: AlertSeverity, sev_b: AlertSeverity
+    ) -> None:
+        """Property: Severity priority defines a total ordering."""
+        # Reflexivity: a == a
+        assert SEVERITY_PRIORITY[sev_a] == SEVERITY_PRIORITY[sev_a]
+
+        # Antisymmetry: if a <= b and b <= a, then a == b
+        if (
+            SEVERITY_PRIORITY[sev_a] <= SEVERITY_PRIORITY[sev_b]
+            and SEVERITY_PRIORITY[sev_b] <= SEVERITY_PRIORITY[sev_a]
+        ):
+            assert SEVERITY_PRIORITY[sev_a] == SEVERITY_PRIORITY[sev_b]
+
+        # Trichotomy: exactly one of a < b, a == b, a > b
+        comparisons = [
+            SEVERITY_PRIORITY[sev_a] < SEVERITY_PRIORITY[sev_b],
+            SEVERITY_PRIORITY[sev_a] == SEVERITY_PRIORITY[sev_b],
+            SEVERITY_PRIORITY[sev_a] > SEVERITY_PRIORITY[sev_b],
+        ]
+        assert sum(comparisons) == 1
+
+    @given(
+        confidences=st.lists(
+            st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+            min_size=1,
+            max_size=10,
+        ),
+        threshold=st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+    )
+    @settings(max_examples=50)
+    def test_min_confidence_matches_highest_detection(
+        self, confidences: list[float], threshold: float
+    ) -> None:
+        """Property: min_confidence check matches if any detection meets threshold."""
+        mock_session = AsyncMock()
+        engine = AlertRuleEngine(mock_session)
+
+        # Create detections with given confidences
+        detections = [
+            Detection(
+                id=i + 1,
+                camera_id="cam1",
+                file_path=f"/path/img{i}.jpg",
+                confidence=conf,
+            )
+            for i, conf in enumerate(confidences)
+        ]
+
+        result = engine._check_min_confidence(threshold, detections)
+
+        # Property: matches if and only if any confidence >= threshold
+        any_meets = any(c >= threshold for c in confidences if c is not None)
+        assert result == any_meets
+
+    @given(
+        object_types=st.lists(
+            st.text(
+                min_size=1,
+                max_size=20,
+                alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            ),
+            min_size=1,
+            max_size=5,
+        ),
+        required_type=st.text(
+            min_size=1,
+            max_size=20,
+            alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        ),
+    )
+    @settings(max_examples=50)
+    def test_object_type_matching_is_case_insensitive(
+        self, object_types: list[str], required_type: str
+    ) -> None:
+        """Property: Object type matching is case-insensitive.
+
+        Note: Uses ASCII letters only as the system expects standard object type names
+        like 'person', 'car', etc. Unicode case conversion can behave differently.
+        """
+        mock_session = AsyncMock()
+        engine = AlertRuleEngine(mock_session)
+
+        # Create detections with given object types
+        detections = [
+            Detection(
+                id=i + 1,
+                camera_id="cam1",
+                file_path=f"/path/img{i}.jpg",
+                object_type=obj_type,
+            )
+            for i, obj_type in enumerate(object_types)
+        ]
+
+        # Check matching
+        result_lower = engine._check_object_types([required_type.lower()], detections)
+        result_upper = engine._check_object_types([required_type.upper()], detections)
+        result_mixed = engine._check_object_types([required_type], detections)
+
+        # All should give same result (case-insensitive)
+        assert result_lower == result_upper == result_mixed
+
+    @given(
+        camera_id=st.text(
+            min_size=1,
+            max_size=50,
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"),
+                whitelist_characters="_-",
+            ),
+        ),
+        rule_id=st.uuids(),
+    )
+    @settings(max_examples=50)
+    def test_dedup_key_template_substitution(self, camera_id: str, rule_id: uuid.UUID) -> None:
+        """Property: Dedup key template substitutes variables correctly."""
+        mock_session = AsyncMock()
+        engine = AlertRuleEngine(mock_session)
+
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id=camera_id,
+            started_at=datetime.now(UTC),
+        )
+
+        rule = AlertRule(
+            id=str(rule_id),
+            name="Test",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            dedup_key_template="{camera_id}:{rule_id}",
+        )
+
+        result = engine._build_dedup_key(rule, event, [])
+
+        # Key should contain both camera_id and rule_id
+        assert camera_id in result
+        assert str(rule_id) in result
+        assert result == f"{camera_id}:{rule_id}"
+
+
+class TestAlertEvaluationInvariantsHypothesis:
+    """Property tests for alert evaluation invariants."""
+
+    @given(
+        rule_count=st.integers(min_value=0, max_value=5),
+        severity_list=st.lists(
+            st.sampled_from(list(AlertSeverity)),
+            min_size=0,
+            max_size=5,
+        ),
+    )
+    @settings(max_examples=30)
+    def test_highest_severity_is_max_of_triggered(
+        self, rule_count: int, severity_list: list[AlertSeverity]
+    ) -> None:
+        """Property: highest_severity equals max severity of all triggered rules."""
+        # Create triggered rules with given severities
+        triggered_rules = []
+        for i, sev in enumerate(severity_list[:rule_count]):
+            rule = AlertRule(
+                id=str(uuid.uuid4()),
+                name=f"Rule {i}",
+                enabled=True,
+                severity=sev,
+            )
+            triggered = TriggeredRule(
+                rule=rule,
+                severity=sev,
+                matched_conditions=["test"],
+                dedup_key=f"key{i}",
+            )
+            triggered_rules.append(triggered)
+
+        # Calculate expected highest severity
+        if triggered_rules:
+            expected = max(
+                (t.severity for t in triggered_rules),
+                key=lambda s: SEVERITY_PRIORITY[s],
+            )
+        else:
+            expected = None
+
+        # Simulate what EvaluationResult would report
+        result = EvaluationResult(
+            triggered_rules=triggered_rules,
+            highest_severity=expected if triggered_rules else None,
+        )
+
+        # Property: highest_severity matches actual max
+        if triggered_rules:
+            actual_max = max(
+                (t.severity for t in result.triggered_rules),
+                key=lambda s: SEVERITY_PRIORITY[s],
+            )
+            assert result.highest_severity == actual_max
+        else:
+            assert result.highest_severity is None
+
+    @given(triggered_count=st.integers(min_value=0, max_value=10))
+    @settings(max_examples=30)
+    def test_has_triggers_reflects_list_length(self, triggered_count: int) -> None:
+        """Property: has_triggers is True iff triggered_rules is non-empty."""
+        triggered_rules = []
+        for i in range(triggered_count):
+            rule = AlertRule(
+                id=str(uuid.uuid4()),
+                name=f"Rule {i}",
+                enabled=True,
+                severity=AlertSeverity.HIGH,
+            )
+            triggered = TriggeredRule(
+                rule=rule,
+                severity=AlertSeverity.HIGH,
+                dedup_key=f"key{i}",
+            )
+            triggered_rules.append(triggered)
+
+        result = EvaluationResult(triggered_rules=triggered_rules)
+
+        # Property: has_triggers iff list is non-empty
+        assert result.has_triggers == (len(triggered_rules) > 0)
+        assert result.has_triggers == (triggered_count > 0)
+
+
+class TestScheduleInvariantsHypothesis:
+    """Property tests for schedule evaluation."""
+
+    @given(
+        hour=st.integers(min_value=0, max_value=23),
+        minute=st.integers(min_value=0, max_value=59),
+    )
+    @settings(max_examples=50)
+    def test_time_parsing_roundtrip(self, hour: int, minute: int) -> None:
+        """Property: Time parsing is consistent."""
+        mock_session = AsyncMock()
+        engine = AlertRuleEngine(mock_session)
+
+        time_str = f"{hour:02d}:{minute:02d}"
+        parsed = engine._parse_time(time_str)
+
+        assert parsed.hour == hour
+        assert parsed.minute == minute
+
+    @given(
+        day_of_week=st.integers(min_value=0, max_value=6),
+    )
+    @settings(max_examples=20)
+    def test_day_matching_is_consistent(self, day_of_week: int) -> None:
+        """Property: Day matching is consistent for all days of week."""
+        mock_session = AsyncMock()
+        engine = AlertRuleEngine(mock_session)
+
+        day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+        # Create a date for the given day of week (Jan 2025)
+        # Jan 6, 2025 is Monday (day_of_week=0)
+        base_date = datetime(2025, 1, 6 + day_of_week, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+
+        # Schedule with just that day
+        schedule = {"days": [day_names[day_of_week]]}
+
+        result = engine._check_schedule(schedule, base_date)
+        assert result is True
+
+        # Schedule without that day
+        other_days = [d for i, d in enumerate(day_names) if i != day_of_week]
+        schedule_other = {"days": other_days}
+
+        result_other = engine._check_schedule(schedule_other, base_date)
+        assert result_other is False

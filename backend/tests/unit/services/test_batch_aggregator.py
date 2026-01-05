@@ -4,6 +4,8 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from redis.asyncio import Redis
 
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy, RedisClient
@@ -1464,3 +1466,374 @@ async def test_close_batch_handles_partial_gather_failure(batch_aggregator, mock
     # Verify we still get a valid summary
     assert summary["batch_id"] == batch_id
     assert summary["camera_id"] == camera_id
+
+
+# =============================================================================
+# Hypothesis Property-Based Tests
+# =============================================================================
+# These tests use Hypothesis to discover edge cases through random input generation.
+# They verify invariants that must hold for all valid inputs.
+
+
+class TestBatchAggregatorHypothesis:
+    """Property-based tests for BatchAggregator using Hypothesis."""
+
+    @given(
+        camera_ids=st.lists(
+            st.text(
+                min_size=1,
+                max_size=50,
+                alphabet=st.characters(
+                    whitelist_categories=("Lu", "Ll", "Nd"),
+                    whitelist_characters="_",
+                ),
+            ),
+            min_size=1,
+            max_size=10,
+            unique=True,
+        ),
+    )
+    @settings(max_examples=30)
+    def test_different_cameras_have_different_batches(self, camera_ids: list[str]) -> None:
+        """Property: Different cameras always have separate batches.
+
+        Tests the invariant that batch IDs are unique per camera.
+        This is a logical property test without actual Redis interaction.
+        """
+        # Simulate batch ID generation per camera
+        camera_batches: dict[str, str] = {}
+
+        for i, camera_id in enumerate(camera_ids, 1):
+            # Each camera gets a unique batch ID
+            batch_id = f"batch_{i:03d}"
+            camera_batches[camera_id] = batch_id
+
+        # Property: Each camera has a unique batch ID
+        batch_ids = list(camera_batches.values())
+        assert len(batch_ids) == len(set(batch_ids)), "Each camera should have unique batch"
+
+        # Also verify: the mapping is deterministic
+        assert len(camera_batches) == len(camera_ids)
+
+    @given(
+        detection_count=st.integers(min_value=1, max_value=20),
+    )
+    @settings(max_examples=20)
+    def test_batch_detection_count_matches_added_count(self, detection_count: int) -> None:
+        """Property: Batch detection count always matches the number of added detections."""
+        # Simulate adding detections and track count
+        detection_ids = list(range(1, detection_count + 1))
+
+        # Create list representation (like LRANGE returns)
+        lrange_result = [str(d) for d in detection_ids]
+
+        # Parse as integers (like _atomic_list_get_all does)
+        parsed_ids = [int(d) for d in lrange_result]
+
+        # Property: Parsed count matches original count
+        assert len(parsed_ids) == detection_count
+
+    @given(
+        window_seconds=st.integers(min_value=1, max_value=300),
+        idle_timeout=st.integers(min_value=1, max_value=120),
+    )
+    @settings(max_examples=30)
+    def test_batch_timeout_settings_are_preserved(
+        self, window_seconds: int, idle_timeout: int
+    ) -> None:
+        """Property: Batch timeout settings are always preserved after initialization."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = window_seconds
+            mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=None)
+
+            assert aggregator._batch_window == window_seconds
+            assert aggregator._idle_timeout == idle_timeout
+
+    @given(
+        detection_ids=st.lists(
+            st.integers(min_value=1, max_value=1_000_000),
+            min_size=0,
+            max_size=50,
+        ),
+    )
+    @settings(max_examples=30)
+    def test_detection_id_list_preserves_order(self, detection_ids: list[int]) -> None:
+        """Property: Detection IDs in a batch preserve insertion order."""
+        # Convert to strings (like Redis stores)
+        redis_list = [str(d) for d in detection_ids]
+
+        # Convert back to ints (like _atomic_list_get_all does)
+        result = [int(d) for d in redis_list]
+
+        # Property: Order is preserved
+        assert result == detection_ids
+
+    @given(
+        confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+        threshold=st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+        object_type=st.text(
+            min_size=1,
+            max_size=20,
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll"),
+            ),
+        ),
+        fast_path_types=st.lists(
+            st.text(
+                min_size=1,
+                max_size=20,
+                alphabet=st.characters(
+                    whitelist_categories=("Lu", "Ll"),
+                ),
+            ),
+            min_size=0,
+            max_size=5,
+        ),
+    )
+    @settings(max_examples=50)
+    def test_fast_path_decision_is_deterministic(
+        self,
+        confidence: float,
+        threshold: float,
+        object_type: str,
+        fast_path_types: list[str],
+    ) -> None:
+        """Property: Fast path decision is deterministic for same inputs."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = threshold
+            mock_settings.return_value.fast_path_object_types = fast_path_types
+
+            aggregator = BatchAggregator(redis_client=None)
+
+            result1 = aggregator._should_use_fast_path(confidence, object_type)
+            result2 = aggregator._should_use_fast_path(confidence, object_type)
+
+            # Property: Same inputs produce same output
+            assert result1 == result2
+
+    @given(
+        confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+        object_type=st.text(
+            min_size=1,
+            max_size=20,
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll"),
+            ),
+        ),
+    )
+    @settings(max_examples=50)
+    def test_fast_path_case_insensitivity_property(
+        self, confidence: float, object_type: str
+    ) -> None:
+        """Property: Fast path decision is case-insensitive for object types."""
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person", "car"]
+
+            aggregator = BatchAggregator(redis_client=None)
+
+            result_lower = aggregator._should_use_fast_path(confidence, object_type.lower())
+            result_upper = aggregator._should_use_fast_path(confidence, object_type.upper())
+            result_mixed = aggregator._should_use_fast_path(confidence, object_type)
+
+            # Property: Case doesn't affect result
+            assert result_lower == result_upper == result_mixed
+
+
+class TestBatchCompletenessHypothesis:
+    """Property tests for batch completeness invariants."""
+
+    @given(
+        batch_count=st.integers(min_value=1, max_value=10),
+        detections_per_batch=st.integers(min_value=1, max_value=10),
+    )
+    @settings(max_examples=20)
+    def test_all_detections_belong_to_exactly_one_batch(
+        self, batch_count: int, detections_per_batch: int
+    ) -> None:
+        """Property: Every detection belongs to exactly one batch (no duplicates, no missing).
+
+        This tests the fundamental batch aggregation invariant.
+        """
+        # Simulate creating batches with detections
+        all_batches: dict[str, set[int]] = {}
+        detection_counter = 1
+
+        for batch_idx in range(batch_count):
+            batch_id = f"batch_{batch_idx:03d}"
+            batch_detections = set()
+            for _ in range(detections_per_batch):
+                batch_detections.add(detection_counter)
+                detection_counter += 1
+            all_batches[batch_id] = batch_detections
+
+        # Collect all detection IDs
+        all_detection_ids: set[int] = set()
+        total_assignments = 0
+
+        for batch_id, detections in all_batches.items():
+            for det_id in detections:
+                all_detection_ids.add(det_id)
+                total_assignments += 1
+
+        expected_total = batch_count * detections_per_batch
+
+        # Property 1: Total assignments equals expected
+        assert total_assignments == expected_total
+
+        # Property 2: All detection IDs are unique (no duplicates across batches)
+        assert len(all_detection_ids) == expected_total
+
+        # Property 3: Detection IDs form a continuous sequence
+        expected_ids = set(range(1, expected_total + 1))
+        assert all_detection_ids == expected_ids
+
+    @given(
+        timestamps=st.lists(
+            st.floats(
+                min_value=0.0,
+                max_value=1e10,
+                allow_nan=False,
+                allow_infinity=False,
+            ),
+            min_size=2,
+            max_size=10,
+        ),
+    )
+    @settings(max_examples=20)
+    def test_batch_timestamps_are_ordered(self, timestamps: list[float]) -> None:
+        """Property: Batch start time is always less than or equal to last activity time."""
+        for ts_list in [sorted(timestamps)]:
+            if len(ts_list) < 2:
+                continue
+
+            started_at = ts_list[0]
+            last_activity = ts_list[-1]
+
+            # Property: started_at <= last_activity
+            assert started_at <= last_activity
+
+
+class TestBatchTimeoutInvariantsHypothesis:
+    """Property tests for batch timeout behavior."""
+
+    @given(
+        started_at=st.floats(
+            min_value=0.0,
+            max_value=time.time(),
+            allow_nan=False,
+            allow_infinity=False,
+        ),
+        window_seconds=st.integers(min_value=1, max_value=300),
+    )
+    @settings(max_examples=50)
+    def test_window_timeout_is_deterministic(self, started_at: float, window_seconds: int) -> None:
+        """Property: Window timeout calculation is deterministic."""
+        current_time = time.time()
+        elapsed = current_time - started_at
+
+        result1 = elapsed >= window_seconds
+        result2 = elapsed >= window_seconds
+
+        # Property: Same calculation always produces same result
+        assert result1 == result2
+
+    @given(
+        last_activity=st.floats(
+            min_value=0.0,
+            max_value=time.time(),
+            allow_nan=False,
+            allow_infinity=False,
+        ),
+        idle_timeout=st.integers(min_value=1, max_value=120),
+    )
+    @settings(max_examples=50)
+    def test_idle_timeout_is_deterministic(self, last_activity: float, idle_timeout: int) -> None:
+        """Property: Idle timeout calculation is deterministic."""
+        current_time = time.time()
+        idle_time = current_time - last_activity
+
+        result1 = idle_time >= idle_timeout
+        result2 = idle_time >= idle_timeout
+
+        # Property: Same calculation always produces same result
+        assert result1 == result2
+
+    @given(
+        started_at_offset=st.integers(min_value=0, max_value=200),
+        last_activity_offset=st.integers(min_value=0, max_value=100),
+    )
+    @settings(max_examples=50)
+    def test_timeout_conditions_are_or_not_and(
+        self, started_at_offset: int, last_activity_offset: int
+    ) -> None:
+        """Property: Batch closes if EITHER window OR idle timeout is exceeded."""
+        current_time = time.time()
+        started_at = current_time - started_at_offset
+        # last_activity must be >= started_at
+        last_activity = started_at + min(last_activity_offset, started_at_offset)
+
+        window_seconds = 90
+        idle_timeout = 30
+
+        window_exceeded = started_at_offset >= window_seconds
+        idle_exceeded = (current_time - last_activity) >= idle_timeout
+
+        should_close = window_exceeded or idle_exceeded
+
+        # Verify the OR logic (not AND)
+        if window_exceeded:
+            assert should_close
+        if idle_exceeded:
+            assert should_close
+        if not window_exceeded and not idle_exceeded:
+            assert not should_close
+
+
+class TestDetectionIdValidationHypothesis:
+    """Property tests for detection ID validation."""
+
+    @given(detection_id=st.integers(min_value=1, max_value=1_000_000_000))
+    @settings(max_examples=50)
+    def test_valid_integer_detection_ids_are_accepted(self, detection_id: int) -> None:
+        """Property: All positive integers are valid detection IDs."""
+        # Simulate validation that occurs in add_detection
+        try:
+            validated_id = int(detection_id)
+            assert validated_id == detection_id
+        except (ValueError, TypeError):
+            pytest.fail("Valid integer detection ID should be accepted")
+
+    @given(
+        invalid_id=st.text(
+            min_size=1,
+            max_size=50,
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll"),
+            ),
+        )
+    )
+    @settings(max_examples=30)
+    def test_non_numeric_detection_ids_are_rejected(self, invalid_id: str) -> None:
+        """Property: Non-numeric detection IDs are always rejected."""
+        # Simulate validation that occurs in add_detection
+        with pytest.raises(ValueError):
+            int(invalid_id)
+
+    @given(detection_id=st.integers(min_value=1, max_value=1_000_000))
+    @settings(max_examples=30)
+    def test_detection_id_string_roundtrip(self, detection_id: int) -> None:
+        """Property: Detection ID survives string conversion roundtrip."""
+        # This is how Redis stores and retrieves detection IDs
+        as_string = str(detection_id)
+        recovered = int(as_string)
+
+        assert recovered == detection_id

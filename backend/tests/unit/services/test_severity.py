@@ -12,6 +12,8 @@ Tests cover:
 from __future__ import annotations
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from backend.models.enums import Severity
 from backend.services.severity import (
@@ -29,6 +31,7 @@ from backend.services.severity import (
     severity_lt,
     severity_lte,
 )
+from backend.tests.strategies import severity_thresholds, valid_risk_scores
 
 # =============================================================================
 # SeverityService Initialization Tests
@@ -985,3 +988,227 @@ class TestSeverityDefinitionImmutable:
         assert definition in definition_set
         definition_dict = {definition: "value"}
         assert definition_dict[definition] == "value"
+
+
+# =============================================================================
+# Hypothesis Property-Based Tests
+# =============================================================================
+# These tests use Hypothesis to discover edge cases through random input generation.
+# They verify invariants that must hold for all valid inputs.
+
+
+class TestSeverityHypothesis:
+    """Property-based tests for severity service using Hypothesis."""
+
+    @given(score=valid_risk_scores)
+    @settings(max_examples=100)
+    def test_risk_score_always_bounded_0_100(self, score: int) -> None:
+        """Property: risk_score_to_severity accepts all values in [0, 100]."""
+        service = SeverityService()
+        # Should not raise for any valid score
+        result = service.risk_score_to_severity(score)
+        assert result in [Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
+
+    @given(score=valid_risk_scores)
+    @settings(max_examples=100)
+    def test_severity_mapping_is_deterministic(self, score: int) -> None:
+        """Property: Same score always maps to same severity (determinism)."""
+        service = SeverityService()
+        result1 = service.risk_score_to_severity(score)
+        result2 = service.risk_score_to_severity(score)
+        assert result1 == result2
+
+    @given(thresholds=severity_thresholds())
+    @settings(max_examples=50)
+    def test_custom_thresholds_always_valid(self, thresholds: tuple[int, int, int]) -> None:
+        """Property: Valid threshold tuples always create valid services."""
+        low_max, medium_max, high_max = thresholds
+        service = SeverityService(low_max=low_max, medium_max=medium_max, high_max=high_max)
+
+        assert service.low_max == low_max
+        assert service.medium_max == medium_max
+        assert service.high_max == high_max
+
+    @given(
+        score1=valid_risk_scores,
+        score2=valid_risk_scores,
+    )
+    @settings(max_examples=100)
+    def test_severity_ordering_consistent_with_score_ordering(
+        self, score1: int, score2: int
+    ) -> None:
+        """Property: Higher risk score implies equal or higher severity."""
+        service = SeverityService()
+        sev1 = service.risk_score_to_severity(score1)
+        sev2 = service.risk_score_to_severity(score2)
+
+        # If score1 > score2, then severity1 >= severity2
+        # (using priority where lower number = higher severity)
+        if score1 > score2:
+            assert get_severity_priority(sev1) <= get_severity_priority(sev2)
+        elif score1 < score2:
+            assert get_severity_priority(sev1) >= get_severity_priority(sev2)
+        else:
+            assert sev1 == sev2
+
+    @given(thresholds=severity_thresholds(), score=valid_risk_scores)
+    @settings(max_examples=100)
+    def test_score_range_coverage_is_complete(
+        self, thresholds: tuple[int, int, int], score: int
+    ) -> None:
+        """Property: Every valid score maps to exactly one severity level."""
+        low_max, medium_max, high_max = thresholds
+        service = SeverityService(low_max=low_max, medium_max=medium_max, high_max=high_max)
+
+        result = service.risk_score_to_severity(score)
+
+        # Result is exactly one of the four severities
+        assert result in [Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
+
+        # Verify correct range mapping
+        if score <= low_max:
+            assert result == Severity.LOW
+        elif score <= medium_max:
+            assert result == Severity.MEDIUM
+        elif score <= high_max:
+            assert result == Severity.HIGH
+        else:
+            assert result == Severity.CRITICAL
+
+    @given(thresholds=severity_thresholds())
+    @settings(max_examples=50)
+    def test_definitions_score_ranges_contiguous(self, thresholds: tuple[int, int, int]) -> None:
+        """Property: Severity definitions have contiguous, non-overlapping score ranges."""
+        low_max, medium_max, high_max = thresholds
+        service = SeverityService(low_max=low_max, medium_max=medium_max, high_max=high_max)
+
+        definitions = service.get_severity_definitions()
+
+        # First range starts at 0
+        assert definitions[0].min_score == 0
+
+        # Last range ends at 100
+        assert definitions[-1].max_score == 100
+
+        # Check contiguity - each range starts where the previous ended + 1
+        for i in range(len(definitions) - 1):
+            current_max = definitions[i].max_score
+            next_min = definitions[i + 1].min_score
+            assert next_min == current_max + 1, (
+                f"Gap between {definitions[i].severity} and {definitions[i + 1].severity}"
+            )
+
+    @given(sev_a=st.sampled_from(list(Severity)), sev_b=st.sampled_from(list(Severity)))
+    @settings(max_examples=50)
+    def test_severity_comparison_reflexivity(self, sev_a: Severity, sev_b: Severity) -> None:
+        """Property: Severity comparison is reflexive (a >= a is always true)."""
+        assert severity_gte(sev_a, sev_a)
+        assert severity_lte(sev_a, sev_a)
+        assert not severity_gt(sev_a, sev_a)
+        assert not severity_lt(sev_a, sev_a)
+
+    @given(sev_a=st.sampled_from(list(Severity)), sev_b=st.sampled_from(list(Severity)))
+    @settings(max_examples=50)
+    def test_severity_comparison_antisymmetry(self, sev_a: Severity, sev_b: Severity) -> None:
+        """Property: If a > b, then not (b > a) - antisymmetric for strict comparison."""
+        if severity_gt(sev_a, sev_b):
+            assert not severity_gt(sev_b, sev_a)
+            assert severity_lt(sev_b, sev_a)
+
+    @given(
+        sev_a=st.sampled_from(list(Severity)),
+        sev_b=st.sampled_from(list(Severity)),
+        sev_c=st.sampled_from(list(Severity)),
+    )
+    @settings(max_examples=100)
+    def test_severity_comparison_transitivity(
+        self, sev_a: Severity, sev_b: Severity, sev_c: Severity
+    ) -> None:
+        """Property: If a >= b and b >= c, then a >= c (transitivity)."""
+        if severity_gte(sev_a, sev_b) and severity_gte(sev_b, sev_c):
+            assert severity_gte(sev_a, sev_c)
+
+    @given(sev=st.sampled_from(list(Severity)))
+    @settings(max_examples=20)
+    def test_severity_string_roundtrip(self, sev: Severity) -> None:
+        """Property: Severity survives string roundtrip conversion."""
+        as_string = sev.value
+        recovered = severity_from_string(as_string)
+        assert recovered == sev
+
+    @given(sev=st.sampled_from(list(Severity)))
+    @settings(max_examples=20)
+    def test_severity_priority_is_consistent(self, sev: Severity) -> None:
+        """Property: Severity priority is always consistent with comparison operators."""
+        for other in Severity:
+            prio_sev = get_severity_priority(sev)
+            prio_other = get_severity_priority(other)
+
+            # Lower priority number = higher severity
+            if prio_sev < prio_other:
+                assert severity_gt(sev, other)
+                assert severity_gte(sev, other)
+            elif prio_sev > prio_other:
+                assert severity_lt(sev, other)
+                assert severity_lte(sev, other)
+            else:
+                assert not severity_gt(sev, other)
+                assert not severity_lt(sev, other)
+                assert severity_gte(sev, other)
+                assert severity_lte(sev, other)
+
+
+class TestSeverityEdgeCasesHypothesis:
+    """Property tests for edge cases discovered by Hypothesis."""
+
+    @given(
+        low=st.integers(min_value=0, max_value=98),
+    )
+    @settings(max_examples=50)
+    def test_minimal_threshold_gaps_work(self, low: int) -> None:
+        """Property: Thresholds with minimal gaps (1 apart) still work correctly."""
+        # Create thresholds with minimal gaps
+        low_max = low
+        medium_max = min(99, low + 1)
+        high_max = min(100, medium_max + 1)
+
+        # Skip invalid configurations
+        if not (low_max < medium_max < high_max <= 100):
+            return
+
+        service = SeverityService(low_max=low_max, medium_max=medium_max, high_max=high_max)
+
+        # Boundary tests
+        assert service.risk_score_to_severity(low_max) == Severity.LOW
+        assert service.risk_score_to_severity(low_max + 1) == Severity.MEDIUM
+        assert service.risk_score_to_severity(medium_max) == Severity.MEDIUM
+        if medium_max + 1 <= high_max:
+            assert service.risk_score_to_severity(medium_max + 1) == Severity.HIGH
+
+    @given(score=st.integers(min_value=-1000, max_value=-1))
+    @settings(max_examples=25)
+    def test_negative_scores_always_rejected(self, score: int) -> None:
+        """Property: Negative risk scores are always rejected."""
+        service = SeverityService()
+        with pytest.raises(ValueError) as exc_info:
+            service.risk_score_to_severity(score)
+        assert "Risk score must be between 0 and 100" in str(exc_info.value)
+
+    @given(score=st.integers(min_value=101, max_value=10000))
+    @settings(max_examples=25)
+    def test_scores_over_100_always_rejected(self, score: int) -> None:
+        """Property: Risk scores over 100 are always rejected."""
+        service = SeverityService()
+        with pytest.raises(ValueError) as exc_info:
+            service.risk_score_to_severity(score)
+        assert "Risk score must be between 0 and 100" in str(exc_info.value)
+
+    def test_boundary_scores_edge_case(self) -> None:
+        """Edge case: Verify exact boundary behavior at 0 and 100."""
+        service = SeverityService()
+
+        # Score 0 should be LOW
+        assert service.risk_score_to_severity(0) == Severity.LOW
+
+        # Score 100 should be CRITICAL
+        assert service.risk_score_to_severity(100) == Severity.CRITICAL

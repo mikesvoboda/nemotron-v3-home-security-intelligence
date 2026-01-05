@@ -1,0 +1,186 @@
+name: OWASP ZAP Security Scan
+
+# Weekly dynamic security scanning of staging environment
+# Runs API baseline scan against deployed staging instance
+on:
+  schedule:
+    - cron: '0 6 * * 0' # Sunday 6 AM UTC (weekly)
+  workflow_dispatch: # Allow manual trigger
+    inputs:
+      target_url:
+        description: 'Target URL to scan (default: staging)'
+        required: false
+        default: ''
+
+env:
+  # Default to localhost for development; override for staging
+  TARGET_URL: ${{ github.event.inputs.target_url || 'http://localhost:8000' }}
+  # Linear team ID for creating issues
+  LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+
+jobs:
+  # Start local services for scanning (if no external URL provided)
+  start-services:
+    name: Start Test Services
+    runs-on: ubuntu-latest
+    if: github.event.inputs.target_url == ''
+    outputs:
+      api_url: ${{ steps.start.outputs.api_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start services with Docker Compose
+        id: start
+        run: |
+          # Start backend and dependencies
+          docker compose -f docker-compose.prod.yml up -d postgres redis backend
+          # Wait for services to be ready
+          echo "Waiting for services to start..."
+          sleep 30
+          # Health check
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/api/system/health > /dev/null; then
+              echo "Backend is ready"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+          echo "api_url=http://localhost:8000" >> $GITHUB_OUTPUT
+
+      - name: Verify services are running
+        run: |
+          curl -f http://localhost:8000/api/system/health || exit 1
+          echo "Services are healthy"
+
+  # Run OWASP ZAP API Baseline Scan
+  zap-baseline-scan:
+    name: ZAP API Baseline Scan
+    runs-on: ubuntu-latest
+    needs: [start-services]
+    if: always() && (needs.start-services.result == 'success' || needs.start-services.result == 'skipped')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine target URL
+        id: target
+        run: |
+          if [ -n "${{ github.event.inputs.target_url }}" ]; then
+            echo "url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ needs.start-services.outputs.api_url || 'http://localhost:8000' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.8.0
+        with:
+          target: '${{ steps.target.outputs.url }}/api/openapi.json'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+          fail_action: true
+          allow_issue_writing: false
+
+      - name: Upload ZAP Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: zap-scan-report
+          path: report_html.html
+          retention-days: 30
+
+      - name: Upload SARIF Report
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: report_sarif.json
+        continue-on-error: true
+
+  # Run ZAP Full Scan (more thorough, takes longer)
+  zap-full-scan:
+    name: ZAP Full Scan
+    runs-on: ubuntu-latest
+    needs: [start-services]
+    if: always() && (needs.start-services.result == 'success' || needs.start-services.result == 'skipped')
+    # Full scan can take a while - give it 30 minutes
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine target URL
+        id: target
+        run: |
+          if [ -n "${{ github.event.inputs.target_url }}" ]; then
+            echo "url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ needs.start-services.outputs.api_url || 'http://localhost:8000' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: '${{ steps.target.outputs.url }}'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -j'
+          allow_issue_writing: false
+        continue-on-error: true
+
+      - name: Upload Full Scan Report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: zap-full-scan-report
+          path: report_html.html
+          retention-days: 30
+
+  # Create Linear issue if vulnerabilities found
+  report-vulnerabilities:
+    name: Report Vulnerabilities
+    runs-on: ubuntu-latest
+    needs: [zap-baseline-scan, zap-full-scan]
+    if: failure() && (needs.zap-baseline-scan.result == 'failure' || needs.zap-full-scan.result == 'failure')
+    steps:
+      - name: Create Linear Issue
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "'"$LINEAR_TEAM_ID"'",
+                  "title": "OWASP ZAP: Security vulnerabilities detected",
+                  "description": "## Security Alert\n\nOWASP ZAP detected security vulnerabilities in the weekly scan.\n\n### Details\n- **Scan Date:** '"$(date -u +%Y-%m-%d)"'\n- **Workflow Run:** [View logs]('"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"')\n- **Triggered by:** Schedule (weekly)\n\n### Next Steps\n1. Download the ZAP scan report from the workflow artifacts\n2. Review findings and prioritize by severity\n3. Fix HIGH/CRITICAL vulnerabilities immediately\n4. Update .zap/rules.tsv if findings are false positives\n\n### References\n- [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)\n- [ZAP Rules Configuration](.zap/rules.tsv)",
+                  "priority": 2,
+                  "labelIds": []
+                }
+              }
+            }'
+
+  # Cleanup services
+  cleanup:
+    name: Cleanup Services
+    runs-on: ubuntu-latest
+    needs: [zap-baseline-scan, zap-full-scan]
+    if: always() && github.event.inputs.target_url == ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stop services
+        run: |
+          docker compose -f docker-compose.prod.yml down -v
+        continue-on-error: true

@@ -1,0 +1,103 @@
+# OWASP ZAP Scan Rules Configuration
+# Format: rule_id	action	description
+# Actions: IGNORE (don't report), WARN (report as warning), FAIL (fail the scan)
+#
+# Reference: https://www.zaproxy.org/docs/alerts/
+#
+# Note: This configuration is for staging/development scanning.
+# Production scanning should have stricter rules.
+
+# =============================================================================
+# Informational Rules (IGNORE in automated scans)
+# =============================================================================
+
+# These are informational and don't indicate security issues
+10021	IGNORE	X-Content-Type-Options Header Missing - handled by nginx in prod
+10036	IGNORE	Server Leaks Version Information - handled by nginx in prod
+10037	IGNORE	Server Leaks Information via X-Powered-By - not applicable (no X-Powered-By)
+
+# =============================================================================
+# Low Severity - Report as warnings for review
+# =============================================================================
+
+# Cookie security flags (development may not have HTTPS)
+10010	WARN	Cookie No HttpOnly Flag
+10011	WARN	Cookie Without Secure Flag
+10054	WARN	Cookie without SameSite Attribute
+
+# Information disclosure (acceptable in development)
+10027	WARN	Information Disclosure - Suspicious Comments
+10096	WARN	Timestamp Disclosure
+
+# =============================================================================
+# Medium Severity - Report as warnings, review before production
+# =============================================================================
+
+# CORS configuration (may be intentionally permissive in development)
+10098	WARN	Cross-Domain Misconfiguration
+40040	WARN	CORS Misconfiguration
+
+# Headers that should be configured in production
+10020	WARN	X-Frame-Options Header Not Set
+10038	WARN	Content Security Policy Header Not Set
+10049	WARN	Content Security Policy Misconfiguration
+
+# Anti-CSRF (may be intentionally disabled for API)
+10202	WARN	Absence of Anti-CSRF Tokens
+
+# =============================================================================
+# High Severity - FAIL the scan
+# =============================================================================
+
+# SQL Injection - Critical vulnerability
+40018	FAIL	SQL Injection
+40019	FAIL	SQL Injection - MySQL
+40020	FAIL	SQL Injection - Hypersonic SQL
+40021	FAIL	SQL Injection - Oracle
+40022	FAIL	SQL Injection - PostgreSQL
+40024	FAIL	SQL Injection - SQLite
+
+# Cross-Site Scripting - Critical vulnerability
+40012	FAIL	Cross Site Scripting (Reflected)
+40014	FAIL	Cross Site Scripting (Persistent)
+40016	FAIL	Cross Site Scripting (Persistent) - Prime
+40017	FAIL	Cross Site Scripting (Persistent) - Spider
+
+# Remote Code Execution
+90019	FAIL	Server Side Code Injection
+90020	FAIL	Remote OS Command Injection
+90021	FAIL	XPath Injection
+90023	FAIL	XML External Entity Attack
+90024	FAIL	Generic Padding Oracle
+90025	FAIL	Expression Language Injection
+90026	FAIL	SOAP Action Spoofing
+90028	FAIL	Insecure HTTP Method
+
+# Path Traversal
+6	FAIL	Path Traversal
+40003	FAIL	CRLF Injection
+40008	FAIL	Parameter Tampering
+40009	FAIL	Server Side Include
+
+# Authentication/Authorization Issues
+10023	FAIL	Information Disclosure - Debug Error Messages
+10095	FAIL	Backup File Disclosure
+40028	FAIL	ELMAH Information Leak
+90022	FAIL	Application Error Disclosure
+
+# Session Management
+10029	FAIL	Cookie Poisoning
+10112	FAIL	Session Management Response Identified
+
+# =============================================================================
+# Custom API-specific rules
+# =============================================================================
+
+# External redirect (should fail for API that shouldn't redirect)
+10028	FAIL	Open Redirect
+
+# Source code disclosure
+90034	FAIL	Heartbleed OpenSSL Vulnerability
+41	FAIL	Source Code Disclosure - Git
+42	FAIL	Source Code Disclosure - SVN
+43	FAIL	Source Code Disclosure - File Inclusion
