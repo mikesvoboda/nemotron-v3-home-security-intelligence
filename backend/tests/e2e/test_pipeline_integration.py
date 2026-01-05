@@ -107,12 +107,6 @@ async def mock_redis_client():
         for key in keys:
             batch_data.pop(key, None)
 
-    async def mock_add_to_queue(queue_name, item):
-        queue_key = f"queue:{queue_name}"
-        if queue_key not in batch_data:
-            batch_data[queue_key] = []
-        batch_data[queue_key].append(item)
-
     async def mock_publish(channel, message):
         # Simulate publishing (return subscriber count)
         return 1

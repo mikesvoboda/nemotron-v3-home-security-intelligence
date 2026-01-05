@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import random
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -516,12 +517,15 @@ class SystemBroadcaster:
             await self._attempt_listener_recovery()
 
     async def _attempt_listener_recovery(self) -> None:
-        """Attempt to recover the pub/sub listener with bounded retries.
+        """Attempt to recover the pub/sub listener with exponential backoff and jitter.
 
         This helper method is extracted to reduce branch complexity in
         _listen_for_updates(). Recovery is bounded to MAX_RECOVERY_ATTEMPTS
         to prevent unbounded recursion and stack overflow. Also checks
         circuit breaker state before attempting recovery.
+
+        Uses exponential backoff with jitter to prevent thundering herd problems
+        when multiple instances attempt to recover simultaneously.
         """
         if not self._pubsub_listening:
             return
@@ -551,11 +555,22 @@ class SystemBroadcaster:
             await self._broadcast_degraded_state()
             return
 
+        # Calculate exponential backoff with jitter to prevent thundering herd
+        # Base delay starts at 1 second, doubles each attempt, capped at 60 seconds
+        base_delay = 1.0
+        max_delay = 60.0
+        delay = min(base_delay * (2 ** (self._recovery_attempts - 1)), max_delay)
+        # Add 10-30% jitter to prevent synchronized recovery attempts
+        # Using random.uniform is fine here - this is timing jitter, not cryptographic
+        jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
+        actual_delay = delay + jitter
+
         logger.info(
             f"Restarting pub/sub listener after error "
-            f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS})"
+            f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}) "
+            f"in {actual_delay:.1f}s"
         )
-        await asyncio.sleep(1)
+        await asyncio.sleep(actual_delay)
 
         if not self._pubsub_listening:
             return

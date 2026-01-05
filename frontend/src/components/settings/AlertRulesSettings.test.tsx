@@ -259,6 +259,163 @@ describe('AlertRulesSettings', () => {
     });
   });
 
+  describe('Camera Fetch Error Handling', () => {
+    it('should show camera error in modal when camera fetch fails but rules load', async () => {
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera API unavailable'));
+
+      render(<AlertRulesSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No alert rules configured')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      await user.click(screen.getAllByText('Add Rule')[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Camera error should be displayed in the form
+      expect(screen.getByTestId('cameras-error')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load cameras.')).toBeInTheDocument();
+      expect(screen.getByTestId('cameras-retry-button')).toBeInTheDocument();
+    });
+
+    it('should retry camera fetch when retry button is clicked', async () => {
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: [], count: 0, limit: 50, offset: 0 });
+      vi.mocked(api.fetchCameras)
+        .mockRejectedValueOnce(new Error('Camera API unavailable'))
+        .mockResolvedValueOnce(mockCameras);
+
+      render(<AlertRulesSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No alert rules configured')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      await user.click(screen.getAllByText('Add Rule')[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Camera error should be displayed
+      expect(screen.getByTestId('cameras-error')).toBeInTheDocument();
+
+      // Click retry button
+      const retryButton = screen.getByTestId('cameras-retry-button');
+      await user.click(retryButton);
+
+      // Cameras should now be loaded
+      await waitFor(() => {
+        expect(screen.queryByTestId('cameras-error')).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+      expect(screen.getByText('Backyard')).toBeInTheDocument();
+    });
+
+    it('should allow form submission even when cameras fail to load', async () => {
+      const newRule: AlertRule = {
+        id: 'rule-3',
+        name: 'Test Rule Without Cameras',
+        description: null,
+        enabled: true,
+        severity: 'medium',
+        risk_threshold: null,
+        object_types: null,
+        camera_ids: null,
+        zone_ids: null,
+        min_confidence: null,
+        schedule: null,
+        conditions: null,
+        dedup_key_template: '{camera_id}:{rule_id}',
+        cooldown_seconds: 300,
+        channels: [],
+        created_at: '2025-01-10T00:00:00Z',
+        updated_at: '2025-01-10T00:00:00Z',
+      };
+
+      vi.mocked(api.fetchAlertRules)
+        .mockResolvedValueOnce({ rules: [], count: 0, limit: 50, offset: 0 })
+        .mockResolvedValueOnce({ rules: [newRule], count: 1, limit: 50, offset: 0 });
+      vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera API unavailable'));
+      vi.mocked(api.createAlertRule).mockResolvedValue(newRule);
+
+      render(<AlertRulesSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No alert rules configured')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      await user.click(screen.getAllByText('Add Rule')[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Camera error should be displayed but form still usable
+      expect(screen.getByTestId('cameras-error')).toBeInTheDocument();
+
+      // Fill in required fields
+      const nameInput = screen.getByLabelText('Rule Name *');
+      await user.type(nameInput, 'Test Rule Without Cameras');
+
+      // Submit the form
+      const dialog = screen.getByRole('dialog');
+      const submitButton = within(dialog).getByRole('button', { name: 'Add Rule' });
+      await user.click(submitButton);
+
+      // Form should submit successfully
+      await waitFor(() => {
+        expect(api.createAlertRule).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Rule Without Cameras')).toBeInTheDocument();
+      });
+    });
+
+    it('should show cameras after successful retry', async () => {
+      vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
+      vi.mocked(api.fetchCameras)
+        .mockRejectedValueOnce(new Error('Camera API unavailable'))
+        .mockResolvedValueOnce(mockCameras);
+
+      render(<AlertRulesSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Night Intruder Alert')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      const editButtons = screen.getAllByLabelText(/Edit/);
+      await user.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Initially should show camera error
+      expect(screen.getByTestId('cameras-error')).toBeInTheDocument();
+
+      // Click retry
+      await user.click(screen.getByTestId('cameras-retry-button'));
+
+      // After retry, cameras should be visible
+      await waitFor(() => {
+        expect(screen.queryByTestId('cameras-error')).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: 'Front Door' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Backyard' })).toBeInTheDocument();
+    });
+  });
+
   describe('Toggle Rule', () => {
     beforeEach(() => {
       vi.mocked(api.fetchAlertRules).mockResolvedValue({ rules: mockRules, count: 2, limit: 50, offset: 0 });
