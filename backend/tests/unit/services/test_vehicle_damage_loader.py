@@ -205,8 +205,13 @@ class TestDamageClasses:
         assert len(HIGH_SECURITY_DAMAGE) == 2
 
 
+@pytest.mark.slow
 class TestLoadVehicleDamageModel:
-    """Tests for load_vehicle_damage_model function."""
+    """Tests for load_vehicle_damage_model function.
+
+    These tests are marked slow because they may trigger YOLO model downloads
+    from GitHub when the model path doesn't exist locally.
+    """
 
     @pytest.mark.asyncio
     async def test_load_model_with_real_path(self) -> None:
