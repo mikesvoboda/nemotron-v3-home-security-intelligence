@@ -126,7 +126,7 @@ jobs:
 
       - name: Initialize database
         run: |
-          uv run alembic upgrade head
+          cd backend && PYTHONPATH=.. uv run alembic upgrade head
 
       - name: Start backend server
         run: |

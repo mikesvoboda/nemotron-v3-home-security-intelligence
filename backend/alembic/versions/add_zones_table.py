@@ -22,17 +22,25 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create zones table."""
-    # Create zone_type enum
-    zone_type_enum = sa.Enum(
-        "entry_point", "driveway", "sidewalk", "yard", "other", name="zone_type_enum"
+    # Create zone_type enum (checkfirst to handle reruns)
+    zone_type_enum = postgresql.ENUM(
+        "entry_point",
+        "driveway",
+        "sidewalk",
+        "yard",
+        "other",
+        name="zone_type_enum",
+        create_type=False,
     )
     zone_type_enum.create(op.get_bind(), checkfirst=True)
 
-    # Create zone_shape enum
-    zone_shape_enum = sa.Enum("rectangle", "polygon", name="zone_shape_enum")
+    # Create zone_shape enum (checkfirst to handle reruns)
+    zone_shape_enum = postgresql.ENUM(
+        "rectangle", "polygon", name="zone_shape_enum", create_type=False
+    )
     zone_shape_enum.create(op.get_bind(), checkfirst=True)
 
-    # Create zones table
+    # Create zones table - use existing enums, don't recreate them
     op.create_table(
         "zones",
         sa.Column("id", sa.String(), nullable=False),
@@ -40,13 +48,13 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column(
             "zone_type",
-            sa.Enum("entry_point", "driveway", "sidewalk", "yard", "other", name="zone_type_enum"),
+            zone_type_enum,
             nullable=False,
         ),
         sa.Column("coordinates", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column(
             "shape",
-            sa.Enum("rectangle", "polygon", name="zone_shape_enum"),
+            zone_shape_enum,
             nullable=False,
         ),
         sa.Column("color", sa.String(length=7), nullable=False),
