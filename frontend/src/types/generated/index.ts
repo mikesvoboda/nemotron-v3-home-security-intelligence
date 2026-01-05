@@ -51,9 +51,9 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
 // ServiceStatus for HealthResponse.services - object with {status, message?, details?}
-export type ServiceStatus = components['schemas']['backend__api__schemas__system__ServiceStatus'];
+export type ServiceStatus = components['schemas']['ServiceStatus'];
 // ContainerStatus for ServiceInfo - enum: running | starting | unhealthy | stopped | disabled | not_found
-export type ContainerStatus = components['schemas']['ServiceStatus'];
+export type ContainerStatus = components['schemas']['backend__api__schemas__services__ServiceStatus'];
 export type GPUStats = components['schemas']['GPUStatsResponse'];
 export type GPUStatsSample = components['schemas']['GPUStatsSample'];
 export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResponse'];
