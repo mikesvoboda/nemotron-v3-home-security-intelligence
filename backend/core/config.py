@@ -13,6 +13,86 @@ from backend.core.url_validation import SSRFValidationError
 from backend.core.url_validation import validate_webhook_url as validate_webhook_url_ssrf
 
 
+class OrchestratorSettings(BaseSettings):
+    """Container orchestrator configuration for Docker/Podman container management.
+
+    This settings model configures the container orchestrator service that provides
+    health monitoring and self-healing capabilities for AI containers (RT-DETRv2,
+    Nemotron, Florence-2, etc.).
+
+    Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="ORCHESTRATOR_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Feature flag
+    enabled: bool = Field(
+        True,
+        description="Enable container orchestration. When enabled, the orchestrator "
+        "monitors AI container health and can automatically restart unhealthy containers.",
+    )
+
+    # Docker connection
+    docker_host: str | None = Field(
+        None,
+        description="Docker host URL. If None, uses DOCKER_HOST environment variable "
+        "or Docker's default socket path. Examples: 'unix:///var/run/docker.sock', "
+        "'tcp://localhost:2375', 'unix:///run/user/1000/podman/podman.sock' (rootless Podman).",
+    )
+
+    # Health monitoring
+    health_check_interval: int = Field(
+        30,
+        ge=5,
+        le=300,
+        description="Seconds between container health checks. Lower values provide "
+        "faster detection of unhealthy containers but increase system load.",
+    )
+    health_check_timeout: int = Field(
+        5,
+        ge=1,
+        le=60,
+        description="Timeout in seconds for individual health check HTTP requests. "
+        "Should be lower than health_check_interval.",
+    )
+    startup_grace_period: int = Field(
+        60,
+        ge=10,
+        le=600,
+        description="Seconds to wait after container start before performing health checks. "
+        "Allows time for AI models to load into GPU memory.",
+    )
+
+    # Self-healing limits
+    max_consecutive_failures: int = Field(
+        5,
+        ge=1,
+        le=50,
+        description="Number of consecutive health check failures before disabling "
+        "automatic restart for a container. Prevents restart loops.",
+    )
+    restart_backoff_base: float = Field(
+        5.0,
+        ge=1.0,
+        le=60.0,
+        description="Base backoff time in seconds for restart attempts. "
+        "Actual delay = min(base * 2^attempt, max).",
+    )
+    restart_backoff_max: float = Field(
+        300.0,
+        ge=30.0,
+        le=3600.0,
+        description="Maximum backoff time in seconds between restart attempts (5 minutes default). "
+        "Caps exponential backoff to prevent excessively long waits.",
+    )
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -25,10 +105,10 @@ class Settings(BaseSettings):
 
     # Database configuration
     # PostgreSQL only - required for production and development
-    # Example: postgresql+asyncpg://security:password@localhost:5432/security
+    # Example: postgresql+asyncpg://security:password@localhost:5432/security  # pragma: allowlist secret
     database_url: str = Field(
         default="",
-        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
+        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",  # pragma: allowlist secret
     )
 
     # Database connection pool settings
@@ -799,6 +879,13 @@ class Settings(BaseSettings):
         "Health monitoring and status broadcasts still occur when disabled.",
     )
 
+    # Container orchestrator settings (for Docker/Podman container management)
+    # Environment variables use ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED)
+    orchestrator: OrchestratorSettings = Field(
+        default_factory=OrchestratorSettings,
+        description="Container orchestrator configuration for health monitoring and self-healing",
+    )
+
     # TLS/HTTPS settings (legacy - DEPRECATED, use TLS_MODE instead)
     # These fields are kept for backward compatibility but will be removed in a future version.
     # Migration guide:
@@ -940,7 +1027,7 @@ class Settings(BaseSettings):
             raise ValueError(
                 "DATABASE_URL environment variable is required. "
                 "Set it in your .env file or environment. "
-                "Example: DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname"
+                "Example: DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname"  # pragma: allowlist secret
             )
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError(

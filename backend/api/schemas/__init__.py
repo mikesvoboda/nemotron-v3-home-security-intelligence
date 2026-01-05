@@ -87,6 +87,17 @@ from .scene_change import (
     SceneChangeType,
 )
 from .search import SearchRequest, SearchResponse, SearchResult
+from .services import (
+    CategorySummary,
+    ServiceActionResponse,
+    ServiceCategory,
+    ServiceInfo,
+    ServicesResponse,
+    ServiceStatusEvent,
+)
+from .services import (
+    ServiceStatus as OrchestratorServiceStatus,  # Alias to avoid conflict with websocket.ServiceStatus
+)
 from .websocket import (
     RiskLevel,
     ServiceStatus,
@@ -131,6 +142,7 @@ __all__ = [
     "CameraResponse",
     "CameraStatus",
     "CameraUpdate",
+    "CategorySummary",
     "ClassBaselineEntry",
     "ClassBaselineResponse",
     "ClipGenerateRequest",
@@ -163,6 +175,7 @@ __all__ = [
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
+    "OrchestratorServiceStatus",
     "PersonEnrichmentData",
     "PetEnrichment",
     "PetEnrichmentData",
@@ -176,7 +189,12 @@ __all__ = [
     "SearchResponse",
     "SearchResult",
     "SendNotificationRequest",
+    "ServiceActionResponse",
+    "ServiceCategory",
+    "ServiceInfo",
     "ServiceStatus",
+    "ServiceStatusEvent",
+    "ServicesResponse",
     "TestNotificationRequest",
     "TestNotificationResponse",
     "VehicleEnrichment",
