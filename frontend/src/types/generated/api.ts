@@ -318,6 +318,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai-audit/test-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Custom Prompt
+         * @description Test a custom prompt against an existing event for A/B testing.
+         *
+         *     This endpoint allows testing a custom prompt without persisting results.
+         *     It's designed for the Prompt Playground A/B testing feature where users
+         *     can experiment with different prompts and compare results.
+         *
+         *     The endpoint:
+         *     1. Fetches the event with its detections
+         *     2. Builds context from the event data
+         *     3. Calls the AI model with the custom prompt (or mocks if service unavailable)
+         *     4. Returns results WITHOUT saving to database
+         *
+         *     Args:
+         *         request: Test request containing event_id, custom_prompt, and optional
+         *                  parameters (temperature, max_tokens, model)
+         *         db: Database session
+         *
+         *     Returns:
+         *         CustomTestPromptResponse with risk analysis results
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         *         HTTPException: 400 if prompt is invalid (empty or too long)
+         *         HTTPException: 503 if AI service is unavailable
+         *         HTTPException: 408 if request times out (>60s)
+         */
+        post: operations["test_custom_prompt_api_ai_audit_test_prompt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai-audit/prompts/test": {
         parameters: {
             query?: never;
@@ -545,6 +589,57 @@ export interface paths {
          *         HTTPException: 404 if model or version not found
          */
         post: operations["restore_prompt_version_api_ai_audit_prompts_history__version__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/prompt-config/{model}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prompt Config
+         * @description Get current prompt configuration for a model (database-backed).
+         *
+         *     Retrieves the prompt configuration from the database for the specified model.
+         *     Returns 404 if no configuration exists for the model.
+         *
+         *     Args:
+         *         model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
+         *         db: Database session
+         *
+         *     Returns:
+         *         PromptConfigResponse with current configuration
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found or no configuration exists
+         */
+        get: operations["get_prompt_config_api_ai_audit_prompt_config__model__get"];
+        /**
+         * Update Prompt Config
+         * @description Update prompt configuration for a model (database-backed).
+         *
+         *     Creates or updates the prompt configuration in the database.
+         *     If updating an existing config, increments the version number.
+         *
+         *     Args:
+         *         model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
+         *         request: New configuration with system_prompt, temperature, max_tokens
+         *         db: Database session
+         *
+         *     Returns:
+         *         PromptConfigResponse with updated configuration
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found, 400 if configuration invalid
+         */
+        put: operations["update_prompt_config_api_ai_audit_prompt_config__model__put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5163,6 +5258,101 @@ export interface components {
             contributing_factors?: string[];
         };
         /**
+         * CustomTestPromptRequest
+         * @description Request to test a custom prompt against an existing event.
+         *
+         *     This is used for A/B testing in the Prompt Playground - testing a
+         *     modified prompt without persisting results to the database.
+         */
+        CustomTestPromptRequest: {
+            /**
+             * Event Id
+             * @description Event ID to test the prompt against
+             */
+            event_id: number;
+            /**
+             * Custom Prompt
+             * @description Custom prompt text to test
+             */
+            custom_prompt: string;
+            /**
+             * Temperature
+             * @description LLM temperature setting
+             * @default 0.7
+             */
+            temperature: number;
+            /**
+             * Max Tokens
+             * @description Maximum tokens in response
+             * @default 2048
+             */
+            max_tokens: number;
+            /**
+             * Model
+             * @description Model name to use for testing
+             * @default nemotron
+             */
+            model: string;
+        };
+        /**
+         * CustomTestPromptResponse
+         * @description Response from testing a custom prompt against an event.
+         *
+         *     Results are NOT persisted - this is for A/B testing only.
+         */
+        CustomTestPromptResponse: {
+            /**
+             * Risk Score
+             * @description Computed risk score (0-100)
+             */
+            risk_score: number;
+            /**
+             * Risk Level
+             * @description Risk level: low, medium, high, or critical
+             */
+            risk_level: string;
+            /**
+             * Reasoning
+             * @description LLM reasoning for the risk assessment
+             */
+            reasoning: string;
+            /**
+             * Summary
+             * @description Brief summary of the event analysis
+             */
+            summary: string;
+            /**
+             * Entities
+             * @description Detected entities in the analysis
+             */
+            entities?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Flags
+             * @description Risk flags identified in the analysis
+             */
+            flags?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Recommended Action
+             * @description Recommended action based on risk analysis
+             * @default
+             */
+            recommended_action: string;
+            /**
+             * Processing Time Ms
+             * @description Time taken for inference in milliseconds
+             */
+            processing_time_ms: number;
+            /**
+             * Tokens Used
+             * @description Number of tokens used in inference
+             */
+            tokens_used: number;
+        };
+        /**
          * DLQClearResponse
          * @description Response schema for clearing a DLQ.
          * @example {
@@ -7972,6 +8162,71 @@ export interface components {
             confidence?: number | null;
         };
         /**
+         * PromptConfigRequest
+         * @description Request to update a model's prompt configuration (database-backed).
+         *
+         *     Used by the Prompt Playground "Save" functionality to persist
+         *     prompt configurations to the database.
+         */
+        PromptConfigRequest: {
+            /**
+             * Systemprompt
+             * @description Full system prompt text for the model
+             */
+            systemPrompt: string;
+            /**
+             * Temperature
+             * @description LLM temperature setting (0-2)
+             * @default 0.7
+             */
+            temperature: number;
+            /**
+             * Maxtokens
+             * @description Maximum tokens in response (100-8192)
+             * @default 2048
+             */
+            maxTokens: number;
+        };
+        /**
+         * PromptConfigResponse
+         * @description Response containing a model's prompt configuration (database-backed).
+         *
+         *     Returned when retrieving or updating prompt configurations.
+         */
+        PromptConfigResponse: {
+            /**
+             * Model
+             * @description Model name
+             */
+            model: string;
+            /**
+             * Systemprompt
+             * @description Full system prompt text for the model
+             */
+            systemPrompt: string;
+            /**
+             * Temperature
+             * @description LLM temperature setting (0-2)
+             */
+            temperature: number;
+            /**
+             * Maxtokens
+             * @description Maximum tokens in response (100-8192)
+             */
+            maxTokens: number;
+            /**
+             * Version
+             * @description Configuration version number
+             */
+            version: number;
+            /**
+             * Updatedat
+             * Format: date-time
+             * @description When the configuration was last updated
+             */
+            updatedAt: string;
+        };
+        /**
          * PromptExportResponse
          * @description Response containing all prompt configurations for export.
          */
@@ -10153,6 +10408,39 @@ export interface operations {
             };
         };
     };
+    test_custom_prompt_api_ai_audit_test_prompt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomTestPromptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomTestPromptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     test_prompt_api_ai_audit_prompts_test_post: {
         parameters: {
             query?: never;
@@ -10400,6 +10688,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PromptRestoreResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_prompt_config_api_ai_audit_prompt_config__model__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptConfigResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_prompt_config_api_ai_audit_prompt_config__model__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptConfigResponse"];
                 };
             };
             /** @description Validation Error */

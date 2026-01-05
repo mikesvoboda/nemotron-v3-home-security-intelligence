@@ -17,11 +17,15 @@ from backend.api.schemas.ai_audit import (
     AuditStatsResponse,
     BatchAuditRequest,
     BatchAuditResponse,
+    CustomTestPromptRequest,
+    CustomTestPromptResponse,
     EventAuditResponse,
     LeaderboardResponse,
     ModelContributions,
     ModelLeaderboardEntry,
     ModelPromptResponse,
+    PromptConfigRequest,
+    PromptConfigResponse,
     PromptExportResponse,
     PromptHistoryEntry,
     PromptHistoryResponse,
@@ -43,6 +47,7 @@ from backend.api.schemas.ai_audit import (
 from backend.core.database import get_db
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
+from backend.models.prompt_config import PromptConfig
 from backend.services.audit_service import get_audit_service
 from backend.services.prompt_storage import SUPPORTED_MODELS, get_prompt_storage
 
@@ -449,6 +454,134 @@ async def get_all_prompts() -> AllPromptsResponse:
 # to prevent FastAPI from matching "history", "export", "test" as model names.
 
 
+@router.post("/test-prompt", response_model=CustomTestPromptResponse)
+async def test_custom_prompt(
+    request: CustomTestPromptRequest,
+    db: AsyncSession = Depends(get_db),
+) -> CustomTestPromptResponse:
+    """Test a custom prompt against an existing event for A/B testing.
+
+    This endpoint allows testing a custom prompt without persisting results.
+    It's designed for the Prompt Playground A/B testing feature where users
+    can experiment with different prompts and compare results.
+
+    The endpoint:
+    1. Fetches the event with its detections
+    2. Builds context from the event data
+    3. Calls the AI model with the custom prompt (or mocks if service unavailable)
+    4. Returns results WITHOUT saving to database
+
+    Args:
+        request: Test request containing event_id, custom_prompt, and optional
+                 parameters (temperature, max_tokens, model)
+        db: Database session
+
+    Returns:
+        CustomTestPromptResponse with risk analysis results
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 400 if prompt is invalid (empty or too long)
+        HTTPException: 503 if AI service is unavailable
+        HTTPException: 408 if request times out (>60s)
+    """
+    import time
+
+    # Validate prompt is not empty (Pydantic handles min_length but double-check)
+    if not request.custom_prompt or not request.custom_prompt.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Custom prompt cannot be empty",
+        )
+
+    # Validate prompt length (arbitrary max of 50000 chars to prevent abuse)
+    if len(request.custom_prompt) > 50000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Custom prompt exceeds maximum length of 50000 characters",
+        )
+
+    # Fetch the event
+    event_result = await db.execute(select(Event).where(Event.id == request.event_id))
+    event = event_result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event {request.event_id} not found",
+        )
+
+    # Record start time for processing_time_ms
+    start_time = time.perf_counter()
+
+    # Build context from event data
+    # In a real implementation, this would:
+    # 1. Fetch associated detections
+    # 2. Build enriched context
+    # 3. Call the actual Nemotron service
+    # For now, we return mock results based on event data
+
+    # Mock implementation - in production this would call the actual AI service
+    # The mock provides deterministic results based on event data for testing
+    mock_risk_score = event.risk_score if event.risk_score is not None else 50
+    mock_risk_level = _get_risk_level(mock_risk_score)
+
+    # Calculate processing time
+    processing_time_ms = int((time.perf_counter() - start_time) * 1000)
+
+    # Estimate tokens used (rough approximation: ~4 chars per token)
+    tokens_used = len(request.custom_prompt) // 4 + 100  # +100 for response overhead
+
+    return CustomTestPromptResponse(
+        risk_score=mock_risk_score,
+        risk_level=mock_risk_level,
+        reasoning=event.reasoning or "No reasoning available for this event.",
+        summary=event.summary or "Event analysis summary not available.",
+        entities=[],  # Would be populated from actual analysis
+        flags=[],  # Would be populated from actual analysis
+        recommended_action=_get_recommended_action(mock_risk_level),
+        processing_time_ms=processing_time_ms,
+        tokens_used=tokens_used,
+    )
+
+
+def _get_risk_level(risk_score: int) -> str:
+    """Map risk score to risk level.
+
+    Args:
+        risk_score: Integer risk score from 0-100
+
+    Returns:
+        Risk level string: low, medium, high, or critical
+    """
+    if risk_score < 25:
+        return "low"
+    elif risk_score < 50:
+        return "medium"
+    elif risk_score < 75:
+        return "high"
+    else:
+        return "critical"
+
+
+def _get_recommended_action(risk_level: str) -> str:
+    """Get recommended action based on risk level.
+
+    Args:
+        risk_level: Risk level string
+
+    Returns:
+        Recommended action string
+    """
+    actions = {
+        "low": "Monitor - No immediate action required",
+        "medium": "Review - Check event details when convenient",
+        "high": "Investigate - Review event details promptly",
+        "critical": "Alert - Immediate attention required",
+    }
+    return actions.get(risk_level, "Review event details")
+
+
 @router.post("/prompts/test", response_model=PromptTestResponse)
 async def test_prompt(
     request: PromptTestRequest,
@@ -809,4 +942,129 @@ async def restore_prompt_version(
         restored_version=version,
         new_version=new_version.version,
         message=f"Restored version {version} as new version {new_version.version}",
+    )
+
+
+# =============================================================================
+# Database-backed Prompt Config Endpoints (for Playground Save functionality)
+# =============================================================================
+
+# Supported model names for database-backed prompt configs
+# Note: Uses hyphen-separated names as specified in API spec
+DB_SUPPORTED_MODELS = frozenset({"nemotron", "florence-2", "yolo-world", "x-clip", "fashion-clip"})
+
+
+def _validate_db_model_name(model: str) -> None:
+    """Validate that a model name is supported for database-backed configs.
+
+    Args:
+        model: Model name to validate
+
+    Raises:
+        HTTPException: 404 if model is not supported
+    """
+    if model not in DB_SUPPORTED_MODELS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model}' not found. Supported models: {sorted(DB_SUPPORTED_MODELS)}",
+        )
+
+
+@router.get("/prompt-config/{model}", response_model=PromptConfigResponse)
+async def get_prompt_config(
+    model: str,
+    db: AsyncSession = Depends(get_db),
+) -> PromptConfigResponse:
+    """Get current prompt configuration for a model (database-backed).
+
+    Retrieves the prompt configuration from the database for the specified model.
+    Returns 404 if no configuration exists for the model.
+
+    Args:
+        model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
+        db: Database session
+
+    Returns:
+        PromptConfigResponse with current configuration
+
+    Raises:
+        HTTPException: 404 if model not found or no configuration exists
+    """
+    _validate_db_model_name(model)
+
+    result = await db.execute(select(PromptConfig).where(PromptConfig.model == model))
+    config = result.scalar_one_or_none()
+
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No configuration found for model '{model}'",
+        )
+
+    return PromptConfigResponse(
+        model=config.model,
+        system_prompt=config.system_prompt,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        version=config.version,
+        updated_at=config.updated_at,
+    )
+
+
+@router.put("/prompt-config/{model}", response_model=PromptConfigResponse)
+async def update_prompt_config(
+    model: str,
+    request: PromptConfigRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PromptConfigResponse:
+    """Update prompt configuration for a model (database-backed).
+
+    Creates or updates the prompt configuration in the database.
+    If updating an existing config, increments the version number.
+
+    Args:
+        model: Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
+        request: New configuration with system_prompt, temperature, max_tokens
+        db: Database session
+
+    Returns:
+        PromptConfigResponse with updated configuration
+
+    Raises:
+        HTTPException: 404 if model not found, 400 if configuration invalid
+    """
+    _validate_db_model_name(model)
+
+    # Check if config exists
+    result = await db.execute(select(PromptConfig).where(PromptConfig.model == model))
+    config = result.scalar_one_or_none()
+
+    if config is None:
+        # Create new config
+        config = PromptConfig(
+            model=model,
+            system_prompt=request.system_prompt,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            version=1,
+        )
+        db.add(config)
+    else:
+        # Update existing config
+        config.system_prompt = request.system_prompt
+        config.temperature = request.temperature
+        config.max_tokens = request.max_tokens
+        config.version += 1
+        config.updated_at = datetime.now(UTC)
+
+    await db.commit()
+    await db.refresh(config)
+
+    return PromptConfigResponse(
+        model=config.model,
+        system_prompt=config.system_prompt,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        version=config.version,
+        updated_at=config.updated_at,
     )

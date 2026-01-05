@@ -29,9 +29,17 @@ export { default as ModelContributionChart } from './ModelContributionChart';
 export { default as QualityScoreTrends } from './QualityScoreTrends';
 export { default as ModelLeaderboard } from './ModelLeaderboard';
 export { default as RecommendationsPanel } from './RecommendationsPanel';
+export { default as SuggestionDiffView } from './SuggestionDiffView';
+export { default as SuggestionExplanation } from './SuggestionExplanation';
+export { default as PromptABTest } from './PromptABTest';
+export { default as ABTestStats, calculateStats } from './ABTestStats';
 
 export type { BatchAuditModalProps } from './BatchAuditModal';
 export type { ModelContributionChartProps } from './ModelContributionChart';
 export type { QualityScoreTrendsProps } from './QualityScoreTrends';
 export type { ModelLeaderboardProps } from './ModelLeaderboard';
 export type { RecommendationsPanelProps } from './RecommendationsPanel';
+export type { SuggestionDiffViewProps, DiffLine } from './SuggestionDiffView';
+export type { SuggestionExplanationProps } from './SuggestionExplanation';
+export type { PromptABTestProps } from './PromptABTest';
+export type { ABTestStatsProps, AggregateStats } from './ABTestStats';
