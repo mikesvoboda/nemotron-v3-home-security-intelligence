@@ -20,6 +20,7 @@ class AuditAction(str, Enum):
 
     # Settings actions
     SETTINGS_CHANGED = "settings_changed"
+    CONFIG_UPDATED = "config_updated"
 
     # Media actions
     MEDIA_EXPORTED = "media_exported"

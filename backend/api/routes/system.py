@@ -17,6 +17,10 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Requ
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.schemas.baseline import (
+    AnomalyConfig,
+    AnomalyConfigUpdate,
+)
 from backend.api.schemas.system import (
     BatchAggregatorStatusResponse,
     BatchInfoResponse,
@@ -1247,6 +1251,113 @@ async def patch_config(
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
         grafana_url=settings.grafana_url,
+    )
+
+
+@router.get("/anomaly-config", response_model=AnomalyConfig)
+async def get_anomaly_config() -> AnomalyConfig:
+    """Get current anomaly detection configuration.
+
+    Returns the current settings for the baseline service including:
+    - threshold_stdev: Number of standard deviations for anomaly detection
+    - min_samples: Minimum samples required before anomaly detection is reliable
+    - decay_factor: Exponential decay factor for EWMA (weights recent observations)
+    - window_days: Rolling window size in days for baseline calculations
+
+    Returns:
+        AnomalyConfig with current anomaly detection settings
+    """
+    from backend.services.baseline import get_baseline_service
+
+    service = get_baseline_service()
+
+    return AnomalyConfig(
+        threshold_stdev=service.anomaly_threshold_std,
+        min_samples=service.min_samples,
+        decay_factor=service.decay_factor,
+        window_days=service.window_days,
+    )
+
+
+@router.patch(
+    "/anomaly-config", response_model=AnomalyConfig, dependencies=[Depends(verify_api_key)]
+)
+async def update_anomaly_config(
+    config_update: AnomalyConfigUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AnomalyConfig:
+    """Update anomaly detection configuration.
+
+    Allows updating the anomaly detection thresholds:
+    - threshold_stdev: Number of standard deviations for anomaly detection
+    - min_samples: Minimum samples required before anomaly detection is reliable
+
+    Note: decay_factor and window_days are not configurable at runtime
+    as they affect historical data calculations.
+
+    Requires API key authentication.
+
+    Args:
+        config_update: Configuration values to update (only provided values are changed)
+        request: HTTP request for audit logging
+        db: Database session
+
+    Returns:
+        AnomalyConfig with updated settings
+    """
+    from backend.services.baseline import get_baseline_service
+
+    service = get_baseline_service()
+
+    # Track old values for audit
+    old_values: dict[str, Any] = {
+        "threshold_stdev": service.anomaly_threshold_std,
+        "min_samples": service.min_samples,
+    }
+
+    # Update configuration
+    try:
+        service.update_config(
+            threshold_stdev=config_update.threshold_stdev,
+            min_samples=config_update.min_samples,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        ) from e
+
+    # Track changes
+    new_values: dict[str, Any] = {
+        "threshold_stdev": service.anomaly_threshold_std,
+        "min_samples": service.min_samples,
+    }
+
+    changes: dict[str, Any] = {}
+    for key, old_value in old_values.items():
+        new_value = new_values[key]
+        if old_value != new_value:
+            changes[key] = {"old": old_value, "new": new_value}
+
+    # Log audit entry
+    if changes:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type="anomaly_config",
+            resource_id="system",
+            actor="anonymous",
+            details={"changes": changes},
+            request=request,
+        )
+        await db.commit()
+
+    return AnomalyConfig(
+        threshold_stdev=service.anomaly_threshold_std,
+        min_samples=service.min_samples,
+        decay_factor=service.decay_factor,
+        window_days=service.window_days,
     )
 
 

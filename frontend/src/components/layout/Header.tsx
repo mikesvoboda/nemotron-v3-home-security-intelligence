@@ -193,7 +193,7 @@ export default function Header() {
         </button>
 
         <div className="flex items-center gap-3">
-          <img src="/images/nvidia-eye.svg" alt="NVIDIA" className="h-8 w-8 md:h-10 md:w-10" />
+          <img src="/images/nvidia-logo-white.svg" alt="NVIDIA" className="h-6 w-auto md:h-8" />
           <div>
             <h1 className="text-base font-bold tracking-wide text-white md:text-lg">
               NVIDIA SECURITY
