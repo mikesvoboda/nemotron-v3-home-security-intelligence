@@ -122,7 +122,7 @@ jobs:
 
     steps:
       - name: Find existing comment
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@v4
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -302,7 +302,7 @@ jobs:
           echo "  gh api --method DELETE /user/packages/container/${{ github.event.repository.name }}%2Ffrontend/versions/<version-id>"
 
       - name: Update PR comment about cleanup
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@v4
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
