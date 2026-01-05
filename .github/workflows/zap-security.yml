@@ -150,8 +150,15 @@ jobs:
 
             # Check for High and Critical risk alerts in the HTML
             # ZAP marks these with "High" or "Critical" risk levels
-            HIGH_COUNT=$(grep -c "Risk.*High\|High.*Risk" "$REPORT_FILE" 2>/dev/null || echo "0")
-            CRITICAL_COUNT=$(grep -c "Risk.*Critical\|Critical.*Risk" "$REPORT_FILE" 2>/dev/null || echo "0")
+            # Use tr to remove newlines and ensure single integer output
+            HIGH_COUNT=$(grep -c "Risk.*High\|High.*Risk" "$REPORT_FILE" 2>/dev/null | tr -d '\n' || echo "0")
+            CRITICAL_COUNT=$(grep -c "Risk.*Critical\|Critical.*Risk" "$REPORT_FILE" 2>/dev/null | tr -d '\n' || echo "0")
+
+            # Ensure counts are valid integers (default to 0 if empty or non-numeric)
+            HIGH_COUNT=${HIGH_COUNT:-0}
+            CRITICAL_COUNT=${CRITICAL_COUNT:-0}
+            [[ "$HIGH_COUNT" =~ ^[0-9]+$ ]] || HIGH_COUNT=0
+            [[ "$CRITICAL_COUNT" =~ ^[0-9]+$ ]] || CRITICAL_COUNT=0
 
             echo "high_count=$HIGH_COUNT" >> $GITHUB_OUTPUT
             echo "critical_count=$CRITICAL_COUNT" >> $GITHUB_OUTPUT
