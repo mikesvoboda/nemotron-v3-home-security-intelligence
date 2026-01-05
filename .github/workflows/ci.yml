@@ -20,12 +20,8 @@ jobs:
   # ============================================================================
 
   lint:
-    name: Backend Lint (Ruff) - Python ${{ matrix.python-version }}
+    name: Backend Lint (Ruff)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -37,7 +33,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -54,12 +50,8 @@ jobs:
           uv run radon mi backend/ -nc
 
   typecheck:
-    name: Backend Type Check (Mypy) - Python ${{ matrix.python-version }}
+    name: Backend Type Check (Mypy)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -71,7 +63,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -80,12 +72,8 @@ jobs:
         run: uv run mypy backend/ --ignore-missing-imports
 
   unit-tests:
-    name: Backend Unit Tests - Python ${{ matrix.python-version }}
+    name: Backend Unit Tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
     needs: [lint]
@@ -117,7 +105,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -144,7 +132,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-unit-py${{ matrix.python-version }}
+          name: test-results-unit
           path: test-results-unit.xml
           retention-days: 7
 
@@ -152,19 +140,15 @@ jobs:
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
           files: coverage-unit.xml
-          flags: backend-unit-py${{ matrix.python-version }}
+          flags: backend-unit
           fail_ci_if_error: false
 
   # Integration tests split into 4 domain-based parallel jobs for faster execution
   # Each job runs tests for a specific domain with within-shard parallelization
   integration-tests-api:
-    name: Integration Tests (API) - Python ${{ matrix.python-version }}
+    name: Integration Tests (API)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -207,7 +191,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -232,7 +216,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-api-py${{ matrix.python-version }}
+          name: test-results-integration-api
           path: test-results-integration-api.xml
           retention-days: 7
 
@@ -240,18 +224,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-api-py${{ matrix.python-version }}
+          name: coverage-integration-api
           path: coverage-integration-api.xml
           retention-days: 7
 
   integration-tests-websocket:
-    name: Integration Tests (WebSocket) - Python ${{ matrix.python-version }}
+    name: Integration Tests (WebSocket)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -294,7 +274,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -319,7 +299,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-websocket-py${{ matrix.python-version }}
+          name: test-results-integration-websocket
           path: test-results-integration-websocket.xml
           retention-days: 7
 
@@ -327,18 +307,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-websocket-py${{ matrix.python-version }}
+          name: coverage-integration-websocket
           path: coverage-integration-websocket.xml
           retention-days: 7
 
   integration-tests-services:
-    name: Integration Tests (Services) - Python ${{ matrix.python-version }}
+    name: Integration Tests (Services)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -381,7 +357,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -406,7 +382,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-services-py${{ matrix.python-version }}
+          name: test-results-integration-services
           path: test-results-integration-services.xml
           retention-days: 7
 
@@ -414,18 +390,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-services-py${{ matrix.python-version }}
+          name: coverage-integration-services
           path: coverage-integration-services.xml
           retention-days: 7
 
   integration-tests-models:
-    name: Integration Tests (Models) - Python ${{ matrix.python-version }}
+    name: Integration Tests (Models)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.13', '3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -468,7 +440,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -493,7 +465,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-models-py${{ matrix.python-version }}
+          name: test-results-integration-models
           path: test-results-integration-models.xml
           retention-days: 7
 
@@ -501,7 +473,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-models-py${{ matrix.python-version }}
+          name: coverage-integration-models
           path: coverage-integration-models.xml
           retention-days: 7
 
@@ -691,12 +663,8 @@ jobs:
         run: ./scripts/generate-types.sh --check
 
   frontend-lint:
-    name: Frontend Lint (ESLint) [Node ${{ matrix.node-version }}]
+    name: Frontend Lint (ESLint)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['20', '22']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -704,7 +672,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -720,12 +688,8 @@ jobs:
         run: cd frontend && npx knip
 
   frontend-typecheck:
-    name: Frontend Type Check (TypeScript) [Node ${{ matrix.node-version }}]
+    name: Frontend Type Check (TypeScript)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['20', '22']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -733,7 +697,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -744,7 +708,7 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest ${{ matrix.shard }}/8) [Node ${{ matrix.node-version }}]
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 3
     # Wait for lint to pass first - fail fast on code quality issues
@@ -754,7 +718,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['20', '22']
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
@@ -763,7 +726,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -782,7 +745,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: frontend-coverage-shard-${{ matrix.shard }}-node-${{ matrix.node-version }}
+          name: frontend-coverage-shard-${{ matrix.shard }}
           path: frontend/coverage/
           retention-days: 7
 
@@ -797,10 +760,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download all coverage artifacts
-        # Downloads artifacts from all Node version + shard combinations
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          pattern: frontend-coverage-shard-*-node-*
+          pattern: frontend-coverage-shard-*
           path: coverage-reports/
           merge-multiple: true
 
@@ -841,9 +803,8 @@ jobs:
 
   # Primary E2E tests (Chromium) - non-blocking while stabilizing error state tests
   # Uses sharding to split tests across 4 parallel runners for 4x speed
-  # Tests both Node.js 20 and 22 LTS versions
   frontend-e2e:
-    name: E2E Tests (chromium ${{ matrix.shard }}) [Node ${{ matrix.node-version }}]
+    name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
@@ -851,7 +812,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['20', '22']
         shard: [1/4, 2/4, 3/4, 4/4]
     steps:
       - name: Checkout
@@ -860,7 +820,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -872,7 +832,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('frontend/package-lock.json') }}
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -889,7 +849,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ matrix.node-version }}
+          name: playwright-report-chromium-${{ strategy.job-index }}
           path: frontend/playwright-report/
           retention-days: 7
 
@@ -897,12 +857,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ matrix.node-version }}
+          name: playwright-test-results-chromium-${{ strategy.job-index }}
           path: frontend/test-results/
           retention-days: 7
 
   # Secondary E2E tests (Firefox/WebKit) - non-blocking, informational only
-  # Intentionally kept on Node 20 only (no matrix) to avoid excessive CI time
   frontend-e2e-secondary:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
@@ -1406,60 +1365,3 @@ jobs:
             --timeout=30 \
             -v \
             --tb=short
-
-  # ============================================================================
-  # CI Gate - Aggregates all required checks for branch protection
-  # ============================================================================
-  # This job provides a single status check that depends on all required jobs.
-  # Use this as the required check in branch protection to simplify configuration.
-  # Non-blocking workflows can use workflow_run trigger on CI completion.
-  ci-gate:
-    name: CI Gate (Required Checks)
-    runs-on: ubuntu-latest
-    needs:
-      - lint
-      - typecheck
-      - unit-tests
-      - integration-tests-summary
-      - frontend-lint
-      - frontend-typecheck
-      - frontend-tests-summary
-      - api-types-check
-    if: always()
-    steps:
-      - name: Check required job results
-        run: |
-          echo "## Required CI Checks Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Check each required job
-          FAILED=false
-
-          check_job() {
-            local name="$1"
-            local result="$2"
-            if [ "$result" == "success" ] || [ "$result" == "skipped" ]; then
-              echo "✅ $name: $result" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "❌ $name: $result" >> $GITHUB_STEP_SUMMARY
-              FAILED=true
-            fi
-          }
-
-          check_job "Backend Lint (Ruff)" "${{ needs.lint.result }}"
-          check_job "Backend Type Check (Mypy)" "${{ needs.typecheck.result }}"
-          check_job "Backend Unit Tests" "${{ needs.unit-tests.result }}"
-          check_job "Backend Integration Tests" "${{ needs.integration-tests-summary.result }}"
-          check_job "Frontend Lint (ESLint)" "${{ needs.frontend-lint.result }}"
-          check_job "Frontend Type Check (TypeScript)" "${{ needs.frontend-typecheck.result }}"
-          check_job "Frontend Tests (Vitest)" "${{ needs.frontend-tests-summary.result }}"
-          check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$FAILED" == "true" ]; then
-            echo "**Status: ❌ FAILED** - One or more required checks failed" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          else
-            echo "**Status: ✅ PASSED** - All required checks passed" >> $GITHUB_STEP_SUMMARY
-          fi
