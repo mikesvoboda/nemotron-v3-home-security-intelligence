@@ -451,6 +451,11 @@ class NemotronAnalyzer:
                 await session.commit()
                 await session.refresh(audit)
                 logger.debug(f"Created audit {audit.id} for event {event.id}")
+
+                # Auto-enqueue for background evaluation (higher risk = higher priority)
+                # This enables full AI audit evaluation when GPU is idle
+                await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+
             except Exception as e:
                 logger.warning(f"Failed to create audit for event {event.id}: {e}")
 
@@ -651,6 +656,11 @@ class NemotronAnalyzer:
                 await session.commit()
                 await session.refresh(audit)
                 logger.debug(f"Created audit {audit.id} for event {event.id}")
+
+                # Auto-enqueue for background evaluation (higher risk = higher priority)
+                # This enables full AI audit evaluation when GPU is idle
+                await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+
             except Exception as e:
                 logger.warning(f"Failed to create audit for event {event.id}: {e}")
 
@@ -1260,3 +1270,39 @@ class NemotronAnalyzer:
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to broadcast event: {e}", exc_info=True)  # pragma: no cover
+
+    async def _enqueue_for_evaluation(self, event_id: int, risk_score: int) -> None:
+        """Enqueue event for background AI audit evaluation.
+
+        Events are queued for full evaluation (self-critique, rubric scoring,
+        consistency check, prompt improvement) when the GPU is idle. Higher
+        risk events get higher priority and are evaluated first.
+
+        Args:
+            event_id: ID of the event to enqueue
+            risk_score: Risk score (0-100), used as priority for evaluation order
+        """
+        if not self._redis:
+            return
+
+        try:
+            from backend.core.config import get_settings
+            from backend.services.evaluation_queue import get_evaluation_queue
+
+            settings = get_settings()
+            if not settings.background_evaluation_enabled:
+                logger.debug(f"Background evaluation disabled, not queueing event {event_id}")
+                return
+
+            queue = get_evaluation_queue(self._redis)
+            await queue.enqueue(event_id=event_id, priority=risk_score)
+            logger.debug(
+                f"Enqueued event {event_id} for background evaluation (priority: {risk_score})",
+                extra={"event_id": event_id, "priority": risk_score},
+            )
+        except Exception as e:
+            # Non-critical: log warning but don't fail event creation
+            logger.warning(
+                f"Failed to enqueue event {event_id} for evaluation: {e}",
+                extra={"event_id": event_id},
+            )

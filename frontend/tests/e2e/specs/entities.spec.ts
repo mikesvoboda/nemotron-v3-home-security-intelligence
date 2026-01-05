@@ -1,7 +1,7 @@
 /**
  * Entities Tests for Home Security Dashboard
  *
- * Tests for the Entities page (Coming Soon placeholder).
+ * Tests for the Entities page - tracking people and vehicles.
  */
 
 import { test, expect } from '@playwright/test';
@@ -40,7 +40,7 @@ test.describe('Entities Page Load', () => {
   });
 });
 
-test.describe('Entities Coming Soon', () => {
+test.describe('Entities Filters', () => {
   let entitiesPage: EntitiesPage;
 
   test.beforeEach(async ({ page }) => {
@@ -50,46 +50,47 @@ test.describe('Entities Coming Soon', () => {
     await entitiesPage.waitForEntitiesLoad();
   });
 
-  test('shows coming soon message', async () => {
-    const hasComingSoon = await entitiesPage.hasComingSoonMessage();
-    expect(hasComingSoon).toBe(true);
+  test('shows entity type filter buttons', async () => {
+    await expect(entitiesPage.allFilterButton).toBeVisible();
+    await expect(entitiesPage.personFilterButton).toBeVisible();
+    await expect(entitiesPage.vehicleFilterButton).toBeVisible();
   });
 
-  test('coming soon heading says Coming Soon', async () => {
-    await expect(entitiesPage.comingSoonHeading).toHaveText(/Coming Soon/i);
+  test('all filter is active by default', async () => {
+    await expect(entitiesPage.allFilterButton).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('shows feature description', async () => {
-    await expect(entitiesPage.comingSoonDescription).toBeVisible();
+  test('can switch to person filter', async () => {
+    await entitiesPage.personFilterButton.click();
+    await expect(entitiesPage.personFilterButton).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('lists planned features', async () => {
-    const featureCount = await entitiesPage.getFeatureCount();
-    expect(featureCount).toBeGreaterThan(0);
+  test('can switch to vehicle filter', async () => {
+    await entitiesPage.vehicleFilterButton.click();
+    await expect(entitiesPage.vehicleFilterButton).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+test.describe('Entities Empty State', () => {
+  let entitiesPage: EntitiesPage;
+
+  test.beforeEach(async ({ page }) => {
+    // Mock with empty entities response
+    await setupApiMocks(page, {
+      ...defaultMockConfig,
+      entities: [],
+    });
+    entitiesPage = new EntitiesPage(page);
+    await entitiesPage.goto();
+    await entitiesPage.waitForEntitiesLoad();
   });
 
-  test('shows check back message', async () => {
-    await expect(entitiesPage.checkBackMessage).toBeVisible();
+  test('shows empty state message', async () => {
+    await expect(entitiesPage.emptyStateMessage).toBeVisible();
   });
 
-  test('feature list mentions tracking', async () => {
-    const featureText = await entitiesPage.getFeatureText(0);
-    expect(featureText).toMatch(/track/i);
-  });
-
-  test('feature list mentions movement patterns', async () => {
-    const featureText = await entitiesPage.getFeatureText(1);
-    expect(featureText).toMatch(/movement|pattern/i);
-  });
-
-  test('feature list mentions classification', async () => {
-    const featureText = await entitiesPage.getFeatureText(2);
-    expect(featureText).toMatch(/classif|known/i);
-  });
-
-  test('feature list mentions search', async () => {
-    const featureText = await entitiesPage.getFeatureText(3);
-    expect(featureText).toMatch(/search|filter/i);
+  test('empty state mentions no entities found', async () => {
+    await expect(entitiesPage.emptyStateHeading).toHaveText(/No Entities Found/i);
   });
 });
 
@@ -113,5 +114,9 @@ test.describe('Entities Layout', () => {
 
   test('full layout is preserved', async () => {
     await entitiesPage.expectLayoutLoaded();
+  });
+
+  test('refresh button is visible', async () => {
+    await expect(entitiesPage.refreshButton).toBeVisible();
   });
 });

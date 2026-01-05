@@ -38,6 +38,7 @@ from backend.services.segformer_loader import ClothingSegmentationResult
 from backend.services.vehicle_classifier_loader import VehicleClassificationResult
 from backend.services.vehicle_damage_loader import DamageDetection, VehicleDamageResult
 from backend.services.violence_loader import ViolenceDetectionResult
+from backend.services.weather_loader import WeatherResult
 
 # =============================================================================
 # Fixtures
@@ -147,6 +148,7 @@ def create_mock_model_manager() -> MagicMock:
         "pet-classifier": {"model": MagicMock(), "processor": MagicMock()},
         "brisque-quality": MagicMock(),
         "violence-detection": {"model": MagicMock(), "processor": MagicMock()},
+        "weather-classification": {"model": MagicMock(), "processor": MagicMock()},
         "segformer-b2-clothes": (MagicMock(), MagicMock()),
         "yolo11-license-plate": MagicMock(),
         "yolo11-face": MagicMock(),
@@ -1078,12 +1080,13 @@ class TestEnrichmentPipelineInit:
             assert pipeline.reid_enabled is True
             assert pipeline.scene_change_enabled is True
             assert pipeline.violence_detection_enabled is True
+            assert pipeline.weather_classification_enabled is True
             assert pipeline.clothing_classification_enabled is True
             assert pipeline.clothing_segmentation_enabled is True
             assert pipeline.vehicle_damage_detection_enabled is True
             assert pipeline.vehicle_classification_enabled is True
-            # image_quality_enabled defaults to False via config (pyiqa incompatible with NumPy 2.0)
-            assert pipeline.image_quality_enabled is False
+            # image_quality_enabled defaults to True (piq library is compatible with NumPy 2.0)
+            assert pipeline.image_quality_enabled is True
             assert pipeline.pet_classification_enabled is True
             assert pipeline.use_enrichment_service is False
 
@@ -1882,6 +1885,58 @@ class TestGlobalSingletons:
             pipeline2 = get_enrichment_pipeline()
 
             assert pipeline1 is not pipeline2
+
+    def test_get_enrichment_pipeline_passes_redis_client(self) -> None:
+        """Test get_enrichment_pipeline passes Redis client for Re-ID support.
+
+        This test verifies the fix for NEM-1260 where the Entities page was empty
+        because EnrichmentPipeline was created without a redis_client, which
+        disabled Re-ID functionality.
+        """
+        mock_redis_client = MagicMock()
+        reset_enrichment_pipeline()
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_model_manager"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.core.redis.get_redis_client_sync",
+                return_value=mock_redis_client,
+            ) as mock_get_redis,
+        ):
+            pipeline = get_enrichment_pipeline()
+
+            # Verify get_redis_client_sync was called
+            mock_get_redis.assert_called_once()
+
+            # Verify the pipeline has the redis_client set
+            assert pipeline.redis_client is mock_redis_client
+
+    def test_get_enrichment_pipeline_works_without_redis(self) -> None:
+        """Test get_enrichment_pipeline works when Redis is not initialized.
+
+        When Redis is not yet initialized (returns None), the pipeline should
+        still be created but Re-ID will be disabled.
+        """
+        reset_enrichment_pipeline()
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_model_manager"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.core.redis.get_redis_client_sync",
+                return_value=None,
+            ),
+        ):
+            pipeline = get_enrichment_pipeline()
+
+            # Pipeline should be created even without Redis
+            assert pipeline is not None
+            assert pipeline.redis_client is None
 
 
 # =============================================================================
@@ -3287,3 +3342,294 @@ class TestEnrichmentServiceModeExtended:
 
             # Should complete but without classifications
             assert len(result.vehicle_classifications) == 0
+
+
+# =============================================================================
+# Weather Classification Tests
+# =============================================================================
+
+
+class TestEnrichmentResultWeatherClassification:
+    """Tests for weather classification in EnrichmentResult."""
+
+    def test_has_weather_classification_empty(self) -> None:
+        """Test weather classification is None by default."""
+        result = EnrichmentResult()
+        assert result.weather_classification is None
+
+    def test_has_weather_classification_set(self) -> None:
+        """Test weather classification can be set."""
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.92,
+            all_scores={
+                "cloudy/overcast": 0.02,
+                "foggy/hazy": 0.01,
+                "rain/storm": 0.03,
+                "snow/frosty": 0.02,
+                "sun/clear": 0.92,
+            },
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        assert result.weather_classification is not None
+        assert result.weather_classification.simple_condition == "clear"
+        assert result.weather_classification.confidence == 0.92
+
+    def test_weather_in_to_prompt_context(self) -> None:
+        """Test weather is included in to_prompt_context output."""
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.85,
+            all_scores={},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        context = result.to_prompt_context()
+
+        assert "weather_context" in context
+        assert "foggy" in context["weather_context"]
+        assert "85%" in context["weather_context"]
+
+    def test_weather_in_get_enrichment_for_detection(self) -> None:
+        """Test weather is included in per-detection enrichment."""
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.78,
+            all_scores={},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+
+        det_enrichment = result.get_enrichment_for_detection(1)
+        assert det_enrichment is not None
+        assert "weather" in det_enrichment
+        assert det_enrichment["weather"]["condition"] == "rain/storm"
+        assert det_enrichment["weather"]["confidence"] == 0.78
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineWeatherClassification:
+    """Tests for weather classification in EnrichmentPipeline."""
+
+    async def test_pipeline_init_weather_enabled_default(
+        self,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test pipeline initializes with weather_classification_enabled=True by default."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+            assert pipeline.weather_classification_enabled is True
+
+    async def test_pipeline_init_weather_disabled(
+        self,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test pipeline can disable weather classification."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                weather_classification_enabled=False,
+            )
+            assert pipeline.weather_classification_enabled is False
+
+    async def test_enrich_batch_runs_weather_classification(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch runs weather classification on full frame."""
+        mock_weather_result = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.95,
+            all_scores={
+                "cloudy/overcast": 0.01,
+                "foggy/hazy": 0.01,
+                "rain/storm": 0.02,
+                "snow/frosty": 0.01,
+                "sun/clear": 0.95,
+            },
+        )
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_weather",
+                new_callable=AsyncMock,
+                return_value=mock_weather_result,
+            ) as mock_classify,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                weather_classification_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Verify classify_weather was called
+            mock_classify.assert_called_once()
+
+            # Verify result contains weather classification
+            assert result.weather_classification is not None
+            assert result.weather_classification.simple_condition == "clear"
+            assert result.weather_classification.confidence == 0.95
+
+    async def test_enrich_batch_skips_weather_when_disabled(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch skips weather when disabled."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_weather",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                weather_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Verify classify_weather was NOT called
+            mock_classify.assert_not_called()
+
+            # Verify result has no weather classification
+            assert result.weather_classification is None
+
+    async def test_enrich_batch_weather_handles_errors(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch handles weather classification errors gracefully."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_weather",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Weather model failed"),
+            ),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                weather_classification_enabled=True,
+            )
+
+            # Should not raise, should handle error gracefully
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Should complete but without weather
+            assert result.weather_classification is None
+            assert len(result.errors) > 0
+            assert any("weather" in err.lower() for err in result.errors)
+
+    async def test_enrich_batch_weather_skipped_without_image(
+        self,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test weather classification is skipped if no shared image available."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_weather",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                weather_classification_enabled=True,
+            )
+
+            # Pass empty images dict - no shared image
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={},
+            )
+
+            # Verify classify_weather was NOT called (no image)
+            mock_classify.assert_not_called()
+
+            # Result should have no weather classification
+            assert result.weather_classification is None

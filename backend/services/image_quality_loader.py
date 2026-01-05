@@ -1,13 +1,13 @@
-"""Image quality assessment model loader using PyIQA/BRISQUE.
+"""Image quality assessment model loader using piq BRISQUE.
 
 This module provides CPU-based image quality assessment using the BRISQUE
-(Blind/Referenceless Image Spatial Quality Evaluator) metric via the pyiqa library.
+(Blind/Referenceless Image Spatial Quality Evaluator) metric via the piq library.
 
 BRISQUE is a no-reference image quality metric that analyzes natural scene statistics
 to detect quality degradations like blur, noise, and compression artifacts.
 
 VRAM Usage: 0 MB (CPU-based)
-Library: pyiqa
+Library: piq (Photosynthesis Image Quality)
 Metric: BRISQUE
 
 Security Use Cases:
@@ -89,36 +89,34 @@ class ImageQualityResult:
 
 
 async def load_brisque_model(model_path: str) -> Any:  # noqa: ARG001
-    """Load the BRISQUE metric from pyiqa.
+    """Load the BRISQUE metric from piq.
 
-    This function initializes the BRISQUE metric using pyiqa library.
+    This function initializes the BRISQUE metric using piq library.
     BRISQUE is CPU-based and requires no GPU memory.
 
     Args:
-        model_path: Ignored for pyiqa (uses built-in metric)
+        model_path: Ignored for piq (uses built-in metric)
 
     Returns:
         Dictionary containing:
-            - metric: The pyiqa BRISQUE metric instance
+            - brisque_fn: The piq brisque function
 
     Raises:
-        ImportError: If pyiqa is not installed
+        ImportError: If piq is not installed
         RuntimeError: If metric initialization fails
     """
     try:
-        import pyiqa
+        import piq
 
-        logger.info("Loading BRISQUE quality metric from pyiqa")
+        logger.info("Loading BRISQUE quality metric from piq")
 
         loop = asyncio.get_event_loop()
 
         def _load() -> dict[str, Any]:
-            # Create BRISQUE metric (CPU-based)
-            # pyiqa supports various metrics; brisque is widely used for no-reference IQA
-            metric = pyiqa.create_metric("brisque", device="cpu")
-
-            logger.info("BRISQUE metric initialized on CPU")
-            return {"metric": metric}
+            # piq provides brisque as a function, not a class that needs instantiation
+            # We store the function reference for later use
+            logger.info("BRISQUE metric initialized (piq library)")
+            return {"brisque_fn": piq.brisque}
 
         result = await loop.run_in_executor(None, _load)
 
@@ -126,9 +124,9 @@ async def load_brisque_model(model_path: str) -> Any:  # noqa: ARG001
         return result
 
     except ImportError as e:
-        logger.warning("pyiqa package not installed. Install with: pip install pyiqa")
+        logger.warning("piq package not installed. Install with: pip install piq")
         raise ImportError(
-            "pyiqa package required for image quality assessment. Install with: pip install pyiqa"
+            "piq package required for image quality assessment. Install with: pip install piq"
         ) from e
 
     except Exception as e:
@@ -158,7 +156,7 @@ async def assess_image_quality(
     The output quality_score is inverted (100 - brisque) so higher = better.
 
     Args:
-        model_data: Dictionary containing 'metric' from load_brisque_model
+        model_data: Dictionary containing 'brisque_fn' from load_brisque_model
         image: PIL Image to assess
         blur_threshold: BRISQUE score above which image is considered blurry
         noise_threshold: BRISQUE score above which image is considered noisy
@@ -174,13 +172,13 @@ async def assess_image_quality(
         import torch
         from torchvision import transforms
 
-        metric = model_data["metric"]
+        brisque_fn = model_data["brisque_fn"]
 
         loop = asyncio.get_event_loop()
 
         def _assess() -> ImageQualityResult:
             # Convert PIL Image to tensor
-            # pyiqa expects tensor in [0, 1] range, shape [B, C, H, W]
+            # piq expects tensor in [0, 1] range, shape [B, C, H, W]
             transform = transforms.Compose(
                 [
                     transforms.ToTensor(),
@@ -192,9 +190,9 @@ async def assess_image_quality(
 
             img_tensor = transform(rgb_image).unsqueeze(0)  # Add batch dimension
 
-            # Compute BRISQUE score
+            # Compute BRISQUE score using piq
             with torch.no_grad():
-                brisque_score = metric(img_tensor).item()
+                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction="mean").item()
 
             # Clamp BRISQUE score to reasonable range
             # BRISQUE typically ranges 0-100 but can exceed in extreme cases
