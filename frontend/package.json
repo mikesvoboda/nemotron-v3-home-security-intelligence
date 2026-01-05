@@ -27,7 +27,9 @@
     "generate-types:check": "cd .. && ./scripts/generate-types.sh --check",
     "validate": "npm run typecheck && npm run lint && npm run test:coverage -- --run",
     "dead-code": "knip",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -79,6 +81,8 @@
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.51.0",
     "vite": "^7.3.0",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "typedoc": "0.26.11",
+    "typedoc-plugin-markdown": "4.2.10"
   }
 }
