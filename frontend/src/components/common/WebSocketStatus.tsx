@@ -9,6 +9,8 @@ export interface WebSocketStatusProps {
   showDetails?: boolean;
   /** Optional callback to retry connection after failure */
   onRetry?: () => void;
+  /** Whether currently falling back to REST API polling */
+  isPollingFallback?: boolean;
 }
 
 /**
@@ -173,9 +175,10 @@ interface WebSocketTooltipProps {
   eventsChannel: ChannelStatus;
   systemChannel: ChannelStatus;
   isVisible: boolean;
+  isPollingFallback?: boolean;
 }
 
-function WebSocketTooltip({ eventsChannel, systemChannel, isVisible }: WebSocketTooltipProps) {
+function WebSocketTooltip({ eventsChannel, systemChannel, isVisible, isPollingFallback }: WebSocketTooltipProps) {
   if (!isVisible) {
     return null;
   }
@@ -193,6 +196,13 @@ function WebSocketTooltip({ eventsChannel, systemChannel, isVisible }: WebSocket
         <ChannelIndicator channel={eventsChannel} />
         <ChannelIndicator channel={systemChannel} />
       </div>
+      {isPollingFallback && (
+        <div className="mt-2 border-t border-gray-800 pt-2">
+          <div className="text-xs text-blue-400">
+            Using REST API fallback (auto-reconnect enabled)
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -202,6 +212,7 @@ export default function WebSocketStatus({
   systemChannel,
   showDetails = false,
   onRetry,
+  isPollingFallback = false,
 }: WebSocketStatusProps) {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -279,6 +290,13 @@ export default function WebSocketStatus({
         </span>
       )}
 
+      {/* Polling Fallback Indicator */}
+      {isPollingFallback && (
+        <span className="text-xs font-medium text-blue-400" data-testid="polling-indicator">
+          Polling
+        </span>
+      )}
+
       {/* Status Dot */}
       <div
         className={`h-2 w-2 rounded-full ${stateColors.bg} ${overallState === 'connected' ? 'animate-pulse' : ''}`}
@@ -291,6 +309,7 @@ export default function WebSocketStatus({
         eventsChannel={eventsChannel}
         systemChannel={systemChannel}
         isVisible={isTooltipVisible}
+        isPollingFallback={isPollingFallback}
       />
     </div>
   );

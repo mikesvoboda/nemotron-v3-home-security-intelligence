@@ -615,7 +615,7 @@ describe('useWebSocketStatus', () => {
     expect(mockWsInstances.length).toBe(1);
   });
 
-  it('uses default reconnectAttempts of 5', () => {
+  it('uses default reconnectAttempts of 15 for better backend restart resilience', () => {
     const { result } = renderHook(() =>
       useWebSocketStatus({
         url: 'ws://localhost/ws/test',
@@ -623,7 +623,8 @@ describe('useWebSocketStatus', () => {
       })
     );
 
-    expect(result.current.channelStatus.maxReconnectAttempts).toBe(5);
+    // Default should be 15 to handle backend restarts (up to ~8 minutes with exponential backoff)
+    expect(result.current.channelStatus.maxReconnectAttempts).toBe(15);
   });
 
 });

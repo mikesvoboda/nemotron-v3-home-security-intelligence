@@ -58,6 +58,10 @@ def mock_settings() -> MagicMock:
     settings.enrichment_url = "http://test-enrichment:8094"
     settings.ai_connect_timeout = 10.0
     settings.ai_health_timeout = 5.0
+    # Circuit breaker configuration
+    settings.enrichment_cb_failure_threshold = 5
+    settings.enrichment_cb_recovery_timeout = 60.0
+    settings.enrichment_cb_half_open_max_calls = 3
     return settings
 
 
@@ -87,6 +91,10 @@ def client_custom_url() -> EnrichmentClient:
         mock_settings = MagicMock()
         mock_settings.ai_connect_timeout = 10.0
         mock_settings.ai_health_timeout = 5.0
+        # Circuit breaker configuration
+        mock_settings.enrichment_cb_failure_threshold = 5
+        mock_settings.enrichment_cb_recovery_timeout = 60.0
+        mock_settings.enrichment_cb_half_open_max_calls = 3
         mock_settings_fn.return_value = mock_settings
         return EnrichmentClient(base_url="http://custom-enrichment:8888/")
 
@@ -639,6 +647,10 @@ class TestEnrichmentClientInit:
         mock_settings = MagicMock(spec=[])  # No enrichment_url attribute
         mock_settings.ai_connect_timeout = 10.0
         mock_settings.ai_health_timeout = 5.0
+        # Circuit breaker configuration is required
+        mock_settings.enrichment_cb_failure_threshold = 5
+        mock_settings.enrichment_cb_recovery_timeout = 60.0
+        mock_settings.enrichment_cb_half_open_max_calls = 3
         with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
             client = EnrichmentClient()
             assert client._base_url == DEFAULT_ENRICHMENT_URL.rstrip("/")

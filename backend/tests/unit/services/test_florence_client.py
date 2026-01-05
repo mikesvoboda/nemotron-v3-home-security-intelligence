@@ -60,6 +60,10 @@ def mock_settings():
         mock.return_value.florence_url = "http://localhost:8092"
         mock.return_value.ai_connect_timeout = 10.0
         mock.return_value.ai_health_timeout = 5.0
+        # Circuit breaker settings
+        mock.return_value.florence_cb_failure_threshold = 5
+        mock.return_value.florence_cb_recovery_timeout = 60.0
+        mock.return_value.florence_cb_half_open_max_calls = 3
         yield mock
 
 
@@ -1648,3 +1652,192 @@ class TestHTTPRequestVerification:
             await client.check_health()
 
             mock_client.get.assert_called_once_with("http://localhost:8092/health")
+
+
+# =============================================================================
+# Circuit Breaker Integration Tests
+# =============================================================================
+
+
+class TestCircuitBreakerIntegration:
+    """Tests for circuit breaker integration in FlorenceClient."""
+
+    @pytest.mark.asyncio
+    async def test_client_initializes_circuit_breaker(self, mock_settings) -> None:
+        """Test that client initializes a circuit breaker."""
+        mock_settings.return_value.florence_cb_failure_threshold = 5
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 3
+
+        client = FlorenceClient()
+
+        assert hasattr(client, "_circuit_breaker")
+        assert client._circuit_breaker is not None
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_opens_after_failures(self, mock_settings, sample_image) -> None:
+        """Test that circuit breaker opens after reaching failure threshold."""
+        mock_settings.return_value.florence_cb_failure_threshold = 3
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+
+        client = FlorenceClient()
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+
+            # Trigger failures up to threshold
+            for _ in range(3):
+                with pytest.raises(FlorenceUnavailableError):
+                    await client.extract(sample_image, "<CAPTION>")
+
+            # Circuit should be open now - next request should fail immediately
+            from backend.core.circuit_breaker import CircuitState
+
+            assert client._circuit_breaker.get_state() == CircuitState.OPEN
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_rejects_when_open(self, mock_settings, sample_image) -> None:
+        """Test that requests are rejected when circuit is open."""
+        mock_settings.return_value.florence_cb_failure_threshold = 2
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+
+        client = FlorenceClient()
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+
+            # Trigger failures to open circuit
+            for _ in range(2):
+                with pytest.raises(FlorenceUnavailableError):
+                    await client.extract(sample_image, "<CAPTION>")
+
+            # Reset the mock to not raise - but circuit should block
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"result": "test"}
+            mock_client.post.side_effect = None
+            mock_client.post.return_value = mock_response
+
+            # Request should be rejected due to open circuit
+            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+                await client.extract(sample_image, "<CAPTION>")
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_records_success(self, mock_settings, sample_image) -> None:
+        """Test that successful requests record success with circuit breaker."""
+        mock_settings.return_value.florence_cb_failure_threshold = 5
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 3
+
+        client = FlorenceClient()
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"result": "test"}
+            mock_client.post.return_value = mock_response
+
+            # Record some failures first
+            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+            with pytest.raises(FlorenceUnavailableError):
+                await client.extract(sample_image, "<CAPTION>")
+
+            # Circuit should still be closed (only 1 failure)
+            from backend.core.circuit_breaker import CircuitState
+
+            assert client._circuit_breaker.get_state() == CircuitState.CLOSED
+            assert client._circuit_breaker._failure_count == 1
+
+            # Now succeed - failure count should reset
+            mock_client.post.side_effect = None
+            mock_client.post.return_value = mock_response
+            await client.extract(sample_image, "<CAPTION>")
+
+            assert client._circuit_breaker._failure_count == 0
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_applies_to_all_methods(
+        self, mock_settings, sample_image
+    ) -> None:
+        """Test that circuit breaker applies to all Florence client methods."""
+        mock_settings.return_value.florence_cb_failure_threshold = 2
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+
+        client = FlorenceClient()
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+
+            # Open circuit via extract
+            for _ in range(2):
+                with pytest.raises(FlorenceUnavailableError):
+                    await client.extract(sample_image, "<CAPTION>")
+
+            # All other methods should also be blocked
+            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+                await client.ocr(sample_image)
+
+            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+                await client.detect(sample_image)
+
+            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+                await client.dense_caption(sample_image)
+
+            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+                await client.ocr_with_regions(sample_image)
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_health_check_reflects_state(self, mock_settings) -> None:
+        """Test that health check reflects circuit breaker state."""
+        mock_settings.return_value.florence_cb_failure_threshold = 2
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+
+        client = FlorenceClient()
+
+        # Manually open circuit for testing
+        client._circuit_breaker._state = client._circuit_breaker._state.__class__.OPEN
+
+        # Health check should return False when circuit is open
+        # (or at least consider circuit state in the result)
+        result = await client.check_health()
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_get_circuit_breaker_state(self, mock_settings) -> None:
+        """Test that circuit breaker state can be accessed."""
+        mock_settings.return_value.florence_cb_failure_threshold = 5
+        mock_settings.return_value.florence_cb_recovery_timeout = 60
+        mock_settings.return_value.florence_cb_half_open_max_calls = 3
+
+        client = FlorenceClient()
+
+        from backend.core.circuit_breaker import CircuitState
+
+        # Should start closed
+        assert client.get_circuit_breaker_state() == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_uses_config_settings(self, mock_settings) -> None:
+        """Test that circuit breaker uses configuration settings."""
+        mock_settings.return_value.florence_cb_failure_threshold = 10
+        mock_settings.return_value.florence_cb_recovery_timeout = 120
+        mock_settings.return_value.florence_cb_half_open_max_calls = 5
+
+        client = FlorenceClient()
+
+        assert client._circuit_breaker._failure_threshold == 10
+        assert client._circuit_breaker._recovery_timeout == 120.0
+        assert client._circuit_breaker._half_open_max_calls == 5
