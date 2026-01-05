@@ -97,14 +97,16 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_MIN_SIMILARITY: ${{ github.event.inputs.min_similarity }}
         run: |
           LIMIT_ARG=""
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          if [ -n "$INPUT_LIMIT" ]; then
+            LIMIT_ARG="--limit $INPUT_LIMIT"
           fi
 
           python scripts/audit-linear-github-sync.py \
-            --min-similarity ${{ github.event.inputs.min_similarity }} \
+            --min-similarity "$INPUT_MIN_SIMILARITY" \
             --close-matched \
             $LIMIT_ARG \
             --output table
@@ -115,19 +117,24 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_MIN_SIMILARITY: ${{ github.event.inputs.min_similarity }}
+          INPUT_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+          INPUT_BATCH_DELAY: ${{ github.event.inputs.batch_delay }}
+          INPUT_RATE_LIMIT: ${{ github.event.inputs.rate_limit }}
         run: |
           LIMIT_ARG=""
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+          if [ -n "$INPUT_LIMIT" ]; then
+            LIMIT_ARG="--limit $INPUT_LIMIT"
           fi
 
           python scripts/audit-linear-github-sync.py \
             --close-matched \
             --no-dry-run \
-            --min-similarity ${{ github.event.inputs.min_similarity }} \
-            --batch-size ${{ github.event.inputs.batch_size }} \
-            --batch-delay ${{ github.event.inputs.batch_delay }} \
-            --rate-limit ${{ github.event.inputs.rate_limit }} \
+            --min-similarity "$INPUT_MIN_SIMILARITY" \
+            --batch-size "$INPUT_BATCH_SIZE" \
+            --batch-delay "$INPUT_BATCH_DELAY" \
+            --rate-limit "$INPUT_RATE_LIMIT" \
             $LIMIT_ARG \
             --output table
 
@@ -137,27 +144,27 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBHOOK_ISSUE_IDENTIFIER: ${{ github.event.client_payload.issue_identifier }}
+          WEBHOOK_STATUS: ${{ github.event.client_payload.status }}
+          WEBHOOK_ISSUE_TITLE: ${{ github.event.client_payload.issue_title }}
         run: |
           echo "Received Linear webhook event"
-          echo "Issue: ${{ github.event.client_payload.issue_identifier }}"
-          echo "Status: ${{ github.event.client_payload.status }}"
+          echo "Issue: $WEBHOOK_ISSUE_IDENTIFIER"
+          echo "Status: $WEBHOOK_STATUS"
 
           # If the Linear issue was marked Done, close matching GitHub issue
-          if [ "${{ github.event.client_payload.status }}" = "Done" ]; then
-            ISSUE_TITLE="${{ github.event.client_payload.issue_title }}"
-            LINEAR_ID="${{ github.event.client_payload.issue_identifier }}"
-
-            echo "Searching for GitHub issues matching: $ISSUE_TITLE"
+          if [ "$WEBHOOK_STATUS" = "Done" ]; then
+            echo "Searching for GitHub issues matching: $WEBHOOK_ISSUE_TITLE"
 
             # Search for matching GitHub issue by title
-            MATCHING_ISSUES=$(gh issue list --state open --search "$ISSUE_TITLE" --json number,title --limit 5)
+            MATCHING_ISSUES=$(gh issue list --state open --search "$WEBHOOK_ISSUE_TITLE" --json number,title --limit 5)
             echo "$MATCHING_ISSUES" | jq -r '.[] | "  #\(.number): \(.title)"'
 
             # Close first exact match
             ISSUE_NUMBER=$(echo "$MATCHING_ISSUES" | jq -r '.[0].number // empty')
             if [ -n "$ISSUE_NUMBER" ]; then
               echo "Closing GitHub issue #$ISSUE_NUMBER"
-              gh issue comment "$ISSUE_NUMBER" --body "Closing: Matched to Linear task $LINEAR_ID (status: Done)
+              gh issue comment "$ISSUE_NUMBER" --body "Closing: Matched to Linear task $WEBHOOK_ISSUE_IDENTIFIER (status: Done)
 
               This issue has been migrated to Linear for tracking."
               gh issue close "$ISSUE_NUMBER" --reason completed
