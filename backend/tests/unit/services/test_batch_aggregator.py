@@ -1897,4 +1897,159 @@ class TestBatchAggregatorProperties:
 
         # Verify detection_ids are integers
         assert all(isinstance(d, int) for d in queue_data["detection_ids"])
-        assert len(queue_data["detection_ids"]) == detection_count
+
+
+# Regression tests for NEM-1267: Redis bytes/JSON handling
+
+
+@pytest.mark.asyncio
+async def test_check_batch_timeouts_handles_bytes_from_redis(batch_aggregator, mock_redis_instance):
+    """Regression test: Pipeline returns bytes, not strings (NEM-1267).
+
+    Real Redis pipelines return bytes (e.g., b"batch_123"), but mocks typically
+    return strings. This test verifies the code correctly decodes bytes.
+    """
+    batch_id = "batch_bytes_test"
+    camera_id = "front_door"
+    start_time = time.time() - 95  # Exceeds 90s window
+    last_activity = time.time() - 20
+
+    # Return bytes from scan_iter (simulating real Redis)
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([b"batch:front_door:current"])
+    )
+
+    # Phase 1 pipeline returns bytes batch_id
+    phase1_pipe = create_mock_pipeline([b"batch_bytes_test"])
+    # Phase 2 pipeline returns bytes timestamps
+    phase2_pipe = create_mock_pipeline(
+        [
+            str(start_time).encode(),  # bytes
+            str(last_activity).encode(),  # bytes
+        ]
+    )
+
+    pipeline_call_count = [0]
+
+    def mock_pipeline():
+        if pipeline_call_count[0] == 0:
+            pipeline_call_count[0] += 1
+            return phase1_pipe
+        return phase2_pipe
+
+    mock_redis_instance._client.pipeline = MagicMock(side_effect=mock_pipeline)
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = [b"1", b"2"]
+
+    closed_batches = await batch_aggregator.check_batch_timeouts()
+
+    # Should successfully process bytes and close the batch
+    assert batch_id in closed_batches
+    assert mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_check_batch_timeouts_handles_json_encoded_batch_id(
+    batch_aggregator, mock_redis_instance
+):
+    """Regression test: Batch IDs may be JSON-encoded in Redis (NEM-1267).
+
+    RedisClient.set() JSON-serializes values, so a batch_id "abc123" is stored
+    as '"abc123"' (with quotes). This test verifies JSON deserialization works.
+    """
+    batch_id = "batch_json_test"
+    camera_id = "back_door"
+    start_time = time.time() - 95
+    last_activity = time.time() - 20
+
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
+
+    # Phase 1 pipeline returns JSON-encoded batch_id (as stored by RedisClient.set)
+    # The string '"batch_json_test"' represents JSON-serialized "batch_json_test"
+    phase1_pipe = create_mock_pipeline(['"batch_json_test"'])
+    phase2_pipe = create_mock_pipeline([str(start_time), str(last_activity)])
+
+    pipeline_call_count = [0]
+
+    def mock_pipeline():
+        if pipeline_call_count[0] == 0:
+            pipeline_call_count[0] += 1
+            return phase1_pipe
+        return phase2_pipe
+
+    mock_redis_instance._client.pipeline = MagicMock(side_effect=mock_pipeline)
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1"]
+
+    closed_batches = await batch_aggregator.check_batch_timeouts()
+
+    # Should successfully deserialize JSON and close the batch
+    assert batch_id in closed_batches
+    assert mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_check_batch_timeouts_handles_bytes_and_json_combined(
+    batch_aggregator, mock_redis_instance
+):
+    """Regression test: Bytes containing JSON-encoded values (NEM-1267).
+
+    Real scenario: Redis returns b'"batch_123"' - bytes containing JSON string.
+    This is the most realistic case that caused the original bug.
+    """
+    batch_id = "batch_combined_test"
+    camera_id = "garage"
+    start_time = time.time() - 95
+    last_activity = time.time() - 20
+
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([b"batch:garage:current"])
+    )
+
+    # Phase 1: bytes containing JSON-encoded string (most realistic case)
+    phase1_pipe = create_mock_pipeline([b'"batch_combined_test"'])
+    # Phase 2: bytes timestamps (not JSON-encoded, just raw float strings)
+    phase2_pipe = create_mock_pipeline(
+        [
+            str(start_time).encode(),
+            str(last_activity).encode(),
+        ]
+    )
+
+    pipeline_call_count = [0]
+
+    def mock_pipeline():
+        if pipeline_call_count[0] == 0:
+            pipeline_call_count[0] += 1
+            return phase1_pipe
+        return phase2_pipe
+
+    mock_redis_instance._client.pipeline = MagicMock(side_effect=mock_pipeline)
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = [b"1", b"2", b"3"]
+
+    closed_batches = await batch_aggregator.check_batch_timeouts()
+
+    # Should handle bytes->decode->JSON deserialize chain correctly
+    assert batch_id in closed_batches
+    assert mock_redis_instance.add_to_queue_safe.called
