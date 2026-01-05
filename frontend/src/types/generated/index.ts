@@ -50,7 +50,10 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
-export type ServiceStatus = components['schemas']['ServiceStatus'];
+// ServiceStatus for HealthResponse.services - object with {status, message?, details?}
+export type ServiceStatus = components['schemas']['backend__api__schemas__system__ServiceStatus'];
+// ContainerStatus for ServiceInfo - enum: running | starting | unhealthy | stopped | disabled | not_found
+export type ContainerStatus = components['schemas']['ServiceStatus'];
 export type GPUStats = components['schemas']['GPUStatsResponse'];
 export type GPUStatsSample = components['schemas']['GPUStatsSample'];
 export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResponse'];
