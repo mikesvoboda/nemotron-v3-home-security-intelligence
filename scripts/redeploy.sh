@@ -3,7 +3,7 @@
 # Redeploy Script for Home Security Intelligence
 # =============================================================================
 # Stops all containers, destroys volumes, and redeploys fresh.
-# By default uses docker-compose.prod.yml (all 9 services, builds locally).
+# By default uses HYBRID mode: pulls backend/frontend from GHCR, builds AI locally.
 #
 # Usage:
 #   ./scripts/redeploy.sh [OPTIONS]
@@ -12,11 +12,19 @@
 #   --help, -h       Show this help message
 #   --dry-run        Show what would be done without executing
 #   --keep-volumes   Preserve volumes (by default, volumes are DESTROYED)
-#   --ghcr           Use pre-built GHCR images instead of building locally
-#   --tag TAG        Image tag for GHCR mode (default: latest)
-#   --skip-pull      Skip pulling images in GHCR mode
+#   --local          Build all 9 services locally (disable hybrid mode)
+#   --ghcr           Use GHCR images only (4 services, no AI)
+#   --tag TAG        Image tag for GHCR images (default: latest)
+#   --skip-pull      Skip pulling GHCR images
 #   --skip-ci-check  Skip CI build status verification (not recommended)
 #   --no-seed        Skip database seeding after clean deploy
+#   --seed-files N   Touch N random images from /export/foscam to trigger AI pipeline (default: 0)
+#   --qa             QA mode: equivalent to --keep-volumes --seed-files 100
+#
+# Modes:
+#   DEFAULT (hybrid): Pull backend/frontend from GHCR, build AI locally (9 services)
+#   --local:          Build all 9 services locally
+#   --ghcr:           Pull 4 services from GHCR only (no AI)
 #
 # Services (9 total):
 #   Core:     postgres, redis, backend, frontend
@@ -45,12 +53,15 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Default settings
 DRY_RUN="${DRY_RUN:-false}"
 KEEP_VOLUMES="${KEEP_VOLUMES:-false}"
-USE_GHCR="${USE_GHCR:-false}"
+# Mode: "hybrid" (default), "local", or "ghcr"
+DEPLOY_MODE="${DEPLOY_MODE:-hybrid}"
 SKIP_PULL="${SKIP_PULL:-false}"
 SKIP_CI_CHECK="${SKIP_CI_CHECK:-false}"
 SKIP_SEED="${SKIP_SEED:-false}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+SEED_FILES_COUNT="${SEED_FILES_COUNT:-0}"
+FOSCAM_PATH="${FOSCAM_PATH:-/export/foscam}"
 
 # Compose files
 COMPOSE_FILE_PROD="docker-compose.prod.yml"
@@ -74,7 +85,7 @@ if [ -z "$POSTGRES_PASSWORD" ]; then
         POSTGRES_PASSWORD=$(echo "$DATABASE_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
     fi
     if [ -z "$POSTGRES_PASSWORD" ]; then
-        POSTGRES_PASSWORD="security_dev_password"
+        POSTGRES_PASSWORD="security_dev_password"  # pragma: allowlist secret
     fi
     export POSTGRES_PASSWORD
 fi
@@ -151,22 +162,32 @@ OPTIONS:
     --help, -h       Show this help message
     --dry-run        Show what would be done without executing
     --keep-volumes   Preserve volumes (by default, volumes are DESTROYED)
-    --ghcr           Use pre-built GHCR images (4 services) instead of building (9 services)
-    --tag TAG        Image tag for GHCR mode (default: latest)
-    --skip-pull      Skip pulling images in GHCR mode
+    --local          Build all 9 services locally (disable hybrid mode)
+    --ghcr           Use GHCR images only (4 services, no AI)
+    --tag TAG        Image tag for GHCR images (default: latest)
+    --skip-pull      Skip pulling GHCR images
     --skip-ci-check  Skip CI build status verification (not recommended)
     --no-seed        Skip database seeding after clean deploy
+    --seed-files N   Touch N random images from /export/foscam to trigger AI pipeline
+    --qa             QA mode: --keep-volumes + --seed-files 100 (quick QA testing)
 
 DESCRIPTION:
     This script performs a CLEAN redeploy of all services:
 
-    1. Stop all running containers
-    2. Destroy volumes (postgres, redis data) - unless --keep-volumes
-    3. Build/pull fresh images
-    4. Start all containers
-    5. Verify deployment health
+    1. Force stop ALL running containers (from all compose files)
+    2. Clean up pods and orphaned containers
+    3. Destroy volumes (postgres, redis data) - unless --keep-volumes
+    4. Pull/build images based on mode
+    5. Start all containers
+    6. Verify deployment health
 
-    DEFAULT MODE (docker-compose.prod.yml):
+    HYBRID MODE (default):
+      Pulls backend/frontend from GHCR, builds AI services locally.
+      All 9 services deployed:
+      - Core (GHCR): postgres, redis, backend, frontend
+      - AI (local build): ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+
+    LOCAL MODE (--local flag):
       Builds all 9 services locally:
       - Core: postgres, redis, backend, frontend
       - AI: ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
@@ -174,23 +195,32 @@ DESCRIPTION:
     GHCR MODE (--ghcr flag):
       Pulls 4 pre-built services from GitHub Container Registry:
       - postgres, redis, backend, frontend
-      (AI services must be started separately)
+      (No AI services - use for lightweight deployments)
 
 EXAMPLES:
-    # Full clean redeploy (builds all 9 services, wipes data)
+    # Hybrid mode (default): GHCR for backend/frontend, build AI locally
     ./scripts/redeploy.sh
 
     # Redeploy but keep database/redis data
     ./scripts/redeploy.sh --keep-volumes
 
-    # Use pre-built GHCR images (4 services only)
+    # QA mode: keep volumes + seed 100 images for AI pipeline testing
+    ./scripts/redeploy.sh --qa
+
+    # Seed a specific number of files for testing
+    ./scripts/redeploy.sh --keep-volumes --seed-files 50
+
+    # Build everything locally
+    ./scripts/redeploy.sh --local
+
+    # Use GHCR images only (4 services, no AI)
     ./scripts/redeploy.sh --ghcr
 
     # Dry run to see what would happen
     ./scripts/redeploy.sh --dry-run
 
     # Deploy specific GHCR version
-    ./scripts/redeploy.sh --ghcr --tag abc1234
+    ./scripts/redeploy.sh --tag abc1234
 
 WARNING:
     By default, this script DESTROYS all volumes including:
@@ -209,20 +239,17 @@ EOF
 check_prerequisites() {
     print_header "Checking Prerequisites"
 
-    local compose_file
-    if [ "$USE_GHCR" = "true" ]; then
-        compose_file="$COMPOSE_FILE_GHCR"
-    else
-        compose_file="$COMPOSE_FILE_PROD"
-    fi
-
-    # Check compose file exists
-    print_step "Checking compose file..."
-    if [ ! -f "$PROJECT_ROOT/$compose_file" ]; then
-        print_fail "Compose file not found: $compose_file"
+    # Check compose files exist
+    print_step "Checking compose files..."
+    if [ ! -f "$PROJECT_ROOT/$COMPOSE_FILE_PROD" ]; then
+        print_fail "Compose file not found: $COMPOSE_FILE_PROD"
         return 2
     fi
-    print_success "Found $compose_file"
+    if [ ! -f "$PROJECT_ROOT/$COMPOSE_FILE_GHCR" ]; then
+        print_fail "Compose file not found: $COMPOSE_FILE_GHCR"
+        return 2
+    fi
+    print_success "Found compose files"
 
     # Check .env file exists
     print_step "Checking environment file..."
@@ -237,8 +264,8 @@ check_prerequisites() {
     print_step "Checking container runtime..."
     print_success "Using $COMPOSE_CMD ($CONTAINER_CMD)"
 
-    # Check GPU for prod mode
-    if [ "$USE_GHCR" != "true" ]; then
+    # Check GPU for modes that include AI services
+    if [ "$DEPLOY_MODE" != "ghcr" ]; then
         print_step "Checking GPU availability..."
         if command -v nvidia-smi &> /dev/null; then
             local gpu_name
@@ -249,12 +276,12 @@ check_prerequisites() {
         fi
     fi
 
-    # Check CI build status for GHCR mode
-    if [ "$USE_GHCR" = "true" ] && [ "$SKIP_CI_CHECK" != "true" ]; then
+    # Check CI build status for modes that use GHCR (hybrid and ghcr)
+    if [ "$DEPLOY_MODE" != "local" ] && [ "$SKIP_CI_CHECK" != "true" ]; then
         if ! check_ci_build_status; then
             return 1
         fi
-    elif [ "$USE_GHCR" = "true" ] && [ "$SKIP_CI_CHECK" = "true" ]; then
+    elif [ "$DEPLOY_MODE" != "local" ] && [ "$SKIP_CI_CHECK" = "true" ]; then
         print_warn "Skipping CI build status check (--skip-ci-check)"
     fi
 
@@ -345,25 +372,12 @@ check_ci_build_status() {
 }
 
 stop_and_clean() {
-    print_header "Stopping Containers"
+    print_header "Stopping All Containers"
 
     cd "$PROJECT_ROOT"
 
-    local compose_file
-    if [ "$USE_GHCR" = "true" ]; then
-        compose_file="$COMPOSE_FILE_GHCR"
-    else
-        compose_file="$COMPOSE_FILE_PROD"
-    fi
-
-    if [ "$KEEP_VOLUMES" = "true" ]; then
-        print_step "Stopping containers (preserving volumes)..."
-        if run_cmd $COMPOSE_CMD -f "$compose_file" down; then
-            print_success "Containers stopped"
-        else
-            print_warn "Some containers may not have been running"
-        fi
-    else
+    # Volume destruction warning
+    if [ "$KEEP_VOLUMES" != "true" ]; then
         echo ""
         echo -e "${RED}${BOLD}  ⚠️  WARNING: DESTRUCTIVE OPERATION  ⚠️${NC}"
         echo ""
@@ -376,13 +390,49 @@ stop_and_clean() {
             echo -e "${YELLOW}  Press Ctrl+C within 5 seconds to cancel...${NC}"
             sleep 5
         fi
+    fi
 
-        print_step "Stopping containers and DESTROYING volumes..."
-        if run_cmd $COMPOSE_CMD -f "$compose_file" down -v; then
-            print_success "Containers stopped and volumes destroyed"
+    # Stop containers from BOTH compose files to ensure clean state
+    print_step "Stopping containers from all compose files..."
+
+    local down_flags=""
+    if [ "$KEEP_VOLUMES" != "true" ]; then
+        down_flags="-v"
+    fi
+
+    # Stop prod compose containers
+    if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" down $down_flags --remove-orphans 2>/dev/null; then
+        print_success "Stopped prod compose containers"
+    else
+        print_info "No prod containers were running"
+    fi
+
+    # Stop GHCR compose containers
+    if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
+        print_success "Stopped GHCR compose containers"
+    else
+        print_info "No GHCR containers were running"
+    fi
+
+    # Force cleanup of any remaining pods and containers (Podman-specific)
+    if [ "$CONTAINER_CMD" = "podman" ]; then
+        print_step "Cleaning up pods and orphaned containers..."
+        if run_cmd $CONTAINER_CMD pod rm -f -a 2>/dev/null; then
+            print_success "Pods cleaned up"
         else
-            print_warn "Some containers may not have been running"
+            print_info "No pods to clean up"
         fi
+        if run_cmd $CONTAINER_CMD stop -a 2>/dev/null; then
+            print_success "All containers stopped"
+        else
+            print_info "No running containers"
+        fi
+    fi
+
+    if [ "$KEEP_VOLUMES" = "true" ]; then
+        print_success "Containers stopped (volumes preserved)"
+    else
+        print_success "Containers stopped and volumes destroyed"
     fi
 }
 
@@ -418,13 +468,26 @@ build_images() {
 
     cd "$PROJECT_ROOT"
 
-    print_step "Building all service images (this may take a few minutes)..."
-    if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build; then
-        print_success "All images built"
-    else
-        print_fail "Failed to build images"
-        return 1
+    if [ "$DEPLOY_MODE" = "local" ]; then
+        # Build all 9 services locally
+        print_step "Building all service images (this may take a few minutes)..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build; then
+            print_success "All images built"
+        else
+            print_fail "Failed to build images"
+            return 1
+        fi
+    elif [ "$DEPLOY_MODE" = "hybrid" ]; then
+        # Build only AI services locally
+        print_step "Building AI service images (this may take a few minutes)..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            print_success "AI images built"
+        else
+            print_fail "Failed to build AI images"
+            return 1
+        fi
     fi
+    # GHCR mode doesn't build anything
 
     return 0
 }
@@ -434,19 +497,41 @@ start_containers() {
 
     cd "$PROJECT_ROOT"
 
-    local compose_file
-    if [ "$USE_GHCR" = "true" ]; then
-        compose_file="$COMPOSE_FILE_GHCR"
-    else
-        compose_file="$COMPOSE_FILE_PROD"
-    fi
+    if [ "$DEPLOY_MODE" = "local" ]; then
+        # Start all 9 services from prod compose
+        print_step "Starting all containers from prod compose..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
+            print_success "All containers started"
+        else
+            print_fail "Failed to start containers"
+            return 1
+        fi
+    elif [ "$DEPLOY_MODE" = "ghcr" ]; then
+        # Start only 4 services from GHCR compose
+        print_step "Starting GHCR containers..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
+            print_success "GHCR containers started"
+        else
+            print_fail "Failed to start GHCR containers"
+            return 1
+        fi
+    elif [ "$DEPLOY_MODE" = "hybrid" ]; then
+        # Hybrid: Start core services from GHCR, then AI services from prod
+        print_step "Starting core containers from GHCR..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
+            print_success "Core containers started (postgres, redis, backend, frontend)"
+        else
+            print_fail "Failed to start core containers"
+            return 1
+        fi
 
-    print_step "Starting all containers..."
-    if run_cmd $COMPOSE_CMD -f "$compose_file" up -d; then
-        print_success "Containers started"
-    else
-        print_fail "Failed to start containers"
-        return 1
+        print_step "Starting AI containers from prod compose..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            print_success "AI containers started"
+        else
+            print_fail "Failed to start AI containers"
+            return 1
+        fi
     fi
 
     return 0
@@ -463,21 +548,14 @@ verify_deployment() {
     print_step "Waiting for services to initialize..."
     sleep 10
 
-    local compose_file
-    if [ "$USE_GHCR" = "true" ]; then
-        compose_file="$COMPOSE_FILE_GHCR"
-    else
-        compose_file="$COMPOSE_FILE_PROD"
-    fi
-
     # Health check endpoints
     local -a services
     services=(
         "Backend:http://localhost:8000/api/system/health/ready"
     )
 
-    # Add AI services only for prod mode
-    if [ "$USE_GHCR" != "true" ]; then
+    # Add AI services for hybrid and local modes
+    if [ "$DEPLOY_MODE" != "ghcr" ]; then
         services+=(
             "RT-DETRv2:http://localhost:8090/health"
             "Nemotron:http://localhost:8091/health"
@@ -526,7 +604,7 @@ verify_deployment() {
     # Show running containers
     echo ""
     print_step "Running containers:"
-    $COMPOSE_CMD -f "$compose_file" ps
+    $CONTAINER_CMD ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" ps
 
     return 0
 }
@@ -569,6 +647,66 @@ seed_database() {
     return 0
 }
 
+seed_files() {
+    local count="$1"
+
+    if [ "$count" -le 0 ]; then
+        return 0
+    fi
+
+    print_header "Seeding AI Pipeline with Real Images"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "Would touch $count random images from $FOSCAM_PATH"
+        return 0
+    fi
+
+    # Check if foscam directory exists
+    if [ ! -d "$FOSCAM_PATH" ]; then
+        print_warn "Foscam directory not found: $FOSCAM_PATH"
+        print_warn "Skipping file seeding"
+        return 0
+    fi
+
+    # Count available images
+    local total_images
+    total_images=$(find "$FOSCAM_PATH" -name "*.jpg" 2>/dev/null | wc -l)
+
+    if [ "$total_images" -eq 0 ]; then
+        print_warn "No JPG images found in $FOSCAM_PATH"
+        return 0
+    fi
+
+    print_info "Found $total_images images in $FOSCAM_PATH"
+
+    # Adjust count if more than available
+    if [ "$count" -gt "$total_images" ]; then
+        print_warn "Requested $count but only $total_images available, using all"
+        count="$total_images"
+    fi
+
+    print_step "Touching $count random images to trigger file watcher..."
+
+    # Select random images and touch them
+    # Using shuf for random selection, touch to update timestamp
+    local touched=0
+    while IFS= read -r file; do
+        if touch "$file" 2>/dev/null; then
+            ((touched++))
+        fi
+    done < <(find "$FOSCAM_PATH" -name "*.jpg" 2>/dev/null | shuf -n "$count")
+
+    if [ "$touched" -gt 0 ]; then
+        print_success "Touched $touched images - AI pipeline will process them"
+        print_info "Monitor progress at http://localhost:5173/ai"
+        print_info "View events at http://localhost:5173/timeline"
+    else
+        print_warn "Failed to touch any images"
+    fi
+
+    return 0
+}
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -589,8 +727,12 @@ main() {
                 KEEP_VOLUMES="true"
                 shift
                 ;;
+            --local)
+                DEPLOY_MODE="local"
+                shift
+                ;;
             --ghcr)
-                USE_GHCR="true"
+                DEPLOY_MODE="ghcr"
                 shift
                 ;;
             --skip-pull)
@@ -609,6 +751,15 @@ main() {
                 IMAGE_TAG="$2"
                 shift 2
                 ;;
+            --seed-files)
+                SEED_FILES_COUNT="$2"
+                shift 2
+                ;;
+            --qa)
+                KEEP_VOLUMES="true"
+                SEED_FILES_COUNT=100
+                shift
+                ;;
             *)
                 echo -e "${RED}Unknown option: $1${NC}"
                 echo "Use --help for usage information"
@@ -617,17 +768,22 @@ main() {
         esac
     done
 
-    # Determine compose file and mode
-    local compose_file mode_desc service_count
-    if [ "$USE_GHCR" = "true" ]; then
-        compose_file="$COMPOSE_FILE_GHCR"
-        mode_desc="GHCR (pre-built images)"
-        service_count="4"
-    else
-        compose_file="$COMPOSE_FILE_PROD"
-        mode_desc="Production (local build)"
-        service_count="9"
-    fi
+    # Determine mode description and service count
+    local mode_desc service_count
+    case "$DEPLOY_MODE" in
+        hybrid)
+            mode_desc="Hybrid (GHCR core + local AI)"
+            service_count="9"
+            ;;
+        local)
+            mode_desc="Local (build all)"
+            service_count="9"
+            ;;
+        ghcr)
+            mode_desc="GHCR only (no AI)"
+            service_count="4"
+            ;;
+    esac
 
     echo ""
     echo -e "${BLUE}${BOLD}============================================${NC}"
@@ -636,11 +792,13 @@ main() {
     echo ""
     echo -e "Mode:         ${CYAN}$mode_desc${NC}"
     echo -e "Services:     ${CYAN}$service_count${NC}"
-    echo -e "Compose:      ${CYAN}$compose_file${NC}"
     echo -e "Runtime:      ${CYAN}$COMPOSE_CMD${NC}"
     echo -e "Dry Run:      ${CYAN}$DRY_RUN${NC}"
     echo -e "Keep Volumes: ${CYAN}$KEEP_VOLUMES${NC}"
-    if [ "$USE_GHCR" = "true" ]; then
+    if [ "$SEED_FILES_COUNT" -gt 0 ]; then
+        echo -e "Seed Files:   ${CYAN}$SEED_FILES_COUNT${NC}"
+    fi
+    if [ "$DEPLOY_MODE" != "local" ]; then
         echo -e "Image Tag:    ${CYAN}$IMAGE_TAG${NC}"
     fi
     echo -e "Started:      ${CYAN}$(date '+%Y-%m-%d %H:%M:%S')${NC}"
@@ -653,8 +811,8 @@ main() {
     # Stop containers and optionally destroy volumes
     stop_and_clean
 
-    # Pull or build images
-    if [ "$USE_GHCR" = "true" ]; then
+    # Pull GHCR images for hybrid and ghcr modes
+    if [ "$DEPLOY_MODE" != "local" ]; then
         if [ "$SKIP_PULL" = "false" ]; then
             if ! pull_images; then
                 print_fail "Failed to pull images"
@@ -663,7 +821,10 @@ main() {
         else
             print_info "Skipping image pull (--skip-pull specified)"
         fi
-    else
+    fi
+
+    # Build images for local and hybrid modes
+    if [ "$DEPLOY_MODE" != "ghcr" ]; then
         if ! build_images; then
             print_fail "Failed to build images"
             exit 1
@@ -686,6 +847,9 @@ main() {
         print_info "Skipping database seeding (--no-seed specified)"
     fi
 
+    # Seed files to trigger AI pipeline if requested
+    seed_files "$SEED_FILES_COUNT"
+
     # Summary
     print_header "Redeploy Complete"
     echo ""
@@ -694,7 +858,7 @@ main() {
     echo "Services ($service_count):"
     echo "  - Backend:  http://localhost:8000"
     echo "  - Frontend: http://localhost:${FRONTEND_PORT}"
-    if [ "$USE_GHCR" != "true" ]; then
+    if [ "$DEPLOY_MODE" != "ghcr" ]; then
         echo "  - RT-DETRv2: http://localhost:8090"
         echo "  - Nemotron:  http://localhost:8091"
         echo "  - Florence:  http://localhost:8092"
@@ -703,9 +867,9 @@ main() {
     fi
     echo ""
     echo "Useful commands:"
-    echo "  View logs:    $COMPOSE_CMD -f $compose_file logs -f"
-    echo "  Stop:         $COMPOSE_CMD -f $compose_file down"
-    echo "  Restart:      $COMPOSE_CMD -f $compose_file restart"
+    echo "  View logs:    $COMPOSE_CMD -f $COMPOSE_FILE_PROD logs -f"
+    echo "  Stop:         $COMPOSE_CMD -f $COMPOSE_FILE_PROD down && $COMPOSE_CMD -f $COMPOSE_FILE_GHCR down"
+    echo "  Status:       $CONTAINER_CMD ps"
     echo ""
 
     exit 0

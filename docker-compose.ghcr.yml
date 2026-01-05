@@ -57,7 +57,9 @@ services:
     ports:
       - '8000:8000'
     volumes:
-      - ./backend/data:/app/data
+      # :U tells Podman to recursively chown the volume to match container user (appuser)
+      # Docker ignores the :U flag, making this backward compatible
+      - ./backend/data:/app/data:U
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
     environment:
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
