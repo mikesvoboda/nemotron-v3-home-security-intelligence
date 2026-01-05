@@ -1,10 +1,11 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, Settings as SettingsIcon, Shield } from 'lucide-react';
+import { Bell, Camera, Settings as SettingsIcon, Shield, TrendingUp } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { SecureContextWarning } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
+import BaselineAnalytics from './BaselineAnalytics';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
@@ -12,8 +13,9 @@ import ProcessingSettings from './ProcessingSettings';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains four settings tabs:
+ * Contains five settings tabs:
  * - CAMERAS: Camera configuration and management
+ * - ANALYTICS: Baseline activity patterns and anomaly detection settings
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
  * - NOTIFICATIONS: Email and webhook notification settings
@@ -33,6 +35,12 @@ export default function SettingsPage() {
       name: 'CAMERAS',
       icon: Camera,
       component: CamerasSettings,
+    },
+    {
+      id: 'analytics',
+      name: 'ANALYTICS',
+      icon: TrendingUp,
+      component: BaselineAnalytics,
     },
     {
       id: 'rules',

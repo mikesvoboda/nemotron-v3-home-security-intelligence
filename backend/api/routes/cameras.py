@@ -10,7 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.schemas.baseline import AnomalyListResponse, BaselineSummaryResponse
+from backend.api.schemas.baseline import (
+    ActivityBaselineEntry,
+    ActivityBaselineResponse,
+    AnomalyListResponse,
+    BaselineSummaryResponse,
+    ClassBaselineEntry,
+    ClassBaselineResponse,
+)
 from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
@@ -697,6 +704,156 @@ async def get_camera_baseline_anomalies(
         anomalies=anomalies,
         count=len(anomalies),
         period_days=days,
+    )
+
+
+@router.get("/{camera_id}/baseline/activity", response_model=ActivityBaselineResponse)
+async def get_camera_activity_baseline(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> ActivityBaselineResponse:
+    """Get raw activity baseline data for a camera.
+
+    Returns up to 168 entries (24 hours x 7 days) representing the full
+    weekly activity heatmap. Each entry contains the average count and
+    sample count for that hour/day combination.
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        ActivityBaselineResponse with entries for the heatmap
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get baseline service and fetch raw activity baselines
+    baseline_service = get_baseline_service()
+    raw_baselines = await baseline_service.get_activity_baselines_raw(camera_id, session=db)
+
+    # Calculate peak values
+    total_samples = sum(b.sample_count for b in raw_baselines)
+    avg_activity = (
+        sum(b.avg_count for b in raw_baselines) / len(raw_baselines) if raw_baselines else 0.0
+    )
+
+    # Find peak hour and day
+    peak_hour: int | None = None
+    peak_day: int | None = None
+    if raw_baselines:
+        max_baseline = max(raw_baselines, key=lambda b: b.avg_count)
+        peak_hour = max_baseline.hour
+        peak_day = max_baseline.day_of_week
+
+    # Check learning completion
+    # Learning is complete when we have at least min_samples for most time slots
+    min_samples_required = baseline_service.min_samples
+    slots_with_enough_samples = sum(
+        1 for b in raw_baselines if b.sample_count >= min_samples_required
+    )
+    # Consider learning complete if we have data for at least 80% of slots (168 * 0.8 = 134)
+    learning_complete = slots_with_enough_samples >= 134 and len(raw_baselines) >= 134
+
+    # Convert to response entries
+    entries = [
+        ActivityBaselineEntry(
+            hour=b.hour,
+            day_of_week=b.day_of_week,
+            avg_count=round(b.avg_count, 2),
+            sample_count=b.sample_count,
+            is_peak=b.avg_count > avg_activity * 1.5,  # More than 50% above average
+        )
+        for b in raw_baselines
+    ]
+
+    return ActivityBaselineResponse(
+        camera_id=camera_id,
+        entries=entries,
+        total_samples=total_samples,
+        peak_hour=peak_hour,
+        peak_day=peak_day,
+        learning_complete=learning_complete,
+        min_samples_required=min_samples_required,
+    )
+
+
+@router.get("/{camera_id}/baseline/classes", response_model=ClassBaselineResponse)
+async def get_camera_class_baseline(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> ClassBaselineResponse:
+    """Get class frequency baseline data for a camera.
+
+    Returns baseline entries grouped by object class and hour, showing
+    the frequency of each object type at different times of day.
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        ClassBaselineResponse with entries for each class/hour combination
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get baseline service and fetch raw class baselines
+    baseline_service = get_baseline_service()
+    raw_baselines = await baseline_service.get_class_baselines_raw(camera_id, session=db)
+
+    # Calculate stats
+    total_samples = sum(b.sample_count for b in raw_baselines)
+
+    # Get unique classes and find most common
+    class_totals: dict[str, int] = {}
+    for b in raw_baselines:
+        if b.detection_class not in class_totals:
+            class_totals[b.detection_class] = 0
+        class_totals[b.detection_class] += b.sample_count
+
+    unique_classes = list(class_totals.keys())
+    most_common_class = (
+        max(class_totals.keys(), key=lambda c: class_totals[c]) if class_totals else None
+    )
+
+    # Convert to response entries
+    entries = [
+        ClassBaselineEntry(
+            object_class=b.detection_class,
+            hour=b.hour,
+            frequency=round(b.frequency, 2),
+            sample_count=b.sample_count,
+        )
+        for b in raw_baselines
+    ]
+
+    return ClassBaselineResponse(
+        camera_id=camera_id,
+        entries=entries,
+        unique_classes=unique_classes,
+        total_samples=total_samples,
+        most_common_class=most_common_class,
     )
 
 

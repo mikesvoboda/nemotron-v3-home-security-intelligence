@@ -298,3 +298,259 @@ class AnomalyListResponse(BaseModel):
             }
         }
     )
+
+
+class ActivityBaselineEntry(BaseModel):
+    """A single activity baseline entry for a specific hour and day combination.
+
+    This represents one cell in the 24x7 activity heatmap (168 total entries).
+    """
+
+    hour: int = Field(
+        ...,
+        description="Hour of day (0-23)",
+        ge=0,
+        le=23,
+    )
+    day_of_week: int = Field(
+        ...,
+        description="Day of week (0=Monday, 6=Sunday)",
+        ge=0,
+        le=6,
+    )
+    avg_count: float = Field(
+        ...,
+        description="Average activity count for this time slot",
+        ge=0,
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of samples used to calculate this average",
+        ge=0,
+    )
+    is_peak: bool = Field(
+        default=False,
+        description="Whether this time slot has above-average activity",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "hour": 17,
+                "day_of_week": 0,
+                "avg_count": 5.2,
+                "sample_count": 30,
+                "is_peak": True,
+            }
+        }
+    )
+
+
+class ActivityBaselineResponse(BaseModel):
+    """Response for camera activity baseline endpoint.
+
+    Contains 168 entries (24 hours x 7 days) representing the full weekly
+    activity heatmap for a camera.
+    """
+
+    camera_id: str = Field(
+        ...,
+        description="Camera ID",
+    )
+    entries: list[ActivityBaselineEntry] = Field(
+        default_factory=list,
+        description="Activity baseline entries (up to 168 = 24h x 7 days)",
+    )
+    total_samples: int = Field(
+        ...,
+        description="Total number of samples across all entries",
+        ge=0,
+    )
+    peak_hour: int | None = Field(
+        None,
+        description="Hour with highest average activity (0-23)",
+        ge=0,
+        le=23,
+    )
+    peak_day: int | None = Field(
+        None,
+        description="Day with highest average activity (0=Monday, 6=Sunday)",
+        ge=0,
+        le=6,
+    )
+    learning_complete: bool = Field(
+        default=False,
+        description="Whether baseline has sufficient samples for reliable anomaly detection",
+    )
+    min_samples_required: int = Field(
+        default=10,
+        description="Minimum samples required per time slot for learning completion",
+        ge=1,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "camera_id": "front_door",
+                "entries": [
+                    {
+                        "hour": 0,
+                        "day_of_week": 0,
+                        "avg_count": 0.5,
+                        "sample_count": 30,
+                        "is_peak": False,
+                    },
+                    {
+                        "hour": 17,
+                        "day_of_week": 4,
+                        "avg_count": 5.2,
+                        "sample_count": 30,
+                        "is_peak": True,
+                    },
+                ],
+                "total_samples": 720,
+                "peak_hour": 17,
+                "peak_day": 4,
+                "learning_complete": True,
+                "min_samples_required": 10,
+            }
+        }
+    )
+
+
+class ClassBaselineEntry(BaseModel):
+    """Baseline entry for a specific object class at a specific hour."""
+
+    object_class: str = Field(
+        ...,
+        description="Object class (e.g., person, vehicle, animal)",
+    )
+    hour: int = Field(
+        ...,
+        description="Hour of day (0-23)",
+        ge=0,
+        le=23,
+    )
+    frequency: float = Field(
+        ...,
+        description="Frequency of this class at this hour",
+        ge=0,
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of samples for this class/hour combination",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "object_class": "person",
+                "hour": 17,
+                "frequency": 3.5,
+                "sample_count": 45,
+            }
+        }
+    )
+
+
+class ClassBaselineResponse(BaseModel):
+    """Response for camera class frequency baseline endpoint."""
+
+    camera_id: str = Field(
+        ...,
+        description="Camera ID",
+    )
+    entries: list[ClassBaselineEntry] = Field(
+        default_factory=list,
+        description="Class baseline entries grouped by class and hour",
+    )
+    unique_classes: list[str] = Field(
+        default_factory=list,
+        description="List of unique object classes detected for this camera",
+    )
+    total_samples: int = Field(
+        ...,
+        description="Total number of samples across all entries",
+        ge=0,
+    )
+    most_common_class: str | None = Field(
+        None,
+        description="Most frequently detected object class",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "camera_id": "front_door",
+                "entries": [
+                    {"object_class": "person", "hour": 17, "frequency": 3.5, "sample_count": 45},
+                    {"object_class": "vehicle", "hour": 8, "frequency": 2.1, "sample_count": 30},
+                ],
+                "unique_classes": ["person", "vehicle", "animal"],
+                "total_samples": 150,
+                "most_common_class": "person",
+            }
+        }
+    )
+
+
+class AnomalyConfig(BaseModel):
+    """Current anomaly detection configuration."""
+
+    threshold_stdev: float = Field(
+        ...,
+        description="Number of standard deviations from mean for anomaly detection",
+        gt=0,
+    )
+    min_samples: int = Field(
+        ...,
+        description="Minimum samples required before anomaly detection is reliable",
+        ge=1,
+    )
+    decay_factor: float = Field(
+        ...,
+        description="Exponential decay factor for EWMA (0 < factor <= 1)",
+        gt=0,
+        le=1,
+    )
+    window_days: int = Field(
+        ...,
+        description="Rolling window size in days for baseline calculations",
+        ge=1,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "threshold_stdev": 2.0,
+                "min_samples": 10,
+                "decay_factor": 0.1,
+                "window_days": 30,
+            }
+        }
+    )
+
+
+class AnomalyConfigUpdate(BaseModel):
+    """Request to update anomaly detection configuration."""
+
+    threshold_stdev: float | None = Field(
+        None,
+        description="Number of standard deviations from mean for anomaly detection",
+        gt=0,
+    )
+    min_samples: int | None = Field(
+        None,
+        description="Minimum samples required before anomaly detection is reliable",
+        ge=1,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "threshold_stdev": 2.5,
+                "min_samples": 15,
+            }
+        }
+    )

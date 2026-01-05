@@ -1,128 +1,233 @@
-# Entities Components Directory
+# Entity Tracking Components Directory
 
 ## Purpose
 
-Contains components for entity tracking and identification. Currently a placeholder for future functionality that will track people and vehicles detected across cameras.
-
-**Status: Work in Progress (WIP)**
+Components for tracking and displaying re-identified entities (persons and vehicles) across multiple cameras. Uses CLIP-based embeddings for cross-camera entity matching with cosine similarity threshold of 0.85.
 
 ## Files
 
-| File                    | Purpose                              |
-| ----------------------- | ------------------------------------ |
-| `EntitiesPage.tsx`      | Placeholder page for entity tracking |
-| `EntitiesPage.test.tsx` | Test suite for EntitiesPage          |
+| File                        | Purpose                                |
+| --------------------------- | -------------------------------------- |
+| `EntitiesPage.tsx`          | Main page for listing tracked entities |
+| `EntitiesPage.test.tsx`     | Test suite for EntitiesPage            |
+| `EntityCard.tsx`            | Card display for individual entity     |
+| `EntityCard.test.tsx`       | Test suite for EntityCard              |
+| `EntityTimeline.tsx`        | Timeline of entity appearances         |
+| `EntityTimeline.test.tsx`   | Test suite for EntityTimeline          |
+| `EntityDetailModal.tsx`     | Modal for entity details               |
+| `EntityDetailModal.test.tsx`| Test suite for EntityDetailModal       |
+| `index.ts`                  | Barrel exports                         |
+
+## Architecture
+
+```
+EntitiesPage
+├── Header (title, description, refresh button)
+├── Filter buttons (All | Persons | Vehicles)
+├── Stats display (person/vehicle counts)
+└── Entity grid
+    └── EntityCard (for each entity)
+        └── onClick -> EntityDetailModal
+            ├── Entity summary info
+            └── EntityTimeline
+```
 
 ## Key Components
 
 ### EntitiesPage.tsx
 
-**Purpose:** Placeholder component displaying planned entity tracking features
+**Purpose:** Main page component for entity tracking and management
+
+**Features:**
+- List tracked persons and vehicles
+- Filter by entity type (All, Persons, Vehicles)
+- Display entity type counts
+- Click to view entity details
+- Refresh functionality
+- Loading, error, and empty states
+
+**State Management:**
+```typescript
+const [entities, setEntities] = useState<EntitySummary[]>([]);
+const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
+const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
+const [modalOpen, setModalOpen] = useState(false);
+```
+
+### EntityCard.tsx
+
+**Purpose:** Card component displaying entity summary
 
 **Props Interface:**
-
 ```typescript
-// No props - standalone page component
-```
-
-**Current Implementation:**
-
-- "Coming Soon" placeholder UI
-- Feature description list
-- NVIDIA dark theme styling
-- Users icon with green accent
-
-**Planned Features (from UI):**
-
-1. Track detected people and vehicles over time
-2. View movement patterns across multiple cameras
-3. Classify entities as known or unknown
-4. Search and filter entity history
-
-**Usage:**
-
-```tsx
-import EntitiesPage from './components/entities/EntitiesPage';
-
-// In router
-<Route path="/entities" element={<EntitiesPage />} />;
-```
-
-## Future Implementation Notes
-
-When implementing entity tracking, consider:
-
-### Data Model
-
-```typescript
-interface Entity {
+interface EntityCardProps {
   id: string;
-  type: 'person' | 'vehicle' | 'other';
-  first_seen_at: string;
-  last_seen_at: string;
-  camera_ids: string[];
-  known: boolean;
-  label?: string; // "John", "Delivery Van", etc.
-  thumbnail_url?: string;
-  detection_count: number;
+  entity_type: 'person' | 'vehicle';
+  first_seen: string;
+  last_seen: string;
+  appearance_count: number;
+  cameras_seen: string[];
+  thumbnail_url: string | null;
+  onClick?: (entityId: string) => void;
+  className?: string;
 }
 ```
 
-### Planned Components
+**Features:**
+- Entity type badge with icon (User/Car)
+- Thumbnail or placeholder
+- Appearance count and camera count
+- First/last seen timestamps (relative formatting)
+- Keyboard accessible (Enter/Space to activate)
+- Hover effects
 
-- `EntityCard` - Display individual entity with thumbnail
-- `EntityTimeline` - Show entity appearances over time
-- `EntityGrid` - Grid view of all tracked entities
-- `EntityDetailModal` - Detailed entity view with history
-- `EntityFilters` - Filter by type, known/unknown, date range
+### EntityTimeline.tsx
 
-### API Endpoints (Future)
+**Purpose:** Display chronological timeline of entity appearances
 
-- `GET /api/entities` - List tracked entities
-- `GET /api/entities/:id` - Get entity details
-- `PATCH /api/entities/:id` - Update entity (mark as known, add label)
-- `GET /api/entities/:id/timeline` - Get entity appearance history
+**Props Interface:**
+```typescript
+interface EntityTimelineProps {
+  entity_id: string;
+  entity_type: 'person' | 'vehicle';
+  appearances: EntityAppearance[];
+  className?: string;
+}
 
-### Integration Points
+interface EntityAppearance {
+  detection_id: string;
+  camera_id: string;
+  camera_name: string | null;
+  timestamp: string;
+  thumbnail_url: string | null;
+  similarity_score: number | null;
+  attributes: Record<string, unknown>;
+}
+```
 
-- Object detection (RT-DETRv2) provides initial detections
-- Re-identification model matches detections to entities
-- Face recognition (optional) for person identification
-- License plate recognition (optional) for vehicles
+**Features:**
+- Chronological appearance list (most recent first)
+- Thumbnail for each appearance
+- Camera name and timestamp
+- Similarity score badge
+- Vertical timeline connector lines
+
+### EntityDetailModal.tsx
+
+**Purpose:** Modal dialog showing full entity details with timeline
+
+**Props Interface:**
+```typescript
+interface EntityDetailModalProps {
+  entity: EntityDetail | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+```
+
+**Features:**
+- HeadlessUI Dialog component
+- Entity summary stats (appearances, cameras, timestamps)
+- Camera list badges
+- Embedded EntityTimeline
+- Animated transitions
+- Accessible close buttons
+
+## API Integration
+
+Backend endpoints (see `backend/api/routes/entities.py`):
+
+| Endpoint                    | Method | Purpose                              |
+| --------------------------- | ------ | ------------------------------------ |
+| `/api/entities`             | GET    | List entities with filtering         |
+| `/api/entities/{id}`        | GET    | Get entity with all appearances      |
+| `/api/entities/{id}/history`| GET    | Get appearance timeline              |
+
+Frontend API functions (see `frontend/src/services/api.ts`):
+
+```typescript
+// Fetch paginated entity list
+fetchEntities(params?: EntitiesQueryParams): Promise<EntityListResponse>
+
+// Fetch single entity with appearances
+fetchEntity(entityId: string): Promise<EntityDetail>
+
+// Fetch entity appearance history
+fetchEntityHistory(entityId: string): Promise<EntityHistoryResponse>
+```
+
+**Query Parameters:**
+- `entity_type`: 'person' | 'vehicle' - Filter by type
+- `camera_id`: string - Filter by camera
+- `since`: ISO timestamp - Filter by time
+- `limit`: number (1-1000) - Results per page
+- `offset`: number - Pagination offset
+
+## Entity Types
+
+- **person** - Tracked person with 768-dim CLIP embedding
+- **vehicle** - Tracked vehicle with 768-dim CLIP embedding
+
+Cross-camera matching uses cosine similarity with threshold 0.85.
+Embeddings stored in Redis with 24-hour rolling window.
 
 ## Styling Conventions
 
-- Page background: inherited from Layout
-- Placeholder container: bg-[#1F1F1F], border-gray-800
-- Icon circle: bg-[#76B900]/10
-- Feature bullets: bg-[#76B900] (green dots)
-- Header icon: text-[#76B900] (NVIDIA green)
+NVIDIA Dark Theme:
+- Background: `#1F1F1F`
+- Modal background: `#1A1A1A`
+- Accent: `#76B900` (NVIDIA green)
+- Text: white, gray-300, gray-400, gray-500
+- Borders: gray-800
+
+Component-specific:
+- Entity type badge: `bg-[#76B900]/20` with green text
+- Filter buttons: active = green bg, inactive = gray
+- Timeline connector: `border-l-2 border-gray-700`
 
 ## Testing
 
-### EntitiesPage.test.tsx
+All components have comprehensive test suites:
 
-Tests cover:
+```bash
+# Run all entity component tests
+cd frontend && npm test -- --run src/components/entities/
 
-- Renders "Coming Soon" message
-- Displays feature list items
-- Shows appropriate icons
-- Has correct page structure
+# Run specific component tests
+npm test -- --run src/components/entities/EntityCard.test.tsx
+npm test -- --run src/components/entities/EntityTimeline.test.tsx
+npm test -- --run src/components/entities/EntityDetailModal.test.tsx
+npm test -- --run src/components/entities/EntitiesPage.test.tsx
+```
+
+**Test Coverage:**
+- EntityCard: 37 tests (rendering, interactions, accessibility)
+- EntityTimeline: 24 tests (rendering, chronological order, styling)
+- EntityDetailModal: 21 tests (modal behavior, content, accessibility)
+- EntitiesPage: 17 tests (loading, filtering, API integration)
+
+**Total: 99 tests**
 
 ## Dependencies
 
-- `lucide-react` - Users, Clock icons
+- `lucide-react` - Icons (Users, User, Car, Camera, Clock, Eye, etc.)
+- `@headlessui/react` - Dialog, Transition for modal
+- React hooks (useState, useCallback, useEffect)
+
+## Usage Example
+
+```tsx
+import { EntitiesPage } from './components/entities';
+
+// In router
+<Route path="/entities" element={<EntitiesPage />} />
+
+// Or use individual components
+import { EntityCard, EntityDetailModal, EntityTimeline } from './components/entities';
+```
 
 ## Entry Points
 
-**Start here:** `EntitiesPage.tsx` - Understand the placeholder structure and planned features
-
-## Development Roadmap
-
-1. **Phase 1:** Backend entity tracking service
-2. **Phase 2:** Re-identification model integration
-3. **Phase 3:** Entity API endpoints
-4. **Phase 4:** EntityCard and EntityGrid components
-5. **Phase 5:** EntityDetailModal and timeline view
-6. **Phase 6:** Search and filtering
-7. **Phase 7:** Known entity management
+**Start here:** `EntitiesPage.tsx` - Main orchestration component
+**Then explore:** `EntityCard.tsx` - Understand entity display pattern
+**For modals:** `EntityDetailModal.tsx` - Modal pattern with HeadlessUI

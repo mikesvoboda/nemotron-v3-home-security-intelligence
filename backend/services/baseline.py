@@ -965,6 +965,100 @@ class BaselineService:
         # ORDER BY timestamp DESC
         return []
 
+    async def get_activity_baselines_raw(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> list[ActivityBaseline]:
+        """Get all raw activity baseline records for a camera.
+
+        Returns up to 168 entries (24 hours x 7 days).
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            List of ActivityBaseline records.
+        """
+
+        async def _do_get(sess: AsyncSession) -> list[ActivityBaseline]:
+            activity_stmt = (
+                select(ActivityBaseline)
+                .where(ActivityBaseline.camera_id == camera_id)
+                .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)
+            )
+            result = await sess.execute(activity_stmt)
+            return list(result.scalars().all())
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    async def get_class_baselines_raw(
+        self,
+        camera_id: str,
+        *,
+        session: AsyncSession | None = None,
+    ) -> list[ClassBaseline]:
+        """Get all raw class baseline records for a camera.
+
+        Args:
+            camera_id: ID of the camera.
+            session: Optional database session.
+
+        Returns:
+            List of ClassBaseline records.
+        """
+
+        async def _do_get(sess: AsyncSession) -> list[ClassBaseline]:
+            class_stmt = (
+                select(ClassBaseline)
+                .where(ClassBaseline.camera_id == camera_id)
+                .order_by(ClassBaseline.detection_class, ClassBaseline.hour)
+            )
+            result = await sess.execute(class_stmt)
+            return list(result.scalars().all())
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
+    def update_config(
+        self,
+        *,
+        threshold_stdev: float | None = None,
+        min_samples: int | None = None,
+    ) -> None:
+        """Update the service configuration.
+
+        Args:
+            threshold_stdev: New anomaly threshold in standard deviations.
+            min_samples: New minimum samples required.
+
+        Raises:
+            ValueError: If invalid values are provided.
+        """
+        if threshold_stdev is not None:
+            if threshold_stdev <= 0:
+                raise ValueError("threshold_stdev must be positive")
+            self.anomaly_threshold_std = threshold_stdev
+
+        if min_samples is not None:
+            if min_samples < 1:
+                raise ValueError("min_samples must be at least 1")
+            self.min_samples = min_samples
+
+        logger.info(
+            f"BaselineService config updated: threshold={self.anomaly_threshold_std}std, "
+            f"min_samples={self.min_samples}"
+        )
+
 
 def get_baseline_service() -> BaselineService:
     """Get or create the global baseline service singleton.

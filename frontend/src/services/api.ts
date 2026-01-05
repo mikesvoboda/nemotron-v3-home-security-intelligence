@@ -585,6 +585,160 @@ export function getCameraSnapshotUrl(cameraId: string): string {
 }
 
 // ============================================================================
+// Baseline Analytics Types (manual definitions until regenerated)
+// ============================================================================
+
+/**
+ * A single activity baseline entry for a specific hour and day combination.
+ * Represents one cell in the 24x7 activity heatmap.
+ */
+export interface ActivityBaselineEntry {
+  /** Hour of day (0-23) */
+  hour: number;
+  /** Day of week (0=Monday, 6=Sunday) */
+  day_of_week: number;
+  /** Average activity count for this time slot */
+  avg_count: number;
+  /** Number of samples used to calculate this average */
+  sample_count: number;
+  /** Whether this time slot has above-average activity */
+  is_peak: boolean;
+}
+
+/**
+ * Response for camera activity baseline endpoint.
+ */
+export interface ActivityBaselineResponse {
+  /** Camera ID */
+  camera_id: string;
+  /** Activity baseline entries (up to 168 = 24h x 7 days) */
+  entries: ActivityBaselineEntry[];
+  /** Total number of samples across all entries */
+  total_samples: number;
+  /** Hour with highest average activity (0-23), null if no data */
+  peak_hour: number | null;
+  /** Day with highest average activity (0=Monday, 6=Sunday), null if no data */
+  peak_day: number | null;
+  /** Whether baseline has sufficient samples for reliable anomaly detection */
+  learning_complete: boolean;
+  /** Minimum samples required per time slot for learning completion */
+  min_samples_required: number;
+}
+
+/**
+ * Baseline entry for a specific object class at a specific hour.
+ */
+export interface ClassBaselineEntry {
+  /** Object class (e.g., person, vehicle, animal) */
+  object_class: string;
+  /** Hour of day (0-23) */
+  hour: number;
+  /** Frequency of this class at this hour */
+  frequency: number;
+  /** Number of samples for this class/hour combination */
+  sample_count: number;
+}
+
+/**
+ * Response for camera class frequency baseline endpoint.
+ */
+export interface ClassBaselineResponse {
+  /** Camera ID */
+  camera_id: string;
+  /** Class baseline entries grouped by class and hour */
+  entries: ClassBaselineEntry[];
+  /** List of unique object classes detected for this camera */
+  unique_classes: string[];
+  /** Total number of samples across all entries */
+  total_samples: number;
+  /** Most frequently detected object class, null if no data */
+  most_common_class: string | null;
+}
+
+/**
+ * Current anomaly detection configuration.
+ */
+export interface AnomalyConfig {
+  /** Number of standard deviations from mean for anomaly detection */
+  threshold_stdev: number;
+  /** Minimum samples required before anomaly detection is reliable */
+  min_samples: number;
+  /** Exponential decay factor for EWMA (0 < factor <= 1) */
+  decay_factor: number;
+  /** Rolling window size in days for baseline calculations */
+  window_days: number;
+}
+
+/**
+ * Request to update anomaly detection configuration.
+ */
+export interface AnomalyConfigUpdate {
+  /** Number of standard deviations from mean for anomaly detection */
+  threshold_stdev?: number;
+  /** Minimum samples required before anomaly detection is reliable */
+  min_samples?: number;
+}
+
+// ============================================================================
+// Baseline Analytics Endpoints
+// ============================================================================
+
+/**
+ * Fetch activity baseline data for a camera.
+ * Returns up to 168 entries (24 hours x 7 days) representing the full weekly
+ * activity heatmap.
+ *
+ * @param cameraId - Camera ID
+ * @returns ActivityBaselineResponse with entries for the heatmap
+ */
+export async function fetchCameraActivityBaseline(
+  cameraId: string
+): Promise<ActivityBaselineResponse> {
+  return fetchApi<ActivityBaselineResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/baseline/activity`
+  );
+}
+
+/**
+ * Fetch class frequency baseline data for a camera.
+ * Returns baseline entries grouped by object class and hour.
+ *
+ * @param cameraId - Camera ID
+ * @returns ClassBaselineResponse with entries for each class/hour combination
+ */
+export async function fetchCameraClassBaseline(
+  cameraId: string
+): Promise<ClassBaselineResponse> {
+  return fetchApi<ClassBaselineResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/baseline/classes`
+  );
+}
+
+/**
+ * Fetch current anomaly detection configuration.
+ *
+ * @returns AnomalyConfig with current anomaly detection settings
+ */
+export async function fetchAnomalyConfig(): Promise<AnomalyConfig> {
+  return fetchApi<AnomalyConfig>('/api/system/anomaly-config');
+}
+
+/**
+ * Update anomaly detection configuration.
+ *
+ * @param config - Configuration values to update (only provided values are changed)
+ * @returns AnomalyConfig with updated settings
+ */
+export async function updateAnomalyConfig(
+  config: AnomalyConfigUpdate
+): Promise<AnomalyConfig> {
+  return fetchApi<AnomalyConfig>('/api/system/anomaly-config', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  });
+}
+
+// ============================================================================
 // System Endpoints
 // ============================================================================
 
@@ -2242,4 +2396,134 @@ export async function importPrompts(
     method: 'POST',
     body: JSON.stringify({ prompts, overwrite }),
   });
+}
+
+// ============================================================================
+// Entity Re-Identification Endpoints
+// ============================================================================
+
+/**
+ * Entity appearance at a specific time and camera
+ */
+export interface EntityAppearance {
+  detection_id: string;
+  camera_id: string;
+  camera_name: string | null;
+  timestamp: string;
+  thumbnail_url: string | null;
+  similarity_score: number | null;
+  attributes: Record<string, unknown>;
+}
+
+/**
+ * Entity summary for list responses
+ */
+export interface EntitySummary {
+  id: string;
+  entity_type: 'person' | 'vehicle';
+  first_seen: string;
+  last_seen: string;
+  appearance_count: number;
+  cameras_seen: string[];
+  thumbnail_url: string | null;
+}
+
+/**
+ * Detailed entity information including appearance history
+ */
+export interface EntityDetail extends EntitySummary {
+  appearances: EntityAppearance[];
+}
+
+/**
+ * Paginated entity list response
+ */
+export interface EntityListResponse {
+  entities: EntitySummary[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Entity appearance history response
+ */
+export interface EntityHistoryResponse {
+  entity_id: string;
+  entity_type: string;
+  appearances: EntityAppearance[];
+  count: number;
+}
+
+/**
+ * Query parameters for fetching entities
+ */
+export interface EntitiesQueryParams {
+  /** Filter by entity type ('person' or 'vehicle') */
+  entity_type?: 'person' | 'vehicle';
+  /** Filter by camera ID */
+  camera_id?: string;
+  /** Filter entities seen since this timestamp (ISO format) */
+  since?: string;
+  /** Maximum number of results (1-1000, default 50) */
+  limit?: number;
+  /** Number of results to skip for pagination */
+  offset?: number;
+}
+
+/**
+ * Fetch tracked entities with optional filtering and pagination.
+ *
+ * Returns a paginated list of entities that have been tracked via
+ * re-identification (persons and vehicles seen across cameras).
+ *
+ * @param params - Query parameters for filtering
+ * @param options - Fetch options including AbortSignal
+ * @returns EntityListResponse with filtered entities and pagination info
+ */
+export async function fetchEntities(
+  params?: EntitiesQueryParams,
+  options?: FetchOptions
+): Promise<EntityListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.entity_type) queryParams.append('entity_type', params.entity_type);
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+    if (params.since) queryParams.append('since', params.since);
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/entities?${queryString}` : '/api/entities';
+
+  return fetchApi<EntityListResponse>(endpoint, options);
+}
+
+/**
+ * Fetch detailed information about a specific entity.
+ *
+ * Returns the entity's summary information along with all recorded appearances.
+ *
+ * @param entityId - Unique entity identifier
+ * @returns EntityDetail with full entity information including appearances
+ */
+export async function fetchEntity(entityId: string): Promise<EntityDetail> {
+  return fetchApi<EntityDetail>(`/api/entities/${encodeURIComponent(entityId)}`);
+}
+
+/**
+ * Fetch the appearance timeline for a specific entity.
+ *
+ * Returns a chronological list of all appearances for the entity
+ * across all cameras.
+ *
+ * @param entityId - Unique entity identifier
+ * @returns EntityHistoryResponse with appearance timeline
+ */
+export async function fetchEntityHistory(entityId: string): Promise<EntityHistoryResponse> {
+  return fetchApi<EntityHistoryResponse>(
+    `/api/entities/${encodeURIComponent(entityId)}/history`
+  );
 }
