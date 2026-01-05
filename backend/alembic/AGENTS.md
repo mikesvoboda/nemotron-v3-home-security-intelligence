@@ -20,28 +20,54 @@ backend/alembic/
     ├── audit_logs_table.py
     ├── add_baseline_tables.py
     ├── add_clip_path_column.py
-    └── fix_datetime_timezone.py
+    ├── fix_datetime_timezone.py
+    ├── fix_search_vector_backfill.py
+    ├── add_llm_prompt_column.py
+    ├── add_event_audits_table.py
+    ├── add_camera_unique_constraints.py
+    ├── add_enrichment_data_column.py
+    ├── add_object_types_gin_trgm_index.py
+    ├── add_prompt_versions_table.py
+    └── d4cdaa821492_merge_heads.py
 ```
 
 ## Current Migration Chain
 
 ```
-968b0dff6a9b (initial_schema) - cameras, events, detections, gpu_stats, logs, api_keys
+968b0dff6a9b (initial_schema)
        |
-20251228_fts - full-text search vector on events
+20251228_fts (add_fts_search_vector)
        |
-add_alerts_rules - alert_rules and alerts tables
+add_alerts_rules (add_alerts_and_alert_rules)
        |
-add_zones_001 - zones table for camera regions
+add_zones_001 (add_zones_table)
        |
-add_audit_logs - audit_logs table
+add_audit_logs (audit_logs_table)
        |
-add_baselines - activity_baselines and class_baselines tables
+add_baselines (add_baseline_tables)
        |
-add_clip_path - clip_path column on events table
+add_clip_path (add_clip_path_column)
        |
-fix_datetime_tz - datetime timezone awareness fixes
+fix_datetime_tz (fix_datetime_timezone)
+       |
+fix_search_vector_backfill
+       |
+add_llm_prompt (add_llm_prompt_column)
+       |
+add_event_audits (add_event_audits_table)
+       |
+add_camera_unique_constraints
+       |
+add_enrichment_data (add_enrichment_data_column)
+       |
+       +-----> add_object_types_gin_trgm (add_object_types_gin_trgm_index)
+       |                    |
+       +-----> add_prompt_versions (add_prompt_versions_table)
+                            |
+                            +-----> d4cdaa821492 (merge_heads)
 ```
+
+Note: The migration chain includes a merge point where `add_object_types_gin_trgm` and `add_prompt_versions` were merged into `d4cdaa821492`.
 
 ## Key Files
 

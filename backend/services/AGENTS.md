@@ -145,11 +145,19 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `audit.py`         | Audit logging for security-sensitive actions | Yes                        |
 | `audit_service.py` | AI pipeline audit and self-evaluation        | No (import directly)       |
 
+### Prompt Management Services
+
+| Service                     | Purpose                                   | Exported via `__init__.py` |
+| --------------------------- | ----------------------------------------- | -------------------------- |
+| `prompts.py`                | LLM prompt templates                      | No (import directly)       |
+| `prompt_service.py`         | CRUD operations for AI prompt configs     | No (import directly)       |
+| `prompt_storage.py`         | File-based prompt storage with versioning | No (import directly)       |
+| `prompt_version_service.py` | Prompt version history and restoration    | No (import directly)       |
+
 ### Utility Services
 
 | Service             | Purpose                                  | Exported via `__init__.py` |
 | ------------------- | ---------------------------------------- | -------------------------- |
-| `prompts.py`        | LLM prompt templates                     | No (import directly)       |
 | `search.py`         | Full-text search for events              | Yes                        |
 | `severity.py`       | Severity level mapping and configuration | Yes                        |
 | `clip_generator.py` | Video clip generation for events         | Yes                        |

@@ -13,11 +13,14 @@ Page Object Model (POM) classes that encapsulate page selectors and interactions
 | `DashboardPage.ts` | Main dashboard page selectors/actions   |
 | `TimelinePage.ts`  | Event timeline page                     |
 | `AlertsPage.ts`    | Alerts management page                  |
+| `AlertRulesPage.ts`| Alert rules configuration page          |
 | `EntitiesPage.ts`  | Entity tracking page                    |
 | `LogsPage.ts`      | Application logs page                   |
 | `AuditPage.ts`     | Audit log viewer page                   |
+| `AIAuditPage.ts`   | AI pipeline audit page                  |
 | `SystemPage.ts`    | System monitoring page                  |
 | `SettingsPage.ts`  | Application settings page               |
+| `ZonesPage.ts`     | Camera zone configuration page          |
 
 ## BasePage - Base Class
 
@@ -193,6 +196,31 @@ readonly disconnectedIndicator: Locator;
 - Notification settings
 - Storage dashboard
 - DLQ monitor
+
+### AlertRulesPage
+
+- Alert rules table
+- Rule creation modal
+- Rule editing
+- Rule enable/disable
+- Rule deletion
+- Rule test functionality
+
+### AIAuditPage
+
+- AI pipeline audit table
+- Quality score display
+- Model contributions view
+- Evaluation triggers
+- Event drill-down
+
+### ZonesPage
+
+- Zone list for cameras
+- Zone editor modal
+- Zone drawing canvas
+- Zone form
+- Zone deletion
 
 ## Usage Pattern
 

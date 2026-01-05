@@ -51,9 +51,9 @@ backend/models/
 - `GPUStats` - GPU performance metrics model
 - `Log` - Structured application log model
 - `APIKey` - API key authentication model
-- `PromptVersion`, `AIModel` - Prompt version tracking model and enum
+- `PromptVersion`, `AIModel` - Prompt version tracking model and enum (not re-exported via `__init__.py` - import directly from `backend.models.prompt_version`)
 - `SceneChange`, `SceneChangeType` - Scene change detection model and enum
-- `Severity` - Shared severity enumeration
+- `Severity`, `CameraStatus` - Shared enumerations
 
 ## `camera.py` - Camera Model
 
@@ -474,14 +474,23 @@ backend/models/
 
 ## `enums.py` - Shared Enumerations
 
-**Severity Enum:** LOW, MEDIUM, HIGH, CRITICAL
+### CameraStatus Enum
+
+Indicates the operational state of a camera:
+
+- `ONLINE` - Camera is active and receiving images
+- `OFFLINE` - Camera is not currently active
+- `ERROR` - Camera is experiencing an error condition
+- `UNKNOWN` - Camera status cannot be determined
+
+### Severity Enum
 
 Maps risk scores to severity levels (configurable thresholds):
 
-- LOW: 0-29 (routine activity)
-- MEDIUM: 30-59 (notable activity)
-- HIGH: 60-84 (concerning activity)
-- CRITICAL: 85-100 (immediate attention)
+- `LOW` - 0-29 (routine activity)
+- `MEDIUM` - 30-59 (notable activity)
+- `HIGH` - 60-84 (concerning activity)
+- `CRITICAL` - 85-100 (immediate attention)
 
 ## `gpu_stats.py` - GPU Statistics Model
 

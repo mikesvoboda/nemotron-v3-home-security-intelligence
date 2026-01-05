@@ -273,7 +273,6 @@ Then mount SSL certificates into the container.
 
 ## Related Files
 
-- `/docker-compose.yml` - Main compose file with vsftpd service definition
-- `/docker-compose.prod.yml` - Production compose file
+- `/docker-compose.prod.yml` - Production compose file with vsftpd service definition
 - `/backend/services/file_watcher.py` - Service that monitors uploaded files
 - `/CLAUDE.md` - Project documentation mentioning FTP camera configuration

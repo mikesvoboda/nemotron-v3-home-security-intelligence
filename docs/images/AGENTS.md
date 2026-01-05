@@ -8,13 +8,30 @@ This directory contains visual assets for documentation, including UI mockups, a
 
 ```
 images/
-  AGENTS.md              # This file
-  .gitkeep               # Ensures directory is tracked in git
-  dashboard-mockup.svg   # Main dashboard UI mockup (vector)
-  dashboard.png          # Dashboard screenshot
-  dashboard-full.png     # Full dashboard screenshot (larger)
-  timeline.png           # Event timeline page screenshot
-  alerts.png             # Alerts page screenshot
+  AGENTS.md                    # This file
+  SCREENSHOT_GUIDE.md          # Screenshot capture guidelines
+  .gitkeep                     # Ensures directory is tracked in git
+
+  # UI Screenshots
+  dashboard-mockup.svg         # Main dashboard UI mockup (vector, 10KB)
+  dashboard.png                # Dashboard screenshot (84KB)
+  dashboard-full.png           # Full dashboard screenshot (213KB)
+  timeline.png                 # Event timeline page screenshot (139KB)
+  alerts.png                   # Alerts page screenshot (67KB)
+
+  # Architecture Diagrams (generated AI visualizations, ~5MB each)
+  arch-model-zoo.png           # Model Zoo architecture diagram
+  arch-system-overview.png     # System overview architecture diagram
+  arch-websocket-flow.png      # WebSocket communication flow diagram
+  deploy-docker-topology.png   # Docker deployment topology diagram
+  erd-data-model.png           # Entity-Relationship data model diagram
+  flow-ai-pipeline.png         # AI pipeline flow diagram
+  flow-batch-aggregator.png    # Batch aggregator flow diagram
+
+  # Informational Diagrams
+  info-camera-to-event.png     # Camera to event flow infographic
+  info-detection-types.png     # Detection types infographic
+  info-risk-scoring.png        # Risk scoring infographic
 ```
 
 ## Current Assets
@@ -58,6 +75,70 @@ images/
 **Purpose:** Screenshot of the alerts page showing security events
 
 **Usage:** User guide documentation, alert interpretation guides.
+
+### Architecture Diagrams
+
+**arch-model-zoo.png**
+
+- **Type:** PNG raster image (~5.6MB)
+- **Purpose:** Visual representation of the Model Zoo architecture
+- **Usage:** Architecture documentation, model selection guides
+
+**arch-system-overview.png**
+
+- **Type:** PNG raster image (~5.0MB)
+- **Purpose:** High-level system architecture overview
+- **Usage:** Architecture documentation, onboarding materials
+
+**arch-websocket-flow.png**
+
+- **Type:** PNG raster image (~5.7MB)
+- **Purpose:** WebSocket communication flow between services
+- **Usage:** Real-time architecture documentation
+
+**deploy-docker-topology.png**
+
+- **Type:** PNG raster image (~4.9MB)
+- **Purpose:** Docker deployment topology showing container relationships
+- **Usage:** Deployment documentation, operator guides
+
+**erd-data-model.png**
+
+- **Type:** PNG raster image (~4.6MB)
+- **Purpose:** Entity-Relationship diagram for database schema
+- **Usage:** Data model documentation, developer reference
+
+**flow-ai-pipeline.png**
+
+- **Type:** PNG raster image (~4.3MB)
+- **Purpose:** AI processing pipeline flow diagram
+- **Usage:** AI pipeline documentation, debugging guides
+
+**flow-batch-aggregator.png**
+
+- **Type:** PNG raster image (~5.2MB)
+- **Purpose:** Batch aggregator timing and flow visualization
+- **Usage:** Pipeline documentation, performance tuning
+
+### Informational Diagrams
+
+**info-camera-to-event.png**
+
+- **Type:** PNG raster image (~5.3MB)
+- **Purpose:** Illustrates the journey from camera capture to security event
+- **Usage:** User documentation, overview materials
+
+**info-detection-types.png**
+
+- **Type:** PNG raster image (~6.1MB)
+- **Purpose:** Visual guide to supported detection types
+- **Usage:** User documentation, feature guides
+
+**info-risk-scoring.png**
+
+- **Type:** PNG raster image (~5.2MB)
+- **Purpose:** Explains risk scoring methodology
+- **Usage:** User documentation, alert interpretation
 
 ## Color Scheme
 

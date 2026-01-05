@@ -24,11 +24,14 @@ frontend/tests/
 │   │   ├── DashboardPage.ts
 │   │   ├── TimelinePage.ts
 │   │   ├── AlertsPage.ts
+│   │   ├── AlertRulesPage.ts
 │   │   ├── EntitiesPage.ts
 │   │   ├── LogsPage.ts
 │   │   ├── AuditPage.ts
+│   │   ├── AIAuditPage.ts
 │   │   ├── SystemPage.ts
-│   │   └── SettingsPage.ts
+│   │   ├── SettingsPage.ts
+│   │   └── ZonesPage.ts
 │   ├── specs/          # Test specification files
 │   │   ├── AGENTS.md   # Specs documentation
 │   │   ├── smoke.spec.ts       # Dashboard loading and smoke tests
@@ -37,13 +40,21 @@ frontend/tests/
 │   │   ├── realtime.spec.ts    # Real-time/WebSocket tests
 │   │   ├── events.spec.ts      # Events and timeline tests
 │   │   ├── alerts.spec.ts      # Alerts page tests
+│   │   ├── alert-rules.spec.ts # Alert rules configuration tests
 │   │   ├── entities.spec.ts    # Entities page tests
 │   │   ├── logs.spec.ts        # Logs page tests
 │   │   ├── audit.spec.ts       # Audit log tests
+│   │   ├── ai-audit.spec.ts    # AI pipeline audit tests
 │   │   ├── system.spec.ts      # System monitoring tests
 │   │   ├── settings.spec.ts    # Settings page tests
+│   │   ├── zones.spec.ts       # Camera zones tests
 │   │   ├── responsive.spec.ts  # Responsive design tests
+│   │   ├── accessibility.spec.ts # WCAG 2.1 AA compliance tests
 │   │   └── error-handling.spec.ts  # Error state tests
+│   ├── utils/          # Test utility functions
+│   │   ├── AGENTS.md   # Utils documentation
+│   │   ├── index.ts    # Central utility exports
+│   │   └── accessibility.ts  # Accessibility testing helpers
 │   └── .gitkeep        # Git placeholder
 └── integration/        # Integration tests (WebSocket, cross-component)
     ├── AGENTS.md       # Integration tests documentation

@@ -10,7 +10,15 @@ This directory contains static assets that are served directly at the root URL p
 | ------------- | --------------------------------------------------------- |
 | `.gitkeep`    | Empty placeholder to ensure directory exists in git       |
 | `favicon.svg` | Application favicon (security shield icon with checkmark) |
+| `images/`     | Subdirectory containing brand images                      |
 | `AGENTS.md`   | This documentation file                                   |
+
+### images/ Subdirectory
+
+| File                    | Purpose                                             |
+| ----------------------- | --------------------------------------------------- |
+| `nvidia-eye.svg`        | NVIDIA eye icon for AI/monitoring visual elements   |
+| `nvidia-logo-white.svg` | White NVIDIA logo for dark theme header/branding    |
 
 ## favicon.svg
 

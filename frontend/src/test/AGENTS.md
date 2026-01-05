@@ -30,7 +30,13 @@ test: {
 2. **Fix HeadlessUI focus issue** - Makes `HTMLElement.prototype.focus` configurable for jsdom
 3. **Mock ResizeObserver** - Required for Headless UI Dialog component
 4. **Mock IntersectionObserver** - Required for visibility detection components
-5. **Automatic cleanup** - Unmounts rendered components after each test
+5. **Comprehensive cleanup** - Handles multiple sources of test leakage:
+   - `cleanup()` - Unmounts rendered React components
+   - `vi.clearAllMocks()` - Clears mock function calls and instances
+   - `vi.clearAllTimers()` - Clears pending fake timers (setTimeout/setInterval)
+   - `vi.useRealTimers()` - Resets to real timers if fake timers were used
+   - `vi.unstubAllGlobals()` - Unstubs all global mocks (fetch, WebSocket, etc.)
+6. **Final cleanup (afterAll)** - Ensures remaining state is cleaned up after all tests
 
 **Browser API Mocks:**
 
@@ -163,7 +169,9 @@ describe('MyComponent', () => {
 
 - This setup applies globally to all unit tests
 - No need to import matchers in individual test files
-- `cleanup()` runs automatically after each test
+- Comprehensive cleanup runs automatically after each test (React, mocks, timers, globals)
 - `globals: true` means `describe`, `it`, `expect` are available without imports
 - CSS is processed (`css: true`) for components that depend on styles
 - Memory optimization via `pool: 'forks'` with `singleFork: true`
+- Fake timers are automatically reset to real timers after each test
+- Global stubs (fetch, WebSocket) are automatically cleared between tests

@@ -14,12 +14,16 @@ Playwright test specification files that verify end-to-end application behavior.
 | `realtime.spec.ts`       | 8     | WebSocket and live updates       |
 | `events.spec.ts`         | 16    | Event timeline and details       |
 | `alerts.spec.ts`         | 12    | Alert management and filtering   |
+| `alert-rules.spec.ts`    | 10    | Alert rule configuration         |
 | `entities.spec.ts`       | 8     | Entity tracking                  |
 | `logs.spec.ts`           | 14    | Application logs viewer          |
 | `audit.spec.ts`          | 12    | Audit log viewer                 |
+| `ai-audit.spec.ts`       | 10    | AI pipeline audit page           |
 | `system.spec.ts`         | 18    | System monitoring panels         |
 | `settings.spec.ts`       | 10    | Application settings             |
+| `zones.spec.ts`          | 12    | Camera zone configuration        |
 | `responsive.spec.ts`     | 20    | Mobile/tablet viewports          |
+| `accessibility.spec.ts`  | 8     | WCAG 2.1 AA compliance           |
 | `error-handling.spec.ts` | 14    | Error states and recovery        |
 
 ## Test Structure Pattern

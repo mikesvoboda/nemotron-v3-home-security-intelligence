@@ -51,18 +51,25 @@ frontend/
 
 ### Docker and Deployment
 
-| File              | Purpose                                         |
-| ----------------- | ----------------------------------------------- |
-| `Dockerfile`      | Development container (Node 20.19.6-alpine3.23) |
-| `Dockerfile.prod` | Production multi-stage build with nginx         |
-| `nginx.conf`      | Nginx configuration for production              |
-| `.dockerignore`   | Files excluded from Docker builds               |
+| File                    | Purpose                                                                  |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `Dockerfile`            | Multi-stage production build (build with Node, serve with nginx)         |
+| `docker-entrypoint.sh`  | Container entrypoint script with runtime environment variable injection  |
+| `nginx.conf`            | Nginx configuration for production (SPA routing, gzip, security headers) |
+| `.dockerignore`         | Files excluded from Docker builds                                        |
 
 ### Entry Point
 
 | File         | Purpose                                 |
 | ------------ | --------------------------------------- |
 | `index.html` | HTML entry point, loads `/src/main.tsx` |
+
+### Environment and Node Version
+
+| File     | Purpose                                          |
+| -------- | ------------------------------------------------ |
+| `.npmrc` | npm configuration (engine strict mode)           |
+| `.nvmrc` | Node.js version specification (22 for this repo) |
 
 ### Documentation
 
@@ -244,19 +251,16 @@ Import types from `src/services/api.ts` which re-exports all generated types.
 
 ## Docker Configuration
 
-### Development (`Dockerfile`)
+### Production Docker Build
 
-- Base: node:20.19.6-alpine3.23
-- Runs Vite dev server on port 5173
-- Runs as non-root user for security
+The `Dockerfile` uses a multi-stage build:
 
-### Production (`Dockerfile.prod`)
-
-- Multi-stage build
-- Stage 1: Build with Node.js
-- Stage 2: Serve with nginx:1.28.1-alpine3.23
+- **Stage 1 (build)**: Node 22.16.0-alpine for building the React app
+- **Stage 2 (production)**: nginx:1.28.1-alpine3.23 for serving
+- Uses `docker-entrypoint.sh` for runtime environment variable injection
 - Includes health check endpoint
 - Gzip compression and security headers
+- Runs as non-root user (nginx) for security
 
 ## Integration with Backend
 
