@@ -6,9 +6,31 @@ Integration tests verify that multiple components work together correctly. Unlik
 
 ## Running Tests
 
+### Parallel Execution (Recommended)
+
+Integration tests now support **parallel execution** with pytest-xdist, achieving up to **5x speedup**:
+
 ```bash
-# All integration tests
-pytest backend/tests/integration/ -v
+# Parallel execution with 8 workers (recommended)
+uv run pytest backend/tests/integration/ -n8 --dist=worksteal
+
+# Parallel execution with auto workers (may use too many on high-core machines)
+uv run pytest backend/tests/integration/ -n auto --dist=worksteal
+
+# Benchmark results (1575 tests):
+# - Serial (-n0):  ~169 seconds
+# - 4 workers:     ~50 seconds  (3.4x speedup)
+# - 8 workers:     ~33 seconds  (5.1x speedup)
+# - 16 workers:    ~28 seconds  (6x speedup, but more flaky tests)
+```
+
+**Recommended:** Use `-n8` for the best balance of speed and reliability.
+
+### Serial Execution
+
+```bash
+# All integration tests (serial - legacy mode)
+pytest backend/tests/integration/ -v -n0
 
 # Single test file
 pytest backend/tests/integration/test_api.py -v
@@ -33,10 +55,10 @@ backend/tests/integration/
 ├── .gitkeep                               # Directory placeholder
 ├── COVERAGE.md                            # Coverage documentation
 ├── README.md                              # Integration test documentation
-└── test_*.py                              # Test files (55 total)
+└── test_*.py                              # Test files (56 total)
 ```
 
-## Test Files (55 total)
+## Test Files (56 total)
 
 ### API Endpoint Tests (21 files)
 
@@ -93,14 +115,15 @@ backend/tests/integration/
 | `test_model_cascades.py` | Model cascade deletes   |
 | `test_models.py`         | SQLAlchemy model tests  |
 
-### Error Handling Tests (4 files)
+### Error Handling Tests (5 files)
 
-| File                           | Coverage                   |
-| ------------------------------ | -------------------------- |
-| `test_api_error_scenarios.py`  | API error scenarios        |
-| `test_api_errors.py`           | API error handling         |
-| `test_http_error_codes.py`     | HTTP error code validation |
-| `test_transaction_rollback.py` | Transaction rollback       |
+| File                           | Coverage                         |
+| ------------------------------ | -------------------------------- |
+| `test_api_error_scenarios.py`  | API error scenarios              |
+| `test_api_errors.py`           | API error handling               |
+| `test_database_isolation.py`   | Savepoint, concurrency, cascades |
+| `test_http_error_codes.py`     | HTTP error code validation       |
+| `test_transaction_rollback.py` | Transaction rollback             |
 
 ### Pipeline and Full Stack Tests (7 files)
 
@@ -132,6 +155,17 @@ backend/tests/integration/
 
 Integration tests use fixtures from `backend/tests/integration/conftest.py`:
 
+### Session-Scoped Fixtures (per xdist worker)
+
+| Fixture              | Description                                         |
+| -------------------- | --------------------------------------------------- |
+| `postgres_container` | PostgreSQL container or local service               |
+| `redis_container`    | Redis container or local service                    |
+| `worker_db_url`      | Worker-specific database URL for parallel isolation |
+| `worker_redis_url`   | Worker-specific Redis URL for parallel isolation    |
+
+### Function-Scoped Fixtures (per test)
+
 | Fixture               | Description                                        |
 | --------------------- | -------------------------------------------------- |
 | `integration_env`     | Sets DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH |
@@ -139,10 +173,63 @@ Integration tests use fixtures from `backend/tests/integration/conftest.py`:
 | `mock_redis`          | AsyncMock Redis client                             |
 | `db_session`          | Direct AsyncSession access                         |
 | `isolated_db_session` | AsyncSession with savepoint rollback               |
+| `session`             | Alias for `isolated_db_session` (compatibility)    |
 | `client`              | httpx AsyncClient with ASGITransport               |
 | `clean_tables`        | DELETE all data before/after test                  |
 
-## Database Isolation
+## Parallel Execution Architecture (NEM-1363)
+
+Integration tests support parallel execution via pytest-xdist with worker-isolated databases.
+
+### How Worker Isolation Works
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    pytest-xdist Controller                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐           │
+│  │  gw0    │  │  gw1    │  │  gw2    │  │  gw3    │  ...      │
+│  │ worker  │  │ worker  │  │ worker  │  │ worker  │           │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘           │
+│       │            │            │            │                  │
+│       ▼            ▼            ▼            ▼                  │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐           │
+│  │security │  │security │  │security │  │security │           │
+│  │_test_gw0│  │_test_gw1│  │_test_gw2│  │_test_gw3│           │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘           │
+│                                                                  │
+│                   PostgreSQL Server                              │
+└────────────────────────────────────────────────────────────────┘
+```
+
+1. **Session-scoped containers**: PostgreSQL and Redis containers are started once per session
+2. **Worker-specific databases**: Each xdist worker creates its own database (`security_test_gw0`, `security_test_gw1`, etc.)
+3. **Worker-specific Redis DBs**: Each worker uses a different Redis database number (0-15)
+4. **Automatic cleanup**: Worker databases are dropped at session end
+
+### Key Implementation Details
+
+```python
+# Worker ID detection (from xdist)
+worker_id = xdist.get_xdist_worker_id(request)  # 'gw0', 'gw1', or 'master'
+
+# Database naming
+db_name = f"security_test_{worker_id}"  # security_test_gw0, etc.
+
+# Redis database selection
+redis_db = int(worker_id.replace('gw', ''))  # 0, 1, 2, etc.
+```
+
+### Fixture Chain for Parallel Execution
+
+```
+worker_db_url (session) ─┐
+                         ├─► integration_env ─► integration_db ─► session/client
+worker_redis_url (session)┘
+```
+
+## Database Isolation (Per-Test)
 
 Integration tests use automatic cleanup to prevent data leakage between tests:
 

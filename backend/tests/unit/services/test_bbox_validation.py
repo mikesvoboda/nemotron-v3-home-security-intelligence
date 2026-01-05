@@ -18,6 +18,9 @@ Related Linear Issues:
 from __future__ import annotations
 
 import pytest
+from hypothesis import given
+from hypothesis import settings as hypothesis_settings
+from hypothesis import strategies as st
 
 from backend.services.bbox_validation import (
     BoundingBoxOutOfBoundsError,
@@ -32,6 +35,13 @@ from backend.services.bbox_validation import (
     normalize_bbox_to_pixels,
     validate_and_clamp_bbox,
     validate_bbox,
+)
+from backend.tests.strategies import (
+    bbox_and_image_strategy,
+    image_dimensions_strategy,
+    invalid_bbox_xyxy_strategy,
+    normalized_bbox_strategy,
+    valid_bbox_xyxy_strategy,
 )
 
 # =============================================================================
@@ -552,3 +562,320 @@ class TestRealWorldScenarios:
             # Should either be invalid or clamped appropriately
             if result.is_valid:
                 assert result.clamped_bbox is not None
+
+
+# =============================================================================
+# Property-Based Tests (Hypothesis)
+# =============================================================================
+
+
+class TestBboxValidationProperties:
+    """Property-based tests for bounding box validation using Hypothesis."""
+
+    # -------------------------------------------------------------------------
+    # is_valid_bbox Properties
+    # -------------------------------------------------------------------------
+
+    @given(bbox=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_valid_bbox_always_passes_validation(
+        self, bbox: tuple[float, float, float, float]
+    ) -> None:
+        """Property: Valid bboxes (x1 < x2, y1 < y2, non-negative) are always valid."""
+        assert is_valid_bbox(bbox) is True
+
+    @given(bbox=invalid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_invalid_bbox_always_fails_validation(
+        self, bbox: tuple[float, float, float, float]
+    ) -> None:
+        """Property: Invalid bboxes (x2 <= x1 or y2 <= y1) are always invalid."""
+        assert is_valid_bbox(bbox) is False
+
+    @given(bbox=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=50)
+    def test_is_valid_bbox_is_idempotent(self, bbox: tuple[float, float, float, float]) -> None:
+        """Property: Calling is_valid_bbox multiple times gives same result."""
+        result1 = is_valid_bbox(bbox)
+        result2 = is_valid_bbox(bbox)
+        result3 = is_valid_bbox(bbox)
+        assert result1 == result2 == result3
+
+    # -------------------------------------------------------------------------
+    # clamp_bbox_to_image Properties
+    # -------------------------------------------------------------------------
+
+    @given(data=bbox_and_image_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_clamped_bbox_within_bounds(
+        self, data: tuple[tuple[float, float, float, float], int, int]
+    ) -> None:
+        """Property: Clamped bbox is always within image bounds."""
+        bbox, width, height = data
+        result = clamp_bbox_to_image(bbox, width, height)
+
+        if result is not None:
+            x1, y1, x2, y2 = result
+            assert 0 <= x1 <= width, f"x1={x1} not in [0, {width}]"
+            assert 0 <= y1 <= height, f"y1={y1} not in [0, {height}]"
+            assert 0 <= x2 <= width, f"x2={x2} not in [0, {width}]"
+            assert 0 <= y2 <= height, f"y2={y2} not in [0, {height}]"
+
+    @given(data=bbox_and_image_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_clamped_bbox_has_positive_dimensions(
+        self, data: tuple[tuple[float, float, float, float], int, int]
+    ) -> None:
+        """Property: Clamped bbox always has positive width and height (or is None)."""
+        bbox, width, height = data
+        result = clamp_bbox_to_image(bbox, width, height)
+
+        if result is not None:
+            x1, y1, x2, y2 = result
+            assert x2 > x1, f"width={x2 - x1} should be positive"
+            assert y2 > y1, f"height={y2 - y1} should be positive"
+
+    @given(data=bbox_and_image_strategy())
+    @hypothesis_settings(max_examples=50)
+    def test_clamping_is_idempotent(
+        self, data: tuple[tuple[float, float, float, float], int, int]
+    ) -> None:
+        """Property: Clamping an already-clamped bbox gives equivalent result.
+
+        Note: The function converts floats to ints, so we compare the second clamp
+        (which operates on ints) to the int version of the first clamp.
+        """
+        bbox, width, height = data
+        first_clamp = clamp_bbox_to_image(bbox, width, height)
+
+        if first_clamp is not None:
+            # Convert first result to integers (as the function internally does)
+            first_as_ints = tuple(int(v) for v in first_clamp)
+            second_clamp = clamp_bbox_to_image(first_as_ints, width, height)
+
+            # The second clamp should equal the int version of the first
+            assert second_clamp is not None
+            for i in range(4):
+                assert int(first_clamp[i]) == second_clamp[i], (
+                    f"Clamping should be idempotent at index {i}: {int(first_clamp[i])} != {second_clamp[i]}"
+                )
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        dims=image_dimensions_strategy(),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_clamping_never_increases_area(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+    ) -> None:
+        """Property: Clamping never increases the area of a bbox."""
+        width, height = dims
+        original_area = calculate_bbox_area(bbox)
+        result = clamp_bbox_to_image(bbox, width, height)
+
+        if result is not None:
+            clamped_area = calculate_bbox_area(result)
+            assert clamped_area <= original_area, (
+                f"Clamped area {clamped_area} > original {original_area}"
+            )
+
+    # -------------------------------------------------------------------------
+    # validate_bbox Properties
+    # -------------------------------------------------------------------------
+
+    @given(bbox=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_valid_bbox_passes_validate(self, bbox: tuple[float, float, float, float]) -> None:
+        """Property: Valid bboxes pass validate_bbox without raising."""
+        # Should not raise
+        validate_bbox(bbox, allow_negative=True)
+
+    @given(bbox=invalid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_invalid_bbox_fails_validate(self, bbox: tuple[float, float, float, float]) -> None:
+        """Property: Invalid bboxes (bad dimensions) raise InvalidBoundingBoxError."""
+        with pytest.raises(InvalidBoundingBoxError):
+            validate_bbox(bbox, allow_negative=True)
+
+    # -------------------------------------------------------------------------
+    # Normalization Roundtrip Properties
+    # -------------------------------------------------------------------------
+
+    @given(bbox=normalized_bbox_strategy(), dims=image_dimensions_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_normalization_roundtrip(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+    ) -> None:
+        """Property: normalize_to_pixels -> normalize_to_float is approximately identity."""
+        width, height = dims
+        x1, y1, x2, y2 = bbox
+
+        # Normalize to pixels
+        pixel_bbox = normalize_bbox_to_pixels(bbox, width, height)
+
+        # Normalize back to float
+        float_bbox = normalize_bbox_to_float(pixel_bbox, width, height)
+
+        # Should be approximately equal (within rounding error)
+        fx1, fy1, fx2, fy2 = float_bbox
+        assert abs(fx1 - x1) < 0.02, f"x1 mismatch: {fx1} vs {x1}"
+        assert abs(fy1 - y1) < 0.02, f"y1 mismatch: {fy1} vs {y1}"
+        # x2, y2 can have more error due to integer rounding
+        assert abs(fx2 - x2) < 0.02, f"x2 mismatch: {fx2} vs {x2}"
+        assert abs(fy2 - y2) < 0.02, f"y2 mismatch: {fy2} vs {y2}"
+
+    @given(bbox=normalized_bbox_strategy(), dims=image_dimensions_strategy())
+    @hypothesis_settings(max_examples=50)
+    def test_normalized_to_pixels_produces_integers(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+    ) -> None:
+        """Property: normalize_bbox_to_pixels always produces integers."""
+        width, height = dims
+        result = normalize_bbox_to_pixels(bbox, width, height)
+        assert all(isinstance(v, int) for v in result)
+
+    # -------------------------------------------------------------------------
+    # Area Calculation Properties
+    # -------------------------------------------------------------------------
+
+    @given(bbox=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_area_is_non_negative(self, bbox: tuple[float, float, float, float]) -> None:
+        """Property: Area is always non-negative for valid bboxes."""
+        area = calculate_bbox_area(bbox)
+        assert area >= 0, f"Area should be non-negative, got {area}"
+
+    @given(bbox=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_area_equals_width_times_height(self, bbox: tuple[float, float, float, float]) -> None:
+        """Property: Area equals (x2 - x1) * (y2 - y1)."""
+        x1, y1, x2, y2 = bbox
+        expected = (x2 - x1) * (y2 - y1)
+        actual = calculate_bbox_area(bbox)
+        assert actual == pytest.approx(expected)
+
+    # -------------------------------------------------------------------------
+    # IoU Properties
+    # -------------------------------------------------------------------------
+
+    @given(bbox=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_iou_with_self_is_one(self, bbox: tuple[float, float, float, float]) -> None:
+        """Property: IoU of a bbox with itself is 1.0."""
+        iou = calculate_bbox_iou(bbox, bbox)
+        assert iou == pytest.approx(1.0)
+
+    @given(bbox1=valid_bbox_xyxy_strategy(), bbox2=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_iou_is_symmetric(
+        self,
+        bbox1: tuple[float, float, float, float],
+        bbox2: tuple[float, float, float, float],
+    ) -> None:
+        """Property: IoU(a, b) == IoU(b, a) (symmetric)."""
+        iou1 = calculate_bbox_iou(bbox1, bbox2)
+        iou2 = calculate_bbox_iou(bbox2, bbox1)
+        assert iou1 == pytest.approx(iou2)
+
+    @given(bbox1=valid_bbox_xyxy_strategy(), bbox2=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_iou_is_bounded(
+        self,
+        bbox1: tuple[float, float, float, float],
+        bbox2: tuple[float, float, float, float],
+    ) -> None:
+        """Property: IoU is always in [0, 1] range."""
+        iou = calculate_bbox_iou(bbox1, bbox2)
+        assert 0.0 <= iou <= 1.0, f"IoU should be in [0, 1], got {iou}"
+
+    # -------------------------------------------------------------------------
+    # validate_and_clamp_bbox Properties
+    # -------------------------------------------------------------------------
+
+    @given(data=bbox_and_image_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_validate_and_clamp_returns_valid_result(
+        self, data: tuple[tuple[float, float, float, float], int, int]
+    ) -> None:
+        """Property: validate_and_clamp always returns a BoundingBoxValidationResult."""
+        bbox, width, height = data
+        result = validate_and_clamp_bbox(bbox, width, height)
+
+        assert isinstance(result, BoundingBoxValidationResult)
+        assert result.original_bbox == bbox
+
+    @given(data=bbox_and_image_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_validate_and_clamp_valid_result_is_clamped(
+        self, data: tuple[tuple[float, float, float, float], int, int]
+    ) -> None:
+        """Property: If result is valid, clamped_bbox is within image bounds."""
+        bbox, width, height = data
+        result = validate_and_clamp_bbox(bbox, width, height)
+
+        if result.is_valid and result.clamped_bbox is not None:
+            x1, y1, x2, y2 = result.clamped_bbox
+            assert 0 <= x1 <= width
+            assert 0 <= y1 <= height
+            assert 0 <= x2 <= width
+            assert 0 <= y2 <= height
+            assert x2 > x1
+            assert y2 > y1
+
+    @given(bbox=invalid_bbox_xyxy_strategy(), dims=image_dimensions_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_validate_and_clamp_invalid_dimensions(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+    ) -> None:
+        """Property: Invalid dimension bboxes return is_valid=False."""
+        width, height = dims
+        result = validate_and_clamp_bbox(bbox, width, height)
+        assert result.is_valid is False
+        assert result.clamped_bbox is None
+
+    # -------------------------------------------------------------------------
+    # Edge Cases with Special Float Values
+    # -------------------------------------------------------------------------
+
+    @given(
+        normal_coords=st.tuples(
+            st.floats(min_value=0, max_value=100, allow_nan=False, allow_infinity=False),
+            st.floats(min_value=0, max_value=100, allow_nan=False, allow_infinity=False),
+            st.floats(min_value=101, max_value=200, allow_nan=False, allow_infinity=False),
+            st.floats(min_value=101, max_value=200, allow_nan=False, allow_infinity=False),
+        )
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_valid_floats_are_valid(self, normal_coords: tuple[float, float, float, float]) -> None:
+        """Property: Finite, non-NaN floats with proper ordering are valid."""
+        assert is_valid_bbox(normal_coords) is True
+
+    @given(
+        coord_index=st.integers(min_value=0, max_value=3),
+    )
+    @hypothesis_settings(max_examples=20)
+    def test_nan_in_any_position_is_invalid(self, coord_index: int) -> None:
+        """Property: NaN in any coordinate position makes bbox invalid."""
+        coords = [10.0, 10.0, 100.0, 100.0]
+        coords[coord_index] = float("nan")
+        bbox = tuple(coords)  # type: ignore[arg-type]
+        assert is_valid_bbox(bbox) is False
+
+    @given(
+        coord_index=st.integers(min_value=0, max_value=3),
+    )
+    @hypothesis_settings(max_examples=20)
+    def test_infinity_in_any_position_is_invalid(self, coord_index: int) -> None:
+        """Property: Infinity in any coordinate position makes bbox invalid."""
+        coords = [10.0, 10.0, 100.0, 100.0]
+        coords[coord_index] = float("inf")
+        bbox = tuple(coords)  # type: ignore[arg-type]
+        assert is_valid_bbox(bbox) is False
