@@ -149,3 +149,153 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+
+  # Smoke test deployment verification
+  # Runs after images are pushed to verify containers work correctly
+  smoke-test:
+    name: Smoke Test Deployment
+    runs-on: ubuntu-latest
+    needs: merge
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull images
+        env:
+          GHCR_OWNER: ${{ github.repository_owner }}
+          GHCR_REPO: ${{ github.event.repository.name }}
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:latest
+
+      - name: Start services
+        env:
+          GHCR_OWNER: ${{ github.repository_owner }}
+          GHCR_REPO: ${{ github.event.repository.name }}
+          IMAGE_TAG: latest
+        run: |
+          # Start services using CI docker-compose
+          docker compose -f docker-compose.ci.yml up -d
+
+          # Show container status
+          docker compose -f docker-compose.ci.yml ps
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for services to become healthy..."
+
+          # Wait for backend with timeout
+          timeout 120 bash -c '
+            until docker compose -f docker-compose.ci.yml exec -T backend python -c "import httpx; r = httpx.get(\"http://localhost:8000/api/system/health/ready\"); exit(0 if r.status_code == 200 else 1)" 2>/dev/null; do
+              echo "Waiting for backend..."
+              sleep 5
+            done
+          ' || {
+            echo "Backend health check timed out"
+            docker compose -f docker-compose.ci.yml logs backend
+            exit 1
+          }
+
+          echo "Backend is healthy!"
+
+          # Wait for frontend with timeout
+          timeout 60 bash -c '
+            until curl -sf http://localhost:3000/ > /dev/null 2>&1; do
+              echo "Waiting for frontend..."
+              sleep 5
+            done
+          ' || {
+            echo "Frontend health check timed out"
+            docker compose -f docker-compose.ci.yml logs frontend
+            exit 1
+          }
+
+          echo "Frontend is healthy!"
+
+      - name: Run smoke tests
+        run: |
+          chmod +x ./scripts/ci-smoke-test.sh
+          ./scripts/ci-smoke-test.sh \
+            --backend-url http://localhost:8000 \
+            --frontend-url http://localhost:3000 \
+            --timeout 60 \
+            --skip-websocket
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend Logs ==="
+          docker compose -f docker-compose.ci.yml logs backend --tail=100
+
+          echo "=== Frontend Logs ==="
+          docker compose -f docker-compose.ci.yml logs frontend --tail=50
+
+          echo "=== Postgres Logs ==="
+          docker compose -f docker-compose.ci.yml logs postgres --tail=50
+
+          echo "=== Redis Logs ==="
+          docker compose -f docker-compose.ci.yml logs redis --tail=50
+
+          echo "=== Container Status ==="
+          docker compose -f docker-compose.ci.yml ps -a
+
+      - name: Tear down services
+        if: always()
+        run: |
+          docker compose -f docker-compose.ci.yml down -v --remove-orphans
+
+  # Generate SBOM and sign container images for supply chain security
+  sbom-and-sign:
+    name: SBOM & Sign (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    needs: merge
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # Required for cosign OIDC signing
+
+    strategy:
+      matrix:
+        image: [backend, frontend]
+
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.spdx.json
+          retention-days: 90
+
+      - name: Sign container image
+        run: |
+          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.sha }}
