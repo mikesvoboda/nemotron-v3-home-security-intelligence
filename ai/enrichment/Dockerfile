@@ -2,7 +2,7 @@
 # Hosts Vehicle Classification, Pet Classification, and FashionCLIP models
 # Port: 8094 | Expected VRAM: ~2.5GB
 
-FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+FROM docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="Combined enrichment service for vehicle, pet, and clothing classification"
