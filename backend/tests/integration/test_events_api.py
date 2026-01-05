@@ -997,3 +997,574 @@ class TestEnrichmentDataInEventDetections:
         unenriched = next((d for d in data["detections"] if d["object_type"] == "unknown"), None)
         assert unenriched is not None
         assert unenriched["enrichment_data"] is None
+
+
+class TestExportEvents:
+    """Tests for GET /api/events/export endpoint."""
+
+    async def test_export_events_csv_empty(self, async_client, clean_events):
+        """Test exporting events when none exist returns CSV with headers only."""
+        response = await async_client.get("/api/events/export")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/csv; charset=utf-8"
+        assert "Content-Disposition" in response.headers
+        assert "events_export_" in response.headers["Content-Disposition"]
+        assert ".csv" in response.headers["Content-Disposition"]
+
+        # Parse CSV content
+        import csv
+        import io
+
+        content = response.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+
+        # Should have header row only
+        assert len(rows) == 1
+        assert rows[0] == [
+            "event_id",
+            "camera_name",
+            "started_at",
+            "ended_at",
+            "risk_score",
+            "risk_level",
+            "summary",
+            "detection_count",
+            "reviewed",
+        ]
+
+    async def test_export_events_csv_with_data(self, async_client, sample_event):
+        """Test exporting events returns CSV with data rows."""
+        import csv
+        import io
+
+        response = await async_client.get("/api/events/export")
+        assert response.status_code == 200
+
+        content = response.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+
+        # Should have header + at least 1 data row
+        assert len(rows) >= 2
+
+        # Verify data row contains expected event info
+        data_row = rows[1]
+        assert str(sample_event.id) == data_row[0]  # event_id
+        assert data_row[2]  # started_at is not empty
+        assert str(sample_event.risk_score) == data_row[4] or data_row[4] == ""
+
+    async def test_export_events_with_filters(self, async_client, multiple_events):
+        """Test exporting events with filters applied."""
+        import csv
+        import io
+
+        # Filter by risk_level=high
+        response = await async_client.get("/api/events/export?risk_level=high")
+        assert response.status_code == 200
+
+        content = response.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+
+        # Should have header + filtered rows
+        assert len(rows) >= 2
+
+        # All data rows should have risk_level="high"
+        for row in rows[1:]:
+            risk_level = row[5]
+            assert risk_level == "high"
+
+    async def test_export_events_with_date_range(self, async_client, multiple_events):
+        """Test exporting events with date range filter."""
+        import csv
+        import io
+
+        start_date = "2025-12-23T13:00:00Z"
+        end_date = "2025-12-23T23:00:00Z"
+
+        response = await async_client.get(
+            f"/api/events/export?start_date={start_date}&end_date={end_date}"
+        )
+        assert response.status_code == 200
+
+        content = response.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+
+        # Should have events in the date range
+        assert len(rows) >= 2
+
+    async def test_export_events_csv_injection_prevention(
+        self, async_client, sample_camera, integration_db
+    ):
+        """Test that CSV export sanitizes potential injection characters."""
+        import csv
+        import io
+
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Create event with potentially malicious summary
+        async with get_session() as db:
+            event = Event(
+                batch_id=str(uuid.uuid4()),
+                camera_id=sample_camera.id,
+                started_at=datetime(2025, 12, 23, 12, 0, 0),
+                ended_at=datetime(2025, 12, 23, 12, 2, 30),
+                risk_score=50,
+                risk_level="medium",
+                summary="=HYPERLINK('http://evil.com')",  # CSV injection attempt
+                reviewed=False,
+            )
+            db.add(event)
+            await db.commit()
+
+        response = await async_client.get("/api/events/export")
+        assert response.status_code == 200
+
+        content = response.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+
+        # Find the row with our malicious summary
+        for row in rows[1:]:
+            summary = row[6]
+            if "HYPERLINK" in summary:
+                # Should be prefixed with single quote to prevent formula execution
+                assert summary.startswith("'=")
+
+    async def test_export_events_invalid_date_format(self, async_client):
+        """Test export with invalid date format returns 422."""
+        response = await async_client.get("/api/events/export?start_date=invalid-date")
+        assert response.status_code == 422
+
+
+class TestGetEventEnrichments:
+    """Tests for GET /api/events/{event_id}/enrichments endpoint."""
+
+    async def test_get_event_enrichments_success(
+        self, async_client, sample_event, sample_camera, integration_db
+    ):
+        """Test getting enrichments for an event with enriched detections."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        enrichment_data = {
+            "license_plates": [
+                {
+                    "confidence": 0.92,
+                    "text": "XYZ-9999",
+                    "ocr_confidence": 0.88,
+                }
+            ],
+            "faces": [{"confidence": 0.85}],
+            "violence_detection": {"is_violent": False, "confidence": 0.05},
+        }
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/enrichment_test.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="car",
+                confidence=0.92,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                enrichment_data=enrichment_data,
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+
+            # Update event to reference this detection
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([detection.id])
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/enrichments")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["event_id"] == sample_event.id
+        assert data["count"] == 1
+        assert len(data["enrichments"]) == 1
+
+        enrichment = data["enrichments"][0]
+        assert enrichment["license_plate"]["detected"] is True
+        assert enrichment["license_plate"]["text"] == "XYZ-9999"
+        assert enrichment["face"]["detected"] is True
+        assert enrichment["violence"]["detected"] is False
+
+    async def test_get_event_enrichments_empty(self, async_client, sample_event, integration_db):
+        """Test getting enrichments for event with no detections."""
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Ensure event has no detections
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = None
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/enrichments")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["event_id"] == sample_event.id
+        assert data["count"] == 0
+        assert data["enrichments"] == []
+
+    async def test_get_event_enrichments_not_found(self, async_client):
+        """Test getting enrichments for non-existent event returns 404."""
+        response = await async_client.get("/api/events/99999/enrichments")
+        assert response.status_code == 404
+        data = response.json()
+        assert "not found" in data["detail"].lower()
+
+    async def test_get_event_enrichments_multiple_detections(
+        self, async_client, sample_event, sample_camera, integration_db
+    ):
+        """Test getting enrichments for event with multiple detections."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        async with get_session() as db:
+            # Create two detections with different enrichment data
+            detection1 = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/det1.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                enrichment_data={
+                    "faces": [{"confidence": 0.9}],
+                    "violence_detection": {"is_violent": False, "confidence": 0.1},
+                },
+            )
+            detection2 = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/det2.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 30),
+                object_type="car",
+                confidence=0.88,
+                bbox_x=300,
+                bbox_y=200,
+                bbox_width=400,
+                bbox_height=300,
+                enrichment_data={
+                    "license_plates": [{"text": "ABC-1234", "confidence": 0.92}],
+                    "violence_detection": {"is_violent": False, "confidence": 0.05},
+                },
+            )
+            db.add(detection1)
+            db.add(detection2)
+            await db.commit()
+            await db.refresh(detection1)
+            await db.refresh(detection2)
+
+            # Update event
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([detection1.id, detection2.id])
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/enrichments")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["event_id"] == sample_event.id
+        assert data["count"] == 2
+        assert len(data["enrichments"]) == 2
+
+
+class TestGetEventClip:
+    """Tests for GET /api/events/{event_id}/clip endpoint."""
+
+    async def test_get_event_clip_not_available(self, async_client, sample_event):
+        """Test getting clip info when no clip exists."""
+        response = await async_client.get(f"/api/events/{sample_event.id}/clip")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["event_id"] == sample_event.id
+        assert data["clip_available"] is False
+        assert data["clip_url"] is None
+        assert data["duration_seconds"] is None
+        assert data["generated_at"] is None
+        assert data["file_size_bytes"] is None
+
+    async def test_get_event_clip_available(
+        self, async_client, sample_event, integration_db, tmp_path
+    ):
+        """Test getting clip info when clip exists."""
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Create a clip file
+        clip_file = tmp_path / f"{sample_event.id}_clip.mp4"
+        clip_content = b"fake video clip content" * 100
+        clip_file.write_bytes(clip_content)
+
+        # Update event with clip path
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.clip_path = str(clip_file)
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/clip")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["event_id"] == sample_event.id
+        assert data["clip_available"] is True
+        assert data["clip_url"] is not None
+        assert f"{sample_event.id}_clip.mp4" in data["clip_url"]
+        assert data["file_size_bytes"] == len(clip_content)
+        assert data["generated_at"] is not None
+
+    async def test_get_event_clip_missing_file(self, async_client, sample_event, integration_db):
+        """Test getting clip info when clip path exists but file is missing."""
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Update event with clip path to non-existent file
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.clip_path = "/nonexistent/clip.mp4"
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/clip")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should report as not available since file doesn't exist
+        assert data["event_id"] == sample_event.id
+        assert data["clip_available"] is False
+
+    async def test_get_event_clip_not_found(self, async_client):
+        """Test getting clip for non-existent event returns 404."""
+        response = await async_client.get("/api/events/99999/clip")
+        assert response.status_code == 404
+        data = response.json()
+        assert "not found" in data["detail"].lower()
+
+
+class TestGenerateEventClip:
+    """Tests for POST /api/events/{event_id}/clip/generate endpoint."""
+
+    async def test_generate_clip_event_not_found(self, async_client):
+        """Test generating clip for non-existent event returns 404."""
+        response = await async_client.post(
+            "/api/events/99999/clip/generate",
+            json={"force": False},
+        )
+        assert response.status_code == 404
+        data = response.json()
+        assert "not found" in data["detail"].lower()
+
+    async def test_generate_clip_no_detections(self, async_client, sample_event, integration_db):
+        """Test generating clip for event with no detections returns 400."""
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Ensure event has no detections
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = None
+            await db.commit()
+
+        response = await async_client.post(
+            f"/api/events/{sample_event.id}/clip/generate",
+            json={"force": False},
+        )
+        assert response.status_code == 400
+        data = response.json()
+        assert "no detections" in data["detail"].lower()
+
+    async def test_generate_clip_existing_clip_no_force(
+        self, async_client, sample_event, sample_detection, integration_db, tmp_path
+    ):
+        """Test generating clip when clip exists and force=False returns existing clip."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Create existing clip file
+        clip_file = tmp_path / f"{sample_event.id}_existing_clip.mp4"
+        clip_file.write_bytes(b"existing clip content" * 100)
+
+        # Update event with detection and clip path
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([sample_detection.id])
+            event.clip_path = str(clip_file)
+            await db.commit()
+
+        response = await async_client.post(
+            f"/api/events/{sample_event.id}/clip/generate",
+            json={"force": False},
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["event_id"] == sample_event.id
+        assert data["status"] == "completed"
+        assert data["message"] == "Clip already exists"
+        assert data["clip_url"] is not None
+
+    async def test_generate_clip_no_detection_images(
+        self, async_client, sample_event, sample_camera, integration_db
+    ):
+        """Test generating clip when detections have no file paths returns 400."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        # Create detection with empty file path
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path="",  # Empty path
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="person",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([detection.id])
+            await db.commit()
+
+        response = await async_client.post(
+            f"/api/events/{sample_event.id}/clip/generate",
+            json={"force": False},
+        )
+        assert response.status_code == 400
+        data = response.json()
+        assert "no detection images" in data["detail"].lower()
+
+    async def test_generate_clip_request_validation(self, async_client, sample_event):
+        """Test clip generation request validation."""
+        # Test with invalid start_offset_seconds
+        response = await async_client.post(
+            f"/api/events/{sample_event.id}/clip/generate",
+            json={"start_offset_seconds": -500},  # Exceeds max of -300
+        )
+        assert response.status_code == 422
+
+        # Test with invalid end_offset_seconds
+        response = await async_client.post(
+            f"/api/events/{sample_event.id}/clip/generate",
+            json={"end_offset_seconds": 500},  # Exceeds max of 300
+        )
+        assert response.status_code == 422
+
+
+class TestSearchEvents:
+    """Tests for GET /api/events/search endpoint."""
+
+    async def test_search_events_success(self, async_client, sample_event):
+        """Test searching events returns results."""
+        # Search for text in sample_event summary
+        response = await async_client.get("/api/events/search?q=person")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "results" in data
+        assert "total_count" in data
+        assert "limit" in data
+        assert "offset" in data
+
+    async def test_search_events_no_results(self, async_client, sample_event):
+        """Test searching events with no matches returns empty results."""
+        response = await async_client.get("/api/events/search?q=nonexistenttermxyz123")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["results"] == []
+        assert data["total_count"] == 0
+
+    async def test_search_events_with_filters(self, async_client, multiple_events):
+        """Test searching events with additional filters."""
+        camera_id = multiple_events[0].camera_id
+        response = await async_client.get(
+            f"/api/events/search?q=detected&camera_id={camera_id}&risk_level=low"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Results should respect filters
+        for result in data["results"]:
+            assert result["camera_id"] == camera_id
+            assert result["risk_level"] == "low"
+
+    async def test_search_events_invalid_severity(self, async_client):
+        """Test searching with invalid severity returns 400."""
+        response = await async_client.get("/api/events/search?q=test&severity=invalid")
+        assert response.status_code == 400
+        data = response.json()
+        assert "invalid severity" in data["detail"].lower()
+
+    async def test_search_events_missing_query(self, async_client):
+        """Test searching without query returns 422."""
+        response = await async_client.get("/api/events/search")
+        assert response.status_code == 422  # Missing required 'q' parameter
+
+    async def test_search_events_pagination(self, async_client, multiple_events):
+        """Test searching events with pagination."""
+        response = await async_client.get("/api/events/search?q=detected&limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["limit"] == 2
+        assert data["offset"] == 0
+        assert len(data["results"]) <= 2
