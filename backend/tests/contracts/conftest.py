@@ -44,7 +44,7 @@ async def test_app() -> AsyncGenerator:
     # Mock the lifespan context to avoid actual service initialization
     original_lifespan = app.router.lifespan_context
 
-    async def mock_lifespan(app_instance):
+    async def mock_lifespan(_app):
         """Mock lifespan that skips actual service initialization."""
         yield
 

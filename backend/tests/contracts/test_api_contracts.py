@@ -170,7 +170,7 @@ async def client(mock_session: MagicMock, mock_redis: AsyncMock) -> AsyncGenerat
     # Override lifespan to skip actual service initialization
     original_lifespan = app.router.lifespan_context
 
-    async def mock_lifespan(app_instance):
+    async def mock_lifespan(_app):
         yield
 
     app.router.lifespan_context = mock_lifespan
