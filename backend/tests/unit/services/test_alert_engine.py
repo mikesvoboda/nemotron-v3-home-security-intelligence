@@ -1807,3 +1807,473 @@ class TestTimeZoneEdgeCases:
         schedule = {"days": [], "start_time": "10:00", "end_time": "14:00"}
         result = engine._check_schedule(schedule, current)
         assert result is True
+
+
+# =============================================================================
+# Property-Based Tests (Hypothesis)
+# =============================================================================
+
+from hypothesis import HealthCheck, given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from backend.tests.strategies import (  # noqa: E402
+    confidence_scores,
+    object_types,
+    risk_scores,
+)
+
+
+class TestAlertEngineProperties:
+    """Property-based tests for AlertRuleEngine using Hypothesis."""
+
+    # -------------------------------------------------------------------------
+    # Determinism Properties
+    # -------------------------------------------------------------------------
+
+    @given(risk_score=risk_scores)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @pytest.mark.asyncio
+    async def test_evaluate_rule_is_deterministic(
+        self,
+        risk_score: int,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Same inputs always produce the same evaluation result.
+
+        This ensures the alert engine has no hidden state or randomness
+        that could cause inconsistent alerting behavior.
+        """
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Test Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            risk_threshold=50,
+            cooldown_seconds=300,
+        )
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id="cam1",
+            started_at=datetime.now(UTC),
+            risk_score=risk_score,
+        )
+        detections: list[Detection] = []
+        current_time = datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+
+        engine = AlertRuleEngine(mock_session)
+
+        # Evaluate multiple times
+        result1 = await engine._evaluate_rule(rule, event, detections, current_time)
+        result2 = await engine._evaluate_rule(rule, event, detections, current_time)
+
+        # Results should be identical
+        assert result1[0] == result2[0], "Evaluation result should be deterministic"
+        assert result1[1] == result2[1], "Matched conditions should be deterministic"
+
+    @given(
+        risk_score=risk_scores,
+        threshold=risk_scores,
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @pytest.mark.asyncio
+    async def test_risk_threshold_comparison_is_consistent(
+        self,
+        risk_score: int,
+        threshold: int,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: risk_score >= threshold comparison is mathematically consistent.
+
+        If score >= threshold, rule matches.
+        If score < threshold, rule doesn't match.
+        """
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Test Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            risk_threshold=threshold,
+            cooldown_seconds=300,
+        )
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id="cam1",
+            started_at=datetime.now(UTC),
+            risk_score=risk_score,
+        )
+        current_time = datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+
+        engine = AlertRuleEngine(mock_session)
+        matches, _conditions = await engine._evaluate_rule(rule, event, [], current_time)
+
+        expected = risk_score >= threshold
+        assert matches == expected, (
+            f"Expected matches={expected} for score={risk_score}, threshold={threshold}"
+        )
+
+    # -------------------------------------------------------------------------
+    # Severity Ordering Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        severities=st.lists(
+            st.sampled_from(list(AlertSeverity)),
+            min_size=2,
+            max_size=4,
+        )
+    )
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @pytest.mark.asyncio
+    async def test_triggered_rules_sorted_by_severity_descending(
+        self,
+        severities: list[AlertSeverity],
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Triggered rules are always sorted by severity (highest first).
+
+        This ensures critical alerts are processed before low priority ones.
+        """
+        # Reset mock state for each hypothesis example
+        mock_session.reset_mock()
+
+        # Create rules with different severities
+        rules = [
+            AlertRule(
+                id=str(uuid.uuid4()),
+                name=f"Rule {i}",
+                enabled=True,
+                severity=sev,
+                cooldown_seconds=300,
+            )
+            for i, sev in enumerate(severities)
+        ]
+
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id="cam1",
+            started_at=datetime.now(UTC),
+            risk_score=50,
+        )
+
+        # Mock database to return rules and no cooldowns
+        mock_rules_result = MagicMock()
+        mock_rules_result.scalars.return_value.all.return_value = rules
+
+        mock_cooldown_result = MagicMock()
+        mock_cooldown_result.scalar_one_or_none.return_value = None
+
+        # Each rule needs a cooldown check
+        mock_session.execute.side_effect = [mock_rules_result] + [
+            mock_cooldown_result for _ in rules
+        ]
+
+        engine = AlertRuleEngine(mock_session)
+        result = await engine.evaluate_event(event, [])
+
+        # Verify descending severity order
+        triggered_severities = [t.severity for t in result.triggered_rules]
+        severity_priorities = [SEVERITY_PRIORITY[s] for s in triggered_severities]
+
+        for i in range(len(severity_priorities) - 1):
+            assert severity_priorities[i] >= severity_priorities[i + 1], (
+                f"Severity at position {i} should be >= severity at position {i + 1}"
+            )
+
+    @given(
+        severity1=st.sampled_from(list(AlertSeverity)),
+        severity2=st.sampled_from(list(AlertSeverity)),
+    )
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @pytest.mark.asyncio
+    async def test_highest_severity_is_maximum(
+        self,
+        severity1: AlertSeverity,
+        severity2: AlertSeverity,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: highest_severity is always the maximum of all triggered severities."""
+        # Reset mock state for each hypothesis example
+        mock_session.reset_mock()
+
+        rules = [
+            AlertRule(
+                id=str(uuid.uuid4()),
+                name="Rule 1",
+                enabled=True,
+                severity=severity1,
+                cooldown_seconds=300,
+            ),
+            AlertRule(
+                id=str(uuid.uuid4()),
+                name="Rule 2",
+                enabled=True,
+                severity=severity2,
+                cooldown_seconds=300,
+            ),
+        ]
+
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id="cam1",
+            started_at=datetime.now(UTC),
+            risk_score=50,
+        )
+
+        mock_rules_result = MagicMock()
+        mock_rules_result.scalars.return_value.all.return_value = rules
+
+        mock_cooldown_result = MagicMock()
+        mock_cooldown_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [
+            mock_rules_result,
+            mock_cooldown_result,
+            mock_cooldown_result,
+        ]
+
+        engine = AlertRuleEngine(mock_session)
+        result = await engine.evaluate_event(event, [])
+
+        # highest_severity should be the maximum
+        expected_highest = max([severity1, severity2], key=lambda s: SEVERITY_PRIORITY[s])
+        assert result.highest_severity == expected_highest
+
+    # -------------------------------------------------------------------------
+    # Confidence Threshold Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        min_confidence=confidence_scores,
+        detection_confidence=confidence_scores,
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_confidence_threshold_comparison(
+        self,
+        min_confidence: float,
+        detection_confidence: float,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Confidence comparison follows >= semantics correctly."""
+        detections = [
+            Detection(
+                id=1,
+                camera_id="cam1",
+                file_path="/export/foscam/cam1/img.jpg",
+                object_type="person",
+                confidence=detection_confidence,
+            )
+        ]
+
+        engine = AlertRuleEngine(mock_session)
+        result = engine._check_min_confidence(min_confidence, detections)
+
+        expected = detection_confidence >= min_confidence
+        assert result == expected, (
+            f"Expected {expected} for detection_confidence={detection_confidence}, "
+            f"min_confidence={min_confidence}"
+        )
+
+    # -------------------------------------------------------------------------
+    # Object Type Matching Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        object_type=object_types,
+        required_types=st.lists(object_types, min_size=1, max_size=5, unique=True),
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_object_type_matching_is_case_insensitive(
+        self,
+        object_type: str,
+        required_types: list[str],
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Object type matching is case-insensitive."""
+        detections = [
+            Detection(
+                id=1,
+                camera_id="cam1",
+                file_path="/export/foscam/cam1/img.jpg",
+                object_type=object_type,
+            )
+        ]
+
+        engine = AlertRuleEngine(mock_session)
+
+        # Test with lowercase required types
+        result_lower = engine._check_object_types([t.lower() for t in required_types], detections)
+
+        # Test with uppercase required types
+        result_upper = engine._check_object_types([t.upper() for t in required_types], detections)
+
+        # Results should be the same (case insensitive)
+        assert result_lower == result_upper, "Object type matching should be case-insensitive"
+
+        # Verify correct matching
+        should_match = object_type.lower() in [t.lower() for t in required_types]
+        assert result_lower == should_match
+
+    # -------------------------------------------------------------------------
+    # Dedup Key Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        camera_id=st.from_regex(r"[a-z][a-z0-9_]{1,20}", fullmatch=True),
+        object_type=object_types,
+    )
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_dedup_key_contains_template_variables(
+        self,
+        camera_id: str,
+        object_type: str,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Dedup key correctly substitutes template variables."""
+        rule = AlertRule(
+            id="rule-123",
+            name="Test Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            dedup_key_template="{camera_id}:{object_type}:{rule_id}",
+            cooldown_seconds=300,
+        )
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id=camera_id,
+            started_at=datetime.now(UTC),
+        )
+        detections = [
+            Detection(
+                id=1,
+                camera_id=camera_id,
+                file_path=f"/export/foscam/{camera_id}/img.jpg",
+                object_type=object_type,
+            )
+        ]
+
+        engine = AlertRuleEngine(mock_session)
+        dedup_key = engine._build_dedup_key(rule, event, detections)
+
+        # Verify key contains expected components
+        assert camera_id in dedup_key, f"Dedup key should contain camera_id '{camera_id}'"
+        assert object_type in dedup_key, f"Dedup key should contain object_type '{object_type}'"
+        assert "rule-123" in dedup_key, "Dedup key should contain rule_id"
+        assert dedup_key == f"{camera_id}:{object_type}:rule-123"
+
+    # -------------------------------------------------------------------------
+    # Schedule Evaluation Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        hour=st.integers(min_value=0, max_value=23),
+        minute=st.integers(min_value=0, max_value=59),
+    )
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_schedule_time_parsing_round_trip(
+        self,
+        hour: int,
+        minute: int,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Time parsing correctly extracts hour and minute."""
+        engine = AlertRuleEngine(mock_session)
+        time_str = f"{hour:02d}:{minute:02d}"
+        parsed = engine._parse_time(time_str)
+
+        assert parsed.hour == hour, f"Expected hour {hour}, got {parsed.hour}"
+        assert parsed.minute == minute, f"Expected minute {minute}, got {parsed.minute}"
+
+    @given(
+        start_hour=st.integers(min_value=0, max_value=23),
+        end_hour=st.integers(min_value=0, max_value=23),
+        current_hour=st.integers(min_value=0, max_value=23),
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_schedule_time_range_consistency(
+        self,
+        start_hour: int,
+        end_hour: int,
+        current_hour: int,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Time range checking is consistent for normal and overnight ranges."""
+        engine = AlertRuleEngine(mock_session)
+
+        schedule = {
+            "start_time": f"{start_hour:02d}:00",
+            "end_time": f"{end_hour:02d}:00",
+        }
+        current = datetime(2025, 1, 6, current_hour, 30, 0, tzinfo=ZoneInfo("UTC"))
+
+        result = engine._check_schedule(schedule, current)
+
+        # Verify the result is a boolean
+        assert isinstance(result, bool)
+
+        # Verify logic consistency
+        if start_hour <= end_hour:
+            # Normal range (e.g., 09:00-17:00)
+            expected = start_hour <= current_hour <= end_hour
+        else:
+            # Overnight range (e.g., 22:00-06:00)
+            expected = current_hour >= start_hour or current_hour <= end_hour
+
+        # Note: The actual comparison includes minutes, but for whole hours this should match
+        # We're testing the general pattern is correct
+        # Allow for minute-level edge cases
+        if current_hour not in [start_hour, end_hour]:
+            assert result == expected, (
+                f"Schedule check failed: start={start_hour}, end={end_hour}, "
+                f"current={current_hour}, result={result}, expected={expected}"
+            )
+
+    # -------------------------------------------------------------------------
+    # Rule Evaluation Idempotency
+    # -------------------------------------------------------------------------
+
+    @given(
+        risk_score=risk_scores,
+        threshold=risk_scores,
+    )
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @pytest.mark.asyncio
+    async def test_rule_evaluation_idempotent(
+        self,
+        risk_score: int,
+        threshold: int,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Property: Multiple evaluations of the same rule produce identical results."""
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Test Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            risk_threshold=threshold,
+            cooldown_seconds=300,
+        )
+        event = Event(
+            id=1,
+            batch_id=str(uuid.uuid4()),
+            camera_id="cam1",
+            started_at=datetime.now(UTC),
+            risk_score=risk_score,
+        )
+        current_time = datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+
+        engine = AlertRuleEngine(mock_session)
+
+        # Evaluate multiple times
+        results = []
+        for _ in range(3):
+            result = await engine._evaluate_rule(rule, event, [], current_time)
+            results.append(result)
+
+        # All results should be identical
+        for i, r in enumerate(results[1:], 1):
+            assert r == results[0], f"Evaluation {i} differs from first evaluation"

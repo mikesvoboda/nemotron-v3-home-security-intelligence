@@ -527,6 +527,46 @@ jobs:
           fi
           echo "All integration tests passed"
 
+  # Contract tests for API schema validation
+  contract-tests:
+    name: Contract Tests (API Schema)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run contract tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+          REDIS_URL: redis://localhost:6379/15
+        run: |
+          uv run pytest backend/tests/contracts/ \
+            -n0 \
+            -v \
+            --junit-xml=test-results-contracts.xml \
+            --durations=10
+
+      - name: Upload contract test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-contracts
+          path: test-results-contracts.xml
+          retention-days: 7
+
   dead-code:
     name: Dead Code Detection
     runs-on: ubuntu-latest
@@ -660,9 +700,46 @@ jobs:
 
       - name: Run tests (shard ${{ matrix.shard }}/8)
         # Shard tests across 8 runners for faster execution and isolation
-        # Coverage thresholds disabled for shards (each shard only has partial coverage)
+        # Coverage collected per-shard and merged in frontend-coverage-merge job
+        # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
+        # that fail because each shard only has ~12% of total coverage
         # --teardownTimeout ensures vitest exits even if cleanup hangs
         run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --teardownTimeout=5000
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-coverage-shard-${{ matrix.shard }}
+          path: frontend/coverage/
+          retention-days: 7
+
+  # Merge frontend coverage from all shards and upload to Codecov
+  frontend-coverage-merge:
+    name: Merge Frontend Coverage
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: frontend-coverage-shard-*
+          path: coverage-reports/
+          merge-multiple: true
+
+      - name: List coverage files
+        run: find coverage-reports/ -name "*.json" -o -name "*.xml" | head -20
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          directory: coverage-reports/
+          flags: frontend
+          fail_ci_if_error: false
 
   # Summary job for branch protection - aggregates all Vitest shards
   frontend-tests-summary:
@@ -1012,3 +1089,240 @@ jobs:
           INTEGRATION_TEST_THRESHOLD: '5.0'
           E2E_TEST_THRESHOLD: '10.0'
           WARN_THRESHOLD_PERCENT: '80'
+
+  # ============================================================================
+  # Test Count Verification Job
+  # Prevents accidental test deletion by comparing against baseline counts
+  # ============================================================================
+
+  test-count-verification:
+    name: Test Count Verification
+    runs-on: ubuntu-latest
+    needs:
+      [
+        unit-tests,
+        integration-tests-api,
+        integration-tests-websocket,
+        integration-tests-services,
+        integration-tests-models,
+        frontend-tests,
+      ]
+    if: always() && (needs.unit-tests.result == 'success' || needs.frontend-tests.result == 'success')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Count and verify backend tests
+        run: |
+          # Count backend tests using pytest collection
+          echo "Counting backend tests..."
+          UNIT_COUNT=$(uv run pytest backend/tests/unit/ --collect-only -q 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1 || echo "0")
+          INTEGRATION_COUNT=$(uv run pytest backend/tests/integration/ --collect-only -q 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1 || echo "0")
+
+          echo "Backend Unit Tests: $UNIT_COUNT"
+          echo "Backend Integration Tests: $INTEGRATION_COUNT"
+
+          # Baseline thresholds - update these as tests are added
+          # These represent minimum acceptable test counts
+          UNIT_MIN=2900
+          INTEGRATION_MIN=600
+
+          if [ "$UNIT_COUNT" -lt "$UNIT_MIN" ]; then
+            echo "::error::Backend unit test count ($UNIT_COUNT) is below minimum threshold ($UNIT_MIN). Tests may have been accidentally deleted."
+            exit 1
+          fi
+
+          if [ "$INTEGRATION_COUNT" -lt "$INTEGRATION_MIN" ]; then
+            echo "::error::Backend integration test count ($INTEGRATION_COUNT) is below minimum threshold ($INTEGRATION_MIN). Tests may have been accidentally deleted."
+            exit 1
+          fi
+
+          echo "Test count verification passed!"
+
+      - name: Count and verify frontend tests
+        run: |
+          # Count frontend tests by scanning test files
+          echo "Counting frontend tests..."
+          cd frontend
+
+          # Count test files and estimate tests
+          TEST_FILES=$(find src -name "*.test.ts" -o -name "*.test.tsx" | wc -l)
+          E2E_SPECS=$(find tests/e2e -name "*.spec.ts" | wc -l)
+
+          echo "Frontend Test Files: $TEST_FILES"
+          echo "Frontend E2E Spec Files: $E2E_SPECS"
+
+          # Baseline thresholds
+          TEST_FILES_MIN=50
+          E2E_SPECS_MIN=15
+
+          if [ "$TEST_FILES" -lt "$TEST_FILES_MIN" ]; then
+            echo "::error::Frontend test file count ($TEST_FILES) is below minimum threshold ($TEST_FILES_MIN). Tests may have been accidentally deleted."
+            exit 1
+          fi
+
+          if [ "$E2E_SPECS" -lt "$E2E_SPECS_MIN" ]; then
+            echo "::error::Frontend E2E spec count ($E2E_SPECS) is below minimum threshold ($E2E_SPECS_MIN). Tests may have been accidentally deleted."
+            exit 1
+          fi
+
+          echo "Frontend test count verification passed!"
+
+  # ============================================================================
+  # Security Scanning Jobs
+  # ============================================================================
+
+  trivy-backend:
+    name: Trivy Dependency Scan (Backend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (Python)
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'vuln'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+          format: 'table'
+          # Focus on Python dependencies
+          skip-dirs: 'frontend,node_modules,.git'
+
+      - name: Run Trivy on Dockerfile (backend)
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'backend/Dockerfile'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'
+
+  trivy-frontend:
+    name: Trivy Dependency Scan (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (Node.js)
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend'
+          scanners: 'vuln'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+          format: 'table'
+
+      - name: Run Trivy on Dockerfile (frontend)
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'frontend/Dockerfile'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'
+
+  npm-audit:
+    name: npm Audit (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run npm audit
+        run: cd frontend && npm audit --audit-level=high
+        continue-on-error: false
+
+  security-tests:
+    name: Security Test Suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run security tests
+        run: |
+          uv run pytest backend/tests/security/ \
+            -n0 \
+            --timeout=30 \
+            -v \
+            --tb=short

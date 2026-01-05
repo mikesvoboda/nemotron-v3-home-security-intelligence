@@ -34,18 +34,18 @@ async def clean_events(integration_db):
 
     async with get_engine().begin() as conn:
         # Delete in order respecting foreign key constraints
-        await conn.execute(text("DELETE FROM detections"))
-        await conn.execute(text("DELETE FROM events"))
-        await conn.execute(text("DELETE FROM cameras"))
+        await conn.execute(text("DELETE FROM detections"))  # nosemgrep: avoid-sqlalchemy-text
+        await conn.execute(text("DELETE FROM events"))  # nosemgrep: avoid-sqlalchemy-text
+        await conn.execute(text("DELETE FROM cameras"))  # nosemgrep: avoid-sqlalchemy-text
 
     yield
 
     # Cleanup after test too (best effort)
     try:
         async with get_engine().begin() as conn:
-            await conn.execute(text("DELETE FROM detections"))
-            await conn.execute(text("DELETE FROM events"))
-            await conn.execute(text("DELETE FROM cameras"))
+            await conn.execute(text("DELETE FROM detections"))  # nosemgrep: avoid-sqlalchemy-text
+            await conn.execute(text("DELETE FROM events"))  # nosemgrep: avoid-sqlalchemy-text
+            await conn.execute(text("DELETE FROM cameras"))  # nosemgrep: avoid-sqlalchemy-text
     except Exception:  # noqa: S110 - ignore cleanup errors
         pass
 
