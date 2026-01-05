@@ -98,9 +98,10 @@ SLOW_TEST_PATTERNS = [
     # Navigation smoke test - loads 8 routes sequentially (expected ~12s)
     r"All Routes Smoke Tests.*all 8 routes",
     r"navigation\.spec\.ts.*all 8 routes",
-    # Navigation transition tests - page loads and transitions (~9-10s in CI)
+    # Navigation transition tests - page loads and transitions (~9-12s in CI)
     r"Navigation Tests.*page transitions",
     r"Navigation Tests.*sidebar persists",
+    r"Navigation Tests.*can navigate to",
     # System page error state tests (~10s due to retry exhaustion)
     r"System Error State.*page loads",
     r"system\.spec\.ts.*Error State",
