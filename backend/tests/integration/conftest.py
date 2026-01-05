@@ -20,6 +20,7 @@ testcontainers are used for full isolation.
 
 from __future__ import annotations
 
+import logging
 import os
 import socket
 import tempfile
@@ -29,6 +30,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -44,9 +47,7 @@ if TYPE_CHECKING:
 # =============================================================================
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
-DEFAULT_DEV_POSTGRES_URL = (
-    "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
-)
+DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
 
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
@@ -101,7 +102,7 @@ def wait_for_postgres_container(container: PostgresContainer, timeout: float = 3
                 host=host,
                 port=port,
                 user="postgres",
-                password="postgres",  # noqa: S106 - test password
+                password="postgres",  # noqa: S106  # pragma: allowlist secret
                 dbname="security_test",
                 connect_timeout=1,
             )
@@ -193,7 +194,7 @@ def postgres_container() -> Generator[PostgresContainer | LocalPostgresService]:
     container = PostgresContainer(
         "postgres:16-alpine",
         username="postgres",
-        password="postgres",  # noqa: S106 - test password
+        password="postgres",  # noqa: S106  # pragma: allowlist secret
         dbname="security_test",
         driver="asyncpg",
     )
@@ -577,8 +578,12 @@ async def real_redis(
         try:
             redis_client = client._ensure_connected()
             await redis_client.flushdb()
-        except Exception:  # noqa: S110
-            pass  # Ignore errors during cleanup
+        except Exception as e:
+            logger.warning(
+                f"Redis cleanup failed: {e}",
+                exc_info=True,
+            )
+            # Continue to allow tests to run even if cleanup fails
         await client.disconnect()
 
 
@@ -639,8 +644,12 @@ async def _cleanup_test_data() -> None:
             await session.execute(text("DELETE FROM cameras"))
 
             await session.commit()
-    except Exception:  # noqa: S110
-        pass
+    except Exception as e:
+        logger.warning(
+            f"Database cleanup failed: {e}",
+            exc_info=True,
+        )
+        # Continue to allow tests to run even if cleanup fails
 
 
 # Keep the old name as an alias for backward compatibility

@@ -995,8 +995,14 @@ async def get_websocket_health() -> WebSocketHealthResponse:
         _system_broadcaster as system_broadcaster,
     )
 
-    event_status: WebSocketBroadcasterStatus | None = None
-    system_status: WebSocketBroadcasterStatus | None = None
+    # Helper function to create unavailable status for uninitialized broadcasters
+    def get_unavailable_status(broadcaster_name: str) -> WebSocketBroadcasterStatus:
+        return WebSocketBroadcasterStatus(
+            state=CircuitBreakerStateEnum.UNAVAILABLE,
+            is_degraded=True,
+            failure_count=0,
+            message=f"{broadcaster_name} not initialized",
+        )
 
     # Get event broadcaster status
     if event_broadcaster is not None:
@@ -1006,6 +1012,8 @@ async def get_websocket_health() -> WebSocketHealthResponse:
             failure_count=event_broadcaster.circuit_breaker.failure_count,
             is_degraded=event_broadcaster.is_degraded(),
         )
+    else:
+        event_status = get_unavailable_status("Event broadcaster")
 
     # Get system broadcaster status
     if system_broadcaster is not None:
@@ -1015,6 +1023,8 @@ async def get_websocket_health() -> WebSocketHealthResponse:
             failure_count=system_broadcaster.circuit_breaker.failure_count,
             is_degraded=not system_broadcaster._pubsub_listening,
         )
+    else:
+        system_status = get_unavailable_status("System broadcaster")
 
     return WebSocketHealthResponse(
         event_broadcaster=event_status,

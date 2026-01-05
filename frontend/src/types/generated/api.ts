@@ -4664,7 +4664,7 @@ export interface components {
          * @description Circuit breaker states.
          * @enum {string}
          */
-        CircuitBreakerStateEnum: "closed" | "open" | "half_open";
+        CircuitBreakerStateEnum: "closed" | "open" | "half_open" | "unavailable";
         /**
          * CircuitBreakerStatusResponse
          * @description Status of a single circuit breaker.
@@ -6307,6 +6307,12 @@ export interface components {
              */
             thumbnail_url?: string | null;
         };
+        /**
+         * EntityTypeEnum
+         * @description Valid entity types for filtering.
+         * @enum {string}
+         */
+        EntityTypeEnum: "person" | "vehicle";
         /**
          * EventAuditResponse
          * @description Full audit response for a single event.
@@ -9747,7 +9753,7 @@ export interface components {
          * @description Status of a WebSocket broadcaster's circuit breaker.
          */
         WebSocketBroadcasterStatus: {
-            /** @description Current circuit state: closed (normal), open (failing), half_open (testing) */
+            /** @description Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized) */
             state: components["schemas"]["CircuitBreakerStateEnum"];
             /**
              * Failure Count
@@ -9759,6 +9765,11 @@ export interface components {
              * @description Whether the broadcaster is in degraded mode
              */
             is_degraded: boolean;
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
         };
         /**
          * WebSocketHealthResponse
@@ -11971,7 +11982,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
-                entity_type?: string | null;
+                entity_type?: components["schemas"]["EntityTypeEnum"] | null;
                 /** @description Filter by camera ID */
                 camera_id?: string | null;
                 /** @description Filter entities seen since this time */

@@ -16,7 +16,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   createAlertRule,
@@ -126,6 +126,63 @@ export default function AlertRulesSettings() {
   const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
   const [severityLoading, setSeverityLoading] = useState(true);
   const [severityError, setSeverityError] = useState<string | null>(null);
+
+  // Local display state for debounced inputs (immediate visual feedback)
+  const [localRiskThreshold, setLocalRiskThreshold] = useState<string>('');
+  const [localMinConfidence, setLocalMinConfidence] = useState<string>('');
+
+  // Debounce refs for slider inputs
+  const riskThresholdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const minConfidenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync local state when form data changes (e.g., when editing a rule)
+  useEffect(() => {
+    setLocalRiskThreshold(formData.risk_threshold?.toString() ?? '');
+  }, [formData.risk_threshold]);
+
+  useEffect(() => {
+    setLocalMinConfidence(formData.min_confidence?.toString() ?? '');
+  }, [formData.min_confidence]);
+
+  // Debounced handlers for risk threshold and confidence inputs (150ms delay)
+  // Local state updates immediately for visual feedback, form state is debounced
+  const handleRiskThresholdChange = useCallback((value: string) => {
+    setLocalRiskThreshold(value);
+    if (riskThresholdTimeoutRef.current) {
+      clearTimeout(riskThresholdTimeoutRef.current);
+    }
+    riskThresholdTimeoutRef.current = setTimeout(() => {
+      setFormData((prev) => ({
+        ...prev,
+        risk_threshold: value ? Number(value) : null,
+      }));
+    }, 150);
+  }, []);
+
+  const handleMinConfidenceChange = useCallback((value: string) => {
+    setLocalMinConfidence(value);
+    if (minConfidenceTimeoutRef.current) {
+      clearTimeout(minConfidenceTimeoutRef.current);
+    }
+    minConfidenceTimeoutRef.current = setTimeout(() => {
+      setFormData((prev) => ({
+        ...prev,
+        min_confidence: value ? Number(value) : null,
+      }));
+    }, 150);
+  }, []);
+
+  // Cleanup debounce timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (riskThresholdTimeoutRef.current) {
+        clearTimeout(riskThresholdTimeoutRef.current);
+      }
+      if (minConfidenceTimeoutRef.current) {
+        clearTimeout(minConfidenceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Load rules and cameras on mount
   useEffect(() => {
@@ -795,13 +852,8 @@ export default function AlertRulesSettings() {
                             <input
                               type="number"
                               id="risk_threshold"
-                              value={formData.risk_threshold ?? ''}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  risk_threshold: e.target.value ? Number(e.target.value) : null,
-                                })
-                              }
+                              value={localRiskThreshold}
+                              onChange={(e) => handleRiskThresholdChange(e.target.value)}
                               min={0}
                               max={100}
                               className={clsx(
@@ -829,13 +881,8 @@ export default function AlertRulesSettings() {
                             <input
                               type="number"
                               id="min_confidence"
-                              value={formData.min_confidence ?? ''}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  min_confidence: e.target.value ? Number(e.target.value) : null,
-                                })
-                              }
+                              value={localMinConfidence}
+                              onChange={(e) => handleMinConfidenceChange(e.target.value)}
                               min={0}
                               max={1}
                               step={0.1}
