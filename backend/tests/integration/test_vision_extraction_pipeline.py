@@ -585,6 +585,7 @@ class TestFullPipelineIntegration:
                     reid_enabled=True,
                     scene_change_enabled=True,
                     image_quality_enabled=False,  # Disable - brisque-quality model not in CI
+                    weather_classification_enabled=False,  # Disable - weather-classification model not in CI
                     redis_client=real_redis._ensure_connected(),
                 )
 
