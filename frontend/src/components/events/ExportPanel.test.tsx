@@ -116,13 +116,15 @@ describe('ExportPanel', () => {
     it('loads cameras into camera dropdown', async () => {
       render(<ExportPanel />);
 
+      const cameraSelect = screen.getByLabelText('Camera');
+
+      // Wait for camera options to actually render (not just API call)
       await waitFor(() => {
-        expect(api.fetchCameras).toHaveBeenCalled();
+        const options = within(cameraSelect).getAllByRole('option');
+        expect(options.length).toBeGreaterThan(1); // More than just "All Cameras"
       });
 
-      const cameraSelect = screen.getByLabelText('Camera');
       const options = within(cameraSelect).getAllByRole('option');
-
       expect(options).toHaveLength(3); // All Cameras + 2 cameras
       expect(options[0]).toHaveTextContent('All Cameras');
       expect(options[1]).toHaveTextContent('Front Door');

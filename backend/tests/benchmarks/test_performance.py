@@ -259,7 +259,7 @@ class TestDatabaseQueryBenchmarks:
     """Benchmark tests for database query performance."""
 
     @pytest.mark.benchmark(group="db-simple")
-    def test_simple_select_query(self, benchmark, performance_db: str):
+    def test_simple_select_query(self, benchmark, _performance_db: str):
         """Benchmark simple SELECT query execution."""
         from sqlalchemy import text
 
@@ -274,7 +274,7 @@ class TestDatabaseQueryBenchmarks:
         assert result == 1
 
     @pytest.mark.benchmark(group="db-simple")
-    def test_session_creation(self, benchmark, performance_db: str):
+    def test_session_creation(self, benchmark, _performance_db: str):
         """Benchmark database session creation overhead."""
         from backend.core.database import get_async_session
 
@@ -286,7 +286,7 @@ class TestDatabaseQueryBenchmarks:
         assert result is True
 
     @pytest.mark.benchmark(group="db-transaction")
-    def test_transaction_commit(self, benchmark, performance_db: str):
+    def test_transaction_commit(self, benchmark, _performance_db: str):
         """Benchmark transaction commit overhead."""
         from sqlalchemy import text
 

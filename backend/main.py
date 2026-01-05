@@ -450,6 +450,10 @@ app = FastAPI(
     description="AI-powered home security monitoring system",
     version="0.1.0",
     lifespan=lifespan,
+    # Server URLs for OpenAPI spec - required for ZAP security scanning
+    servers=[
+        {"url": "http://localhost:8000", "description": "Local development server"},
+    ],
 )
 
 # Add authentication middleware (if enabled in settings)
