@@ -125,9 +125,8 @@ jobs:
           sudo apt-get install k6
 
       - name: Initialize database
-        working-directory: backend
         run: |
-          uv run alembic upgrade head
+          cd backend && PYTHONPATH=.. uv run alembic upgrade head
 
       - name: Start backend server
         run: |
