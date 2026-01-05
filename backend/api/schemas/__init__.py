@@ -16,9 +16,15 @@ from .alerts import (
     DedupCheckResponse,
 )
 from .baseline import (
+    ActivityBaselineEntry,
+    ActivityBaselineResponse,
+    AnomalyConfig,
+    AnomalyConfigUpdate,
     AnomalyEvent,
     AnomalyListResponse,
     BaselineSummaryResponse,
+    ClassBaselineEntry,
+    ClassBaselineResponse,
     CurrentDeviation,
     DailyPattern,
     DeviationInterpretation,
@@ -98,6 +104,8 @@ from .websocket import (
 from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
 
 __all__ = [
+    "ActivityBaselineEntry",
+    "ActivityBaselineResponse",
     "AlertCreate",
     "AlertListResponse",
     "AlertResponse",
@@ -109,6 +117,8 @@ __all__ = [
     "AlertSeverity",
     "AlertStatus",
     "AlertUpdate",
+    "AnomalyConfig",
+    "AnomalyConfigUpdate",
     "AnomalyEvent",
     "AnomalyListResponse",
     "BaselineSummaryResponse",
@@ -117,6 +127,8 @@ __all__ = [
     "CameraResponse",
     "CameraStatus",
     "CameraUpdate",
+    "ClassBaselineEntry",
+    "ClassBaselineResponse",
     "ClipGenerateRequest",
     "ClipGenerateResponse",
     "ClipInfoResponse",

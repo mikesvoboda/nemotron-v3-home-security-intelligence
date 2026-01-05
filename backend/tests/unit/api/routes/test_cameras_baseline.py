@@ -3,6 +3,8 @@
 Tests the baseline endpoints:
 - GET /api/cameras/{camera_id}/baseline
 - GET /api/cameras/{camera_id}/baseline/anomalies
+- GET /api/cameras/{camera_id}/baseline/activity
+- GET /api/cameras/{camera_id}/baseline/classes
 
 These tests follow TDD methodology - written before implementation.
 """
@@ -13,8 +15,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.api.schemas.baseline import (
+    ActivityBaselineEntry,
+    ActivityBaselineResponse,
     AnomalyListResponse,
     BaselineSummaryResponse,
+    ClassBaselineEntry,
+    ClassBaselineResponse,
     CurrentDeviation,
     DailyPattern,
     DeviationInterpretation,
@@ -449,3 +455,538 @@ class TestBaselineSchemas:
         assert response.count == 2
         assert len(response.anomalies) == 2
         assert response.period_days == 7
+
+
+class TestGetCameraActivityBaseline:
+    """Tests for GET /api/cameras/{camera_id}/baseline/activity endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_activity_baseline_camera_not_found(self) -> None:
+        """Test that activity baseline endpoint returns 404 for non-existent camera."""
+        from backend.api.routes.cameras import get_camera_activity_baseline
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        with pytest.raises(Exception) as exc_info:
+            await get_camera_activity_baseline("nonexistent_camera", db=mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert "not found" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_activity_baseline_empty_data(self) -> None:
+        """Test activity baseline endpoint returns empty response for camera with no data."""
+        from backend.api.routes.cameras import get_camera_activity_baseline
+
+        mock_db = AsyncMock()
+
+        # Mock camera query
+        mock_camera = MagicMock()
+        mock_camera.id = "test_camera"
+        mock_camera.name = "Test Camera"
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+        mock_db.execute.return_value = mock_camera_result
+
+        # Mock baseline service returning empty list
+        mock_baseline_service = MagicMock()
+        mock_baseline_service.get_activity_baselines_raw = AsyncMock(return_value=[])
+        mock_baseline_service.min_samples = 10
+
+        with patch(
+            "backend.api.routes.cameras.get_baseline_service",
+            return_value=mock_baseline_service,
+        ):
+            result = await get_camera_activity_baseline("test_camera", db=mock_db)
+
+        assert isinstance(result, ActivityBaselineResponse)
+        assert result.camera_id == "test_camera"
+        assert result.entries == []
+        assert result.total_samples == 0
+        assert result.peak_hour is None
+        assert result.peak_day is None
+        assert result.learning_complete is False
+
+    @pytest.mark.asyncio
+    async def test_get_activity_baseline_with_data(self) -> None:
+        """Test activity baseline endpoint returns entries for camera with baselines."""
+        from backend.api.routes.cameras import get_camera_activity_baseline
+
+        mock_db = AsyncMock()
+
+        # Mock camera query
+        mock_camera = MagicMock()
+        mock_camera.id = "front_door"
+        mock_camera.name = "Front Door"
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+        mock_db.execute.return_value = mock_camera_result
+
+        # Create mock baseline records
+        mock_baselines = []
+        for day in range(7):
+            for hour in range(24):
+                mock_baseline = MagicMock()
+                mock_baseline.hour = hour
+                mock_baseline.day_of_week = day
+                mock_baseline.avg_count = 1.0 + (hour / 24.0) * 3.0  # Higher later in day
+                mock_baseline.sample_count = 15
+                mock_baselines.append(mock_baseline)
+
+        mock_baseline_service = MagicMock()
+        mock_baseline_service.get_activity_baselines_raw = AsyncMock(return_value=mock_baselines)
+        mock_baseline_service.min_samples = 10
+
+        with patch(
+            "backend.api.routes.cameras.get_baseline_service",
+            return_value=mock_baseline_service,
+        ):
+            result = await get_camera_activity_baseline("front_door", db=mock_db)
+
+        assert isinstance(result, ActivityBaselineResponse)
+        assert result.camera_id == "front_door"
+        assert len(result.entries) == 168  # 24 hours * 7 days
+        assert result.total_samples == 168 * 15  # 15 samples per entry
+        assert result.peak_hour == 23  # Highest hour due to formula
+        assert result.learning_complete is True
+        assert result.min_samples_required == 10
+
+
+class TestGetCameraClassBaseline:
+    """Tests for GET /api/cameras/{camera_id}/baseline/classes endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_class_baseline_camera_not_found(self) -> None:
+        """Test that class baseline endpoint returns 404 for non-existent camera."""
+        from backend.api.routes.cameras import get_camera_class_baseline
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        with pytest.raises(Exception) as exc_info:
+            await get_camera_class_baseline("nonexistent_camera", db=mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert "not found" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_class_baseline_empty_data(self) -> None:
+        """Test class baseline endpoint returns empty response for camera with no data."""
+        from backend.api.routes.cameras import get_camera_class_baseline
+
+        mock_db = AsyncMock()
+
+        # Mock camera query
+        mock_camera = MagicMock()
+        mock_camera.id = "test_camera"
+        mock_camera.name = "Test Camera"
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+        mock_db.execute.return_value = mock_camera_result
+
+        # Mock baseline service returning empty list
+        mock_baseline_service = MagicMock()
+        mock_baseline_service.get_class_baselines_raw = AsyncMock(return_value=[])
+
+        with patch(
+            "backend.api.routes.cameras.get_baseline_service",
+            return_value=mock_baseline_service,
+        ):
+            result = await get_camera_class_baseline("test_camera", db=mock_db)
+
+        assert isinstance(result, ClassBaselineResponse)
+        assert result.camera_id == "test_camera"
+        assert result.entries == []
+        assert result.unique_classes == []
+        assert result.total_samples == 0
+        assert result.most_common_class is None
+
+    @pytest.mark.asyncio
+    async def test_get_class_baseline_with_data(self) -> None:
+        """Test class baseline endpoint returns entries for camera with baselines."""
+        from backend.api.routes.cameras import get_camera_class_baseline
+
+        mock_db = AsyncMock()
+
+        # Mock camera query
+        mock_camera = MagicMock()
+        mock_camera.id = "front_door"
+        mock_camera.name = "Front Door"
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+        mock_db.execute.return_value = mock_camera_result
+
+        # Create mock class baseline records
+        mock_baselines = []
+        for detection_class in ["person", "vehicle", "animal"]:
+            for hour in range(24):
+                mock_baseline = MagicMock()
+                mock_baseline.detection_class = detection_class
+                mock_baseline.hour = hour
+                mock_baseline.frequency = 2.0 if detection_class == "person" else 1.0
+                mock_baseline.sample_count = 100 if detection_class == "person" else 50
+                mock_baselines.append(mock_baseline)
+
+        mock_baseline_service = MagicMock()
+        mock_baseline_service.get_class_baselines_raw = AsyncMock(return_value=mock_baselines)
+
+        with patch(
+            "backend.api.routes.cameras.get_baseline_service",
+            return_value=mock_baseline_service,
+        ):
+            result = await get_camera_class_baseline("front_door", db=mock_db)
+
+        assert isinstance(result, ClassBaselineResponse)
+        assert result.camera_id == "front_door"
+        assert len(result.entries) == 72  # 3 classes * 24 hours
+        assert set(result.unique_classes) == {"person", "vehicle", "animal"}
+        assert result.most_common_class == "person"  # Most sample_count
+        assert result.total_samples == (100 * 24) + (50 * 24) + (50 * 24)
+
+
+class TestActivityBaselineSchemas:
+    """Tests for activity baseline Pydantic schemas."""
+
+    def test_activity_baseline_entry_validation(self) -> None:
+        """Test ActivityBaselineEntry schema validation."""
+        entry = ActivityBaselineEntry(
+            hour=17,
+            day_of_week=4,
+            avg_count=5.2,
+            sample_count=30,
+            is_peak=True,
+        )
+        assert entry.hour == 17
+        assert entry.day_of_week == 4
+        assert entry.avg_count == 5.2
+        assert entry.sample_count == 30
+        assert entry.is_peak is True
+
+    def test_activity_baseline_entry_hour_bounds(self) -> None:
+        """Test ActivityBaselineEntry enforces hour bounds (0-23)."""
+        # Valid boundary values
+        entry_low = ActivityBaselineEntry(
+            hour=0, day_of_week=0, avg_count=1.0, sample_count=1, is_peak=False
+        )
+        assert entry_low.hour == 0
+
+        entry_high = ActivityBaselineEntry(
+            hour=23, day_of_week=0, avg_count=1.0, sample_count=1, is_peak=False
+        )
+        assert entry_high.hour == 23
+
+        # Invalid values
+        with pytest.raises(ValueError):
+            ActivityBaselineEntry(
+                hour=24, day_of_week=0, avg_count=1.0, sample_count=1, is_peak=False
+            )
+
+        with pytest.raises(ValueError):
+            ActivityBaselineEntry(
+                hour=-1, day_of_week=0, avg_count=1.0, sample_count=1, is_peak=False
+            )
+
+    def test_activity_baseline_entry_day_bounds(self) -> None:
+        """Test ActivityBaselineEntry enforces day_of_week bounds (0-6)."""
+        # Valid boundary values
+        entry_low = ActivityBaselineEntry(
+            hour=0, day_of_week=0, avg_count=1.0, sample_count=1, is_peak=False
+        )
+        assert entry_low.day_of_week == 0
+
+        entry_high = ActivityBaselineEntry(
+            hour=0, day_of_week=6, avg_count=1.0, sample_count=1, is_peak=False
+        )
+        assert entry_high.day_of_week == 6
+
+        # Invalid values
+        with pytest.raises(ValueError):
+            ActivityBaselineEntry(
+                hour=0, day_of_week=7, avg_count=1.0, sample_count=1, is_peak=False
+            )
+
+        with pytest.raises(ValueError):
+            ActivityBaselineEntry(
+                hour=0, day_of_week=-1, avg_count=1.0, sample_count=1, is_peak=False
+            )
+
+    def test_activity_baseline_response_validation(self) -> None:
+        """Test ActivityBaselineResponse schema validation."""
+        entries = [
+            ActivityBaselineEntry(
+                hour=0, day_of_week=0, avg_count=1.0, sample_count=10, is_peak=False
+            ),
+            ActivityBaselineEntry(
+                hour=17, day_of_week=4, avg_count=5.0, sample_count=15, is_peak=True
+            ),
+        ]
+        response = ActivityBaselineResponse(
+            camera_id="test",
+            entries=entries,
+            total_samples=25,
+            peak_hour=17,
+            peak_day=4,
+            learning_complete=True,
+            min_samples_required=10,
+        )
+        assert response.camera_id == "test"
+        assert len(response.entries) == 2
+        assert response.peak_hour == 17
+        assert response.peak_day == 4
+        assert response.learning_complete is True
+
+
+class TestClassBaselineSchemas:
+    """Tests for class baseline Pydantic schemas."""
+
+    def test_class_baseline_entry_validation(self) -> None:
+        """Test ClassBaselineEntry schema validation."""
+        entry = ClassBaselineEntry(
+            object_class="person",
+            hour=17,
+            frequency=3.5,
+            sample_count=45,
+        )
+        assert entry.object_class == "person"
+        assert entry.hour == 17
+        assert entry.frequency == 3.5
+        assert entry.sample_count == 45
+
+    def test_class_baseline_entry_hour_bounds(self) -> None:
+        """Test ClassBaselineEntry enforces hour bounds (0-23)."""
+        # Valid boundary values
+        entry_low = ClassBaselineEntry(object_class="test", hour=0, frequency=1.0, sample_count=1)
+        assert entry_low.hour == 0
+
+        entry_high = ClassBaselineEntry(object_class="test", hour=23, frequency=1.0, sample_count=1)
+        assert entry_high.hour == 23
+
+        # Invalid values
+        with pytest.raises(ValueError):
+            ClassBaselineEntry(object_class="test", hour=24, frequency=1.0, sample_count=1)
+
+    def test_class_baseline_response_validation(self) -> None:
+        """Test ClassBaselineResponse schema validation."""
+        entries = [
+            ClassBaselineEntry(object_class="person", hour=17, frequency=3.5, sample_count=45),
+            ClassBaselineEntry(object_class="vehicle", hour=8, frequency=2.1, sample_count=30),
+        ]
+        response = ClassBaselineResponse(
+            camera_id="test",
+            entries=entries,
+            unique_classes=["person", "vehicle"],
+            total_samples=75,
+            most_common_class="person",
+        )
+        assert response.camera_id == "test"
+        assert len(response.entries) == 2
+        assert "person" in response.unique_classes
+        assert response.most_common_class == "person"
+
+
+class TestAnomalyConfigEndpoints:
+    """Tests for /api/system/anomaly-config endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_get_anomaly_config(self) -> None:
+        """Test GET /api/system/anomaly-config returns current configuration."""
+        from backend.api.routes.system import get_anomaly_config
+        from backend.api.schemas.baseline import AnomalyConfig
+
+        mock_service = MagicMock()
+        mock_service.anomaly_threshold_std = 2.0
+        mock_service.min_samples = 10
+        mock_service.decay_factor = 0.1
+        mock_service.window_days = 30
+
+        # Import is inside function, so patch at source
+        with patch("backend.services.baseline.get_baseline_service", return_value=mock_service):
+            result = await get_anomaly_config()
+
+        assert isinstance(result, AnomalyConfig)
+        assert result.threshold_stdev == 2.0
+        assert result.min_samples == 10
+        assert result.decay_factor == 0.1
+        assert result.window_days == 30
+
+    @pytest.mark.asyncio
+    async def test_update_anomaly_config_threshold(self) -> None:
+        """Test PATCH /api/system/anomaly-config updates threshold."""
+        from backend.api.routes.system import update_anomaly_config
+        from backend.api.schemas.baseline import AnomalyConfig, AnomalyConfigUpdate
+
+        mock_service = MagicMock()
+        mock_service.anomaly_threshold_std = 2.0
+        mock_service.min_samples = 10
+        mock_service.decay_factor = 0.1
+        mock_service.window_days = 30
+
+        def update_side_effect(*, threshold_stdev=None, min_samples=None):
+            if threshold_stdev is not None:
+                mock_service.anomaly_threshold_std = threshold_stdev
+            if min_samples is not None:
+                mock_service.min_samples = min_samples
+
+        mock_service.update_config = MagicMock(side_effect=update_side_effect)
+
+        mock_request = MagicMock()
+        mock_db = AsyncMock()
+
+        update = AnomalyConfigUpdate(threshold_stdev=2.5)
+
+        with (
+            patch("backend.services.baseline.get_baseline_service", return_value=mock_service),
+            patch("backend.services.audit.AuditService.log_action", new_callable=AsyncMock),
+        ):
+            result = await update_anomaly_config(update, mock_request, mock_db)
+
+        assert isinstance(result, AnomalyConfig)
+        assert result.threshold_stdev == 2.5
+        mock_service.update_config.assert_called_once_with(
+            threshold_stdev=2.5,
+            min_samples=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_anomaly_config_min_samples(self) -> None:
+        """Test PATCH /api/system/anomaly-config updates min_samples."""
+        from backend.api.routes.system import update_anomaly_config
+        from backend.api.schemas.baseline import AnomalyConfig, AnomalyConfigUpdate
+
+        mock_service = MagicMock()
+        mock_service.anomaly_threshold_std = 2.0
+        mock_service.min_samples = 10
+        mock_service.decay_factor = 0.1
+        mock_service.window_days = 30
+
+        def update_side_effect(*, threshold_stdev=None, min_samples=None):
+            if threshold_stdev is not None:
+                mock_service.anomaly_threshold_std = threshold_stdev
+            if min_samples is not None:
+                mock_service.min_samples = min_samples
+
+        mock_service.update_config = MagicMock(side_effect=update_side_effect)
+
+        mock_request = MagicMock()
+        mock_db = AsyncMock()
+
+        update = AnomalyConfigUpdate(min_samples=15)
+
+        with (
+            patch("backend.services.baseline.get_baseline_service", return_value=mock_service),
+            patch("backend.services.audit.AuditService.log_action", new_callable=AsyncMock),
+        ):
+            result = await update_anomaly_config(update, mock_request, mock_db)
+
+        assert isinstance(result, AnomalyConfig)
+        assert result.min_samples == 15
+
+    @pytest.mark.asyncio
+    async def test_update_anomaly_config_invalid_threshold(self) -> None:
+        """Test PATCH /api/system/anomaly-config rejects invalid threshold via service."""
+        from backend.api.routes.system import update_anomaly_config
+        from backend.api.schemas.baseline import AnomalyConfigUpdate
+
+        mock_service = MagicMock()
+        mock_service.anomaly_threshold_std = 2.0
+        mock_service.min_samples = 10
+        mock_service.decay_factor = 0.1
+        mock_service.window_days = 30
+
+        # Service raises ValueError when invalid config is attempted
+        mock_service.update_config = MagicMock(
+            side_effect=ValueError("threshold_stdev must be positive")
+        )
+
+        mock_request = MagicMock()
+        mock_db = AsyncMock()
+
+        # Use a valid Pydantic value but one that triggers service validation error
+        update = AnomalyConfigUpdate(threshold_stdev=0.001)
+
+        with patch("backend.services.baseline.get_baseline_service", return_value=mock_service):
+            with pytest.raises(Exception) as exc_info:
+                await update_anomaly_config(update, mock_request, mock_db)
+
+            assert exc_info.value.status_code == 400
+
+
+class TestAnomalyConfigSchemas:
+    """Tests for anomaly config Pydantic schemas."""
+
+    def test_anomaly_config_validation(self) -> None:
+        """Test AnomalyConfig schema validation."""
+        from backend.api.schemas.baseline import AnomalyConfig
+
+        config = AnomalyConfig(
+            threshold_stdev=2.0,
+            min_samples=10,
+            decay_factor=0.1,
+            window_days=30,
+        )
+        assert config.threshold_stdev == 2.0
+        assert config.min_samples == 10
+        assert config.decay_factor == 0.1
+        assert config.window_days == 30
+
+    def test_anomaly_config_threshold_bounds(self) -> None:
+        """Test AnomalyConfig enforces threshold bounds."""
+        from backend.api.schemas.baseline import AnomalyConfig
+
+        # threshold_stdev must be > 0
+        with pytest.raises(ValueError):
+            AnomalyConfig(threshold_stdev=0, min_samples=10, decay_factor=0.1, window_days=30)
+
+        with pytest.raises(ValueError):
+            AnomalyConfig(threshold_stdev=-1, min_samples=10, decay_factor=0.1, window_days=30)
+
+    def test_anomaly_config_decay_factor_bounds(self) -> None:
+        """Test AnomalyConfig enforces decay_factor bounds (0 < factor <= 1)."""
+        from backend.api.schemas.baseline import AnomalyConfig
+
+        # Valid boundaries
+        config_high = AnomalyConfig(
+            threshold_stdev=2.0, min_samples=10, decay_factor=1.0, window_days=30
+        )
+        assert config_high.decay_factor == 1.0
+
+        config_low = AnomalyConfig(
+            threshold_stdev=2.0, min_samples=10, decay_factor=0.01, window_days=30
+        )
+        assert config_low.decay_factor == 0.01
+
+        # Invalid values
+        with pytest.raises(ValueError):
+            AnomalyConfig(threshold_stdev=2.0, min_samples=10, decay_factor=0, window_days=30)
+
+        with pytest.raises(ValueError):
+            AnomalyConfig(threshold_stdev=2.0, min_samples=10, decay_factor=1.5, window_days=30)
+
+    def test_anomaly_config_update_validation(self) -> None:
+        """Test AnomalyConfigUpdate schema allows partial updates."""
+        from backend.api.schemas.baseline import AnomalyConfigUpdate
+
+        # Only threshold_stdev
+        update1 = AnomalyConfigUpdate(threshold_stdev=2.5)
+        assert update1.threshold_stdev == 2.5
+        assert update1.min_samples is None
+
+        # Only min_samples
+        update2 = AnomalyConfigUpdate(min_samples=15)
+        assert update2.threshold_stdev is None
+        assert update2.min_samples == 15
+
+        # Both values
+        update3 = AnomalyConfigUpdate(threshold_stdev=3.0, min_samples=20)
+        assert update3.threshold_stdev == 3.0
+        assert update3.min_samples == 20
+
+        # Empty update (no values)
+        update4 = AnomalyConfigUpdate()
+        assert update4.threshold_stdev is None
+        assert update4.min_samples is None

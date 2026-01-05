@@ -1020,6 +1020,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/baseline/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Activity Baseline
+         * @description Get raw activity baseline data for a camera.
+         *
+         *     Returns up to 168 entries (24 hours x 7 days) representing the full
+         *     weekly activity heatmap. Each entry contains the average count and
+         *     sample count for that hour/day combination.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         ActivityBaselineResponse with entries for the heatmap
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_activity_baseline_api_cameras__camera_id__baseline_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/baseline/classes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Class Baseline
+         * @description Get class frequency baseline data for a camera.
+         *
+         *     Returns baseline entries grouped by object class and hour, showing
+         *     the frequency of each object type at different times of day.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         ClassBaselineResponse with entries for each class/hour combination
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/scene-changes": {
         parameters: {
             query?: never;
@@ -2448,6 +2515,56 @@ export interface paths {
         patch: operations["patch_config_api_system_config_patch"];
         trace?: never;
     };
+    "/api/system/anomaly-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Anomaly Config
+         * @description Get current anomaly detection configuration.
+         *
+         *     Returns the current settings for the baseline service including:
+         *     - threshold_stdev: Number of standard deviations for anomaly detection
+         *     - min_samples: Minimum samples required before anomaly detection is reliable
+         *     - decay_factor: Exponential decay factor for EWMA (weights recent observations)
+         *     - window_days: Rolling window size in days for baseline calculations
+         *
+         *     Returns:
+         *         AnomalyConfig with current anomaly detection settings
+         */
+        get: operations["get_anomaly_config_api_system_anomaly_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Anomaly Config
+         * @description Update anomaly detection configuration.
+         *
+         *     Allows updating the anomaly detection thresholds:
+         *     - threshold_stdev: Number of standard deviations for anomaly detection
+         *     - min_samples: Minimum samples required before anomaly detection is reliable
+         *
+         *     Note: decay_factor and window_days are not configurable at runtime
+         *     as they affect historical data calculations.
+         *
+         *     Requires API key authentication.
+         *
+         *     Args:
+         *         config_update: Configuration values to update (only provided values are changed)
+         *         request: HTTP request for audit logging
+         *         db: Database session
+         *
+         *     Returns:
+         *         AnomalyConfig with updated settings
+         */
+        patch: operations["update_anomaly_config_api_system_anomaly_config_patch"];
+        trace?: never;
+    };
     "/api/system/stats": {
         parameters: {
             query?: never;
@@ -3196,6 +3313,117 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ActivityBaselineEntry
+         * @description A single activity baseline entry for a specific hour and day combination.
+         *
+         *     This represents one cell in the 24x7 activity heatmap (168 total entries).
+         * @example {
+         *       "avg_count": 5.2,
+         *       "day_of_week": 0,
+         *       "hour": 17,
+         *       "is_peak": true,
+         *       "sample_count": 30
+         *     }
+         */
+        ActivityBaselineEntry: {
+            /**
+             * Hour
+             * @description Hour of day (0-23)
+             */
+            hour: number;
+            /**
+             * Day Of Week
+             * @description Day of week (0=Monday, 6=Sunday)
+             */
+            day_of_week: number;
+            /**
+             * Avg Count
+             * @description Average activity count for this time slot
+             */
+            avg_count: number;
+            /**
+             * Sample Count
+             * @description Number of samples used to calculate this average
+             */
+            sample_count: number;
+            /**
+             * Is Peak
+             * @description Whether this time slot has above-average activity
+             * @default false
+             */
+            is_peak: boolean;
+        };
+        /**
+         * ActivityBaselineResponse
+         * @description Response for camera activity baseline endpoint.
+         *
+         *     Contains 168 entries (24 hours x 7 days) representing the full weekly
+         *     activity heatmap for a camera.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "entries": [
+         *         {
+         *           "avg_count": 0.5,
+         *           "day_of_week": 0,
+         *           "hour": 0,
+         *           "is_peak": false,
+         *           "sample_count": 30
+         *         },
+         *         {
+         *           "avg_count": 5.2,
+         *           "day_of_week": 4,
+         *           "hour": 17,
+         *           "is_peak": true,
+         *           "sample_count": 30
+         *         }
+         *       ],
+         *       "learning_complete": true,
+         *       "min_samples_required": 10,
+         *       "peak_day": 4,
+         *       "peak_hour": 17,
+         *       "total_samples": 720
+         *     }
+         */
+        ActivityBaselineResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Entries
+             * @description Activity baseline entries (up to 168 = 24h x 7 days)
+             */
+            entries?: components["schemas"]["ActivityBaselineEntry"][];
+            /**
+             * Total Samples
+             * @description Total number of samples across all entries
+             */
+            total_samples: number;
+            /**
+             * Peak Hour
+             * @description Hour with highest average activity (0-23)
+             */
+            peak_hour?: number | null;
+            /**
+             * Peak Day
+             * @description Day with highest average activity (0=Monday, 6=Sunday)
+             */
+            peak_day?: number | null;
+            /**
+             * Learning Complete
+             * @description Whether baseline has sufficient samples for reliable anomaly detection
+             * @default false
+             */
+            learning_complete: boolean;
+            /**
+             * Min Samples Required
+             * @description Minimum samples required per time slot for learning completion
+             * @default 10
+             */
+            min_samples_required: number;
+        };
+        /**
          * AlertRuleConditions
          * @description Schema for legacy alert rule conditions (backward compatibility).
          *
@@ -3653,6 +3881,58 @@ export interface components {
             prompts: {
                 [key: string]: components["schemas"]["ModelPromptResponse"];
             };
+        };
+        /**
+         * AnomalyConfig
+         * @description Current anomaly detection configuration.
+         * @example {
+         *       "decay_factor": 0.1,
+         *       "min_samples": 10,
+         *       "threshold_stdev": 2,
+         *       "window_days": 30
+         *     }
+         */
+        AnomalyConfig: {
+            /**
+             * Threshold Stdev
+             * @description Number of standard deviations from mean for anomaly detection
+             */
+            threshold_stdev: number;
+            /**
+             * Min Samples
+             * @description Minimum samples required before anomaly detection is reliable
+             */
+            min_samples: number;
+            /**
+             * Decay Factor
+             * @description Exponential decay factor for EWMA (0 < factor <= 1)
+             */
+            decay_factor: number;
+            /**
+             * Window Days
+             * @description Rolling window size in days for baseline calculations
+             */
+            window_days: number;
+        };
+        /**
+         * AnomalyConfigUpdate
+         * @description Request to update anomaly detection configuration.
+         * @example {
+         *       "min_samples": 15,
+         *       "threshold_stdev": 2.5
+         *     }
+         */
+        AnomalyConfigUpdate: {
+            /**
+             * Threshold Stdev
+             * @description Number of standard deviations from mean for anomaly detection
+             */
+            threshold_stdev?: number | null;
+            /**
+             * Min Samples
+             * @description Minimum samples required before anomaly detection is reliable
+             */
+            min_samples?: number | null;
         };
         /**
          * AnomalyEvent
@@ -4383,6 +4663,93 @@ export interface components {
              * @description Timestamp of status snapshot
              */
             timestamp: string;
+        };
+        /**
+         * ClassBaselineEntry
+         * @description Baseline entry for a specific object class at a specific hour.
+         * @example {
+         *       "frequency": 3.5,
+         *       "hour": 17,
+         *       "object_class": "person",
+         *       "sample_count": 45
+         *     }
+         */
+        ClassBaselineEntry: {
+            /**
+             * Object Class
+             * @description Object class (e.g., person, vehicle, animal)
+             */
+            object_class: string;
+            /**
+             * Hour
+             * @description Hour of day (0-23)
+             */
+            hour: number;
+            /**
+             * Frequency
+             * @description Frequency of this class at this hour
+             */
+            frequency: number;
+            /**
+             * Sample Count
+             * @description Number of samples for this class/hour combination
+             */
+            sample_count: number;
+        };
+        /**
+         * ClassBaselineResponse
+         * @description Response for camera class frequency baseline endpoint.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "entries": [
+         *         {
+         *           "frequency": 3.5,
+         *           "hour": 17,
+         *           "object_class": "person",
+         *           "sample_count": 45
+         *         },
+         *         {
+         *           "frequency": 2.1,
+         *           "hour": 8,
+         *           "object_class": "vehicle",
+         *           "sample_count": 30
+         *         }
+         *       ],
+         *       "most_common_class": "person",
+         *       "total_samples": 150,
+         *       "unique_classes": [
+         *         "person",
+         *         "vehicle",
+         *         "animal"
+         *       ]
+         *     }
+         */
+        ClassBaselineResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Entries
+             * @description Class baseline entries grouped by class and hour
+             */
+            entries?: components["schemas"]["ClassBaselineEntry"][];
+            /**
+             * Unique Classes
+             * @description List of unique object classes detected for this camera
+             */
+            unique_classes?: string[];
+            /**
+             * Total Samples
+             * @description Total number of samples across all entries
+             */
+            total_samples: number;
+            /**
+             * Most Common Class
+             * @description Most frequently detected object class
+             */
+            most_common_class?: string | null;
         };
         /**
          * CleanupResponse
@@ -10636,6 +11003,68 @@ export interface operations {
             };
         };
     };
+    get_camera_activity_baseline_api_cameras__camera_id__baseline_activity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityBaselineResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassBaselineResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_camera_scene_changes_api_cameras__camera_id__scene_changes_get: {
         parameters: {
             query?: {
@@ -12215,6 +12644,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfigResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_anomaly_config_api_system_anomaly_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyConfig"];
+                };
+            };
+        };
+    };
+    update_anomaly_config_api_system_anomaly_config_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnomalyConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyConfig"];
                 };
             };
             /** @description Validation Error */

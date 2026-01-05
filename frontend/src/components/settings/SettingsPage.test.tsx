@@ -21,6 +21,10 @@ vi.mock('./NotificationSettings', () => ({
   default: () => <div data-testid="notification-settings">Notification Settings</div>,
 }));
 
+vi.mock('./BaselineAnalytics', () => ({
+  default: () => <div data-testid="baseline-analytics">Baseline Analytics</div>,
+}));
+
 describe('SettingsPage', () => {
   it('should render the page title and description', () => {
     render(<SettingsPage />);
@@ -29,10 +33,11 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all four tabs', () => {
+  it('should render all five tabs', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /analytics/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /rules/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /processing/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /notifications/i })).toBeInTheDocument();
@@ -94,11 +99,11 @@ describe('SettingsPage', () => {
     camerasTab.focus();
     expect(camerasTab).toHaveFocus();
 
-    // Press arrow right to move to next tab (RULES is now second)
+    // Press arrow right to move to next tab (ANALYTICS is now second)
     await user.keyboard('{ArrowRight}');
 
-    const rulesTab = screen.getByRole('tab', { name: /rules/i });
-    expect(rulesTab).toHaveFocus();
+    const analyticsTab = screen.getByRole('tab', { name: /analytics/i });
+    expect(analyticsTab).toHaveFocus();
   });
 
   it('should cycle tabs with arrow keys', async () => {

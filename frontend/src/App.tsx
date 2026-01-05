@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import { AIPerformancePage, AIAuditPage } from './components/ai';
 import AlertsPage from './components/alerts/AlertsPage';
+import { AnalyticsPage } from './components/analytics';
 import { AuditLogPage } from './components/audit';
 import { ErrorBoundary } from './components/common';
 import DashboardPage from './components/dashboard/DashboardPage';
@@ -23,6 +24,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/timeline" element={<EventTimeline />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/entities" element={<EntitiesPage />} />
             <Route path="/logs" element={<LogsDashboard />} />
