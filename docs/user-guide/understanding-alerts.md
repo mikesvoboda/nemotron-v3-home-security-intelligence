@@ -25,7 +25,7 @@ _Caption: Risk scores range from 0 (nothing to worry about) to 100 (needs immedi
 
 ## How Risk Scores Work
 
-![How Risk Scores Work](../images/info-risk-scoring.png)
+![Infographic explaining how AI determines risk scores from 0-100, showing factors analyzed including detected object type, time of day, subject behavior patterns, location on property, and detection confidence level](../images/info-risk-scoring.png)
 
 Every time the system detects something on your cameras, it assigns a **risk score** from 0 to 100. Think of this like a thermometer for potential concern:
 

@@ -64,7 +64,7 @@ Home Security Intelligence transforms commodity IP cameras into an intelligent t
 
 ## High-Level Architecture
 
-![System Architecture Overview](../images/arch-system-overview.png)
+![System architecture overview diagram showing four layers: Camera Layer (Foscam IP cameras uploading via FTP), Application Layer (React frontend and FastAPI backend with Redis), GPU Services Layer (RT-DETRv2, Nemotron, Florence-2, CLIP, and Enrichment containers with GPU passthrough), and Data Layer (PostgreSQL database and filesystem storage for thumbnails)](../images/arch-system-overview.png)
 
 The system is organized into four layers:
 
@@ -830,7 +830,7 @@ See `docs/RUNTIME_CONFIG.md` for complete reference.
 
 ```bash
 # Database and Redis (PostgreSQL required)
-DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
+DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
 
 # AI Services

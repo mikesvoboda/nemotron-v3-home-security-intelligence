@@ -1310,6 +1310,12 @@ export interface paths {
          *
          *     Used by the AI Performance page to display detection class distribution charts.
          *
+         *     Optimized to use a single query with window functions instead of 3 separate queries
+         *     (NEM-1321). The query combines:
+         *     - Per-class counts via GROUP BY
+         *     - Total count via SUM(COUNT(*)) OVER() window function
+         *     - Per-class avg confidence, then combined using weighted average formula
+         *
          *     Args:
          *         db: Database session
          *

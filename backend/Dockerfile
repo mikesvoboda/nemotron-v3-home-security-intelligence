@@ -88,10 +88,8 @@ FROM python:3.14-slim-bookworm AS prod
 WORKDIR /app
 
 # Install runtime dependencies only (no build tools like gcc)
-# wget for healthcheck, ffmpeg for video processing,
-# libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
+# ffmpeg for video processing, libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \

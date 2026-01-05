@@ -217,37 +217,64 @@ async def get_detection_stats(
 
     Used by the AI Performance page to display detection class distribution charts.
 
+    Optimized to use a single query with window functions instead of 3 separate queries
+    (NEM-1321). The query combines:
+    - Per-class counts via GROUP BY
+    - Total count via SUM(COUNT(*)) OVER() window function
+    - Per-class avg confidence, then combined using weighted average formula
+
     Args:
         db: Database session
 
     Returns:
         DetectionStatsResponse with aggregate detection statistics
     """
-    # Get total count
-    total_query = select(func.count()).select_from(Detection)
-    total_result = await db.execute(total_query)
-    total_detections = total_result.scalar() or 0
-
-    # Get counts by object class using GROUP BY
-    class_query = (
-        select(Detection.object_type, func.count().label("count"))
+    # Use a single query with window functions to get all stats at once
+    # This replaces 3 separate queries with 1 optimized query
+    #
+    # Strategy: First compute per-class stats including count and avg confidence,
+    # then use window functions to compute totals across all groups.
+    #
+    # For weighted average: sum(class_count * class_avg) / sum(class_count)
+    combined_query = (
+        select(
+            Detection.object_type,
+            func.count().label("class_count"),
+            func.avg(Detection.confidence).label("class_avg_confidence"),
+            func.sum(func.count()).over().label("total_count"),
+            # Weighted average using window functions:
+            # sum(count * avg) over all groups / sum(count) over all groups
+            (
+                func.sum(func.count() * func.avg(Detection.confidence)).over()
+                / func.sum(func.count()).over()
+            ).label("avg_confidence"),
+        )
         .where(Detection.object_type.isnot(None))
         .group_by(Detection.object_type)
         .order_by(func.count().desc())
     )
-    class_result = await db.execute(class_query)
-    class_rows = class_result.all()
+    result = await db.execute(combined_query)
+    rows = result.all()
+
+    # If no rows, there are no typed detections
+    if not rows:
+        return {
+            "total_detections": 0,
+            "detections_by_class": {},
+            "average_confidence": None,
+        }
+
+    # Extract total count and average confidence from first row
+    # (window function values are same across all grouped rows)
+    first_row = rows[0]
+    total_detections = int(first_row.total_count)
+    avg_confidence = first_row.avg_confidence
 
     # Build detections_by_class dict
     detections_by_class: dict[str, int] = {}
-    for object_type, count in class_rows:
-        if object_type:
-            detections_by_class[object_type] = count
-
-    # Get average confidence
-    avg_query = select(func.avg(Detection.confidence)).where(Detection.confidence.isnot(None))
-    avg_result = await db.execute(avg_query)
-    avg_confidence = avg_result.scalar()
+    for row in rows:
+        if row.object_type:
+            detections_by_class[row.object_type] = row.class_count
 
     return {
         "total_detections": total_detections,
