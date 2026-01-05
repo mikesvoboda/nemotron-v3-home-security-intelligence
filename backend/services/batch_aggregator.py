@@ -29,6 +29,7 @@ Concurrency:
 """
 
 import asyncio
+import json
 import time
 import uuid
 from collections import defaultdict
@@ -334,10 +335,21 @@ class BatchAggregator:
         batch_ids = await batch_id_pipe.execute()
 
         # Build list of valid batch IDs and their keys
+        # Note: Redis pipeline returns bytes, so we must decode to str for f-string keys
+        # Also: Values are JSON-serialized by RedisClient.set(), so we must deserialize
         valid_batches: list[tuple[str, str]] = []  # (batch_key, batch_id)
         for batch_key, batch_id in zip(batch_keys, batch_ids, strict=True):
             if batch_id:
-                valid_batches.append((batch_key, batch_id))
+                # Decode bytes to str
+                batch_id_str = batch_id.decode() if isinstance(batch_id, bytes) else batch_id
+                batch_key_str = batch_key.decode() if isinstance(batch_key, bytes) else batch_key
+                # JSON-deserialize since RedisClient.set() JSON-serializes values
+                # e.g., "\"abc123\"" -> "abc123"
+                try:
+                    batch_id_str = json.loads(batch_id_str)
+                except (json.JSONDecodeError, TypeError):
+                    pass  # Not JSON-encoded, use as-is
+                valid_batches.append((batch_key_str, batch_id_str))
 
         if not valid_batches:
             return closed_batches
@@ -351,14 +363,34 @@ class BatchAggregator:
         metadata_results = await metadata_pipe.execute()
 
         # Process results (2 results per batch: started_at, last_activity)
+        # Note: Redis pipeline returns bytes values, decode for consistent handling
         for i, (batch_key, batch_id) in enumerate(valid_batches):
             try:
-                started_at_str = metadata_results[i * 2]
-                last_activity_str = metadata_results[i * 2 + 1]
+                started_at_raw = metadata_results[i * 2]
+                last_activity_raw = metadata_results[i * 2 + 1]
 
-                if not started_at_str:
+                if not started_at_raw:
                     logger.warning(f"Batch {batch_id} missing started_at timestamp, skipping")
                     continue
+
+                # Decode bytes to str before float conversion
+                started_at_str = (
+                    started_at_raw.decode() if isinstance(started_at_raw, bytes) else started_at_raw
+                )
+                last_activity_str = (
+                    last_activity_raw.decode()
+                    if isinstance(last_activity_raw, bytes)
+                    else last_activity_raw
+                )
+                # JSON-deserialize since RedisClient.set() JSON-serializes values
+                try:
+                    started_at_str = json.loads(started_at_str)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                try:
+                    last_activity_str = json.loads(last_activity_str) if last_activity_str else None
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
                 started_at = float(started_at_str)
                 last_activity = float(last_activity_str) if last_activity_str else started_at
