@@ -74,11 +74,14 @@ jobs:
 
       - name: Determine target URL
         id: target
+        env:
+          INPUT_URL: ${{ github.event.inputs.target_url }}
+          SERVICE_URL: ${{ needs.start-services.outputs.api_url || 'http://localhost:8000' }}
         run: |
-          if [ -n "${{ github.event.inputs.target_url }}" ]; then
-            echo "url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_URL" ]; then
+            echo "url=$INPUT_URL" >> $GITHUB_OUTPUT
           else
-            echo "url=${{ needs.start-services.outputs.api_url || 'http://localhost:8000' }}" >> $GITHUB_OUTPUT
+            echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
           fi
 
       - name: Run ZAP API Scan
@@ -119,11 +122,14 @@ jobs:
 
       - name: Determine target URL
         id: target
+        env:
+          INPUT_URL: ${{ github.event.inputs.target_url }}
+          SERVICE_URL: ${{ needs.start-services.outputs.api_url || 'http://localhost:8000' }}
         run: |
-          if [ -n "${{ github.event.inputs.target_url }}" ]; then
-            echo "url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_URL" ]; then
+            echo "url=$INPUT_URL" >> $GITHUB_OUTPUT
           else
-            echo "url=${{ needs.start-services.outputs.api_url || 'http://localhost:8000' }}" >> $GITHUB_OUTPUT
+            echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
           fi
 
       - name: Run ZAP Full Scan
