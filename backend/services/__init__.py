@@ -52,9 +52,9 @@ from .dedupe import DedupeService, compute_file_hash, get_dedupe_service, reset_
 from .degradation_manager import (
     DegradationManager,
     DegradationMode,
+    DegradationServiceStatus,
     QueuedJob,
     ServiceHealth,
-    ServiceStatus,
     get_degradation_manager,
     reset_degradation_manager,
 )
@@ -278,7 +278,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SearchResponse",
     "SearchResult",
     "ServiceHealth",
-    "ServiceStatus",
+    "DegradationServiceStatus",
     "SeverityDefinition",
     "SeverityService",
     "ThumbnailGenerator",

@@ -50,11 +50,11 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
-// HealthServiceStatus is an object type with {status, message?, details?} for HealthResponse.services
-export type HealthServiceStatus =
-  components['schemas']['backend__api__schemas__system__ServiceStatus'];
-// OrchestratorServiceStatus is the enum used by the orchestrator: running, starting, unhealthy, etc.
-export type OrchestratorServiceStatus = components['schemas']['ServiceStatus'];
+// ServiceStatus is an object type with {status, message?, details?} for HealthResponse.services
+export type ServiceStatus =
+  components['schemas']['ServiceStatus'];
+// ContainerServiceStatus is the enum used by the orchestrator: running, starting, unhealthy, etc.
+export type ContainerServiceStatus = components['schemas']['ContainerServiceStatus'];
 export type GPUStats = components['schemas']['GPUStatsResponse'];
 export type GPUStatsSample = components['schemas']['GPUStatsSample'];
 export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResponse'];

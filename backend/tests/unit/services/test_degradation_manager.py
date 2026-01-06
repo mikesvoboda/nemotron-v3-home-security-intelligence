@@ -2,7 +2,7 @@
 
 Tests cover:
 - DegradationMode enum values
-- ServiceStatus tracking
+- DegradationServiceStatus tracking
 - DegradationManager state transitions
 - Queue-for-later behavior during AI outages
 - Redis unavailability handling
@@ -22,9 +22,9 @@ from backend.core.redis import QueueAddResult
 from backend.services.degradation_manager import (
     DegradationManager,
     DegradationMode,
+    DegradationServiceStatus,
     QueuedJob,
     ServiceHealth,
-    ServiceStatus,
     get_degradation_manager,
     reset_degradation_manager,
 )
@@ -41,14 +41,14 @@ class TestDegradationMode:
         assert DegradationMode.OFFLINE.value == "offline"
 
 
-class TestServiceStatus:
-    """Tests for ServiceStatus enum."""
+class TestDegradationServiceStatus:
+    """Tests for DegradationServiceStatus enum."""
 
     def test_status_values(self) -> None:
         """Test service status enum values."""
-        assert ServiceStatus.HEALTHY.value == "healthy"
-        assert ServiceStatus.UNHEALTHY.value == "unhealthy"
-        assert ServiceStatus.UNKNOWN.value == "unknown"
+        assert DegradationServiceStatus.HEALTHY.value == "healthy"
+        assert DegradationServiceStatus.UNHEALTHY.value == "unhealthy"
+        assert DegradationServiceStatus.UNKNOWN.value == "unknown"
 
 
 class TestServiceHealth:
@@ -58,7 +58,7 @@ class TestServiceHealth:
         """Test default health values."""
         health = ServiceHealth(name="test_service")
         assert health.name == "test_service"
-        assert health.status == ServiceStatus.UNKNOWN
+        assert health.status == DegradationServiceStatus.UNKNOWN
         assert health.last_check is None
         assert health.last_success is None
         assert health.consecutive_failures == 0
@@ -68,29 +68,29 @@ class TestServiceHealth:
         """Test custom health values."""
         health = ServiceHealth(
             name="ai_service",
-            status=ServiceStatus.HEALTHY,
+            status=DegradationServiceStatus.HEALTHY,
             consecutive_failures=0,
             error_message=None,
         )
         assert health.name == "ai_service"
-        assert health.status == ServiceStatus.HEALTHY
+        assert health.status == DegradationServiceStatus.HEALTHY
 
     def test_is_healthy(self) -> None:
         """Test is_healthy property."""
-        health = ServiceHealth(name="test", status=ServiceStatus.HEALTHY)
+        health = ServiceHealth(name="test", status=DegradationServiceStatus.HEALTHY)
         assert health.is_healthy is True
 
-        health.status = ServiceStatus.UNHEALTHY
+        health.status = DegradationServiceStatus.UNHEALTHY
         assert health.is_healthy is False
 
-        health.status = ServiceStatus.UNKNOWN
+        health.status = DegradationServiceStatus.UNKNOWN
         assert health.is_healthy is False
 
     def test_to_dict(self) -> None:
         """Test conversion to dictionary."""
         health = ServiceHealth(
             name="test_service",
-            status=ServiceStatus.HEALTHY,
+            status=DegradationServiceStatus.HEALTHY,
             consecutive_failures=0,
         )
         result = health.to_dict()
@@ -172,7 +172,7 @@ class TestDegradationManager:
         """Test getting health of unknown service."""
         health = manager.get_service_health("unknown_service")
         assert health.name == "unknown_service"
-        assert health.status == ServiceStatus.UNKNOWN
+        assert health.status == DegradationServiceStatus.UNKNOWN
 
     @pytest.mark.asyncio
     async def test_register_service(self, manager: DegradationManager) -> None:
@@ -194,7 +194,7 @@ class TestDegradationManager:
         await manager.update_service_health("ai_detector", is_healthy=True)
 
         health = manager.get_service_health("ai_detector")
-        assert health.status == ServiceStatus.HEALTHY
+        assert health.status == DegradationServiceStatus.HEALTHY
         assert health.consecutive_failures == 0
 
     @pytest.mark.asyncio
@@ -212,7 +212,7 @@ class TestDegradationManager:
         )
 
         health = manager.get_service_health("ai_detector")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
         assert health.consecutive_failures == 1
         assert health.error_message == "Connection refused"
 
@@ -251,7 +251,7 @@ class TestDegradationManager:
 
         health = manager.get_service_health("ai_detector")
         assert health.consecutive_failures == 0
-        assert health.status == ServiceStatus.HEALTHY
+        assert health.status == DegradationServiceStatus.HEALTHY
 
     @pytest.mark.asyncio
     async def test_mode_transitions_to_degraded(self, manager: DegradationManager) -> None:
@@ -462,7 +462,7 @@ class TestDegradationManager:
         await manager.run_health_checks()
 
         health = manager.get_service_health("ai_detector")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
 
     def test_list_services(self, manager: DegradationManager) -> None:
         """Test listing registered services."""
@@ -1718,7 +1718,7 @@ class TestHealthCheckTimeout:
 
         # Service should be marked unhealthy due to timeout
         health = manager.get_service_health("slow_service")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
         assert "timed out" in (health.error_message or "").lower()
 
     @pytest.mark.asyncio
@@ -1741,7 +1741,7 @@ class TestHealthCheckTimeout:
         await manager.run_health_checks()
 
         health = manager.get_service_health("fast_service")
-        assert health.status == ServiceStatus.HEALTHY
+        assert health.status == DegradationServiceStatus.HEALTHY
 
     @pytest.mark.asyncio
     async def test_health_check_timeout_counts_as_failure(self) -> None:

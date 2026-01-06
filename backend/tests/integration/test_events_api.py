@@ -1699,14 +1699,14 @@ class TestGenerateEventClip:
         # Test with invalid start_offset_seconds
         response = await async_client.post(
             f"/api/events/{sample_event.id}/clip/generate",
-            json={"start_offset_seconds": -500},  # Exceeds max of -300
+            json={"start_offset_seconds": -31},  # Exceeds min of -30
         )
         assert response.status_code == 422
 
         # Test with invalid end_offset_seconds
         response = await async_client.post(
             f"/api/events/{sample_event.id}/clip/generate",
-            json={"end_offset_seconds": 500},  # Exceeds max of 300
+            json={"end_offset_seconds": 3601},  # Exceeds max of 3600
         )
         assert response.status_code == 422
 

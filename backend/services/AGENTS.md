@@ -1085,7 +1085,7 @@ enabled = registry.get_enabled_services()
 registry.record_restart("ai-detector")
 new_count = registry.increment_failure("ai-detector")
 registry.reset_failures("ai-detector")
-registry.update_status("ai-detector", ServiceStatus.RUNNING)
+registry.update_status("ai-detector", ContainerServiceStatus.RUNNING)
 registry.set_enabled("ai-detector", False)
 
 # Persistence

@@ -26,8 +26,8 @@ from backend.core.redis import QueueAddResult, RedisClient
 from backend.services.degradation_manager import (
     DegradationManager,
     DegradationMode,
+    DegradationServiceStatus,
     FallbackQueue,
-    ServiceStatus,
     reset_degradation_manager,
 )
 
@@ -323,7 +323,7 @@ class TestServiceHealthMonitoring:
             await manager.run_health_checks()
 
             health = manager.get_service_health("slow_service")
-            assert health.status == ServiceStatus.UNHEALTHY
+            assert health.status == DegradationServiceStatus.UNHEALTHY
             assert health.error_message is not None
             # Error message contains "timed out" (case insensitive check)
             assert "timed out" in health.error_message.lower()

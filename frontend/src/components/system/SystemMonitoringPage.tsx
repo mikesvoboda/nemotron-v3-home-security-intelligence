@@ -38,7 +38,7 @@ import {
   resetCircuitBreaker,
   type GPUStats,
   type TelemetryResponse,
-  type HealthServiceStatus,
+  type ServiceStatus,
   type CircuitBreakersResponse,
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
@@ -914,7 +914,7 @@ export default function SystemMonitoringPage() {
  */
 interface ServiceHealthRowProps {
   name: string;
-  status: HealthServiceStatus;
+  status: ServiceStatus;
 }
 
 function ServiceHealthRow({ name, status }: ServiceHealthRowProps) {
