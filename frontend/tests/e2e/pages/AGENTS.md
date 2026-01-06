@@ -51,31 +51,34 @@ readonly navSettings: Locator;
 
 ### Common Methods
 
-| Method                       | Description                           |
-| ---------------------------- | ------------------------------------- |
-| `goto(path)`                 | Navigate to a URL path                |
-| `waitForPageLoad()`          | Wait for networkidle state            |
-| `expectHeaderVisible()`      | Assert header is visible              |
-| `expectSidebarVisible()`     | Assert sidebar is visible             |
-| `expectLayoutLoaded()`       | Assert full layout is rendered        |
-| `navigateToDashboard()`      | Navigate to dashboard                 |
-| `navigateToTimeline()`       | Navigate to timeline                  |
-| `navigateToAlerts()`         | Navigate to alerts                    |
-| `navigateToEntities()`       | Navigate to entities                  |
-| `navigateToLogs()`           | Navigate to logs                      |
-| `navigateToAudit()`          | Navigate to audit                     |
-| `navigateToSystem()`         | Navigate to system                    |
-| `navigateToSettings()`       | Navigate to settings                  |
-| `getCurrentPath()`           | Get current URL pathname              |
-| `waitForHeading(text)`       | Wait for heading with text            |
-| `waitForLoadingComplete()`   | Wait for loading indicators to clear  |
-| `isDisconnected()`           | Check if disconnected indicator shown |
-| `clickButton(name)`          | Click button by accessible name       |
-| `fillInput(label, value)`    | Fill input by label                   |
-| `selectOption(label, value)` | Select dropdown option                |
-| `hasText(text)`              | Check if text is visible              |
-| `waitForText(text)`          | Wait for text to appear               |
-| `screenshot(name)`           | Take screenshot for debugging         |
+| Method                                | Description                                  |
+| ------------------------------------- | -------------------------------------------- |
+| `goto(path)`                          | Navigate to a URL path                       |
+| `waitForPageLoad()`                   | Wait for networkidle state                   |
+| `expectHeaderVisible()`               | Assert header is visible                     |
+| `expectSidebarVisible()`              | Assert sidebar is visible                    |
+| `expectLayoutLoaded()`                | Assert full layout is rendered               |
+| `navigateToDashboard()`               | Navigate to dashboard                        |
+| `navigateToTimeline()`                | Navigate to timeline                         |
+| `navigateToAlerts()`                  | Navigate to alerts                           |
+| `navigateToEntities()`                | Navigate to entities                         |
+| `navigateToLogs()`                    | Navigate to logs                             |
+| `navigateToAudit()`                   | Navigate to audit                            |
+| `navigateToSystem()`                  | Navigate to system                           |
+| `navigateToSettings()`                | Navigate to settings                         |
+| `getCurrentPath()`                    | Get current URL pathname                     |
+| `waitForHeading(text)`                | Wait for heading with text                   |
+| `waitForLoadingComplete()`            | Wait for loading indicators to clear         |
+| `isDisconnected()`                    | Check if disconnected indicator shown        |
+| `clickButton(name)`                   | Click button by accessible name              |
+| `fillInput(label, value)`             | Fill input by label                          |
+| `selectOption(label, value)`          | Select dropdown option                       |
+| `hasText(text)`                       | Check if text is visible                     |
+| `waitForText(text)`                   | Wait for text to appear                      |
+| `screenshot(name)`                    | Take screenshot for debugging                |
+| `waitForApiResponse(endpoint, opts)`  | Wait for specific API endpoint (NEM-1480)    |
+| `waitForMultipleApiResponses(eps)`    | Wait for multiple API endpoints (NEM-1480)   |
+| `performActionAndWaitForApi(...)`     | Action + API wait combined (NEM-1480)        |
 
 ## DashboardPage
 

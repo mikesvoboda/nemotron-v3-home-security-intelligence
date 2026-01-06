@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { logger, type ComponentLogger } from './logger';
+import { logger, Logger, type ComponentLogger, type LoggerConfig } from './logger';
 
 describe('Logger singleton', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -237,5 +237,187 @@ describe('Batch size triggering', () => {
     // We can trigger this by looking at the API error logging path
     logger.apiError('/test', 500, 'Server error');
     expect(consoleSpy.error).toHaveBeenCalled();
+  });
+});
+
+describe('Batched logging (NEM-1554)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let sendBeaconMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    sendBeaconMock = vi.fn().mockReturnValue(true);
+    vi.stubGlobal('navigator', { sendBeacon: sendBeaconMock });
+
+    // Suppress console output during tests
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  describe('batch endpoint', () => {
+    it('sends logs to batch endpoint with array payload', async () => {
+      const testLogger = new Logger({
+        batchSize: 2,
+        batchEndpoint: '/api/logs/frontend/batch',
+        enabled: true,
+      });
+
+      testLogger.info('Message 1');
+      testLogger.info('Message 2');
+
+      // Wait for flush
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Should call fetch with batch endpoint and array payload
+      expect(fetchMock).toHaveBeenCalled();
+      const [url, options] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1] as [
+        string,
+        RequestInit,
+      ];
+
+      expect(url).toBe('/api/logs/frontend/batch');
+      expect(options.method).toBe('POST');
+
+      const body = JSON.parse(options.body as string) as { entries: unknown[] };
+      expect(body.entries).toBeInstanceOf(Array);
+      expect(body.entries.length).toBe(2);
+
+      testLogger.destroy();
+    });
+
+    it('falls back to individual requests if batch endpoint not configured', async () => {
+      const testLogger = new Logger({
+        batchSize: 2,
+        endpoint: '/api/logs/frontend',
+        enabled: true,
+      });
+
+      testLogger.info('Message 1');
+      testLogger.info('Message 2');
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Should still work with individual endpoint
+      expect(fetchMock).toHaveBeenCalled();
+
+      testLogger.destroy();
+    });
+  });
+
+  describe('sendBeacon on page unload', () => {
+    it('flushWithBeacon uses navigator.sendBeacon', () => {
+      const testLogger = new Logger({
+        batchEndpoint: '/api/logs/frontend/batch',
+        enabled: true,
+      });
+
+      testLogger.info('Message to beacon');
+      testLogger.flushWithBeacon();
+
+      expect(sendBeaconMock).toHaveBeenCalled();
+      const [url, data] = sendBeaconMock.mock.calls[0] as [string, Blob];
+
+      expect(url).toBe('/api/logs/frontend/batch');
+      expect(data).toBeInstanceOf(Blob);
+
+      testLogger.destroy();
+    });
+
+    it('flushWithBeacon does nothing when queue is empty', () => {
+      const testLogger = new Logger({
+        batchEndpoint: '/api/logs/frontend/batch',
+        enabled: true,
+      });
+
+      // Flush first to clear any pending logs
+      testLogger.flushWithBeacon();
+
+      // Reset mock
+      sendBeaconMock.mockClear();
+
+      // Call flushWithBeacon again - should not call sendBeacon
+      testLogger.flushWithBeacon();
+      expect(sendBeaconMock).not.toHaveBeenCalled();
+
+      testLogger.destroy();
+    });
+
+    it('falls back to fetch if sendBeacon is not available', async () => {
+      // Remove sendBeacon from navigator
+      vi.stubGlobal('navigator', {});
+
+      const testLogger = new Logger({
+        batchEndpoint: '/api/logs/frontend/batch',
+        enabled: true,
+      });
+
+      testLogger.info('Message without beacon');
+      testLogger.flushWithBeacon();
+
+      // Wait for async fetch
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Should fall back to fetch
+      expect(fetchMock).toHaveBeenCalled();
+
+      testLogger.destroy();
+    });
+  });
+
+  describe('getQueueSize', () => {
+    it('returns the current queue size', () => {
+      const testLogger = new Logger({ enabled: true });
+
+      expect(testLogger.getQueueSize()).toBe(0);
+
+      testLogger.info('Message 1');
+      expect(testLogger.getQueueSize()).toBe(1);
+
+      testLogger.info('Message 2');
+      expect(testLogger.getQueueSize()).toBe(2);
+
+      testLogger.destroy();
+    });
+  });
+
+  describe('max queue size enforcement', () => {
+    it('drops oldest entries when queue exceeds maxQueueSize', () => {
+      const testLogger = new Logger({
+        maxQueueSize: 3,
+        batchSize: 100, // High batch size to prevent auto-flush
+        flushIntervalMs: 60000, // Long interval to prevent timer flush
+        enabled: true,
+      });
+
+      testLogger.info('Message 1');
+      testLogger.info('Message 2');
+      testLogger.info('Message 3');
+      testLogger.info('Message 4'); // Should drop Message 1
+
+      expect(testLogger.getQueueSize()).toBe(3);
+
+      testLogger.destroy();
+    });
+  });
+});
+
+describe('LoggerConfig type export', () => {
+  it('exports LoggerConfig type', () => {
+    // Verify type is usable (Partial makes all fields optional)
+    const config: Partial<LoggerConfig> = {
+      batchSize: 10,
+      flushIntervalMs: 5000,
+      endpoint: '/api/logs/frontend',
+      enabled: true,
+    };
+    expect(config).toBeDefined();
   });
 });

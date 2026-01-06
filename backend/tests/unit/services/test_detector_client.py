@@ -139,7 +139,7 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         # Mock detector response
         mock_response = MagicMock(spec=httpx.Response)
@@ -184,7 +184,7 @@ async def test_detect_objects_filters_low_confidence(
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -213,7 +213,7 @@ async def test_detect_objects_no_detections(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -254,7 +254,7 @@ async def test_detect_objects_connection_error_raises_exception(detector_client,
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")),
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -279,7 +279,7 @@ async def test_detect_objects_timeout_raises_exception(detector_client, mock_ses
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=httpx.TimeoutException("Request timeout")),
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -303,7 +303,7 @@ async def test_detect_objects_server_error_raises_exception(detector_client, moc
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
@@ -334,7 +334,7 @@ async def test_detect_objects_client_error_returns_empty(detector_client, mock_s
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 400
@@ -366,7 +366,7 @@ async def test_detect_objects_invalid_json_raises_exception(detector_client, moc
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -396,7 +396,7 @@ async def test_detect_objects_malformed_response(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -445,7 +445,7 @@ async def test_detect_objects_sets_file_type(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -481,7 +481,7 @@ async def test_detect_objects_sets_timestamp(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -519,7 +519,7 @@ async def test_detect_objects_multiple_types(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -567,7 +567,7 @@ async def test_detect_objects_invalid_bbox_format(detector_client, mock_session)
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -651,7 +651,7 @@ async def test_detect_objects_http_502_raises_exception(detector_client, mock_se
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 502
@@ -679,7 +679,7 @@ async def test_detect_objects_http_503_raises_exception(detector_client, mock_se
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 503
@@ -703,7 +703,7 @@ async def test_detect_objects_http_404_returns_empty(detector_client, mock_sessi
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
@@ -729,7 +729,7 @@ async def test_detect_objects_unexpected_error_raises_exception(detector_client,
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=RuntimeError("Unexpected error")),
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -778,7 +778,7 @@ async def test_detect_objects_retry_succeeds_after_transient_failure(mock_sessio
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=mock_post),
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
         patch("asyncio.sleep", new_callable=AsyncMock),  # Speed up test by mocking sleep
     ):
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -814,7 +814,7 @@ async def test_detect_objects_retry_exhausts_all_attempts(mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=mock_post),
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
         patch("asyncio.sleep", new_callable=AsyncMock),  # Speed up test by mocking sleep
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
@@ -923,7 +923,7 @@ async def test_detect_objects_updates_camera_last_seen_at(detector_client, mock_
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -954,7 +954,7 @@ async def test_detect_objects_no_camera_update_when_no_detections(detector_clien
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -994,7 +994,7 @@ async def test_detect_objects_handles_missing_camera(detector_client, mock_sessi
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -1020,7 +1020,7 @@ async def test_detect_objects_rejects_invalid_image(detector_client, mock_sessio
 
     with (
         patch("pathlib.Path.exists", return_value=True),
-        patch.object(detector_client, "_validate_image_for_detection", return_value=False),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=False),
     ):
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
@@ -1135,6 +1135,105 @@ def test_validate_image_for_detection_too_small(detector_client, tmp_path):
     assert result is False
 
 
+# Test: Async Image Validation (NEM-1462)
+
+
+@pytest.mark.asyncio
+async def test_validate_image_for_detection_async_valid_image(detector_client, tmp_path):
+    """Test async image validation accepts valid images."""
+    from PIL import Image
+
+    # Create a valid image above minimum size
+    image_path = tmp_path / "valid_async.jpg"
+    img = Image.new("RGB", (640, 480), color="green")
+    # Add gradient for larger file size
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(480):
+            for x in range(640):
+                pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+    img.save(image_path, "JPEG", quality=95)
+
+    result = await detector_client._validate_image_for_detection_async(str(image_path), "camera1")
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_validate_image_for_detection_async_matches_sync(detector_client, tmp_path):
+    """Test async validation returns same result as sync version."""
+    from PIL import Image
+
+    # Create a valid image
+    image_path = tmp_path / "valid_compare.jpg"
+    img = Image.new("RGB", (640, 480), color="blue")
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(480):
+            for x in range(640):
+                pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+    img.save(image_path, "JPEG", quality=95)
+
+    sync_result = detector_client._validate_image_for_detection(str(image_path), "camera1")
+    async_result = await detector_client._validate_image_for_detection_async(
+        str(image_path), "camera1"
+    )
+
+    assert sync_result == async_result
+
+
+@pytest.mark.asyncio
+async def test_validate_image_for_detection_async_rejects_corrupted(detector_client, tmp_path):
+    """Test async image validation rejects corrupted images."""
+    image_path = tmp_path / "corrupted_async.jpg"
+    image_path.write_text("This is not an image file!")
+
+    result = await detector_client._validate_image_for_detection_async(str(image_path), "camera1")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_async_file_read_does_not_block_event_loop(detector_client, mock_session, tmp_path):
+    """Test that async file reading doesn't block the event loop."""
+    import asyncio
+
+    from PIL import Image
+
+    # Create a valid image
+    image_path = tmp_path / "nonblocking.jpg"
+    img = Image.new("RGB", (640, 480), color="purple")
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(480):
+            for x in range(640):
+                pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+    img.save(image_path, "JPEG", quality=95)
+
+    # Track concurrent execution
+    execution_order = []
+
+    async def track_detection():
+        with patch("httpx.AsyncClient.post") as mock_post:
+            mock_response = MagicMock(spec=httpx.Response)
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"detections": []}
+            mock_post.return_value = mock_response
+            await detector_client.detect_objects(str(image_path), "camera1", mock_session)
+            execution_order.append("detection_complete")
+
+    async def quick_task():
+        await asyncio.sleep(0.001)
+        execution_order.append("quick_task")
+
+    # Run both concurrently
+    await asyncio.gather(track_detection(), quick_task())
+
+    # Both should complete (exact order may vary)
+    assert "detection_complete" in execution_order
+    assert "quick_task" in execution_order
+
+
 # Test: Semaphore Concurrency Limiting (NEM-1500)
 
 
@@ -1188,7 +1287,7 @@ async def test_semaphore_limits_concurrent_requests(mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=mock_request),
-        patch.object(client, "_validate_image_for_detection", return_value=True),
+        patch.object(client, "_validate_image_for_detection_async", return_value=True),
         # Mock _get_semaphore to return our test semaphore with limit 2
         patch.object(DetectorClient, "_get_semaphore", return_value=test_semaphore),
     ):

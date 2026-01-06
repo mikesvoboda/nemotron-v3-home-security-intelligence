@@ -1,5 +1,20 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+/**
+ * Bundle Size Targets (NEM-1562)
+ *
+ * Target bundle sizes for the production build. These are guidelines
+ * to monitor bundle growth over time.
+ *
+ * - Main bundle (vendor + app): < 500KB gzipped
+ * - Largest chunk: < 250KB gzipped
+ * - Total initial load: < 750KB gzipped
+ *
+ * Run `npm run analyze` to generate a visual bundle analysis report.
+ * The report will be written to stats.html in the project root.
+ */
 
 export default defineConfig(({ mode }) => {
   // Load env file based on mode
@@ -9,8 +24,27 @@ export default defineConfig(({ mode }) => {
   const backendUrl = env.VITE_DEV_BACKEND_URL || 'http://localhost:8000';
   const wsBackendUrl = backendUrl.replace(/^http/, 'ws');
 
+  // Enable bundle analysis when running with --mode analyze
+  const isAnalyze = mode === 'analyze';
+
+  // Build plugins array
+  const plugins: PluginOption[] = [react()];
+
+  // Add visualizer plugin for bundle analysis
+  if (isAnalyze) {
+    plugins.push(
+      visualizer({
+        filename: 'stats.html',
+        open: true,
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap', // Options: 'treemap', 'sunburst', 'network'
+      }) as PluginOption
+    );
+  }
+
   return {
-    plugins: [react()],
+    plugins,
     cacheDir: '.vitest',
     server: {
       port: 5173,
@@ -27,6 +61,23 @@ export default defineConfig(({ mode }) => {
           target: wsBackendUrl,
           ws: true,
           changeOrigin: true,
+        },
+      },
+    },
+    build: {
+      // Enable source maps for production debugging (disable for smaller builds)
+      sourcemap: isAnalyze,
+      // Chunk size warning limit (in KB)
+      chunkSizeWarningLimit: 500,
+      rollupOptions: {
+        output: {
+          // Manual chunk splitting for optimal caching
+          manualChunks: {
+            // Vendor chunks - split large dependencies for better caching
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-ui': ['@tremor/react', '@headlessui/react', 'lucide-react'],
+            'vendor-utils': ['clsx', 'tailwind-merge'],
+          },
         },
       },
     },

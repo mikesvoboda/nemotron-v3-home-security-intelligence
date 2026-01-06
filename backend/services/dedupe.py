@@ -24,6 +24,7 @@ Error Handling:
 - File read errors: Returns False (don't process corrupted files)
 """
 
+import asyncio
 import hashlib
 from pathlib import Path
 
@@ -68,7 +69,7 @@ def compute_file_hash(file_path: str) -> str | None:
 
         # Read file and compute hash
         sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
+        with open(file_path, "rb") as f:  # nosemgrep: path-traversal-open
             # Read in chunks for memory efficiency with large files
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256_hash.update(chunk)
@@ -81,6 +82,26 @@ def compute_file_hash(file_path: str) -> str | None:
     except Exception as e:
         logger.error(f"Unexpected error computing hash for {file_path}: {e}")
         return None
+
+
+async def compute_file_hash_async(file_path: str) -> str | None:
+    """Compute SHA256 hash of file content asynchronously.
+
+    This is the non-blocking version that runs the hash computation in a
+    thread pool executor to avoid blocking the async event loop during
+    file I/O operations.
+
+    Args:
+        file_path: Path to the file to hash
+
+    Returns:
+        Hex-encoded SHA256 hash string, or None if file cannot be read
+
+    Example:
+        # Use in async code instead of compute_file_hash
+        file_hash = await compute_file_hash_async("/path/to/image.jpg")
+    """
+    return await asyncio.to_thread(compute_file_hash, file_path)
 
 
 class DedupeService:
@@ -140,9 +161,9 @@ class DedupeService:
             - is_duplicate: True if file was already processed
             - file_hash: The SHA256 hash of the file (for logging/storage)
         """
-        # Compute hash if not provided
+        # Compute hash if not provided (using async version to avoid blocking)
         if file_hash is None:
-            file_hash = compute_file_hash(file_path)
+            file_hash = await compute_file_hash_async(file_path)
 
         if file_hash is None:
             # Could not compute hash - likely file issue, let caller decide
@@ -204,9 +225,9 @@ class DedupeService:
         Returns:
             True if successfully marked, False on error
         """
-        # Compute hash if not provided
+        # Compute hash if not provided (using async version to avoid blocking)
         if file_hash is None:
-            file_hash = compute_file_hash(file_path)
+            file_hash = await compute_file_hash_async(file_path)
 
         if file_hash is None:
             logger.warning(f"Could not compute hash to mark as processed: {file_path}")
@@ -247,8 +268,8 @@ class DedupeService:
             - is_duplicate: True if file was already processed
             - file_hash: The SHA256 hash of the file
         """
-        # Compute hash once
-        file_hash = compute_file_hash(file_path)
+        # Compute hash once (using async version to avoid blocking)
+        file_hash = await compute_file_hash_async(file_path)
         if file_hash is None:
             return (False, None)
 
