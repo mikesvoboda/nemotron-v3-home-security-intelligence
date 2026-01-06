@@ -900,15 +900,14 @@ jobs:
           path: frontend/test-results/
           retention-days: 7
 
-  # Secondary E2E tests (Firefox/WebKit) - non-blocking, informational only
+  # Secondary E2E tests (Firefox/WebKit) - now stable and blocking
   # Intentionally kept on Node 20 only (no matrix) to avoid excessive CI time
+  # After NEM-1403 stabilization, these tests are now reliable and block merges
   frontend-e2e-secondary:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
-    # Non-blocking: These browsers are slower and flakier, failures are informational
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:

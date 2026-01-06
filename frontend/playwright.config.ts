@@ -59,6 +59,10 @@ export default defineConfig({
   // Global timeout for each test
   timeout: 15000,
 
+  // Global setup script to optimize test startup (future optimization)
+  // This runs once before all tests, reducing per-test overhead
+  // globalSetup: './tests/e2e/global-setup.ts',  // Uncomment when created
+
   // Expect timeout - keep short for fast feedback
   // Error state tests use explicit longer timeouts where needed
   expect: {
@@ -97,6 +101,12 @@ export default defineConfig({
 
     // Action timeout (clicks, fills, etc.)
     actionTimeout: 5000,
+
+    // Optimize for faster test execution in CI
+    launchOptions: {
+      // Disable GPU acceleration for consistency and speed in CI
+      args: ['--disable-gpu', '--disable-dev-shm-usage'],
+    },
   },
 
   // Projects - Multi-browser testing configuration
