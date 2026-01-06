@@ -2279,6 +2279,7 @@ class TestNemotronAnalyzerImprovedPatterns:
         mock.ai_connect_timeout = 10.0
         mock.nemotron_read_timeout = 120.0
         mock.ai_health_timeout = 5.0
+        mock.nemotron_max_retries = 3
         mock.severity_low_max = 29
         mock.severity_medium_max = 59
         mock.severity_high_max = 84
