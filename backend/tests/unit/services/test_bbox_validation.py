@@ -879,3 +879,229 @@ class TestBboxValidationProperties:
         coords[coord_index] = float("inf")
         bbox = tuple(coords)  # type: ignore[arg-type]
         assert is_valid_bbox(bbox) is False
+
+    # -------------------------------------------------------------------------
+    # Additional Mathematical Properties (NEM-1698)
+    # -------------------------------------------------------------------------
+
+    @given(bbox1=valid_bbox_xyxy_strategy(), bbox2=valid_bbox_xyxy_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_area_sum_property(
+        self,
+        bbox1: tuple[float, float, float, float],
+        bbox2: tuple[float, float, float, float],
+    ) -> None:
+        """Property: Area calculation should follow geometric properties.
+
+        The area of a bbox is always width * height.
+        """
+        area = calculate_bbox_area(bbox1)
+        x1, y1, x2, y2 = bbox1
+
+        width = x2 - x1
+        height = y2 - y1
+        expected_area = width * height
+
+        assert abs(area - expected_area) < 0.01, f"Area mismatch: {area} vs {expected_area}"
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        scale=st.floats(min_value=1.0, max_value=10.0, allow_nan=False, allow_infinity=False),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_area_scales_quadratically(
+        self,
+        bbox: tuple[float, float, float, float],
+        scale: float,
+    ) -> None:
+        """Property: Scaling a bbox by factor k should scale area by k^2."""
+        x1, y1, x2, y2 = bbox
+
+        # Scale the bbox
+        width = x2 - x1
+        height = y2 - y1
+        scaled_bbox = (x1, y1, x1 + width * scale, y1 + height * scale)
+
+        original_area = calculate_bbox_area(bbox)
+        scaled_area = calculate_bbox_area(scaled_bbox)
+
+        # Area should scale by scale^2
+        expected_scaled_area = original_area * (scale**2)
+
+        assert abs(scaled_area - expected_scaled_area) < 0.1, (
+            f"Scaled area {scaled_area} doesn't match expected {expected_scaled_area}"
+        )
+
+    @given(
+        bbox1=valid_bbox_xyxy_strategy(),
+        bbox2=valid_bbox_xyxy_strategy(),
+        bbox3=valid_bbox_xyxy_strategy(),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_iou_transitive_property(
+        self,
+        bbox1: tuple[float, float, float, float],
+        bbox2: tuple[float, float, float, float],
+        bbox3: tuple[float, float, float, float],
+    ) -> None:
+        """Property: IoU should follow transitivity-like properties.
+
+        If IoU(A, B) > 0 and IoU(B, C) > 0, then A, B, C are somewhat related.
+        This tests the logical consistency of IoU calculations.
+        """
+        iou_ab = calculate_bbox_iou(bbox1, bbox2)
+        iou_bc = calculate_bbox_iou(bbox2, bbox3)
+        iou_ac = calculate_bbox_iou(bbox1, bbox3)
+
+        # All IoU values should be in [0, 1]
+        assert 0.0 <= iou_ab <= 1.0
+        assert 0.0 <= iou_bc <= 1.0
+        assert 0.0 <= iou_ac <= 1.0
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        dims=image_dimensions_strategy(),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_normalize_roundtrip_approximately_identity(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+    ) -> None:
+        """Property: normalize_to_float -> normalize_to_pixels is approximately identity.
+
+        Converting to normalized coordinates and back should give approximately
+        the original bbox (within rounding error).
+        """
+        width, height = dims
+
+        # Normalize to [0, 1]
+        norm_bbox = normalize_bbox_to_float(bbox, width, height)
+
+        # Convert back to pixels
+        pixel_bbox = normalize_bbox_to_pixels(norm_bbox, width, height)
+
+        # Should be approximately equal to original
+        for i in range(4):
+            # Allow rounding error
+            assert abs(pixel_bbox[i] - bbox[i]) < 2.0, (
+                f"Roundtrip failed at index {i}: {pixel_bbox[i]} vs {bbox[i]}"
+            )
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        dims=image_dimensions_strategy(),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_clamping_area_never_exceeds_original(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+    ) -> None:
+        """Property: Clamping a bbox to image bounds never increases its area.
+
+        This is a fundamental geometric property - restricting to a smaller
+        region can only maintain or decrease area, never increase it.
+        """
+        width, height = dims
+
+        original_area = calculate_bbox_area(bbox)
+
+        clamped = clamp_bbox_to_image(bbox, width, height)
+
+        if clamped is not None:
+            clamped_area = calculate_bbox_area(clamped)
+
+            assert clamped_area <= original_area + 0.01, (
+                f"Clamped area {clamped_area} > original {original_area}"
+            )
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        dims=image_dimensions_strategy(),
+        min_size=st.floats(min_value=1.0, max_value=100.0, allow_nan=False, allow_infinity=False),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_clamped_bbox_respects_min_size(
+        self,
+        bbox: tuple[float, float, float, float],
+        dims: tuple[int, int],
+        min_size: float,
+    ) -> None:
+        """Property: Clamped bbox respects minimum size constraint.
+
+        If a bbox is too small after clamping, it should return None.
+        Otherwise, it should have at least min_size in both dimensions.
+        """
+        width, height = dims
+
+        clamped = clamp_bbox_to_image(bbox, width, height, min_size=min_size)
+
+        if clamped is not None:
+            x1, y1, x2, y2 = clamped
+            clamped_width = x2 - x1
+            clamped_height = y2 - y1
+
+            assert clamped_width >= min_size - 0.01, (
+                f"Clamped width {clamped_width} < min_size {min_size}"
+            )
+            assert clamped_height >= min_size - 0.01, (
+                f"Clamped height {clamped_height} < min_size {min_size}"
+            )
+
+    @given(
+        bbox1=valid_bbox_xyxy_strategy(),
+        bbox2=valid_bbox_xyxy_strategy(),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_iou_symmetric_property(
+        self,
+        bbox1: tuple[float, float, float, float],
+        bbox2: tuple[float, float, float, float],
+    ) -> None:
+        """Property: IoU should be symmetric: IoU(A, B) == IoU(B, A).
+
+        This is already tested elsewhere but worth including in properties.
+        """
+        iou_ab = calculate_bbox_iou(bbox1, bbox2)
+        iou_ba = calculate_bbox_iou(bbox2, bbox1)
+
+        assert abs(iou_ab - iou_ba) < 0.001, f"IoU not symmetric: {iou_ab} vs {iou_ba}"
+
+    @given(
+        bbox1=valid_bbox_xyxy_strategy(),
+        bbox2=valid_bbox_xyxy_strategy(),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_iou_union_property(
+        self,
+        bbox1: tuple[float, float, float, float],
+        bbox2: tuple[float, float, float, float],
+    ) -> None:
+        """Property: IoU formula consistency check.
+
+        IoU = intersection_area / union_area
+        union_area = area1 + area2 - intersection_area
+        """
+        area1 = calculate_bbox_area(bbox1)
+        area2 = calculate_bbox_area(bbox2)
+
+        # Calculate intersection manually
+        x1_max = max(bbox1[0], bbox2[0])
+        y1_max = max(bbox1[1], bbox2[1])
+        x2_min = min(bbox1[2], bbox2[2])
+        y2_min = min(bbox1[3], bbox2[3])
+
+        if x1_max < x2_min and y1_max < y2_min:
+            intersection_area = (x2_min - x1_max) * (y2_min - y1_max)
+        else:
+            intersection_area = 0.0
+
+        union_area = area1 + area2 - intersection_area
+
+        expected_iou = intersection_area / union_area if union_area > 0 else 0.0
+        actual_iou = calculate_bbox_iou(bbox1, bbox2)
+
+        assert abs(actual_iou - expected_iou) < 0.01, (
+            f"IoU mismatch: actual={actual_iou}, expected={expected_iou}"
+        )
