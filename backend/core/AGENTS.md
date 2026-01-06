@@ -423,15 +423,46 @@ async def list_cameras(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 ```
 
+**`get_pool_status() -> dict[str, Any]`** - Get connection pool status metrics:
+
+```python
+from backend.core import get_pool_status
+
+status = await get_pool_status()
+# Returns: {
+#   "pool_size": 20,       # Base connections maintained
+#   "overflow": 5,         # Overflow connections in use
+#   "checkedin": 15,       # Available connections
+#   "checkedout": 10,      # Connections currently in use
+#   "total_connections": 25
+# }
+```
+
 ### PostgreSQL Connection Pooling
 
-The database module is configured for PostgreSQL with asyncpg:
+The database module is configured for PostgreSQL with asyncpg. Pool settings are
+fully configurable via environment variables:
 
-- Pool size: 10 base connections
-- Max overflow: 20 additional connections
-- Pool timeout: 30 seconds
-- Connection recycling: 1800 seconds (30 minutes)
-- Pre-ping: Enabled for connection validation
+| Setting      | Env Variable             | Default | Range    | Description                         |
+| ------------ | ------------------------ | ------- | -------- | ----------------------------------- |
+| Pool Size    | `DATABASE_POOL_SIZE`     | 20      | 5-100    | Base connections maintained in pool |
+| Max Overflow | `DATABASE_POOL_OVERFLOW` | 30      | 0-100    | Additional connections under load   |
+| Pool Timeout | `DATABASE_POOL_TIMEOUT`  | 30s     | 5-120    | Seconds to wait for connection      |
+| Pool Recycle | `DATABASE_POOL_RECYCLE`  | 1800s   | 300-7200 | Connection recycling interval       |
+| Pre-ping     | Always enabled           | -       | -        | Validates connections before use    |
+
+**Example configuration for high-traffic deployments:**
+
+```bash
+# .env file
+DATABASE_POOL_SIZE=30
+DATABASE_POOL_OVERFLOW=50
+DATABASE_POOL_TIMEOUT=45
+DATABASE_POOL_RECYCLE=1200
+```
+
+**Pool status is exposed in the health check endpoint** (`/api/system/health`)
+for monitoring and alerting on connection pool exhaustion
 
 ## `redis.py` - Redis Async Client
 

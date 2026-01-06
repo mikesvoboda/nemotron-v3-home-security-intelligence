@@ -2017,16 +2017,35 @@ async def test_get_telemetry_queue_depth_exception() -> None:
 
 @pytest.mark.asyncio
 async def test_check_database_health_healthy() -> None:
-    """Test check_database_health returns healthy on success."""
+    """Test check_database_health returns healthy on success with pool status."""
+    from unittest.mock import patch
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
-    status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
+    # Mock get_pool_status to return realistic pool metrics
+    mock_pool_status = {
+        "pool_size": 20,
+        "overflow": 5,
+        "checkedin": 15,
+        "checkedout": 10,
+        "total_connections": 25,
+    }
+
+    with patch(
+        "backend.core.database.get_pool_status",
+        AsyncMock(return_value=mock_pool_status),
+    ):
+        status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
 
     assert status.status == "healthy"
     assert status.message == "Database operational"
+    assert status.details is not None
+    assert "pool" in status.details
+    assert status.details["pool"]["size"] == 20
+    assert status.details["pool"]["checkedout"] == 10
 
 
 @pytest.mark.asyncio

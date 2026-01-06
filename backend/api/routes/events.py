@@ -37,6 +37,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.audit import AuditService
+from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, get_cache_service
 from backend.services.search import SearchFilters, search_events
 
@@ -938,11 +939,9 @@ async def get_event_enrichments(
             "has_more": False,
         }
 
-    # Get detections for this page
-    query = select(Detection).where(Detection.id.in_(paginated_detection_ids))
-    query = query.order_by(Detection.detected_at.asc())
-    det_result = await db.execute(query)
-    detections = det_result.scalars().all()
+    # Get detections for this page using batch fetching
+    # This handles potential PostgreSQL IN clause limits for large detection lists
+    detections = await batch_fetch_detections(db, paginated_detection_ids)
 
     # Transform each detection's enrichment data
     enrichments = [
@@ -1098,10 +1097,9 @@ async def generate_event_clip(
             detail="Cannot generate clip: event has no detections",
         )
 
-    # Get detection file paths
-    det_query = select(Detection.file_path).where(Detection.id.in_(detection_ids))
-    det_result = await db.execute(det_query)
-    file_paths = [row[0] for row in det_result.all() if row[0]]
+    # Get detection file paths using batch fetching to handle large detection lists
+    # This avoids N+1 queries and handles potential PostgreSQL IN clause limits
+    file_paths = await batch_fetch_file_paths(db, detection_ids)
 
     if not file_paths:
         raise HTTPException(
@@ -1118,7 +1116,7 @@ async def generate_event_clip(
     try:
         generated_clip_path = await clip_generator.generate_clip_from_images(
             event=event,
-            image_paths=file_paths,
+            image_paths=list(file_paths),  # type: ignore[arg-type]
             fps=2,  # Default 2 FPS for image sequence
             output_format="mp4",
         )

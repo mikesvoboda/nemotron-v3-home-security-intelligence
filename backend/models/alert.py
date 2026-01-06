@@ -26,7 +26,18 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -222,6 +233,19 @@ class AlertRule(Base):
         Index("idx_alert_rules_name", "name"),
         Index("idx_alert_rules_enabled", "enabled"),
         Index("idx_alert_rules_severity", "severity"),
+        # CHECK constraints for business rules
+        CheckConstraint(
+            "risk_threshold IS NULL OR (risk_threshold >= 0 AND risk_threshold <= 100)",
+            name="ck_alert_rules_risk_threshold_range",
+        ),
+        CheckConstraint(
+            "min_confidence IS NULL OR (min_confidence >= 0.0 AND min_confidence <= 1.0)",
+            name="ck_alert_rules_min_confidence_range",
+        ),
+        CheckConstraint(
+            "cooldown_seconds >= 0",
+            name="ck_alert_rules_cooldown_non_negative",
+        ),
     )
 
     def __repr__(self) -> str:
