@@ -1682,7 +1682,7 @@ async def test_wait_for_file_stability_file_becomes_stable(file_watcher, temp_ca
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(5)
 async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, mock_redis_client):
     """Test _wait_for_file_stability returns False when file keeps changing."""
     # Create watcher with short stability time for faster test
@@ -1707,11 +1707,18 @@ async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, m
         # Signal that we've started
         started_modifying.set()
         while not stop_modifying.is_set():
-            # Modify more frequently than the check interval (0.5s)
-            await asyncio.sleep(0.1)
+            # Modify more frequently than the check interval
+            await asyncio.sleep(0.01)  # Reduced from 0.1 for faster test
             # Write different amounts to ensure size changes
             file_path.write_text(f"content_{i}_" * (100 + i * 10))
             i += 1
+
+    # Mock asyncio.sleep to speed up the stability check while yielding control
+    original_sleep = asyncio.sleep
+
+    async def fast_sleep(delay: float) -> None:
+        """Sleep for minimal time but still yield to event loop."""
+        await original_sleep(min(delay, 0.01))
 
     # Start modifying the file in the background
     modify_task = asyncio.create_task(keep_modifying())
@@ -1720,10 +1727,11 @@ async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, m
         # Wait for modifier to start
         await asyncio.wait_for(started_modifying.wait(), timeout=1.0)
         # Give it a moment to make a modification
-        await asyncio.sleep(0.15)
+        await asyncio.sleep(0.02)
 
         # File should never stabilize because we keep modifying it
-        result = await watcher._wait_for_file_stability(str(file_path), stability_time=0.3)
+        with patch("backend.services.file_watcher.asyncio.sleep", side_effect=fast_sleep):
+            result = await watcher._wait_for_file_stability(str(file_path), stability_time=0.05)
         assert result is False
     finally:
         stop_modifying.set()
@@ -1804,18 +1812,30 @@ async def test_wait_for_file_stability_default_stability_time(temp_camera_root, 
     file_path = camera_dir / "default_time.txt"
     file_path.write_text("content")
 
-    # Create a mock to verify timing behavior
-    import time
+    # Track sleep calls and simulate time passing
+    sleep_calls: list[float] = []
+    simulated_time = [0.0]  # Use list for mutability in closure
 
-    start = time.monotonic()
+    async def tracking_sleep(delay: float) -> None:
+        """Track sleep calls and advance simulated time."""
+        sleep_calls.append(delay)
+        simulated_time[0] += delay
 
-    result = await watcher._wait_for_file_stability(str(file_path))
+    def mock_monotonic() -> float:
+        """Return simulated time."""
+        return simulated_time[0]
 
-    elapsed = time.monotonic() - start
+    with (
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=tracking_sleep),
+        patch("backend.services.file_watcher.time.monotonic", side_effect=mock_monotonic),
+    ):
+        result = await watcher._wait_for_file_stability(str(file_path))
 
     assert result is True
-    # With 2.0s stability time and 0.5s check interval, takes at least 2.0s
-    assert elapsed >= 2.0
+    # With default 2.0s stability time and 0.5s check interval,
+    # should have made multiple sleep calls totaling at least 2.0s
+    total_sleep_time = sum(sleep_calls)
+    assert total_sleep_time >= 2.0, f"Expected >= 2.0s of sleep, got {total_sleep_time}s"
 
 
 @pytest.mark.asyncio
