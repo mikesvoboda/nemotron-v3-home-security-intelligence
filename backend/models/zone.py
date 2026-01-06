@@ -12,7 +12,7 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -88,6 +88,9 @@ class Zone(Base):
         Index("idx_zones_camera_id", "camera_id"),
         Index("idx_zones_enabled", "enabled"),
         Index("idx_zones_camera_enabled", "camera_id", "enabled"),
+        # CHECK constraints for business rules
+        CheckConstraint("priority >= 0", name="ck_zones_priority_non_negative"),
+        CheckConstraint("color ~ '^#[0-9A-Fa-f]{6}$'", name="ck_zones_color_hex"),
     )
 
     def __repr__(self) -> str:
