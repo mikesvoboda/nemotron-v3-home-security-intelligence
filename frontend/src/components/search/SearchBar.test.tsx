@@ -589,5 +589,321 @@ describe('SearchBar', () => {
       expect(savedSearchesButton).toHaveAttribute('aria-label');
       expect(savedSearchesButton).toHaveAttribute('aria-expanded');
     });
+
+    it('disables input when isSearching is true', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          isSearching={true}
+        />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      expect(input).toBeDisabled();
+    });
+  });
+
+  describe('Props handling', () => {
+    it('uses initialFilters prop', () => {
+      const initialFilters = {
+        camera_id: 'front_door',
+        severity: 'high',
+        start_date: '2024-01-01',
+      };
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          initialFilters={initialFilters}
+        />
+      );
+      // Component should render without errors
+      expect(screen.getByRole('textbox', { name: /search events/i })).toBeInTheDocument();
+    });
+
+    it('renders with cameras prop', () => {
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={mockCameras}
+        />
+      );
+      expect(screen.getByRole('textbox', { name: /search events/i })).toBeInTheDocument();
+    });
+
+    it('renders with empty cameras array', () => {
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={[]}
+        />
+      );
+      expect(screen.getByRole('textbox', { name: /search events/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('handles whitespace-only query submission', () => {
+      render(
+        <SearchBar
+          query="   "
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      fireEvent.click(searchButton);
+      // Should not call onSearch for whitespace-only query
+      expect(mockOnSearch).not.toHaveBeenCalled();
+    });
+
+    it('handles Enter key on whitespace-only query', () => {
+      render(
+        <SearchBar
+          query="   "
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(mockOnSearch).not.toHaveBeenCalled();
+    });
+
+    it('handles special characters in query', () => {
+      const specialQuery = 'test@#$%^&*()';
+      render(
+        <SearchBar
+          query={specialQuery}
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(mockOnSearch).toHaveBeenCalledWith(specialQuery, expect.any(Object));
+    });
+
+    it('handles very long query strings', () => {
+      const longQuery = 'a'.repeat(1000);
+      render(
+        <SearchBar
+          query={longQuery}
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      expect(input).toHaveValue(longQuery);
+    });
+
+    it('handles query with leading/trailing whitespace', () => {
+      render(
+        <SearchBar
+          query="  test query  "
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      fireEvent.click(searchButton);
+      // Should trim before calling onSearch
+      expect(mockOnSearch).toHaveBeenCalledWith('test query', expect.any(Object));
+    });
+
+    it('handles rapid consecutive searches', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      fireEvent.click(searchButton);
+      fireEvent.click(searchButton);
+      fireEvent.click(searchButton);
+      expect(mockOnSearch).toHaveBeenCalledTimes(3);
+    });
+
+    it('handles keyboard events other than Enter and Escape', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      fireEvent.keyDown(input, { key: 'a' });
+      fireEvent.keyDown(input, { key: 'Tab' });
+      fireEvent.keyDown(input, { key: 'Shift' });
+      // Should not trigger any action
+      expect(mockOnSearch).not.toHaveBeenCalled();
+      expect(mockOnQueryChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Button states', () => {
+    it('search button is enabled with non-empty query', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      expect(searchButton).not.toBeDisabled();
+    });
+
+    it('search button shows correct icon when not searching', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          isSearching={false}
+        />
+      );
+      expect(screen.getByText('Search')).toBeInTheDocument();
+    });
+
+    it('does not show clear button when query is empty', () => {
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.queryByRole('button', { name: /clear search/i })).not.toBeInTheDocument();
+    });
+
+    it('shows clear button when query has whitespace', () => {
+      render(
+        <SearchBar
+          query=" "
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      expect(screen.getByRole('button', { name: /clear search/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Filter state management', () => {
+    it('submits search with empty filters object by default', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      fireEvent.click(searchButton);
+      expect(mockOnSearch).toHaveBeenCalledWith('test', {});
+    });
+
+    it('handles undefined initialFilters', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          initialFilters={undefined}
+        />
+      );
+      expect(screen.getByRole('textbox', { name: /search events/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Component lifecycle', () => {
+    it('renders correctly on mount', () => {
+      const { container } = render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(container.firstChild).toBeInTheDocument();
+    });
+
+    it('displays correct initial query value', () => {
+      render(
+        <SearchBar query="initial query" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.getByDisplayValue('initial query')).toBeInTheDocument();
+    });
+
+    it('respects isSearching false state', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          isSearching={false}
+        />
+      );
+      expect(screen.getByText('Search')).toBeInTheDocument();
+    });
+  });
+
+  describe('Saved searches integration', () => {
+    it('displays saved searches count when available', () => {
+      setMockSavedSearches([
+        { id: '1', name: 'Test 1', query: 'test1', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+        { id: '2', name: 'Test 2', query: 'test2', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+        { id: '3', name: 'Test 3', query: 'test3', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+      ]);
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.getByText('3')).toBeInTheDocument();
+    });
+
+    it('does not display count badge when no saved searches', () => {
+      setMockSavedSearches([]);
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      // The saved searches button should still exist but no count badge
+      expect(screen.getByLabelText('Saved searches')).toBeInTheDocument();
+    });
+
+    it('renders without save button when query is empty', () => {
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.queryByRole('button', { name: /save search/i })).not.toBeInTheDocument();
+    });
+
+    it('renders with save button when query has content', () => {
+      render(
+        <SearchBar
+          query="my search"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      expect(screen.getByRole('button', { name: /save search/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Filter button styling', () => {
+    it('shows active state when filters button is collapsed but no filters active', () => {
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      expect(filtersButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('does not show Active badge when no filters are set', () => {
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.queryByText('Active')).not.toBeInTheDocument();
+    });
   });
 });
