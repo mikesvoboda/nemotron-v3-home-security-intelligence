@@ -34,19 +34,124 @@ MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 # Base64 encoding increases size by ~33%, so pre-decode limit is ~13.3MB
 MAX_BASE64_SIZE_BYTES = int(MAX_IMAGE_SIZE_BYTES * 4 / 3) + 100  # ~13.3MB + padding
 
+# Maximum image dimension (width or height) to prevent excessive memory usage (NEM-1358)
+MAX_IMAGE_DIMENSION = 4096
+
+# Allowed image formats for validation (NEM-1358)
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "GIF", "BMP", "WEBP", "MPO"}
+
 # CLIP ViT-L embedding dimension
 EMBEDDING_DIMENSION = 768
+
+
+def validate_clip_max_batch_texts_size(value: int) -> int:
+    """Validate CLIP_MAX_BATCH_TEXTS_SIZE environment variable at startup (NEM-1357).
+
+    Args:
+        value: The value to validate
+
+    Returns:
+        The validated value
+
+    Raises:
+        ValueError: If value is less than 1
+    """
+    if value < 1:
+        raise ValueError(
+            f"CLIP_MAX_BATCH_TEXTS_SIZE must be at least 1, got {value}. "
+            "This controls the maximum number of text descriptions per batch request."
+        )
+    if value > 1000:
+        logger.warning(
+            f"CLIP_MAX_BATCH_TEXTS_SIZE is set to {value}, which exceeds 1000. "
+            "Large batch sizes may cause memory issues or slow response times."
+        )
+    return value
+
 
 # Maximum batch size for batch similarity requests to prevent resource exhaustion (NEM-1101)
 # This limits the number of text descriptions that can be compared against a single image
 # in one request. Configurable via environment variable.
-MAX_BATCH_TEXTS_SIZE = int(os.environ.get("CLIP_MAX_BATCH_TEXTS_SIZE", "100"))
+_raw_max_batch_texts_size = int(os.environ.get("CLIP_MAX_BATCH_TEXTS_SIZE", "100"))
+MAX_BATCH_TEXTS_SIZE = validate_clip_max_batch_texts_size(_raw_max_batch_texts_size)
 
 
 class EmbedRequest(BaseModel):
     """Request format for embed endpoint."""
 
     image: str = Field(..., description="Base64 encoded image")
+
+    @field_validator("image")
+    @classmethod
+    def validate_base64_image(cls, v: str) -> str:
+        """Validate base64 image data (NEM-1358).
+
+        Validates:
+        - Base64 string size (must be <= ~13.3MB to decode to <= 10MB)
+        - Valid base64 encoding
+        - Decoded data is a valid image
+        - Image dimensions <= 4096x4096
+        - Image format is supported (JPEG, PNG, GIF, BMP, WebP)
+
+        Args:
+            v: Base64 encoded image string
+
+        Returns:
+            The validated base64 string
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Check base64 string size before decoding
+        if len(v) > MAX_BASE64_SIZE_BYTES:
+            raise ValueError(
+                f"Base64 image data size ({len(v)} bytes) exceeds maximum allowed "
+                f"({MAX_BASE64_SIZE_BYTES} bytes). Maximum decoded image size is "
+                f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB."
+            )
+
+        # Try to decode base64
+        try:
+            image_bytes = base64.b64decode(v)
+        except (binascii.Error, ValueError) as e:
+            raise ValueError(
+                f"Invalid base64 encoding: {e}. "
+                "Please ensure the image data is properly base64 encoded."
+            ) from e
+
+        # Check decoded size
+        if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+            raise ValueError(
+                f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum allowed "
+                f"({MAX_IMAGE_SIZE_BYTES} bytes / {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)."
+            )
+
+        # Try to open as an image
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+        except Exception as e:
+            raise ValueError(
+                f"Invalid image data: could not decode as image. {e}. "
+                "Please ensure the data is a valid image file (JPEG, PNG, GIF, BMP, WebP)."
+            ) from e
+
+        # Check image format
+        if image.format and image.format.upper() not in ALLOWED_IMAGE_FORMATS:
+            raise ValueError(
+                f"Unsupported image format: {image.format}. "
+                f"Supported formats are: {', '.join(sorted(ALLOWED_IMAGE_FORMATS))}."
+            )
+
+        # Check dimensions
+        width, height = image.size
+        if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
+            raise ValueError(
+                f"Image dimensions ({width}x{height}) exceed maximum allowed "
+                f"({MAX_IMAGE_DIMENSION}x{MAX_IMAGE_DIMENSION}). "
+                "Please resize the image before uploading."
+            )
+
+        return v
 
 
 class EmbedResponse(BaseModel):

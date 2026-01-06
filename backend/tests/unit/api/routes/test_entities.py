@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.api.routes.entities import (
+    EntityTypeEnum,
     _entity_to_summary,
     _get_thumbnail_url,
     get_entity,
@@ -222,7 +223,7 @@ class TestListEntities:
             return_value=mock_redis,
         ):
             result = await list_entities(
-                entity_type="person",
+                entity_type=EntityTypeEnum.person,
                 camera_id=None,
                 since=None,
                 limit=50,

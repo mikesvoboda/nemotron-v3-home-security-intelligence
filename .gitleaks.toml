@@ -1,5 +1,47 @@
 title = "Gitleaks Config"
 
+# =============================================================================
+# CUSTOM RULES - Project-specific secret patterns
+# =============================================================================
+
+# Linear API Key detection
+[[rules]]
+id = "linear-api-key"
+description = "Linear API Key"
+regex = '''lin_api_[a-zA-Z0-9]{40,}'''
+keywords = ["lin_api_"]
+tags = ["key", "linear"]
+
+# Generic high-entropy strings that look like secrets
+[[rules]]
+id = "generic-api-key-pattern"
+description = "Generic API Key Pattern"
+regex = '''(?i)(api[_-]?key|apikey)['":\s=]+['"]?([a-zA-Z0-9_\-]{32,})['"]?'''
+keywords = ["api_key", "apikey", "api-key"]
+tags = ["key", "api"]
+
+# Database connection strings with passwords
+# Entropy threshold filters out low-entropy examples like "pass123" or "redispass"
+[[rules]]
+id = "database-connection-string"
+description = "Database Connection String with Password"
+regex = '''(?i)(postgres|mysql|mongodb|redis)(?:ql)?:\/\/[^:]+:([^@\s'"]+)@'''
+keywords = ["postgres", "mysql", "mongodb", "redis"]
+tags = ["database", "connection"]
+entropy = 3.5
+
+# JWT secrets
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret Key"
+regex = '''(?i)(jwt[_-]?secret|jwt[_-]?key)['":\s=]+['"]?([a-zA-Z0-9_\-]{16,})['"]?'''
+keywords = ["jwt_secret", "jwt_key", "jwt-secret"]
+tags = ["key", "jwt"]
+
+# =============================================================================
+# ALLOWLIST - False positives and test fixtures
+# =============================================================================
+
 [allowlist]
 description = "Allowlisted patterns for false positives"
 # NOTE: Do NOT blanket-allow all test files. Only allow specific fixture patterns.
@@ -8,6 +50,13 @@ paths = [
   '''\.env\.example$''',
   # Lock files contain checksums, not secrets
   '''package-lock\.json$''',
+  '''uv\.lock$''',
+  # Secrets baseline file (tracks known false positives)
+  '''\.secrets\.baseline$''',
+  # Documentation may contain example secrets
+  '''docs/.*\.md$''',
+  # Migration files (auto-generated)
+  '''alembic/versions/.*\.py$''',
 ]
 
 # Regex patterns for allowlisted content (applies to all files including tests)
@@ -22,8 +71,23 @@ regexes = [
   '''password123''',
   '''testpassword''',
   '''test[-_]?secret''',
+  '''secret[-_]?key''',
   # Base64-encoded "test" strings commonly used in fixtures
   '''dGVzdA==''',
+  # Common placeholder values in documentation
+  '''your[-_]?api[-_]?key[-_]?here''',
+  '''xxx+''',
+  '''REPLACE[-_]?ME''',
+  # Docker example passwords in documentation
+  '''security:password@localhost''',
+  # URL examples in docstrings (with placeholder passwords)
+  '''user:[\*x]+@''',
+  '''user:pass\d*@''',
+  '''user:redispass@''',
+  '''default:redispass@''',
+  # Docstring example patterns (any user with simple passwords)
+  '''://[^:]+:\*{2,}@''',
+  '''://[^:]+:pass\d*@''',
 ]
 
 # Specific commits to ignore (e.g., historical false positives)
@@ -40,4 +104,10 @@ stopwords = [
   "sample",
   "localhost",
   "127.0.0.1",
+  "your_",
+  "xxx",
+  "replace",
+  "changeme",
+  "fixme",
+  "todo",
 ]

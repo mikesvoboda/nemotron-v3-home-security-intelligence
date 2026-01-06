@@ -45,7 +45,7 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline)$
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$)
 
   # Hadolint - Dockerfile linting
   # Requires: brew install hadolint (macOS) or download binary
@@ -56,6 +56,7 @@ repos:
         entry: hadolint
         language: system
         types: [dockerfile]
+        exclude: ^mutants/
 
   # Semgrep - Shift-left security scanning
   # Note: Uses Python 3.12 because protobuf doesn't support Python 3.14 yet
@@ -70,6 +71,8 @@ repos:
           - --config=p/python
           - --error
         types: [python]
+        # Exclude mutants/ and test_database_isolation.py (uses intentional raw SQL for advisory locks)
+        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$)
 
   # Python - Ruff (fast linter + formatter)
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -78,8 +81,10 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         types_or: [python, pyi]
+        exclude: ^mutants/
       - id: ruff-format
         types_or: [python, pyi]
+        exclude: ^mutants/
 
   # Python - Type checking with mypy
   - repo: https://github.com/pre-commit/mirrors-mypy

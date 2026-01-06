@@ -5,8 +5,20 @@
  * that are shared across all page objects.
  */
 
-import type { Page, Locator } from '@playwright/test';
+import type { Page, Locator, Response } from '@playwright/test';
 import { expect } from '@playwright/test';
+
+/**
+ * Options for waitForApiResponse method
+ */
+export interface WaitForApiOptions {
+  /** Timeout in milliseconds (default: 10000) */
+  timeout?: number;
+  /** Expected HTTP status code (default: 200) */
+  status?: number;
+  /** HTTP method to match (default: any) */
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+}
 
 export class BasePage {
   readonly page: Page;
@@ -238,5 +250,133 @@ export class BasePage {
    */
   async screenshot(name: string): Promise<void> {
     await this.page.screenshot({ path: `test-results/${name}.png` });
+  }
+
+  /**
+   * Wait for a specific API endpoint to respond (NEM-1480)
+   *
+   * This method waits for an API request to a specific endpoint to complete,
+   * with support for timeout, status code, and HTTP method matching.
+   *
+   * @param endpoint - The API endpoint pattern to match (e.g., '/api/cameras')
+   * @param options - Optional configuration for timeout, status, and method matching
+   * @returns The Response object for further inspection
+   * @throws Error if the request times out or status doesn't match
+   *
+   * @example
+   * // Wait for cameras API to respond
+   * const response = await basePage.waitForApiResponse('/api/cameras');
+   *
+   * // Wait for events API with custom timeout
+   * const response = await basePage.waitForApiResponse('/api/events', { timeout: 15000 });
+   *
+   * // Wait for a POST request
+   * const response = await basePage.waitForApiResponse('/api/alerts/rules', { method: 'POST', status: 201 });
+   *
+   * // Use with action that triggers the request
+   * const [response] = await Promise.all([
+   *   basePage.waitForApiResponse('/api/cameras'),
+   *   page.click('button.refresh'),
+   * ]);
+   */
+  async waitForApiResponse(
+    endpoint: string,
+    options: WaitForApiOptions = {}
+  ): Promise<Response> {
+    const { timeout = 10000, status, method } = options;
+
+    // Build the URL pattern - support both absolute and relative paths
+    const urlPattern = endpoint.startsWith('*') ? endpoint : `**${endpoint}*`;
+
+    try {
+      const response = await this.page.waitForResponse(
+        (res) => {
+          const urlMatches = res.url().includes(endpoint.replace(/\*/g, ''));
+          const methodMatches = !method || res.request().method() === method;
+          return urlMatches && methodMatches;
+        },
+        { timeout }
+      );
+
+      // Validate status if specified
+      if (status !== undefined && response.status() !== status) {
+        throw new Error(
+          `Expected status ${status} but got ${response.status()} for ${endpoint}`
+        );
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Timeout')) {
+        throw new Error(
+          `Timeout waiting for API response from ${endpoint} after ${timeout}ms`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for multiple API endpoints to respond (NEM-1480)
+   *
+   * Useful when a page action triggers multiple API calls simultaneously.
+   *
+   * @param endpoints - Array of endpoint patterns to wait for
+   * @param options - Optional configuration for timeout (applies to all)
+   * @returns Array of Response objects in the same order as endpoints
+   *
+   * @example
+   * // Wait for dashboard data to load
+   * const responses = await basePage.waitForMultipleApiResponses([
+   *   '/api/cameras',
+   *   '/api/events',
+   *   '/api/system/stats',
+   * ]);
+   */
+  async waitForMultipleApiResponses(
+    endpoints: string[],
+    options: WaitForApiOptions = {}
+  ): Promise<Response[]> {
+    const promises = endpoints.map((endpoint) =>
+      this.waitForApiResponse(endpoint, options)
+    );
+    return Promise.all(promises);
+  }
+
+  /**
+   * Perform an action and wait for the API response (NEM-1480)
+   *
+   * Convenience method that combines triggering an action with waiting
+   * for the resulting API call.
+   *
+   * @param action - Async function that triggers the API call
+   * @param endpoint - The API endpoint pattern to wait for
+   * @param options - Optional configuration for timeout, status, and method
+   * @returns The Response object
+   *
+   * @example
+   * // Click refresh and wait for cameras to reload
+   * const response = await basePage.performActionAndWaitForApi(
+   *   () => page.click('button.refresh'),
+   *   '/api/cameras'
+   * );
+   *
+   * // Submit form and wait for POST
+   * const response = await basePage.performActionAndWaitForApi(
+   *   () => page.click('button[type="submit"]'),
+   *   '/api/alerts/rules',
+   *   { method: 'POST', status: 201 }
+   * );
+   */
+  async performActionAndWaitForApi(
+    action: () => Promise<void>,
+    endpoint: string,
+    options: WaitForApiOptions = {}
+  ): Promise<Response> {
+    const [response] = await Promise.all([
+      this.waitForApiResponse(endpoint, options),
+      action(),
+    ]);
+    return response;
   }
 }

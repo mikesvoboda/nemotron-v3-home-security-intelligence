@@ -2,13 +2,23 @@
 
 ## Purpose
 
-TypeScript type definitions for the frontend application. Contains auto-generated API types from the backend OpenAPI specification. All types are generated from backend Pydantic schemas.
+TypeScript type definitions for the frontend application. Contains:
+- Advanced type utilities (branded types, discriminated unions, type guards)
+- Auto-generated API types from the backend OpenAPI specification
+- Domain-specific types for AI enrichment, performance metrics, and WebSocket messages
 
 ## Directory Structure
 
 ```
 frontend/src/types/
 ├── AGENTS.md           # This documentation file
+├── index.ts            # Centralized exports for all types
+├── branded.ts          # Branded types for entity IDs (type-safe)
+├── websocket.ts        # Discriminated unions for WebSocket messages
+├── async.ts            # Async state management types
+├── constants.ts        # Type-safe constants with const assertions
+├── guards.ts           # Type guards for runtime type checking
+├── enrichment.ts       # Detection enrichment types with guards
 ├── performance.ts      # Performance metrics type definitions
 └── generated/          # Auto-generated types from backend OpenAPI
     ├── AGENTS.md       # Generated types documentation
@@ -20,9 +30,101 @@ frontend/src/types/
 
 | File             | Purpose                                                        |
 | ---------------- | -------------------------------------------------------------- |
-| `performance.ts` | Performance alert and AI model metrics types                   |
+| `index.ts`       | Centralized exports for all types                              |
+| `branded.ts`     | Branded types for CameraId, EventId, DetectionId, etc.         |
+| `websocket.ts`   | Discriminated unions for WebSocket message handling            |
+| `async.ts`       | AsyncState types for loading/error/success state management    |
+| `constants.ts`   | Type-safe constants (risk levels, health status, etc.)         |
+| `guards.ts`      | Type guards for runtime type validation                        |
 | `enrichment.ts`  | Detection enrichment types (vehicle, pet, person, weather)     |
+| `performance.ts` | Performance alert and AI model metrics types                   |
 | `generated/`     | Auto-generated types from backend OpenAPI spec                 |
+
+## Type System Patterns
+
+### Branded Types (`branded.ts`)
+
+Branded types prevent accidentally mixing different ID types:
+
+```typescript
+import { createCameraId, createEventId, type CameraId } from '../types';
+
+// These are different types even though both are strings/numbers
+const cameraId: CameraId = createCameraId('abc-123');
+const eventId = createEventId(456);
+
+// TypeScript error: CameraId is not assignable to EventId
+fetchEvent(cameraId); // Error!
+```
+
+### Discriminated Unions (`websocket.ts`)
+
+Use the `type` field as discriminant for type narrowing:
+
+```typescript
+import { type WebSocketMessage } from '../types';
+
+function handleMessage(message: WebSocketMessage) {
+  switch (message.type) {
+    case 'event':
+      console.log(message.data.risk_score); // TypeScript knows the type
+      break;
+    case 'system_status':
+      console.log(message.data.gpu.utilization);
+      break;
+  }
+}
+```
+
+### Async State (`async.ts`)
+
+Type-safe state management for async operations:
+
+```typescript
+import { idle, loading, success, failure, matchState, type AsyncState } from '../types';
+
+const [state, setState] = useState<AsyncState<Event[]>>(idle());
+
+// Pattern matching with exhaustive handling
+return matchState(state, {
+  idle: () => <EmptyState />,
+  loading: (prev) => prev ? <EventList events={prev} loading /> : <Spinner />,
+  error: (err, retry) => <ErrorMessage error={err} onRetry={retry} />,
+  success: (data) => <EventList events={data} />,
+});
+```
+
+### Type Guards (`guards.ts`)
+
+Replace unsafe `as` casts with runtime type validation:
+
+```typescript
+import { isPlainObject, hasPropertyOfType, isNumber } from '../types';
+
+function processData(data: unknown) {
+  if (isPlainObject(data) && hasPropertyOfType(data, 'id', isNumber)) {
+    console.log(data.id); // TypeScript knows data.id is number
+  }
+}
+```
+
+### Constants (`constants.ts`)
+
+Type-safe constants with exhaustiveness checking:
+
+```typescript
+import { RISK_LEVELS, isRiskLevel, assertNever, type RiskLevel } from '../types';
+
+function getRiskColor(level: RiskLevel): string {
+  switch (level) {
+    case 'low': return 'green';
+    case 'medium': return 'yellow';
+    case 'high': return 'orange';
+    case 'critical': return 'red';
+    default: return assertNever(level); // TypeScript error if case is missing
+  }
+}
+```
 
 ## Performance Types (`performance.ts`)
 

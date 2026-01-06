@@ -14,6 +14,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from backend.models.detection import Detection
+from backend.tests.factories import DetectionFactory
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -43,8 +44,8 @@ media_types = st.sampled_from(["image", "video"])
 
 @pytest.fixture
 def sample_detection():
-    """Create a sample detection for testing."""
-    return Detection(
+    """Create a sample detection for testing using factory."""
+    return DetectionFactory(
         id=1,
         camera_id="front_door",
         file_path="/export/foscam/front_door/image001.jpg",
@@ -60,28 +61,31 @@ def sample_detection():
 
 @pytest.fixture
 def sample_video_detection():
-    """Create a sample video detection for testing."""
-    return Detection(
+    """Create a sample video detection for testing using factory."""
+    return DetectionFactory(
         id=2,
         camera_id="back_yard",
         file_path="/export/foscam/back_yard/video001.mp4",
-        file_type="video/mp4",
+        video=True,  # Use factory trait
         object_type="vehicle",
         confidence=0.88,
-        media_type="video",
         duration=30.5,
-        video_codec="h264",
-        video_width=1920,
-        video_height=1080,
     )
 
 
 @pytest.fixture
 def minimal_detection():
-    """Create a detection with only required fields."""
-    return Detection(
+    """Create a detection with only required fields using factory."""
+    return DetectionFactory.build(
         camera_id="test_cam",
         file_path="/path/to/file.jpg",
+        file_type=None,
+        object_type=None,
+        confidence=None,
+        bbox_x=None,
+        bbox_y=None,
+        bbox_width=None,
+        bbox_height=None,
     )
 
 
@@ -362,6 +366,42 @@ class TestDetectionTableArgs:
     def test_detection_tablename(self):
         """Test Detection has correct table name."""
         assert Detection.__tablename__ == "detections"
+
+    def test_detection_has_camera_id_index(self):
+        """Test Detection has camera_id index defined."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "idx_detections_camera_id" in index_names
+
+    def test_detection_has_detected_at_index(self):
+        """Test Detection has detected_at index defined."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "idx_detections_detected_at" in index_names
+
+    def test_detection_has_camera_time_composite_index(self):
+        """Test Detection has camera_id + detected_at composite index defined."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "idx_detections_camera_time" in index_names
+
+    def test_detection_has_camera_object_type_composite_index(self):
+        """Test Detection has camera_id + object_type composite index defined (NEM-1538)."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "idx_detections_camera_object_type" in index_names
+
+    def test_detection_camera_object_type_index_columns(self):
+        """Test camera_id + object_type index has correct columns (NEM-1538)."""
+        indexes = Detection.__table_args__
+        camera_object_idx = None
+        for idx in indexes:
+            if hasattr(idx, "name") and idx.name == "idx_detections_camera_object_type":
+                camera_object_idx = idx
+                break
+        assert camera_object_idx is not None
+        column_names = [col.name for col in camera_object_idx.columns]
+        assert column_names == ["camera_id", "object_type"]
 
 
 # =============================================================================

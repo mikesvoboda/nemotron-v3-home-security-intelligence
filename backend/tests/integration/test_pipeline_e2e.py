@@ -662,7 +662,8 @@ async def test_pipeline_detector_failure_graceful(
     create_test_image(image_path)
 
     # Test connection error raises DetectorUnavailableError
-    detector = DetectorClient()
+    # Use max_retries=1 to speed up tests by skipping retry delays
+    detector = DetectorClient(max_retries=1)
 
     async with get_session() as session:
         with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
@@ -679,7 +680,10 @@ async def test_pipeline_detector_failure_graceful(
                     session=session,
                 )
 
-            assert "Failed to connect to detector service" in str(exc_info.value)
+            # After retry exhaustion, error message indicates failed attempts
+            assert "failed after" in str(exc_info.value).lower()
+            # Original error is preserved for inspection
+            assert isinstance(exc_info.value.original_error, httpx.ConnectError)
 
     # Verify no detection was stored
     async with get_session() as session:
@@ -703,7 +707,10 @@ async def test_pipeline_detector_failure_graceful(
                     session=session,
                 )
 
-            assert "timed out" in str(exc_info.value)
+            # After retry exhaustion, error message indicates failed attempts
+            assert "failed after" in str(exc_info.value).lower()
+            # Original error is preserved for inspection
+            assert isinstance(exc_info.value.original_error, httpx.TimeoutException)
 
     # Test HTTP 5xx error raises DetectorUnavailableError
     async with get_session() as session:
@@ -729,7 +736,10 @@ async def test_pipeline_detector_failure_graceful(
                     session=session,
                 )
 
-            assert "server error: 500" in str(exc_info.value)
+            # After retry exhaustion, error message indicates failed attempts
+            assert "failed after" in str(exc_info.value).lower()
+            # Original error is preserved for inspection
+            assert isinstance(exc_info.value.original_error, httpx.HTTPStatusError)
 
 
 @pytest.mark.asyncio

@@ -100,6 +100,10 @@ vi.mock('./CircuitBreakerPanel', () => ({
   default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
 }));
 
+vi.mock('./ServicesPanel', () => ({
+  default: () => <div data-testid="services-panel">Services Panel</div>,
+}));
+
 // Mock SystemSummaryRow to avoid rendering actual component
 vi.mock('./SystemSummaryRow', () => ({
   default: () => <div data-testid="system-summary-row">System Summary Row</div>,

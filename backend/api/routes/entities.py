@@ -5,6 +5,7 @@ across multiple cameras using CLIP embeddings stored in Redis.
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,6 +24,14 @@ from backend.services.reid_service import (
     ReIdentificationService,
     get_reid_service,
 )
+
+
+class EntityTypeEnum(str, Enum):
+    """Valid entity types for filtering."""
+
+    person = "person"
+    vehicle = "vehicle"
+
 
 router = APIRouter(prefix="/api/entities", tags=["entities"])
 
@@ -100,7 +109,7 @@ async def _get_redis_client() -> Redis | None:
 
 @router.get("", response_model=EntityListResponse)
 async def list_entities(
-    entity_type: str | None = Query(
+    entity_type: EntityTypeEnum | None = Query(
         None, description="Filter by entity type: 'person' or 'vehicle'"
     ),
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -137,7 +146,7 @@ async def list_entities(
         }
 
     # Determine which entity types to query
-    entity_types = [entity_type] if entity_type else ["person", "vehicle"]
+    entity_types = [entity_type.value] if entity_type else ["person", "vehicle"]
 
     # Collect all embeddings
     all_embeddings: list[EntityEmbedding] = []

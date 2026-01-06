@@ -32,6 +32,14 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <SidebarContext.Provider value={sidebarContextValue}>
       <div className="flex min-h-screen flex-col bg-[#0E0E0E]">
+        {/* Skip link for keyboard navigation accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[#76B900] focus:px-4 focus:py-2 focus:font-medium focus:text-black focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#0E0E0E]"
+          data-testid="skip-link"
+        >
+          Skip to main content
+        </a>
         <Header />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar />
@@ -44,7 +52,7 @@ export default function Layout({ children }: LayoutProps) {
               data-testid="mobile-overlay"
             />
           )}
-          <main className="flex-1 overflow-auto">
+          <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto focus:outline-none" data-testid="main-content">
             {!isDismissed && (
               <ServiceStatusAlert services={services} onDismiss={handleDismiss} />
             )}

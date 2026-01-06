@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_event_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.clips import (
     ClipGenerateRequest,
@@ -28,7 +29,7 @@ from backend.api.schemas.events import (
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_reviewed
 from backend.core.sanitization import sanitize_error_for_response
 from backend.models.audit import AuditAction
@@ -36,6 +37,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.audit import AuditService
+from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, get_cache_service
 from backend.services.search import SearchFilters, search_events
 
@@ -623,26 +625,31 @@ async def export_events(
     filename = f"events_export_{timestamp}.csv"
 
     # Log the export action
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.MEDIA_EXPORTED,
-        resource_type="event",
-        actor="anonymous",
-        details={
-            "export_type": "csv",
-            "filters": {
-                "camera_id": camera_id,
-                "risk_level": risk_level,
-                "start_date": start_date.isoformat() if start_date else None,
-                "end_date": end_date.isoformat() if end_date else None,
-                "reviewed": reviewed,
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.MEDIA_EXPORTED,
+            resource_type="event",
+            actor="anonymous",
+            details={
+                "export_type": "csv",
+                "filters": {
+                    "camera_id": camera_id,
+                    "risk_level": risk_level,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None,
+                    "reviewed": reviewed,
+                },
+                "event_count": len(events),
+                "filename": filename,
             },
-            "event_count": len(events),
-            "filename": filename,
-        },
-        request=request,
-    )
-    await db.commit()
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Don't fail the main operation - audit is non-critical
 
     # Return as streaming response with CSV content type
     output.seek(0)
@@ -670,14 +677,7 @@ async def get_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids and calculate count
     parsed_detection_ids = parse_detection_ids(event.detection_ids)
@@ -726,14 +726,7 @@ async def update_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Track changes for audit log
     changes: dict[str, Any] = {}
@@ -766,21 +759,29 @@ async def update_event(
         action = AuditAction.EVENT_REVIEWED  # Default for notes-only updates
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=action,
-        resource_type="event",
-        resource_id=str(event_id),
-        actor="anonymous",  # No auth in this system
-        details={
-            "changes": changes,
-            "risk_level": event.risk_level,
-            "camera_id": event.camera_id,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=action,
+            resource_type="event",
+            resource_id=str(event_id),
+            actor="anonymous",  # No auth in this system
+            details={
+                "changes": changes,
+                "risk_level": event.risk_level,
+                "camera_id": event.camera_id,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the event changes since we rolled back
+        update_data_dict = update_data.model_dump(exclude_unset=True)
+        for key, value in update_data_dict.items():
+            setattr(event, key, value)
+        await db.commit()
     await db.refresh(event)
 
     # Parse detection_ids and calculate count
@@ -830,15 +831,7 @@ async def get_event_detections(
     Raises:
         HTTPException: 404 if event not found
     """
-    # Get event to verify it exists and get detection_ids
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
@@ -881,9 +874,11 @@ async def get_event_detections(
 @router.get("/{event_id}/enrichments", response_model=EventEnrichmentsResponse)
 async def get_event_enrichments(
     event_id: int,
+    limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),
+    offset: int = Query(0, ge=0, description="Number of enrichments to skip"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Get enrichment data for all detections in an event.
+    """Get enrichment data for detections in an event with pagination.
 
     Returns structured vision model results from the enrichment pipeline for
     each detection in the event. Results include:
@@ -897,10 +892,12 @@ async def get_event_enrichments(
 
     Args:
         event_id: Event ID
+        limit: Maximum number of enrichments to return (1-200, default 50)
+        offset: Number of enrichments to skip (default 0)
         db: Database session
 
     Returns:
-        EventEnrichmentsResponse with enrichment data for each detection
+        EventEnrichmentsResponse with enrichment data for each detection and pagination metadata
 
     Raises:
         HTTPException: 404 if event not found
@@ -908,32 +905,43 @@ async def get_event_enrichments(
     # Import transform function from detections route
     from backend.api.routes.detections import _transform_enrichment_data
 
-    # Get event to verify it exists and get detection_ids
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
+    total = len(detection_ids)
 
-    # If no detections, return empty list
+    # If no detections, return empty response with pagination metadata
     if not detection_ids:
         return {
             "event_id": event.id,
             "enrichments": [],
             "count": 0,
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "has_more": False,
         }
 
-    # Get all detections for this event
-    query = select(Detection).where(Detection.id.in_(detection_ids))
-    query = query.order_by(Detection.detected_at.asc())
-    det_result = await db.execute(query)
-    detections = det_result.scalars().all()
+    # Apply pagination to detection_ids before querying
+    # This ensures we only fetch the detections we need
+    paginated_detection_ids = detection_ids[offset : offset + limit]
+
+    # If offset is beyond available detections, return empty with metadata
+    if not paginated_detection_ids:
+        return {
+            "event_id": event.id,
+            "enrichments": [],
+            "count": 0,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": False,
+        }
+
+    # Get detections for this page using batch fetching
+    # This handles potential PostgreSQL IN clause limits for large detection lists
+    detections = await batch_fetch_detections(db, paginated_detection_ids)
 
     # Transform each detection's enrichment data
     enrichments = [
@@ -945,10 +953,17 @@ async def get_event_enrichments(
         for det in detections
     ]
 
+    # Calculate has_more based on total and current position
+    has_more = offset + len(enrichments) < total
+
     return {
         "event_id": event.id,
         "enrichments": enrichments,
         "count": len(enrichments),
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
     }
 
 
@@ -974,15 +989,7 @@ async def get_event_clip(
     """
     from pathlib import Path
 
-    # Get event
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Check if clip exists
     if not event.clip_path:
@@ -1063,15 +1070,7 @@ async def generate_event_clip(
     from backend.api.schemas.clips import ClipGenerateResponse, ClipStatus
     from backend.services.clip_generator import get_clip_generator
 
-    # Get event
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Check if clip already exists and force is False
     if event.clip_path and not request.force:
@@ -1098,10 +1097,9 @@ async def generate_event_clip(
             detail="Cannot generate clip: event has no detections",
         )
 
-    # Get detection file paths
-    det_query = select(Detection.file_path).where(Detection.id.in_(detection_ids))
-    det_result = await db.execute(det_query)
-    file_paths = [row[0] for row in det_result.all() if row[0]]
+    # Get detection file paths using batch fetching to handle large detection lists
+    # This avoids N+1 queries and handles potential PostgreSQL IN clause limits
+    file_paths = await batch_fetch_file_paths(db, detection_ids)
 
     if not file_paths:
         raise HTTPException(
@@ -1118,7 +1116,7 @@ async def generate_event_clip(
     try:
         generated_clip_path = await clip_generator.generate_clip_from_images(
             event=event,
-            image_paths=file_paths,
+            image_paths=list(file_paths),  # type: ignore[arg-type]
             fps=2,  # Default 2 FPS for image sequence
             output_format="mp4",
         )
@@ -1151,7 +1149,9 @@ async def generate_event_clip(
             )
 
     except Exception as e:
-        logger.error(f"Clip generation failed for event {event_id}: {e}", exc_info=True)
+        logger.error(
+            f"Clip generation failed for event {sanitize_log_value(event_id)}: {e}", exc_info=True
+        )
         # Sanitize exception message to prevent information leakage (NEM-1059)
         # Full error details are logged server-side above
         safe_message = sanitize_error_for_response(e, context="generating clip")

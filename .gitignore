@@ -25,6 +25,9 @@ dist/
 build/
 *.egg-info/
 
+# Generated Documentation
+docs-output/
+
 # Data
 *.db
 *.sqlite
@@ -64,3 +67,8 @@ coverage.json
 .worktrees/
 .hypothesis/
 .mcp.json
+*.tsbuildinfo
+
+# Accidental connection string paths
+postgresql+asyncpg:*
+.mypy_cache

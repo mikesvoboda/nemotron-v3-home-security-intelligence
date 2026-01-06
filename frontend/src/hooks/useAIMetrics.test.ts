@@ -18,9 +18,8 @@ vi.mock('../services/metricsParser', () => ({
   fetchAIMetrics: vi.fn(),
 }));
 
-// Mock fetch for pipeline latency endpoint
+// Mock fetch for pipeline latency endpoint - use vi.fn() and stub in beforeEach for test isolation
 const mockFetch = vi.fn();
-globalThis.fetch = mockFetch;
 
 describe('useAIMetrics', () => {
   // Mock response data for each endpoint
@@ -130,6 +129,9 @@ describe('useAIMetrics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Stub global fetch for proper test isolation in parallel execution
+    vi.stubGlobal('fetch', mockFetch);
+
     // Default mock implementations - all endpoints succeed
     vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue(mockMetricsResponse);
     vi.mocked(api.fetchTelemetry).mockResolvedValue(mockTelemetryResponse);
@@ -144,6 +146,7 @@ describe('useAIMetrics', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe('initial state', () => {
@@ -240,7 +243,11 @@ describe('useAIMetrics', () => {
       expect(api.fetchHealth).toHaveBeenCalledTimes(1);
       expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
       expect(api.fetchDetectionStats).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith('/api/system/pipeline-latency?window_minutes=60');
+      // Fetch may be called with a string URL or Request object depending on environment
+      expect(mockFetch).toHaveBeenCalled();
+      const fetchCall = mockFetch.mock.calls[0][0];
+      const url = typeof fetchCall === 'string' ? fetchCall : fetchCall.url;
+      expect(url).toBe('/api/system/pipeline-latency?window_minutes=60');
     });
 
     it('should set isLoading to false after fetch completes', async () => {

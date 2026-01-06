@@ -1,0 +1,328 @@
+# Semantic Release Workflow
+#
+# This workflow automates versioning and changelog generation based on
+# conventional commit messages. It runs on pushes to main and creates
+# releases when there are releasable commits.
+#
+# Commit prefixes determine version bumps:
+#   - feat: -> Minor version (1.x.0)
+#   - fix:  -> Patch version (1.0.x)
+#   - feat!: or BREAKING CHANGE: -> Major version (x.0.0)
+#
+# The workflow:
+#   1. Analyzes commits since last release
+#   2. Determines next version based on commit types
+#   3. Generates changelog from commit messages
+#   4. Creates GitHub release with changelog
+#   5. Updates version in package files
+#
+# Manual Release:
+#   You can also trigger this workflow manually with a specific version:
+#   - Go to Actions -> Semantic Release -> Run workflow
+#   - Enter version type: major, minor, patch, or specific version (e.g., 1.2.3)
+
+name: Semantic Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (major, minor, patch, or specific version like 1.2.3)'
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: 'Dry run (no actual release)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  # Used for commit analysis
+  HUSKY: 0
+
+jobs:
+  analyze:
+    name: Analyze Commits
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.analyze.outputs.should_release }}
+      next_version: ${{ steps.analyze.outputs.next_version }}
+      release_type: ${{ steps.analyze.outputs.release_type }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+
+      - name: Analyze commits for release
+        id: analyze
+        env:
+          LATEST_TAG: ${{ steps.get_tag.outputs.latest_tag }}
+          MANUAL_VERSION: ${{ inputs.release_type }}
+        run: |
+          # Use environment variables (not direct interpolation) to avoid shell injection
+
+          # If manual version specified, use it
+          if [ -n "$MANUAL_VERSION" ]; then
+            if [[ "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              # Specific version provided
+              echo "next_version=v$MANUAL_VERSION" >> $GITHUB_OUTPUT
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "release_type=manual" >> $GITHUB_OUTPUT
+              echo "Manual release: v$MANUAL_VERSION"
+              exit 0
+            elif [[ "$MANUAL_VERSION" =~ ^(major|minor|patch)$ ]]; then
+              # Version type provided - calculate next version
+              CURRENT=$(echo "$LATEST_TAG" | sed 's/^v//')
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+              case "$MANUAL_VERSION" in
+                major)
+                  NEXT_VERSION="v$((MAJOR + 1)).0.0"
+                  ;;
+                minor)
+                  NEXT_VERSION="v${MAJOR}.$((MINOR + 1)).0"
+                  ;;
+                patch)
+                  NEXT_VERSION="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+                  ;;
+              esac
+
+              echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "release_type=$MANUAL_VERSION" >> $GITHUB_OUTPUT
+              echo "Manual release ($MANUAL_VERSION): $NEXT_VERSION"
+              exit 0
+            fi
+          fi
+
+          # Analyze commits since last tag
+          COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
+
+          HAS_BREAKING=false
+          HAS_FEAT=false
+          HAS_FIX=false
+
+          while IFS= read -r commit; do
+            # Check for breaking changes
+            if [[ "$commit" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$commit" =~ BREAKING\ CHANGE ]]; then
+              HAS_BREAKING=true
+            fi
+            # Check for features
+            if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then
+              HAS_FEAT=true
+            fi
+            # Check for fixes
+            if [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
+              HAS_FIX=true
+            fi
+          done <<< "$COMMITS"
+
+          # Determine release type and next version
+          CURRENT=$(echo "$LATEST_TAG" | sed 's/^v//')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          if [ "$HAS_BREAKING" = true ]; then
+            NEXT_VERSION="v$((MAJOR + 1)).0.0"
+            RELEASE_TYPE="major"
+          elif [ "$HAS_FEAT" = true ]; then
+            NEXT_VERSION="v${MAJOR}.$((MINOR + 1)).0"
+            RELEASE_TYPE="minor"
+          elif [ "$HAS_FIX" = true ]; then
+            NEXT_VERSION="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+            RELEASE_TYPE="patch"
+          else
+            echo "No releasable commits found"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION ($RELEASE_TYPE)"
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: needs.analyze.outputs.should_release == 'true' && (github.event.inputs.dry_run != 'true')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: '20'
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          NEXT_VERSION: ${{ needs.analyze.outputs.next_version }}
+          PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
+          RELEASE_TYPE: ${{ needs.analyze.outputs.release_type }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Use environment variables (not direct interpolation) to avoid shell injection
+
+          # Determine commit range
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          # Generate changelog
+          cat > CHANGELOG_RELEASE.md << 'HEADER'
+          ## What's Changed
+
+          HEADER
+
+          # Features
+          FEATURES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^feat" 2>/dev/null || true)
+          if [ -n "$FEATURES" ]; then
+            echo "### Features" >> CHANGELOG_RELEASE.md
+            echo "$FEATURES" >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+          fi
+
+          # Bug Fixes
+          FIXES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^fix" 2>/dev/null || true)
+          if [ -n "$FIXES" ]; then
+            echo "### Bug Fixes" >> CHANGELOG_RELEASE.md
+            echo "$FIXES" >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+          fi
+
+          # Performance
+          PERF=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^perf" 2>/dev/null || true)
+          if [ -n "$PERF" ]; then
+            echo "### Performance" >> CHANGELOG_RELEASE.md
+            echo "$PERF" >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+          fi
+
+          # Documentation
+          DOCS=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^docs" 2>/dev/null || true)
+          if [ -n "$DOCS" ]; then
+            echo "### Documentation" >> CHANGELOG_RELEASE.md
+            echo "$DOCS" >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+          fi
+
+          # Breaking Changes
+          if [ "$RELEASE_TYPE" = "major" ]; then
+            echo "### Breaking Changes" >> CHANGELOG_RELEASE.md
+            git log $RANGE --pretty=format:"- %s (%h)" | grep -i "breaking\|!" >> CHANGELOG_RELEASE.md || true
+            echo "" >> CHANGELOG_RELEASE.md
+          fi
+
+          # Linear Issues
+          echo "### Linear Issues" >> CHANGELOG_RELEASE.md
+          LINEAR_ISSUES=$(git log $RANGE --pretty=format:"%s %b" 2>/dev/null | grep -oE "NEM-[0-9]+" | sort -u || true)
+          if [ -n "$LINEAR_ISSUES" ]; then
+            for issue in $LINEAR_ISSUES; do
+              echo "- [$issue](https://linear.app/nemotron-v3-home-security/issue/$issue)" >> CHANGELOG_RELEASE.md
+            done
+          else
+            echo "- No Linear issues referenced" >> CHANGELOG_RELEASE.md
+          fi
+          echo "" >> CHANGELOG_RELEASE.md
+
+          # Full changelog link
+          if [ -n "$PREV_TAG" ]; then
+            echo "**Full Changelog**: https://github.com/${REPO}/compare/${PREV_TAG}...${NEXT_VERSION}" >> CHANGELOG_RELEASE.md
+          fi
+
+          cat CHANGELOG_RELEASE.md
+
+      - name: Update version in package.json
+        env:
+          VERSION: ${{ needs.analyze.outputs.next_version }}
+        run: |
+          VERSION_NUM=$(echo "$VERSION" | sed 's/^v//')
+
+          # Update frontend/package.json
+          if [ -f "frontend/package.json" ]; then
+            jq ".version = \"$VERSION_NUM\"" frontend/package.json > tmp.json && mv tmp.json frontend/package.json
+            echo "Updated frontend/package.json to $VERSION_NUM"
+          fi
+
+      - name: Commit version bump
+        env:
+          VERSION: ${{ needs.analyze.outputs.next_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add frontend/package.json || true
+          git diff --staged --quiet || git commit -m "chore(release): $VERSION"
+          git push
+
+      - name: Create tag
+        env:
+          VERSION: ${{ needs.analyze.outputs.next_version }}
+        run: |
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        with:
+          tag_name: ${{ needs.analyze.outputs.next_version }}
+          name: ${{ needs.analyze.outputs.next_version }}
+          body_path: CHANGELOG_RELEASE.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ needs.analyze.outputs.next_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type:** ${{ needs.analyze.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View release: https://github.com/${{ github.repository }}/releases/tag/${{ needs.analyze.outputs.next_version }}" >> $GITHUB_STEP_SUMMARY
+
+  dry-run:
+    name: Dry Run Analysis
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: needs.analyze.outputs.should_release == 'true' && github.event.inputs.dry_run == 'true'
+    steps:
+      - name: Dry Run Summary
+        run: |
+          echo "## Dry Run - No Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Would release version:** ${{ needs.analyze.outputs.next_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release type:** ${{ needs.analyze.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run without dry_run to create the actual release." >> $GITHUB_STEP_SUMMARY

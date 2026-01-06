@@ -78,7 +78,7 @@ export interface HostDetails {
  */
 export interface CircuitBreakerInfo {
   name: string;
-  state: 'closed' | 'open' | 'half_open';
+  state: 'closed' | 'open' | 'half_open' | 'unavailable';
   failure_count: number;
 }
 
@@ -187,7 +187,7 @@ function getProgressColor(percent: number): 'green' | 'yellow' | 'red' {
 /**
  * Get circuit state styling
  */
-function getCircuitStateClass(state: 'closed' | 'open' | 'half_open'): string {
+function getCircuitStateClass(state: 'closed' | 'open' | 'half_open' | 'unavailable'): string {
   switch (state) {
     case 'closed':
       return 'text-green-400';
@@ -195,6 +195,8 @@ function getCircuitStateClass(state: 'closed' | 'open' | 'half_open'): string {
       return 'text-red-400';
     case 'half_open':
       return 'text-yellow-400';
+    case 'unavailable':
+      return 'text-gray-500';
     default:
       return 'text-gray-400';
   }

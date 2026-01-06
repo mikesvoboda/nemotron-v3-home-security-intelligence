@@ -335,8 +335,8 @@ class WebSocketEventMessage(BaseModel):
     )
 
 
-class ServiceStatus(str, Enum):
-    """Valid service status values for health monitoring."""
+class WebSocketServiceStatus(str, Enum):
+    """Valid service status values for WebSocket health monitoring messages."""
 
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
@@ -356,22 +356,22 @@ class WebSocketServiceStatusData(BaseModel):
     """
 
     service: str = Field(..., description="Name of the service (redis, rtdetr, nemotron)")
-    status: ServiceStatus = Field(..., description="Current service status")
+    status: WebSocketServiceStatus = Field(..., description="Current service status")
     message: str | None = Field(None, description="Optional descriptive message")
 
     @field_validator("status", mode="before")
     @classmethod
-    def validate_status(cls, v: str | ServiceStatus) -> ServiceStatus:
-        """Validate and convert status to ServiceStatus enum."""
-        if isinstance(v, ServiceStatus):
+    def validate_status(cls, v: str | WebSocketServiceStatus) -> WebSocketServiceStatus:
+        """Validate and convert status to WebSocketServiceStatus enum."""
+        if isinstance(v, WebSocketServiceStatus):
             return v
         if isinstance(v, str):
             try:
-                return ServiceStatus(v.lower())
+                return WebSocketServiceStatus(v.lower())
             except ValueError:
-                valid_values = [s.value for s in ServiceStatus]
+                valid_values = [s.value for s in WebSocketServiceStatus]
                 raise ValueError(f"Invalid status '{v}'. Must be one of: {valid_values}") from None
-        raise ValueError(f"status must be a string or ServiceStatus enum, got {type(v)}")
+        raise ValueError(f"status must be a string or WebSocketServiceStatus enum, got {type(v)}")
 
     model_config = ConfigDict(
         json_schema_extra={

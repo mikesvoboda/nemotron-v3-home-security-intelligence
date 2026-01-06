@@ -148,6 +148,7 @@ class PromptService:
         config: dict[str, Any],
         change_description: str | None = None,
         created_by: str | None = None,
+        expected_version: int | None = None,
     ) -> PromptVersion:
         """Update prompt configuration for a model, creating a new version.
 
@@ -157,16 +158,41 @@ class PromptService:
             config: New configuration
             change_description: Optional description of changes
             created_by: Optional user identifier
+            expected_version: If provided, used for optimistic locking. The update
+                will fail if the current version doesn't match.
 
         Returns:
             The new PromptVersion record
+
+        Raises:
+            PromptVersionConflictError: If expected_version is provided and doesn't
+                match the current version (concurrent modification detected)
         """
+        from backend.api.schemas.prompt_management import PromptVersionConflictError
+
         # Get current max version for this model
         result = await session.execute(
             select(func.max(PromptVersion.version)).where(PromptVersion.model == model)
         )
         max_version = result.scalar() or 0
         new_version = max_version + 1
+
+        # Optimistic locking check: verify expected_version matches current version
+        if expected_version is not None and max_version > 0 and expected_version != max_version:
+            logger.warning(
+                f"Concurrent modification detected for model {model}: "
+                f"expected version {expected_version}, actual version {max_version}",
+                extra={
+                    "model": model,
+                    "expected_version": expected_version,
+                    "actual_version": max_version,
+                },
+            )
+            raise PromptVersionConflictError(
+                model=model,
+                expected_version=expected_version,
+                actual_version=max_version,
+            )
 
         # Deactivate all existing versions for this model
         await session.execute(
@@ -270,9 +296,18 @@ class PromptService:
                     # But this depends on context - for now just show the difference
                     result["improved"] = abs(result["after_score"] - result["before_score"]) <= 10
 
-        except Exception as e:
-            logger.exception(f"Error testing prompt for model {model}")
-            result["error"] = str(e)
+        except httpx.TimeoutException as e:
+            logger.warning(f"Prompt test timed out for model {model}: {e}")
+            result["error"] = f"Request timed out: {e}"
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Prompt test HTTP error for model {model}: {e}")
+            result["error"] = f"HTTP error: {e}"
+        except httpx.RequestError as e:
+            logger.warning(f"Prompt test request failed for model {model}: {e}")
+            result["error"] = f"Request failed: {e}"
+        except (KeyError, TypeError, ValueError) as e:
+            logger.warning(f"Prompt test data error for model {model}: {e}")
+            result["error"] = f"Data error: {e}"
 
         result["test_duration_ms"] = int((time.monotonic() - start_time) * 1000)
         return result
@@ -321,8 +356,12 @@ class PromptService:
                 return extract_json_from_llm_response(content)
             except ValueError:
                 return {"raw_response": content}
-        except Exception as e:
-            return {"error": str(e)}
+        except httpx.TimeoutException as e:
+            return {"error": f"Request timed out: {e}"}
+        except httpx.HTTPStatusError as e:
+            return {"error": f"HTTP error {e.response.status_code}: {e}"}
+        except httpx.RequestError as e:
+            return {"error": f"Request failed: {e}"}
 
     async def get_version_history(
         self,

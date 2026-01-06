@@ -63,6 +63,41 @@ describe('Layout', () => {
     });
   });
 
+  describe('skip link accessibility', () => {
+    it('renders skip link for keyboard navigation', () => {
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+      const skipLink = screen.getByTestId('skip-link');
+      expect(skipLink).toBeInTheDocument();
+      expect(skipLink).toHaveAttribute('href', '#main-content');
+      expect(skipLink).toHaveTextContent('Skip to main content');
+    });
+
+    it('main content has proper id for skip link target', () => {
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+      const mainContent = screen.getByTestId('main-content');
+      expect(mainContent).toHaveAttribute('id', 'main-content');
+      expect(mainContent).toHaveAttribute('tabIndex', '-1');
+    });
+
+    it('skip link is visually hidden by default', () => {
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+      const skipLink = screen.getByTestId('skip-link');
+      expect(skipLink).toHaveClass('sr-only');
+    });
+  });
+
   it('renders without crashing', () => {
     render(
       <Layout>
