@@ -39,6 +39,7 @@ from backend.api.schemas.system import (
     FileWatcherStatusResponse,
     GPUStatsHistoryResponse,
     GPUStatsResponse,
+    HealthCheckServiceStatus,
     HealthResponse,
     LatencyHistorySnapshot,
     LatencyHistoryStageStats,
@@ -58,7 +59,6 @@ from backend.api.schemas.system import (
     QueueDepths,
     ReadinessResponse,
     ServiceHealthStatusResponse,
-    ServiceStatus,
     SeverityDefinitionResponse,
     SeverityMetadataResponse,
     SeverityThresholds,
@@ -469,44 +469,44 @@ async def get_latest_gpu_stats(
     }
 
 
-async def check_database_health(db: AsyncSession) -> ServiceStatus:
+async def check_database_health(db: AsyncSession) -> HealthCheckServiceStatus:
     """Check database connectivity and health.
 
     Args:
         db: Database session
 
     Returns:
-        ServiceStatus with database health information
+        HealthCheckServiceStatus with database health information
     """
     try:
         # Execute a simple query to verify database connectivity
         result = await db.execute(select(func.count()).select_from(Camera))
         result.scalar_one()
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="healthy",
             message="Database operational",
             details=None,
         )
     except Exception as e:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Database error: {e!s}",
             details=None,
         )
 
 
-async def check_redis_health(redis: RedisClient | None) -> ServiceStatus:
+async def check_redis_health(redis: RedisClient | None) -> HealthCheckServiceStatus:
     """Check Redis connectivity and health.
 
     Args:
         redis: Redis client (may be None if connection failed during dependency injection)
 
     Returns:
-        ServiceStatus with Redis health information
+        HealthCheckServiceStatus with Redis health information
     """
     # Handle case where Redis client is None (connection failed during DI)
     if redis is None:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis unavailable: connection failed",
             details=None,
@@ -515,19 +515,19 @@ async def check_redis_health(redis: RedisClient | None) -> ServiceStatus:
     try:
         health = await redis.health_check()
         if health.get("status") == "healthy":
-            return ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy",
                 message="Redis connected",
                 details={"redis_version": health.get("redis_version", "unknown")},
             )
         else:
-            return ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="unhealthy",
                 message=health.get("error", "Redis connection error"),
                 details=None,
             )
     except Exception as e:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Redis error: {e!s}",
             details=None,
@@ -692,7 +692,7 @@ async def _bounded_health_check(
         return (False, "Health check timed out waiting for available slot")
 
 
-async def check_ai_services_health() -> ServiceStatus:
+async def check_ai_services_health() -> HealthCheckServiceStatus:
     """Check AI services health by pinging RT-DETR and Nemotron endpoints.
 
     Performs concurrent health checks on both AI services:
@@ -703,7 +703,7 @@ async def check_ai_services_health() -> ServiceStatus:
     to prevent thundering herd when multiple clients check simultaneously.
 
     Returns:
-        ServiceStatus with AI services health information:
+        HealthCheckServiceStatus with AI services health information:
         - healthy: Both services are responding
         - degraded: At least one service is down but some AI capability remains
         - unhealthy: Both services are down (no AI capability)
@@ -736,7 +736,7 @@ async def check_ai_services_health() -> ServiceStatus:
 
     # Determine overall AI status
     if rtdetr_healthy and nemotron_healthy:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="healthy",
             message="AI services operational",
             details=details,
@@ -745,14 +745,14 @@ async def check_ai_services_health() -> ServiceStatus:
         # At least one service is up - degraded but partially functional
         working_service = "RT-DETR" if rtdetr_healthy else "Nemotron"
         failed_service = "Nemotron" if rtdetr_healthy else "RT-DETR"
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="degraded",
             message=f"{failed_service} service unavailable, {working_service} operational",
             details=details,
         )
     else:
         # Both services are down
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message="All AI services unavailable",
             details=details,
@@ -786,7 +786,7 @@ async def get_health(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        db_status = ServiceStatus(
+        db_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Database health check timed out",
             details=None,
@@ -798,7 +798,7 @@ async def get_health(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        redis_status = ServiceStatus(
+        redis_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis health check timed out",
             details=None,
@@ -810,7 +810,7 @@ async def get_health(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        ai_status = ServiceStatus(
+        ai_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="AI services health check timed out",
             details=None,
@@ -887,7 +887,7 @@ async def get_readiness(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        db_status = ServiceStatus(
+        db_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Database health check timed out",
             details=None,
@@ -899,7 +899,7 @@ async def get_readiness(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        redis_status = ServiceStatus(
+        redis_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis health check timed out",
             details=None,
@@ -911,7 +911,7 @@ async def get_readiness(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        ai_status = ServiceStatus(
+        ai_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="AI services health check timed out",
             details=None,

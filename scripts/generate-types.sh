@@ -190,7 +190,7 @@ print_step "Generating OpenAPI specification from backend..."
 
 # Set default environment variables for OpenAPI generation
 # These are only needed for Settings validation during import, not for actual functionality
-export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://user:password@localhost:5432/security}"
+export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://user:password@localhost:5432/security}"  # pragma: allowlist secret
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
 
 $PYTHON_CMD -c "
@@ -200,7 +200,8 @@ import sys
 
 spec = app.openapi()
 with open('$OPENAPI_SPEC_FILE', 'w') as f:
-    json.dump(spec, f, indent=2)
+    # Use sort_keys=True for deterministic output across runs
+    json.dump(spec, f, indent=2, sort_keys=True)
 print('OpenAPI spec written to $OPENAPI_SPEC_FILE', file=sys.stderr)
 " 2>&1
 
