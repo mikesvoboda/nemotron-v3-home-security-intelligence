@@ -69,6 +69,7 @@ regexes = [
   '''password123''',
   '''testpassword''',
   '''test[-_]?secret''',
+  '''secret[-_]?key''',
   # Base64-encoded "test" strings commonly used in fixtures
   '''dGVzdA==''',
   # Common placeholder values in documentation
@@ -77,6 +78,10 @@ regexes = [
   '''REPLACE[-_]?ME''',
   # Docker example passwords in documentation
   '''security:password@localhost''',
+  # URL examples in docstrings (with placeholder passwords)
+  '''user:[\*x]+@''',
+  '''user:pass\d*@''',
+  '''user:redispass@''',
 ]
 
 # Specific commits to ignore (e.g., historical false positives)
