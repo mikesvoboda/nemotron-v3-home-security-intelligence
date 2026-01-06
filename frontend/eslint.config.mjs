@@ -5,6 +5,7 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import importPlugin from 'eslint-plugin-import';
 import reactRefreshPlugin from 'eslint-plugin-react-refresh';
+import securityPlugin from 'eslint-plugin-security';
 import globals from 'globals';
 
 export default tseslint.config(
@@ -52,6 +53,7 @@ export default tseslint.config(
       'jsx-a11y': jsxA11yPlugin,
       import: importPlugin,
       'react-refresh': reactRefreshPlugin,
+      security: securityPlugin,
     },
     settings: {
       react: {
@@ -121,6 +123,29 @@ export default tseslint.config(
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always'],
+
+      // Security rules (eslint-plugin-security)
+      // Detect potential security vulnerabilities in JavaScript/TypeScript code
+      'security/detect-buffer-noassert': 'error',
+      'security/detect-child-process': 'warn',
+      'security/detect-disable-mustache-escape': 'error',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-new-buffer': 'error',
+      'security/detect-no-csrf-before-method-override': 'error',
+      'security/detect-non-literal-fs-filename': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-non-literal-require': 'warn',
+      'security/detect-object-injection': 'off', // Too many false positives in React
+      'security/detect-possible-timing-attacks': 'warn',
+      'security/detect-pseudoRandomBytes': 'error',
+      'security/detect-unsafe-regex': 'error',
+      'security/detect-bidi-characters': 'error',
+
+      // React-specific security rules (custom additions)
+      // Prevent XSS through dangerouslySetInnerHTML
+      'react/no-danger': 'error',
+      // Ensure links with target="_blank" have rel="noopener noreferrer"
+      'react/jsx-no-script-url': 'error',
     },
   },
 

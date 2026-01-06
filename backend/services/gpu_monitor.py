@@ -243,6 +243,94 @@ class GPUMonitor:
         except Exception as e:
             raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
 
+    async def _get_gpu_stats_nvidia_smi_async(self) -> dict[str, Any]:
+        """Get GPU statistics using nvidia-smi subprocess asynchronously.
+
+        This is the async version that doesn't block the event loop.
+        Uses asyncio.to_thread to run subprocess in a thread pool.
+
+        Returns:
+            Dictionary containing GPU statistics
+
+        Raises:
+            RuntimeError: If nvidia-smi fails or is not available
+        """
+        if not self._nvidia_smi_available or not self._nvidia_smi_path:
+            raise RuntimeError("nvidia-smi not available")
+
+        from backend.core.async_utils import async_subprocess_run
+
+        try:
+            # Query all needed metrics in one call for efficiency
+            # Format: temperature, power, utilization, memory_used, memory_total, name
+            result = await async_subprocess_run(
+                [
+                    self._nvidia_smi_path,
+                    "--query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,memory.total,name",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5.0,
+            )
+
+            # With text=True, stdout/stderr are strings
+            stdout_str: str = str(result.stdout)
+            stderr_str: str = str(result.stderr) if result.stderr else ""
+
+            if result.returncode != 0:
+                raise RuntimeError(f"nvidia-smi returned error: {stderr_str.strip()}")
+
+            # Parse CSV output: "39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"
+            line = stdout_str.strip().split("\n")[0]  # Take first GPU if multiple
+            parts = [p.strip() for p in line.split(",")]
+
+            if len(parts) < 5:
+                raise RuntimeError(f"Unexpected nvidia-smi output format: {line}")
+
+            # Parse values with error handling for each field
+            try:
+                temperature = float(parts[0]) if parts[0] and parts[0] != "[N/A]" else None
+            except ValueError:
+                temperature = None
+
+            try:
+                power_usage = float(parts[1]) if parts[1] and parts[1] != "[N/A]" else None
+            except ValueError:
+                power_usage = None
+
+            try:
+                gpu_utilization = float(parts[2]) if parts[2] and parts[2] != "[N/A]" else None
+            except ValueError:
+                gpu_utilization = None
+
+            try:
+                memory_used = int(float(parts[3])) if parts[3] and parts[3] != "[N/A]" else None
+            except ValueError:
+                memory_used = None
+
+            try:
+                memory_total = int(float(parts[4])) if parts[4] and parts[4] != "[N/A]" else None
+            except ValueError:
+                memory_total = None
+
+            gpu_name = parts[5] if len(parts) > 5 else self._gpu_name
+
+            return {
+                "gpu_name": gpu_name,
+                "gpu_utilization": gpu_utilization,
+                "memory_used": memory_used,
+                "memory_total": memory_total,
+                "temperature": temperature,
+                "power_usage": power_usage,
+                "recorded_at": datetime.now(UTC),
+            }
+
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError("nvidia-smi timed out") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
+
     def _get_gpu_stats_real(self) -> dict[str, Any]:
         """Get real GPU statistics from pynvml.
 
@@ -496,12 +584,12 @@ class GPUMonitor:
             if self._gpu_available:
                 return self._get_gpu_stats_real()
 
-            # Try nvidia-smi subprocess as second option
+            # Try nvidia-smi subprocess as second option (async version to avoid blocking)
             if self._nvidia_smi_available:
                 try:
-                    return self._get_gpu_stats_nvidia_smi()
+                    return await self._get_gpu_stats_nvidia_smi_async()
                 except Exception as e:
-                    logger.warning(f"nvidia-smi fallback failed: {e}")
+                    logger.warning(f"nvidia-smi async fallback failed: {e}")
                     # Continue to try other methods
 
             # Try AI container endpoints

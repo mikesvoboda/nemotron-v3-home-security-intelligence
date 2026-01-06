@@ -1329,6 +1329,12 @@ async def test_severity_endpoint_threshold_ordering(client, mock_redis):
 @pytest.mark.asyncio
 async def test_severity_endpoint_default_thresholds(client, mock_redis):
     """Test severity endpoint returns expected default thresholds."""
+    # Reset the singleton to ensure we get fresh defaults
+    # (other tests may have modified thresholds via PUT /api/system/severity)
+    from backend.services.severity import reset_severity_service
+
+    reset_severity_service()
+
     response = await client.get("/api/system/severity")
 
     assert response.status_code == 200

@@ -1,8 +1,7 @@
-name: Trivy Container Scan
+name: Trivy Security Scan
 
-# Only run on push to main (post-merge) to avoid disk space issues on PR checks.
-# The backend image includes heavy ML dependencies (PyTorch, transformers) that
-# exhaust GitHub runner disk space when building + scanning during PR workflows.
+# Filesystem and config scanning runs on PRs (lightweight, no Docker build required).
+# Container image scanning runs on push to main (heavy ML dependencies exhaust disk space).
 on:
   push:
     branches: [main]
@@ -14,6 +13,19 @@ on:
       - 'pyproject.toml'
       - 'uv.lock'
       - '.trivyignore'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.py'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/Dockerfile*'
+      - '**/docker-compose*.yml'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
   # Weekly check for expired CVE reviews (every Monday at 9am UTC)
   schedule:
     - cron: '0 9 * * 1'
@@ -29,6 +41,137 @@ env:
   LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'
 
 jobs:
+  # =============================================================================
+  # FILESYSTEM SCANNING - Runs on PRs (lightweight)
+  # =============================================================================
+  scan-filesystem:
+    name: Filesystem Vulnerability Scan
+    runs-on: ubuntu-latest
+    # Run on PRs and pushes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          trivyignores: '.trivyignore'
+          scanners: 'vuln,secret'
+          # Skip scanning node_modules and .venv to reduce scan time
+          skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants'
+
+      - name: Run Trivy filesystem scan (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
+          scanners: 'vuln,secret'
+          skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants'
+
+      - name: Upload Trivy filesystem results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-fs.sarif'
+          category: 'trivy-filesystem'
+
+  # =============================================================================
+  # CONFIG/IAC SCANNING - Runs on PRs (lightweight)
+  # =============================================================================
+  scan-config:
+    name: Config/IaC Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '1'
+          trivyignores: '.trivyignore'
+          # Skip test and generated directories
+          skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants,tests'
+
+      - name: Run Trivy config scan (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-config.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
+          skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants,tests'
+
+      - name: Upload Trivy config results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-config.sarif'
+          category: 'trivy-config'
+
+  # =============================================================================
+  # SBOM GENERATION - Generate Software Bill of Materials
+  # =============================================================================
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    # Only generate SBOM on push to main (not PRs)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Generate SBOM for Python dependencies
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'cyclonedx'
+          output: 'sbom-python.json'
+          scanners: 'vuln'
+          skip-dirs: 'node_modules,frontend,coverage,dist,build,mutants'
+
+      - name: Generate SBOM for Node.js dependencies
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './frontend'
+          format: 'cyclonedx'
+          output: 'sbom-nodejs.json'
+          scanners: 'vuln'
+          skip-dirs: 'node_modules,coverage,dist'
+
+      - name: Upload SBOMs as artifacts
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: |
+            sbom-python.json
+            sbom-nodejs.json
+          retention-days: 90
+
+  # =============================================================================
+  # CVE EXPIRY CHECK - Weekly review date validation
+  # =============================================================================
   check-cve-expiry:
     name: Check CVE Review Dates
     runs-on: ubuntu-latest

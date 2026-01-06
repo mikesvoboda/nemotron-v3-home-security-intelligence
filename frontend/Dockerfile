@@ -1,4 +1,11 @@
 # Multi-stage Dockerfile for frontend (dev and production targets)
+#
+# Security Features:
+#   - Non-root user execution (dev: node, prod: nginx unprivileged)
+#   - Minimal production image (nginx-unprivileged)
+#   - Health checks for container orchestration
+#   - Security headers in nginx config
+#
 # Usage:
 #   docker build --target dev -t frontend:dev .
 #   docker build --target prod -t frontend:prod .
@@ -8,9 +15,17 @@
 # =============================================================================
 FROM node:20.19.6-alpine3.23 AS base
 
+# Security labels
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="Frontend Dashboard"
+LABEL org.opencontainers.image.description="React dashboard for home security monitoring"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+
 WORKDIR /app
 
 # Install wget for healthcheck (needed in both dev and prod)
+# hadolint ignore=DL3018
 RUN apk add --no-cache wget
 
 # Copy package files and install ALL dependencies (including devDependencies)
@@ -58,12 +73,24 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # =============================================================================
-# Production target: nginx serving static assets
+# Production target: nginx unprivileged serving static assets
 # =============================================================================
+# Use nginx-unprivileged for better security (runs as non-root by default)
 # nginx 1.29.4 with Alpine 3.23 (latest stable with security patches)
-FROM nginx:1.29.4-alpine3.23 AS prod
+FROM nginxinc/nginx-unprivileged:1.29.4-alpine3.23 AS prod
+
+# Security labels
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="Frontend Dashboard"
+LABEL org.opencontainers.image.description="React dashboard for home security monitoring"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+
+# Switch to root temporarily to install wget and configure files
+USER root
 
 # Install wget for healthcheck
+# hadolint ignore=DL3018
 RUN apk add --no-cache wget
 
 # Copy built assets from builder stage
@@ -76,12 +103,18 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Expose nginx port
-EXPOSE 80
+# Ensure nginx user owns the necessary directories
+RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
 
-# Health check
+# Switch back to non-root nginx user
+USER nginx
+
+# Expose nginx port (unprivileged port 8080)
+EXPOSE 8080
+
+# Health check (nginx-unprivileged listens on 8080 by default)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1
 
 # Use entrypoint to configure DNS resolver, then run nginx
 ENTRYPOINT ["/docker-entrypoint.sh"]
