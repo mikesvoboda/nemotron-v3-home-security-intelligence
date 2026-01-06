@@ -7216,10 +7216,10 @@ export interface components {
         HealthCheckServiceStatus: {
             /**
              * Details
-             * @description Additional service-specific details
+             * @description Additional service-specific details (may contain nested objects)
              */
             details?: {
-                [key: string]: string;
+                [key: string]: unknown;
             } | null;
             /**
              * Message

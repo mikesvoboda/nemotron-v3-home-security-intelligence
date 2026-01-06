@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Index, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -48,6 +48,22 @@ class Log(Base):
         Index("idx_logs_component", "component"),
         Index("idx_logs_camera_id", "camera_id"),
         Index("idx_logs_source", "source"),
+        # BRIN index for time-series queries on timestamp (append-only chronological data)
+        # Much smaller than B-tree (~1000x) and ideal for range queries on ordered timestamps
+        Index(
+            "ix_logs_timestamp_brin",
+            "timestamp",
+            postgresql_using="brin",
+        ),
+        # CHECK constraints for enum-like columns
+        CheckConstraint(
+            "level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')",
+            name="ck_logs_level",
+        ),
+        CheckConstraint(
+            "source IN ('backend', 'frontend')",
+            name="ck_logs_source",
+        ),
     )
 
     def __repr__(self) -> str:
