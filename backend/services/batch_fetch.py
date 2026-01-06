@@ -173,7 +173,7 @@ async def batch_fetch_file_paths(
         batch_size: Maximum IDs per query (clamped to MIN/MAX_BATCH_SIZE)
 
     Returns:
-        List of file paths (as strings), filtered to remove None values
+        List of file paths (as strings), filtered to remove None and empty values
 
     Example:
         paths = await batch_fetch_file_paths(session, detection_ids)
@@ -192,7 +192,8 @@ async def batch_fetch_file_paths(
 
         query = select(Detection.file_path).where(Detection.id.in_(batch_ids))
         result = await session.execute(query)
-        batch_paths = [row[0] for row in result.all() if row[0] is not None]
+        # Filter out None and empty strings - empty strings are invalid file paths
+        batch_paths = [row[0] for row in result.all() if row[0]]
         all_paths.extend(batch_paths)
 
     logger.debug(f"Fetched {len(all_paths)} file paths for {len(unique_ids)} detection IDs")
