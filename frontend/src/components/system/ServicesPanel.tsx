@@ -67,6 +67,8 @@ export interface ServicesPanelProps {
   onToggle?: (serviceName: string, enabled: boolean) => void;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -331,6 +333,7 @@ export default function ServicesPanel({
   onRestart,
   onToggle,
   className,
+  'data-testid': testId = 'services-panel',
 }: ServicesPanelProps) {
   // Service status from WebSocket (for rtdetr, nemotron, redis)
   const { services: wsServices, hasUnhealthy } = useServiceStatus();
@@ -553,7 +556,7 @@ export default function ServicesPanel({
         hasUnhealthy && 'border-red-500/30',
         className
       )}
-      data-testid="services-panel"
+      data-testid={testId}
     >
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
