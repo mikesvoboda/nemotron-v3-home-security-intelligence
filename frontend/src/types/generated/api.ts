@@ -5443,6 +5443,20 @@ export interface components {
             retention_days?: number | null;
         };
         /**
+         * ContainerServiceStatus
+         * @description Current status of a managed container service.
+         *
+         *     Status values:
+         *     - RUNNING: Container is up and passing health checks
+         *     - STARTING: Container is starting, not yet healthy
+         *     - UNHEALTHY: Running but failing health checks
+         *     - STOPPED: Container is not running
+         *     - DISABLED: Exceeded failure limit, requires manual reset
+         *     - NOT_FOUND: Container doesn't exist yet
+         * @enum {string}
+         */
+        ContainerServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
+        /**
          * CurrentDeviation
          * @description Current activity deviation from established baseline.
          * @example {
@@ -9563,27 +9577,13 @@ export interface components {
              */
             restart_count: number;
             /** @description Current service status: running, starting, unhealthy, stopped, disabled, not_found */
-            status: components["schemas"]["ServiceStatus"];
+            status: components["schemas"]["ContainerServiceStatus"];
             /**
              * Uptime Seconds
              * @description Seconds since container started (null if not running)
              */
             uptime_seconds?: number | null;
         };
-        /**
-         * ServiceStatus
-         * @description Current status of a managed service.
-         *
-         *     Status values:
-         *     - RUNNING: Container is up and passing health checks
-         *     - STARTING: Container is starting, not yet healthy
-         *     - UNHEALTHY: Running but failing health checks
-         *     - STOPPED: Container is not running
-         *     - DISABLED: Exceeded failure limit, requires manual reset
-         *     - NOT_FOUND: Container doesn't exist yet
-         * @enum {string}
-         */
-        ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
         /**
          * ServicesResponse
          * @description Response for GET /api/system/services.
