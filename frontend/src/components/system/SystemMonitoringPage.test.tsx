@@ -82,37 +82,37 @@ vi.mock('./PerformanceAlerts', () => ({
 }));
 
 vi.mock('./AiModelsPanel', () => ({
-  default: ({ 'data-testid': testId = 'ai-models-panel-section' }: { 'data-testid'?: string }) => (
+  default: ({ 'data-testid': testId = 'ai-models-panel' }: { 'data-testid'?: string }) => (
     <div data-testid={testId}>AI Models Panel</div>
   ),
 }));
 
 vi.mock('./DatabasesPanel', () => ({
-  default: ({ 'data-testid': testId = 'databases-panel-section' }: { 'data-testid'?: string }) => (
+  default: ({ 'data-testid': testId = 'databases-panel' }: { 'data-testid'?: string }) => (
     <div data-testid={testId}>Databases Panel</div>
   ),
 }));
 
 vi.mock('./HostSystemPanel', () => ({
-  default: ({ 'data-testid': testId = 'host-system-panel-section' }: { 'data-testid'?: string }) => (
+  default: ({ 'data-testid': testId = 'host-system-panel' }: { 'data-testid'?: string }) => (
     <div data-testid={testId}>Host System Panel</div>
   ),
 }));
 
 vi.mock('./ContainersPanel', () => ({
-  default: ({ 'data-testid': testId = 'containers-panel-section' }: { 'data-testid'?: string }) => (
+  default: ({ 'data-testid': testId = 'containers-panel' }: { 'data-testid'?: string }) => (
     <div data-testid={testId}>Containers Panel</div>
   ),
 }));
 
 vi.mock('./CircuitBreakerPanel', () => ({
-  default: ({ 'data-testid': testId = 'circuit-breaker-panel-section' }: { 'data-testid'?: string }) => (
+  default: ({ 'data-testid': testId = 'circuit-breaker-panel' }: { 'data-testid'?: string }) => (
     <div data-testid={testId}>Circuit Breaker Panel</div>
   ),
 }));
 
 vi.mock('./ServicesPanel', () => ({
-  default: ({ 'data-testid': testId = 'services-panel-section' }: { 'data-testid'?: string }) => (
+  default: ({ 'data-testid': testId = 'services-panel' }: { 'data-testid'?: string }) => (
     <div data-testid={testId}>Services Panel</div>
   ),
 }));
@@ -922,7 +922,7 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Component rendered successfully even if reset would fail
-      expect(screen.getByTestId('circuit-breaker-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('circuit-breaker-panel')).toBeInTheDocument();
     });
   });
 
@@ -1069,12 +1069,12 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Verify all major panels are present (using test IDs from mocked components)
-      expect(screen.getByTestId('ai-models-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('host-system-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('containers-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('circuit-breaker-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('services-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('ai-models-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('host-system-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('containers-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('circuit-breaker-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('services-panel')).toBeInTheDocument();
       expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
     });
 
@@ -1219,9 +1219,9 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Verify panels receive transformed data
-      expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('host-system-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('containers-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('host-system-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('containers-panel')).toBeInTheDocument();
     });
 
     it('handles degraded service statuses in background workers', async () => {
