@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from backend.api.dependencies import get_camera_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     ActivityBaselineEntry,
@@ -146,17 +147,7 @@ async def get_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
-    # Type is already narrowed by the None check above
-    return camera
+    return await get_camera_or_404(camera_id, db)
 
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED)
@@ -270,15 +261,7 @@ async def update_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Get existing camera
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    camera = await get_camera_or_404(camera_id, db)
 
     # Track changes for audit log
     old_values = {
@@ -350,15 +333,7 @@ async def delete_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Get existing camera
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    camera = await get_camera_or_404(camera_id, db)
 
     # Log the audit entry before deletion
     try:
@@ -417,15 +392,7 @@ async def get_camera_snapshot(
     This endpoint uses the camera's configured `folder_path` and returns the most recently
     modified image file under that directory.
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
+    camera = await get_camera_or_404(camera_id, db)
     settings = get_settings()
     base_root = Path(settings.foscam_base_path).resolve()
 
@@ -644,15 +611,7 @@ async def get_camera_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    camera = await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch data
     baseline_service = get_baseline_service()
@@ -705,15 +664,7 @@ async def get_camera_baseline_anomalies(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch anomalies
     baseline_service = get_baseline_service()
@@ -748,15 +699,7 @@ async def get_camera_activity_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch raw activity baselines
     baseline_service = get_baseline_service()
@@ -828,15 +771,7 @@ async def get_camera_class_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch raw class baselines
     baseline_service = get_baseline_service()

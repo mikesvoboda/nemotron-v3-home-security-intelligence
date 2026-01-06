@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_event_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.clips import (
     ClipGenerateRequest,
@@ -675,14 +676,7 @@ async def get_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids and calculate count
     parsed_detection_ids = parse_detection_ids(event.detection_ids)
@@ -731,14 +725,7 @@ async def update_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Track changes for audit log
     changes: dict[str, Any] = {}
@@ -843,15 +830,7 @@ async def get_event_detections(
     Raises:
         HTTPException: 404 if event not found
     """
-    # Get event to verify it exists and get detection_ids
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
@@ -921,15 +900,7 @@ async def get_event_enrichments(
     # Import transform function from detections route
     from backend.api.routes.detections import _transform_enrichment_data
 
-    # Get event to verify it exists and get detection_ids
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
@@ -987,15 +958,7 @@ async def get_event_clip(
     """
     from pathlib import Path
 
-    # Get event
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Check if clip exists
     if not event.clip_path:
@@ -1076,15 +1039,7 @@ async def generate_event_clip(
     from backend.api.schemas.clips import ClipGenerateResponse, ClipStatus
     from backend.services.clip_generator import get_clip_generator
 
-    # Get event
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Check if clip already exists and force is False
     if event.clip_path and not request.force:

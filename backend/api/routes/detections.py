@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_detection_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.detections import (
     DetectionListResponse,
@@ -300,17 +301,7 @@ async def get_detection(
     Raises:
         HTTPException: 404 if detection not found
     """
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
-
-    # Type is already narrowed by the None check above
-    return detection
+    return await get_detection_or_404(detection_id, db)
 
 
 def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
@@ -590,15 +581,7 @@ async def get_detection_enrichment(
     Raises:
         HTTPException: 404 if detection not found
     """
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
-
+    detection = await get_detection_or_404(detection_id, db)
     return _transform_enrichment_data(
         detection_id=detection.id,
         enrichment_data=detection.enrichment_data,
@@ -648,15 +631,7 @@ async def get_detection_image(
         HTTPException: 404 if detection not found or image file doesn't exist
         HTTPException: 500 if image generation fails
     """
-    # Get detection from database
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
+    detection = await get_detection_or_404(detection_id, db)
 
     # If full=true, return the original source image
     if full:
@@ -829,21 +804,13 @@ async def stream_detection_video(
         HTTPException: 404 if detection not found or not a video
         HTTPException: 416 if range is not satisfiable
     """
-    # Get detection from database
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
+    detection = await get_detection_or_404(detection_id, db)
 
     # Verify this is a video detection
     if detection.media_type != "video":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Detection {detection_id} is not a video (media_type: {detection.media_type})",
+            detail=f"Detection {detection.id} is not a video (media_type: {detection.media_type})",
         )
 
     # Check video file exists
@@ -956,21 +923,13 @@ async def get_video_thumbnail(
         HTTPException: 404 if detection not found or not a video
         HTTPException: 500 if thumbnail generation fails
     """
-    # Get detection from database
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
+    detection = await get_detection_or_404(detection_id, db)
 
     # Verify this is a video detection
     if detection.media_type != "video":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Detection {detection_id} is not a video (media_type: {detection.media_type})",
+            detail=f"Detection {detection.id} is not a video (media_type: {detection.media_type})",
         )
 
     # Check if thumbnail already exists
