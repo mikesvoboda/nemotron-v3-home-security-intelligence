@@ -39,7 +39,11 @@ def clean_env(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
     # Set DATABASE_URL since it's now required (no default)
-    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+    # pragma: allowlist secret
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+    )
 
     # Set FOSCAM_BASE_PATH to expected default since .env file may override
     # (monkeypatch.delenv only clears os.environ, but Pydantic still reads .env file)
@@ -58,7 +62,11 @@ class TestSettingsDefaults:
         """Test database URL is read from environment (no default value)."""
         settings = Settings()
         # DATABASE_URL is now required - test fixture sets it
-        assert settings.database_url == "postgresql+asyncpg://test:test@localhost:5432/test"
+        # pragma: allowlist secret
+        assert (
+            settings.database_url
+            == "postgresql+asyncpg://test:test@localhost:5432/test"  # pragma: allowlist secret
+        )
 
     def test_default_redis_url(self, clean_env):
         """Test default Redis URL points to localhost."""
@@ -130,9 +138,17 @@ class TestEnvironmentOverrides:
 
     def test_override_database_url(self, clean_env):
         """Test DATABASE_URL environment variable overrides default."""
-        clean_env.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/testdb")
+        # pragma: allowlist secret
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+        )
         settings = Settings()
-        assert settings.database_url == "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+        # pragma: allowlist secret
+        assert (
+            settings.database_url
+            == "postgresql+asyncpg://user:pass@localhost:5432/testdb"  # pragma: allowlist secret
+        )  # pragma: allowlist secret
 
     def test_override_redis_url(self, clean_env):
         """Test REDIS_URL environment variable overrides default."""
@@ -380,8 +396,8 @@ class TestDatabaseUrlValidation:
     def test_validator_accepts_postgresql_urls(self, clean_env):
         """Test that PostgreSQL URLs are accepted."""
         valid_urls = [
-            "postgresql://user:pass@localhost:5432/db",
-            "postgresql+asyncpg://user:pass@localhost:5432/db",
+            "postgresql://user:pass@localhost:5432/db",  # pragma: allowlist secret
+            "postgresql+asyncpg://user:pass@localhost:5432/db",  # pragma: allowlist secret
         ]
 
         for db_url in valid_urls:
@@ -398,7 +414,7 @@ class TestDatabaseUrlValidation:
 
     def test_validator_rejects_mysql_url(self, clean_env):
         """Test that MySQL URLs are rejected."""
-        mysql_url = "mysql+aiomysql://user:pass@localhost:3306/dbname"
+        mysql_url = "mysql+aiomysql://user:pass@localhost:3306/dbname"  # pragma: allowlist secret
         clean_env.setenv("DATABASE_URL", mysql_url)
         with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
             Settings()
@@ -707,9 +723,17 @@ class TestRedisUrlValidation:
 
     def test_redis_url_with_username_password(self, clean_env):
         """Test that REDIS_URL accepts URLs with username and password."""
-        clean_env.setenv("REDIS_URL", "redis://user:password@localhost:6379/0")
+        # pragma: allowlist secret
+        clean_env.setenv(
+            "REDIS_URL",
+            "redis://user:password@localhost:6379/0",  # pragma: allowlist secret
+        )
         settings = Settings()
-        assert settings.redis_url == "redis://user:password@localhost:6379/0"
+        # pragma: allowlist secret
+        assert (
+            settings.redis_url
+            == "redis://user:password@localhost:6379/0"  # pragma: allowlist secret
+        )  # pragma: allowlist secret
 
     def test_redis_url_without_database(self, clean_env):
         """Test that REDIS_URL accepts URLs without database number."""
@@ -846,6 +870,120 @@ class TestRedisSSLSettings:
         assert settings.redis_ssl_check_hostname is True
 
 
+class TestOrchestratorSettings:
+    """Test container orchestrator configuration settings (NEM-1280)."""
+
+    def test_default_orchestrator_enabled(self, clean_env):
+        """Test that orchestrator is enabled by default."""
+        settings = Settings()
+        assert settings.orchestrator.enabled is True
+
+    def test_default_orchestrator_docker_host(self, clean_env):
+        """Test that orchestrator docker_host is None by default."""
+        settings = Settings()
+        assert settings.orchestrator.docker_host is None
+
+    def test_default_orchestrator_health_check_interval(self, clean_env):
+        """Test that orchestrator health_check_interval defaults to 30 seconds."""
+        settings = Settings()
+        assert settings.orchestrator.health_check_interval == 30
+
+    def test_default_orchestrator_health_check_timeout(self, clean_env):
+        """Test that orchestrator health_check_timeout defaults to 5 seconds."""
+        settings = Settings()
+        assert settings.orchestrator.health_check_timeout == 5
+
+    def test_default_orchestrator_startup_grace_period(self, clean_env):
+        """Test that orchestrator startup_grace_period defaults to 60 seconds."""
+        settings = Settings()
+        assert settings.orchestrator.startup_grace_period == 60
+
+    def test_default_orchestrator_max_consecutive_failures(self, clean_env):
+        """Test that orchestrator max_consecutive_failures defaults to 5."""
+        settings = Settings()
+        assert settings.orchestrator.max_consecutive_failures == 5
+
+    def test_default_orchestrator_restart_backoff_base(self, clean_env):
+        """Test that orchestrator restart_backoff_base defaults to 5.0 seconds."""
+        settings = Settings()
+        assert settings.orchestrator.restart_backoff_base == 5.0
+
+    def test_default_orchestrator_restart_backoff_max(self, clean_env):
+        """Test that orchestrator restart_backoff_max defaults to 300.0 seconds."""
+        settings = Settings()
+        assert settings.orchestrator.restart_backoff_max == 300.0
+
+    def test_orchestrator_enabled_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_ENABLED can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_ENABLED", "false")
+        settings = Settings()
+        assert settings.orchestrator.enabled is False
+
+    def test_orchestrator_docker_host_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_DOCKER_HOST can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_DOCKER_HOST", "unix:///var/run/docker.sock")
+        settings = Settings()
+        assert settings.orchestrator.docker_host == "unix:///var/run/docker.sock"
+
+    def test_orchestrator_health_check_interval_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_HEALTH_CHECK_INTERVAL can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_HEALTH_CHECK_INTERVAL", "60")
+        settings = Settings()
+        assert settings.orchestrator.health_check_interval == 60
+
+    def test_orchestrator_health_check_timeout_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_HEALTH_CHECK_TIMEOUT can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_HEALTH_CHECK_TIMEOUT", "10")
+        settings = Settings()
+        assert settings.orchestrator.health_check_timeout == 10
+
+    def test_orchestrator_startup_grace_period_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_STARTUP_GRACE_PERIOD can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_STARTUP_GRACE_PERIOD", "120")
+        settings = Settings()
+        assert settings.orchestrator.startup_grace_period == 120
+
+    def test_orchestrator_max_consecutive_failures_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES", "10")
+        settings = Settings()
+        assert settings.orchestrator.max_consecutive_failures == 10
+
+    def test_orchestrator_restart_backoff_base_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_RESTART_BACKOFF_BASE can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_RESTART_BACKOFF_BASE", "10.0")
+        settings = Settings()
+        assert settings.orchestrator.restart_backoff_base == 10.0
+
+    def test_orchestrator_restart_backoff_max_from_env(self, clean_env):
+        """Test that ORCHESTRATOR_RESTART_BACKOFF_MAX can be set via environment variable."""
+        clean_env.setenv("ORCHESTRATOR_RESTART_BACKOFF_MAX", "600.0")
+        settings = Settings()
+        assert settings.orchestrator.restart_backoff_max == 600.0
+
+    def test_orchestrator_full_config_from_env(self, clean_env):
+        """Test that all orchestrator settings can be configured together."""
+        clean_env.setenv("ORCHESTRATOR_ENABLED", "false")
+        clean_env.setenv("ORCHESTRATOR_DOCKER_HOST", "tcp://localhost:2375")
+        clean_env.setenv("ORCHESTRATOR_HEALTH_CHECK_INTERVAL", "45")
+        clean_env.setenv("ORCHESTRATOR_HEALTH_CHECK_TIMEOUT", "15")
+        clean_env.setenv("ORCHESTRATOR_STARTUP_GRACE_PERIOD", "90")
+        clean_env.setenv("ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES", "3")
+        clean_env.setenv("ORCHESTRATOR_RESTART_BACKOFF_BASE", "2.5")
+        clean_env.setenv("ORCHESTRATOR_RESTART_BACKOFF_MAX", "180.0")
+
+        settings = Settings()
+
+        assert settings.orchestrator.enabled is False
+        assert settings.orchestrator.docker_host == "tcp://localhost:2375"
+        assert settings.orchestrator.health_check_interval == 45
+        assert settings.orchestrator.health_check_timeout == 15
+        assert settings.orchestrator.startup_grace_period == 90
+        assert settings.orchestrator.max_consecutive_failures == 3
+        assert settings.orchestrator.restart_backoff_base == 2.5
+        assert settings.orchestrator.restart_backoff_max == 180.0
+
+
 class TestRedisPasswordSettings:
     """Test Redis password authentication configuration settings (NEM-1089).
 
@@ -859,9 +997,9 @@ class TestRedisPasswordSettings:
 
     def test_redis_password_from_env(self, clean_env):
         """Test that REDIS_PASSWORD can be set via environment variable."""
-        clean_env.setenv("REDIS_PASSWORD", "my_secure_password")
+        clean_env.setenv("REDIS_PASSWORD", "my_secure_password")  # pragma: allowlist secret
         settings = Settings()
-        assert settings.redis_password == "my_secure_password"  # noqa: S105 - Test fixture
+        assert settings.redis_password == "my_secure_password"  # noqa: S105 - Test fixture  # pragma: allowlist secret
 
     def test_redis_password_empty_string_is_preserved(self, clean_env):
         """Test that empty string password is preserved as empty string."""
@@ -872,7 +1010,7 @@ class TestRedisPasswordSettings:
 
     def test_redis_password_special_characters(self, clean_env):
         """Test that Redis password can contain special characters."""
-        special_password = "p@ss!w0rd#123$%^&*()"  # noqa: S105 - Test fixture
+        special_password = "p@ss!w0rd#123$%^&*()"  # noqa: S105 - Test fixture  # pragma: allowlist secret
         clean_env.setenv("REDIS_PASSWORD", special_password)
         settings = Settings()
         assert settings.redis_password == special_password
@@ -880,16 +1018,16 @@ class TestRedisPasswordSettings:
     def test_redis_password_with_url_also_set(self, clean_env):
         """Test that Redis password works alongside Redis URL."""
         clean_env.setenv("REDIS_URL", "redis://redis-host:6379/0")
-        clean_env.setenv("REDIS_PASSWORD", "secure_password")
+        clean_env.setenv("REDIS_PASSWORD", "secure_password")  # pragma: allowlist secret
         settings = Settings()
         assert settings.redis_url == "redis://redis-host:6379/0"
-        assert settings.redis_password == "secure_password"  # noqa: S105 - Test fixture
+        assert settings.redis_password == "secure_password"  # noqa: S105 - Test fixture  # pragma: allowlist secret
 
     def test_redis_password_with_ssl_settings(self, clean_env):
         """Test that Redis password works alongside SSL settings."""
-        clean_env.setenv("REDIS_PASSWORD", "secure_password")
+        clean_env.setenv("REDIS_PASSWORD", "secure_password")  # pragma: allowlist secret
         clean_env.setenv("REDIS_SSL_ENABLED", "true")
         clean_env.setenv("REDIS_SSL_CERT_REQS", "none")
         settings = Settings()
-        assert settings.redis_password == "secure_password"  # noqa: S105 - Test fixture
+        assert settings.redis_password == "secure_password"  # noqa: S105  # pragma: allowlist secret
         assert settings.redis_ssl_enabled is True

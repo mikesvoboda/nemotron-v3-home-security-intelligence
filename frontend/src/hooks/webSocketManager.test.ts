@@ -84,25 +84,30 @@ describe('WebSocketManager', () => {
   let manager: WebSocketManager;
   let mockWebSocket: MockWebSocket | null = null;
   let createdWebSockets: MockWebSocket[] = [];
-  const originalWebSocket = window.WebSocket;
 
   beforeEach(() => {
     vi.useFakeTimers();
     createdWebSockets = [];
 
-    // Replace window WebSocket with our mock
-    window.WebSocket = vi.fn(function (this: MockWebSocket, url: string) {
+    // Create mock WebSocket constructor
+    const MockWebSocketConstructor = vi.fn(function (
+      this: MockWebSocket,
+      url: string
+    ) {
       mockWebSocket = new MockWebSocket(url);
       createdWebSockets.push(mockWebSocket);
       Object.assign(this, mockWebSocket);
       return mockWebSocket;
     }) as unknown as typeof WebSocket;
 
-    // Add static properties
-    Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-    Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-    Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-    Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+    // Add static properties to the mock constructor
+    Object.defineProperty(MockWebSocketConstructor, 'CONNECTING', { value: 0 });
+    Object.defineProperty(MockWebSocketConstructor, 'OPEN', { value: 1 });
+    Object.defineProperty(MockWebSocketConstructor, 'CLOSING', { value: 2 });
+    Object.defineProperty(MockWebSocketConstructor, 'CLOSED', { value: 3 });
+
+    // Use vi.stubGlobal to mock WebSocket (handles read-only globals)
+    vi.stubGlobal('WebSocket', MockWebSocketConstructor);
 
     manager = new WebSocketManager();
     resetSubscriberCounter();
@@ -110,7 +115,7 @@ describe('WebSocketManager', () => {
 
   afterEach(() => {
     manager.reset();
-    window.WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
     mockWebSocket = null;
     createdWebSockets = [];
     vi.clearAllTimers();

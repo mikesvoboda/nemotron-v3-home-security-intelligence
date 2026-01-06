@@ -3,15 +3,10 @@ name: Benchmarks
 # Performance benchmarks for regression detection.
 # Runs pytest-benchmark on backend tests and fails on >20% regression from baseline.
 #
-# Non-blocking by default to avoid flaky CI failures due to runner variance.
+# Runs on merge to main only (not PRs) to save runner capacity.
 # Creates Linear issue on failure for main branch pushes to ensure follow-up.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/benchmarks.yml'
   push:
     branches: [main]
     paths:
@@ -89,7 +84,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { fetchHealth, type HealthResponse, type ServiceStatus } from '../services/api';
+import { fetchHealth, type HealthResponse, type HealthServiceStatus } from '../services/api';
 
 export interface UseHealthStatusOptions {
   /** Polling interval in milliseconds. Defaults to 30000 (30 seconds). */
@@ -19,7 +19,7 @@ export interface UseHealthStatusReturn {
   /** Overall health status: 'healthy', 'degraded', 'unhealthy', or null if unknown */
   overallStatus: 'healthy' | 'degraded' | 'unhealthy' | null;
   /** Map of service names to their status */
-  services: Record<string, ServiceStatus>;
+  services: Record<string, HealthServiceStatus>;
   /** Manually trigger a health check refresh */
   refresh: () => Promise<void>;
 }
@@ -129,7 +129,7 @@ export function useHealthStatus(options: UseHealthStatusOptions = {}): UseHealth
       : null;
 
   // Derive services map from health response
-  const services: Record<string, ServiceStatus> = health?.services ?? {};
+  const services: Record<string, HealthServiceStatus> = health?.services ?? {};
 
   return {
     health,

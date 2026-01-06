@@ -1,9 +1,9 @@
 name: GPU Tests
 
+# Runs on merge to main only (not PRs) to save runner capacity.
+
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
 
 jobs:
