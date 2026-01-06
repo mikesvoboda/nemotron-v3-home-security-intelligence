@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -85,7 +85,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
     needs: [lint]
@@ -164,7 +164,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -251,7 +251,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -338,7 +338,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -425,7 +425,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
