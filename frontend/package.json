@@ -66,7 +66,7 @@
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^16.5.0",
     "jsdom": "^27.3.0",
-    "knip": "^5.79.0",
+    "knip": "^5.80.0",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",
