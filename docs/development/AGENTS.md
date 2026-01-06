@@ -12,6 +12,7 @@ development/
   AGENT_COORDINATION.md  # Parallel agent coordination protocol
   code-quality.md        # Code quality tooling and standards
   contributing.md        # Contribution guidelines
+  coverage.md            # Coverage reporting and analysis
   hooks.md               # Git hooks configuration
   patterns.md            # Code patterns and conventions
   setup.md               # Development environment setup
@@ -66,6 +67,21 @@ development/
 - Branch naming conventions
 
 **When to use:** Before making your first contribution, understanding project workflow.
+
+### coverage.md
+
+**Purpose:** Coverage reporting, analysis, and trend tracking.
+
+**Topics Covered:**
+
+- Coverage thresholds (85% unit, 95% combined, 90% critical)
+- Coverage tools (pytest-cov, Codecov, coverage-analysis.py)
+- Per-module coverage analysis
+- Trend tracking and regression detection
+- Strategies for improving coverage
+- CI integration
+
+**When to use:** Understanding coverage requirements, analyzing coverage gaps, tracking coverage trends.
 
 ### hooks.md
 

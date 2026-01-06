@@ -25,6 +25,9 @@ dist/
 build/
 *.egg-info/
 
+# Generated Documentation
+docs-output/
+
 # Data
 *.db
 *.sqlite

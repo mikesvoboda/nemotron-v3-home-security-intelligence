@@ -12,6 +12,22 @@ from backend.services.detector_client import DetectorClient, DetectorUnavailable
 # Fixtures
 
 
+@pytest.fixture(autouse=True)
+def mock_baseline_service():
+    """Mock the baseline service to avoid database interactions in unit tests.
+
+    This fixture automatically mocks get_baseline_service() for all tests in this
+    module. The baseline service is called during detection processing to update
+    analytics baselines (NEM-1259), but unit tests should not require database
+    access for these updates.
+    """
+    mock_service = MagicMock()
+    mock_service.update_baseline = AsyncMock()
+
+    with patch("backend.services.detector_client.get_baseline_service", return_value=mock_service):
+        yield mock_service
+
+
 @pytest.fixture
 def mock_session():
     """Mock database session."""
@@ -19,6 +35,7 @@ def mock_session():
     session.add = MagicMock()
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
+    session.flush = AsyncMock()
     return session
 
 
