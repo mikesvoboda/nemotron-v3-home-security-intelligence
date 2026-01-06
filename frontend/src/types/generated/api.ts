@@ -7120,6 +7120,32 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HealthCheckServiceStatus
+         * @description Status information for a service component in health checks.
+         *
+         *     Note: Renamed from ServiceStatus to avoid name collision with
+         *     backend.api.schemas.services.ServiceStatus (orchestrator enum).
+         */
+        HealthCheckServiceStatus: {
+            /**
+             * Details
+             * @description Additional service-specific details
+             */
+            details?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
+            /**
+             * Status
+             * @description Service status: healthy, unhealthy, or not_initialized
+             */
+            status: string;
+        };
+        /**
          * HealthResponse
          * @description Response schema for health check endpoint.
          * @example {
@@ -7150,7 +7176,7 @@ export interface components {
              * @description Status of individual services (database, redis, ai)
              */
             services: {
-                [key: string]: components["schemas"]["ServiceStatus"];
+                [key: string]: components["schemas"]["HealthCheckServiceStatus"];
             };
             /**
              * Status
@@ -8835,7 +8861,7 @@ export interface components {
              * @description Status of infrastructure services (database, redis, ai)
              */
             services: {
-                [key: string]: components["schemas"]["ServiceStatus"];
+                [key: string]: components["schemas"]["HealthCheckServiceStatus"];
             };
             /**
              * Status
@@ -9537,7 +9563,7 @@ export interface components {
              */
             restart_count: number;
             /** @description Current service status: running, starting, unhealthy, stopped, disabled, not_found */
-            status: components["schemas"]["backend__api__schemas__services__ServiceStatus"];
+            status: components["schemas"]["ServiceStatus"];
             /**
              * Uptime Seconds
              * @description Seconds since container started (null if not running)
@@ -9546,27 +9572,18 @@ export interface components {
         };
         /**
          * ServiceStatus
-         * @description Status information for a service component.
+         * @description Current status of a managed service.
+         *
+         *     Status values:
+         *     - RUNNING: Container is up and passing health checks
+         *     - STARTING: Container is starting, not yet healthy
+         *     - UNHEALTHY: Running but failing health checks
+         *     - STOPPED: Container is not running
+         *     - DISABLED: Exceeded failure limit, requires manual reset
+         *     - NOT_FOUND: Container doesn't exist yet
+         * @enum {string}
          */
-        ServiceStatus: {
-            /**
-             * Details
-             * @description Additional service-specific details
-             */
-            details?: {
-                [key: string]: string;
-            } | null;
-            /**
-             * Message
-             * @description Optional status message or error details
-             */
-            message?: string | null;
-            /**
-             * Status
-             * @description Service status: healthy, unhealthy, or not_initialized
-             */
-            status: string;
-        };
+        ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
         /**
          * ServicesResponse
          * @description Response for GET /api/system/services.
@@ -10541,20 +10558,6 @@ export interface components {
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
         };
-        /**
-         * ServiceStatus
-         * @description Current status of a managed service.
-         *
-         *     Status values:
-         *     - RUNNING: Container is up and passing health checks
-         *     - STARTING: Container is starting, not yet healthy
-         *     - UNHEALTHY: Running but failing health checks
-         *     - STOPPED: Container is not running
-         *     - DISABLED: Exceeded failure limit, requires manual reset
-         *     - NOT_FOUND: Container doesn't exist yet
-         * @enum {string}
-         */
-        backend__api__schemas__services__ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
     };
     responses: never;
     parameters: never;
