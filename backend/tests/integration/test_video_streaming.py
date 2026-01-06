@@ -20,6 +20,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 # Alias for backward compatibility - tests use async_client but conftest provides client
 @pytest.fixture
@@ -150,14 +152,16 @@ class TestVideoStreamingNonVideoDetection:
         response = await async_client.get(f"/api/detections/{image_detection.id}/video")
         assert response.status_code == 400
         data = response.json()
-        assert "not a video" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not a video" in error_msg.lower()
 
     async def test_video_thumbnail_for_image_returns_400(self, async_client, image_detection):
         """Test getting video thumbnail for image detection returns 400."""
         response = await async_client.get(f"/api/detections/{image_detection.id}/video/thumbnail")
         assert response.status_code == 400
         data = response.json()
-        assert "not a video" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not a video" in error_msg.lower()
 
 
 class TestVideoStreamingMissingFile:
@@ -170,7 +174,8 @@ class TestVideoStreamingMissingFile:
         )
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     async def test_video_thumbnail_file_not_found(self, async_client, video_detection_missing_file):
         """Test video thumbnail when file doesn't exist returns 404."""
@@ -438,7 +443,8 @@ class TestVideoThumbnail:
             )
             assert response.status_code == 500
             data = response.json()
-            assert "failed" in data["detail"].lower()
+            error_msg = get_error_message(data)
+        assert "failed" in error_msg.lower()
 
 
 class TestVideoStreamingCaching:

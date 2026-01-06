@@ -76,8 +76,8 @@ RUN npm run build
 # Production target: nginx unprivileged serving static assets
 # =============================================================================
 # Use nginx-unprivileged for better security (runs as non-root by default)
-# nginx 1.29.4 with Alpine 3.23 (latest stable with security patches)
-FROM nginxinc/nginx-unprivileged:1.29.4-alpine3.23 AS prod
+# nginx mainline with Alpine (auto-updated to latest patch version)
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS prod
 
 # Security labels
 LABEL org.opencontainers.image.vendor="home-security-intelligence"

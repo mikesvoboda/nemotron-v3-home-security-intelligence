@@ -27,6 +27,7 @@ from unittest.mock import patch
 import pytest
 
 from backend.tests.integration.conftest import unique_id
+from backend.tests.integration.test_helpers import get_error_message
 
 # =============================================================================
 # Database Connection Error Tests
@@ -110,7 +111,7 @@ class TestConcurrentRaceConditions:
         second_response = await client.post("/api/cameras", json=camera_data)
         # Should get 409 Conflict due to duplicate name
         assert second_response.status_code == 409
-        assert "already exists" in second_response.json()["detail"].lower()
+        assert "already exists" in get_error_message(second_response.json()).lower()
 
     @pytest.mark.asyncio
     async def test_concurrent_camera_updates(self, client, mock_redis):
@@ -528,7 +529,8 @@ class TestQueryParameterValidation:
         # API validates date range and returns 400 for inverted ranges
         assert response.status_code == 400
         data = response.json()
-        assert "start_date" in data["detail"].lower() or "end_date" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "start_date" in error_msg.lower() or "end_date" in get_error_message(data).lower()
 
     @pytest.mark.asyncio
     async def test_events_with_extreme_pagination(self, client, mock_redis):
@@ -611,7 +613,7 @@ class TestConflictHandling:
         }
         second = await client.post("/api/cameras", json=camera_data_2)
         assert second.status_code == 409
-        assert "already exists" in second.json()["detail"].lower()
+        assert "already exists" in get_error_message(second.json()).lower()
 
     @pytest.mark.asyncio
     async def test_camera_create_duplicate_folder_path(self, client, mock_redis):
@@ -633,7 +635,7 @@ class TestConflictHandling:
         }
         second = await client.post("/api/cameras", json=camera_data_2)
         assert second.status_code == 409
-        assert "already exists" in second.json()["detail"].lower()
+        assert "already exists" in get_error_message(second.json()).lower()
 
 
 # =============================================================================
@@ -766,7 +768,7 @@ class TestSystemEndpointErrors:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["test-api-key"],
@@ -786,7 +788,7 @@ class TestSystemEndpointErrors:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["test-api-key"],
@@ -887,7 +889,9 @@ class TestEventsSearchErrors:
         """Test search with invalid severity filter."""
         response = await client.get("/api/events/search?q=test&severity=invalid")
         assert response.status_code == 400
-        assert "invalid severity" in response.json()["detail"].lower()
+        data = response.json()
+        error_msg = get_error_message(data)
+        assert "invalid severity" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_search_with_sql_injection_attempt(self, client, mock_redis):

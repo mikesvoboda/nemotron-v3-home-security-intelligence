@@ -16,10 +16,14 @@ Features:
     - Thread-safe with asyncio Lock
     - Prometheus metrics integration for monitoring
     - Logging of state transitions
+    - Integration with exception hierarchy (CircuitBreakerOpenError)
+    - Protected call wrapper for automatic failure tracking
+    - Async context manager for scoped protection
 
 Usage:
     from backend.core.circuit_breaker import CircuitBreaker
 
+    # Method 1: Manual check and record
     class FlorenceClient:
         def __init__(self):
             self.circuit_breaker = CircuitBreaker(
@@ -30,8 +34,7 @@ Usage:
             )
 
         async def call_api(self):
-            if not self.circuit_breaker.allow_request():
-                raise ServiceUnavailable("Florence circuit open")
+            self.circuit_breaker.check_and_raise()  # Raises CircuitBreakerOpenError if open
             try:
                 result = await self._make_request()
                 self.circuit_breaker.record_success()
@@ -39,18 +42,33 @@ Usage:
             except Exception as e:
                 self.circuit_breaker.record_failure()
                 raise
+
+    # Method 2: Protected call wrapper
+    async def call_api(self):
+        return await self.circuit_breaker.protected_call(self._make_request)
+
+    # Method 3: Context manager
+    async def call_api(self):
+        async with self.circuit_breaker.protect():
+            return await self._make_request()
 """
 
 from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, TypeVar
 
 from prometheus_client import Counter, Gauge
 
+from backend.core.exceptions import CircuitBreakerOpenError
 from backend.core.logging import get_logger
+
+T = TypeVar("T")
 
 logger = get_logger(__name__)
 
@@ -341,6 +359,135 @@ class CircuitBreaker:
         logger.info(
             f"CircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED (service recovered)"
         )
+
+    def check_and_raise(self) -> None:
+        """Check circuit state and raise CircuitBreakerOpenError if open.
+
+        Use this method when you want to explicitly check the circuit state
+        and raise an exception with full context if the circuit is open.
+
+        Raises:
+            CircuitBreakerOpenError: If the circuit is open and not allowing requests
+        """
+        if not self.allow_request():
+            raise CircuitBreakerOpenError(
+                service_name=self._name,
+                recovery_timeout=self._recovery_timeout,
+            )
+
+    async def check_and_raise_async(self) -> None:
+        """Check circuit state and raise CircuitBreakerOpenError if open (async version).
+
+        Thread-safe version that acquires a lock before checking state.
+
+        Raises:
+            CircuitBreakerOpenError: If the circuit is open and not allowing requests
+        """
+        async with self._lock:
+            self.check_and_raise()
+
+    async def protected_call(
+        self,
+        func: Callable[[], Awaitable[T]],
+        record_on: tuple[type[BaseException], ...] = (Exception,),
+    ) -> T:
+        """Execute an async function with circuit breaker protection.
+
+        This method provides a convenient way to wrap async calls with full
+        circuit breaker protection:
+        1. Checks if circuit is open (raises CircuitBreakerOpenError if so)
+        2. Executes the function
+        3. Records success or failure based on the outcome
+
+        Args:
+            func: Async function to execute
+            record_on: Exception types that should be recorded as failures
+
+        Returns:
+            The result of the function call
+
+        Raises:
+            CircuitBreakerOpenError: If the circuit is open
+            Any exception raised by the function
+
+        Example:
+            result = await circuit_breaker.protected_call(
+                lambda: client.fetch_data(),
+                record_on=(ConnectionError, TimeoutError),
+            )
+        """
+        async with self._lock:
+            self.check_and_raise()
+
+        try:
+            result = await func()
+            await self.record_success_async()
+            return result
+        except record_on:
+            await self.record_failure_async()
+            raise
+
+    @asynccontextmanager
+    async def protect(
+        self,
+        record_on: tuple[type[BaseException], ...] = (Exception,),
+    ) -> Any:
+        """Async context manager for circuit breaker protection.
+
+        Provides a scoped way to protect code blocks with the circuit breaker.
+        Automatically records success or failure when exiting the context.
+
+        Args:
+            record_on: Exception types that should be recorded as failures
+
+        Yields:
+            None
+
+        Raises:
+            CircuitBreakerOpenError: If the circuit is open when entering
+
+        Example:
+            async with circuit_breaker.protect():
+                result = await risky_operation()
+                return result
+        """
+        await self.check_and_raise_async()
+
+        try:
+            yield
+            await self.record_success_async()
+        except record_on:
+            await self.record_failure_async()
+            raise
+
+    def get_state_info(self) -> dict[str, Any]:
+        """Get comprehensive state information for monitoring/debugging.
+
+        Returns:
+            Dictionary containing:
+            - name: Service name
+            - state: Current state (closed, open, half_open)
+            - failure_count: Current failure count
+            - failure_threshold: Threshold for opening circuit
+            - recovery_timeout: Timeout before attempting recovery
+            - half_open_max_calls: Max calls allowed in half-open state
+            - half_open_calls: Current calls in half-open state
+            - opened_at: Timestamp when circuit was opened (if applicable)
+            - last_state_change: Timestamp of last state change
+        """
+        return {
+            "name": self._name,
+            "state": self._state.value,
+            "failure_count": self._failure_count,
+            "failure_threshold": self._failure_threshold,
+            "recovery_timeout": self._recovery_timeout,
+            "half_open_max_calls": self._half_open_max_calls,
+            "half_open_calls": self._half_open_calls,
+            "opened_at": self._opened_at,
+            "last_state_change": (
+                self._last_state_change.isoformat() if self._last_state_change else None
+            ),
+        }
 
     def __str__(self) -> str:
         """String representation of circuit breaker."""

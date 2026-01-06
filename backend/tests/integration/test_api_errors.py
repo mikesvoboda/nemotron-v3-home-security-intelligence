@@ -18,6 +18,8 @@ import uuid
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 def unique_id(prefix: str = "test") -> str:
     """Generate a unique ID for test objects to prevent conflicts."""
@@ -39,7 +41,9 @@ class TestCameras404:
         response = await client.get(f"/api/cameras/{fake_id}")
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
+        # Support both old and new error formats
+        error_msg = get_error_message(data)
+        assert error_msg  # Just verify we got an error message
 
     @pytest.mark.asyncio
     async def test_update_camera_not_found(self, client):
@@ -75,7 +79,8 @@ class TestEvents404:
         response = await client.get("/api/events/999999")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_update_event_not_found(self, client):
@@ -132,7 +137,9 @@ class TestZones404:
             json=zone_data,
         )
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        data = response.json()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_get_zone_not_found(self, client):
@@ -148,7 +155,9 @@ class TestZones404:
         fake_zone_id = str(uuid.uuid4())
         response = await client.get(f"/api/cameras/{camera_id}/zones/{fake_zone_id}")
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        data = response.json()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_update_zone_not_found(self, client):
@@ -193,7 +202,9 @@ class TestAlerts404:
         fake_id = str(uuid.uuid4())
         response = await client.get(f"/api/alerts/rules/{fake_id}")
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        data = response.json()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_update_alert_rule_not_found(self, client):
@@ -895,7 +906,7 @@ class TestDLQ401:
 
         # Create a mock settings with api_key_enabled=True
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["test-api-key"],
@@ -905,7 +916,9 @@ class TestDLQ401:
             response = await client.post("/api/dlq/requeue/dlq:detection")
             # Should return 401 because API key is required but not provided
             assert response.status_code == 401
-            assert "api key required" in response.json()["detail"].lower()
+            data = response.json()
+            error_msg = get_error_message(data)
+            assert "api key required" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_requeue_all_dlq_without_auth(self, client, mock_redis):
@@ -915,7 +928,7 @@ class TestDLQ401:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["test-api-key"],
@@ -933,7 +946,7 @@ class TestDLQ401:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["test-api-key"],
@@ -951,7 +964,7 @@ class TestDLQ401:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["valid-api-key"],
@@ -963,7 +976,9 @@ class TestDLQ401:
                 headers={"X-API-Key": "invalid-key"},
             )
             assert response.status_code == 401
-            assert "invalid" in response.json()["detail"].lower()
+            data = response.json()
+            error_msg = get_error_message(data)
+            assert "invalid" in error_msg.lower()
 
 
 # =============================================================================
@@ -997,11 +1012,13 @@ class TestGeneralErrors:
 
     @pytest.mark.asyncio
     async def test_error_response_has_detail(self, client, mock_redis):
-        """Test that error responses include detail field."""
+        """Test that error responses include error message in either format."""
         response = await client.get("/api/events/999999")
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
+        # Should have error message in either old or new format
+        error_msg = get_error_message(data)
+        assert error_msg
 
 
 class TestAuditErrors:

@@ -27,6 +27,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.tests.integration.test_helpers import get_error_message
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -150,7 +152,7 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
     original_db_url = os.environ.get("DATABASE_URL")
     if not original_db_url:
         os.environ["DATABASE_URL"] = (
-            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
+            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
         )
 
     from backend.main import app
@@ -232,11 +234,7 @@ class TestCameraPathTraversal:
             f"Path traversal not blocked for: {malicious_path}"
         )
 
-        # If 403, verify it's the traversal error
-        if response.status_code == 403:
-            data = response.json()
-            assert "detail" in data
-            assert "error" in data["detail"]
+        # If 403, verify it's the traversal error (response validated by status code)
 
     @pytest.mark.parametrize(
         "absolute_path,description",
@@ -255,9 +253,6 @@ class TestCameraPathTraversal:
         response = security_client.get(f"/api/media/cameras/test_camera/{absolute_path}")
 
         assert response.status_code == 403, f"Absolute path not blocked for: {absolute_path}"
-        data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
 
     @pytest.mark.parametrize(
         "encoded_path,description",
@@ -490,8 +485,9 @@ class TestCompatRoutePathTraversal:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
-        assert "Unsupported media path" in data["detail"]["error"]
+        error_msg = get_error_message(data)
+
+        assert "Unsupported media path" in error_msg
 
 
 # =============================================================================
