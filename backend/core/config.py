@@ -332,6 +332,15 @@ class Settings(BaseSettings):
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
 
+    # AI service concurrency settings (NEM-1500)
+    ai_max_concurrent_requests: int = Field(
+        default=4,
+        ge=1,
+        le=32,
+        description="Maximum concurrent requests to AI services (RT-DETR, Nemotron). "
+        "Limits parallel GPU operations to prevent memory exhaustion. Default: 4.",
+    )
+
     @field_validator("rtdetr_url", "nemotron_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:

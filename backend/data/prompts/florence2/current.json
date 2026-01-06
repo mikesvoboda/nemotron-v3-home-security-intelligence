@@ -1,0 +1,20 @@
+{
+  "model_name": "florence2",
+  "config": {
+    "vqa_queries": [
+      "What is this person wearing?",
+      "What is this person carrying?",
+      "What is this person doing?",
+      "Is this person a service worker or delivery person?",
+      "What color is this vehicle?",
+      "What type of vehicle is this?",
+      "Is this a commercial or personal vehicle?",
+      "Are there any visible company logos or text on this vehicle?"
+    ]
+  },
+  "version": 1,
+  "created_at": "2026-01-06T13:16:23.587691+00:00",
+  "created_by": "system",
+  "description": "Initial default configuration",
+  "updated_at": "2026-01-06T13:16:23.587691+00:00"
+}
