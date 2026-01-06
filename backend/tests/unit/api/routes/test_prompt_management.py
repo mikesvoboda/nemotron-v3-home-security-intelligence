@@ -22,7 +22,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # Set DATABASE_URL for tests before importing any backend modules
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+)
 
 from backend.api.routes.prompt_management import _compute_config_diff, router
 from backend.api.schemas.prompt_management import (
@@ -106,11 +109,22 @@ def client(mock_db_session: MagicMock, mock_prompt_service: MagicMock) -> TestCl
 
     app.dependency_overrides[get_db] = override_get_db
 
+    # Mock Redis to prevent connection errors in CI where Redis is not available
+    mock_redis_client = AsyncMock()
+    mock_redis_client.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
     with (
         patch(
             "backend.api.routes.prompt_management.get_prompt_service",
             return_value=mock_prompt_service,
         ),
+        patch("backend.core.redis._redis_client", mock_redis_client),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
+        patch("backend.core.redis.close_redis", return_value=None),
         TestClient(app) as test_client,
     ):
         yield test_client
