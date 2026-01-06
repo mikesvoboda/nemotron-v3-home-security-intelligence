@@ -18,6 +18,7 @@ from hypothesis import strategies as st
 
 from backend.models.enums import Severity
 from backend.models.event import Event
+from backend.tests.factories import EventFactory
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -48,8 +49,8 @@ batch_ids = st.text(
 
 @pytest.fixture
 def sample_event():
-    """Create a sample event for testing."""
-    return Event(
+    """Create a sample event for testing using factory."""
+    return EventFactory(
         id=1,
         batch_id="batch_20250115_100000_front_door",
         camera_id="front_door",
@@ -66,24 +67,31 @@ def sample_event():
 
 @pytest.fixture
 def minimal_event():
-    """Create an event with only required fields."""
-    return Event(
+    """Create an event with only required fields using factory."""
+    return EventFactory.build(
         batch_id="batch_001",
         camera_id="test_cam",
         started_at=datetime.now(UTC),
+        ended_at=None,
+        risk_score=None,
+        risk_level=None,
+        summary=None,
+        reasoning=None,
+        detection_ids=None,
+        notes=None,
+        object_types=None,
+        clip_path=None,
     )
 
 
 @pytest.fixture
 def reviewed_event():
-    """Create a reviewed event with notes."""
-    return Event(
+    """Create a reviewed event with notes using factory."""
+    return EventFactory(
         id=2,
         batch_id="batch_002",
         camera_id="back_yard",
-        started_at=datetime.now(UTC),
-        risk_score=25,
-        risk_level="low",
+        low_risk=True,  # Use factory trait
         reviewed=True,
         notes="Confirmed as delivery person",
     )
@@ -91,12 +99,11 @@ def reviewed_event():
 
 @pytest.fixture
 def fast_path_event():
-    """Create a fast-path event."""
-    return Event(
+    """Create a fast-path event using factory."""
+    return EventFactory(
         batch_id="batch_003",
         camera_id="driveway",
-        started_at=datetime.now(UTC),
-        is_fast_path=True,
+        fast_path=True,  # Use factory trait
         risk_score=15,
         risk_level="low",
     )
@@ -487,6 +494,98 @@ class TestEventTableArgs:
     def test_event_tablename(self):
         """Test Event has correct table name."""
         assert Event.__tablename__ == "events"
+
+    def test_event_indexes_defined(self):
+        """Test Event has expected indexes."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        # Check for existing indexes
+        assert "idx_events_camera_id" in index_names
+        assert "idx_events_started_at" in index_names
+        assert "idx_events_risk_score" in index_names
+        assert "idx_events_reviewed" in index_names
+        assert "idx_events_batch_id" in index_names
+        assert "idx_events_search_vector" in index_names
+
+    def test_event_composite_risk_level_started_at_index(self):
+        """Test Event has composite index on (risk_level, started_at) for filtering.
+
+        NEM-1529: Composite index enables efficient combined filtering on risk_level
+        and started_at for dashboard queries like "show all high-risk events from today".
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_risk_level_started_at" in index_names
+
+        # Verify index columns
+        for idx in table.indexes:
+            if idx.name == "idx_events_risk_level_started_at":
+                col_names = [col.name for col in idx.columns]
+                assert col_names == ["risk_level", "started_at"]
+                break
+
+    def test_event_covering_index_for_export(self):
+        """Test Event has covering index for export query.
+
+        NEM-1535: Covering index includes all columns needed for export queries
+        to avoid table lookups (index-only scans).
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_export_covering" in index_names
+
+        # Verify index columns include export fields
+        for idx in table.indexes:
+            if idx.name == "idx_events_export_covering":
+                col_names = [col.name for col in idx.columns]
+                # Should include: id, started_at, ended_at, risk_level, risk_score,
+                # camera_id, object_types, summary
+                assert "id" in col_names
+                assert "started_at" in col_names
+                assert "ended_at" in col_names
+                assert "risk_level" in col_names
+                assert "risk_score" in col_names
+                assert "camera_id" in col_names
+                assert "object_types" in col_names
+                assert "summary" in col_names
+                break
+
+    def test_event_partial_index_unreviewed(self):
+        """Test Event has partial index for unreviewed events.
+
+        NEM-1536: Partial index WHERE reviewed = false enables efficient
+        dashboard queries for unreviewed event counts.
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_unreviewed" in index_names
+
+        # Verify partial index has WHERE clause
+        for idx in table.indexes:
+            if idx.name == "idx_events_unreviewed":
+                # Check that the index has a WHERE clause (partial index)
+                # SQLAlchemy stores this in postgresql_where
+                assert idx.dialect_options.get("postgresql", {}).get("where") is not None
+                # Verify it indexes the 'id' column (for counting)
+                col_names = [col.name for col in idx.columns]
+                assert "id" in col_names
+                break
 
 
 # =============================================================================

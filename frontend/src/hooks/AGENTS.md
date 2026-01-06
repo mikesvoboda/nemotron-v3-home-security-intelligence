@@ -15,7 +15,9 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 | `useEventStream.ts`         | Security events via `/ws/events` WebSocket                       | Yes      |
 | `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                         | Yes      |
 | `useGpuHistory.ts`          | GPU metrics polling with history buffer                          | Yes      |
-| `useHealthStatus.ts`        | REST-based health status polling                                 | Yes      |
+| `useHealthStatus.ts`        | REST-based health status polling (legacy)                        | Yes      |
+| `useHealthStatusQuery.ts`   | TanStack Query-based health status fetching                      | Yes      |
+| `useCamerasQuery.ts`        | TanStack Query hooks for camera CRUD operations                  | Yes      |
 | `usePerformanceMetrics.ts`  | System performance metrics via WebSocket                         | Yes      |
 | `useAIMetrics.ts`           | Fetches AI performance metrics from multiple endpoints           | Yes      |
 | `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                 | Yes      |
@@ -37,6 +39,8 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 | `useSystemStatus.test.ts`         | Backend message transformation, type guards              |
 | `useGpuHistory.test.ts`           | Polling, history buffer, start/stop controls             |
 | `useHealthStatus.test.ts`         | REST polling, error handling, refresh                    |
+| `useHealthStatusQuery.test.ts`    | TanStack Query health status, caching, refetch           |
+| `useCamerasQuery.test.ts`         | TanStack Query cameras CRUD, cache invalidation          |
 | `useStorageStats.test.ts`         | Storage polling, cleanup preview                         |
 | `useServiceStatus.test.ts`        | Service status parsing                                   |
 | `usePerformanceMetrics.test.ts`   | WebSocket performance metrics, alerts, history buffer    |

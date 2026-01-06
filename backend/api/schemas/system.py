@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,8 +16,12 @@ class SeverityEnum(str, Enum):
     CRITICAL = "critical"
 
 
-class ServiceStatus(BaseModel):
-    """Status information for a service component."""
+class HealthCheckServiceStatus(BaseModel):
+    """Status information for a service component in health checks.
+
+    Note: Renamed from ServiceStatus to avoid name collision with
+    backend.api.schemas.services.ServiceStatus (orchestrator enum).
+    """
 
     status: str = Field(
         ...,
@@ -26,9 +31,9 @@ class ServiceStatus(BaseModel):
         None,
         description="Optional status message or error details",
     )
-    details: dict[str, str] | None = Field(
+    details: dict[str, Any] | None = Field(
         None,
-        description="Additional service-specific details",
+        description="Additional service-specific details (may contain nested objects)",
     )
 
 
@@ -39,7 +44,7 @@ class HealthResponse(BaseModel):
         ...,
         description="Overall system status: healthy, degraded, or unhealthy",
     )
-    services: dict[str, ServiceStatus] = Field(
+    services: dict[str, HealthCheckServiceStatus] = Field(
         ...,
         description="Status of individual services (database, redis, ai)",
     )
@@ -338,7 +343,7 @@ class ReadinessResponse(BaseModel):
         ...,
         description="Status string: 'ready', 'degraded', or 'not_ready'",
     )
-    services: dict[str, ServiceStatus] = Field(
+    services: dict[str, HealthCheckServiceStatus] = Field(
         ...,
         description="Status of infrastructure services (database, redis, ai)",
     )
@@ -1243,6 +1248,7 @@ class CircuitBreakerStateEnum(str, Enum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
+    UNAVAILABLE = "unavailable"
 
 
 class CircuitBreakerConfigResponse(BaseModel):
@@ -1413,7 +1419,7 @@ class WebSocketBroadcasterStatus(BaseModel):
 
     state: CircuitBreakerStateEnum = Field(
         ...,
-        description="Current circuit state: closed (normal), open (failing), half_open (testing)",
+        description="Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized)",
     )
     failure_count: int = Field(
         ...,
@@ -1423,6 +1429,10 @@ class WebSocketBroadcasterStatus(BaseModel):
     is_degraded: bool = Field(
         ...,
         description="Whether the broadcaster is in degraded mode",
+    )
+    message: str | None = Field(
+        None,
+        description="Optional status message or error details",
     )
 
 
@@ -1449,11 +1459,13 @@ class WebSocketHealthResponse(BaseModel):
                     "state": "closed",
                     "failure_count": 0,
                     "is_degraded": False,
+                    "message": None,
                 },
                 "system_broadcaster": {
                     "state": "closed",
                     "failure_count": 0,
                     "is_degraded": False,
+                    "message": None,
                 },
                 "timestamp": "2025-12-30T10:30:00Z",
             }

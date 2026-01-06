@@ -22,6 +22,7 @@ Storage Structure:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
@@ -29,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.services.prompts import MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
 
 logger = get_logger(__name__)
@@ -55,7 +56,7 @@ def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> 
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, TypeError):
-        logger.warning(f"Invalid datetime format: {value}, using fallback")
+        logger.warning(f"Invalid datetime format: {sanitize_log_value(value)}, using fallback")
         return fallback
 
 
@@ -193,7 +194,7 @@ class PromptStorageService:
     def _get_model_dir(self, model_name: str) -> Path:
         """Get the directory for a model's configurations."""
         if model_name not in SUPPORTED_MODELS:
-            logger.warning(f"Invalid model requested: {model_name}")
+            logger.warning(f"Invalid model requested: {sanitize_log_value(model_name)}")
             raise ValueError(f"Unsupported model: {model_name}")
         return self.storage_path / model_name
 
@@ -210,6 +211,7 @@ class PromptStorageService:
         if not path.exists():
             return None
         try:
+            # nosemgrep: path-traversal-open - path is internally generated from config
             with open(path, encoding="utf-8") as f:
                 result: dict[str, Any] = json.load(f)
                 return result
@@ -220,6 +222,7 @@ class PromptStorageService:
     def _write_json(self, path: Path, data: dict[str, Any]) -> None:
         """Write data to a JSON file with pretty formatting."""
         path.parent.mkdir(parents=True, exist_ok=True)
+        # nosemgrep: path-traversal-open - path is internally generated from config
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
@@ -345,7 +348,7 @@ class PromptStorageService:
         self._write_json(self._get_current_path(model_name), version_data)
 
         logger.info(
-            f"Updated {model_name} config to version {version}",
+            f"Updated {sanitize_log_value(model_name)} config to version {version}",
             extra={"model_name": model_name, "version": version, "created_by": created_by},
         )
 
@@ -632,7 +635,7 @@ class PromptStorageService:
 
         return errors
 
-    def run_mock_test(
+    async def run_mock_test(
         self,
         model_name: str,
         config: dict[str, Any],
@@ -663,14 +666,14 @@ class PromptStorageService:
         # In production, these would come from actual AI inference
         start_time = time.time()
 
-        # Simulate some processing time
+        # Simulate some processing time using non-blocking asyncio.sleep
         import random
 
-        time.sleep(random.uniform(0.05, 0.15))  # noqa: S311
+        await asyncio.sleep(random.uniform(0.05, 0.15))  # noqa: S311
 
         # Generate mock results based on model type
-        before_score = random.randint(30, 70)  # noqa: S311
-        after_score = random.randint(20, 60)  # noqa: S311
+        before_score = random.randint(30, 70)  # noqa: S311  # nosemgrep: insecure-random
+        after_score = random.randint(20, 60)  # noqa: S311  # nosemgrep: insecure-random
 
         def _score_to_level(score: int) -> str:
             if score < 30:

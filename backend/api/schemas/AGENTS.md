@@ -19,6 +19,7 @@ Package initialization with public exports. Exports schemas from:
 - `llm_response.py` - LLMRawResponse, LLMRiskResponse, RiskLevel (as LLMRiskLevel)
 - `notification.py` - NotificationChannel, SendNotificationRequest, TestNotificationRequest, etc.
 - `scene_change.py` - SceneChangeResponse, SceneChangeListResponse, SceneChangeType
+- `services.py` - ServiceCategory, ServiceStatus, ServiceInfo, ServicesResponse, ServiceActionResponse, ServiceStatusEvent
 - `search.py` - SearchRequest, SearchResponse, SearchResult
 - `websocket.py` - WebSocketMessage, WebSocketErrorResponse, WebSocketEventMessage, ServiceStatus, RiskLevel, etc.
 - `zone.py` - ZoneCreate, ZoneResponse, ZoneUpdate, ZoneListResponse
@@ -1145,6 +1146,37 @@ Pydantic schemas for prompt management API - configuration, versioning, testing,
 | `PromptDiffEntry`              | Diff entry for a single model             |
 | `PromptsImportPreviewRequest`  | Request to preview import changes         |
 | `PromptsImportPreviewResponse` | Response with preview of changes          |
+
+---
+
+### Services Schemas (`services.py`)
+
+Pydantic schemas for the container orchestrator API - managing lifecycle of deployment containers.
+
+**Enums:**
+
+| Enum              | Purpose                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `ServiceCategory` | Service classification (infrastructure, ai, monitoring)                               |
+| `ServiceStatus`   | Current container status (running, starting, unhealthy, stopped, disabled, not_found) |
+
+**Schemas:**
+
+| Schema                  | Purpose                                                        |
+| ----------------------- | -------------------------------------------------------------- |
+| `ServiceInfo`           | Information about a single managed service/container           |
+| `CategorySummary`       | Summary of services in a category (total, healthy, unhealthy)  |
+| `ServicesResponse`      | Response for GET /api/system/services                          |
+| `ServiceActionResponse` | Response for service actions (restart, enable, disable, start) |
+| `ServiceStatusEvent`    | WebSocket event for service status changes                     |
+
+**Service Categories:**
+
+| Category       | Services                                      | Restart Policy |
+| -------------- | --------------------------------------------- | -------------- |
+| Infrastructure | PostgreSQL, Redis                             | Critical       |
+| AI             | RT-DETR, Nemotron, Florence, CLIP, Enrichment | Standard       |
+| Monitoring     | Prometheus, Grafana, Redis Exporter           | Lenient        |
 
 ---
 

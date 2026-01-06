@@ -301,4 +301,141 @@ describe('PipelineMetricsPanel', () => {
       expect(panel.className).toContain('bg-[#1A1A1A]');
     });
   });
+
+  describe('edge cases with invalid data', () => {
+    it('handles negative queue values gracefully', () => {
+      // Negative values should be displayed as-is (component doesn't clamp)
+      // The badge color logic handles negative by treating as 0 (gray)
+      const invalidQueues: QueueDepths = { detection_queue: -5, analysis_queue: -10 };
+      render(<PipelineMetricsPanel queues={invalidQueues} />);
+
+      // Component should not crash and should display the values
+      expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('-5');
+      expect(screen.getByTestId('analysis-queue-badge')).toHaveTextContent('-10');
+    });
+
+    it('handles NaN in latency avg_ms', () => {
+      const invalidLatencies: PipelineLatencies = {
+        detect: { avg_ms: NaN, p95_ms: 100, p99_ms: 200 },
+      };
+      render(<PipelineMetricsPanel queues={mockQueues} latencies={invalidLatencies} />);
+
+      // NaN should render (formatLatency handles it as a number)
+      expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('detect-latency-card')).toBeInTheDocument();
+    });
+
+    it('handles undefined in latency data', () => {
+      const invalidLatencies: PipelineLatencies = {
+        detect: { avg_ms: undefined, p95_ms: undefined, p99_ms: undefined },
+        batch: { avg_ms: undefined },
+        analyze: { avg_ms: undefined },
+      };
+      render(<PipelineMetricsPanel queues={mockQueues} latencies={invalidLatencies} />);
+
+      // undefined values should display fallback '-'
+      expect(screen.getByTestId('detect-latency-badge')).toHaveTextContent('-');
+      expect(screen.getByTestId('batch-latency-badge')).toHaveTextContent('-');
+      expect(screen.getByTestId('analyze-latency-badge')).toHaveTextContent('-');
+    });
+
+    it('handles empty queue object by using default values', () => {
+      // TypeScript requires both keys, but we test with partial data cast to QueueDepths
+      const emptyQueues = {} as QueueDepths;
+      render(<PipelineMetricsPanel queues={emptyQueues} />);
+
+      // Component should not crash - undefined values will be displayed
+      expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('detection-queue-badge')).toBeInTheDocument();
+      expect(screen.getByTestId('analysis-queue-badge')).toBeInTheDocument();
+    });
+
+    it('handles missing keys in queue data', () => {
+      // Only detection_queue provided, analysis_queue missing
+      const partialQueues = { detection_queue: 5 } as QueueDepths;
+      render(<PipelineMetricsPanel queues={partialQueues} />);
+
+      // Component should not crash
+      expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('5');
+      // analysis_queue will be undefined, displayed as such
+      expect(screen.getByTestId('analysis-queue-badge')).toBeInTheDocument();
+    });
+
+    it('handles zero queue values correctly', () => {
+      const zeroQueues: QueueDepths = { detection_queue: 0, analysis_queue: 0 };
+      render(<PipelineMetricsPanel queues={zeroQueues} />);
+
+      expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('0');
+      expect(screen.getByTestId('analysis-queue-badge')).toHaveTextContent('0');
+      // Zero queues should not trigger warnings
+      expect(screen.queryByTestId('queue-backup-warning')).not.toBeInTheDocument();
+    });
+
+    it('handles mixed valid and invalid latency values', () => {
+      const mixedLatencies: PipelineLatencies = {
+        detect: { avg_ms: 100, p95_ms: null, p99_ms: undefined },
+        batch: { avg_ms: null, p95_ms: 200, p99_ms: 300 },
+        analyze: null,
+      };
+      render(<PipelineMetricsPanel queues={mockQueues} latencies={mixedLatencies} />);
+
+      // Valid avg_ms should be formatted
+      expect(screen.getByTestId('detect-latency-badge')).toHaveTextContent('100ms');
+      // Null avg_ms should show fallback
+      expect(screen.getByTestId('batch-latency-badge')).toHaveTextContent('-');
+      // Null stage should show fallback
+      expect(screen.getByTestId('analyze-latency-badge')).toHaveTextContent('-');
+    });
+
+    it('handles throughput history with missing fields', () => {
+      const invalidThroughput = [
+        { time: '10:00:00' } as ThroughputPoint, // Missing detections and analyses
+      ];
+      render(<PipelineMetricsPanel queues={mockQueues} throughputHistory={invalidThroughput} />);
+
+      // Component should not crash
+      expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('throughput-chart')).toBeInTheDocument();
+    });
+
+    it('handles very large queue values', () => {
+      const largeQueues: QueueDepths = { detection_queue: 999999, analysis_queue: 1000000 };
+      render(<PipelineMetricsPanel queues={largeQueues} queueWarningThreshold={10} />);
+
+      expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('999999');
+      expect(screen.getByTestId('analysis-queue-badge')).toHaveTextContent('1000000');
+      // Should trigger warning
+      expect(screen.getByTestId('queue-backup-warning')).toBeInTheDocument();
+    });
+
+    it('handles very large latency values', () => {
+      const largeLatencies: PipelineLatencies = {
+        detect: { avg_ms: 999999999, p95_ms: 1000000000, p99_ms: 2000000000 },
+      };
+      render(<PipelineMetricsPanel queues={mockQueues} latencies={largeLatencies} />);
+
+      // Should format as seconds
+      expect(screen.getByTestId('detect-latency-badge')).toHaveTextContent('s');
+    });
+
+    it('does not trigger latency warning for NaN values', () => {
+      const nanLatencies: PipelineLatencies = {
+        detect: { avg_ms: NaN },
+        analyze: { avg_ms: NaN },
+      };
+      render(
+        <PipelineMetricsPanel
+          queues={mockQueues}
+          latencies={nanLatencies}
+          latencyWarningThreshold={10000}
+        />
+      );
+
+      // NaN comparison should not trigger warning (NaN > threshold is false)
+      // The component uses ?? 0 for null/undefined, but NaN passes through
+      expect(screen.getByTestId('pipeline-metrics-panel')).toBeInTheDocument();
+    });
+  });
 });

@@ -17,6 +17,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Requ
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -38,6 +39,7 @@ from backend.api.schemas.system import (
     FileWatcherStatusResponse,
     GPUStatsHistoryResponse,
     GPUStatsResponse,
+    HealthCheckServiceStatus,
     HealthResponse,
     LatencyHistorySnapshot,
     LatencyHistoryStageStats,
@@ -57,7 +59,6 @@ from backend.api.schemas.system import (
     QueueDepths,
     ReadinessResponse,
     ServiceHealthStatusResponse,
-    ServiceStatus,
     SeverityDefinitionResponse,
     SeverityMetadataResponse,
     SeverityThresholds,
@@ -74,7 +75,7 @@ from backend.api.schemas.system import (
 from backend.core import get_db, get_settings
 from backend.core.config import Settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.redis import (
     QueueOverflowPolicy,
     RedisClient,
@@ -468,44 +469,58 @@ async def get_latest_gpu_stats(
     }
 
 
-async def check_database_health(db: AsyncSession) -> ServiceStatus:
+async def check_database_health(db: AsyncSession) -> HealthCheckServiceStatus:
     """Check database connectivity and health.
 
     Args:
         db: Database session
 
     Returns:
-        ServiceStatus with database health information
+        HealthCheckServiceStatus with database health information including pool status
     """
+    from backend.core.database import get_pool_status
+
     try:
         # Execute a simple query to verify database connectivity
         result = await db.execute(select(func.count()).select_from(Camera))
         result.scalar_one()
-        return ServiceStatus(
+
+        # Get connection pool status for monitoring
+        pool_status = await get_pool_status()
+
+        return HealthCheckServiceStatus(
             status="healthy",
             message="Database operational",
-            details=None,
+            details={
+                "pool": {
+                    "size": pool_status.get("pool_size", 0),
+                    "overflow": pool_status.get("overflow", 0),
+                    "checkedin": pool_status.get("checkedin", 0),
+                    "checkedout": pool_status.get("checkedout", 0),
+                    "total_connections": pool_status.get("total_connections", 0),
+                }
+            },
         )
     except Exception as e:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Database error: {e!s}",
             details=None,
         )
 
 
-async def check_redis_health(redis: RedisClient | None) -> ServiceStatus:
+async def check_redis_health(redis: RedisClient | None) -> HealthCheckServiceStatus:
     """Check Redis connectivity and health.
 
     Args:
         redis: Redis client (may be None if connection failed during dependency injection)
 
     Returns:
-        ServiceStatus with Redis health information
+        HealthCheckServiceStatus with Redis health information
     """
     # Handle case where Redis client is None (connection failed during DI)
     if redis is None:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis unavailable: connection failed",
             details=None,
@@ -514,19 +529,19 @@ async def check_redis_health(redis: RedisClient | None) -> ServiceStatus:
     try:
         health = await redis.health_check()
         if health.get("status") == "healthy":
-            return ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy",
                 message="Redis connected",
                 details={"redis_version": health.get("redis_version", "unknown")},
             )
         else:
-            return ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="unhealthy",
                 message=health.get("error", "Redis connection error"),
                 details=None,
             )
     except Exception as e:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Redis error: {e!s}",
             details=None,
@@ -691,7 +706,7 @@ async def _bounded_health_check(
         return (False, "Health check timed out waiting for available slot")
 
 
-async def check_ai_services_health() -> ServiceStatus:
+async def check_ai_services_health() -> HealthCheckServiceStatus:
     """Check AI services health by pinging RT-DETR and Nemotron endpoints.
 
     Performs concurrent health checks on both AI services:
@@ -702,7 +717,7 @@ async def check_ai_services_health() -> ServiceStatus:
     to prevent thundering herd when multiple clients check simultaneously.
 
     Returns:
-        ServiceStatus with AI services health information:
+        HealthCheckServiceStatus with AI services health information:
         - healthy: Both services are responding
         - degraded: At least one service is down but some AI capability remains
         - unhealthy: Both services are down (no AI capability)
@@ -735,7 +750,7 @@ async def check_ai_services_health() -> ServiceStatus:
 
     # Determine overall AI status
     if rtdetr_healthy and nemotron_healthy:
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="healthy",
             message="AI services operational",
             details=details,
@@ -744,14 +759,14 @@ async def check_ai_services_health() -> ServiceStatus:
         # At least one service is up - degraded but partially functional
         working_service = "RT-DETR" if rtdetr_healthy else "Nemotron"
         failed_service = "Nemotron" if rtdetr_healthy else "RT-DETR"
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="degraded",
             message=f"{failed_service} service unavailable, {working_service} operational",
             details=details,
         )
     else:
         # Both services are down
-        return ServiceStatus(
+        return HealthCheckServiceStatus(
             status="unhealthy",
             message="All AI services unavailable",
             details=details,
@@ -785,7 +800,7 @@ async def get_health(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        db_status = ServiceStatus(
+        db_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Database health check timed out",
             details=None,
@@ -797,7 +812,7 @@ async def get_health(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        redis_status = ServiceStatus(
+        redis_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis health check timed out",
             details=None,
@@ -809,7 +824,7 @@ async def get_health(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        ai_status = ServiceStatus(
+        ai_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="AI services health check timed out",
             details=None,
@@ -886,7 +901,7 @@ async def get_readiness(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        db_status = ServiceStatus(
+        db_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Database health check timed out",
             details=None,
@@ -898,7 +913,7 @@ async def get_readiness(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        redis_status = ServiceStatus(
+        redis_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis health check timed out",
             details=None,
@@ -910,7 +925,7 @@ async def get_readiness(
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
     except TimeoutError:
-        ai_status = ServiceStatus(
+        ai_status = HealthCheckServiceStatus(
             status="unhealthy",
             message="AI services health check timed out",
             details=None,
@@ -970,7 +985,9 @@ async def get_readiness(
 
 
 @router.get("/health/websocket", response_model=WebSocketHealthResponse)
-async def get_websocket_health() -> WebSocketHealthResponse:
+async def get_websocket_health(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> WebSocketHealthResponse:
     """Get health status of WebSocket broadcasters and their circuit breakers.
 
     Returns the current state of circuit breakers for:
@@ -995,8 +1012,14 @@ async def get_websocket_health() -> WebSocketHealthResponse:
         _system_broadcaster as system_broadcaster,
     )
 
-    event_status: WebSocketBroadcasterStatus | None = None
-    system_status: WebSocketBroadcasterStatus | None = None
+    # Helper function to create unavailable status for uninitialized broadcasters
+    def get_unavailable_status(broadcaster_name: str) -> WebSocketBroadcasterStatus:
+        return WebSocketBroadcasterStatus(
+            state=CircuitBreakerStateEnum.UNAVAILABLE,
+            is_degraded=True,
+            failure_count=0,
+            message=f"{broadcaster_name} not initialized",
+        )
 
     # Get event broadcaster status
     if event_broadcaster is not None:
@@ -1006,6 +1029,8 @@ async def get_websocket_health() -> WebSocketHealthResponse:
             failure_count=event_broadcaster.circuit_breaker.failure_count,
             is_degraded=event_broadcaster.is_degraded(),
         )
+    else:
+        event_status = get_unavailable_status("Event broadcaster")
 
     # Get system broadcaster status
     if system_broadcaster is not None:
@@ -1015,6 +1040,8 @@ async def get_websocket_health() -> WebSocketHealthResponse:
             failure_count=system_broadcaster.circuit_breaker.failure_count,
             is_degraded=not system_broadcaster._pubsub_listening,
         )
+    else:
+        system_status = get_unavailable_status("System broadcaster")
 
     return WebSocketHealthResponse(
         event_broadcaster=event_status,
@@ -1164,7 +1191,7 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
         f.write(content)
         f.flush()
         os.fsync(f.fileno())
-    logger.info(f"Wrote runtime env to {path}: {overrides}")
+    logger.info(f"Wrote runtime env to {path}: {sanitize_log_value(overrides)}")
 
 
 @router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])
@@ -1233,15 +1260,20 @@ async def patch_config(
 
     # Log the audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.SETTINGS_CHANGED,
+                resource_type="settings",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     return ConfigResponse(
         app_name=settings.app_name,
@@ -1342,16 +1374,21 @@ async def update_anomaly_config(
 
     # Log audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.CONFIG_UPDATED,
-            resource_type="anomaly_config",
-            resource_id="system",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.CONFIG_UPDATED,
+                resource_type="anomaly_config",
+                resource_id="system",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     return AnomalyConfig(
         threshold_stdev=service.anomaly_threshold_std,
@@ -1960,15 +1997,20 @@ async def update_severity_thresholds(
 
     # Log the audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="severity_thresholds",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.SETTINGS_CHANGED,
+                resource_type="severity_thresholds",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     logger.info(
         f"Severity thresholds updated: low_max={new_thresholds['low_max']}, "

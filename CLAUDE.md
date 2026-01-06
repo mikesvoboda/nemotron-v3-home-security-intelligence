@@ -518,18 +518,33 @@ Before creating a PR, verify:
 
 ```
 backend/tests/
-  unit/              # Python unit tests (pytest) - 7193 tests
-  integration/       # API and service integration tests - 1499 tests
+  unit/              # Python unit tests (pytest) - 8,229 tests
+  integration/       # API and service integration tests - 1,556 tests (4 domain shards)
 frontend/
-  src/**/*.test.ts   # Component and hook tests (Vitest)
-  tests/e2e/         # Playwright E2E tests - 2358 tests across 17 files (multi-browser)
+  src/**/*.test.ts   # Component and hook tests (Vitest) - 135 test files (8 shards)
+  tests/e2e/         # Playwright E2E tests - 26 spec files (4 Chromium shards)
 ```
 
-### Test Parallelization
+### Test Parallelization Strategy
 
-- **Unit tests:** Run in parallel with `pytest-xdist` (`-n auto --dist=worksteal`)
-- **Integration tests:** Run serially (`-n0`) due to shared database state
-- **E2E tests:** Multi-browser (chromium, firefox, webkit) + mobile viewports
+The CI pipeline uses aggressive parallelization to reduce test execution time by ~60-70%:
+
+| Test Suite                    | Parallelization               | CI Jobs             |
+| ----------------------------- | ----------------------------- | ------------------- |
+| Backend Unit                  | `pytest-xdist` with worksteal | 1 job, auto workers |
+| Backend Integration           | Domain-based sharding         | 4 parallel jobs     |
+| Frontend Vitest               | Matrix sharding               | 8 parallel shards   |
+| Frontend E2E (Chromium)       | Playwright sharding           | 4 parallel shards   |
+| Frontend E2E (Firefox/WebKit) | Non-blocking                  | 1 job each          |
+
+**Integration Test Shards:**
+
+- API routes (`integration-tests-api`)
+- WebSocket/PubSub (`integration-tests-websocket`)
+- Services/Business logic (`integration-tests-services`)
+- Database models (`integration-tests-models`)
+
+For full performance metrics and baselines, see [`docs/TEST_PERFORMANCE_METRICS.md`](docs/TEST_PERFORMANCE_METRICS.md).
 
 ### Validation Workflow
 

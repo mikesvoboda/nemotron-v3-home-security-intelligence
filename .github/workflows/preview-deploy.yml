@@ -1,22 +1,27 @@
 name: Preview Deploy
 
-# Build preview containers for pull requests
+# Build preview containers for pull requests (manual trigger only)
 # Allows testers to pull and run PR changes locally before merge
+#
+# Disabled on PRs by default to save CI runner capacity.
+# Trigger manually via workflow_dispatch when preview containers are needed.
 #
 # Usage:
 # 1. Open a PR against main
-# 2. This workflow builds containers tagged with the PR number
+# 2. Manually trigger this workflow from the Actions tab
 # 3. A comment is posted with docker-compose instructions
 # 4. Testers can pull and run the containers locally
-# 5. Containers are automatically cleaned up when PR is closed
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to build preview for'
+        required: true
+        type: string
 
 concurrency:
-  group: preview-${{ github.event.pull_request.number }}
+  group: preview-${{ github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -63,7 +68,7 @@ jobs:
           swap-storage: true
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -122,7 +127,7 @@ jobs:
 
     steps:
       - name: Find existing comment
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -130,7 +135,7 @@ jobs:
           body-includes: '<!-- preview-deploy-comment -->'
 
       - name: Create or update PR comment
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
@@ -269,7 +274,7 @@ jobs:
 
     steps:
       - name: Delete backend preview image
-        uses: actions/delete-package-versions@v5
+        uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5
         with:
           package-name: ${{ github.event.repository.name }}/backend
           package-type: container
@@ -282,7 +287,7 @@ jobs:
         continue-on-error: true
 
       - name: Delete frontend preview image
-        uses: actions/delete-package-versions@v5
+        uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5
         with:
           package-name: ${{ github.event.repository.name }}/frontend
           package-type: container
@@ -302,7 +307,7 @@ jobs:
           echo "  gh api --method DELETE /user/packages/container/${{ github.event.repository.name }}%2Ffrontend/versions/<version-id>"
 
       - name: Update PR comment about cleanup
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -311,7 +316,7 @@ jobs:
 
       - name: Add cleanup notice to comment
         if: steps.find-comment.outputs.comment-id != ''
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
           edit-mode: append

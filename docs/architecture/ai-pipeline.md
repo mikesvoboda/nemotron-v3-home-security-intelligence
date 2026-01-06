@@ -52,7 +52,7 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 
 ### High-Level Flow
 
-![AI Pipeline Flow Diagram](../images/flow-ai-pipeline.png)
+![AI pipeline flow diagram showing the complete processing sequence from camera FTP upload through FileWatcher debouncing, detection queue processing, RT-DETRv2 object detection with 30-50ms inference, batch aggregation with normal path (90-second windows) and fast path (immediate for high-confidence persons), Nemotron LLM risk analysis generating risk scores and reasoning, and final WebSocket broadcast to dashboard clients](../images/flow-ai-pipeline.png)
 
 The pipeline processes images through two paths:
 

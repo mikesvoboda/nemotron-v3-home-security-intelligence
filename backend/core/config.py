@@ -13,6 +13,86 @@ from backend.core.url_validation import SSRFValidationError
 from backend.core.url_validation import validate_webhook_url as validate_webhook_url_ssrf
 
 
+class OrchestratorSettings(BaseSettings):
+    """Container orchestrator configuration for Docker/Podman container management.
+
+    This settings model configures the container orchestrator service that provides
+    health monitoring and self-healing capabilities for AI containers (RT-DETRv2,
+    Nemotron, Florence-2, etc.).
+
+    Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="ORCHESTRATOR_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Feature flag
+    enabled: bool = Field(
+        True,
+        description="Enable container orchestration. When enabled, the orchestrator "
+        "monitors AI container health and can automatically restart unhealthy containers.",
+    )
+
+    # Docker connection
+    docker_host: str | None = Field(
+        None,
+        description="Docker host URL. If None, uses DOCKER_HOST environment variable "
+        "or Docker's default socket path. Examples: 'unix:///var/run/docker.sock', "
+        "'tcp://localhost:2375', 'unix:///run/user/1000/podman/podman.sock' (rootless Podman).",
+    )
+
+    # Health monitoring
+    health_check_interval: int = Field(
+        30,
+        ge=5,
+        le=300,
+        description="Seconds between container health checks. Lower values provide "
+        "faster detection of unhealthy containers but increase system load.",
+    )
+    health_check_timeout: int = Field(
+        5,
+        ge=1,
+        le=60,
+        description="Timeout in seconds for individual health check HTTP requests. "
+        "Should be lower than health_check_interval.",
+    )
+    startup_grace_period: int = Field(
+        60,
+        ge=10,
+        le=600,
+        description="Seconds to wait after container start before performing health checks. "
+        "Allows time for AI models to load into GPU memory.",
+    )
+
+    # Self-healing limits
+    max_consecutive_failures: int = Field(
+        5,
+        ge=1,
+        le=50,
+        description="Number of consecutive health check failures before disabling "
+        "automatic restart for a container. Prevents restart loops.",
+    )
+    restart_backoff_base: float = Field(
+        5.0,
+        ge=1.0,
+        le=60.0,
+        description="Base backoff time in seconds for restart attempts. "
+        "Actual delay = min(base * 2^attempt, max).",
+    )
+    restart_backoff_max: float = Field(
+        300.0,
+        ge=30.0,
+        le=3600.0,
+        description="Maximum backoff time in seconds between restart attempts (5 minutes default). "
+        "Caps exponential backoff to prevent excessively long waits.",
+    )
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -234,6 +314,32 @@ class Settings(BaseSettings):
         ge=30.0,
         le=600.0,
         description="Maximum time (seconds) to wait for Nemotron LLM response",
+    )
+
+    # AI service retry settings
+    detector_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for RT-DETR detector on transient failures. "
+        "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
+    )
+    nemotron_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for Nemotron LLM on transient failures. "
+        "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
+    )
+
+    # AI service concurrency settings (NEM-1463)
+    ai_max_concurrent_inferences: int = Field(
+        default=4,
+        ge=1,
+        le=32,
+        description="Maximum concurrent AI inference operations (RT-DETR detection + Nemotron analysis). "
+        "Limits GPU/AI service load under high traffic. Set lower for constrained GPU VRAM, "
+        "higher for distributed AI services. Default: 4 concurrent operations.",
     )
 
     @field_validator("rtdetr_url", "nemotron_url", mode="before")
@@ -510,6 +616,32 @@ class Settings(BaseSettings):
         description="Number of days to retain logs",
     )
 
+    # Request timing settings (NEM-1469)
+    slow_request_threshold_ms: int = Field(
+        default=500,
+        ge=1,
+        le=60000,
+        description="Threshold in milliseconds for logging slow API requests. "
+        "Requests exceeding this duration are logged at WARNING level with "
+        "method, path, status code, and duration for performance monitoring.",
+    )
+
+    # Slow query EXPLAIN logging settings
+    slow_query_threshold_ms: float = Field(
+        default=100.0,
+        ge=10.0,
+        le=10000.0,
+        description="Threshold in milliseconds for slow query detection. "
+        "Queries exceeding this threshold will have EXPLAIN ANALYZE logged. "
+        "Set via SLOW_QUERY_THRESHOLD_MS environment variable.",
+    )
+    slow_query_explain_enabled: bool = Field(
+        default=True,
+        description="Enable EXPLAIN ANALYZE logging for slow queries. "
+        "Set to False in production to disable performance overhead. "
+        "Set via SLOW_QUERY_EXPLAIN_ENABLED environment variable.",
+    )
+
     # DLQ settings
     max_requeue_iterations: int = Field(
         default=10000,
@@ -670,6 +802,21 @@ class Settings(BaseSettings):
         description="Maximum export requests per minute per client IP. "
         "Lower limit to prevent abuse of CSV export functionality which "
         "could overload the server or be used for data exfiltration.",
+    )
+    rate_limit_ai_inference_requests_per_minute: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Maximum AI inference requests per minute per client IP. "
+        "Strict limit to prevent abuse of computationally expensive AI endpoints "
+        "like prompt testing which runs LLM inference.",
+    )
+    rate_limit_ai_inference_burst: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description="Burst allowance for AI inference rate limiting. "
+        "Allows short bursts of requests while maintaining overall rate limit.",
     )
     trusted_proxy_ips: list[str] = Field(
         default=["127.0.0.1", "::1"],
@@ -856,6 +1003,13 @@ class Settings(BaseSettings):
         description="Enable automatic restart of AI services (RT-DETRv2, Nemotron) on health check failure. "
         "Set to False in containerized deployments where restart scripts are not available. "
         "Health monitoring and status broadcasts still occur when disabled.",
+    )
+
+    # Container orchestrator settings (for Docker/Podman container management)
+    # Environment variables use ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED)
+    orchestrator: OrchestratorSettings = Field(
+        default_factory=OrchestratorSettings,
+        description="Container orchestrator configuration for health monitoring and self-healing",
     )
 
     # Background evaluation settings

@@ -1,6 +1,12 @@
 # Multi-stage Dockerfile for backend (dev and production targets)
 # Uses Debian slim for PyTorch/ultralytics compatibility (Alpine's musl libc is incompatible)
 #
+# Security Features:
+#   - Non-root user execution
+#   - Minimal production image (no build tools)
+#   - Health checks for container orchestration
+#   - Read-only root filesystem compatible (mark volumes as needed)
+#
 # Usage:
 #   docker build --target dev -t backend:dev .
 #   docker build --target prod -t backend:prod .
@@ -10,10 +16,18 @@
 # =============================================================================
 FROM python:3.14-slim-bookworm AS base
 
+# Security labels
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="Backend API Server"
+LABEL org.opencontainers.image.description="FastAPI backend for home security monitoring"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+
 WORKDIR /app
 
 # Install build dependencies for Python packages with C extensions
 # and runtime dependencies for healthcheck and video processing
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libc6-dev \
@@ -23,7 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -41,21 +56,22 @@ FROM base AS dev
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project
 
-# Copy application code to backend subdirectory (for absolute imports)
-COPY backend/ ./backend/
-
-# Create data directory for logs and thumbnails
-RUN mkdir -p /app/data/thumbnails /app/data/logs
-
-# Create non-root user
+# Create non-root user before copying files (for COPY --chown)
 RUN groupadd -g 1000 appgroup && \
-    useradd -m -u 1000 -g appgroup appuser
+    useradd -m -u 1000 -g appgroup -s /usr/sbin/nologin appuser
 
-# Change ownership of app directory to non-root user
-RUN chown -R appuser:appgroup /app
+# Copy application code with proper ownership (avoids separate chown layer)
+COPY --chown=appuser:appgroup backend/ ./backend/
+
+# Create data directory for logs and thumbnails with proper ownership
+RUN mkdir -p /app/data/thumbnails /app/data/logs && \
+    chown -R appuser:appgroup /app/data /app/.venv
 
 # Add venv to PATH
 ENV PATH=/app/.venv/bin:$PATH
+
+# Default API port (configurable via environment variable)
+ENV API_PORT=8000
 
 # Expose FastAPI port
 EXPOSE 8000
@@ -64,8 +80,9 @@ EXPOSE 8000
 USER appuser
 
 # Health check - use /ready endpoint to verify database/redis connectivity
+# Uses API_PORT environment variable for configurable port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/api/system/health/ready').status_code == 200 else 1)"
+    CMD python -c "import os, httpx; port=os.getenv('API_PORT', '8000'); exit(0 if httpx.get(f'http://localhost:{port}/api/system/health/ready').status_code == 200 else 1)"
 
 # Run FastAPI with uvicorn (hot reload enabled for dev)
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
@@ -85,35 +102,43 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # =============================================================================
 FROM python:3.14-slim-bookworm AS prod
 
+# Security labels
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="Backend API Server"
+LABEL org.opencontainers.image.description="FastAPI backend for home security monitoring"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+
 WORKDIR /app
 
 # Install runtime dependencies only (no build tools like gcc)
-# wget for healthcheck, ffmpeg for video processing,
-# libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
+# ffmpeg for video processing, libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser
+# Create non-root user for security (no login shell for additional security)
+RUN useradd -m -u 1000 -s /usr/sbin/nologin appuser
 
 # Copy Python virtual environment from builder (no dev deps, no build tools)
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
-# Copy application code to backend subdirectory (for absolute imports)
-COPY backend/ ./backend/
+# Copy application code with proper ownership
+COPY --chown=appuser:appuser backend/ ./backend/
 
-# Create data directory for logs and thumbnails
-RUN mkdir -p /app/data/thumbnails /app/data/logs
-
-# Set ownership of app directories
-RUN chown -R appuser:appuser /app
+# Create data directory for logs and thumbnails with proper ownership
+RUN mkdir -p /app/data/thumbnails /app/data/logs && \
+    chown -R appuser:appuser /app/data
 
 # Add venv to PATH
 ENV PATH=/app/.venv/bin:$PATH
+
+# Default API port (configurable via environment variable)
+ENV API_PORT=8000
 
 # Switch to non-root user
 USER appuser
@@ -122,8 +147,9 @@ USER appuser
 EXPOSE 8000
 
 # Health check - use /ready endpoint to verify database/redis connectivity
+# Uses API_PORT environment variable for configurable port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/api/system/health/ready').status_code == 200 else 1)"
+    CMD python -c "import os, httpx; port=os.getenv('API_PORT', '8000'); exit(0 if httpx.get(f'http://localhost:{port}/api/system/health/ready').status_code == 200 else 1)"
 
 # ============================================================================
 # IMPORTANT: Single Worker Requirement for In-Process Background Services

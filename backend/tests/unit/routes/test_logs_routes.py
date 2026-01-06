@@ -486,36 +486,55 @@ async def test_list_logs_null_count() -> None:
 # =============================================================================
 
 
+def _create_totals_result(total: int | None, errors: int | None, warnings: int | None) -> MagicMock:
+    """Create a mock result for the totals query."""
+    totals_row = MagicMock()
+    totals_row.total_today = total
+    totals_row.errors_today = errors
+    totals_row.warnings_today = warnings
+
+    result = MagicMock()
+    result.one.return_value = totals_row
+    return result
+
+
+def _create_breakdown_result(
+    level_data: list[tuple[str, int]], component_data: list[tuple[str, int]]
+) -> MagicMock:
+    """Create a mock result for the breakdown query (UNION ALL of level + component)."""
+    rows = []
+
+    # Level rows
+    for level, count in level_data:
+        row = MagicMock()
+        row.breakdown_type = "level"
+        row.key = level
+        row.count = count
+        rows.append(row)
+
+    # Component rows
+    for component, count in component_data:
+        row = MagicMock()
+        row.breakdown_type = "component"
+        row.key = component
+        row.count = count
+        rows.append(row)
+
+    result = MagicMock()
+    result.__iter__ = lambda _: iter(rows)
+    return result
+
+
 @pytest.mark.asyncio
 async def test_get_log_stats_empty_database() -> None:
     """Test getting log stats when database is empty."""
     db = AsyncMock()
 
-    # All stats return 0 or empty
-    total_result = MagicMock()
-    total_result.scalar.return_value = 0
+    # Optimized query returns two results: totals and breakdowns
+    totals_result = _create_totals_result(0, 0, 0)
+    breakdown_result = _create_breakdown_result([], [])
 
-    errors_result = MagicMock()
-    errors_result.scalar.return_value = 0
-
-    warnings_result = MagicMock()
-    warnings_result.scalar.return_value = 0
-
-    component_result = MagicMock()
-    component_result.__iter__ = lambda _: iter([])
-
-    level_result = MagicMock()
-    level_result.__iter__ = lambda _: iter([])
-
-    db.execute = AsyncMock(
-        side_effect=[
-            total_result,
-            errors_result,
-            warnings_result,
-            component_result,
-            level_result,
-        ]
-    )
+    db.execute = AsyncMock(side_effect=[totals_result, breakdown_result])
 
     result = await logs_routes.get_log_stats(db=db)
 
@@ -532,59 +551,15 @@ async def test_get_log_stats_with_data() -> None:
     """Test getting log stats with actual data."""
     db = AsyncMock()
 
-    # Total logs today
-    total_result = MagicMock()
-    total_result.scalar.return_value = 150
+    # Totals query result
+    totals_result = _create_totals_result(150, 10, 25)
 
-    # Errors today
-    errors_result = MagicMock()
-    errors_result.scalar.return_value = 10
+    # Breakdown query result (UNION ALL of level and component)
+    level_data = [("INFO", 115), ("WARNING", 25), ("ERROR", 10)]
+    component_data = [("file_watcher", 80), ("api", 50), ("detector", 20)]
+    breakdown_result = _create_breakdown_result(level_data, component_data)
 
-    # Warnings today
-    warnings_result = MagicMock()
-    warnings_result.scalar.return_value = 25
-
-    # By component - create mock rows
-    component_row1 = MagicMock()
-    component_row1.component = "file_watcher"
-    component_row1.count = 80
-
-    component_row2 = MagicMock()
-    component_row2.component = "api"
-    component_row2.count = 50
-
-    component_row3 = MagicMock()
-    component_row3.component = "detector"
-    component_row3.count = 20
-
-    component_result = MagicMock()
-    component_result.__iter__ = lambda _: iter([component_row1, component_row2, component_row3])
-
-    # By level - create mock rows
-    level_row1 = MagicMock()
-    level_row1.level = "INFO"
-    level_row1.count = 115
-
-    level_row2 = MagicMock()
-    level_row2.level = "WARNING"
-    level_row2.count = 25
-
-    level_row3 = MagicMock()
-    level_row3.level = "ERROR"
-    level_row3.count = 10
-
-    level_result = MagicMock()
-    level_result.__iter__ = lambda _: iter([level_row1, level_row2, level_row3])
-
-    db.execute = AsyncMock(
-        side_effect=[
-            total_result,
-            errors_result,
-            warnings_result,
-            component_result,
-            level_result,
-        ]
-    )
+    db.execute = AsyncMock(side_effect=[totals_result, breakdown_result])
 
     result = await logs_routes.get_log_stats(db=db)
 
@@ -605,30 +580,11 @@ async def test_get_log_stats_null_values() -> None:
     """Test getting log stats when queries return None."""
     db = AsyncMock()
 
-    total_result = MagicMock()
-    total_result.scalar.return_value = None
+    # Totals with None values (should default to 0)
+    totals_result = _create_totals_result(None, None, None)
+    breakdown_result = _create_breakdown_result([], [])
 
-    errors_result = MagicMock()
-    errors_result.scalar.return_value = None
-
-    warnings_result = MagicMock()
-    warnings_result.scalar.return_value = None
-
-    component_result = MagicMock()
-    component_result.__iter__ = lambda _: iter([])
-
-    level_result = MagicMock()
-    level_result.__iter__ = lambda _: iter([])
-
-    db.execute = AsyncMock(
-        side_effect=[
-            total_result,
-            errors_result,
-            warnings_result,
-            component_result,
-            level_result,
-        ]
-    )
+    db.execute = AsyncMock(side_effect=[totals_result, breakdown_result])
 
     result = await logs_routes.get_log_stats(db=db)
 
@@ -643,43 +599,40 @@ async def test_get_log_stats_single_component() -> None:
     """Test getting log stats with only one component."""
     db = AsyncMock()
 
-    total_result = MagicMock()
-    total_result.scalar.return_value = 50
+    totals_result = _create_totals_result(50, 5, 10)
 
-    errors_result = MagicMock()
-    errors_result.scalar.return_value = 5
+    level_data = [("INFO", 35)]
+    component_data = [("api", 50)]
+    breakdown_result = _create_breakdown_result(level_data, component_data)
 
-    warnings_result = MagicMock()
-    warnings_result.scalar.return_value = 10
-
-    component_row = MagicMock()
-    component_row.component = "api"
-    component_row.count = 50
-
-    component_result = MagicMock()
-    component_result.__iter__ = lambda _: iter([component_row])
-
-    level_row = MagicMock()
-    level_row.level = "INFO"
-    level_row.count = 35
-
-    level_result = MagicMock()
-    level_result.__iter__ = lambda _: iter([level_row])
-
-    db.execute = AsyncMock(
-        side_effect=[
-            total_result,
-            errors_result,
-            warnings_result,
-            component_result,
-            level_result,
-        ]
-    )
+    db.execute = AsyncMock(side_effect=[totals_result, breakdown_result])
 
     result = await logs_routes.get_log_stats(db=db)
 
     assert result["top_component"] == "api"
     assert result["by_component"]["api"] == 50
+
+
+@pytest.mark.asyncio
+async def test_get_log_stats_component_sorting() -> None:
+    """Test that components are sorted by count descending for top_component."""
+    db = AsyncMock()
+
+    totals_result = _create_totals_result(100, 5, 10)
+
+    # Components returned in arbitrary order from DB
+    level_data = [("INFO", 85)]
+    component_data = [("api", 20), ("detector", 50), ("file_watcher", 30)]
+    breakdown_result = _create_breakdown_result(level_data, component_data)
+
+    db.execute = AsyncMock(side_effect=[totals_result, breakdown_result])
+
+    result = await logs_routes.get_log_stats(db=db)
+
+    # Should be sorted by count descending
+    assert result["top_component"] == "detector"
+    component_keys = list(result["by_component"].keys())
+    assert component_keys == ["detector", "file_watcher", "api"]
 
 
 # =============================================================================

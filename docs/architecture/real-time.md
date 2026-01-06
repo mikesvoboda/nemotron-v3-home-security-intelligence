@@ -47,7 +47,7 @@ The real-time system enables instant dashboard updates without polling by using 
 
 ### Architecture Diagram
 
-![WebSocket Architecture](../images/arch-websocket-flow.png)
+![WebSocket real-time architecture diagram showing the data flow from AI pipeline components (NemotronAnalyzer, GPUMonitor, HealthMonitor) publishing to Redis pub/sub channels (security_events, system_status), which fan out to multiple EventBroadcaster and SystemBroadcaster instances, ultimately delivering messages through WebSocket endpoints to connected dashboard clients](../images/arch-websocket-flow.png)
 
 ### Detailed Mermaid Diagram
 

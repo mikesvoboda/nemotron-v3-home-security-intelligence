@@ -17,10 +17,14 @@ Error Handling Pattern:
     2. OPTIONAL operations (best-effort) -> return None/False/empty list
        - extract_thumbnail() -> str | None
        - extract_thumbnail_for_detection() -> str | None
-       - extract_frames_for_detection() -> list[str] (empty on failure)
+       - extract_frames_for_detection() -> list[str] (empty on failure) [DEPRECATED]
+       - extract_frames_for_detection_batch() -> list[str] (empty on failure) [PREFERRED]
        - cleanup_extracted_frames() -> bool
        - delete_thumbnail() -> bool
        These are operations where callers can proceed with a fallback behavior.
+
+    For frame extraction, use extract_frames_for_detection_batch() (single FFmpeg call)
+    instead of extract_frames_for_detection() (multiple FFmpeg calls) for better performance.
 
     Callers should:
     - Use try/except for get_video_metadata()
@@ -454,6 +458,12 @@ class VideoProcessor:
     ) -> list[str]:
         """Extract multiple frames from a video at regular intervals for object detection.
 
+        DEPRECATED: Use extract_frames_for_detection_batch() instead for better performance.
+        This method invokes FFmpeg once per frame, which is slower than the batch method
+        that uses a single FFmpeg invocation with the fps filter.
+
+        Kept for backwards compatibility and cases where per-frame control is needed.
+
         This method extracts frames at specified intervals throughout the video
         for use in object detection. Frames are saved as temporary JPEG files.
 
@@ -470,6 +480,9 @@ class VideoProcessor:
             List of paths to extracted frame images.
             Returns empty list for: invalid path, metadata extraction failure,
             invalid duration, ffmpeg failures, or timeouts.
+
+        See Also:
+            extract_frames_for_detection_batch: Optimized method using single FFmpeg invocation
         """
         try:
             validated_path = _validate_video_path(video_path)

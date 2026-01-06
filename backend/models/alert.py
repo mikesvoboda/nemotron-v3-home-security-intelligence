@@ -26,7 +26,18 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -119,6 +130,9 @@ class Alert(Base):
         Index("idx_alerts_created_at", "created_at"),
         Index("idx_alerts_dedup_key", "dedup_key"),
         Index("idx_alerts_dedup_key_created_at", "dedup_key", "created_at"),
+        # Deduplication performance indexes
+        Index("idx_alerts_delivered_at", "delivered_at"),
+        Index("idx_alerts_event_rule_delivered", "event_id", "rule_id", "delivered_at"),
     )
 
     def __repr__(self) -> str:
@@ -219,6 +233,19 @@ class AlertRule(Base):
         Index("idx_alert_rules_name", "name"),
         Index("idx_alert_rules_enabled", "enabled"),
         Index("idx_alert_rules_severity", "severity"),
+        # CHECK constraints for business rules
+        CheckConstraint(
+            "risk_threshold IS NULL OR (risk_threshold >= 0 AND risk_threshold <= 100)",
+            name="ck_alert_rules_risk_threshold_range",
+        ),
+        CheckConstraint(
+            "min_confidence IS NULL OR (min_confidence >= 0.0 AND min_confidence <= 1.0)",
+            name="ck_alert_rules_min_confidence_range",
+        ),
+        CheckConstraint(
+            "cooldown_seconds >= 0",
+            name="ck_alert_rules_cooldown_non_negative",
+        ),
     )
 
     def __repr__(self) -> str:

@@ -53,6 +53,16 @@ async function setupMocksWithWebSocket(
   return wsMock;
 }
 
+/**
+ * Browser-aware wait helper for WebSocket message processing.
+ * Firefox and WebKit are slower at processing WebSocket messages and updating the DOM.
+ */
+async function waitForWSProcessing(page: import('@playwright/test').Page, browserName: string) {
+  const baseTimeout = 500;
+  const slowBrowserMultiplier = browserName === 'webkit' ? 2 : browserName === 'firefox' ? 1.5 : 1;
+  await page.waitForTimeout(baseTimeout * slowBrowserMultiplier);
+}
+
 test.describe('WebSocket Connection Status', () => {
   test('dashboard shows WebSocket status indicator', async ({ page }) => {
     const wsMock = await setupMocksWithWebSocket(page);
@@ -115,7 +125,7 @@ test.describe('WebSocket Connection Status', () => {
 });
 
 test.describe('Real-time Event Updates', () => {
-  test('dashboard receives security events via WebSocket', async ({ page }) => {
+  test('dashboard receives security events via WebSocket', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -137,15 +147,15 @@ test.describe('Real-time Event Updates', () => {
 
     await wsMock.sendSecurityEvent(testEvent);
 
-    // Give the UI time to process the WebSocket message
-    await page.waitForTimeout(500);
+    // Give the UI time to process the WebSocket message (browser-aware)
+    await waitForWSProcessing(page, browserName);
 
     // Verify the event appears in the UI - this depends on how the dashboard displays events
     // The dashboard should show the event in some form (activity feed, notification, etc.)
     // Note: The exact verification depends on which components consume the WebSocket events
   });
 
-  test('multiple events are received in sequence', async ({ page }) => {
+  test('multiple events are received in sequence', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -181,14 +191,17 @@ test.describe('Real-time Event Updates', () => {
 
     for (const event of events) {
       await wsMock.sendSecurityEvent(event);
-      await page.waitForTimeout(200); // Small delay between events
+      // Browser-aware delay between events (webkit/firefox need more time)
+      await page.waitForTimeout(
+        browserName === 'webkit' ? 300 : browserName === 'firefox' ? 250 : 200
+      );
     }
 
     // The WebSocket should have processed all events
     // Verification depends on how the UI consumes these events
   });
 
-  test('events with different risk levels are handled', async ({ page }) => {
+  test('events with different risk levels are handled', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -217,13 +230,16 @@ test.describe('Real-time Event Updates', () => {
           summary: `${riskLevel} risk event for testing`,
         })
       );
-      await page.waitForTimeout(100);
+      // Browser-aware delay (webkit/firefox need more time)
+      await page.waitForTimeout(
+        browserName === 'webkit' ? 200 : browserName === 'firefox' ? 150 : 100
+      );
     }
   });
 });
 
 test.describe('Timeline Real-time Updates', () => {
-  test('timeline page receives events via WebSocket', async ({ page }) => {
+  test('timeline page receives events via WebSocket', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const timelinePage = new TimelinePage(page);
@@ -242,14 +258,15 @@ test.describe('Timeline Real-time Updates', () => {
       })
     );
 
-    await page.waitForTimeout(500);
+    // Browser-aware wait for message processing
+    await waitForWSProcessing(page, browserName);
 
     // The timeline should be able to receive and potentially display new events
   });
 });
 
 test.describe('WebSocket Connection Error Handling', () => {
-  test('handles connection error gracefully', async ({ page }) => {
+  test('handles connection error gracefully', async ({ page, browserName }) => {
     // Setup with connection failure simulation
     const wsMock = await setupMocksWithWebSocket(page, {
       simulateConnectionFailure: true,
@@ -263,8 +280,10 @@ test.describe('WebSocket Connection Error Handling', () => {
 
     // The WebSocket should have failed initially
     // After the first failure, subsequent attempts should succeed
-    // Give it time for the reconnection to occur
-    await page.waitForTimeout(2000);
+    // Give it time for the reconnection to occur (webkit/firefox need more time)
+    await page.waitForTimeout(
+      browserName === 'webkit' ? 3000 : browserName === 'firefox' ? 2500 : 2000
+    );
 
     // Dashboard should still be functional despite initial WS failure
     await expect(dashboardPage.pageTitle).toBeVisible();
@@ -332,7 +351,7 @@ test.describe('WebSocket Connection Error Handling', () => {
 });
 
 test.describe('WebSocket Heartbeat', () => {
-  test('receives heartbeat messages', async ({ page }) => {
+  test('receives heartbeat messages', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page, {
       enableHeartbeats: true,
       heartbeatInterval: 1000, // Fast interval for testing
@@ -349,7 +368,7 @@ test.describe('WebSocket Heartbeat', () => {
 
     // The application should process the heartbeat without errors
     // Heartbeats are typically used to keep connections alive and update last-seen timestamps
-    await page.waitForTimeout(500);
+    await waitForWSProcessing(page, browserName);
 
     // Connection should still be active
     const state = await wsMock.getConnectionState('events');
@@ -358,7 +377,7 @@ test.describe('WebSocket Heartbeat', () => {
 });
 
 test.describe('System WebSocket Channel', () => {
-  test('system page receives GPU updates via WebSocket', async ({ page }) => {
+  test('system page receives GPU updates via WebSocket', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const systemPage = new SystemPage(page);
@@ -376,13 +395,13 @@ test.describe('System WebSocket Channel', () => {
 
     await wsMock.sendGpuUpdate(gpuUpdate);
 
-    await page.waitForTimeout(500);
+    await waitForWSProcessing(page, browserName);
 
     // The system page should have received the update
     // Verification depends on how the System page displays GPU stats
   });
 
-  test('system status updates are received', async ({ page }) => {
+  test('system status updates are received', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const systemPage = new SystemPage(page);
@@ -402,14 +421,14 @@ test.describe('System WebSocket Channel', () => {
       },
     });
 
-    await page.waitForTimeout(500);
+    await waitForWSProcessing(page, browserName);
 
     // The system page should reflect the status update
   });
 });
 
 test.describe('WebSocket Message Flow Integration', () => {
-  test('end-to-end: event received and UI updates', async ({ page }) => {
+  test('end-to-end: event received and UI updates', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -432,14 +451,16 @@ test.describe('WebSocket Message Flow Integration', () => {
 
     await wsMock.sendSecurityEvent(criticalEvent);
 
-    // Give the UI time to process
-    await page.waitForTimeout(1000);
+    // Give the UI time to process (webkit/firefox need more time)
+    await page.waitForTimeout(
+      browserName === 'webkit' ? 1500 : browserName === 'firefox' ? 1250 : 1000
+    );
 
     // The dashboard should have received and potentially displayed the critical event
     // This test verifies the complete flow from WebSocket message to UI
   });
 
-  test('multiple channels receive messages concurrently', async ({ page }) => {
+  test('multiple channels receive messages concurrently', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -465,7 +486,7 @@ test.describe('WebSocket Message Flow Integration', () => {
       ),
     ]);
 
-    await page.waitForTimeout(500);
+    await waitForWSProcessing(page, browserName);
 
     // Both channels should have processed their messages
     const eventsState = await wsMock.getConnectionState('events');

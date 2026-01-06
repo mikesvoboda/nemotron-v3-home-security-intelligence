@@ -13,6 +13,7 @@ Uses time mocking for deterministic timeout testing.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -745,3 +746,445 @@ class TestCompleteStateMachineCycle:
         circuit_breaker.record_success()
 
         assert circuit_breaker.get_state() == WebSocketCircuitState.CLOSED
+
+
+# =============================================================================
+# Redis Persistence Tests
+# =============================================================================
+
+
+class TestRedisPersistence:
+    """Tests for Redis persistence functionality."""
+
+    @pytest.fixture
+    def mock_redis(self) -> Any:
+        """Create a mock Redis client."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock = MagicMock()
+        mock.set = AsyncMock(return_value=True)
+        mock.get = AsyncMock(return_value=None)
+        mock.delete = AsyncMock(return_value=1)
+        return mock
+
+    @pytest.fixture
+    def breaker_with_redis(self, mock_redis: Any) -> WebSocketCircuitBreaker:
+        """Create a circuit breaker with mock Redis client."""
+        return WebSocketCircuitBreaker(
+            failure_threshold=3,
+            recovery_timeout=30.0,
+            name="test_redis_breaker",
+            redis_client=mock_redis,
+        )
+
+    def test_redis_key_format(self, breaker_with_redis: WebSocketCircuitBreaker) -> None:
+        """Test that Redis key has correct format."""
+        key = breaker_with_redis._get_redis_key()
+        assert key == "circuit_breaker:test_redis_breaker"
+
+    def test_redis_state_ttl_constant(self) -> None:
+        """Test that REDIS_STATE_TTL is 5 minutes (300 seconds)."""
+        assert WebSocketCircuitBreaker.REDIS_STATE_TTL == 300
+
+    @pytest.mark.asyncio
+    async def test_persist_state_without_redis(
+        self, circuit_breaker: WebSocketCircuitBreaker
+    ) -> None:
+        """Test that persist_state is a no-op without Redis."""
+        # Should not raise any errors
+        await circuit_breaker._persist_state()
+
+    @pytest.mark.asyncio
+    async def test_persist_state_with_redis(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that persist_state calls Redis set with correct data."""
+        import json
+
+        # Trigger a state to persist
+        breaker_with_redis._state = WebSocketCircuitState.OPEN
+        breaker_with_redis._failure_count = 3
+        breaker_with_redis._opened_at = 12345.0
+        breaker_with_redis._consecutive_half_open_failures = 2
+        breaker_with_redis._current_backoff_delay = 4.0
+        breaker_with_redis._backoff_expires_at = 12349.0
+
+        await breaker_with_redis._persist_state()
+
+        # Verify Redis set was called
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
+
+        # Check key
+        assert call_args[0][0] == "circuit_breaker:test_redis_breaker"
+
+        # Check data
+        stored_data = json.loads(call_args[0][1])
+        assert stored_data["state"] == "open"
+        assert stored_data["failure_count"] == 3
+        assert stored_data["opened_at"] == 12345.0
+        assert stored_data["consecutive_half_open_failures"] == 2
+        assert stored_data["current_backoff_delay"] == 4.0
+        assert stored_data["backoff_expires_at"] == 12349.0
+
+        # Check TTL
+        assert call_args[1]["expire"] == 300
+
+    @pytest.mark.asyncio
+    async def test_persist_state_handles_redis_error(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that persist_state handles Redis errors gracefully."""
+        mock_redis.set.side_effect = Exception("Redis connection error")
+
+        # Should not raise, just log warning
+        await breaker_with_redis._persist_state()
+
+    @pytest.mark.asyncio
+    async def test_restore_state_without_redis(
+        self, circuit_breaker: WebSocketCircuitBreaker
+    ) -> None:
+        """Test that restore_state returns False without Redis."""
+        result = await circuit_breaker.restore_state_from_redis()
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_restore_state_no_data_in_redis(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that restore_state returns False when no data exists."""
+        mock_redis.get.return_value = None
+
+        result = await breaker_with_redis.restore_state_from_redis()
+
+        assert result is False
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_restore_state_from_redis(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that restore_state correctly restores state from Redis."""
+        import json
+
+        stored_data = {
+            "state": "open",
+            "failure_count": 5,
+            "opened_at": 12345.0,
+            "consecutive_half_open_failures": 3,
+            "current_backoff_delay": 8.0,
+            "backoff_expires_at": 12353.0,
+        }
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        result = await breaker_with_redis.restore_state_from_redis()
+
+        assert result is True
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.OPEN
+        assert breaker_with_redis._failure_count == 5
+        assert breaker_with_redis._consecutive_half_open_failures == 3
+        assert breaker_with_redis._current_backoff_delay == 8.0
+        # opened_at should be set to current time, not the stored value
+        assert breaker_with_redis._opened_at is not None
+
+    @pytest.mark.asyncio
+    async def test_restore_state_with_dict_response(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that restore_state handles dict response (pre-parsed JSON)."""
+        stored_data = {
+            "state": "half_open",
+            "failure_count": 2,
+            "opened_at": None,
+            "consecutive_half_open_failures": 0,
+            "current_backoff_delay": 0.0,
+            "backoff_expires_at": None,
+        }
+        mock_redis.get.return_value = stored_data
+
+        result = await breaker_with_redis.restore_state_from_redis()
+
+        assert result is True
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.HALF_OPEN
+        assert breaker_with_redis._failure_count == 2
+
+    @pytest.mark.asyncio
+    async def test_restore_state_handles_invalid_json(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that restore_state handles invalid JSON gracefully."""
+        mock_redis.get.return_value = "invalid json {"
+
+        result = await breaker_with_redis.restore_state_from_redis()
+
+        assert result is False
+        # Should remain in default CLOSED state
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_restore_state_handles_redis_error(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that restore_state handles Redis errors gracefully."""
+        mock_redis.get.side_effect = Exception("Redis connection error")
+
+        result = await breaker_with_redis.restore_state_from_redis()
+
+        assert result is False
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_clear_persisted_state_without_redis(
+        self, circuit_breaker: WebSocketCircuitBreaker
+    ) -> None:
+        """Test that clear_persisted_state returns False without Redis."""
+        result = await circuit_breaker.clear_persisted_state()
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_clear_persisted_state_with_redis(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that clear_persisted_state calls Redis delete."""
+        result = await breaker_with_redis.clear_persisted_state()
+
+        assert result is True
+        mock_redis.delete.assert_called_once_with("circuit_breaker:test_redis_breaker")
+
+    @pytest.mark.asyncio
+    async def test_clear_persisted_state_handles_redis_error(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that clear_persisted_state handles Redis errors gracefully."""
+        mock_redis.delete.side_effect = Exception("Redis connection error")
+
+        result = await breaker_with_redis.clear_persisted_state()
+
+        assert result is False
+
+
+class TestRedisPersistenceOnStateTransitions:
+    """Tests for automatic Redis persistence on state transitions."""
+
+    @pytest.fixture
+    def mock_redis(self) -> Any:
+        """Create a mock Redis client."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock = MagicMock()
+        mock.set = AsyncMock(return_value=True)
+        mock.get = AsyncMock(return_value=None)
+        mock.delete = AsyncMock(return_value=1)
+        return mock
+
+    @pytest.fixture
+    def breaker_with_redis(self, mock_redis: Any) -> WebSocketCircuitBreaker:
+        """Create a circuit breaker with mock Redis client."""
+        return WebSocketCircuitBreaker(
+            failure_threshold=3,
+            recovery_timeout=30.0,
+            name="test_persist_breaker",
+            redis_client=mock_redis,
+        )
+
+    @pytest.mark.asyncio
+    async def test_persists_on_closed_to_open_transition(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that state is persisted when transitioning CLOSED -> OPEN."""
+        # Record failures to trigger OPEN state
+        await breaker_with_redis.record_failure_async()
+        await breaker_with_redis.record_failure_async()
+        mock_redis.set.reset_mock()  # Clear previous calls
+
+        await breaker_with_redis.record_failure_async()  # Triggers OPEN
+
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.OPEN
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_persists_on_open_to_half_open_transition(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that state is persisted when transitioning OPEN -> HALF_OPEN."""
+        # Get to OPEN state
+        for _ in range(3):
+            await breaker_with_redis.record_failure_async()
+
+        mock_redis.set.reset_mock()
+
+        # Transition to HALF_OPEN
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = breaker_with_redis._opened_at + 35.0
+            await breaker_with_redis.is_call_permitted_async()
+
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.HALF_OPEN
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_persists_on_half_open_to_closed_transition(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that state is persisted when transitioning HALF_OPEN -> CLOSED."""
+        # Get to HALF_OPEN state
+        for _ in range(3):
+            await breaker_with_redis.record_failure_async()
+
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = breaker_with_redis._opened_at + 35.0
+            await breaker_with_redis.is_call_permitted_async()
+
+        mock_redis.set.reset_mock()
+
+        # Transition to CLOSED
+        await breaker_with_redis.record_success_async()
+
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.CLOSED
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_persists_on_half_open_to_open_transition(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that state is persisted when transitioning HALF_OPEN -> OPEN."""
+        # Get to HALF_OPEN state
+        for _ in range(3):
+            await breaker_with_redis.record_failure_async()
+
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = breaker_with_redis._opened_at + 35.0
+            await breaker_with_redis.is_call_permitted_async()
+
+        mock_redis.set.reset_mock()
+
+        # Transition back to OPEN
+        await breaker_with_redis.record_failure_async()
+
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.OPEN
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_does_not_persist_when_state_unchanged(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that state is NOT persisted when no transition occurs."""
+        # Record failures without triggering OPEN
+        await breaker_with_redis.record_failure_async()
+        mock_redis.set.reset_mock()
+
+        await breaker_with_redis.record_failure_async()  # Still in CLOSED
+
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.CLOSED
+        mock_redis.set.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reset_async_clears_and_persists(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that reset_async clears persisted state and persists new state."""
+        # Get to OPEN state
+        for _ in range(3):
+            await breaker_with_redis.record_failure_async()
+
+        mock_redis.set.reset_mock()
+        mock_redis.delete.reset_mock()
+
+        # Reset
+        await breaker_with_redis.reset_async()
+
+        assert breaker_with_redis.get_state() == WebSocketCircuitState.CLOSED
+        mock_redis.delete.assert_called_once()
+        mock_redis.set.assert_called_once()
+
+
+class TestRestoreStateTimestampAdjustment:
+    """Tests for timestamp adjustment when restoring state from Redis."""
+
+    @pytest.fixture
+    def mock_redis(self) -> Any:
+        """Create a mock Redis client."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock = MagicMock()
+        mock.set = AsyncMock(return_value=True)
+        mock.get = AsyncMock(return_value=None)
+        mock.delete = AsyncMock(return_value=1)
+        return mock
+
+    @pytest.fixture
+    def breaker_with_redis(self, mock_redis: Any) -> WebSocketCircuitBreaker:
+        """Create a circuit breaker with mock Redis client."""
+        return WebSocketCircuitBreaker(
+            failure_threshold=3,
+            recovery_timeout=30.0,
+            name="test_timestamp_breaker",
+            redis_client=mock_redis,
+        )
+
+    @pytest.mark.asyncio
+    async def test_opened_at_adjusted_to_current_time(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that opened_at is adjusted to current monotonic time on restore."""
+        import json
+
+        stored_data = {
+            "state": "open",
+            "failure_count": 3,
+            "opened_at": 1000.0,  # Old timestamp from previous process
+            "consecutive_half_open_failures": 0,
+            "current_backoff_delay": 0.0,
+            "backoff_expires_at": None,
+        }
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        with patch("time.monotonic", return_value=5000.0):
+            await breaker_with_redis.restore_state_from_redis()
+
+        # opened_at should be set to current time (5000.0), not the stored value
+        assert breaker_with_redis._opened_at == 5000.0
+
+    @pytest.mark.asyncio
+    async def test_backoff_expires_at_recalculated(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that backoff_expires_at is recalculated on restore."""
+        import json
+
+        stored_data = {
+            "state": "open",
+            "failure_count": 3,
+            "opened_at": 1000.0,
+            "consecutive_half_open_failures": 2,
+            "current_backoff_delay": 4.0,
+            "backoff_expires_at": 1010.0,  # Old timestamp
+        }
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        with patch("time.monotonic", return_value=5000.0):
+            await breaker_with_redis.restore_state_from_redis()
+
+        # backoff_expires_at should be current_time + current_backoff_delay
+        assert breaker_with_redis._backoff_expires_at == 5004.0
+
+    @pytest.mark.asyncio
+    async def test_opened_at_not_set_for_closed_state(
+        self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
+    ) -> None:
+        """Test that opened_at is not set when restoring CLOSED state."""
+        import json
+
+        stored_data = {
+            "state": "closed",
+            "failure_count": 0,
+            "opened_at": 1000.0,  # Should be ignored for CLOSED state
+            "consecutive_half_open_failures": 0,
+            "current_backoff_delay": 0.0,
+            "backoff_expires_at": None,
+        }
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        await breaker_with_redis.restore_state_from_redis()
+
+        # opened_at should remain None for CLOSED state
+        assert breaker_with_redis._opened_at is None

@@ -6,7 +6,7 @@ Tests cover:
 - GET /api/ai-audit/prompts/history - Get version history
 - GET /api/ai-audit/prompts/{model} - Get prompt for specific model
 - PUT /api/ai-audit/prompts/{model} - Update prompt for model
-- POST /api/ai-audit/prompts/test - Test a prompt configuration
+- POST /api/ai-audit/prompts/test - Test a prompt configuration (with rate limiting)
 - POST /api/ai-audit/prompts/import - Import prompt configurations
 - POST /api/ai-audit/prompts/import/preview - Preview import changes
 - POST /api/ai-audit/prompts/history/{version_id} - Restore a version
@@ -14,7 +14,7 @@ Tests cover:
 
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,7 +22,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # Set DATABASE_URL for tests before importing any backend modules
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+)
 
 from backend.api.routes.prompt_management import _compute_config_diff, router
 from backend.api.schemas.prompt_management import (
@@ -106,11 +109,22 @@ def client(mock_db_session: MagicMock, mock_prompt_service: MagicMock) -> TestCl
 
     app.dependency_overrides[get_db] = override_get_db
 
+    # Mock Redis to prevent connection errors in CI where Redis is not available
+    mock_redis_client = AsyncMock()
+    mock_redis_client.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
     with (
         patch(
             "backend.api.routes.prompt_management.get_prompt_service",
             return_value=mock_prompt_service,
         ),
+        patch("backend.core.redis._redis_client", mock_redis_client),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
+        patch("backend.core.redis.close_redis", return_value=None),
         TestClient(app) as test_client,
     ):
         yield test_client
@@ -303,6 +317,170 @@ class TestGetPromptHistoryEndpoint:
         """Test validation error for invalid model parameter."""
         response = client.get("/api/ai-audit/prompts/history?model=invalid_model")
         assert response.status_code == 422
+
+    def test_get_history_returns_versions_in_descending_order(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that version history is returned newest first (descending order)."""
+        # Create versions with descending order (as they should be returned)
+        mock_versions = [
+            create_mock_prompt_version(version_id=5, version=5, is_active=True),
+            create_mock_prompt_version(version_id=4, version=4, is_active=False),
+            create_mock_prompt_version(version_id=3, version=3, is_active=False),
+            create_mock_prompt_version(version_id=2, version=2, is_active=False),
+            create_mock_prompt_version(version_id=1, version=1, is_active=False),
+        ]
+        # Set distinct timestamps to verify ordering
+        for i, mock_v in enumerate(mock_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(hours=i)
+
+        mock_prompt_service.get_version_history.return_value = (mock_versions, 5)
+
+        response = client.get("/api/ai-audit/prompts/history")
+
+        assert response.status_code == 200
+        data = response.json()
+        versions = data["versions"]
+
+        # Verify versions are in descending order by version number
+        for i in range(len(versions) - 1):
+            assert versions[i]["version"] > versions[i + 1]["version"], (
+                f"Version {versions[i]['version']} should be greater than {versions[i + 1]['version']}"
+            )
+
+        # Also verify the first (newest) version is marked active
+        assert versions[0]["is_active"] is True
+        assert versions[0]["version"] == 5
+
+    def test_get_history_pagination_maintains_consistent_ordering(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that pagination maintains consistent ordering across pages."""
+        # Simulate first page (offset=0, limit=3) - versions 10, 9, 8
+        first_page_versions = [
+            create_mock_prompt_version(version_id=10, version=10, is_active=True),
+            create_mock_prompt_version(version_id=9, version=9, is_active=False),
+            create_mock_prompt_version(version_id=8, version=8, is_active=False),
+        ]
+        for i, mock_v in enumerate(first_page_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(hours=i)
+
+        mock_prompt_service.get_version_history.return_value = (first_page_versions, 10)
+
+        response1 = client.get("/api/ai-audit/prompts/history?limit=3&offset=0")
+        assert response1.status_code == 200
+        data1 = response1.json()
+
+        # Verify first page ordering
+        assert data1["versions"][0]["version"] == 10
+        assert data1["versions"][1]["version"] == 9
+        assert data1["versions"][2]["version"] == 8
+
+        # Simulate second page (offset=3, limit=3) - versions 7, 6, 5
+        second_page_versions = [
+            create_mock_prompt_version(version_id=7, version=7, is_active=False),
+            create_mock_prompt_version(version_id=6, version=6, is_active=False),
+            create_mock_prompt_version(version_id=5, version=5, is_active=False),
+        ]
+        for i, mock_v in enumerate(second_page_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(
+                hours=3 + i
+            )
+
+        mock_prompt_service.get_version_history.return_value = (second_page_versions, 10)
+
+        response2 = client.get("/api/ai-audit/prompts/history?limit=3&offset=3")
+        assert response2.status_code == 200
+        data2 = response2.json()
+
+        # Verify second page ordering
+        assert data2["versions"][0]["version"] == 7
+        assert data2["versions"][1]["version"] == 6
+        assert data2["versions"][2]["version"] == 5
+
+        # Verify no overlap and consistent continuation
+        last_version_first_page = data1["versions"][-1]["version"]
+        first_version_second_page = data2["versions"][0]["version"]
+        assert last_version_first_page > first_version_second_page, (
+            f"Last version of page 1 ({last_version_first_page}) should be greater than "
+            f"first version of page 2 ({first_version_second_page})"
+        )
+
+        # Verify total count is consistent across pages
+        assert data1["total_count"] == data2["total_count"] == 10
+
+    def test_get_history_same_timestamp_orders_by_version(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that versions with same timestamp are ordered by version number descending."""
+        # Create versions with identical timestamps but different version numbers
+        same_timestamp = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+        mock_versions = [
+            create_mock_prompt_version(version_id=3, version=3, is_active=True),
+            create_mock_prompt_version(version_id=2, version=2, is_active=False),
+            create_mock_prompt_version(version_id=1, version=1, is_active=False),
+        ]
+        # Set all versions to have the same timestamp
+        for mock_v in mock_versions:
+            mock_v.created_at = same_timestamp
+
+        mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
+
+        response = client.get("/api/ai-audit/prompts/history")
+
+        assert response.status_code == 200
+        data = response.json()
+        versions = data["versions"]
+
+        # Even with same timestamps, versions should be in descending order by version number
+        assert len(versions) == 3
+        assert versions[0]["version"] == 3
+        assert versions[1]["version"] == 2
+        assert versions[2]["version"] == 1
+
+        # Verify ordering invariant
+        for i in range(len(versions) - 1):
+            assert versions[i]["version"] > versions[i + 1]["version"]
+
+    def test_get_history_model_filter_preserves_ordering(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that filtering by model preserves descending version order."""
+        # Create versions for a specific model
+        mock_versions = [
+            create_mock_prompt_version(version_id=6, version=6, model="florence2", is_active=True),
+            create_mock_prompt_version(version_id=4, version=4, model="florence2", is_active=False),
+            create_mock_prompt_version(version_id=2, version=2, model="florence2", is_active=False),
+        ]
+        for i, mock_v in enumerate(mock_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(days=i)
+
+        mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
+
+        response = client.get("/api/ai-audit/prompts/history?model=florence2")
+
+        assert response.status_code == 200
+        data = response.json()
+        versions = data["versions"]
+
+        # All returned versions should be for florence2
+        assert all(v["model"] == "florence2" for v in versions)
+
+        # Verify ordering is preserved
+        assert versions[0]["version"] == 6
+        assert versions[1]["version"] == 4
+        assert versions[2]["version"] == 2
+
+        for i in range(len(versions) - 1):
+            assert versions[i]["version"] > versions[i + 1]["version"]
 
 
 class TestGetPromptForModelEndpoint:
@@ -567,6 +745,242 @@ class TestTestPromptEndpoint:
         )
 
         assert response.status_code == 422
+
+
+class TestPromptTestRateLimiting:
+    """Tests for rate limiting on POST /api/ai-audit/prompts/test endpoint."""
+
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        """Create a mock Redis client with properly mocked pipeline."""
+        mock = MagicMock()
+        mock._client = MagicMock()
+
+        # Create a mock pipeline that supports async context
+        mock_pipe = MagicMock()
+        mock_pipe.zremrangebyscore = MagicMock()
+        mock_pipe.zcard = MagicMock()
+        mock_pipe.zadd = MagicMock()
+        mock_pipe.expire = MagicMock()
+        mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
+
+        # _ensure_connected is a sync method that returns a Redis client
+        mock_redis_client = MagicMock()
+        mock_redis_client.pipeline = MagicMock(return_value=mock_pipe)
+        mock._ensure_connected = MagicMock(return_value=mock_redis_client)
+
+        return mock
+
+    @pytest.fixture
+    def client_with_rate_limit(
+        self,
+        mock_db_session: MagicMock,
+        mock_prompt_service: MagicMock,
+        mock_redis: MagicMock,
+    ) -> TestClient:
+        """Create a test client with rate limiting enabled."""
+        from backend.core.database import get_db
+        from backend.core.redis import get_redis
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_redis():
+            return mock_redis
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_redis] = override_get_redis
+
+        with (
+            patch(
+                "backend.api.routes.prompt_management.get_prompt_service",
+                return_value=mock_prompt_service,
+            ),
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
+                    "RATE_LIMIT_AI_INFERENCE_BURST": "3",
+                },
+            ),
+            TestClient(app) as test_client,
+        ):
+            # Clear settings cache to pick up new env vars
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+            yield test_client
+            get_settings.cache_clear()
+
+    def test_rate_limit_allows_requests_under_limit(
+        self,
+        client_with_rate_limit: TestClient,
+        mock_prompt_service: MagicMock,
+        mock_redis: MagicMock,
+    ) -> None:
+        """Test that requests under the rate limit are allowed."""
+        mock_prompt_service.test_prompt.return_value = {
+            "before_score": 70,
+            "after_score": 65,
+            "before_response": {"risk_score": 70},
+            "after_response": {"risk_score": 65},
+            "improved": True,
+            "test_duration_ms": 1500,
+            "error": None,
+        }
+
+        # Mock Redis returning count under limit (5 < 13 = 10 + 3 burst)
+        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+        mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
+
+        response = client_with_rate_limit.post(
+            "/api/ai-audit/prompts/test",
+            json={
+                "model": "nemotron",
+                "config": {"system_prompt": "test prompt"},
+                "event_id": 123,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["model"] == "nemotron"
+        assert data["before_score"] == 70
+
+    def test_rate_limit_returns_429_when_exceeded(
+        self,
+        client_with_rate_limit: TestClient,
+        mock_redis: MagicMock,
+    ) -> None:
+        """Test that 429 is returned when rate limit is exceeded."""
+        # Mock Redis returning count over limit (15 > 13 = 10 + 3 burst)
+        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+        mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
+
+        response = client_with_rate_limit.post(
+            "/api/ai-audit/prompts/test",
+            json={
+                "model": "nemotron",
+                "config": {"system_prompt": "test prompt"},
+                "event_id": 123,
+            },
+        )
+
+        assert response.status_code == 429
+        data = response.json()
+        assert "Too many requests" in data["detail"]["error"]
+        assert data["detail"]["tier"] == "ai_inference"
+
+    def test_rate_limit_includes_retry_after_header(
+        self,
+        client_with_rate_limit: TestClient,
+        mock_redis: MagicMock,
+    ) -> None:
+        """Test that 429 response includes Retry-After header."""
+        # Mock Redis returning count over limit
+        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+        mock_pipe.execute = AsyncMock(return_value=[0, 20, 1, True])
+
+        response = client_with_rate_limit.post(
+            "/api/ai-audit/prompts/test",
+            json={
+                "model": "nemotron",
+                "config": {"system_prompt": "test"},
+                "event_id": 1,
+            },
+        )
+
+        assert response.status_code == 429
+        assert "Retry-After" in response.headers
+        assert "X-RateLimit-Limit" in response.headers
+        assert response.headers["X-RateLimit-Remaining"] == "0"
+
+    def test_rate_limit_uses_ai_inference_tier(
+        self,
+        client_with_rate_limit: TestClient,
+        mock_redis: MagicMock,
+    ) -> None:
+        """Test that the endpoint uses AI_INFERENCE tier limits."""
+        # Mock Redis returning count at exactly the limit (13 = 10 + 3 burst)
+        # Count >= limit means rate limited
+        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+        mock_pipe.execute = AsyncMock(return_value=[0, 13, 1, True])
+
+        response = client_with_rate_limit.post(
+            "/api/ai-audit/prompts/test",
+            json={
+                "model": "nemotron",
+                "config": {"system_prompt": "test"},
+                "event_id": 1,
+            },
+        )
+
+        # Should be rate limited when count equals limit
+        assert response.status_code == 429
+        data = response.json()
+        # Verify it's using the AI inference tier
+        assert data["detail"]["tier"] == "ai_inference"
+        # Verify the limit matches configured values (10 + 3 = 13)
+        assert response.headers["X-RateLimit-Limit"] == "13"
+
+    def test_rate_limit_disabled_allows_all_requests(
+        self,
+        mock_db_session: MagicMock,
+        mock_prompt_service: MagicMock,
+        mock_redis: MagicMock,
+    ) -> None:
+        """Test that rate limiting can be disabled."""
+        from backend.core.database import get_db
+        from backend.core.redis import get_redis
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_redis():
+            return mock_redis
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_redis] = override_get_redis
+
+        mock_prompt_service.test_prompt.return_value = {
+            "before_score": 70,
+            "after_score": 65,
+            "improved": True,
+            "test_duration_ms": 1000,
+            "error": None,
+        }
+
+        with (
+            patch(
+                "backend.api.routes.prompt_management.get_prompt_service",
+                return_value=mock_prompt_service,
+            ),
+            patch.dict(os.environ, {"RATE_LIMIT_ENABLED": "false"}),
+            TestClient(app) as test_client,
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            response = test_client.post(
+                "/api/ai-audit/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"system_prompt": "test"},
+                    "event_id": 1,
+                },
+            )
+
+            # Should succeed even with high request count when disabled
+            assert response.status_code == 200
+            get_settings.cache_clear()
 
 
 class TestImportPromptsEndpoint:

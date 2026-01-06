@@ -73,8 +73,8 @@ class DegradationMode(Enum):
     OFFLINE = "offline"
 
 
-class ServiceStatus(Enum):
-    """Service health status."""
+class DegradationServiceStatus(Enum):
+    """Service health status for degradation manager monitoring."""
 
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
@@ -95,7 +95,7 @@ class ServiceHealth:
     """
 
     name: str
-    status: ServiceStatus = ServiceStatus.UNKNOWN
+    status: DegradationServiceStatus = DegradationServiceStatus.UNKNOWN
     last_check: float | None = None
     last_success: float | None = None
     consecutive_failures: int = 0
@@ -104,7 +104,7 @@ class ServiceHealth:
     @property
     def is_healthy(self) -> bool:
         """Check if service is healthy."""
-        return self.status == ServiceStatus.HEALTHY
+        return self.status == DegradationServiceStatus.HEALTHY
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -464,7 +464,7 @@ class DegradationManager:
         """
         if name in self._services:
             return self._services[name].health
-        return ServiceHealth(name=name, status=ServiceStatus.UNKNOWN)
+        return ServiceHealth(name=name, status=DegradationServiceStatus.UNKNOWN)
 
     def is_service_healthy(self, name: str) -> bool:
         """Check if a service is healthy.
@@ -502,13 +502,13 @@ class DegradationManager:
             health.last_check = time.monotonic()
 
             if is_healthy:
-                health.status = ServiceStatus.HEALTHY
+                health.status = DegradationServiceStatus.HEALTHY
                 health.last_success = time.monotonic()
                 health.consecutive_failures = 0
                 health.error_message = None
                 logger.debug(f"Service '{name}' is healthy")
             else:
-                health.status = ServiceStatus.UNHEALTHY
+                health.status = DegradationServiceStatus.UNHEALTHY
                 health.consecutive_failures += 1
                 health.error_message = error_message
                 logger.warning(

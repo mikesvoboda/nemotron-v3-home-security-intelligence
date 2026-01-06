@@ -1,6 +1,7 @@
 """API middleware components."""
 
 from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api_key
+from .correlation import get_correlation_headers, merge_headers_with_correlation
 from .rate_limit import (
     RateLimiter,
     RateLimitTier,
@@ -10,18 +11,30 @@ from .rate_limit import (
     rate_limit_media,
     rate_limit_search,
 )
+from .request_id import (
+    RequestIDMiddleware,
+    get_correlation_id,
+    set_correlation_id,
+)
+from .request_timing import RequestTimingMiddleware
 from .security_headers import SecurityHeadersMiddleware
 
 __all__ = [
     "AuthMiddleware",
     "RateLimitTier",
     "RateLimiter",
+    "RequestIDMiddleware",
+    "RequestTimingMiddleware",
     "SecurityHeadersMiddleware",
     "authenticate_websocket",
     "check_websocket_rate_limit",
     "get_client_ip",
+    "get_correlation_headers",
+    "get_correlation_id",
+    "merge_headers_with_correlation",
     "rate_limit_default",
     "rate_limit_media",
     "rate_limit_search",
+    "set_correlation_id",
     "validate_websocket_api_key",
 ]

@@ -502,18 +502,18 @@ test.describe('Keyboard Navigation', () => {
   test('skip link is available for keyboard users', async ({ page }) => {
     await page.goto('/');
 
-    // First Tab should focus skip link (if implemented)
+    // First Tab should focus skip link
     await page.keyboard.press('Tab');
 
     // Check if there's a skip link
-    const skipLink = page.locator('a[href="#main-content"], a:has-text("Skip to content")');
-    const hasSkipLink = (await skipLink.count()) > 0;
+    const skipLink = page.locator('a[href="#main-content"]');
+    await expect(skipLink).toBeVisible();
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toHaveText('Skip to main content');
 
-    // Skip link is a best practice but not strictly required
-    // Log for informational purposes
-    if (!hasSkipLink) {
-      console.log('Note: Consider adding a skip link for keyboard navigation');
-    }
+    // Verify the skip link target exists
+    const mainContent = page.locator('#main-content');
+    await expect(mainContent).toBeVisible();
   });
 });
 

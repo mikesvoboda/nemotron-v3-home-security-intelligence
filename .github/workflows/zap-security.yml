@@ -1,22 +1,17 @@
 name: ZAP Security Scan
 
 # Dynamic Application Security Testing (DAST) using OWASP ZAP.
-# Runs as a non-blocking check that scans the running API for security vulnerabilities.
+# Runs on merge to main only (not PRs) to save runner capacity.
 #
-# Why non-blocking?
+# Why main-only?
 # - Some ZAP findings may be false positives requiring investigation
 # - Low/Medium alerts are informational and don't block deployment
 # - Only HIGH/CRITICAL alerts should warrant immediate attention
+# - Saves CI runner capacity for required checks on PRs
 #
 # Use the results to identify and prioritize security improvements.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/zap-security.yml'
-      - 'zap-rules.tsv'
   push:
     branches: [main]
     paths:
@@ -75,16 +70,18 @@ jobs:
       REDIS_URL: redis://localhost:6379
       # Disable AI restart since we're in CI (no AI services running)
       AI_RESTART_ENABLED: 'false'
+      # Configure OpenAPI server URL for ZAP scanning (NEM-1314)
+      OPENAPI_SERVER_URL: 'http://localhost:8000'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -127,7 +124,7 @@ jobs:
 
       - name: Run ZAP API Scan
         id: zap_scan
-        uses: zaproxy/action-api-scan@v0.9.0
+        uses: zaproxy/action-api-scan@a9a916402665623ce9d37a6998d7b48e6b35dd6c # v0.9.0
         with:
           target: 'openapi.json'
           format: 'openapi'
@@ -225,7 +222,7 @@ jobs:
 
       - name: Upload ZAP report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: zap-security-report
           path: zap-reports/
@@ -259,7 +256,7 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
           # Only create issue for failures on main branch pushes (not PRs)
-          curl -X POST https://api.linear.app/graphql \
+          response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
@@ -273,4 +270,15 @@ jobs:
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
               }
-            }'
+            }')
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::warning::Failed to create Linear issue (HTTP $http_code)"
+            echo "Response: $body"
+          else
+            echo "Linear issue created successfully"
+            echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+          fi

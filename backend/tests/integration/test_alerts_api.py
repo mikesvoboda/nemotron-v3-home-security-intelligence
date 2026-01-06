@@ -17,6 +17,8 @@ from datetime import datetime
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 def unique_id(prefix: str = "test") -> str:
     """Generate a unique ID for test objects to prevent conflicts."""
@@ -335,7 +337,9 @@ async def test_get_alert_rule_by_id_not_found(client):
 
     assert response.status_code == 404
     data = response.json()
-    assert "not found" in data["detail"].lower()
+    error_msg = get_error_message(data)
+
+    assert "not found" in error_msg.lower()
 
 
 # === UPDATE Tests ===

@@ -1001,3 +1001,102 @@ def test_draw_bounding_boxes_with_none_coordinates(thumbnail_generator):
     result = thumbnail_generator.draw_bounding_boxes(img, detections)
 
     assert isinstance(result, Image.Image)
+
+
+# =============================================================================
+# Test: Async Generate Thumbnail
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_async_generate_thumbnail_success(
+    thumbnail_generator, temp_test_image, sample_detections
+):
+    """Test successful async thumbnail generation with detections."""
+    output_path = await thumbnail_generator.async_generate_thumbnail(
+        image_path=temp_test_image,
+        detections=sample_detections,
+        output_size=(320, 240),
+        detection_id="det_async_001",
+    )
+
+    # Verify output path returned
+    assert output_path is not None
+    assert "det_async_001_thumb.jpg" in output_path
+
+    # Verify file was created
+    assert Path(output_path).exists()
+
+    # Verify image is correct size
+    img = Image.open(output_path)
+    assert img.size == (320, 240)
+    assert img.format == "JPEG"
+
+
+@pytest.mark.asyncio
+async def test_async_generate_thumbnail_no_detection_id(
+    thumbnail_generator, temp_test_image, sample_detections
+):
+    """Test async thumbnail generation without explicit detection_id."""
+    output_path = await thumbnail_generator.async_generate_thumbnail(
+        image_path=temp_test_image,
+        detections=sample_detections,
+    )
+
+    # Should use image filename as detection_id
+    assert output_path is not None
+    assert "_thumb.jpg" in output_path
+    assert Path(output_path).exists()
+
+
+@pytest.mark.asyncio
+async def test_async_generate_thumbnail_empty_detections(thumbnail_generator, temp_test_image):
+    """Test async thumbnail generation with no detections."""
+    output_path = await thumbnail_generator.async_generate_thumbnail(
+        image_path=temp_test_image,
+        detections=[],
+        detection_id="det_async_002",
+    )
+
+    # Should still generate thumbnail, just without bounding boxes
+    assert output_path is not None
+    assert Path(output_path).exists()
+
+
+@pytest.mark.asyncio
+async def test_async_generate_thumbnail_invalid_image_path(thumbnail_generator, sample_detections):
+    """Test async thumbnail generation with non-existent image file."""
+    output_path = await thumbnail_generator.async_generate_thumbnail(
+        image_path="/nonexistent/image.jpg",
+        detections=sample_detections,
+        detection_id="det_async_003",
+    )
+
+    # Should return None and log error
+    assert output_path is None
+
+
+@pytest.mark.asyncio
+async def test_async_generate_thumbnail_does_not_block_event_loop(
+    thumbnail_generator, temp_test_image, sample_detections
+):
+    """Test that async_generate_thumbnail doesn't block the event loop."""
+    import asyncio
+
+    # Create multiple async tasks
+    tasks = [
+        thumbnail_generator.async_generate_thumbnail(
+            image_path=temp_test_image,
+            detections=sample_detections,
+            output_size=(320, 240),
+            detection_id=f"det_async_concurrent_{i}",
+        )
+        for i in range(3)
+    ]
+
+    # All tasks should complete successfully without blocking
+    results = await asyncio.gather(*tasks)
+
+    # All should have generated thumbnails
+    assert all(result is not None for result in results)
+    assert all(Path(result).exists() for result in results)

@@ -20,7 +20,7 @@ Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: Logs dashboard showing statistics cards, filter controls, and log entries table with color-coded severity levels
 -->
 
-![Logs Dashboard](../images/placeholder-logs-dashboard-full.png)
+![Logs dashboard showing four statistics cards at top (Errors Today in red, Warnings Today in yellow, Total Today in green, Most Active Component), a collapsible filter panel with log level, component, camera, and date range dropdowns, and a paginated logs table with timestamp, color-coded level badges (DEBUG, INFO, WARNING, ERROR, CRITICAL), component names, and truncated messages](../images/placeholder-logs-dashboard-full.png)
 _Caption: The Logs Dashboard provides visibility into system operations and helps troubleshoot issues._
 
 ## Overview
@@ -193,7 +193,7 @@ Size: 700x600 pixels (~7:6 aspect ratio)
 Alt text: Log detail modal showing complete log information including metadata, message, and additional JSON data
 -->
 
-![Log Detail Modal](../images/placeholder-log-detail-modal.png)
+![Log detail modal popup showing the complete log entry with header containing component name, full timestamp, and color-coded level badge, followed by the full untruncated message, a metadata table with log ID, source, camera ID, event ID, detection ID, and request ID, and an Additional Data section displaying JSON with syntax highlighting](../images/placeholder-log-detail-modal.png)
 _Caption: Click any log entry to see complete details including metadata and additional data._
 
 **Header Section:**

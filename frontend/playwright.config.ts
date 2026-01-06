@@ -10,6 +10,14 @@ import { defineConfig, devices } from '@playwright/test';
  * - CI: Runs each browser in parallel containers via --project flag
  * - Local: Runs all browsers by default, or specify with --project flag
  *
+ * Test Tagging (NEM-1478):
+ * Tests can be tagged using annotations in test titles:
+ * - @smoke - Critical path tests that should run on every commit
+ * - @critical - High-priority tests for core functionality
+ * - @slow - Tests that take longer to execute
+ * - @flaky - Tests known to be flaky (tracked for stability improvements)
+ * - @network - Tests that simulate network conditions
+ *
  * @example
  * # Run all browsers (local)
  * npm run test:e2e
@@ -22,6 +30,12 @@ import { defineConfig, devices } from '@playwright/test';
  * # Run mobile tests
  * npm run test:e2e -- --project=mobile-chrome
  * npm run test:e2e -- --project=mobile-safari
+ *
+ * # Run tests by tag (selective execution)
+ * npm run test:e2e -- --grep @smoke      # Run only smoke tests
+ * npm run test:e2e -- --grep @critical   # Run only critical tests
+ * npm run test:e2e -- --grep-invert @slow # Exclude slow tests
+ * npm run test:e2e -- --grep "@smoke|@critical" # Run smoke OR critical
  *
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -36,20 +50,25 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only (2 retries to catch flaky tests, especially on secondary browsers)
+  // Retry Configuration (NEM-1477: Test Retry Isolation)
+  // - CI: 2 retries to catch flaky tests (especially on secondary browsers)
+  // - Local: No retries for faster feedback during development
+  // Each retry runs the test in complete isolation with a fresh browser context
   retries: process.env.CI ? 2 : 0,
 
   // Parallel workers: use 4 in CI for speed
   // For CI sharding, run: npx playwright test --shard=1/4
   workers: process.env.CI ? 4 : undefined,
 
-  // Reporter configuration
-  // CI: github (for annotations), html (for artifacts), junit (for duration auditing)
+  // Reporter Configuration (NEM-1477: Flaky Test Detection)
+  // CI: github (annotations), html (artifacts), junit (duration auditing), json (flaky analysis)
+  // The JSON reporter enables post-run analysis of flaky tests (tests that pass on retry)
   reporter: process.env.CI
     ? [
         ['github'],
         ['html', { outputFolder: 'playwright-report' }],
         ['junit', { outputFile: 'test-results/e2e-results.xml' }],
+        ['json', { outputFile: 'test-results/e2e-results.json' }],
       ]
     : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
 
@@ -58,6 +77,10 @@ export default defineConfig({
 
   // Global timeout for each test
   timeout: 15000,
+
+  // Global setup script to optimize test startup (future optimization)
+  // This runs once before all tests, reducing per-test overhead
+  // globalSetup: './tests/e2e/global-setup.ts',  // Uncomment when created
 
   // Expect timeout - keep short for fast feedback
   // Error state tests use explicit longer timeouts where needed
@@ -97,23 +120,54 @@ export default defineConfig({
 
     // Action timeout (clicks, fills, etc.)
     actionTimeout: 5000,
+
+    // NOTE: launchOptions with --disable-gpu moved to Chromium-specific projects
+    // WebKit doesn't support these Chromium-specific flags
   },
 
   // Projects - Multi-browser testing configuration
   // All browsers defined; CI uses --project flag to select specific browser
   // This enables parallel browser testing in separate CI containers
   projects: [
+    // Smoke tests project (NEM-1478: Selective Execution)
+    // Run only tests tagged with @smoke for quick validation
+    // Usage: npx playwright test --project=smoke
+    {
+      name: 'smoke',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /specs\/.*\.spec\.ts$/,
+      grep: /@smoke/,
+    },
+    // Critical tests project (NEM-1478: Selective Execution)
+    // Run only tests tagged with @critical for core functionality validation
+    // Usage: npx playwright test --project=critical
+    {
+      name: 'critical',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /specs\/.*\.spec\.ts$/,
+      grep: /@critical/,
+    },
     // Visual regression tests - run only on Chromium for consistency
     // Visual tests are in tests/e2e/visual/ directory
     {
       name: 'visual-chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       testMatch: /visual\/.*\.spec\.ts$/,
     },
     // Desktop browsers
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       // Only run specs, exclude visual tests (run via visual-chromium project)
       testMatch: /specs\/.*\.spec\.ts$/,
     },
@@ -124,6 +178,9 @@ export default defineConfig({
         // Firefox can be slower - increase action timeout
         actionTimeout: 8000,
       },
+      // Firefox needs longer test timeout for complex workflows
+      // (same as WebKit - runs full 433 test suite without sharding)
+      timeout: 30000,
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },
@@ -143,7 +200,12 @@ export default defineConfig({
     // Mobile viewports (only run locally, not in CI parallel jobs)
     {
       name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
+      use: {
+        ...devices['Pixel 5'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },

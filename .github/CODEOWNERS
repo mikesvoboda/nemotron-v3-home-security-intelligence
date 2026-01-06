@@ -1,8 +1,161 @@
-# Default owner for all files
+# CODEOWNERS Configuration
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# This file defines code ownership for automatic review assignment.
+# Owners are requested for review when changes touch their owned paths.
+#
+# Format: <pattern> <owner> [<owner>...]
+# Owners can be @usernames or @org/team-name
+#
+# Note: Later patterns take precedence over earlier patterns.
+
+# ============================================================================
+# Default Owner - Catch-all for files not matched by specific patterns
+# ============================================================================
 * @mikesvoboda
 
-# Critical paths require explicit review
-backend/ @mikesvoboda
-frontend/ @mikesvoboda
-.github/ @mikesvoboda
+# ============================================================================
+# Critical Infrastructure - Require explicit approval for changes
+# ============================================================================
+
+# CI/CD Configuration
+.github/workflows/ @mikesvoboda
+.github/dependabot.yml @mikesvoboda
+.github/release-drafter.yml @mikesvoboda
+.github/CODEOWNERS @mikesvoboda
+
+# Security-critical files
+.github/codeql/ @mikesvoboda
+.gitleaks.toml @mikesvoboda
+.secrets.baseline @mikesvoboda
+semgrep.yml @mikesvoboda
+
+# Docker and deployment configurations
 docker-compose*.yml @mikesvoboda
+backend/Dockerfile @mikesvoboda
+frontend/Dockerfile @mikesvoboda
+
+# ============================================================================
+# Backend
+# ============================================================================
+
+# Backend root (API, services, models)
+backend/ @mikesvoboda
+
+# API routes - critical for external interface
+backend/api/routes/ @mikesvoboda
+
+# API schemas - affect frontend contract
+backend/api/schemas/ @mikesvoboda
+
+# Core infrastructure (database, config, Redis)
+backend/core/ @mikesvoboda
+
+# Database models and migrations
+backend/models/ @mikesvoboda
+backend/alembic/ @mikesvoboda
+
+# AI pipeline services
+backend/services/ @mikesvoboda
+
+# Backend tests
+backend/tests/ @mikesvoboda
+
+# ============================================================================
+# Frontend
+# ============================================================================
+
+# Frontend root
+frontend/ @mikesvoboda
+
+# React components
+frontend/src/components/ @mikesvoboda
+
+# Custom React hooks (WebSocket, data fetching)
+frontend/src/hooks/ @mikesvoboda
+
+# API client and services
+frontend/src/services/ @mikesvoboda
+
+# Routing configuration
+frontend/src/pages/ @mikesvoboda
+frontend/src/App.tsx @mikesvoboda
+
+# Frontend tests (unit and E2E)
+frontend/src/**/*.test.ts @mikesvoboda
+frontend/src/**/*.test.tsx @mikesvoboda
+frontend/tests/e2e/ @mikesvoboda
+
+# Build and tooling configuration
+frontend/vite.config.ts @mikesvoboda
+frontend/tailwind.config.js @mikesvoboda
+frontend/tsconfig.json @mikesvoboda
+frontend/playwright.config.ts @mikesvoboda
+
+# ============================================================================
+# AI Pipeline
+# ============================================================================
+
+# AI model configurations and scripts
+ai/ @mikesvoboda
+
+# RT-DETR object detection
+ai/rtdetr/ @mikesvoboda
+
+# Nemotron LLM risk analysis
+ai/nemotron/ @mikesvoboda
+
+# ============================================================================
+# Documentation
+# ============================================================================
+
+# All documentation
+docs/ @mikesvoboda
+
+# AGENTS.md files (AI assistant instructions)
+**/AGENTS.md @mikesvoboda
+
+# Main project documentation
+CLAUDE.md @mikesvoboda
+README.md @mikesvoboda
+CHANGELOG.md @mikesvoboda
+
+# ============================================================================
+# Development Tooling
+# ============================================================================
+
+# Python project configuration
+pyproject.toml @mikesvoboda
+uv.lock @mikesvoboda
+
+# Node.js project configuration
+package.json @mikesvoboda
+package-lock.json @mikesvoboda
+frontend/package.json @mikesvoboda
+frontend/package-lock.json @mikesvoboda
+
+# Pre-commit and git hooks
+.pre-commit-config.yaml @mikesvoboda
+commitlint.config.js @mikesvoboda
+
+# Git configuration
+.gitignore @mikesvoboda
+.gitattributes @mikesvoboda
+
+# Scripts
+scripts/ @mikesvoboda
+
+# ============================================================================
+# Monitoring and Operations
+# ============================================================================
+
+# Grafana dashboards and Prometheus config
+monitoring/ @mikesvoboda
+
+# ============================================================================
+# Generated Files - Auto-approve (no human review needed)
+# ============================================================================
+
+# Lock files are auto-generated, but still notify for dependency updates
+# uv.lock @mikesvoboda
+# frontend/package-lock.json @mikesvoboda
