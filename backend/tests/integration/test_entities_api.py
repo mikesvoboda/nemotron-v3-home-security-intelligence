@@ -15,6 +15,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 # Alias for backward compatibility - tests use async_client but conftest provides client
 @pytest.fixture
@@ -190,9 +192,10 @@ class TestEntitiesAPIValidation:
         response = await async_client.get("/api/entities?entity_type=invalid")
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        # Support both old ("detail") and new ("error") formats
+        assert "detail" in data or "error" in data
         # Verify the error message mentions the valid options
-        error_detail = str(data["detail"])
+        error_detail = get_error_message(data)
         assert "entity_type" in error_detail.lower() or "person" in error_detail.lower()
 
     async def test_combined_filters(self, async_client):

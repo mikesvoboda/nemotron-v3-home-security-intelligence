@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.models.gpu_stats import GPUStats
+from backend.tests.integration.test_helpers import get_error_message
 
 
 @pytest.mark.asyncio
@@ -915,7 +916,8 @@ async def test_reset_circuit_breaker_not_found(client, mock_redis):
 
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     finally:
         reset_circuit_breaker_registry()
@@ -928,7 +930,8 @@ async def test_reset_circuit_breaker_invalid_name(client, mock_redis):
 
     assert response.status_code == 400
     data = response.json()
-    assert "invalid" in data["detail"].lower()
+    error_msg = get_error_message(data)
+    assert "invalid" in error_msg.lower()
 
 
 @pytest.mark.asyncio
@@ -941,7 +944,8 @@ async def test_reset_circuit_breaker_empty_name(client, mock_redis):
 
     assert response.status_code == 400
     data = response.json()
-    assert "invalid" in data["detail"].lower() or "1-64 characters" in data["detail"]
+    error_msg = get_error_message(data)
+    assert "invalid" in error_msg.lower() or "1-64 characters" in error_msg
 
 
 # =============================================================================
@@ -1606,7 +1610,7 @@ async def test_update_severity_thresholds_invalid_order(client, mock_redis):
     assert response.status_code == 400
     data = response.json()
     # Error message should indicate ordering constraint violation
-    detail_lower = data["detail"].lower()
+    detail_lower = get_error_message(data).lower()
     assert (
         "invalid" in detail_lower
         or "must satisfy" in detail_lower
@@ -1628,7 +1632,7 @@ async def test_update_severity_thresholds_medium_gte_high(client, mock_redis):
     assert response.status_code == 400
     data = response.json()
     # Error message should indicate ordering constraint violation
-    detail_lower = data["detail"].lower()
+    detail_lower = get_error_message(data).lower()
     assert (
         "invalid" in detail_lower
         or "must satisfy" in detail_lower

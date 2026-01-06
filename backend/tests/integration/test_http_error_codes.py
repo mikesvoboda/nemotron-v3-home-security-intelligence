@@ -22,6 +22,8 @@ from unittest.mock import patch
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 # =============================================================================
 # 409 Conflict Tests - Duplicate Creation and Uniqueness Violations
 # =============================================================================
@@ -48,7 +50,7 @@ class TestCameraConflicts:
         # Second creation with same name should fail with 409
         second_response = await client.post("/api/cameras", json=camera_data_2)
         assert second_response.status_code == 409, f"Expected 409, got: {second_response.json()}"
-        detail = second_response.json()["detail"]
+        detail = get_error_message(second_response.json())
         assert "already exists" in detail.lower()
 
     @pytest.mark.asyncio
@@ -68,7 +70,7 @@ class TestCameraConflicts:
         # Second creation with same folder_path should fail with 409
         second_response = await client.post("/api/cameras", json=camera_data_2)
         assert second_response.status_code == 409, f"Expected 409, got: {second_response.json()}"
-        detail = second_response.json()["detail"]
+        detail = get_error_message(second_response.json())
         assert "already exists" in detail.lower()
 
     @pytest.mark.asyncio
@@ -86,7 +88,7 @@ class TestCameraConflicts:
         # Second creation with same name AND path fails with 409
         second_response = await client.post("/api/cameras", json=camera_data)
         assert second_response.status_code == 409
-        assert "already exists" in second_response.json()["detail"].lower()
+        assert "already exists" in get_error_message(second_response.json()).lower()
 
 
 class TestZoneConflicts:
@@ -250,7 +252,7 @@ class TestDLQEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["valid-test-key"],
@@ -259,7 +261,9 @@ class TestDLQEndpointAuth:
         with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
             response = await client.post("/api/dlq/requeue/dlq:detection")
             assert response.status_code == 401
-            assert "api key" in response.json()["detail"].lower()
+            data = response.json()
+        error_msg = get_error_message(data)
+        assert "api key" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_dlq_requeue_all_requires_api_key(self, client, mock_redis):
@@ -267,7 +271,7 @@ class TestDLQEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["valid-test-key"],
@@ -283,7 +287,7 @@ class TestDLQEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["valid-test-key"],
@@ -299,7 +303,7 @@ class TestDLQEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["valid-key"],
@@ -311,7 +315,9 @@ class TestDLQEndpointAuth:
                 headers={"X-API-Key": "wrong-key"},
             )
             assert response.status_code == 401
-            assert "invalid" in response.json()["detail"].lower()
+            data = response.json()
+        error_msg = get_error_message(data)
+        assert "invalid" in error_msg.lower()
 
     @pytest.mark.asyncio
     async def test_dlq_valid_api_key_allowed(self, client, mock_redis):
@@ -319,7 +325,7 @@ class TestDLQEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["valid-test-key"],
@@ -350,7 +356,7 @@ class TestSystemEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["config-key"],
@@ -369,7 +375,7 @@ class TestSystemEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["cleanup-key"],
@@ -385,7 +391,7 @@ class TestSystemEndpointAuth:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["cb-key"],
@@ -545,8 +551,9 @@ class TestErrorResponseFormat:
 
         assert response.status_code == 409
         data = response.json()
-        assert "detail" in data
-        assert isinstance(data["detail"], str)
+        error_msg = get_error_message(data)
+        assert error_msg
+        assert isinstance(get_error_message(data), str)
 
     @pytest.mark.asyncio
     async def test_401_response_has_detail(self, client, mock_redis):
@@ -554,7 +561,7 @@ class TestErrorResponseFormat:
         from backend.core.config import Settings
 
         mock_settings = Settings(
-            database_url="postgresql+asyncpg://test:test@localhost/test",
+            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             redis_url="redis://localhost:6379",
             api_key_enabled=True,
             api_keys=["key"],
@@ -565,7 +572,8 @@ class TestErrorResponseFormat:
 
         assert response.status_code == 401
         data = response.json()
-        assert "detail" in data
+        error_msg = get_error_message(data)
+        assert error_msg
 
     @pytest.mark.asyncio
     async def test_403_response_has_detail(self, client, mock_redis):
@@ -574,7 +582,8 @@ class TestErrorResponseFormat:
 
         assert response.status_code == 403
         data = response.json()
-        assert "detail" in data
+        error_msg = get_error_message(data)
+        assert error_msg
 
     @pytest.mark.asyncio
     async def test_error_responses_are_json(self, client, mock_redis):
@@ -623,7 +632,7 @@ class TestConflictEdgeCases:
         )
         assert second_response.status_code == 409
         # Check that the detail contains useful information
-        detail = second_response.json()["detail"]
+        detail = get_error_message(second_response.json())
         assert first_camera_id in detail or "already exists" in detail.lower()
 
     @pytest.mark.asyncio

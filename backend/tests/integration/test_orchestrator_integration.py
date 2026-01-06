@@ -28,6 +28,7 @@ from backend.core.config import OrchestratorSettings
 from backend.core.docker_client import DockerClient
 from backend.services.container_orchestrator import ContainerOrchestrator
 from backend.services.service_registry import ManagedService, ServiceRegistry
+from backend.tests.integration.test_helpers import get_error_message
 
 if TYPE_CHECKING:
     from docker.models.containers import Container as DockerContainer
@@ -964,7 +965,9 @@ async def test_api_service_not_found(
             response = await client.post("/api/system/services/unknown-service/restart")
 
             assert response.status_code == 404
-            assert "not found" in response.json()["detail"].lower()
+            data = response.json()
+    error_msg = get_error_message(data)
+    assert "not found" in error_msg.lower()
 
 
 # =============================================================================
