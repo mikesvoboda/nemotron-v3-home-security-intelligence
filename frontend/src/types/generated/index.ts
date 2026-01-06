@@ -292,3 +292,33 @@ export interface AiAuditRecommendationsResponse {
 
 // Import the components type for use in type aliases
 import type { components } from './api';
+
+// Re-export branded types for entity IDs
+export {
+  type AlertRuleId,
+  type AnyEntityId,
+  type AuditLogId,
+  type Brand,
+  type CameraId,
+  type DetectionId,
+  type EntityId,
+  type EntityIdMap,
+  type EntityIdType,
+  type EventId,
+  type Unbrand,
+  type ZoneId,
+  asAlertRuleId,
+  asAuditLogId,
+  asCameraId,
+  asDetectionId,
+  asEntityId,
+  asEventId,
+  asZoneId,
+  isAlertRuleId,
+  isAuditLogId,
+  isCameraId,
+  isDetectionId,
+  isEntityId,
+  isEventId,
+  isZoneId,
+} from '../branded';
