@@ -374,6 +374,36 @@ class TestGPUStatsTableArgs:
         """Test GPUStats has correct table name."""
         assert GPUStats.__tablename__ == "gpu_stats"
 
+    def test_gpu_stats_has_recorded_at_brin_index(self):
+        """Test GPUStats has BRIN index on recorded_at (NEM-1541)."""
+        indexes = GPUStats.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "ix_gpu_stats_recorded_at_brin" in index_names
+
+    def test_gpu_stats_recorded_at_brin_index_uses_brin(self):
+        """Test recorded_at index uses BRIN index type (NEM-1541)."""
+        indexes = GPUStats.__table_args__
+        brin_idx = None
+        for idx in indexes:
+            if hasattr(idx, "name") and idx.name == "ix_gpu_stats_recorded_at_brin":
+                brin_idx = idx
+                break
+        assert brin_idx is not None
+        # Check that the index uses BRIN via postgresql_using
+        assert brin_idx.dialect_options.get("postgresql", {}).get("using") == "brin"
+
+    def test_gpu_stats_recorded_at_brin_index_column(self):
+        """Test BRIN index is on recorded_at column (NEM-1541)."""
+        indexes = GPUStats.__table_args__
+        brin_idx = None
+        for idx in indexes:
+            if hasattr(idx, "name") and idx.name == "ix_gpu_stats_recorded_at_brin":
+                brin_idx = idx
+                break
+        assert brin_idx is not None
+        column_names = [col.name for col in brin_idx.columns]
+        assert column_names == ["recorded_at"]
+
 
 # =============================================================================
 # Property-based Tests

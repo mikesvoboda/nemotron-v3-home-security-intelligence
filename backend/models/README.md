@@ -41,6 +41,7 @@ Represents an object detection result from RT-DETRv2.
 **Relationships:**
 
 - `camera`: Many-to-one with Camera
+- `event_records`: One-to-many with EventDetection (junction table)
 
 **Indexes:**
 
@@ -70,6 +71,7 @@ Represents a security event aggregated from multiple detections.
 **Relationships:**
 
 - `camera`: Many-to-one with Camera
+- `detection_records`: One-to-many with EventDetection (junction table)
 
 **Indexes:**
 
@@ -78,6 +80,28 @@ Represents a security event aggregated from multiple detections.
 - `idx_events_risk_score`: For risk-based queries
 - `idx_events_reviewed`: For review status queries
 - `idx_events_batch_id`: For batch processing queries
+
+### EventDetection (`event_detection.py`)
+
+Junction/association table for Event-Detection many-to-many relationship.
+This normalizes the relationship from the legacy detection_ids JSON array column.
+
+**Fields:**
+
+- `event_id` (int, PK, FK): References events.id (CASCADE delete)
+- `detection_id` (int, PK, FK): References detections.id (CASCADE delete)
+- `created_at` (datetime): When the association was created
+
+**Relationships:**
+
+- `event`: Many-to-one with Event
+- `detection`: Many-to-one with Detection
+
+**Indexes:**
+
+- `idx_event_detections_event_id`: For event-based queries
+- `idx_event_detections_detection_id`: For detection-based queries
+- `idx_event_detections_created_at`: For time-based queries
 
 ### GPUStats (`gpu_stats.py`)
 

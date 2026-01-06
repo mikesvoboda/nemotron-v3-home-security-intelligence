@@ -128,6 +128,11 @@ from .ocr_service import (
     read_plates,
     read_single_plate,
 )
+from .partition_manager import (
+    PartitionConfig,
+    PartitionInfo,
+    PartitionManager,
+)
 from .plate_detector import (
     PlateDetection,
     VehicleDetection,
@@ -261,6 +266,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "NotificationChannel",
     "NotificationDelivery",
     "NotificationService",
+    "PartitionConfig",
+    "PartitionInfo",
+    "PartitionManager",
     "PersonAttributes",
     "PersonDetection",
     "PlateDetection",
