@@ -2,8 +2,14 @@
 
 This module provides PostgreSQL database connectivity using asyncpg,
 along with SQL utility functions like ILIKE pattern escaping.
+
+Includes event loop tracking to handle pytest-asyncio's per-test event loops.
+When the engine is bound to a different event loop than the current one,
+it is automatically disposed and recreated to prevent "Future attached to
+a different loop" errors.
 """
 
+import asyncio
 import hashlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -77,6 +83,11 @@ class Base(DeclarativeBase):
 _engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
+# Track which event loop the engine was created in
+# This is used to detect when pytest-asyncio creates a new loop per test
+# and automatically recreate the engine to prevent "Future attached to different loop" errors
+_bound_loop_id: int | None = None
+
 
 def get_engine() -> AsyncEngine:
     """Get or create the global async database engine.
@@ -119,8 +130,36 @@ async def init_db() -> None:
     will skip schema creation if they cannot acquire the lock.
 
     Requires PostgreSQL with asyncpg driver (postgresql+asyncpg://).
+
+    Note: This function tracks the event loop where the engine was created.
+    If called from a different event loop (e.g., pytest-asyncio's per-test loops),
+    the existing engine is automatically disposed and recreated.
     """
-    global _engine, _async_session_factory  # noqa: PLW0603
+    global _engine, _async_session_factory, _bound_loop_id  # noqa: PLW0603
+
+    # Get current event loop ID
+    try:
+        current_loop = asyncio.get_running_loop()
+        current_loop_id = id(current_loop)
+    except RuntimeError:
+        current_loop_id = None
+
+    # If engine exists but was created in a different event loop,
+    # dispose it first to avoid "Future attached to different loop" errors
+    if _engine is not None and _bound_loop_id is not None and _bound_loop_id != current_loop_id:
+        try:
+            # Reset globals before disposal to avoid issues
+            old_engine = _engine
+            _engine = None
+            _async_session_factory = None
+            _bound_loop_id = None
+            # Try to dispose - this may fail if loop is already closed
+            await old_engine.dispose()
+        except Exception:  # noqa: S110
+            # If disposal fails, that's okay - we've already cleared the globals
+            # This can happen when the old loop is closed or when there are
+            # pending async operations that can't complete
+            pass
 
     settings = get_settings()
     db_url = settings.database_url
@@ -149,6 +188,9 @@ async def init_db() -> None:
 
     # Create async engine
     _engine = create_async_engine(db_url, **engine_kwargs)
+
+    # Store the event loop ID where this engine was created
+    _bound_loop_id = current_loop_id
 
     # Create session factory
     _async_session_factory = async_sessionmaker(
@@ -192,7 +234,7 @@ async def close_db() -> None:
 
     This function should be called during application shutdown.
     """
-    global _engine, _async_session_factory  # noqa: PLW0603
+    global _engine, _async_session_factory, _bound_loop_id  # noqa: PLW0603
 
     if _engine is not None:
         try:
@@ -208,11 +250,32 @@ async def close_db() -> None:
         finally:
             _engine = None
             _async_session_factory = None
+            _bound_loop_id = None
+
+
+def _check_loop_mismatch() -> bool:
+    """Check if the current event loop differs from where the engine was created.
+
+    Returns:
+        True if there's a mismatch (engine bound to different loop), False otherwise.
+    """
+    if _engine is None or _bound_loop_id is None:
+        return False
+
+    try:
+        current_loop = asyncio.get_running_loop()
+        return id(current_loop) != _bound_loop_id
+    except RuntimeError:
+        return False
 
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession]:
     """Get an async database session as a context manager.
+
+    Automatically handles event loop mismatches by reinitializing the
+    database engine when the current loop differs from where the engine
+    was created (common in pytest-asyncio with function-scoped loops).
 
     Usage:
         async with get_session() as session:
@@ -225,6 +288,10 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
     Raises:
         RuntimeError: If database has not been initialized.
     """
+    # Check for event loop mismatch and auto-reinitialize if needed
+    if _check_loop_mismatch():
+        await init_db()
+
     factory = get_session_factory()
     async with factory() as session:
         try:
@@ -249,6 +316,10 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
     Yields:
         AsyncSession: An async SQLAlchemy session.
     """
+    # Check for event loop mismatch and auto-reinitialize if needed
+    if _check_loop_mismatch():
+        await init_db()
+
     factory = get_session_factory()
     async with factory() as session:
         try:

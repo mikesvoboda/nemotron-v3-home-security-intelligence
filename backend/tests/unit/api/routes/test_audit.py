@@ -176,14 +176,22 @@ class TestGetAuditStatsOptimized:
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that aggregated values are correctly parsed and returned."""
-        mock_agg_result = MagicMock()
-        mock_row = MagicMock()
-        mock_row.total_logs = 150
-        mock_row.logs_today = 25
-        mock_row.by_action = '{"camera_created": 50, "event_reviewed": 40, "settings_changed": 30, "rule_updated": 30}'
-        mock_row.by_resource_type = '{"camera": 60, "event": 50, "settings": 25, "rule": 15}'
-        mock_row.by_status = '{"success": 140, "failure": 10}'
-        mock_agg_result.one_or_none.return_value = mock_row
+        # Mock UNION ALL result (category, key, count) tuples
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 150),
+            ("today", "all", 25),
+            ("action", "camera_created", 50),
+            ("action", "event_reviewed", 40),
+            ("action", "settings_changed", 30),
+            ("action", "rule_updated", 30),
+            ("resource_type", "camera", 60),
+            ("resource_type", "event", 50),
+            ("resource_type", "settings", 25),
+            ("resource_type", "rule", 15),
+            ("status", "success", 140),
+            ("status", "failure", 10),
+        ]
 
         mock_actors_result = MagicMock()
         mock_actors_result.__iter__ = lambda _self: iter(
@@ -194,7 +202,7 @@ class TestGetAuditStatsOptimized:
             ]
         )
 
-        mock_db_session.execute.side_effect = [mock_agg_result, mock_actors_result]
+        mock_db_session.execute.side_effect = [union_result, mock_actors_result]
 
         response = client.get("/api/audit/stats")
 
@@ -283,19 +291,21 @@ class TestGetAuditStatsOptimized:
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that response matches AuditLogStats schema for backwards compatibility."""
-        mock_agg_result = MagicMock()
-        mock_row = MagicMock()
-        mock_row.total_logs = 100
-        mock_row.logs_today = 10
-        mock_row.by_action = '{"camera_created": 30}'
-        mock_row.by_resource_type = '{"camera": 40}'
-        mock_row.by_status = '{"success": 85, "failure": 15}'
-        mock_agg_result.one_or_none.return_value = mock_row
+        # Mock UNION ALL result (category, key, count) tuples
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 100),
+            ("today", "all", 10),
+            ("action", "camera_created", 30),
+            ("resource_type", "camera", 40),
+            ("status", "success", 85),
+            ("status", "failure", 15),
+        ]
 
         mock_actors_result = MagicMock()
         mock_actors_result.__iter__ = lambda _self: iter([MagicMock(actor="admin")])
 
-        mock_db_session.execute.side_effect = [mock_agg_result, mock_actors_result]
+        mock_db_session.execute.side_effect = [union_result, mock_actors_result]
 
         response = client.get("/api/audit/stats")
 
@@ -314,29 +324,28 @@ class TestGetAuditStatsOptimized:
         assert validated.by_status == {"success": 85, "failure": 15}
         assert validated.recent_actors == ["admin"]
 
-    def test_audit_stats_handles_empty_string_json(
+    def test_audit_stats_handles_no_category_data(
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
-        """Test that endpoint handles empty JSON string results."""
-        mock_agg_result = MagicMock()
-        mock_row = MagicMock()
-        mock_row.total_logs = 0
-        mock_row.logs_today = 0
-        mock_row.by_action = ""
-        mock_row.by_resource_type = ""
-        mock_row.by_status = ""
-        mock_agg_result.one_or_none.return_value = mock_row
+        """Test that endpoint handles when no data exists for some categories."""
+        # Mock UNION ALL result - only total and today, no actions/resources/status
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 0),
+            ("today", "all", 0),
+            # No action, resource_type, or status rows
+        ]
 
         mock_actors_result = MagicMock()
         mock_actors_result.__iter__ = lambda _self: iter([])
 
-        mock_db_session.execute.side_effect = [mock_agg_result, mock_actors_result]
+        mock_db_session.execute.side_effect = [union_result, mock_actors_result]
 
         response = client.get("/api/audit/stats")
 
         assert response.status_code == 200
         data = response.json()
-        # Should return empty dicts for empty strings
+        # Should return empty dicts when no data for categories
         assert data["by_action"] == {}
         assert data["by_resource_type"] == {}
         assert data["by_status"] == {}
