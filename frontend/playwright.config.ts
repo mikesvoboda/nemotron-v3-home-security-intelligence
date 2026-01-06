@@ -102,11 +102,8 @@ export default defineConfig({
     // Action timeout (clicks, fills, etc.)
     actionTimeout: 5000,
 
-    // Optimize for faster test execution in CI
-    launchOptions: {
-      // Disable GPU acceleration for consistency and speed in CI
-      args: ['--disable-gpu', '--disable-dev-shm-usage'],
-    },
+    // NOTE: launchOptions with --disable-gpu moved to Chromium-specific projects
+    // WebKit doesn't support these Chromium-specific flags
   },
 
   // Projects - Multi-browser testing configuration
@@ -117,13 +114,23 @@ export default defineConfig({
     // Visual tests are in tests/e2e/visual/ directory
     {
       name: 'visual-chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       testMatch: /visual\/.*\.spec\.ts$/,
     },
     // Desktop browsers
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       // Only run specs, exclude visual tests (run via visual-chromium project)
       testMatch: /specs\/.*\.spec\.ts$/,
     },
@@ -153,7 +160,12 @@ export default defineConfig({
     // Mobile viewports (only run locally, not in CI parallel jobs)
     {
       name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
+      use: {
+        ...devices['Pixel 5'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },
