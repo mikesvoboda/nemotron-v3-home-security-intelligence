@@ -2,7 +2,7 @@
 # Uses HuggingFace Transformers for model loading and inference
 # Port: 8092 | Expected VRAM: ~1.2GB
 
-FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+FROM docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="Florence-2 vision-language server for attribute extraction"
