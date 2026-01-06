@@ -1,11 +1,8 @@
 name: Visual Regression Tests
 
+# Runs on merge to main only (not PRs) to save runner capacity.
+
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/visual-tests.yml'
   push:
     branches: [main]
     paths:

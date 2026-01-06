@@ -1,22 +1,17 @@
 name: ZAP Security Scan
 
 # Dynamic Application Security Testing (DAST) using OWASP ZAP.
-# Runs as a non-blocking check that scans the running API for security vulnerabilities.
+# Runs on merge to main only (not PRs) to save runner capacity.
 #
-# Why non-blocking?
+# Why main-only?
 # - Some ZAP findings may be false positives requiring investigation
 # - Low/Medium alerts are informational and don't block deployment
 # - Only HIGH/CRITICAL alerts should warrant immediate attention
+# - Saves CI runner capacity for required checks on PRs
 #
 # Use the results to identify and prioritize security improvements.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/zap-security.yml'
-      - 'zap-rules.tsv'
   push:
     branches: [main]
     paths:

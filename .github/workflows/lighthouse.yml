@@ -1,11 +1,8 @@
 name: Lighthouse Performance Tests
 
+# Runs on merge to main only (not PRs) to save runner capacity.
+
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/lighthouse.yml'
   push:
     branches: [main]
     paths:

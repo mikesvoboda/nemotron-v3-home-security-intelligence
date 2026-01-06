@@ -1,21 +1,17 @@
 name: Load Tests
 
 # Load testing verifies API performance under various traffic conditions.
-# Runs as a non-blocking check with smoke tests on PRs and scheduled stress tests weekly.
+# Runs on merge to main and scheduled stress tests weekly (not on PRs to save runner capacity).
 #
-# Why non-blocking?
+# Why main-only?
 # - Load test results can vary due to resource availability
 # - Failing thresholds don't always indicate real problems
 # - Performance baselines evolve over time
+# - Saves CI runner capacity for required checks on PRs
 #
-# Use the results to identify performance regressions, not to block PRs.
+# Use the results to identify performance regressions after merge.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/load-tests.yml'
   push:
     branches: [main]
     paths:
