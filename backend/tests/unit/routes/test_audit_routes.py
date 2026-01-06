@@ -153,36 +153,36 @@ class TestListAuditLogs:
 
 
 class TestGetAuditStats:
-    """Tests for GET /api/audit/stats endpoint."""
+    """Tests for GET /api/audit/stats endpoint.
+
+    The endpoint uses an optimized query strategy:
+    - One UNION ALL query for total, today, by_action, by_resource_type, by_status
+    - One separate query for recent_actors (requires different filtering)
+    """
 
     def test_get_audit_stats(self, client: TestClient, mock_db_session: AsyncMock) -> None:
-        """Test getting audit statistics."""
-        # Mock all the different queries
-        mock_total = MagicMock()
-        mock_total.scalar.return_value = 100
+        """Test getting audit statistics with optimized 2-query implementation."""
+        # Mock the combined UNION ALL query result
+        # Returns rows with (category, key, count) structure - uses tuples for index access
+        mock_combined_result = MagicMock()
+        mock_combined_result.fetchall.return_value = [
+            ("total", "all", 100),
+            ("today", "all", 10),
+            ("action", "camera_created", 25),
+            ("resource_type", "camera", 30),
+            ("status", "success", 95),
+        ]
 
-        mock_today = MagicMock()
-        mock_today.scalar.return_value = 10
+        # Mock the recent actors query result
+        mock_actor_row = MagicMock()
+        mock_actor_row.actor = "admin"
+        mock_actors_result = MagicMock()
+        mock_actors_result.__iter__ = lambda _self: iter([mock_actor_row])
 
-        mock_action = MagicMock()
-        mock_action.__iter__ = lambda _self: iter([])
-
-        mock_resource = MagicMock()
-        mock_resource.__iter__ = lambda _self: iter([])
-
-        mock_status = MagicMock()
-        mock_status.__iter__ = lambda _self: iter([])
-
-        mock_actors = MagicMock()
-        mock_actors.__iter__ = lambda _self: iter([])
-
+        # Set up the mock to return different results for the 2 queries
         mock_db_session.execute.side_effect = [
-            mock_total,
-            mock_today,
-            mock_action,
-            mock_resource,
-            mock_status,
-            mock_actors,
+            mock_combined_result,
+            mock_actors_result,
         ]
 
         response = client.get("/api/audit/stats")
@@ -191,10 +191,98 @@ class TestGetAuditStats:
         data = response.json()
         assert data["total_logs"] == 100
         assert data["logs_today"] == 10
-        assert "by_action" in data
-        assert "by_resource_type" in data
-        assert "by_status" in data
-        assert "recent_actors" in data
+        assert data["by_action"] == {"camera_created": 25}
+        assert data["by_resource_type"] == {"camera": 30}
+        assert data["by_status"] == {"success": 95}
+        assert data["recent_actors"] == ["admin"]
+
+        # Verify only 2 database queries were made (optimized from 6)
+        assert mock_db_session.execute.call_count == 2
+
+    def test_get_audit_stats_empty_data(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test getting audit statistics when no data exists."""
+        # Mock empty UNION ALL query result - uses tuples for index access
+        mock_combined_result = MagicMock()
+        mock_combined_result.fetchall.return_value = [
+            ("total", "all", 0),
+            ("today", "all", 0),
+        ]
+
+        # Mock empty recent actors
+        mock_actors_result = MagicMock()
+        mock_actors_result.__iter__ = lambda _self: iter([])
+
+        mock_db_session.execute.side_effect = [
+            mock_combined_result,
+            mock_actors_result,
+        ]
+
+        response = client.get("/api/audit/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_logs"] == 0
+        assert data["logs_today"] == 0
+        assert data["by_action"] == {}
+        assert data["by_resource_type"] == {}
+        assert data["by_status"] == {}
+        assert data["recent_actors"] == []
+
+    def test_get_audit_stats_multiple_actions_and_statuses(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test stats with multiple action types and statuses."""
+        # Build combined result with multiple actions and statuses - uses tuples for index access
+        rows = [
+            ("total", "all", 500),
+            ("today", "all", 50),
+            # Multiple actions
+            ("action", "camera_created", 100),
+            ("action", "event_reviewed", 200),
+            ("action", "settings_changed", 50),
+            # Multiple resource types
+            ("resource_type", "camera", 150),
+            ("resource_type", "event", 200),
+            ("resource_type", "settings", 50),
+            # Multiple statuses
+            ("status", "success", 450),
+            ("status", "failure", 50),
+        ]
+
+        mock_combined_result = MagicMock()
+        mock_combined_result.fetchall.return_value = rows
+
+        # Mock multiple recent actors
+        actors = []
+        for actor_name in ["admin", "system", "user1"]:
+            actor_row = MagicMock()
+            actor_row.actor = actor_name
+            actors.append(actor_row)
+
+        mock_actors_result = MagicMock()
+        mock_actors_result.__iter__ = lambda _self, _actors=actors: iter(_actors)
+
+        mock_db_session.execute.side_effect = [
+            mock_combined_result,
+            mock_actors_result,
+        ]
+
+        response = client.get("/api/audit/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_logs"] == 500
+        assert data["logs_today"] == 50
+        assert data["by_action"] == {
+            "camera_created": 100,
+            "event_reviewed": 200,
+            "settings_changed": 50,
+        }
+        assert data["by_resource_type"] == {"camera": 150, "event": 200, "settings": 50}
+        assert data["by_status"] == {"success": 450, "failure": 50}
+        assert data["recent_actors"] == ["admin", "system", "user1"]
 
 
 # =============================================================================

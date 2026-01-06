@@ -860,6 +860,10 @@ export interface paths {
          *     - Breakdown by status
          *     - Recently active actors
          *
+         *     This endpoint is optimized to use a single aggregation query for counts
+         *     (total, today, by_action, by_resource_type, by_status) plus one query
+         *     for recent actors, reducing database round-trips from 6 to 2.
+         *
          *     Args:
          *         db: Database session
          *
@@ -2305,6 +2309,10 @@ export interface paths {
         /**
          * Get Log Stats
          * @description Get log statistics for dashboard.
+         *
+         *     Optimized to use a single aggregation query with conditional counting
+         *     instead of 5 separate queries. This reduces database round-trips and
+         *     improves performance for high-volume log tables.
          */
         get: operations["get_log_stats_api_logs_stats_get"];
         put?: never;

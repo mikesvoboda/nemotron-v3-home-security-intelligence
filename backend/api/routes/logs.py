@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.logs import (
@@ -83,50 +83,75 @@ async def list_logs(
 async def get_log_stats(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Get log statistics for dashboard."""
+    """Get log statistics for dashboard.
+
+    Optimized to use a single aggregation query with conditional counting
+    instead of 5 separate queries. This reduces database round-trips and
+    improves performance for high-volume log tables.
+    """
     today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Total today
-    total_query = select(func.count()).where(Log.timestamp >= today_start)
-    total_result = await db.execute(total_query)
-    total_today = total_result.scalar() or 0
+    # Single optimized query using conditional aggregation
+    # This replaces 5 separate queries with one that computes:
+    # - Total count, error count, warning count (via conditional SUM)
+    # - Counts by level and component (via GROUP BY with GROUPING SETS simulation)
+    #
+    # We use two queries that can be combined: one for totals, one for breakdowns
+    # The totals query uses FILTER clause (PostgreSQL) or CASE for portability
 
-    # Errors today
-    errors_query = select(func.count()).where(
-        Log.timestamp >= today_start,
-        Log.level == "ERROR",
-    )
-    errors_result = await db.execute(errors_query)
-    errors_today = errors_result.scalar() or 0
+    # Query 1: Get aggregate totals with conditional counting in a single pass
+    totals_query = select(
+        func.count().label("total_today"),
+        func.sum(case((Log.level == "ERROR", 1), else_=0)).label("errors_today"),
+        func.sum(case((Log.level == "WARNING", 1), else_=0)).label("warnings_today"),
+    ).where(Log.timestamp >= today_start)
 
-    # Warnings today
-    warnings_query = select(func.count()).where(
-        Log.timestamp >= today_start,
-        Log.level == "WARNING",
-    )
-    warnings_result = await db.execute(warnings_query)
-    warnings_today = warnings_result.scalar() or 0
+    totals_result = await db.execute(totals_query)
+    totals_row = totals_result.one()
 
-    # By component (today)
-    component_query = (
-        select(Log.component, func.count().label("count"))
+    total_today = totals_row.total_today or 0
+    errors_today = totals_row.errors_today or 0
+    warnings_today = totals_row.warnings_today or 0
+
+    # Query 2: Get breakdown by level and component using UNION ALL
+    # This combines two GROUP BY queries efficiently
+    # We use a discriminator column to identify which breakdown type each row is
+    breakdown_query = (
+        select(
+            literal("level").label("breakdown_type"),
+            Log.level.label("key"),
+            func.count().label("count"),
+        )
+        .where(Log.timestamp >= today_start)
+        .group_by(Log.level)
+    ).union_all(
+        select(
+            literal("component").label("breakdown_type"),
+            Log.component.label("key"),
+            func.count().label("count"),
+        )
         .where(Log.timestamp >= today_start)
         .group_by(Log.component)
         .order_by(func.count().desc())
     )
-    component_result = await db.execute(component_query)
-    by_component = {row.component: row.count for row in component_result}
 
-    # By level (today)
-    level_query = (
-        select(Log.level, func.count().label("count"))
-        .where(Log.timestamp >= today_start)
-        .group_by(Log.level)
-    )
-    level_result = await db.execute(level_query)
-    by_level = {row.level: row.count for row in level_result}
+    breakdown_result = await db.execute(breakdown_query)
 
-    # Top component
+    by_level: dict[str, int] = {}
+    by_component: dict[str, int] = {}
+
+    for row in breakdown_result:
+        # mypy confuses the 'count' column with Row.count() method - ignore the type error
+        count_value: int = row.count  # type: ignore[assignment]
+        if row.breakdown_type == "level":
+            by_level[row.key] = count_value
+        else:  # component
+            by_component[row.key] = count_value
+
+    # Sort by_component by count descending to get top_component
+    by_component = dict(sorted(by_component.items(), key=lambda x: x[1], reverse=True))
+
+    # Top component is the first key after sorting
     top_component = next(iter(by_component.keys())) if by_component else None
 
     return {
