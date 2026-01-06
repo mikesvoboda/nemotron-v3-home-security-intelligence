@@ -14,7 +14,7 @@ Tests cover:
 
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,7 +22,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # Set DATABASE_URL for tests before importing any backend modules
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+)
 
 from backend.api.routes.prompt_management import _compute_config_diff, router
 from backend.api.schemas.prompt_management import (
@@ -303,6 +306,170 @@ class TestGetPromptHistoryEndpoint:
         """Test validation error for invalid model parameter."""
         response = client.get("/api/ai-audit/prompts/history?model=invalid_model")
         assert response.status_code == 422
+
+    def test_get_history_returns_versions_in_descending_order(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that version history is returned newest first (descending order)."""
+        # Create versions with descending order (as they should be returned)
+        mock_versions = [
+            create_mock_prompt_version(version_id=5, version=5, is_active=True),
+            create_mock_prompt_version(version_id=4, version=4, is_active=False),
+            create_mock_prompt_version(version_id=3, version=3, is_active=False),
+            create_mock_prompt_version(version_id=2, version=2, is_active=False),
+            create_mock_prompt_version(version_id=1, version=1, is_active=False),
+        ]
+        # Set distinct timestamps to verify ordering
+        for i, mock_v in enumerate(mock_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(hours=i)
+
+        mock_prompt_service.get_version_history.return_value = (mock_versions, 5)
+
+        response = client.get("/api/ai-audit/prompts/history")
+
+        assert response.status_code == 200
+        data = response.json()
+        versions = data["versions"]
+
+        # Verify versions are in descending order by version number
+        for i in range(len(versions) - 1):
+            assert versions[i]["version"] > versions[i + 1]["version"], (
+                f"Version {versions[i]['version']} should be greater than {versions[i + 1]['version']}"
+            )
+
+        # Also verify the first (newest) version is marked active
+        assert versions[0]["is_active"] is True
+        assert versions[0]["version"] == 5
+
+    def test_get_history_pagination_maintains_consistent_ordering(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that pagination maintains consistent ordering across pages."""
+        # Simulate first page (offset=0, limit=3) - versions 10, 9, 8
+        first_page_versions = [
+            create_mock_prompt_version(version_id=10, version=10, is_active=True),
+            create_mock_prompt_version(version_id=9, version=9, is_active=False),
+            create_mock_prompt_version(version_id=8, version=8, is_active=False),
+        ]
+        for i, mock_v in enumerate(first_page_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(hours=i)
+
+        mock_prompt_service.get_version_history.return_value = (first_page_versions, 10)
+
+        response1 = client.get("/api/ai-audit/prompts/history?limit=3&offset=0")
+        assert response1.status_code == 200
+        data1 = response1.json()
+
+        # Verify first page ordering
+        assert data1["versions"][0]["version"] == 10
+        assert data1["versions"][1]["version"] == 9
+        assert data1["versions"][2]["version"] == 8
+
+        # Simulate second page (offset=3, limit=3) - versions 7, 6, 5
+        second_page_versions = [
+            create_mock_prompt_version(version_id=7, version=7, is_active=False),
+            create_mock_prompt_version(version_id=6, version=6, is_active=False),
+            create_mock_prompt_version(version_id=5, version=5, is_active=False),
+        ]
+        for i, mock_v in enumerate(second_page_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(
+                hours=3 + i
+            )
+
+        mock_prompt_service.get_version_history.return_value = (second_page_versions, 10)
+
+        response2 = client.get("/api/ai-audit/prompts/history?limit=3&offset=3")
+        assert response2.status_code == 200
+        data2 = response2.json()
+
+        # Verify second page ordering
+        assert data2["versions"][0]["version"] == 7
+        assert data2["versions"][1]["version"] == 6
+        assert data2["versions"][2]["version"] == 5
+
+        # Verify no overlap and consistent continuation
+        last_version_first_page = data1["versions"][-1]["version"]
+        first_version_second_page = data2["versions"][0]["version"]
+        assert last_version_first_page > first_version_second_page, (
+            f"Last version of page 1 ({last_version_first_page}) should be greater than "
+            f"first version of page 2 ({first_version_second_page})"
+        )
+
+        # Verify total count is consistent across pages
+        assert data1["total_count"] == data2["total_count"] == 10
+
+    def test_get_history_same_timestamp_orders_by_version(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that versions with same timestamp are ordered by version number descending."""
+        # Create versions with identical timestamps but different version numbers
+        same_timestamp = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+        mock_versions = [
+            create_mock_prompt_version(version_id=3, version=3, is_active=True),
+            create_mock_prompt_version(version_id=2, version=2, is_active=False),
+            create_mock_prompt_version(version_id=1, version=1, is_active=False),
+        ]
+        # Set all versions to have the same timestamp
+        for mock_v in mock_versions:
+            mock_v.created_at = same_timestamp
+
+        mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
+
+        response = client.get("/api/ai-audit/prompts/history")
+
+        assert response.status_code == 200
+        data = response.json()
+        versions = data["versions"]
+
+        # Even with same timestamps, versions should be in descending order by version number
+        assert len(versions) == 3
+        assert versions[0]["version"] == 3
+        assert versions[1]["version"] == 2
+        assert versions[2]["version"] == 1
+
+        # Verify ordering invariant
+        for i in range(len(versions) - 1):
+            assert versions[i]["version"] > versions[i + 1]["version"]
+
+    def test_get_history_model_filter_preserves_ordering(
+        self,
+        client: TestClient,
+        mock_prompt_service: MagicMock,
+    ) -> None:
+        """Test that filtering by model preserves descending version order."""
+        # Create versions for a specific model
+        mock_versions = [
+            create_mock_prompt_version(version_id=6, version=6, model="florence2", is_active=True),
+            create_mock_prompt_version(version_id=4, version=4, model="florence2", is_active=False),
+            create_mock_prompt_version(version_id=2, version=2, model="florence2", is_active=False),
+        ]
+        for i, mock_v in enumerate(mock_versions):
+            mock_v.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC) - timedelta(days=i)
+
+        mock_prompt_service.get_version_history.return_value = (mock_versions, 3)
+
+        response = client.get("/api/ai-audit/prompts/history?model=florence2")
+
+        assert response.status_code == 200
+        data = response.json()
+        versions = data["versions"]
+
+        # All returned versions should be for florence2
+        assert all(v["model"] == "florence2" for v in versions)
+
+        # Verify ordering is preserved
+        assert versions[0]["version"] == 6
+        assert versions[1]["version"] == 4
+        assert versions[2]["version"] == 2
+
+        for i in range(len(versions) - 1):
+            assert versions[i]["version"] > versions[i + 1]["version"]
 
 
 class TestGetPromptForModelEndpoint:

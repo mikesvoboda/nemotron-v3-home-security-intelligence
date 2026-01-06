@@ -70,3 +70,6 @@ export { useSavedSearches } from './useSavedSearches';
 export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';
 
 export { useLocalStorage } from './useLocalStorage';
+
+export { useThrottledValue } from './useThrottledValue';
+export type { UseThrottledValueOptions } from './useThrottledValue';

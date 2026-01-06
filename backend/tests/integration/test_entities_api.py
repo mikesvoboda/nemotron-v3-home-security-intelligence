@@ -185,6 +185,16 @@ class TestEntitiesAPIValidation:
             response = await async_client.get(f"/api/entities?entity_type={entity_type}")
             assert response.status_code == 200
 
+    async def test_entity_type_invalid_value(self, async_client):
+        """Test that invalid entity type returns 422 error."""
+        response = await async_client.get("/api/entities?entity_type=invalid")
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+        # Verify the error message mentions the valid options
+        error_detail = str(data["detail"])
+        assert "entity_type" in error_detail.lower() or "person" in error_detail.lower()
+
     async def test_combined_filters(self, async_client):
         """Test combining multiple filters."""
         response = await async_client.get(
