@@ -6,11 +6,18 @@ sending images for object detection and storing results in the database.
 Detection Flow:
     1. Read image file from filesystem
     2. Validate image integrity (catch truncated/corrupt images)
-    3. POST to detector server with image data (with retry on transient failures)
-    4. Parse JSON response with detections
-    5. Filter by confidence threshold
-    6. Store detections in database
-    7. Return Detection model instances
+    3. Acquire shared AI inference semaphore (NEM-1463)
+    4. POST to detector server with image data (with retry on transient failures)
+    5. Release semaphore
+    6. Parse JSON response with detections
+    7. Filter by confidence threshold
+    8. Store detections in database
+    9. Return Detection model instances
+
+Concurrency Control (NEM-1463):
+    Uses a shared asyncio.Semaphore to limit concurrent AI inference operations.
+    This prevents GPU/AI service overload under high traffic. The limit is
+    configurable via AI_MAX_CONCURRENT_INFERENCES setting (default: 4).
 
 Error Handling:
     - Connection errors: Retry with exponential backoff, then raise DetectorUnavailableError
@@ -51,6 +58,7 @@ from backend.core.mime_types import get_mime_type_with_default
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.baseline import get_baseline_service
+from backend.services.inference_semaphore import get_inference_semaphore
 
 logger = get_logger(__name__)
 
@@ -107,7 +115,7 @@ class DetectorClient:
 
     # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
     # This prevents overwhelming the GPU service with too many parallel requests
-    # Default: 4 concurrent requests (configurable via ai_max_concurrent_requests)
+    # Default: 4 concurrent requests (configurable via ai_max_concurrent_inferences)
     _request_semaphore: asyncio.Semaphore | None = None
     _semaphore_limit: int = 0
 
@@ -123,7 +131,7 @@ class DetectorClient:
             asyncio.Semaphore for rate limiting concurrent requests
         """
         settings = get_settings()
-        limit = settings.ai_max_concurrent_requests
+        limit = settings.ai_max_concurrent_inferences
 
         # Create or recreate semaphore if limit changed
         if cls._request_semaphore is None or cls._semaphore_limit != limit:
@@ -164,7 +172,7 @@ class DetectorClient:
             max_retries if max_retries is not None else settings.detector_max_retries
         )
         # Concurrency limit (NEM-1500)
-        self._max_concurrent = settings.ai_max_concurrent_requests
+        self._max_concurrent = settings.ai_max_concurrent_inferences
         logger.debug(
             f"DetectorClient initialized with max_retries={self._max_retries}, "
             f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}"
@@ -531,13 +539,17 @@ class DetectorClient:
             # Track AI request time separately
             ai_start_time = time.time()
 
-            # Send to detector with retry logic (NEM-1343)
-            result = await self._send_detection_request(
-                image_data=image_data,
-                image_name=image_file.name,
-                camera_id=camera_id,
-                image_path=image_path,
-            )
+            # Acquire shared AI inference semaphore (NEM-1463)
+            # This limits concurrent AI operations to prevent GPU/service overload
+            inference_semaphore = get_inference_semaphore()
+            async with inference_semaphore:
+                # Send to detector with retry logic (NEM-1343)
+                result = await self._send_detection_request(
+                    image_data=image_data,
+                    image_name=image_file.name,
+                    camera_id=camera_id,
+                    image_path=image_path,
+                )
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
