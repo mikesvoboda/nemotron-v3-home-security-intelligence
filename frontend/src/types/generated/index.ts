@@ -64,9 +64,9 @@ export type SystemConfigUpdate = components['schemas']['ConfigUpdateRequest'];
 export type SystemStats = components['schemas']['SystemStatsResponse'];
 export type ReadinessResponse = components['schemas']['ReadinessResponse'];
 // WorkerStatus from system health endpoint (has message, name, running)
-export type WorkerStatus = components['schemas']['backend__api__schemas__system__WorkerStatus'];
+export type WorkerStatus = components['schemas']['WorkerStatus'];
 // Debug endpoint worker status (has error_count, last_activity, name, running)
-export type DebugWorkerStatus = components['schemas']['WorkerStatus'];
+export type DebugWorkerStatus = components['schemas']['backend__api__routes__debug__WorkerStatus'];
 
 // Telemetry types
 export type TelemetryResponse = components['schemas']['TelemetryResponse'];

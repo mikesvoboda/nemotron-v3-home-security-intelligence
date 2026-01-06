@@ -8469,7 +8469,7 @@ export interface components {
              */
             correlation_id?: string | null;
             /** @description Current queue depths */
-            queue_depths: components["schemas"]["QueueDepths"];
+            queue_depths: components["schemas"]["backend__api__routes__debug__QueueDepths"];
             /**
              * Recent Errors
              * @description Recent errors (last 10)
@@ -8933,17 +8933,21 @@ export interface components {
         };
         /**
          * QueueDepths
-         * @description Queue depth information for AI pipeline.
+         * @description Queue depth information for pipeline queues.
+         * @example {
+         *       "analysis_queue": 2,
+         *       "detection_queue": 5
+         *     }
          */
         QueueDepths: {
             /**
              * Analysis Queue
-             * @description Number of items in analysis queue
+             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
              */
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue
+             * @description Number of items in detection queue waiting for RT-DETRv2 processing
              */
             detection_queue: number;
         };
@@ -9018,7 +9022,7 @@ export interface components {
              * Workers
              * @description Status of background workers
              */
-            workers?: components["schemas"]["backend__api__schemas__system__WorkerStatus"][];
+            workers?: components["schemas"]["WorkerStatus"][];
         };
         /**
          * RecentError
@@ -10219,7 +10223,7 @@ export interface components {
             /** @description Latency statistics for each pipeline stage */
             latencies?: components["schemas"]["PipelineLatencies"] | null;
             /** @description Current queue depths for detection and analysis queues */
-            queues: components["schemas"]["backend__api__schemas__system__QueueDepths"];
+            queues: components["schemas"]["QueueDepths"];
             /**
              * Timestamp
              * Format: date-time
@@ -10432,28 +10436,22 @@ export interface components {
         };
         /**
          * WorkerStatus
-         * @description Status of a pipeline worker.
+         * @description Status information for a background worker/service.
          */
         WorkerStatus: {
             /**
-             * Error Count
-             * @description Number of recent errors
-             * @default 0
+             * Message
+             * @description Optional status message or error details
              */
-            error_count: number;
-            /**
-             * Last Activity
-             * @description ISO timestamp of last activity
-             */
-            last_activity?: string | null;
+            message?: string | null;
             /**
              * Name
-             * @description Worker name
+             * @description Worker/service name
              */
             name: string;
             /**
              * Running
-             * @description Whether worker is currently running
+             * @description Whether the worker is currently running
              */
             running: boolean;
         };
@@ -10463,11 +10461,11 @@ export interface components {
          */
         WorkersStatus: {
             /** @description Analyzer worker status */
-            analyzer: components["schemas"]["WorkerStatus"];
+            analyzer: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
             /** @description Detector worker status */
-            detector: components["schemas"]["WorkerStatus"];
+            detector: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
             /** @description File watcher status */
-            file_watcher: components["schemas"]["WorkerStatus"];
+            file_watcher: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
         };
         /**
          * ZoneCreate
@@ -10730,42 +10728,44 @@ export interface components {
         };
         /**
          * QueueDepths
-         * @description Queue depth information for pipeline queues.
-         * @example {
-         *       "analysis_queue": 2,
-         *       "detection_queue": 5
-         *     }
+         * @description Queue depth information for AI pipeline.
          */
-        backend__api__schemas__system__QueueDepths: {
+        backend__api__routes__debug__QueueDepths: {
             /**
              * Analysis Queue
-             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             * @description Number of items in analysis queue
              */
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             * @description Number of items in detection queue
              */
             detection_queue: number;
         };
         /**
          * WorkerStatus
-         * @description Status information for a background worker/service.
+         * @description Status of a pipeline worker.
          */
-        backend__api__schemas__system__WorkerStatus: {
+        backend__api__routes__debug__WorkerStatus: {
             /**
-             * Message
-             * @description Optional status message or error details
+             * Error Count
+             * @description Number of recent errors
+             * @default 0
              */
-            message?: string | null;
+            error_count: number;
+            /**
+             * Last Activity
+             * @description ISO timestamp of last activity
+             */
+            last_activity?: string | null;
             /**
              * Name
-             * @description Worker/service name
+             * @description Worker name
              */
             name: string;
             /**
              * Running
-             * @description Whether the worker is currently running
+             * @description Whether worker is currently running
              */
             running: boolean;
         };
