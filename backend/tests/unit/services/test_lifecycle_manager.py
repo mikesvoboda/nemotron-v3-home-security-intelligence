@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.lifecycle_manager import (
     LifecycleManager,
     ManagedService,
@@ -70,7 +70,7 @@ def infrastructure_service() -> ManagedService:
         port=5432,
         health_cmd="pg_isready -U security",
         category=ServiceCategory.INFRASTRUCTURE,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=0,
@@ -91,7 +91,7 @@ def ai_service() -> ManagedService:
         port=8090,
         health_endpoint="/health",
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=0,
@@ -112,7 +112,7 @@ def monitoring_service() -> ManagedService:
         port=3000,
         health_endpoint="/api/health",
         category=ServiceCategory.MONITORING,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=0,
@@ -409,7 +409,9 @@ class TestRestartService:
         await lifecycle_manager.restart_service(ai_service)
 
         mock_registry.record_restart.assert_called_once_with(ai_service.name)
-        mock_registry.update_status.assert_called_once_with(ai_service.name, ServiceStatus.STARTING)
+        mock_registry.update_status.assert_called_once_with(
+            ai_service.name, ContainerServiceStatus.STARTING
+        )
         mock_registry.persist_state.assert_called_once_with(ai_service.name)
 
     @pytest.mark.asyncio
@@ -591,7 +593,9 @@ class TestEnableService:
 
         await lifecycle_manager.enable_service("ai-detector")
 
-        mock_registry.update_status.assert_called_once_with("ai-detector", ServiceStatus.STOPPED)
+        mock_registry.update_status.assert_called_once_with(
+            "ai-detector", ContainerServiceStatus.STOPPED
+        )
 
     @pytest.mark.asyncio
     async def test_enable_service_persists_state(
@@ -653,7 +657,9 @@ class TestDisableService:
 
         await lifecycle_manager.disable_service("ai-detector")
 
-        mock_registry.update_status.assert_called_once_with("ai-detector", ServiceStatus.DISABLED)
+        mock_registry.update_status.assert_called_once_with(
+            "ai-detector", ContainerServiceStatus.DISABLED
+        )
 
     @pytest.mark.asyncio
     async def test_disable_service_persists_state(
@@ -716,7 +722,9 @@ class TestHandleUnhealthy:
 
         await lifecycle_manager.handle_unhealthy(ai_service)
 
-        mock_registry.update_status.assert_called_once_with(ai_service.name, ServiceStatus.DISABLED)
+        mock_registry.update_status.assert_called_once_with(
+            ai_service.name, ContainerServiceStatus.DISABLED
+        )
         mock_registry.set_enabled.assert_called_once_with(ai_service.name, False)
 
     @pytest.mark.asyncio
@@ -850,7 +858,7 @@ class TestHandleMissing:
         await lifecycle_manager.handle_missing(ai_service)
 
         mock_registry.update_status.assert_called_once_with(
-            ai_service.name, ServiceStatus.NOT_FOUND
+            ai_service.name, ContainerServiceStatus.NOT_FOUND
         )
 
     @pytest.mark.asyncio
@@ -884,13 +892,13 @@ class TestManagedService:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
         assert service.name == "test-service"
         assert service.display_name == "Test Service"
         assert service.container_id == "abc123"
         assert service.category == ServiceCategory.AI
-        assert service.status == ServiceStatus.RUNNING
+        assert service.status == ContainerServiceStatus.RUNNING
 
     def test_managed_service_defaults(self) -> None:
         """Test ManagedService has expected defaults."""
@@ -901,7 +909,7 @@ class TestManagedService:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.STOPPED,
+            status=ContainerServiceStatus.STOPPED,
         )
         assert service.enabled is True
         assert service.failure_count == 0
@@ -919,7 +927,7 @@ class TestManagedService:
             image="postgres:16",
             port=5432,
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.STOPPED,
+            status=ContainerServiceStatus.STOPPED,
             max_failures=10,
             restart_backoff_base=2.0,
             restart_backoff_max=60.0,
@@ -937,7 +945,7 @@ class TestManagedService:
             image="grafana/grafana:10",
             port=3000,
             category=ServiceCategory.MONITORING,
-            status=ServiceStatus.STOPPED,
+            status=ContainerServiceStatus.STOPPED,
             max_failures=3,
             restart_backoff_base=10.0,
             restart_backoff_max=600.0,
@@ -965,7 +973,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
 
         registry.register(service)
@@ -987,7 +995,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
         registry.register(service)
 
@@ -1006,7 +1014,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
         registry.register(service)
 
@@ -1025,7 +1033,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             failure_count=5,
         )
         registry.register(service)
@@ -1045,13 +1053,13 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
         registry.register(service)
 
-        registry.update_status("test", ServiceStatus.UNHEALTHY)
+        registry.update_status("test", ContainerServiceStatus.UNHEALTHY)
 
-        assert service.status == ServiceStatus.UNHEALTHY
+        assert service.status == ContainerServiceStatus.UNHEALTHY
 
     def test_set_enabled_toggles_flag(self) -> None:
         """Test set_enabled toggles enabled flag."""
@@ -1063,7 +1071,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
         registry.register(service)
 
@@ -1083,7 +1091,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             enabled=True,
         )
         service2 = ManagedService(
@@ -1093,7 +1101,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8081,
             category=ServiceCategory.AI,
-            status=ServiceStatus.DISABLED,
+            status=ContainerServiceStatus.DISABLED,
             enabled=False,
         )
         registry.register(service1)
@@ -1116,7 +1124,7 @@ class TestServiceRegistry:
             image="test:latest",
             port=8080,
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
         registry.register(service)
 
@@ -1200,7 +1208,9 @@ class TestManualRestart:
         """Test that restart sets status to STARTING."""
         await lifecycle_manager.restart_service(ai_service)
 
-        mock_registry.update_status.assert_called_once_with(ai_service.name, ServiceStatus.STARTING)
+        mock_registry.update_status.assert_called_once_with(
+            ai_service.name, ContainerServiceStatus.STARTING
+        )
 
     @pytest.mark.asyncio
     async def test_restart_increments_restart_count(
@@ -1296,7 +1306,9 @@ class TestSelfHealingIntegration:
         await manager.handle_unhealthy(ai_service)
 
         # Service should be disabled
-        mock_registry.update_status.assert_called_with(ai_service.name, ServiceStatus.DISABLED)
+        mock_registry.update_status.assert_called_with(
+            ai_service.name, ContainerServiceStatus.DISABLED
+        )
         mock_registry.set_enabled.assert_called_with(ai_service.name, False)
 
         # Callback should be invoked

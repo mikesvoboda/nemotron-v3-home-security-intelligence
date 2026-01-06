@@ -78,10 +78,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
           enable-cache: true
@@ -109,7 +109,7 @@ jobs:
 
       - name: Download baseline benchmark results
         if: steps.options.outputs.compare == 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
         id: benchmark-cache
         with:
           path: .benchmarks
@@ -221,7 +221,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: benchmark-results
           path: |

@@ -89,18 +89,15 @@ from .scene_change import (
 from .search import SearchRequest, SearchResponse, SearchResult
 from .services import (
     CategorySummary,
+    ContainerServiceStatus,
     ServiceActionResponse,
     ServiceCategory,
     ServiceInfo,
     ServicesResponse,
     ServiceStatusEvent,
 )
-from .services import (
-    ServiceStatus as OrchestratorServiceStatus,  # Alias to avoid conflict with websocket.ServiceStatus
-)
 from .websocket import (
     RiskLevel,
-    ServiceStatus,
     WebSocketErrorCode,
     WebSocketErrorResponse,
     WebSocketEventData,
@@ -111,6 +108,7 @@ from .websocket import (
     WebSocketPongResponse,
     WebSocketSceneChangeData,
     WebSocketSceneChangeMessage,
+    WebSocketServiceStatus,
     WebSocketServiceStatusData,
     WebSocketServiceStatusMessage,
     WebSocketSubscribeMessage,
@@ -150,6 +148,7 @@ __all__ = [
     "ClipInfoResponse",
     "ClipStatus",
     "ClothingEnrichment",
+    "ContainerServiceStatus",
     "CurrentDeviation",
     "DailyPattern",
     "DedupCheckRequest",
@@ -175,7 +174,6 @@ __all__ = [
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
-    "OrchestratorServiceStatus",
     "PersonEnrichmentData",
     "PetEnrichment",
     "PetEnrichmentData",
@@ -192,7 +190,6 @@ __all__ = [
     "ServiceActionResponse",
     "ServiceCategory",
     "ServiceInfo",
-    "ServiceStatus",
     "ServiceStatusEvent",
     "ServicesResponse",
     "TestNotificationRequest",
@@ -211,6 +208,7 @@ __all__ = [
     "WebSocketPongResponse",
     "WebSocketSceneChangeData",
     "WebSocketSceneChangeMessage",
+    "WebSocketServiceStatus",
     "WebSocketServiceStatusData",
     "WebSocketServiceStatusMessage",
     "WebSocketSubscribeMessage",

@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
@@ -29,7 +29,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Get the diff for this PR
-          gh pr diff ${{ github.event.pull_request.number }} > pr_diff.txt
+          # Use git diff instead of gh pr diff to avoid GitHub API file limits (300 files max)
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          # Fall back to gh pr diff for small PRs, use git diff for large ones
+          if ! gh pr diff ${{ github.event.pull_request.number }} > pr_diff.txt 2>/dev/null; then
+            echo "gh pr diff failed (likely >300 files), using git diff instead"
+            git diff "${BASE_SHA}...${HEAD_SHA}" > pr_diff.txt || git diff "${BASE_SHA}" "${HEAD_SHA}" > pr_diff.txt
+          fi
 
           # Truncate if too large (GitHub Models has token limits)
           # 8000 tokens in ~= 32000 chars, leave room for prompt

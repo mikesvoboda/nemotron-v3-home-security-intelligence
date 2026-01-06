@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -155,7 +155,7 @@ class ManagedService:
     health_cmd: str | None = None
 
     # State
-    status: ServiceStatus = ServiceStatus.NOT_FOUND
+    status: ContainerServiceStatus = ContainerServiceStatus.NOT_FOUND
     enabled: bool = True
 
     # Failure tracking
@@ -229,7 +229,7 @@ class ServiceRegistry:
         """
         return list(self._services.keys())
 
-    def update_status(self, name: str, status: ServiceStatus) -> None:
+    def update_status(self, name: str, status: ContainerServiceStatus) -> None:
         """Update a service's status.
 
         Args:
@@ -451,13 +451,13 @@ class HealthMonitor:
                     if service.failure_count > 0:
                         # Service recovered
                         self._registry.reset_failures(service.name)
-                        self._registry.update_status(service.name, ServiceStatus.RUNNING)
+                        self._registry.update_status(service.name, ContainerServiceStatus.RUNNING)
                         logger.info(f"Service {service.name} recovered")
                         if self._on_health_change:
                             await self._on_health_change(service, True)
-                    elif service.status != ServiceStatus.RUNNING:
+                    elif service.status != ContainerServiceStatus.RUNNING:
                         # Already healthy - update status if not already RUNNING
-                        self._registry.update_status(service.name, ServiceStatus.RUNNING)
+                        self._registry.update_status(service.name, ContainerServiceStatus.RUNNING)
                 else:
                     await self._handle_unhealthy(service)
 
@@ -485,7 +485,7 @@ class HealthMonitor:
             service: ManagedService with missing container
         """
         logger.warning(f"Container not found for {service.name}")
-        self._registry.update_status(service.name, ServiceStatus.NOT_FOUND)
+        self._registry.update_status(service.name, ContainerServiceStatus.NOT_FOUND)
         self._registry.increment_failures(service.name)
 
         if self._on_health_change:
@@ -498,7 +498,7 @@ class HealthMonitor:
             service: ManagedService with stopped container
         """
         logger.warning(f"Container stopped for {service.name}")
-        self._registry.update_status(service.name, ServiceStatus.STOPPED)
+        self._registry.update_status(service.name, ContainerServiceStatus.STOPPED)
         self._registry.increment_failures(service.name)
 
         if self._on_health_change:
@@ -511,7 +511,7 @@ class HealthMonitor:
             service: ManagedService that failed health check
         """
         logger.warning(f"Health check failed for {service.name}")
-        self._registry.update_status(service.name, ServiceStatus.UNHEALTHY)
+        self._registry.update_status(service.name, ContainerServiceStatus.UNHEALTHY)
         self._registry.increment_failures(service.name)
 
         if self._on_health_change:

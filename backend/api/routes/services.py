@@ -11,11 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.api.schemas.services import (
     CategorySummary,
+    ContainerServiceStatus,
     ServiceActionResponse,
     ServiceCategory,
     ServiceInfo,
     ServicesResponse,
-    ServiceStatus,
 )
 
 router = APIRouter(prefix="/api/system/services", tags=["services"])
@@ -27,7 +27,7 @@ class ManagedServiceProtocol(Protocol):
     name: str
     display_name: str
     category: ServiceCategory
-    status: ServiceStatus
+    status: ContainerServiceStatus
     enabled: bool
     container_id: str | None
     image: str | None
@@ -64,7 +64,7 @@ def _calculate_uptime(service: ManagedServiceProtocol) -> int | None:
     Returns:
         Uptime in seconds if running, None otherwise
     """
-    if service.status != ServiceStatus.RUNNING:
+    if service.status != ContainerServiceStatus.RUNNING:
         return None
     if service.last_restart_at:
         return int((datetime.now(UTC) - service.last_restart_at).total_seconds())
@@ -109,7 +109,7 @@ def _build_category_summaries(services: list[ManagedServiceProtocol]) -> dict[st
 
     for category in list(ServiceCategory):
         cat_services = [s for s in services if s.category == category]
-        healthy = sum(1 for s in cat_services if s.status == ServiceStatus.RUNNING)
+        healthy = sum(1 for s in cat_services if s.status == ContainerServiceStatus.RUNNING)
         unhealthy = len(cat_services) - healthy
         summaries[category.value] = CategorySummary(
             total=len(cat_services),
@@ -168,7 +168,7 @@ async def restart_service(
     if not service:
         raise HTTPException(404, f"Service '{name}' not found")
 
-    if service.status == ServiceStatus.DISABLED:
+    if service.status == ContainerServiceStatus.DISABLED:
         raise HTTPException(400, f"Service '{name}' is disabled. Enable it first.")
 
     success = await orchestrator.restart_service(name, reset_failures=True)
@@ -269,10 +269,10 @@ async def start_service(
     if not service:
         raise HTTPException(404, f"Service '{name}' not found")
 
-    if service.status == ServiceStatus.RUNNING:
+    if service.status == ContainerServiceStatus.RUNNING:
         raise HTTPException(400, f"Service '{name}' is already running")
 
-    if service.status == ServiceStatus.DISABLED:
+    if service.status == ContainerServiceStatus.DISABLED:
         raise HTTPException(400, f"Service '{name}' is disabled. Enable it first.")
 
     success = await orchestrator.start_service(name)

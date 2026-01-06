@@ -9,6 +9,7 @@ This directory contains all automated tests for the backend Python application. 
 ```
 backend/tests/
 ├── conftest.py              # Shared pytest fixtures and configuration
+├── factories.py             # factory_boy factories for test data generation
 ├── __init__.py              # Package initialization
 ├── unit/                    # Unit tests for isolated components (150 test files)
 ├── integration/             # Integration tests for API and multi-component workflows (55 test files)
@@ -66,13 +67,19 @@ pytest backend/tests/benchmarks/ -v --benchmark-only
 # Unit tests: parallel with worksteal scheduler (~10s for 7193 tests)
 uv run pytest backend/tests/unit/ -n auto --dist=worksteal
 
-# Integration tests: serial due to shared database state (~70s for 1499 tests)
+# Integration tests: parallel with worker-isolated databases (~33s for 1575 tests)
+uv run pytest backend/tests/integration/ -n8 --dist=worksteal
+
+# Integration tests: serial mode (legacy, ~169s)
 uv run pytest backend/tests/integration/ -n0
 ```
 
-**Note:** Integration tests must run serially (`-n0`) because they share database state
-through fixtures that clean tables. Use DELETE instead of TRUNCATE in test fixtures
-to avoid AccessExclusiveLock deadlocks.
+**Integration Test Parallel Execution (NEM-1363):**
+
+- Each pytest-xdist worker gets its own PostgreSQL database (`security_test_gw0`, etc.)
+- Each worker uses a different Redis database number (0-15) for isolation
+- Recommended: Use `-n8` for best balance of speed and reliability
+- Benchmark: 169s serial -> 33s with 8 workers = **5.1x speedup**
 
 ## Shared Fixtures (conftest.py)
 
@@ -108,6 +115,93 @@ All shared fixtures are defined in `backend/tests/conftest.py`. DO NOT duplicate
 | ---------------------- | -------- | ------------------------------------------------ |
 | `reset_settings_cache` | autouse  | Clears settings cache before/after each test     |
 | `unique_id(prefix)`    | function | Generates unique IDs for parallel test isolation |
+
+### Factory Fixtures
+
+| Fixture             | Scope    | Description                                       |
+| ------------------- | -------- | ------------------------------------------------- |
+| `camera_factory`    | function | CameraFactory for creating Camera instances       |
+| `detection_factory` | function | DetectionFactory for creating Detection instances |
+| `event_factory`     | function | EventFactory for creating Event instances         |
+| `zone_factory`      | function | ZoneFactory for creating Zone instances           |
+
+## Test Data Factories (factory_boy)
+
+Test fixtures use **factory_boy** for generating consistent test data. Factories are defined in `backend/tests/factories.py`.
+
+### Available Factories
+
+| Factory            | Model     | Common Traits                                                                         |
+| ------------------ | --------- | ------------------------------------------------------------------------------------- |
+| `CameraFactory`    | Camera    | `offline`, `with_last_seen`                                                           |
+| `DetectionFactory` | Detection | `video`, `high_confidence`, `low_confidence`, `vehicle`, `animal`                     |
+| `EventFactory`     | Event     | `low_risk`, `high_risk`, `critical`, `reviewed_event`, `fast_path`, `with_clip`       |
+| `ZoneFactory`      | Zone      | `entry_point`, `driveway`, `sidewalk`, `yard`, `polygon`, `disabled`                  |
+| `AlertFactory`     | Alert     | `low_severity`, `high_severity`, `critical`, `delivered`, `acknowledged`, `dismissed` |
+| `AlertRuleFactory` | AlertRule | `low_severity`, `high_severity`, `critical`, `disabled`, `person_detection`           |
+
+### Factory Usage Examples
+
+```python
+from backend.tests.factories import CameraFactory, DetectionFactory, EventFactory
+
+# Create a camera with default values
+camera = CameraFactory()
+
+# Create a camera with specific values
+camera = CameraFactory(id="front_door", name="Front Door")
+
+# Create a camera using a trait
+offline_camera = CameraFactory(offline=True)
+
+# Create multiple cameras
+cameras = CameraFactory.create_batch(5)
+
+# Build without saving (for pure unit tests)
+camera = CameraFactory.build()
+
+# Create detection with video trait
+video_detection = DetectionFactory(video=True, duration=30.5)
+
+# Create high-risk event
+high_risk_event = EventFactory(high_risk=True)
+
+# Combine multiple traits
+disabled_polygon_zone = ZoneFactory(polygon=True, disabled=True)
+```
+
+### Using Factory Fixtures
+
+```python
+def test_something(camera_factory, event_factory):
+    """Test using factory fixtures from conftest.py."""
+    camera = camera_factory(id="test_cam")
+    event = event_factory(camera_id=camera.id, high_risk=True)
+    # ... test assertions
+```
+
+### Helper Functions
+
+```python
+from backend.tests.factories import (
+    create_camera_with_events,
+    create_detection_batch_for_camera,
+)
+
+# Create camera with multiple associated events
+camera, events = create_camera_with_events(
+    camera_kwargs={"name": "Front Door"},
+    num_events=5,
+    event_kwargs={"risk_score": 75}
+)
+
+# Create multiple detections for a camera
+detections = create_detection_batch_for_camera(
+    "front_door",
+    count=10,
+    object_type="person",
+)
+```
 
 ## Database Infrastructure
 

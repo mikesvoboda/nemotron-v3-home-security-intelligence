@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.container_discovery import ManagedService as DiscoveredService
 from backend.services.container_orchestrator import (
     ContainerOrchestrator,
@@ -110,7 +110,7 @@ def managed_service() -> ManagedService:
         category=ServiceCategory.AI,
         health_endpoint="/health",
         health_cmd=None,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=0,
@@ -169,7 +169,7 @@ class TestCreateServiceStatusEvent:
 
     def test_calculates_uptime_when_running(self, managed_service: ManagedService) -> None:
         """Test uptime is calculated when service is running."""
-        managed_service.status = ServiceStatus.RUNNING
+        managed_service.status = ContainerServiceStatus.RUNNING
         managed_service.last_restart_at = datetime.now(UTC)
         event = create_service_status_event(managed_service, "Test")
 
@@ -179,7 +179,7 @@ class TestCreateServiceStatusEvent:
 
     def test_no_uptime_when_not_running(self, managed_service: ManagedService) -> None:
         """Test uptime is None when service is not running."""
-        managed_service.status = ServiceStatus.STOPPED
+        managed_service.status = ContainerServiceStatus.STOPPED
         event = create_service_status_event(managed_service, "Test")
 
         assert event["data"]["uptime_seconds"] is None
@@ -586,7 +586,7 @@ class TestEnableService:
     ) -> None:
         """Test enable_service enables a disabled service."""
         managed_service.enabled = False
-        managed_service.status = ServiceStatus.DISABLED
+        managed_service.status = ContainerServiceStatus.DISABLED
         orchestrator._registry.register(managed_service)
 
         result = await orchestrator.enable_service("ai-detector")
@@ -595,7 +595,7 @@ class TestEnableService:
         service = orchestrator.get_service("ai-detector")
         assert service is not None
         assert service.enabled is True
-        assert service.status == ServiceStatus.STOPPED
+        assert service.status == ContainerServiceStatus.STOPPED
 
     @pytest.mark.asyncio
     async def test_enable_service_resets_failures(
@@ -655,7 +655,7 @@ class TestDisableService:
         service = orchestrator.get_service("ai-detector")
         assert service is not None
         assert service.enabled is False
-        assert service.status == ServiceStatus.DISABLED
+        assert service.status == ContainerServiceStatus.DISABLED
 
     @pytest.mark.asyncio
     async def test_disable_service_broadcasts_status(
@@ -749,7 +749,7 @@ class TestHealthChangeCallback:
         orchestrator._hm_registry = MagicMock()
         hm_service = MagicMock()
         hm_service.name = "ai-detector"
-        hm_service.status = ServiceStatus.RUNNING
+        hm_service.status = ContainerServiceStatus.RUNNING
         orchestrator._hm_registry.get.return_value = hm_service
 
         await orchestrator._on_health_change(hm_service, True)
@@ -772,7 +772,7 @@ class TestHealthChangeCallback:
         orchestrator._hm_registry = MagicMock()
         hm_service = MagicMock()
         hm_service.name = "ai-detector"
-        hm_service.status = ServiceStatus.UNHEALTHY
+        hm_service.status = ContainerServiceStatus.UNHEALTHY
         orchestrator._hm_registry.get.return_value = hm_service
 
         await orchestrator._on_health_change(hm_service, False)
@@ -852,7 +852,7 @@ class TestStateSync:
 
         orchestrator._hm_registry = MagicMock()
         hm_service = MagicMock()
-        hm_service.status = ServiceStatus.UNHEALTHY
+        hm_service.status = ContainerServiceStatus.UNHEALTHY
         hm_service.failure_count = 3
         hm_service.last_failure_at = datetime.now(UTC)
         hm_service.last_restart_at = None
@@ -863,7 +863,7 @@ class TestStateSync:
 
         service = orchestrator.get_service("ai-detector")
         assert service is not None
-        assert service.status == ServiceStatus.UNHEALTHY
+        assert service.status == ContainerServiceStatus.UNHEALTHY
         assert service.failure_count == 3
 
 
@@ -886,7 +886,7 @@ class TestServiceConversion:
         assert managed.container_id == discovered_service.container_id
         assert managed.port == discovered_service.port
         assert managed.category == discovered_service.category
-        assert managed.status == ServiceStatus.RUNNING
+        assert managed.status == ContainerServiceStatus.RUNNING
         assert managed.enabled is True
 
     def test_convert_to_hm_service(
@@ -952,7 +952,7 @@ class TestEventStructure:
                 category=category,
                 health_endpoint="/health",
                 health_cmd=None,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 enabled=True,
                 failure_count=0,
                 restart_count=0,
@@ -995,7 +995,7 @@ class TestEventStructure:
         event = create_service_status_event(managed_service, "Test")
 
         assert "status" in event["data"]
-        assert event["data"]["status"] == ServiceStatus.RUNNING.value
+        assert event["data"]["status"] == ContainerServiceStatus.RUNNING.value
 
     def test_event_includes_failure_count(self, managed_service: ManagedService) -> None:
         """Test that event includes failure_count."""

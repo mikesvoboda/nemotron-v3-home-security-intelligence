@@ -6,11 +6,11 @@ import pytest
 
 from backend.api.schemas.services import (
     CategorySummary,
+    ContainerServiceStatus,
     ServiceActionResponse,
     ServiceCategory,
     ServiceInfo,
     ServicesResponse,
-    ServiceStatus,
     ServiceStatusEvent,
 )
 
@@ -42,27 +42,27 @@ class TestServiceCategory:
             ServiceCategory("invalid")
 
 
-class TestServiceStatus:
-    """Tests for ServiceStatus enum."""
+class TestContainerServiceStatus:
+    """Tests for ContainerServiceStatus enum."""
 
     def test_service_status_values(self):
-        """Test ServiceStatus enum contains all expected values."""
-        assert ServiceStatus.RUNNING == "running"
-        assert ServiceStatus.STARTING == "starting"
-        assert ServiceStatus.UNHEALTHY == "unhealthy"
-        assert ServiceStatus.STOPPED == "stopped"
-        assert ServiceStatus.DISABLED == "disabled"
-        assert ServiceStatus.NOT_FOUND == "not_found"
+        """Test ContainerServiceStatus enum contains all expected values."""
+        assert ContainerServiceStatus.RUNNING == "running"
+        assert ContainerServiceStatus.STARTING == "starting"
+        assert ContainerServiceStatus.UNHEALTHY == "unhealthy"
+        assert ContainerServiceStatus.STOPPED == "stopped"
+        assert ContainerServiceStatus.DISABLED == "disabled"
+        assert ContainerServiceStatus.NOT_FOUND == "not_found"
 
     def test_service_status_is_string_enum(self):
-        """Test ServiceStatus is a string enum."""
-        assert isinstance(ServiceStatus.RUNNING, str)
-        assert isinstance(ServiceStatus.DISABLED, str)
+        """Test ContainerServiceStatus is a string enum."""
+        assert isinstance(ContainerServiceStatus.RUNNING, str)
+        assert isinstance(ContainerServiceStatus.DISABLED, str)
 
     def test_service_status_from_string(self):
-        """Test creating ServiceStatus from string value."""
-        assert ServiceStatus("running") == ServiceStatus.RUNNING
-        assert ServiceStatus("stopped") == ServiceStatus.STOPPED
+        """Test creating ContainerServiceStatus from string value."""
+        assert ContainerServiceStatus("running") == ContainerServiceStatus.RUNNING
+        assert ContainerServiceStatus("stopped") == ContainerServiceStatus.STOPPED
 
 
 class TestServiceInfo:
@@ -74,13 +74,13 @@ class TestServiceInfo:
             name="ai-detector",
             display_name="RT-DETRv2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         assert service.name == "ai-detector"
         assert service.display_name == "RT-DETRv2"
         assert service.category == ServiceCategory.AI
-        assert service.status == ServiceStatus.RUNNING
+        assert service.status == ContainerServiceStatus.RUNNING
         assert service.port == 8090
         assert service.enabled is True  # Default
         assert service.failure_count == 0  # Default
@@ -97,7 +97,7 @@ class TestServiceInfo:
             name="postgres",
             display_name="PostgreSQL",
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             enabled=True,
             container_id="abc123def456",
             image="postgres:16-alpine",
@@ -110,7 +110,7 @@ class TestServiceInfo:
         assert service.name == "postgres"
         assert service.display_name == "PostgreSQL"
         assert service.category == ServiceCategory.INFRASTRUCTURE
-        assert service.status == ServiceStatus.RUNNING
+        assert service.status == ContainerServiceStatus.RUNNING
         assert service.enabled is True
         assert service.container_id == "abc123def456"
         assert service.image == "postgres:16-alpine"
@@ -126,12 +126,12 @@ class TestServiceInfo:
             name="ai-florence",
             display_name="Florence-2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.DISABLED,
+            status=ContainerServiceStatus.DISABLED,
             enabled=False,
             port=8092,
             failure_count=5,
         )
-        assert service.status == ServiceStatus.DISABLED
+        assert service.status == ContainerServiceStatus.DISABLED
         assert service.enabled is False
         assert service.failure_count == 5
 
@@ -141,7 +141,7 @@ class TestServiceInfo:
             name="redis",
             display_name="Redis",
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=6379,
             container_id="redis123",
             image="redis:7-alpine",
@@ -155,7 +155,7 @@ class TestServiceInfo:
             name="grafana",
             display_name="Grafana",
             category=ServiceCategory.MONITORING,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=3000,
         )
         assert service.category == ServiceCategory.MONITORING
@@ -168,7 +168,7 @@ class TestServiceInfo:
             name="ai-detector",
             display_name="RT-DETRv2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
             last_restart_at=now,
         )
@@ -186,7 +186,7 @@ class TestServiceInfo:
             name="ai-detector",
             display_name="RT-DETRv2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         json_str = service.model_dump_json()
@@ -236,21 +236,21 @@ class TestServicesResponse:
                 name="postgres",
                 display_name="PostgreSQL",
                 category=ServiceCategory.INFRASTRUCTURE,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=5432,
             ),
             ServiceInfo(
                 name="ai-detector",
                 display_name="RT-DETRv2",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=8090,
             ),
             ServiceInfo(
                 name="ai-llm",
                 display_name="Nemotron",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.UNHEALTHY,
+                status=ContainerServiceStatus.UNHEALTHY,
                 port=8091,
             ),
         ]
@@ -274,7 +274,7 @@ class TestServicesResponse:
                     name="redis",
                     display_name="Redis",
                     category=ServiceCategory.INFRASTRUCTURE,
-                    status=ServiceStatus.RUNNING,
+                    status=ContainerServiceStatus.RUNNING,
                     port=6379,
                 )
             ],
@@ -296,7 +296,7 @@ class TestServiceActionResponse:
             name="ai-detector",
             display_name="RT-DETRv2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
             port=8090,
             restart_count=1,
         )
@@ -306,7 +306,7 @@ class TestServiceActionResponse:
         assert response.success is True
         assert response.message == "Service restarted successfully"
         assert response.service.name == "ai-detector"
-        assert response.service.status == ServiceStatus.STARTING
+        assert response.service.status == ContainerServiceStatus.STARTING
 
     def test_failed_enable(self):
         """Test failed enable action response."""
@@ -314,7 +314,7 @@ class TestServiceActionResponse:
             name="ai-florence",
             display_name="Florence-2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.DISABLED,
+            status=ContainerServiceStatus.DISABLED,
             enabled=False,
             port=8092,
         )
@@ -331,14 +331,14 @@ class TestServiceActionResponse:
             name="grafana",
             display_name="Grafana",
             category=ServiceCategory.MONITORING,
-            status=ServiceStatus.STOPPED,
+            status=ContainerServiceStatus.STOPPED,
             enabled=False,
             port=3000,
         )
         response = ServiceActionResponse(success=True, message="Service disabled", service=service)
         assert response.success is True
         assert response.service.enabled is False
-        assert response.service.status == ServiceStatus.STOPPED
+        assert response.service.status == ContainerServiceStatus.STOPPED
 
 
 class TestServiceStatusEvent:
@@ -350,7 +350,7 @@ class TestServiceStatusEvent:
             name="ai-detector",
             display_name="RT-DETRv2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         event = ServiceStatusEvent(data=service)
@@ -364,7 +364,7 @@ class TestServiceStatusEvent:
             name="ai-llm",
             display_name="Nemotron",
             category=ServiceCategory.AI,
-            status=ServiceStatus.UNHEALTHY,
+            status=ContainerServiceStatus.UNHEALTHY,
             port=8091,
             failure_count=3,
         )
@@ -379,7 +379,7 @@ class TestServiceStatusEvent:
             name="redis",
             display_name="Redis",
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
             port=6379,
         )
         event = ServiceStatusEvent(data=service, message="Container restarting")
@@ -395,7 +395,7 @@ class TestServiceStatusEvent:
             name="postgres",
             display_name="PostgreSQL",
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=5432,
         )
         event = ServiceStatusEvent(data=service)
@@ -414,7 +414,7 @@ class TestServiceInfoValidation:
             name="test",
             display_name="Test",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=1,
         )
         assert service.port == 1
@@ -425,7 +425,7 @@ class TestServiceInfoValidation:
             name="test",
             display_name="Test",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         assert service.failure_count == 0
@@ -436,7 +436,7 @@ class TestServiceInfoValidation:
             name="test",
             display_name="Test",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         assert service.restart_count == 0
@@ -447,7 +447,7 @@ class TestServiceInfoValidation:
             name="test",
             display_name="Test",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         assert service.enabled is True
@@ -463,28 +463,28 @@ class TestCategoryUseCase:
                 name="postgres",
                 display_name="PostgreSQL",
                 category=ServiceCategory.INFRASTRUCTURE,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=5432,
             ),
             ServiceInfo(
                 name="redis",
                 display_name="Redis",
                 category=ServiceCategory.INFRASTRUCTURE,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=6379,
             ),
             ServiceInfo(
                 name="ai-detector",
                 display_name="RT-DETRv2",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=8090,
             ),
             ServiceInfo(
                 name="grafana",
                 display_name="Grafana",
                 category=ServiceCategory.MONITORING,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=3000,
             ),
         ]
@@ -500,41 +500,41 @@ class TestCategoryUseCase:
                 name="s1",
                 display_name="S1",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=8090,
             ),
             ServiceInfo(
                 name="s2",
                 display_name="S2",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.UNHEALTHY,
+                status=ContainerServiceStatus.UNHEALTHY,
                 port=8091,
             ),
             ServiceInfo(
                 name="s3",
                 display_name="S3",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.STOPPED,
+                status=ContainerServiceStatus.STOPPED,
                 port=8092,
             ),
             ServiceInfo(
                 name="s4",
                 display_name="S4",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.DISABLED,
+                status=ContainerServiceStatus.DISABLED,
                 port=8093,
             ),
             ServiceInfo(
                 name="s5",
                 display_name="S5",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.STARTING,
+                status=ContainerServiceStatus.STARTING,
                 port=8094,
             ),
         ]
         statuses = {s.status for s in services}
-        assert ServiceStatus.RUNNING in statuses
-        assert ServiceStatus.UNHEALTHY in statuses
-        assert ServiceStatus.STOPPED in statuses
-        assert ServiceStatus.DISABLED in statuses
-        assert ServiceStatus.STARTING in statuses
+        assert ContainerServiceStatus.RUNNING in statuses
+        assert ContainerServiceStatus.UNHEALTHY in statuses
+        assert ContainerServiceStatus.STOPPED in statuses
+        assert ContainerServiceStatus.DISABLED in statuses
+        assert ContainerServiceStatus.STARTING in statuses

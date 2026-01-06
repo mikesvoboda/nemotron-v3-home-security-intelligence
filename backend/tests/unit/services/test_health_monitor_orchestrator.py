@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.health_monitor_orchestrator import (
     HealthMonitor,
     ManagedService,
@@ -73,7 +73,7 @@ def sample_service() -> ManagedService:
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         last_failure_at=None,
@@ -97,7 +97,7 @@ def sample_infrastructure_service() -> ManagedService:
         health_endpoint=None,
         health_cmd="pg_isready -U security",
         category=ServiceCategory.INFRASTRUCTURE,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         last_failure_at=None,
@@ -196,11 +196,11 @@ class TestServiceRegistry:
 
     def test_update_status(self, service_registry: ServiceRegistry) -> None:
         """Test updating service status."""
-        service_registry.update_status("ai-detector", ServiceStatus.UNHEALTHY)
+        service_registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
 
         service = service_registry.get("ai-detector")
         assert service is not None
-        assert service.status == ServiceStatus.UNHEALTHY
+        assert service.status == ContainerServiceStatus.UNHEALTHY
 
     def test_increment_failures(self, service_registry: ServiceRegistry) -> None:
         """Test incrementing failure count."""
@@ -857,7 +857,7 @@ class TestHealthMonitorContainerStatusChecks:
 
         await monitor._handle_missing_container(sample_service)
 
-        assert sample_service.status == ServiceStatus.NOT_FOUND
+        assert sample_service.status == ContainerServiceStatus.NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_handle_stopped_container(
@@ -880,7 +880,7 @@ class TestHealthMonitorContainerStatusChecks:
 
         await monitor._handle_stopped_container(sample_service)
 
-        assert sample_service.status == ServiceStatus.STOPPED
+        assert sample_service.status == ContainerServiceStatus.STOPPED
 
 
 class TestHealthMonitorFullCycle:
@@ -910,7 +910,7 @@ class TestHealthMonitorFullCycle:
         ):
             await monitor.run_health_check_cycle()
 
-        assert sample_service.status == ServiceStatus.RUNNING
+        assert sample_service.status == ContainerServiceStatus.RUNNING
         assert sample_service.failure_count == 0
 
     @pytest.mark.asyncio
@@ -937,7 +937,7 @@ class TestHealthMonitorFullCycle:
         ):
             await monitor.run_health_check_cycle()
 
-        assert sample_service.status == ServiceStatus.UNHEALTHY
+        assert sample_service.status == ContainerServiceStatus.UNHEALTHY
         assert sample_service.failure_count == 1
 
 
@@ -1124,7 +1124,7 @@ class TestGracePeriodStartingStatus:
             port=8080,
             health_endpoint="/health",
             category=ServiceCategory.AI,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
             startup_grace_period=60,
             last_restart_at=datetime.now(UTC) - timedelta(seconds=10),  # 10s ago
         )
@@ -1154,7 +1154,7 @@ class TestGracePeriodStartingStatus:
             port=8080,
             health_endpoint="/health",
             category=ServiceCategory.AI,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
             startup_grace_period=60,
             last_restart_at=datetime.now(UTC) - timedelta(seconds=120),  # 2 minutes ago
         )
@@ -1184,7 +1184,7 @@ class TestGracePeriodStartingStatus:
             port=5432,
             health_cmd="pg_isready",
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
             startup_grace_period=10,  # Infrastructure has 10s
             last_restart_at=datetime.now(UTC) - timedelta(seconds=15),  # 15s ago
         )
@@ -1215,7 +1215,7 @@ class TestGracePeriodStartingStatus:
             port=8090,
             health_endpoint="/health",
             category=ServiceCategory.AI,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
             startup_grace_period=60,  # AI has 60s
             last_restart_at=datetime.now(UTC) - timedelta(seconds=30),  # 30s ago
         )

@@ -68,19 +68,21 @@ class TestFlorence2Config:
     """Tests for Florence2Config schema."""
 
     def test_valid_config(self):
-        """Test Florence2Config with valid queries."""
+        """Test Florence2Config with valid vqa_queries."""
         config = Florence2Config(
-            queries=[
+            vqa_queries=[
                 "What is the person doing?",
                 "Describe the scene",
             ]
         )
-        assert len(config.queries) == 2
+        assert len(config.vqa_queries) == 2
 
-    def test_default_empty_queries(self):
-        """Test that queries defaults to empty list."""
-        config = Florence2Config()
-        assert config.queries == []
+    def test_vqa_queries_required(self):
+        """Test that vqa_queries is required and cannot be empty."""
+        with pytest.raises(ValidationError):
+            Florence2Config()
+        with pytest.raises(ValidationError):
+            Florence2Config(vqa_queries=[])
 
 
 class TestYoloWorldConfig:
@@ -89,24 +91,24 @@ class TestYoloWorldConfig:
     def test_valid_config(self):
         """Test YoloWorldConfig with valid data."""
         config = YoloWorldConfig(
-            classes=["knife", "gun", "package"],
+            object_classes=["knife", "gun", "package"],
             confidence_threshold=0.4,
         )
-        assert len(config.classes) == 3
+        assert len(config.object_classes) == 3
         assert config.confidence_threshold == 0.4
 
     def test_default_threshold(self):
         """Test default confidence threshold."""
-        config = YoloWorldConfig(classes=["test"])
+        config = YoloWorldConfig(object_classes=["test"])
         assert config.confidence_threshold == 0.35
 
     def test_threshold_bounds(self):
         """Test threshold must be between 0 and 1."""
         with pytest.raises(ValidationError):
-            YoloWorldConfig(classes=[], confidence_threshold=1.5)
+            YoloWorldConfig(object_classes=[], confidence_threshold=1.5)
 
         with pytest.raises(ValidationError):
-            YoloWorldConfig(classes=[], confidence_threshold=-0.1)
+            YoloWorldConfig(object_classes=[], confidence_threshold=-0.1)
 
 
 class TestXClipConfig:
@@ -117,10 +119,12 @@ class TestXClipConfig:
         config = XClipConfig(action_classes=["loitering", "running", "fighting"])
         assert len(config.action_classes) == 3
 
-    def test_default_empty_actions(self):
-        """Test that action_classes defaults to empty list."""
-        config = XClipConfig()
-        assert config.action_classes == []
+    def test_action_classes_required(self):
+        """Test that action_classes is required and cannot be empty."""
+        with pytest.raises(ValidationError):
+            XClipConfig()
+        with pytest.raises(ValidationError):
+            XClipConfig(action_classes=[])
 
 
 class TestModelPromptConfig:

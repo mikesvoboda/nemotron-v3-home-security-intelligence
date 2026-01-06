@@ -1197,6 +1197,10 @@ class TestGetEventEnrichments:
 
         assert data["event_id"] == sample_event.id
         assert data["count"] == 1
+        assert data["total"] == 1
+        assert data["limit"] == 50  # default
+        assert data["offset"] == 0  # default
+        assert data["has_more"] is False
         assert len(data["enrichments"]) == 1
 
         enrichment = data["enrichments"][0]
@@ -1225,6 +1229,10 @@ class TestGetEventEnrichments:
 
         assert data["event_id"] == sample_event.id
         assert data["count"] == 0
+        assert data["total"] == 0
+        assert data["limit"] == 50
+        assert data["offset"] == 0
+        assert data["has_more"] is False
         assert data["enrichments"] == []
 
     async def test_get_event_enrichments_not_found(self, async_client):
@@ -1298,7 +1306,201 @@ class TestGetEventEnrichments:
 
         assert data["event_id"] == sample_event.id
         assert data["count"] == 2
+        assert data["total"] == 2
+        assert data["limit"] == 50
+        assert data["offset"] == 0
+        assert data["has_more"] is False
         assert len(data["enrichments"]) == 2
+
+    async def test_get_event_enrichments_pagination(
+        self, async_client, sample_event, sample_camera, integration_db
+    ):
+        """Test pagination parameters for enrichments endpoint."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        async with get_session() as db:
+            # Create 5 detections for pagination testing
+            detections = []
+            for i in range(5):
+                detection = Detection(
+                    camera_id=sample_camera.id,
+                    file_path=f"/export/foscam/front_door/det_page_{i}.jpg",
+                    file_type="image/jpeg",
+                    detected_at=datetime(2025, 12, 23, 12, 0, i),
+                    object_type="person",
+                    confidence=0.90 + i * 0.01,
+                    bbox_x=100 + i * 10,
+                    bbox_y=150,
+                    bbox_width=200,
+                    bbox_height=400,
+                    enrichment_data={
+                        "faces": [{"confidence": 0.8 + i * 0.02}],
+                        "violence_detection": {"is_violent": False, "confidence": 0.1},
+                    },
+                )
+                db.add(detection)
+                detections.append(detection)
+
+            await db.commit()
+            for det in detections:
+                await db.refresh(det)
+
+            # Update event with all detections
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([d.id for d in detections])
+            await db.commit()
+
+        # Test with custom limit
+        response = await async_client.get(
+            f"/api/events/{sample_event.id}/enrichments?limit=2&offset=0"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["count"] == 2
+        assert data["total"] == 5
+        assert data["limit"] == 2
+        assert data["offset"] == 0
+        assert data["has_more"] is True
+        assert len(data["enrichments"]) == 2
+
+    async def test_get_event_enrichments_pagination_offset(
+        self, async_client, sample_event, sample_camera, integration_db
+    ):
+        """Test pagination with offset."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        async with get_session() as db:
+            # Create 5 detections for pagination testing
+            detections = []
+            for i in range(5):
+                detection = Detection(
+                    camera_id=sample_camera.id,
+                    file_path=f"/export/foscam/front_door/det_offset_{i}.jpg",
+                    file_type="image/jpeg",
+                    detected_at=datetime(2025, 12, 23, 12, 1, i),
+                    object_type="car",
+                    confidence=0.85 + i * 0.02,
+                    bbox_x=200 + i * 20,
+                    bbox_y=250,
+                    bbox_width=300,
+                    bbox_height=200,
+                    enrichment_data={
+                        "license_plates": [{"text": f"ABC-{i}00{i}", "confidence": 0.9}],
+                        "violence_detection": {"is_violent": False, "confidence": 0.05},
+                    },
+                )
+                db.add(detection)
+                detections.append(detection)
+
+            await db.commit()
+            for det in detections:
+                await db.refresh(det)
+
+            # Update event with all detections
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([d.id for d in detections])
+            await db.commit()
+
+        # Test with offset
+        response = await async_client.get(
+            f"/api/events/{sample_event.id}/enrichments?limit=2&offset=3"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["count"] == 2  # Last 2 items
+        assert data["total"] == 5
+        assert data["limit"] == 2
+        assert data["offset"] == 3
+        assert data["has_more"] is False  # No more items after position 5
+        assert len(data["enrichments"]) == 2
+
+    async def test_get_event_enrichments_pagination_beyond_total(
+        self, async_client, sample_event, sample_camera, integration_db
+    ):
+        """Test pagination with offset beyond total items."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        async with get_session() as db:
+            # Create 3 detections
+            detections = []
+            for i in range(3):
+                detection = Detection(
+                    camera_id=sample_camera.id,
+                    file_path=f"/export/foscam/front_door/det_beyond_{i}.jpg",
+                    file_type="image/jpeg",
+                    detected_at=datetime(2025, 12, 23, 12, 2, i),
+                    object_type="person",
+                    confidence=0.92,
+                    bbox_x=100,
+                    bbox_y=150,
+                    bbox_width=200,
+                    bbox_height=400,
+                    enrichment_data={
+                        "violence_detection": {"is_violent": False, "confidence": 0.1},
+                    },
+                )
+                db.add(detection)
+                detections.append(detection)
+
+            await db.commit()
+            for det in detections:
+                await db.refresh(det)
+
+            # Update event
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([d.id for d in detections])
+            await db.commit()
+
+        # Test with offset beyond available items
+        response = await async_client.get(
+            f"/api/events/{sample_event.id}/enrichments?limit=10&offset=100"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["count"] == 0
+        assert data["total"] == 3
+        assert data["limit"] == 10
+        assert data["offset"] == 100
+        assert data["has_more"] is False
+        assert data["enrichments"] == []
+
+    async def test_get_event_enrichments_pagination_validation(self, async_client, sample_event):
+        """Test pagination parameter validation."""
+        # Test limit too high
+        response = await async_client.get(f"/api/events/{sample_event.id}/enrichments?limit=500")
+        assert response.status_code == 422
+
+        # Test limit too low
+        response = await async_client.get(f"/api/events/{sample_event.id}/enrichments?limit=0")
+        assert response.status_code == 422
+
+        # Test negative offset
+        response = await async_client.get(f"/api/events/{sample_event.id}/enrichments?offset=-1")
+        assert response.status_code == 422
 
 
 class TestGetEventClip:
@@ -1497,14 +1699,14 @@ class TestGenerateEventClip:
         # Test with invalid start_offset_seconds
         response = await async_client.post(
             f"/api/events/{sample_event.id}/clip/generate",
-            json={"start_offset_seconds": -500},  # Exceeds max of -300
+            json={"start_offset_seconds": -31},  # Exceeds min of -30
         )
         assert response.status_code == 422
 
         # Test with invalid end_offset_seconds
         response = await async_client.post(
             f"/api/events/{sample_event.id}/clip/generate",
-            json={"end_offset_seconds": 500},  # Exceeds max of 300
+            json={"end_offset_seconds": 3601},  # Exceeds max of 3600
         )
         assert response.status_code == 422
 
