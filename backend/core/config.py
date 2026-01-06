@@ -332,13 +332,14 @@ class Settings(BaseSettings):
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
 
-    # AI service concurrency settings (NEM-1500)
-    ai_max_concurrent_requests: int = Field(
+    # AI service concurrency settings (NEM-1463)
+    ai_max_concurrent_inferences: int = Field(
         default=4,
         ge=1,
         le=32,
-        description="Maximum concurrent requests to AI services (RT-DETR, Nemotron). "
-        "Limits parallel GPU operations to prevent memory exhaustion. Default: 4.",
+        description="Maximum concurrent AI inference operations (RT-DETR detection + Nemotron analysis). "
+        "Limits GPU/AI service load under high traffic. Set lower for constrained GPU VRAM, "
+        "higher for distributed AI services. Default: 4 concurrent operations.",
     )
 
     @field_validator("rtdetr_url", "nemotron_url", mode="before")
@@ -613,6 +614,16 @@ class Settings(BaseSettings):
     log_retention_days: int = Field(
         default=7,
         description="Number of days to retain logs",
+    )
+
+    # Request timing settings (NEM-1469)
+    slow_request_threshold_ms: int = Field(
+        default=500,
+        ge=1,
+        le=60000,
+        description="Threshold in milliseconds for logging slow API requests. "
+        "Requests exceeding this duration are logged at WARNING level with "
+        "method, path, status code, and duration for performance monitoring.",
     )
 
     # DLQ settings

@@ -8,11 +8,18 @@ Analysis Flow:
     2. Enrich context with zones, baselines, and cross-camera activity
     3. Run enrichment pipeline for license plates, faces, OCR (optional)
     4. Format prompt with enriched detection details
-    5. POST to llama.cpp completion endpoint (with retry on transient failures)
-    6. Parse JSON response
-    7. Create Event with risk assessment
-    8. Store Event in database
-    9. Broadcast via WebSocket (if available)
+    5. Acquire shared AI inference semaphore (NEM-1463)
+    6. POST to llama.cpp completion endpoint (with retry on transient failures)
+    7. Release semaphore
+    8. Parse JSON response
+    9. Create Event with risk assessment
+    10. Store Event in database
+    11. Broadcast via WebSocket (if available)
+
+Concurrency Control (NEM-1463):
+    Uses a shared asyncio.Semaphore to limit concurrent AI inference operations.
+    This prevents GPU/AI service overload under high traffic. The limit is
+    configurable via AI_MAX_CONCURRENT_INFERENCES setting (default: 4).
 
 Retry Logic (NEM-1343):
     - Configurable max retries via NEMOTRON_MAX_RETRIES setting (default: 3)
@@ -56,6 +63,7 @@ from backend.services.enrichment_pipeline import (
     EnrichmentResult,
     get_enrichment_pipeline,
 )
+from backend.services.inference_semaphore import get_inference_semaphore
 from backend.services.prompts import (
     ENRICHED_RISK_ANALYSIS_PROMPT,
     FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
@@ -1088,85 +1096,40 @@ class NemotronAnalyzer:
         headers = {"Content-Type": "application/json"}
         headers.update(self._get_auth_headers())
 
+        # Acquire shared AI inference semaphore (NEM-1463)
+        # This limits concurrent AI operations to prevent GPU/service overload
+        inference_semaphore = get_inference_semaphore()
+
         # Retry loop with exponential backoff for transient failures
         last_exception: Exception | None = None
         completion_text: str = ""
 
-        for attempt in range(self._max_retries):
-            try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    response = await client.post(
-                        f"{self._llm_url}/completion",
-                        json=payload,
-                        headers=headers,
-                    )
-                    response.raise_for_status()
-                    result = response.json()
+        async with inference_semaphore:
+            for attempt in range(self._max_retries):
+                try:
+                    async with httpx.AsyncClient(timeout=self._timeout) as client:
+                        response = await client.post(
+                            f"{self._llm_url}/completion",
+                            json=payload,
+                            headers=headers,
+                        )
+                        response.raise_for_status()
+                        result = response.json()
 
-                # Extract completion text
-                completion_text = result.get("content", "")
-                if not completion_text:
-                    raise ValueError("Empty completion from LLM")
-                break  # Success, exit retry loop
+                    # Extract completion text
+                    completion_text = result.get("content", "")
+                    if not completion_text:
+                        raise ValueError("Empty completion from LLM")
+                    break  # Success, exit retry loop
 
-            except httpx.ConnectError as e:
-                last_exception = e
-                if attempt < self._max_retries - 1:
-                    delay = min(2**attempt, 30)  # Cap at 30 seconds
-                    logger.warning(
-                        f"Nemotron connection error (attempt {attempt + 1}/{self._max_retries}), "
-                        f"retrying in {delay}s: {e}",
-                        extra={
-                            "attempt": attempt + 1,
-                            "max_retries": self._max_retries,
-                            "retry_delay": delay,
-                        },
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    record_pipeline_error("nemotron_connection_error")
-                    logger.error(
-                        f"Nemotron connection error after {self._max_retries} attempts: {e}",
-                        extra={"attempts": self._max_retries},
-                        exc_info=True,
-                    )
-
-            except httpx.TimeoutException as e:
-                last_exception = e
-                if attempt < self._max_retries - 1:
-                    delay = min(2**attempt, 30)  # Cap at 30 seconds
-                    logger.warning(
-                        f"Nemotron timeout (attempt {attempt + 1}/{self._max_retries}), "
-                        f"retrying in {delay}s: {e}",
-                        extra={
-                            "attempt": attempt + 1,
-                            "max_retries": self._max_retries,
-                            "retry_delay": delay,
-                        },
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    record_pipeline_error("nemotron_timeout")
-                    logger.error(
-                        f"Nemotron timeout after {self._max_retries} attempts: {e}",
-                        extra={"attempts": self._max_retries},
-                        exc_info=True,
-                    )
-
-            except httpx.HTTPStatusError as e:
-                status_code = e.response.status_code
-
-                # 5xx errors are server-side failures that should be retried
-                if status_code >= 500:
+                except httpx.ConnectError as e:
                     last_exception = e
                     if attempt < self._max_retries - 1:
                         delay = min(2**attempt, 30)  # Cap at 30 seconds
                         logger.warning(
-                            f"Nemotron server error {status_code} "
-                            f"(attempt {attempt + 1}/{self._max_retries}), "
-                            f"retrying in {delay}s",
+                            f"Nemotron connection error (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s: {e}",
                             extra={
-                                "status_code": status_code,
                                 "attempt": attempt + 1,
                                 "max_retries": self._max_retries,
                                 "retry_delay": delay,
@@ -1174,56 +1137,106 @@ class NemotronAnalyzer:
                         )
                         await asyncio.sleep(delay)
                     else:
-                        record_pipeline_error("nemotron_server_error")
+                        record_pipeline_error("nemotron_connection_error")
                         logger.error(
-                            f"Nemotron server error {status_code} after {self._max_retries} attempts",
-                            extra={
-                                "status_code": status_code,
-                                "attempts": self._max_retries,
-                            },
+                            f"Nemotron connection error after {self._max_retries} attempts: {e}",
+                            extra={"attempts": self._max_retries},
                             exc_info=True,
                         )
-                else:
-                    # 4xx errors are client errors - don't retry
-                    record_pipeline_error("nemotron_client_error")
-                    logger.error(
-                        f"Nemotron client error {status_code}: {e}",
-                        extra={"status_code": status_code},
-                    )
-                    raise  # Re-raise immediately for client errors
 
-            except ValueError:
-                # Empty completion - not retryable, re-raise immediately
-                raise
+                except httpx.TimeoutException as e:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)  # Cap at 30 seconds
+                        logger.warning(
+                            f"Nemotron timeout (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s: {e}",
+                            extra={
+                                "attempt": attempt + 1,
+                                "max_retries": self._max_retries,
+                                "retry_delay": delay,
+                            },
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error("nemotron_timeout")
+                        logger.error(
+                            f"Nemotron timeout after {self._max_retries} attempts: {e}",
+                            extra={"attempts": self._max_retries},
+                            exc_info=True,
+                        )
 
-            except Exception as e:
-                last_exception = e
-                if attempt < self._max_retries - 1:
-                    delay = min(2**attempt, 30)  # Cap at 30 seconds
-                    logger.warning(
-                        f"Unexpected Nemotron error (attempt {attempt + 1}/{self._max_retries}), "
-                        f"retrying in {delay}s: {sanitize_error(e)}",
-                        extra={
-                            "attempt": attempt + 1,
-                            "max_retries": self._max_retries,
-                            "retry_delay": delay,
-                        },
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    record_pipeline_error("nemotron_unexpected_error")
-                    logger.error(
-                        f"Unexpected Nemotron error after {self._max_retries} attempts: "
-                        f"{sanitize_error(e)}",
-                        extra={"attempts": self._max_retries},
-                        exc_info=True,
-                    )
-        else:
-            # All retries exhausted without success
-            error_msg = f"Nemotron LLM call failed after {self._max_retries} attempts"
-            if last_exception:
-                raise RuntimeError(error_msg) from last_exception
-            raise RuntimeError(error_msg)
+                except httpx.HTTPStatusError as e:
+                    status_code = e.response.status_code
+
+                    # 5xx errors are server-side failures that should be retried
+                    if status_code >= 500:
+                        last_exception = e
+                        if attempt < self._max_retries - 1:
+                            delay = min(2**attempt, 30)  # Cap at 30 seconds
+                            logger.warning(
+                                f"Nemotron server error {status_code} "
+                                f"(attempt {attempt + 1}/{self._max_retries}), "
+                                f"retrying in {delay}s",
+                                extra={
+                                    "status_code": status_code,
+                                    "attempt": attempt + 1,
+                                    "max_retries": self._max_retries,
+                                    "retry_delay": delay,
+                                },
+                            )
+                            await asyncio.sleep(delay)
+                        else:
+                            record_pipeline_error("nemotron_server_error")
+                            logger.error(
+                                f"Nemotron server error {status_code} after {self._max_retries} attempts",
+                                extra={
+                                    "status_code": status_code,
+                                    "attempts": self._max_retries,
+                                },
+                                exc_info=True,
+                            )
+                    else:
+                        # 4xx errors are client errors - don't retry
+                        record_pipeline_error("nemotron_client_error")
+                        logger.error(
+                            f"Nemotron client error {status_code}: {e}",
+                            extra={"status_code": status_code},
+                        )
+                        raise  # Re-raise immediately for client errors
+
+                except ValueError:
+                    # Empty completion - not retryable, re-raise immediately
+                    raise
+
+                except Exception as e:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)  # Cap at 30 seconds
+                        logger.warning(
+                            f"Unexpected Nemotron error (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s: {sanitize_error(e)}",
+                            extra={
+                                "attempt": attempt + 1,
+                                "max_retries": self._max_retries,
+                                "retry_delay": delay,
+                            },
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error("nemotron_unexpected_error")
+                        logger.error(
+                            f"Unexpected Nemotron error after {self._max_retries} attempts: "
+                            f"{sanitize_error(e)}",
+                            extra={"attempts": self._max_retries},
+                            exc_info=True,
+                        )
+            else:
+                # All retries exhausted without success
+                error_msg = f"Nemotron LLM call failed after {self._max_retries} attempts"
+                if last_exception:
+                    raise RuntimeError(error_msg) from last_exception
+                raise RuntimeError(error_msg)
 
         # Parse JSON from completion
         risk_data = self._parse_llm_response(completion_text)
