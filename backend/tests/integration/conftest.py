@@ -42,6 +42,8 @@ logger = logging.getLogger(__name__)
 
 
 # Fallback hardcoded table order in case reflection fails
+# NOTE: Only include tables that actually exist in the schema.
+# New tables should be added here when their migrations are created.
 HARDCODED_TABLE_DELETION_ORDER = [
     # First: Delete tables with foreign key references (leaf tables)
     "alerts",
@@ -51,7 +53,6 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "class_baselines",
     "events",
     "scene_changes",
-    "prompt_versions",
     # Second: Delete tables without FK references (standalone)
     "alert_rules",
     "audit_logs",
@@ -776,14 +777,21 @@ async def _cleanup_test_data() -> None:
         async with get_session() as session:
             # Delete all test-related data in FK-safe order
             # The order is automatically computed from foreign key relationships
-            for table_name in deletion_order:
+            for tbl in deletion_order:
                 try:
-                    # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
-                    await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
+                    # Use SAVEPOINT so failures don't abort the transaction
+                    # This handles missing tables (not yet migrated) gracefully
+                    await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
+                    # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
+                    await session.execute(text(f"DELETE FROM {tbl}"))  # noqa: S608 nosemgrep
+                    await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
                 except Exception as e:
-                    # Skip tables that don't exist or have other issues
-                    # This can happen if migrations haven't created all tables yet
-                    logger.debug(f"Skipping table {table_name}: {e}")
+                    # Rollback to savepoint and continue - table may not exist yet
+                    try:
+                        await session.execute(text(f"ROLLBACK TO SAVEPOINT sp_{tbl}"))  # nosemgrep
+                    except Exception as rb_err:
+                        logger.debug(f"Savepoint rollback failed for {tbl}: {rb_err}")
+                    logger.debug(f"Skipping table {tbl}: {e}")
 
             await session.commit()
     except Exception as e:
