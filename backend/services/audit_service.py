@@ -361,18 +361,12 @@ class AuditService:
                 llm_prompt=event.llm_prompt,
             )
             return await self._call_llm(prompt)
-        except httpx.TimeoutException as e:
-            logger.error(f"Self-critique timed out for event {event.id}: {e}")
-            return f"Evaluation timed out: {e}"
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Self-critique HTTP error for event {event.id}: {e}")
-            return f"Evaluation HTTP error: {e}"
-        except httpx.RequestError as e:
-            logger.error(f"Self-critique request failed for event {event.id}: {e}")
-            return f"Evaluation request failed: {e}"
-        except (KeyError, TypeError) as e:
-            logger.error(f"Self-critique format error for event {event.id}: {e}")
-            return f"Evaluation format error: {e}"
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
+            logger.error(f"Self-critique network error for event {event.id}: {e}")
+            return f"Evaluation network error: {e}"
+        except Exception as e:
+            logger.error(f"Self-critique error for event {event.id}: {e}")
+            return f"Evaluation error: {e}"
 
     async def _run_rubric_eval(self, event: Event) -> dict[str, float]:
         """Run Mode 2: Rubric scoring."""
@@ -392,17 +386,11 @@ class AuditService:
             except ValueError:
                 logger.warning(f"Could not extract JSON from rubric eval for event {event.id}")
                 return {}
-        except httpx.TimeoutException as e:
-            logger.error(f"Rubric eval timed out for event {event.id}: {e}")
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
+            logger.error(f"Rubric eval network error for event {event.id}: {e}")
             return {}
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Rubric eval HTTP error for event {event.id}: {e}")
-            return {}
-        except httpx.RequestError as e:
-            logger.error(f"Rubric eval request failed for event {event.id}: {e}")
-            return {}
-        except (KeyError, TypeError) as e:
-            logger.error(f"Rubric eval format error for event {event.id}: {e}")
+        except Exception as e:
+            logger.error(f"Rubric eval error for event {event.id}: {e}")
             return {}
 
     async def _run_consistency_check(self, event: Event) -> dict[str, Any]:
@@ -425,17 +413,11 @@ class AuditService:
                     f"Could not extract JSON from consistency check for event {event.id}"
                 )
                 return {}
-        except httpx.TimeoutException as e:
-            logger.error(f"Consistency check timed out for event {event.id}: {e}")
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
+            logger.error(f"Consistency check network error for event {event.id}: {e}")
             return {}
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Consistency check HTTP error for event {event.id}: {e}")
-            return {}
-        except httpx.RequestError as e:
-            logger.error(f"Consistency check request failed for event {event.id}: {e}")
-            return {}
-        except (KeyError, TypeError) as e:
-            logger.error(f"Consistency check format error for event {event.id}: {e}")
+        except Exception as e:
+            logger.error(f"Consistency check error for event {event.id}: {e}")
             return {}
 
     async def _run_prompt_improvement(self, event: Event) -> dict[str, list[str]]:
@@ -457,17 +439,11 @@ class AuditService:
                     f"Could not extract JSON from prompt improvement for event {event.id}"
                 )
                 return {}
-        except httpx.TimeoutException as e:
-            logger.error(f"Prompt improvement timed out for event {event.id}: {e}")
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
+            logger.error(f"Prompt improvement network error for event {event.id}: {e}")
             return {}
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Prompt improvement HTTP error for event {event.id}: {e}")
-            return {}
-        except httpx.RequestError as e:
-            logger.error(f"Prompt improvement request failed for event {event.id}: {e}")
-            return {}
-        except (KeyError, TypeError) as e:
-            logger.error(f"Prompt improvement format error for event {event.id}: {e}")
+        except Exception as e:
+            logger.error(f"Prompt improvement error for event {event.id}: {e}")
             return {}
 
     async def get_stats(
