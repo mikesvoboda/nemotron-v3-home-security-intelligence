@@ -82,6 +82,10 @@ regexes = [
   '''user:[\*x]+@''',
   '''user:pass\d*@''',
   '''user:redispass@''',
+  '''default:redispass@''',
+  # Docstring example patterns (any user with simple passwords)
+  '''://[^:]+:\*{2,}@''',
+  '''://[^:]+:pass\d*@''',
 ]
 
 # Specific commits to ignore (e.g., historical false positives)
