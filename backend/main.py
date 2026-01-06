@@ -7,7 +7,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.middleware import AuthMiddleware, SecurityHeadersMiddleware
+from backend.api.middleware import (
+    AuthMiddleware,
+    RequestTimingMiddleware,
+    SecurityHeadersMiddleware,
+)
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
@@ -548,6 +552,10 @@ app.add_middleware(AuthMiddleware)
 
 # Add request ID middleware for log correlation
 app.add_middleware(RequestIDMiddleware)
+
+# Add request timing middleware for API latency tracking (NEM-1469)
+# Added early so it measures the full request lifecycle including other middleware
+app.add_middleware(RequestTimingMiddleware)
 
 # Security: Restrict CORS methods to only what's needed
 # Using explicit methods instead of wildcard "*" to follow least-privilege principle
