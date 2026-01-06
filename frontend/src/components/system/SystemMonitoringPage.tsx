@@ -22,6 +22,7 @@ import ModelZooPanel from './ModelZooPanel';
 import PerformanceAlerts from './PerformanceAlerts';
 import PipelineFlowVisualization from './PipelineFlowVisualization';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
+import ServicesPanel from './ServicesPanel';
 import SystemSummaryRow from './SystemSummaryRow';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
@@ -892,6 +893,14 @@ export default function SystemMonitoringPage() {
               error={circuitBreakersError}
               onReset={handleResetCircuitBreaker}
               data-testid="circuit-breaker-panel-section"
+            />
+          </div>
+
+          {/* Row 6: Services Panel (full width) */}
+          <div className="lg:col-span-2 xl:col-span-4">
+            <ServicesPanel
+              pollingInterval={30000}
+              data-testid="services-panel-section"
             />
           </div>
         </div>

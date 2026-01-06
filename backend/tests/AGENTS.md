@@ -266,6 +266,166 @@ Pre-push hook runs `pytest backend/tests/unit/ -v`.
 - Backend path is auto-added in conftest.py
 - Check module names match file structure
 
+## Async Testing Best Practices
+
+### Framework Decision: pytest-asyncio vs pytest-anyio
+
+This project uses **pytest-asyncio** (not pytest-anyio) for the following reasons:
+
+1. **Existing Infrastructure**: 7000+ tests use pytest-asyncio with `asyncio_mode = "auto"`
+2. **Backend-specific**: Only asyncio is used (no trio support needed)
+3. **Fixture compatibility**: Function-scoped fixtures with testcontainers work well
+4. **Migration cost**: Converting would require extensive fixture updates
+5. **Maturity**: Better documentation for FastAPI + SQLAlchemy + httpx stack
+
+### Async Testing Utilities
+
+The `backend/tests/async_utils.py` module provides standardized patterns:
+
+#### Mock Async Context Managers
+
+**Old verbose pattern (avoid):**
+
+```python
+mock_client = AsyncMock()
+mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+mock_client.__aexit__ = AsyncMock(return_value=None)
+mock_client_class.return_value = mock_client
+```
+
+**New pattern (preferred):**
+
+```python
+from backend.tests.async_utils import AsyncClientMock, create_mock_db_context
+
+# For HTTP clients
+mock = AsyncClientMock(
+    get_responses={"/health": {"status": "healthy"}},
+    post_responses={"/detect": {"detections": []}},
+)
+async with mock.client() as client:
+    response = await client.get("/health")
+
+# For database sessions
+mock_session = create_async_session_mock(execute_results=[...])
+mock_context = create_mock_db_context(mock_session)
+```
+
+#### Timeout Protection
+
+Use for flaky operations or tests that might hang:
+
+```python
+from backend.tests.async_utils import async_timeout, with_timeout
+
+# Context manager style
+async with async_timeout(5.0, operation="health check"):
+    await client.check_health()
+
+# Function wrapper style
+result = await with_timeout(
+    client.get_data(),
+    timeout=5.0,
+    operation="fetching data",
+)
+```
+
+#### Concurrent Testing
+
+Test concurrent operations properly:
+
+```python
+from backend.tests.async_utils import run_concurrent_tasks, simulate_concurrent_requests
+
+# Run multiple coroutines concurrently
+result = await run_concurrent_tasks(
+    client.get("/endpoint1"),
+    client.get("/endpoint2"),
+    client.get("/endpoint3"),
+)
+assert result.all_succeeded
+assert len(result.results) == 3
+
+# Simulate load testing
+result = await simulate_concurrent_requests(
+    lambda: client.get("/api/health"),
+    count=10,
+    delay_between=0.01,
+)
+```
+
+### AsyncMock Best Practices
+
+1. **Use spec parameter** to catch typos in method names:
+
+   ```python
+   from backend.core.redis import RedisClient
+   mock_client = MagicMock(spec=RedisClient)
+   ```
+
+2. **Mock at the right level** - mock the class, not the instance:
+
+   ```python
+   # Good: Mock the class constructor
+   with patch("httpx.AsyncClient") as mock_class:
+       mock_class.return_value = mock_client
+
+   # Avoid: Mock the global module
+   with patch("backend.services.foo._client", mock_client):
+       ...
+   ```
+
+3. **Use create_async_session_mock()** for database mocking:
+
+   ```python
+   mock_session = create_async_session_mock(
+       execute_results=[mock_camera_result, mock_detection_result],
+   )
+   ```
+
+### Common Async Testing Patterns
+
+#### Testing Async Generators
+
+```python
+async def test_async_generator():
+    results = []
+    async for item in async_generator_function():
+        results.append(item)
+    assert len(results) == expected_count
+```
+
+#### Testing WebSocket Connections
+
+```python
+async def test_websocket_connection(client):
+    async with client.websocket_connect("/ws") as ws:
+        await ws.send_json({"type": "subscribe"})
+        response = await ws.receive_json()
+        assert response["type"] == "subscribed"
+```
+
+#### Testing Background Tasks
+
+```python
+async def test_background_task():
+    task = asyncio.create_task(background_function())
+    try:
+        # Wait for task to complete or timeout
+        await asyncio.wait_for(task, timeout=5.0)
+    except asyncio.TimeoutError:
+        task.cancel()
+        pytest.fail("Background task did not complete")
+```
+
+### Avoiding Flaky Async Tests
+
+1. **Use explicit timeouts** instead of relying on default behavior
+2. **Mock time-dependent operations** (use `freezegun` or mock `asyncio.sleep`)
+3. **Avoid race conditions** by using proper synchronization primitives
+4. **Clean up resources** in finally blocks or fixtures
+5. **Use unique IDs** (`unique_id()`) for test data to avoid conflicts
+
 ## Related Documentation
 
 - `unit/AGENTS.md` - Unit test patterns

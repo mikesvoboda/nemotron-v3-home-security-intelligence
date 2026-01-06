@@ -7,17 +7,6 @@ name: Benchmarks
 # Creates Linear issue on failure for main branch pushes to ensure follow-up.
 
 on:
-  # Run after required CI checks complete (non-blocking optimization)
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
-  # Also run on PR for visibility, but only after CI jobs are queued
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/benchmarks.yml'
   push:
     branches: [main]
     paths:
