@@ -803,3 +803,212 @@ export const mockAiAuditRecommendations = {
     total_events_analyzed: 0,
   },
 };
+
+// Activity Baseline Mock Data
+export const mockActivityBaseline = {
+  normal: {
+    camera_id: 'cam-1',
+    entries: [
+      { day_of_week: 0, hour: 8, avg_count: 5.2, sample_count: 28, is_peak: false },
+      { day_of_week: 0, hour: 9, avg_count: 8.1, sample_count: 28, is_peak: false },
+      { day_of_week: 0, hour: 10, avg_count: 12.5, sample_count: 28, is_peak: false },
+      { day_of_week: 1, hour: 8, avg_count: 4.8, sample_count: 28, is_peak: false },
+      { day_of_week: 1, hour: 9, avg_count: 7.5, sample_count: 28, is_peak: false },
+      { day_of_week: 1, hour: 10, avg_count: 11.2, sample_count: 28, is_peak: false },
+      { day_of_week: 2, hour: 8, avg_count: 5.5, sample_count: 28, is_peak: false },
+      { day_of_week: 2, hour: 9, avg_count: 8.8, sample_count: 28, is_peak: false },
+      { day_of_week: 3, hour: 12, avg_count: 15.0, sample_count: 28, is_peak: false },
+      { day_of_week: 4, hour: 17, avg_count: 20.5, sample_count: 28, is_peak: true },
+      { day_of_week: 5, hour: 14, avg_count: 18.2, sample_count: 28, is_peak: true },
+      { day_of_week: 6, hour: 10, avg_count: 10.0, sample_count: 28, is_peak: false },
+    ],
+    total_samples: 672,
+    peak_hour: 17,
+    peak_day: 4,
+    learning_complete: true,
+    min_samples_required: 100,
+  },
+  stillLearning: {
+    camera_id: 'cam-1',
+    entries: [
+      { day_of_week: 0, hour: 8, avg_count: 3.2, sample_count: 5, is_peak: false },
+      { day_of_week: 0, hour: 9, avg_count: 5.1, sample_count: 5, is_peak: true },
+    ],
+    total_samples: 45,
+    peak_hour: 9,
+    peak_day: 0,
+    learning_complete: false,
+    min_samples_required: 100,
+  },
+  empty: {
+    camera_id: 'cam-1',
+    entries: [],
+    total_samples: 0,
+    peak_hour: null,
+    peak_day: null,
+    learning_complete: false,
+    min_samples_required: 100,
+  },
+};
+
+// Class Baseline Mock Data
+export const mockClassBaseline = {
+  normal: {
+    camera_id: 'cam-1',
+    entries: [
+      { object_class: 'person', hour: 8, frequency: 25, sample_count: 28 },
+      { object_class: 'person', hour: 9, frequency: 42, sample_count: 28 },
+      { object_class: 'person', hour: 17, frequency: 68, sample_count: 28 },
+      { object_class: 'vehicle', hour: 8, frequency: 15, sample_count: 28 },
+      { object_class: 'vehicle', hour: 17, frequency: 32, sample_count: 28 },
+      { object_class: 'animal', hour: 6, frequency: 8, sample_count: 28 },
+      { object_class: 'animal', hour: 20, frequency: 12, sample_count: 28 },
+    ],
+    unique_classes: ['person', 'vehicle', 'animal'],
+    most_common_class: 'person',
+    total_samples: 196,
+  },
+  empty: {
+    camera_id: 'cam-1',
+    entries: [],
+    unique_classes: [],
+    most_common_class: null,
+    total_samples: 0,
+  },
+};
+
+// Anomaly Config Mock Data
+export const mockAnomalyConfig = {
+  default: {
+    enabled: true,
+    sensitivity: 2.0,
+    min_samples: 100,
+    time_window_hours: 1,
+    cooldown_minutes: 30,
+    detection_types: ['activity_spike', 'unusual_class', 'time_anomaly'],
+  },
+  highSensitivity: {
+    enabled: true,
+    sensitivity: 1.0,
+    min_samples: 50,
+    time_window_hours: 0.5,
+    cooldown_minutes: 15,
+    detection_types: ['activity_spike', 'unusual_class', 'time_anomaly', 'pattern_break'],
+  },
+  disabled: {
+    enabled: false,
+    sensitivity: 2.0,
+    min_samples: 100,
+    time_window_hours: 1,
+    cooldown_minutes: 30,
+    detection_types: [],
+  },
+};
+
+// AI Metrics Mock Data (for AI Performance page)
+export const mockAIMetrics = {
+  normal: {
+    rtdetr: {
+      status: 'healthy',
+      model_name: 'RT-DETRv2-L',
+      version: '2.0.0',
+      inference_fps: 12.5,
+      last_inference_at: new Date().toISOString(),
+    },
+    nemotron: {
+      status: 'healthy',
+      model_name: 'Nemotron-Mini-4B-Instruct',
+      version: '1.0.0',
+      tokens_per_second: 45.2,
+      last_inference_at: new Date().toISOString(),
+    },
+    detectionLatency: {
+      avg_ms: 45,
+      p50_ms: 42,
+      p95_ms: 78,
+      p99_ms: 120,
+    },
+    analysisLatency: {
+      avg_ms: 250,
+      p50_ms: 230,
+      p95_ms: 450,
+      p99_ms: 680,
+    },
+    pipelineLatency: {
+      avg_ms: 350,
+      p50_ms: 320,
+      p95_ms: 580,
+      p99_ms: 850,
+    },
+    detectionQueueDepth: 3,
+    analysisQueueDepth: 1,
+    totalDetections: 15234,
+    totalEvents: 1456,
+    detectionsByClass: {
+      person: 8500,
+      vehicle: 4200,
+      animal: 1800,
+      unknown: 734,
+    },
+    pipelineErrors: {
+      detection: 12,
+      analysis: 5,
+      storage: 2,
+    },
+    queueOverflows: 0,
+    dlqItems: 3,
+    lastUpdated: new Date().toISOString(),
+  },
+  degraded: {
+    rtdetr: {
+      status: 'degraded',
+      model_name: 'RT-DETRv2-L',
+      version: '2.0.0',
+      inference_fps: 5.2,
+      last_inference_at: new Date(Date.now() - 30000).toISOString(),
+    },
+    nemotron: {
+      status: 'healthy',
+      model_name: 'Nemotron-Mini-4B-Instruct',
+      version: '1.0.0',
+      tokens_per_second: 45.2,
+      last_inference_at: new Date().toISOString(),
+    },
+    detectionLatency: {
+      avg_ms: 150,
+      p50_ms: 140,
+      p95_ms: 280,
+      p99_ms: 450,
+    },
+    analysisLatency: {
+      avg_ms: 400,
+      p50_ms: 380,
+      p95_ms: 720,
+      p99_ms: 1100,
+    },
+    pipelineLatency: {
+      avg_ms: 600,
+      p50_ms: 550,
+      p95_ms: 1050,
+      p99_ms: 1600,
+    },
+    detectionQueueDepth: 25,
+    analysisQueueDepth: 15,
+    totalDetections: 15234,
+    totalEvents: 1456,
+    detectionsByClass: {
+      person: 8500,
+      vehicle: 4200,
+      animal: 1800,
+      unknown: 734,
+    },
+    pipelineErrors: {
+      detection: 45,
+      analysis: 28,
+      storage: 12,
+    },
+    queueOverflows: 8,
+    dlqItems: 25,
+    lastUpdated: new Date().toISOString(),
+  },
+};
