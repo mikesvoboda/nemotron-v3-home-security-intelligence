@@ -83,6 +83,7 @@ export default function EntityCard({
   return (
     <div
       className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      data-testid="entity-card"
       {...(isClickable && {
         onClick: handleClick,
         onKeyDown: handleKeyDown,
@@ -105,7 +106,7 @@ export default function EntityCard({
           </span>
         </div>
         {/* Entity ID */}
-        <span className="text-xs text-gray-500" title={id}>
+        <span className="text-xs text-text-muted" title={id}>
           {truncateId(id)}
         </span>
       </div>
@@ -137,10 +138,10 @@ export default function EntityCard({
         {/* Appearances */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-1 text-lg font-bold text-white">
-            <Eye className="h-4 w-4 text-gray-400" />
+            <Eye className="h-4 w-4 text-text-secondary" />
             <span>{appearance_count}</span>
           </div>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-text-secondary">
             {appearance_count === 1 ? 'appearance' : 'appearances'}
           </span>
         </div>
@@ -154,17 +155,17 @@ export default function EntityCard({
           title={cameras_seen.join(', ')}
         >
           <div className="flex items-center gap-1 text-lg font-bold text-white">
-            <Camera className="h-4 w-4 text-gray-400" />
+            <Camera className="h-4 w-4 text-text-secondary" />
             <span>{cameras_seen.length}</span>
           </div>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-text-secondary">
             {cameras_seen.length === 1 ? 'camera' : 'cameras'}
           </span>
         </div>
       </div>
 
       {/* Timestamps */}
-      <div className="space-y-1.5 text-xs text-gray-400">
+      <div className="space-y-1.5 text-xs text-text-secondary">
         <div className="flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5" />
           <span>Last seen:</span>

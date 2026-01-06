@@ -168,6 +168,7 @@ export default function EventCard({
   return (
     <div
       className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      data-testid={`event-card-${id}`}
       {...(isClickable && {
         onClick: handleCardClick,
         onKeyDown: (e: React.KeyboardEvent) => {
@@ -188,12 +189,12 @@ export default function EventCard({
             {camera_name}
           </h3>
           <div className="mt-1 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-sm text-gray-400">
+            <div className="flex items-center gap-1.5 text-sm text-text-secondary">
               <Clock className="h-3.5 w-3.5" />
               <span>{formatTimestamp(timestamp)}</span>
             </div>
             {(started_at || ended_at !== undefined) && (
-              <div className="flex items-center gap-1.5 text-sm text-gray-400">
+              <div className="flex items-center gap-1.5 text-sm text-text-secondary">
                 <Timer className="h-3.5 w-3.5" />
                 <span>Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}</span>
               </div>
@@ -214,7 +215,7 @@ export default function EventCard({
 
       {/* Risk Score Progress Bar */}
       <div className="mb-3">
-        <div className="mb-1.5 flex items-center justify-between text-xs text-gray-400">
+        <div className="mb-1.5 flex items-center justify-between text-xs text-text-secondary">
           <span className="font-medium">Risk Score</span>
           <span className="font-semibold">{risk_score}/100</span>
         </div>
@@ -267,7 +268,7 @@ export default function EventCard({
       {detections.length > 0 && (
         <div className="mb-3 rounded-md bg-black/30 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
               Detections ({detections.length})
             </h4>
             {/* Aggregate Confidence Display */}
@@ -276,15 +277,15 @@ export default function EventCard({
                 className="flex items-center gap-2 text-xs"
                 title={`Average: ${formatConfidencePercent(avgConfidence)} | Max: ${formatConfidencePercent(maxConfidence)}`}
               >
-                <TrendingUp className="h-3 w-3 text-gray-400" aria-hidden="true" />
-                <span className="text-gray-400">Avg:</span>
+                <TrendingUp className="h-3 w-3 text-text-secondary" aria-hidden="true" />
+                <span className="text-text-secondary">Avg:</span>
                 <span
                   className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(avgConfidence))}`}
                 >
                   {formatConfidencePercent(avgConfidence)}
                 </span>
-                <span className="text-gray-500">|</span>
-                <span className="text-gray-400">Max:</span>
+                <span className="text-text-muted">|</span>
+                <span className="text-text-secondary">Max:</span>
                 <span
                   className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(maxConfidence))}`}
                 >

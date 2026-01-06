@@ -4,7 +4,7 @@
  * Re-exports all page objects for convenient importing in test specs.
  */
 
-export { BasePage } from './BasePage';
+export { BasePage, type WaitForApiOptions } from './BasePage';
 export { DashboardPage } from './DashboardPage';
 export { TimelinePage } from './TimelinePage';
 export { AnalyticsPage } from './AnalyticsPage';
