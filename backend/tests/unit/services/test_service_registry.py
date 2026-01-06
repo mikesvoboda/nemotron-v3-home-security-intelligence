@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.service_registry import (
     ManagedService,
     ServiceRegistry,
@@ -65,7 +65,7 @@ def sample_service() -> ManagedService:
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
     )
 
 
@@ -81,7 +81,7 @@ def infrastructure_service() -> ManagedService:
         health_endpoint=None,
         health_cmd="pg_isready -U security",
         category=ServiceCategory.INFRASTRUCTURE,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         max_failures=10,
         restart_backoff_base=2.0,
         restart_backoff_max=60.0,
@@ -101,7 +101,7 @@ def monitoring_service() -> ManagedService:
         health_endpoint="/api/health",
         health_cmd=None,
         category=ServiceCategory.MONITORING,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         max_failures=3,
         restart_backoff_base=10.0,
         restart_backoff_max=600.0,
@@ -134,7 +134,7 @@ class TestManagedServiceInit:
             health_endpoint=None,
             health_cmd=None,
             category=ServiceCategory.AI,
-            status=ServiceStatus.NOT_FOUND,
+            status=ContainerServiceStatus.NOT_FOUND,
         )
 
         assert service.name == "test-service"
@@ -145,7 +145,7 @@ class TestManagedServiceInit:
         assert service.health_endpoint is None
         assert service.health_cmd is None
         assert service.category == ServiceCategory.AI
-        assert service.status == ServiceStatus.NOT_FOUND
+        assert service.status == ContainerServiceStatus.NOT_FOUND
 
     def test_default_values(self) -> None:
         """Test ManagedService default values for optional fields."""
@@ -158,7 +158,7 @@ class TestManagedServiceInit:
             health_endpoint=None,
             health_cmd=None,
             category=ServiceCategory.AI,
-            status=ServiceStatus.STOPPED,
+            status=ContainerServiceStatus.STOPPED,
         )
 
         # Check default values
@@ -183,7 +183,7 @@ class TestManagedServiceInit:
             health_endpoint=None,
             health_cmd="pg_isready",
             category=ServiceCategory.INFRASTRUCTURE,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             max_failures=10,
             restart_backoff_base=2.0,
             restart_backoff_max=60.0,
@@ -207,7 +207,7 @@ class TestManagedServiceInit:
             health_endpoint="/health",
             health_cmd=None,
             category=ServiceCategory.AI,
-            status=ServiceStatus.UNHEALTHY,
+            status=ContainerServiceStatus.UNHEALTHY,
             enabled=False,
             failure_count=3,
             last_failure_at=now,
@@ -233,13 +233,13 @@ class TestManagedServiceInit:
                 health_endpoint=None,
                 health_cmd=None,
                 category=category,
-                status=ServiceStatus.STOPPED,
+                status=ContainerServiceStatus.STOPPED,
             )
             assert service.category == category
 
     def test_service_statuses(self) -> None:
         """Test all service statuses can be used."""
-        for status in ServiceStatus:
+        for status in ContainerServiceStatus:
             service = ManagedService(
                 name=f"test-{status.value}",
                 display_name=f"Test {status.value}",
@@ -290,7 +290,7 @@ class TestServiceRegistryRegistration:
             health_endpoint="/new-health",
             health_cmd=None,
             category=ServiceCategory.AI,
-            status=ServiceStatus.STARTING,
+            status=ContainerServiceStatus.STARTING,
         )
 
         registry.register(updated_service)
@@ -455,16 +455,16 @@ class TestServiceRegistryStateUpdates:
     def test_update_status(self, registry: ServiceRegistry, sample_service: ManagedService) -> None:
         """Test update_status changes service status."""
         registry.register(sample_service)
-        assert registry.get(sample_service.name).status == ServiceStatus.RUNNING
+        assert registry.get(sample_service.name).status == ContainerServiceStatus.RUNNING
 
-        registry.update_status(sample_service.name, ServiceStatus.UNHEALTHY)
+        registry.update_status(sample_service.name, ContainerServiceStatus.UNHEALTHY)
 
-        assert registry.get(sample_service.name).status == ServiceStatus.UNHEALTHY
+        assert registry.get(sample_service.name).status == ContainerServiceStatus.UNHEALTHY
 
     def test_update_status_nonexistent_service(self, registry: ServiceRegistry) -> None:
         """Test update_status does nothing for nonexistent service."""
         # Should not raise
-        registry.update_status("nonexistent", ServiceStatus.RUNNING)
+        registry.update_status("nonexistent", ContainerServiceStatus.RUNNING)
 
     def test_increment_failure(
         self, registry: ServiceRegistry, sample_service: ManagedService
@@ -645,7 +645,7 @@ class TestServiceRegistryPersistence:
         assert service.enabled is False
         assert service.failure_count == 3
         assert service.restart_count == 2
-        assert service.status == ServiceStatus.UNHEALTHY
+        assert service.status == ContainerServiceStatus.UNHEALTHY
         assert service.last_failure_at is not None
         assert service.last_restart_at is not None
 
@@ -801,7 +801,7 @@ class TestServiceRegistryConcurrentAccess:
                 health_endpoint="/health",
                 health_cmd=None,
                 category=ServiceCategory.AI,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
             )
             registry.register(service)
 
@@ -821,13 +821,13 @@ class TestServiceRegistryConcurrentAccess:
         registry.register(sample_service)
 
         statuses = [
-            ServiceStatus.RUNNING,
-            ServiceStatus.UNHEALTHY,
-            ServiceStatus.STARTING,
-            ServiceStatus.STOPPED,
+            ContainerServiceStatus.RUNNING,
+            ContainerServiceStatus.UNHEALTHY,
+            ContainerServiceStatus.STARTING,
+            ContainerServiceStatus.STOPPED,
         ]
 
-        async def update_status(status: ServiceStatus) -> None:
+        async def update_status(status: ContainerServiceStatus) -> None:
             for _ in range(10):
                 registry.update_status(sample_service.name, status)
                 await asyncio.sleep(0.001)
@@ -961,6 +961,6 @@ class TestManagedServiceSerialization:
 
         assert service.name == "test-service"
         assert service.category == ServiceCategory.AI
-        assert service.status == ServiceStatus.RUNNING
+        assert service.status == ContainerServiceStatus.RUNNING
         assert service.failure_count == 2
         assert service.last_failure_at is not None

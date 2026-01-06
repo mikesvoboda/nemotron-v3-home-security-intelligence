@@ -717,11 +717,11 @@ class TestRunSelfCritique:
             audit_service,
             "_call_llm",
             new_callable=AsyncMock,
-            side_effect=Exception("LLM unavailable"),
+            side_effect=httpx.RequestError("LLM unavailable"),
         ):
             result = await audit_service._run_self_critique(sample_event)
 
-        assert "Evaluation failed" in result
+        assert "network error" in result.lower()
         assert "LLM unavailable" in result
 
 
@@ -851,7 +851,7 @@ class TestRunConsistencyCheck:
             audit_service,
             "_call_llm",
             new_callable=AsyncMock,
-            side_effect=Exception("LLM timeout"),
+            side_effect=httpx.TimeoutException("LLM timeout"),
         ):
             result = await audit_service._run_consistency_check(sample_event)
 

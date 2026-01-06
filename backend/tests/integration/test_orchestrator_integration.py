@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.core.config import OrchestratorSettings
 from backend.core.docker_client import DockerClient
 from backend.services.container_orchestrator import ContainerOrchestrator
@@ -297,7 +297,7 @@ async def test_detects_stopped_container_and_restarts(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         max_failures=3,
         restart_backoff_base=1.0,
@@ -354,7 +354,7 @@ async def test_respects_disabled_service(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.DISABLED,
+        status=ContainerServiceStatus.DISABLED,
         enabled=False,  # Service is disabled
         max_failures=3,
         restart_backoff_base=1.0,
@@ -375,7 +375,7 @@ async def test_respects_disabled_service(
     registered_service = registry.get("ai-detector")
     assert registered_service is not None
     assert registered_service.enabled is False
-    assert registered_service.status == ServiceStatus.DISABLED
+    assert registered_service.status == ContainerServiceStatus.DISABLED
 
     # Orchestrator should not restart disabled services
     # (The actual restart logic is in LifecycleManager.should_restart)
@@ -397,7 +397,7 @@ async def test_respects_disabled_service(
         image=TEST_IMAGE,
         port=8090,
         category=ServiceCategory.AI,
-        status=ServiceStatus.DISABLED,
+        status=ContainerServiceStatus.DISABLED,
         enabled=False,
     )
     lm_registry.register(lm_service)
@@ -478,7 +478,7 @@ async def test_state_persists_across_restart(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.UNHEALTHY,
+        status=ContainerServiceStatus.UNHEALTHY,
         enabled=True,
         failure_count=2,
         restart_count=3,
@@ -502,7 +502,7 @@ async def test_state_persists_across_restart(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,  # Default
+        status=ContainerServiceStatus.RUNNING,  # Default
         enabled=True,
         failure_count=0,  # Default
         restart_count=0,  # Default
@@ -517,7 +517,7 @@ async def test_state_persists_across_restart(
     assert restored is not None
     assert restored.failure_count == 2
     assert restored.restart_count == 3
-    assert restored.status == ServiceStatus.UNHEALTHY
+    assert restored.status == ContainerServiceStatus.UNHEALTHY
 
 
 @pytest.mark.integration
@@ -545,7 +545,7 @@ async def test_disabled_status_persists(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.DISABLED,
+        status=ContainerServiceStatus.DISABLED,
         enabled=False,
         failure_count=5,  # Max failures reached
     )
@@ -565,7 +565,7 @@ async def test_disabled_status_persists(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,  # Would be default on fresh start
+        status=ContainerServiceStatus.RUNNING,  # Would be default on fresh start
         enabled=True,  # Would be default
         failure_count=0,
     )
@@ -577,7 +577,7 @@ async def test_disabled_status_persists(
     # Verify disabled status was restored
     restored = registry2.get("ai-detector")
     assert restored is not None
-    assert restored.status == ServiceStatus.DISABLED
+    assert restored.status == ContainerServiceStatus.DISABLED
     assert restored.enabled is False
     assert restored.failure_count == 5
 
@@ -625,7 +625,7 @@ async def test_api_list_services(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
     )
     orchestrator._registry.register(service)
@@ -701,7 +701,7 @@ async def test_api_restart_service(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=2,  # Some failures before restart
     )
@@ -769,7 +769,7 @@ async def test_api_enable_disabled_service(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.DISABLED,
+        status=ContainerServiceStatus.DISABLED,
         enabled=False,
         failure_count=5,
     )
@@ -833,7 +833,7 @@ async def test_api_disable_service(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
     )
     orchestrator._registry.register(service)
@@ -898,7 +898,7 @@ async def test_api_start_stopped_service(
         health_endpoint=None,
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.STOPPED,
+        status=ContainerServiceStatus.STOPPED,
         enabled=True,
     )
     orchestrator._registry.register(service)
@@ -1041,7 +1041,7 @@ async def test_registry_persistence_with_real_redis(
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.UNHEALTHY,
+        status=ContainerServiceStatus.UNHEALTHY,
         enabled=True,
         failure_count=3,
         restart_count=2,
@@ -1062,7 +1062,7 @@ async def test_registry_persistence_with_real_redis(
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,  # Different from persisted
+        status=ContainerServiceStatus.RUNNING,  # Different from persisted
         enabled=True,
         failure_count=0,  # Different from persisted
         restart_count=0,  # Different from persisted
@@ -1075,6 +1075,6 @@ async def test_registry_persistence_with_real_redis(
     # Verify state was restored
     restored = registry2.get("test-service")
     assert restored is not None
-    assert restored.status == ServiceStatus.UNHEALTHY
+    assert restored.status == ContainerServiceStatus.UNHEALTHY
     assert restored.failure_count == 3
     assert restored.restart_count == 2

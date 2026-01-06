@@ -530,3 +530,202 @@ def schedule_strategy(draw: st.DrawFn) -> dict[str, Any]:
         )
 
     return schedule
+
+
+# =============================================================================
+# Bounding Box Strategies (Extended)
+# =============================================================================
+
+
+@st.composite
+def valid_bbox_xyxy_strategy(draw: st.DrawFn) -> tuple[float, float, float, float]:
+    """Generate valid bounding box in (x1, y1, x2, y2) format.
+
+    Returns a tuple where x1 < x2 and y1 < y2 (positive dimensions).
+    """
+    x1 = draw(st.floats(min_value=0.0, max_value=1000.0, allow_nan=False, allow_infinity=False))
+    y1 = draw(st.floats(min_value=0.0, max_value=1000.0, allow_nan=False, allow_infinity=False))
+    width = draw(st.floats(min_value=1.0, max_value=500.0, allow_nan=False, allow_infinity=False))
+    height = draw(st.floats(min_value=1.0, max_value=500.0, allow_nan=False, allow_infinity=False))
+    return (x1, y1, x1 + width, y1 + height)
+
+
+@st.composite
+def invalid_bbox_xyxy_strategy(draw: st.DrawFn) -> tuple[float, float, float, float]:
+    """Generate invalid bounding box with zero or negative dimensions.
+
+    Returns a tuple where x2 <= x1 or y2 <= y1.
+    """
+    violation = draw(st.sampled_from(["zero_width", "zero_height", "inverted"]))
+    x1 = draw(st.floats(min_value=10.0, max_value=500.0, allow_nan=False, allow_infinity=False))
+    y1 = draw(st.floats(min_value=10.0, max_value=500.0, allow_nan=False, allow_infinity=False))
+
+    if violation == "zero_width":
+        return (x1, y1, x1, y1 + 100)  # x2 == x1
+    elif violation == "zero_height":
+        return (x1, y1, x1 + 100, y1)  # y2 == y1
+    else:  # inverted
+        return (x1, y1, x1 - 10, y1 - 10)  # x2 < x1 and y2 < y1
+
+
+@st.composite
+def image_dimensions_strategy(draw: st.DrawFn) -> tuple[int, int]:
+    """Generate valid image dimensions (width, height)."""
+    width = draw(st.integers(min_value=100, max_value=4096))
+    height = draw(st.integers(min_value=100, max_value=4096))
+    return (width, height)
+
+
+@st.composite
+def bbox_and_image_strategy(
+    draw: st.DrawFn,
+) -> tuple[tuple[float, float, float, float], int, int]:
+    """Generate a bbox and image dimensions where bbox is within image bounds."""
+    width, height = draw(image_dimensions_strategy())
+    x1 = draw(st.floats(min_value=0, max_value=width - 2, allow_nan=False, allow_infinity=False))
+    y1 = draw(st.floats(min_value=0, max_value=height - 2, allow_nan=False, allow_infinity=False))
+    x2 = draw(st.floats(min_value=x1 + 1, max_value=width, allow_nan=False, allow_infinity=False))
+    y2 = draw(st.floats(min_value=y1 + 1, max_value=height, allow_nan=False, allow_infinity=False))
+    return ((x1, y1, x2, y2), width, height)
+
+
+# =============================================================================
+# Search and Query Strategies
+# =============================================================================
+
+# Reserved keywords that should not be generated as search terms
+_SEARCH_RESERVED_KEYWORDS = {"AND", "OR", "NOT"}
+
+# Valid search queries (simple terms, excluding reserved keywords)
+search_terms = st.text(
+    min_size=1,
+    max_size=50,
+    alphabet=st.characters(
+        whitelist_categories=("Lu", "Ll", "Nd"),
+        whitelist_characters=" -_",
+    ),
+).filter(lambda x: len(x.strip()) > 0 and x.strip().upper() not in _SEARCH_RESERVED_KEYWORDS)
+
+# Boolean operators for search
+search_operators = st.sampled_from(["AND", "OR", "NOT", "and", "or", "not"])
+
+
+@st.composite
+def search_query_strategy(draw: st.DrawFn) -> str:
+    """Generate a valid search query with optional operators."""
+    num_terms = draw(st.integers(min_value=1, max_value=4))
+    parts = []
+    for i in range(num_terms):
+        if i > 0 and draw(st.booleans()):
+            parts.append(draw(search_operators))
+        parts.append(draw(search_terms))
+    return " ".join(parts)
+
+
+@st.composite
+def phrase_search_strategy(draw: st.DrawFn) -> str:
+    """Generate a phrase search query with double quotes."""
+    words = draw(st.lists(search_terms, min_size=2, max_size=4))
+    return '"' + " ".join(words) + '"'
+
+
+# =============================================================================
+# Prompt Parser Strategies
+# =============================================================================
+
+# Variable names for prompt templates
+variable_names = st.from_regex(r"[a-z][a-z0-9_]{0,29}", fullmatch=True)
+
+# Variable format types
+variable_formats = st.sampled_from(["curly", "angle", "dollar"])
+
+
+@st.composite
+def prompt_variable_strategy(draw: st.DrawFn, fmt: str = "curly") -> str:
+    """Generate a variable placeholder in the specified format."""
+    name = draw(variable_names)
+    if fmt == "curly":
+        return f"{{{name}}}"
+    elif fmt == "angle":
+        return f"<{name}>"
+    else:  # dollar
+        return f"${name}"
+
+
+@st.composite
+def prompt_section_strategy(draw: st.DrawFn) -> str:
+    """Generate a markdown section header."""
+    title = draw(
+        st.text(
+            min_size=3,
+            max_size=30,
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters=" -"
+            ),
+        ).filter(lambda x: x.strip() and x[0].isalpha())
+    )
+    return f"## {title}"
+
+
+@st.composite
+def simple_prompt_strategy(draw: st.DrawFn) -> str:
+    """Generate a simple prompt template with sections and variables."""
+    fmt = draw(variable_formats)
+    sections = draw(st.integers(min_value=1, max_value=3))
+    lines = []
+    for _ in range(sections):
+        lines.append(draw(prompt_section_strategy()))
+        vars_in_section = draw(st.integers(min_value=1, max_value=3))
+        for _ in range(vars_in_section):
+            label = draw(
+                st.text(
+                    min_size=2,
+                    max_size=15,
+                    alphabet=st.characters(
+                        whitelist_categories=("Lu", "Ll"), whitelist_characters=" "
+                    ),
+                ).filter(lambda x: x.strip())
+            )
+            var = draw(prompt_variable_strategy(fmt))
+            lines.append(f"{label}: {var}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+# =============================================================================
+# Detection ID Strategies
+# =============================================================================
+
+
+@st.composite
+def detection_ids_json_strategy(draw: st.DrawFn) -> str:
+    """Generate a JSON array of detection IDs."""
+    ids = draw(st.lists(st.integers(min_value=1, max_value=10000), min_size=0, max_size=10))
+    import json
+
+    return json.dumps(ids)
+
+
+@st.composite
+def detection_ids_csv_strategy(draw: st.DrawFn) -> str:
+    """Generate a comma-separated list of detection IDs (legacy format)."""
+    ids = draw(st.lists(st.integers(min_value=1, max_value=10000), min_size=1, max_size=10))
+    return ", ".join(str(i) for i in ids)
+
+
+# =============================================================================
+# Normalized Coordinates Strategies
+# =============================================================================
+
+# Normalized bbox coordinates (0-1 range)
+normalized_coords = st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+
+
+@st.composite
+def normalized_bbox_strategy(draw: st.DrawFn) -> tuple[float, float, float, float]:
+    """Generate a normalized bounding box in (x1, y1, x2, y2) format where all coords are in [0, 1]."""
+    x1 = draw(st.floats(min_value=0.0, max_value=0.9, allow_nan=False, allow_infinity=False))
+    y1 = draw(st.floats(min_value=0.0, max_value=0.9, allow_nan=False, allow_infinity=False))
+    x2 = draw(st.floats(min_value=x1 + 0.01, max_value=1.0, allow_nan=False, allow_infinity=False))
+    y2 = draw(st.floats(min_value=y1 + 0.01, max_value=1.0, allow_nan=False, allow_infinity=False))
+    return (x1, y1, x2, y2)

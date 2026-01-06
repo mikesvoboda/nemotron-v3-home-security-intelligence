@@ -515,15 +515,32 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     print("Redis connection closed")
 
 
+def _get_openapi_servers() -> list[dict[str, str]]:
+    """Get OpenAPI server URLs from environment variable.
+
+    The OPENAPI_SERVER_URL environment variable allows configuring the server URL
+    for OpenAPI spec generation. This is required for ZAP security scanning in
+    different environments (CI, staging, production).
+
+    If not set, defaults to http://localhost:8000 for local development.
+
+    Returns:
+        List of server dictionaries for FastAPI's servers parameter.
+    """
+    import os
+
+    server_url = os.environ.get("OPENAPI_SERVER_URL", "http://localhost:8000")
+    return [{"url": server_url, "description": "API server"}]
+
+
 app = FastAPI(
     title="Home Security Intelligence API",
     description="AI-powered home security monitoring system",
     version="0.1.0",
     lifespan=lifespan,
     # Server URLs for OpenAPI spec - required for ZAP security scanning
-    servers=[
-        {"url": "http://localhost:8000", "description": "Local development server"},
-    ],
+    # Configurable via OPENAPI_SERVER_URL environment variable
+    servers=_get_openapi_servers(),
 )
 
 # Add authentication middleware (if enabled in settings)

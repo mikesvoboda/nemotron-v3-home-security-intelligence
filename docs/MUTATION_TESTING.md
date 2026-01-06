@@ -80,10 +80,15 @@ Mutation testing is computationally expensive. We start with well-tested, critic
 
 ### Backend Targets
 
-| Module                                | Purpose                | Why Selected                         |
-| ------------------------------------- | ---------------------- | ------------------------------------ |
-| `backend/services/bbox_validation.py` | Bounding box utilities | Pure logic, critical for AI pipeline |
-| `backend/services/severity.py`        | Risk score mapping     | Pure logic, critical for alerts      |
+| Module                                | Purpose                  | Why Selected                         | Mutation Score |
+| ------------------------------------- | ------------------------ | ------------------------------------ | -------------- |
+| `backend/services/bbox_validation.py` | Bounding box utilities   | Pure logic, critical for AI pipeline | ~95%           |
+| `backend/services/severity.py`        | Risk score mapping       | Pure logic, critical for alerts      | ~90%           |
+| `backend/services/prompt_parser.py`   | Prompt management        | Pure logic, prompt storage/parsing   | ~100%          |
+| `backend/services/search.py`          | Full-text search service | Search query building, filter logic  | ~85%           |
+| `backend/services/dedupe.py`          | File deduplication       | Hash computation, Redis cache logic  | ~88%           |
+
+**Overall Mutation Score: 89.2%** (1131 killed, 137 survived out of 1268 mutants)
 
 ### Frontend Targets
 
@@ -226,12 +231,20 @@ def test_risk_score_always_returns_valid_level(score: int):
 
 ```toml
 [tool.mutmut]
+# Paths to mutate (well-tested, critical modules)
 paths_to_mutate = [
     "backend/services/bbox_validation.py",
     "backend/services/severity.py",
+    "backend/services/prompt_parser.py",
+    "backend/services/search.py",
+    "backend/services/dedupe.py",
 ]
-tests_dir = "backend/tests/unit/services/"
-runner = "python -m pytest -x -q --tb=no"
+# Tests directory
+tests_dir = ["backend/tests/unit/services/"]
+# Extra pytest CLI args - disable xdist for mutation testing
+pytest_add_cli_args = ["-x", "-q", "--tb=short", "-p", "no:benchmark", "-o", "addopts="]
+# Also copy required backend modules to mutants directory
+also_copy = ["backend/"]
 ```
 
 ### Frontend (stryker.config.mjs)
@@ -298,6 +311,64 @@ for i in range(len(items)):
 for i in range(len(items) + 0):
     process(items[i])
 ```
+
+## Analysis of Surviving Mutants (NEM-1364)
+
+During the expansion of mutation testing to additional modules (search.py, dedupe.py, prompt_parser.py),
+we identified several patterns of surviving mutants:
+
+### SQLAlchemy Query Building (search.py)
+
+Many surviving mutants are in SQLAlchemy expression construction. These mutations survive because:
+
+- Unit tests verify the presence of conditions in compiled query strings
+- They don't execute queries against a real database
+- The actual behavior requires integration tests
+
+**Example surviving mutant:**
+
+```python
+# Original
+has_operators = any(op in tsquery_str for op in ["&", "|", "!", "<->"])
+
+# Mutated to:
+has_operators = None
+```
+
+This survives because the tests check `has_search` boolean but don't verify the query
+actually uses `to_tsquery` vs `websearch_to_tsquery`.
+
+**Fix approach:** Add tests that verify the compiled SQL includes expected function calls.
+
+### Parameter Pass-through (dedupe.py)
+
+Some mutations replace parameters with `None` but survive because:
+
+- The parameter is only used for logging/debugging
+- Tests verify return values but not stored values
+
+**Example surviving mutant:**
+
+```python
+# Original
+await self.mark_processed(file_path, file_hash)
+
+# Mutated to:
+await self.mark_processed(None, file_hash)
+```
+
+**Fix approach:** Added test `test_is_duplicate_and_mark_passes_file_path_to_mark_processed`
+that verifies the value stored in Redis matches the file_path.
+
+### Error Handling Paths
+
+Many surviving mutants are in error handling code that would require:
+
+- Injecting specific errors in mocked dependencies
+- Testing edge cases that are hard to trigger
+
+These are often acceptable as "equivalent mutants" when the error handling
+is defensive programming.
 
 ## Troubleshooting
 

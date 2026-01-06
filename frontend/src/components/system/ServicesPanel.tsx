@@ -16,7 +16,7 @@ import {
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 
 import { useServiceStatus, type ServiceName } from '../../hooks/useServiceStatus';
-import { fetchHealth, type HealthResponse, type HealthServiceStatus } from '../../services/api';
+import { fetchHealth, type HealthResponse, type ServiceStatus } from '../../services/api';
 
 /**
  * Service category types
@@ -395,7 +395,7 @@ export default function ServicesPanel({
       const wsStatus = wsServices[def.name as ServiceName];
 
       // Then check REST API health data
-      const healthStatus: HealthServiceStatus | undefined = healthData?.services?.[def.name];
+      const healthStatus: ServiceStatus | undefined = healthData?.services?.[def.name];
 
       // Determine status (prefer WebSocket for supported services)
       let status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown' = 'unknown';

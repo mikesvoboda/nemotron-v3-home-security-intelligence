@@ -890,3 +890,73 @@ def unique_id(prefix: str = "test") -> str:
     import uuid
 
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
+# =============================================================================
+# Factory Fixtures (using factory_boy)
+# =============================================================================
+# These fixtures provide access to factory classes for creating test data.
+# See backend/tests/factories.py for factory implementations.
+
+
+@pytest.fixture
+def camera_factory():
+    """Provide CameraFactory for creating Camera instances.
+
+    Usage:
+        def test_something(camera_factory):
+            camera = camera_factory(id="test_cam", name="Test Camera")
+            # or use traits
+            camera = camera_factory(offline=True)
+    """
+    from backend.tests.factories import CameraFactory
+
+    return CameraFactory
+
+
+@pytest.fixture
+def detection_factory():
+    """Provide DetectionFactory for creating Detection instances.
+
+    Usage:
+        def test_something(detection_factory):
+            detection = detection_factory(object_type="person", confidence=0.95)
+            # or use traits
+            detection = detection_factory(video=True)
+            detection = detection_factory(high_confidence=True)
+    """
+    from backend.tests.factories import DetectionFactory
+
+    return DetectionFactory
+
+
+@pytest.fixture
+def event_factory():
+    """Provide EventFactory for creating Event instances.
+
+    Usage:
+        def test_something(event_factory):
+            event = event_factory(risk_score=75)
+            # or use traits
+            event = event_factory(high_risk=True)
+            event = event_factory(fast_path=True)
+    """
+    from backend.tests.factories import EventFactory
+
+    return EventFactory
+
+
+@pytest.fixture
+def zone_factory():
+    """Provide ZoneFactory for creating Zone instances.
+
+    Usage:
+        def test_something(zone_factory):
+            zone = zone_factory(name="Driveway")
+            # or use traits
+            zone = zone_factory(entry_point=True)
+            zone = zone_factory(polygon=True, disabled=True)
+    """
+    from backend.tests.factories import ZoneFactory
+
+    return ZoneFactory

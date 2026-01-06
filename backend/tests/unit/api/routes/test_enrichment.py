@@ -314,7 +314,7 @@ class TestExtractClothingFromEnrichment:
                     "top_category": "jacket",
                     "is_suspicious": True,
                     "is_service_uniform": False,
-                    "raw_description": "black jacket",  # No comma, uses top_category
+                    "raw_description": "black jacket",  # No comma, single-item description
                 }
             }
         }
@@ -322,8 +322,8 @@ class TestExtractClothingFromEnrichment:
         result = _extract_clothing_from_enrichment(data)
 
         assert result is not None
-        # When raw_description has no comma, we use top_category as upper
-        assert result["upper"] == "jacket"
+        # When raw_description has no comma, it's used as a single clothing item
+        assert result["upper"] == "black jacket"
         assert result["lower"] is None
         assert result["is_suspicious"] is True
 
@@ -425,7 +425,7 @@ class TestEnrichmentSchemas:
         assert enrichment.clothing is None
 
     def test_event_enrichments_response_schema(self) -> None:
-        """Test EventEnrichmentsResponse schema."""
+        """Test EventEnrichmentsResponse schema with pagination fields."""
         from backend.api.schemas.enrichment import (
             EnrichmentResponse,
             EventEnrichmentsResponse,
@@ -446,11 +446,73 @@ class TestEnrichmentSchemas:
             event_id=100,
             enrichments=enrichments,
             count=3,
+            total=10,
+            limit=50,
+            offset=0,
+            has_more=True,
         )
 
         assert response.event_id == 100
         assert response.count == 3
+        assert response.total == 10
+        assert response.limit == 50
+        assert response.offset == 0
+        assert response.has_more is True
         assert len(response.enrichments) == 3
+
+    def test_event_enrichments_response_schema_no_more(self) -> None:
+        """Test EventEnrichmentsResponse schema when has_more is False."""
+        from backend.api.schemas.enrichment import (
+            EnrichmentResponse,
+            EventEnrichmentsResponse,
+        )
+
+        enrichments = [
+            EnrichmentResponse(
+                detection_id=i,
+                enriched_at=datetime(2026, 1, 3, 10, 30, i, tzinfo=UTC),
+                license_plate={"detected": False},
+                face={"detected": False, "count": 0},
+                violence={"detected": False, "score": 0.0},
+            )
+            for i in range(2)
+        ]
+
+        response = EventEnrichmentsResponse(
+            event_id=100,
+            enrichments=enrichments,
+            count=2,
+            total=2,
+            limit=50,
+            offset=0,
+            has_more=False,
+        )
+
+        assert response.event_id == 100
+        assert response.count == 2
+        assert response.total == 2
+        assert response.has_more is False
+        assert len(response.enrichments) == 2
+
+    def test_event_enrichments_response_schema_empty(self) -> None:
+        """Test EventEnrichmentsResponse schema with empty enrichments."""
+        from backend.api.schemas.enrichment import EventEnrichmentsResponse
+
+        response = EventEnrichmentsResponse(
+            event_id=100,
+            enrichments=[],
+            count=0,
+            total=0,
+            limit=50,
+            offset=0,
+            has_more=False,
+        )
+
+        assert response.event_id == 100
+        assert response.count == 0
+        assert response.total == 0
+        assert response.has_more is False
+        assert len(response.enrichments) == 0
 
     def test_license_plate_enrichment_schema(self) -> None:
         """Test LicensePlateEnrichment schema."""
@@ -640,7 +702,7 @@ class TestErrorSanitization:
         from backend.api.routes.detections import _sanitize_errors
 
         errors = [
-            "Config error: DATABASE_URL=postgresql://user:password@localhost:5432/db",
+            "Config error: DATABASE_URL=postgresql://user:password@localhost:5432/db",  # pragma: allowlist secret
             "Auth failed: API_KEY=sk-1234567890abcdef",
             "Redis connection: REDIS_HOST=redis.internal.svc.cluster.local",
         ]

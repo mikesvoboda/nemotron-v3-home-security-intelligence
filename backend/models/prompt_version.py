@@ -31,6 +31,9 @@ class PromptVersion(Base):
 
     Stores historical versions of prompts/configs for all supported AI models.
     Each update creates a new version, enabling rollback and auditing.
+
+    Uses optimistic locking via row_version column to prevent race conditions
+    when multiple clients try to update the same prompt config concurrently.
     """
 
     __tablename__ = "prompt_versions"
@@ -59,6 +62,10 @@ class PromptVersion(Base):
 
     # Is this the currently active version?
     is_active: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
+
+    # Optimistic locking version counter - incremented on each update
+    # Used to detect concurrent modifications and prevent race conditions
+    row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     # Indexes
     __table_args__ = (

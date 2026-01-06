@@ -2,6 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
+import { server } from '../mocks/server';
+
 /**
  * Fix HeadlessUI focus issue with jsdom
  * HeadlessUI tries to set HTMLElement.prototype.focus which is getter-only in jsdom.
@@ -44,6 +46,25 @@ beforeAll(() => {
     rootMargin = '';
     thresholds: number[] = [];
   };
+
+  /**
+   * Start MSW server for API mocking.
+   *
+   * MSW (Mock Service Worker) intercepts HTTP requests and returns mock responses
+   * defined in src/mocks/handlers.ts. This provides more realistic API mocking
+   * than vi.mock() because:
+   *
+   * 1. Requests go through the actual fetch implementation
+   * 2. Request/response handling matches production behavior
+   * 3. Handlers can be overridden per-test using server.use()
+   * 4. Errors are thrown for unhandled requests (by default)
+   *
+   * @see src/mocks/handlers.ts - Default API handlers
+   * @see src/mocks/server.ts - Server configuration
+   */
+  server.listen({
+    onUnhandledRequest: 'bypass', // Allow unhandled requests to pass through (for gradual migration)
+  });
 });
 
 /**
@@ -53,10 +74,15 @@ beforeAll(() => {
  * - Leftover mock state
  * - Uncleared global stubs
  * - React component cleanup
+ * - MSW handler overrides from individual tests
  */
 afterEach(() => {
   // Clean up React Testing Library rendered components
   cleanup();
+
+  // Reset MSW handlers to their initial state (removes test-specific overrides)
+  // This ensures each test starts with the default handlers from handlers.ts
+  server.resetHandlers();
 
   // Clear all mock function calls and instances
   vi.clearAllMocks();
@@ -77,6 +103,9 @@ afterEach(() => {
  * Ensures any remaining state is properly cleaned up.
  */
 afterAll(() => {
+  // Stop MSW server - closes all request interception
+  server.close();
+
   // Final reset of all mocks
   vi.resetAllMocks();
 
