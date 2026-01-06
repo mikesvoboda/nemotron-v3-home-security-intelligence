@@ -49,7 +49,7 @@ def get_actor_from_request(request: Request | None) -> str:
         ip_address = forwarded_for.split(",")[0].strip()
 
     if ip_address:
-        return "ip:" + ip_address  # nosemgrep: directly-returned-format-string
+        return f"ip:{ip_address}"  # nosemgrep
 
     return "unknown"
 
