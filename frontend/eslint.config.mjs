@@ -20,7 +20,6 @@ export default tseslint.config(
       'tailwind.config.js',
       'postcss.config.js',
       'playwright.config.ts',
-      'lighthouserc.js',
     ],
   },
 

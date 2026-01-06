@@ -1646,3 +1646,573 @@ async def test_system_broadcaster_degraded_flag_init():
     broadcaster = SystemBroadcaster()
     assert hasattr(broadcaster, "_is_degraded")
     assert broadcaster._is_degraded is False
+
+
+# ============================================================================
+# Tests for get_circuit_state() method (line 168-174)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_circuit_state():
+    """Test get_circuit_state() returns the current circuit breaker state."""
+    from backend.core.websocket_circuit_breaker import WebSocketCircuitState
+
+    broadcaster = SystemBroadcaster()
+    state = broadcaster.get_circuit_state()
+
+    # Initially should be CLOSED
+    assert state == WebSocketCircuitState.CLOSED
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_circuit_state_after_failures():
+    """Test get_circuit_state() reflects state changes after failures."""
+    from backend.core.websocket_circuit_breaker import WebSocketCircuitState
+
+    broadcaster = SystemBroadcaster()
+
+    # Record enough failures to open the circuit
+    for _ in range(broadcaster.MAX_RECOVERY_ATTEMPTS):
+        broadcaster._circuit_breaker.record_failure()
+
+    state = broadcaster.get_circuit_state()
+    assert state == WebSocketCircuitState.OPEN
+
+
+# ============================================================================
+# Tests for connect() error handling (lines 194-203)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_connect_send_initial_status_failure():
+    """Test connect() handles failures when sending initial status."""
+    broadcaster = SystemBroadcaster()
+    mock_websocket = AsyncMock()
+
+    # Mock _get_system_status to raise an error
+    with patch.object(broadcaster, "_get_system_status", side_effect=Exception("Status error")):
+        # Should not raise - error is caught and logged
+        await broadcaster.connect(mock_websocket)
+
+    # Connection should still be added despite error
+    assert mock_websocket in broadcaster.connections
+    mock_websocket.accept.assert_called_once()
+
+
+# ============================================================================
+# Tests for _broadcast_degraded_state() method (lines 336-350)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_degraded_state():
+    """Test _broadcast_degraded_state() sends degraded notification to clients."""
+    broadcaster = SystemBroadcaster()
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    await broadcaster._broadcast_degraded_state()
+
+    # Should have sent degraded state message
+    mock_ws.send_text.assert_called_once()
+    call_args = mock_ws.send_text.call_args
+    import json as json_mod
+
+    sent_data = json_mod.loads(call_args[0][0])
+    assert sent_data["type"] == "service_status"
+    assert sent_data["data"]["service"] == "system_broadcaster"
+    assert sent_data["data"]["status"] == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_degraded_state_no_connections():
+    """Test _broadcast_degraded_state() returns early when no connections."""
+    broadcaster = SystemBroadcaster()
+    # No connections
+
+    # Should not raise
+    await broadcaster._broadcast_degraded_state()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_degraded_state_send_failure():
+    """Test _broadcast_degraded_state() handles send failures gracefully."""
+    broadcaster = SystemBroadcaster()
+
+    # Mock _send_to_local_clients to raise an error
+    with patch.object(broadcaster, "_send_to_local_clients", side_effect=Exception("Send error")):
+        # Should not raise - error is caught
+        await broadcaster._broadcast_degraded_state()
+
+
+# ============================================================================
+# Tests for pubsub cleanup error handling (lines 413-414, 439-440)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_stop_pubsub_listener_close_error():
+    """Test _stop_pubsub_listener handles close errors gracefully."""
+    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+    mock_pubsub.unsubscribe.return_value = None
+    mock_pubsub.close.side_effect = Exception("Close failed")
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub = mock_pubsub
+    broadcaster._pubsub_listening = True
+
+    # Should not raise
+    await broadcaster._stop_pubsub_listener()
+
+    # Should still clean up
+    assert broadcaster._pubsub is None
+    assert broadcaster._pubsub_listening is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_reset_pubsub_handles_close_error():
+    """Test _reset_pubsub_connection handles close errors gracefully."""
+    mock_redis = AsyncMock()
+    mock_pubsub_new = AsyncMock()
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub_new
+
+    old_pubsub = AsyncMock()
+    old_pubsub.unsubscribe.return_value = None
+    old_pubsub.close.side_effect = Exception("Close failed")
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub = old_pubsub
+
+    # Should not raise, should continue to create new subscription
+    await broadcaster._reset_pubsub_connection()
+
+    assert broadcaster._pubsub is mock_pubsub_new
+    mock_redis.subscribe_dedicated.assert_called_once()
+
+
+# ============================================================================
+# Tests for listener loop edge cases (lines 494-495, 504, 531, 576)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_listen_skips_self_originated_messages():
+    """Test _listen_for_updates skips messages from self (line 494-495)."""
+    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub = mock_pubsub
+    broadcaster._pubsub_listening = True
+
+    # Create message from self
+    messages = [
+        {
+            "data": {
+                "_origin_instance": broadcaster._instance_id,  # Same instance
+                "payload": {"type": "system_status", "test": "value"},
+            }
+        },
+    ]
+
+    async def mock_listen(pubsub):
+        for msg in messages:
+            yield msg
+
+    mock_redis.listen = mock_listen
+
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    await broadcaster._listen_for_updates()
+
+    # Should NOT have sent message (skipped self-originated)
+    mock_ws.send_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_listen_handles_legacy_format():
+    """Test _listen_for_updates handles messages without wrapper (line 504)."""
+    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub = mock_pubsub
+    broadcaster._pubsub_listening = True
+
+    # Legacy format message (no _origin_instance wrapper)
+    messages = [
+        {"data": {"type": "system_status", "legacy": True}},
+    ]
+
+    async def mock_listen(pubsub):
+        for msg in messages:
+            yield msg
+
+    mock_redis.listen = mock_listen
+
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    await broadcaster._listen_for_updates()
+
+    # Should have sent message (legacy format processed)
+    mock_ws.send_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_attempt_recovery_when_not_listening():
+    """Test _attempt_listener_recovery returns early if not listening (line 531)."""
+    broadcaster = SystemBroadcaster()
+    broadcaster._pubsub_listening = False  # Not listening
+
+    # Should return immediately without incrementing recovery attempts
+    initial_attempts = broadcaster._recovery_attempts
+    await broadcaster._attempt_listener_recovery()
+
+    assert broadcaster._recovery_attempts == initial_attempts
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_attempt_recovery_stops_if_flag_cleared():
+    """Test _attempt_listener_recovery stops if listening flag cleared during delay (line 576)."""
+    mock_redis = AsyncMock()
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub_listening = True
+    broadcaster._recovery_attempts = 1  # Within max attempts
+
+    # Track sleep calls
+    sleep_called = False
+
+    async def mock_sleep(delay):
+        nonlocal sleep_called
+        sleep_called = True
+        # Clear listening flag during sleep
+        broadcaster._pubsub_listening = False
+
+    with (
+        patch("asyncio.sleep", side_effect=mock_sleep),
+        patch.object(broadcaster, "_reset_pubsub_connection") as mock_reset,
+    ):
+        await broadcaster._attempt_listener_recovery()
+
+    # Sleep should have been called
+    assert sleep_called
+    # But reset should NOT be called (listening flag was cleared)
+    mock_reset.assert_not_called()
+
+
+# ============================================================================
+# Tests for stats collection error handling (lines 693-695, 749-751, 766)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_gpu_stats_with_session_error():
+    """Test _get_latest_gpu_stats_with_session handles errors gracefully (line 693-695)."""
+    broadcaster = SystemBroadcaster()
+    mock_session = AsyncMock()
+    mock_session.execute.side_effect = Exception("Database error")
+
+    gpu_stats = await broadcaster._get_latest_gpu_stats_with_session(mock_session)
+
+    # Should return null values on error
+    assert gpu_stats["utilization"] is None
+    assert gpu_stats["memory_used"] is None
+    assert gpu_stats["memory_total"] is None
+    assert gpu_stats["temperature"] is None
+    assert gpu_stats["inference_fps"] is None
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_camera_stats_with_session_error():
+    """Test _get_camera_stats_with_session handles errors gracefully (line 749-751)."""
+    broadcaster = SystemBroadcaster()
+    mock_session = AsyncMock()
+    mock_session.execute.side_effect = Exception("Database error")
+
+    camera_stats = await broadcaster._get_camera_stats_with_session(mock_session)
+
+    # Should return zeros on error
+    assert camera_stats["active"] == 0
+    assert camera_stats["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_camera_stats_deprecated_method():
+    """Test _get_camera_stats (deprecated) handles errors (line 766)."""
+    broadcaster = SystemBroadcaster()
+
+    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+        mock_session.side_effect = Exception("Session error")
+
+        camera_stats = await broadcaster._get_camera_stats()
+
+    # Should return zeros on error
+    assert camera_stats["active"] == 0
+    assert camera_stats["total"] == 0
+
+
+# ============================================================================
+# Tests for AI health check error handling (lines 856-857)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_ai_health_gather_error():
+    """Test _check_ai_health handles asyncio.gather errors (line 856-857)."""
+    broadcaster = SystemBroadcaster()
+
+    # Mock httpx.AsyncClient to cause gather to fail
+    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+        mock_client_cls.side_effect = Exception("Client creation failed")
+
+        result = await broadcaster._check_ai_health()
+
+    # Should return all False on error
+    assert result["rtdetr"] is False
+    assert result["nemotron"] is False
+    assert result["all_healthy"] is False
+    assert result["any_healthy"] is False
+
+
+# ============================================================================
+# Tests for _get_health_status (deprecated, lines 875-891)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_health_status_healthy():
+    """Test _get_health_status returns healthy when all services healthy."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(broadcaster, "_check_redis_health", return_value=True),
+    ):
+        health = await broadcaster._get_health_status()
+
+    assert health == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_health_status_degraded():
+    """Test _get_health_status returns degraded when Redis unhealthy."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(broadcaster, "_check_redis_health", return_value=False),
+    ):
+        health = await broadcaster._get_health_status()
+
+    assert health == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_health_status_unhealthy():
+    """Test _get_health_status returns unhealthy when database fails."""
+    broadcaster = SystemBroadcaster()
+
+    @asynccontextmanager
+    async def failing_session():
+        for _ in []:
+            yield
+        raise Exception("Database error")
+
+    with patch("backend.services.system_broadcaster.get_session", failing_session):
+        health = await broadcaster._get_health_status()
+
+    assert health == "unhealthy"
+
+
+# ============================================================================
+# Tests for _get_broadcaster_lock (lines 983-988)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_broadcaster_lock_initializes_once():
+    """Test _get_broadcaster_lock creates lock only once."""
+    from backend.services.system_broadcaster import _get_broadcaster_lock, reset_broadcaster_state
+
+    # Reset global state
+    reset_broadcaster_state()
+
+    lock1 = _get_broadcaster_lock()
+    lock2 = _get_broadcaster_lock()
+
+    # Should return the same lock instance
+    assert lock1 is lock2
+
+    # Cleanup
+    reset_broadcaster_state()
+
+
+# ============================================================================
+# Tests for async broadcaster initialization (lines 1050-1072)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_system_broadcaster_async_fast_path():
+    """Test get_system_broadcaster_async fast path when already running (line 1050)."""
+    from backend.services.system_broadcaster import (
+        get_system_broadcaster_async,
+        reset_broadcaster_state,
+    )
+
+    reset_broadcaster_state()
+
+    # Create and start broadcaster
+    mock_redis = AsyncMock()
+    broadcaster1 = await get_system_broadcaster_async(redis_client=mock_redis, interval=5.0)
+
+    # Second call should hit fast path
+    broadcaster2 = await get_system_broadcaster_async(redis_client=mock_redis)
+
+    assert broadcaster1 is broadcaster2
+    assert broadcaster1._running is True
+
+    # Cleanup
+    await broadcaster1.stop_broadcasting()
+    reset_broadcaster_state()
+
+
+@pytest.mark.asyncio
+async def test_get_system_broadcaster_async_slow_path_initialization():
+    """Test get_system_broadcaster_async slow path creates and starts broadcaster."""
+    from backend.services.system_broadcaster import (
+        get_system_broadcaster_async,
+        reset_broadcaster_state,
+    )
+
+    reset_broadcaster_state()
+
+    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub
+
+    # Mock listen to avoid actual async iteration
+    async def empty_listen(pubsub):
+        for _ in []:
+            yield
+
+    mock_redis.listen = empty_listen
+
+    broadcaster = await get_system_broadcaster_async(redis_client=mock_redis, interval=5.0)
+
+    assert broadcaster is not None
+    assert broadcaster._running is True
+    assert broadcaster._redis_client is mock_redis
+
+    # Cleanup
+    await broadcaster.stop_broadcasting()
+    reset_broadcaster_state()
+
+
+@pytest.mark.asyncio
+async def test_get_system_broadcaster_async_updates_redis_client():
+    """Test get_system_broadcaster_async updates Redis client on existing instance."""
+    from backend.services.system_broadcaster import (
+        get_system_broadcaster_async,
+        reset_broadcaster_state,
+    )
+
+    reset_broadcaster_state()
+
+    # First call without Redis
+    broadcaster1 = await get_system_broadcaster_async(interval=5.0)
+
+    # Second call with Redis - should update
+    mock_redis = AsyncMock()
+    broadcaster2 = await get_system_broadcaster_async(redis_client=mock_redis)
+
+    assert broadcaster1 is broadcaster2
+    assert broadcaster2._redis_client is mock_redis
+
+    # Cleanup
+    await broadcaster2.stop_broadcasting()
+    reset_broadcaster_state()
+
+
+# ============================================================================
+# Tests for stop_system_broadcaster (lines 1082-1087)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_stop_system_broadcaster_stops_global_instance():
+    """Test stop_system_broadcaster stops and clears global instance."""
+    from backend.services.system_broadcaster import (
+        get_system_broadcaster_async,
+        reset_broadcaster_state,
+        stop_system_broadcaster,
+    )
+
+    reset_broadcaster_state()
+
+    # Create broadcaster
+    broadcaster = await get_system_broadcaster_async(interval=5.0)
+    assert broadcaster._running is True
+
+    # Stop it
+    await stop_system_broadcaster()
+
+    # Should be stopped and cleared
+    # (We can't directly check _system_broadcaster here due to module scope)
+    # But we can verify by creating a new one
+    new_broadcaster = await get_system_broadcaster_async(interval=5.0)
+    assert new_broadcaster is not broadcaster  # Different instance
+
+    # Cleanup
+    await new_broadcaster.stop_broadcasting()
+    reset_broadcaster_state()
+
+
+# ============================================================================
+# Tests for reset_broadcaster_state (lines 1100-1101)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_reset_broadcaster_state_clears_globals():
+    """Test reset_broadcaster_state clears global state."""
+    from backend.services.system_broadcaster import (
+        get_system_broadcaster,
+        reset_broadcaster_state,
+    )
+
+    # Create a broadcaster
+    broadcaster1 = get_system_broadcaster()
+
+    # Reset state
+    reset_broadcaster_state()
+
+    # Should create a new instance
+    broadcaster2 = get_system_broadcaster()
+    assert broadcaster2 is not broadcaster1
+
+    # Cleanup
+    reset_broadcaster_state()

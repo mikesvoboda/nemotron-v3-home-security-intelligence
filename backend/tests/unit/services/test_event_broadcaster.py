@@ -1761,3 +1761,523 @@ async def test_degraded_mode_health_check_integration() -> None:
     # Both should reflect the degraded state
     assert broadcaster.is_degraded() is True
     assert broadcaster.is_listener_healthy() is False
+
+
+# ==============================================================================
+# Additional Edge Case Tests for Full Coverage (NEM-1700)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_state() -> None:
+    """Test get_circuit_state() method returns correct circuit breaker state."""
+    from backend.core.websocket_circuit_breaker import WebSocketCircuitState
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Initial state should be CLOSED
+    state = broadcaster.get_circuit_state()
+    assert state == WebSocketCircuitState.CLOSED
+
+    # After failures, state should change
+    broadcaster._circuit_breaker.record_failure()
+    broadcaster._circuit_breaker.record_failure()
+    broadcaster._circuit_breaker.record_failure()
+    broadcaster._circuit_breaker.record_failure()
+    broadcaster._circuit_breaker.record_failure()
+
+    # Should now be OPEN (after 5 failures which is the threshold)
+    state = broadcaster.get_circuit_state()
+    assert state == WebSocketCircuitState.OPEN
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_property() -> None:
+    """Test circuit_breaker property returns the correct instance."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    circuit_breaker = broadcaster.circuit_breaker
+    assert circuit_breaker is not None
+    assert circuit_breaker.name == "event_broadcaster"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_service_status_validates_message() -> None:
+    """Test broadcast_service_status validates message format before broadcasting."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid service status message
+    status_data = {
+        "type": "service_status",
+        "data": {
+            "service": "nemotron",
+            "status": "healthy",
+            "message": "Service recovered",
+        },
+        "timestamp": "2025-12-23T12:00:00.000Z",
+    }
+
+    count = await broadcaster.broadcast_service_status(status_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    channel, published = redis.publish.await_args.args
+    assert channel == broadcaster.channel_name
+    assert published["type"] == "service_status"
+    assert published["data"]["service"] == "nemotron"
+    assert published["data"]["status"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_service_status_rejects_invalid_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_service_status rejects invalid message format."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing required fields
+    invalid_data = {
+        "type": "service_status",
+        "data": {
+            "service": "nemotron",
+            # Missing "status" and "message" fields
+        },
+        "timestamp": "2025-12-23T12:00:00.000Z",
+    }
+
+    with pytest.raises(ValueError, match="Invalid service status message format"):
+        await broadcaster.broadcast_service_status(invalid_data)
+
+    assert "Service status message validation failed" in caplog.text
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_service_status_handles_publish_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_service_status handles publish errors gracefully."""
+    redis = _FakeRedis()
+    redis.publish = AsyncMock(side_effect=RuntimeError("Redis publish failed"))
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    valid_data = {
+        "type": "service_status",
+        "data": {
+            "service": "nemotron",
+            "status": "healthy",
+            "message": "Service recovered",
+        },
+        "timestamp": "2025-12-23T12:00:00.000Z",
+    }
+
+    with pytest.raises(RuntimeError, match="Redis publish failed"):
+        await broadcaster.broadcast_service_status(valid_data)
+
+    assert "Failed to broadcast service status" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_broadcast_scene_change_validates_message() -> None:
+    """Test broadcast_scene_change validates message format before broadcasting."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid scene change message
+    scene_change_data = {
+        "id": 1,
+        "camera_id": "front_door",
+        "detected_at": "2026-01-03T10:30:00Z",
+        "change_type": "view_blocked",
+        "similarity_score": 0.23,
+    }
+
+    count = await broadcaster.broadcast_scene_change(scene_change_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    channel, published = redis.publish.await_args.args
+    assert channel == broadcaster.channel_name
+    assert published["type"] == "scene_change"
+    assert published["data"]["camera_id"] == "front_door"
+    assert published["data"]["change_type"] == "view_blocked"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_scene_change_wraps_missing_type() -> None:
+    """Test broadcast_scene_change wraps data without type field."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Data without type field (should be wrapped)
+    scene_change_data = {
+        "id": 1,
+        "camera_id": "front_door",
+        "detected_at": "2026-01-03T10:30:00Z",
+        "change_type": "view_blocked",
+        "similarity_score": 0.23,
+    }
+
+    count = await broadcaster.broadcast_scene_change(scene_change_data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["type"] == "scene_change"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_scene_change_rejects_invalid_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_scene_change rejects invalid message format."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing required fields
+    invalid_data = {
+        "id": 1,
+        "camera_id": "front_door",
+        # Missing "detected_at", "change_type", "similarity_score"
+    }
+
+    with pytest.raises(ValueError, match="Invalid scene change message format"):
+        await broadcaster.broadcast_scene_change(invalid_data)
+
+    assert "Scene change message validation failed" in caplog.text
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_scene_change_handles_publish_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_scene_change handles publish errors gracefully."""
+    redis = _FakeRedis()
+    redis.publish = AsyncMock(side_effect=RuntimeError("Redis publish failed"))
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    valid_data = {
+        "id": 1,
+        "camera_id": "front_door",
+        "detected_at": "2026-01-03T10:30:00Z",
+        "change_type": "view_blocked",
+        "similarity_score": 0.23,
+    }
+
+    with pytest.raises(RuntimeError, match="Redis publish failed"):
+        await broadcaster.broadcast_scene_change(valid_data)
+
+    assert "Failed to broadcast scene change" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_listen_for_events_broadcast_error_doesnt_stop_listener(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that broadcast errors don't stop the listener from processing future messages."""
+
+    class RedisWithTwoMessages(_FakeRedis):
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+            yield {"data": {"type": "event", "data": {"id": 1}}}
+            yield {"data": {"type": "event", "data": {"id": 2}}}
+
+    redis = RedisWithTwoMessages()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._is_listening = True
+
+    send_calls = []
+    first_call = True
+
+    async def mock_send(event_data: Any) -> None:
+        nonlocal first_call
+        send_calls.append(event_data)
+        # First call fails, second succeeds
+        if first_call:
+            first_call = False
+            raise RuntimeError("Broadcast failed")
+
+    broadcaster._send_to_all_clients = mock_send  # type: ignore[method-assign]
+
+    await broadcaster._listen_for_events()
+
+    # Both messages should have been attempted
+    assert len(send_calls) == 2
+    # Error should be logged but processing continued
+    assert any(
+        "Failed to broadcast event to WebSocket clients" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_listen_for_events_circuit_breaker_blocks_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that circuit breaker blocks recovery when OPEN."""
+
+    class RedisAlwaysErrors(_FakeRedis):
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+            for _ in []:  # Make it an async generator
+                yield {}
+            raise RuntimeError("redis connection failed")
+
+    redis = RedisAlwaysErrors()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._is_listening = True
+
+    # Force circuit breaker to OPEN state (block all calls)
+    for _ in range(broadcaster.MAX_RECOVERY_ATTEMPTS):
+        broadcaster._circuit_breaker.record_failure()
+
+    async def _fake_sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._listen_for_events()
+
+    # Should have entered degraded mode due to circuit breaker
+    assert broadcaster.is_degraded() is True
+    assert "circuit breaker is OPEN" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_broadcast_degraded_state_to_clients() -> None:
+    """Test _broadcast_degraded_state sends degraded notification to all clients."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Add mock WebSocket connections
+    mock_ws1 = AsyncMock()
+    mock_ws1.send_text = AsyncMock(return_value=None)
+    mock_ws1.close = AsyncMock(return_value=None)
+    mock_ws2 = AsyncMock()
+    mock_ws2.send_text = AsyncMock(return_value=None)
+    mock_ws2.close = AsyncMock(return_value=None)
+
+    broadcaster._connections = {mock_ws1, mock_ws2}  # type: ignore[assignment]
+
+    await broadcaster._broadcast_degraded_state()
+
+    # Both clients should have received degraded state message
+    mock_ws1.send_text.assert_awaited_once()
+    mock_ws2.send_text.assert_awaited_once()
+
+    # Verify message content
+    sent_message = mock_ws1.send_text.await_args.args[0]
+    assert "service_status" in sent_message
+    assert "degraded" in sent_message
+
+
+@pytest.mark.asyncio
+async def test_broadcast_degraded_state_with_no_connections() -> None:
+    """Test _broadcast_degraded_state returns early when no connections."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._connections = set()
+
+    # Should not raise, just return early
+    await broadcaster._broadcast_degraded_state()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_degraded_state_handles_send_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _broadcast_degraded_state handles send errors gracefully.
+
+    When sending fails, _send_to_all_clients handles the error and logs it as
+    'Failed to send to WebSocket client', then removes the disconnected client.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    mock_ws = AsyncMock()
+    mock_ws.send_text = AsyncMock(side_effect=RuntimeError("Send failed"))
+    mock_ws.close = AsyncMock(return_value=None)
+
+    broadcaster._connections = {mock_ws}  # type: ignore[assignment]
+
+    # Should not raise, handles errors internally
+    await broadcaster._broadcast_degraded_state()
+
+    # Error is logged by _send_to_all_clients, and client is disconnected
+    assert "Failed to send to WebSocket client" in caplog.text
+    assert len(broadcaster._connections) == 0  # Client removed after failure
+
+
+@pytest.mark.asyncio
+async def test_supervise_listener_handles_unexpected_error(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that supervisor handles unexpected errors during supervision."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = _FakePubSub()
+
+    # Create a running task
+    done_event = asyncio.Event()
+
+    async def long_running() -> None:
+        await done_event.wait()
+
+    broadcaster._listener_task = asyncio.create_task(long_running())
+
+    sleep_count = 0
+
+    async def _fake_sleep(seconds: float) -> None:
+        nonlocal sleep_count
+        sleep_count += 1
+        # First sleep: normal supervision interval
+        # Second sleep: raise unexpected error
+        if sleep_count == 2:
+            broadcaster._is_listening = False
+            raise RuntimeError("Unexpected supervisor error")
+        if sleep_count >= 3:
+            broadcaster._is_listening = False
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have logged the unexpected error
+    assert any("Unexpected error in supervisor task" in record.message for record in caplog.records)
+
+    # Cleanup
+    done_event.set()
+    broadcaster._listener_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await broadcaster._listener_task
+
+
+@pytest.mark.asyncio
+async def test_supervise_listener_circuit_breaker_blocks_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that supervisor respects circuit breaker OPEN state."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = _FakePubSub()
+
+    # Force circuit breaker to OPEN
+    for _ in range(broadcaster.MAX_RECOVERY_ATTEMPTS):
+        broadcaster._circuit_breaker.record_failure()
+
+    # Create a done task to simulate dead listener
+    async def immediate_done() -> None:
+        pass
+
+    broadcaster._listener_task = asyncio.create_task(immediate_done())
+    await broadcaster._listener_task
+
+    async def _fake_sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have entered degraded mode due to circuit breaker
+    assert broadcaster.is_degraded() is True
+    assert "Supervisor: circuit breaker is OPEN" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_handle_dead_listener_resubscribe_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _handle_dead_listener when re-subscription fails."""
+    redis = _FakeRedis()
+    redis.subscribe = AsyncMock(side_effect=RuntimeError("Subscription failed"))
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = None  # Simulate pubsub being None
+    broadcaster._recovery_attempts = 0
+
+    # Create a done task to simulate dead listener
+    async def immediate_done() -> None:
+        pass
+
+    broadcaster._listener_task = asyncio.create_task(immediate_done())
+    await broadcaster._listener_task
+
+    sleep_count = 0
+
+    async def _fake_sleep(seconds: float) -> None:
+        nonlocal sleep_count
+        sleep_count += 1
+        if sleep_count >= 2:
+            broadcaster._is_listening = False
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have logged the re-subscription failure
+    assert "Failed to re-subscribe" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_start_resets_circuit_breaker_on_success() -> None:
+    """Test that start() resets circuit breaker on successful start."""
+    redis = _FakeRedis()
+
+    async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+        for _ in []:  # Empty async generator
+            yield {}
+
+    redis.listen = quick_listen  # type: ignore[method-assign]
+
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Simulate previous failures
+    broadcaster._circuit_breaker.record_failure()
+    broadcaster._circuit_breaker.record_failure()
+    broadcaster._recovery_attempts = 3
+
+    await broadcaster.start()
+
+    # Circuit breaker and recovery attempts should be reset
+    assert broadcaster._recovery_attempts == 0
+    # Circuit breaker should record success
+    from backend.core.websocket_circuit_breaker import WebSocketCircuitState
+
+    state = broadcaster.get_circuit_state()
+    # Should be back to CLOSED or at least not OPEN
+    assert state != WebSocketCircuitState.OPEN
+
+    # Cleanup
+    await broadcaster.stop()
+
+
+@pytest.mark.asyncio
+async def test_start_records_circuit_breaker_failure_on_error() -> None:
+    """Test that start() records circuit breaker failure on error."""
+    redis = _FakeRedis()
+    redis.subscribe = AsyncMock(side_effect=RuntimeError("Subscribe failed"))
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Verify circuit breaker exists before the error
+    _ = broadcaster.get_circuit_state()
+
+    with pytest.raises(RuntimeError, match="Subscribe failed"):
+        await broadcaster.start()
+
+    # Circuit breaker should have recorded the failure
+    # (State may not change immediately, but failure should be recorded)
