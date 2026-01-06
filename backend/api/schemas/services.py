@@ -26,8 +26,8 @@ class ServiceCategory(str, Enum):
     MONITORING = "monitoring"  # Grafana, Prometheus - optional
 
 
-class ServiceStatus(str, Enum):
-    """Current status of a managed service.
+class ContainerServiceStatus(str, Enum):
+    """Current status of a managed container service.
 
     Status values:
     - RUNNING: Container is up and passing health checks
@@ -65,7 +65,7 @@ class ServiceInfo(BaseModel):
         ...,
         description="Service category: infrastructure, ai, or monitoring",
     )
-    status: ServiceStatus = Field(
+    status: ContainerServiceStatus = Field(
         ...,
         description="Current service status: running, starting, unhealthy, stopped, disabled, not_found",
     )

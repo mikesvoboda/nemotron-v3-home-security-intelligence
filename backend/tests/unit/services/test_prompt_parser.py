@@ -1,5 +1,9 @@
 """Unit tests for prompt_parser.py - prompt parsing utilities."""
 
+from hypothesis import given
+from hypothesis import settings as hypothesis_settings
+from hypothesis import strategies as st
+
 from backend.services.prompt_parser import (
     apply_suggestion_to_prompt,
     detect_variable_style,
@@ -7,6 +11,7 @@ from backend.services.prompt_parser import (
     generate_insertion_text,
     validate_prompt_syntax,
 )
+from backend.tests.strategies import variable_names
 
 # Sample prompts for testing
 SAMPLE_PROMPT_CURLY = """## System Instructions
@@ -483,3 +488,402 @@ Line 3
         _idx, insert_type = find_insertion_point(prompt, "Camera & Time Context", "append")
 
         assert insert_type == "section_end"
+
+
+# =============================================================================
+# Property-Based Tests (Hypothesis)
+# =============================================================================
+
+# Variable names matching the prompt_parser.py regex: [a-z_]+
+# Does NOT include digits to match the actual regex pattern in detect_variable_style
+variable_names_lowercase = st.from_regex(r"[a-z][a-z_]{0,19}", fullmatch=True)
+
+
+class TestFindInsertionPointProperties:
+    """Property-based tests for find_insertion_point function."""
+
+    @given(
+        prompt=st.text(min_size=0, max_size=500),
+        section=st.text(min_size=1, max_size=50),
+        mode=st.sampled_from(["append", "prepend"]),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_insertion_point_within_bounds(self, prompt: str, section: str, mode: str) -> None:
+        """Property: Insertion point is always within prompt bounds."""
+        idx, _insert_type = find_insertion_point(prompt, section, mode)
+        assert 0 <= idx <= len(prompt)
+
+    @given(
+        prompt=st.text(min_size=0, max_size=500),
+        section=st.text(min_size=1, max_size=50),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_insertion_type_is_valid(self, prompt: str, section: str) -> None:
+        """Property: Insertion type is one of the valid values."""
+        _idx, insert_type = find_insertion_point(prompt, section)
+        assert insert_type in ["section_end", "section_start", "fallback"]
+
+    @given(
+        prompt=st.text(min_size=0, max_size=500),
+        section=st.text(min_size=1, max_size=50),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_insertion_point_is_deterministic(self, prompt: str, section: str) -> None:
+        """Property: Same inputs produce same outputs."""
+        result1 = find_insertion_point(prompt, section)
+        result2 = find_insertion_point(prompt, section)
+        assert result1 == result2
+
+    @given(section=st.text(min_size=1, max_size=30))
+    @hypothesis_settings(max_examples=50)
+    def test_empty_prompt_always_returns_fallback(self, section: str) -> None:
+        """Property: Empty prompt always returns fallback at position 0."""
+        idx, insert_type = find_insertion_point("", section)
+        assert idx == 0
+        assert insert_type == "fallback"
+
+
+class TestDetectVariableStyleProperties:
+    """Property-based tests for detect_variable_style function."""
+
+    @given(prompt=st.text(min_size=0, max_size=500))
+    @hypothesis_settings(max_examples=100)
+    def test_always_returns_valid_structure(self, prompt: str) -> None:
+        """Property: Always returns a dict with expected keys."""
+        result = detect_variable_style(prompt)
+        assert isinstance(result, dict)
+        assert "format" in result
+        assert "label_style" in result
+        assert "indentation" in result
+
+    @given(prompt=st.text(min_size=0, max_size=500))
+    @hypothesis_settings(max_examples=100)
+    def test_format_is_valid_value(self, prompt: str) -> None:
+        """Property: Format is one of the valid values."""
+        result = detect_variable_style(prompt)
+        assert result["format"] in ["curly", "angle", "dollar", "none"]
+
+    @given(prompt=st.text(min_size=0, max_size=500))
+    @hypothesis_settings(max_examples=100)
+    def test_label_style_is_valid_value(self, prompt: str) -> None:
+        """Property: Label style is one of the valid values."""
+        result = detect_variable_style(prompt)
+        assert result["label_style"] in ["colon", "equals", "none"]
+
+    @given(prompt=st.text(min_size=0, max_size=500))
+    @hypothesis_settings(max_examples=50)
+    def test_detection_is_deterministic(self, prompt: str) -> None:
+        """Property: Same input produces same output."""
+        result1 = detect_variable_style(prompt)
+        result2 = detect_variable_style(prompt)
+        assert result1 == result2
+
+    @given(var_name=variable_names_lowercase)
+    @hypothesis_settings(max_examples=50)
+    def test_curly_brace_detection(self, var_name: str) -> None:
+        """Property: Curly braces are detected."""
+        prompt = f"Label: {{{var_name}}}"
+        result = detect_variable_style(prompt)
+        assert result["format"] == "curly"
+
+    @given(var_name=variable_names_lowercase)
+    @hypothesis_settings(max_examples=50)
+    def test_angle_bracket_detection(self, var_name: str) -> None:
+        """Property: Angle brackets are detected."""
+        prompt = f"Label: <{var_name}>"
+        result = detect_variable_style(prompt)
+        assert result["format"] == "angle"
+
+    @given(var_name=variable_names_lowercase)
+    @hypothesis_settings(max_examples=50)
+    def test_dollar_sign_detection(self, var_name: str) -> None:
+        """Property: Dollar sign is detected."""
+        prompt = f"Label: ${var_name}"
+        result = detect_variable_style(prompt)
+        assert result["format"] == "dollar"
+
+
+class TestGenerateInsertionTextProperties:
+    """Property-based tests for generate_insertion_text function."""
+
+    @given(
+        label=st.text(min_size=1, max_size=30).filter(lambda x: x.strip()),
+        variable=variable_names,
+        fmt=st.sampled_from(["curly", "angle", "dollar", "none"]),
+        label_style=st.sampled_from(["colon", "equals", "none"]),
+        indent=st.text(alphabet=" \t", max_size=8),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_generated_text_ends_with_newline(
+        self,
+        label: str,
+        variable: str,
+        fmt: str,
+        label_style: str,
+        indent: str,
+    ) -> None:
+        """Property: Generated text always ends with newline."""
+        style = {"format": fmt, "label_style": label_style, "indentation": indent}
+        result = generate_insertion_text(label, variable, style)
+        assert result.endswith("\n")
+
+    @given(
+        label=st.text(min_size=1, max_size=30).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_generated_text_contains_label(self, label: str, variable: str) -> None:
+        """Property: Generated text contains the label."""
+        style = {"format": "curly", "label_style": "colon", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert label in result
+
+    @given(
+        label=st.text(min_size=1, max_size=30).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_generated_text_contains_variable(self, label: str, variable: str) -> None:
+        """Property: Generated text contains the variable."""
+        style = {"format": "curly", "label_style": "colon", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert variable in result
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+        indent=st.text(alphabet=" \t", min_size=1, max_size=4),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_generated_text_starts_with_indentation(
+        self, label: str, variable: str, indent: str
+    ) -> None:
+        """Property: Generated text starts with specified indentation."""
+        style = {"format": "curly", "label_style": "colon", "indentation": indent}
+        result = generate_insertion_text(label, variable, style)
+        assert result.startswith(indent)
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_curly_format_produces_braces(self, label: str, variable: str) -> None:
+        """Property: Curly format produces curly braces."""
+        style = {"format": "curly", "label_style": "colon", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert f"{{{variable}}}" in result
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_angle_format_produces_brackets(self, label: str, variable: str) -> None:
+        """Property: Angle format produces angle brackets."""
+        style = {"format": "angle", "label_style": "colon", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert f"<{variable}>" in result
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_dollar_format_produces_dollar_sign(self, label: str, variable: str) -> None:
+        """Property: Dollar format produces dollar sign."""
+        style = {"format": "dollar", "label_style": "colon", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert f"${variable}" in result
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_colon_style_produces_colon_separator(self, label: str, variable: str) -> None:
+        """Property: Colon label style produces colon separator."""
+        style = {"format": "curly", "label_style": "colon", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert ": " in result
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_equals_style_produces_equals_separator(self, label: str, variable: str) -> None:
+        """Property: Equals label style produces equals separator."""
+        style = {"format": "curly", "label_style": "equals", "indentation": ""}
+        result = generate_insertion_text(label, variable, style)
+        assert "=" in result
+        assert ": " not in result
+
+
+class TestValidatePromptSyntaxProperties:
+    """Property-based tests for validate_prompt_syntax function."""
+
+    @given(prompt=st.text(min_size=0, max_size=500))
+    @hypothesis_settings(max_examples=100)
+    def test_always_returns_list(self, prompt: str) -> None:
+        """Property: Always returns a list."""
+        result = validate_prompt_syntax(prompt)
+        assert isinstance(result, list)
+
+    @given(prompt=st.text(min_size=0, max_size=500))
+    @hypothesis_settings(max_examples=100)
+    def test_all_warnings_are_strings(self, prompt: str) -> None:
+        """Property: All warnings are strings."""
+        result = validate_prompt_syntax(prompt)
+        assert all(isinstance(w, str) for w in result)
+
+    @given(n=st.integers(min_value=1, max_value=10))
+    @hypothesis_settings(max_examples=50)
+    def test_balanced_braces_no_brace_warning(self, n: int) -> None:
+        """Property: Balanced braces produce no brace warnings."""
+        # Generate prompt with n balanced brace pairs
+        prompt = " ".join(f"Var{i}: {{var{i}}}" for i in range(n))
+        warnings = validate_prompt_syntax(prompt)
+        brace_warnings = [w for w in warnings if "braces" in w.lower()]
+        assert len(brace_warnings) == 0
+
+    @given(n=st.integers(min_value=1, max_value=10))
+    @hypothesis_settings(max_examples=50)
+    def test_unbalanced_braces_produce_warning(self, n: int) -> None:
+        """Property: Unbalanced braces produce warnings."""
+        # Generate prompt with n open braces but no close braces
+        prompt = " ".join(f"Var{i}: {{var{i}" for i in range(n))
+        warnings = validate_prompt_syntax(prompt)
+        brace_warnings = [w for w in warnings if "braces" in w.lower()]
+        assert len(brace_warnings) == 1
+        assert f"{n} open" in brace_warnings[0]
+
+    @given(var_name=variable_names_lowercase)
+    @hypothesis_settings(max_examples=50)
+    def test_duplicate_variable_produces_warning(self, var_name: str) -> None:
+        """Property: Duplicate variables produce warnings."""
+        prompt = f"A: {{{var_name}}}\nB: {{{var_name}}}"
+        warnings = validate_prompt_syntax(prompt)
+        dup_warnings = [w for w in warnings if "Duplicate" in w]
+        assert len(dup_warnings) == 1
+        assert var_name in dup_warnings[0]
+
+    @given(
+        var_names=st.lists(variable_names_lowercase, min_size=1, max_size=5, unique=True),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_unique_variables_no_duplicate_warning(self, var_names: list[str]) -> None:
+        """Property: Unique variables produce no duplicate warnings."""
+        prompt = "\n".join(f"Var{i}: {{{v}}}" for i, v in enumerate(var_names))
+        warnings = validate_prompt_syntax(prompt)
+        dup_warnings = [w for w in warnings if "Duplicate" in w]
+        assert len(dup_warnings) == 0
+
+    def test_empty_prompt_is_valid(self) -> None:
+        """Property: Empty prompt produces no warnings."""
+        warnings = validate_prompt_syntax("")
+        assert warnings == []
+
+
+class TestApplySuggestionProperties:
+    """Property-based tests for apply_suggestion_to_prompt function."""
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+        section=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        mode=st.sampled_from(["append", "prepend"]),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_result_contains_new_variable(
+        self,
+        label: str,
+        variable: str,
+        section: str,
+        mode: str,
+    ) -> None:
+        """Property: Result always contains the new variable."""
+        prompt = f"## {section}\nExisting: {{existing}}\n## Other\n"
+        result = apply_suggestion_to_prompt(prompt, section, mode, label, variable)
+        assert variable in result
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+        section=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_result_preserves_original_content(
+        self,
+        label: str,
+        variable: str,
+        section: str,
+    ) -> None:
+        """Property: Result preserves original prompt content."""
+        original_var = "existing_var"
+        prompt = f"## {section}\nExisting: {{{original_var}}}\n## Other\nOther: {{other}}\n"
+        result = apply_suggestion_to_prompt(prompt, section, "append", label, variable)
+        assert original_var in result
+        assert "other" in result.lower()
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_empty_prompt_produces_valid_result(
+        self,
+        label: str,
+        variable: str,
+    ) -> None:
+        """Property: Applying to empty prompt produces valid result."""
+        result = apply_suggestion_to_prompt("", "AnySection", "append", label, variable)
+        assert len(result) > 0
+        assert variable in result
+        assert result.endswith("\n")
+
+    @given(
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        variable=variable_names,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_result_is_longer_than_original(
+        self,
+        label: str,
+        variable: str,
+    ) -> None:
+        """Property: Result is always longer than the original prompt."""
+        prompt = "## Section\nContent: {var}\n"
+        result = apply_suggestion_to_prompt(prompt, "Section", "append", label, variable)
+        assert len(result) > len(prompt)
+
+
+class TestPromptOperationsIdempotence:
+    """Property-based tests for idempotence of prompt operations."""
+
+    @given(prompt=st.text(min_size=0, max_size=200))
+    @hypothesis_settings(max_examples=50)
+    def test_detect_style_is_idempotent(self, prompt: str) -> None:
+        """Property: detect_variable_style is idempotent."""
+        result1 = detect_variable_style(prompt)
+        result2 = detect_variable_style(prompt)
+        assert result1 == result2
+
+    @given(prompt=st.text(min_size=0, max_size=200))
+    @hypothesis_settings(max_examples=50)
+    def test_validate_syntax_is_idempotent(self, prompt: str) -> None:
+        """Property: validate_prompt_syntax is idempotent."""
+        result1 = validate_prompt_syntax(prompt)
+        result2 = validate_prompt_syntax(prompt)
+        assert result1 == result2
+
+    @given(
+        prompt=st.text(min_size=0, max_size=200),
+        section=st.text(min_size=1, max_size=30),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_find_insertion_is_idempotent(self, prompt: str, section: str) -> None:
+        """Property: find_insertion_point is idempotent."""
+        result1 = find_insertion_point(prompt, section)
+        result2 = find_insertion_point(prompt, section)
+        assert result1 == result2

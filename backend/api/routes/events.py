@@ -873,9 +873,11 @@ async def get_event_detections(
 @router.get("/{event_id}/enrichments", response_model=EventEnrichmentsResponse)
 async def get_event_enrichments(
     event_id: int,
+    limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),
+    offset: int = Query(0, ge=0, description="Number of enrichments to skip"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Get enrichment data for all detections in an event.
+    """Get enrichment data for detections in an event with pagination.
 
     Returns structured vision model results from the enrichment pipeline for
     each detection in the event. Results include:
@@ -889,10 +891,12 @@ async def get_event_enrichments(
 
     Args:
         event_id: Event ID
+        limit: Maximum number of enrichments to return (1-200, default 50)
+        offset: Number of enrichments to skip (default 0)
         db: Database session
 
     Returns:
-        EventEnrichmentsResponse with enrichment data for each detection
+        EventEnrichmentsResponse with enrichment data for each detection and pagination metadata
 
     Raises:
         HTTPException: 404 if event not found
@@ -904,17 +908,38 @@ async def get_event_enrichments(
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
+    total = len(detection_ids)
 
-    # If no detections, return empty list
+    # If no detections, return empty response with pagination metadata
     if not detection_ids:
         return {
             "event_id": event.id,
             "enrichments": [],
             "count": 0,
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "has_more": False,
         }
 
-    # Get all detections for this event
-    query = select(Detection).where(Detection.id.in_(detection_ids))
+    # Apply pagination to detection_ids before querying
+    # This ensures we only fetch the detections we need
+    paginated_detection_ids = detection_ids[offset : offset + limit]
+
+    # If offset is beyond available detections, return empty with metadata
+    if not paginated_detection_ids:
+        return {
+            "event_id": event.id,
+            "enrichments": [],
+            "count": 0,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": False,
+        }
+
+    # Get detections for this page
+    query = select(Detection).where(Detection.id.in_(paginated_detection_ids))
     query = query.order_by(Detection.detected_at.asc())
     det_result = await db.execute(query)
     detections = det_result.scalars().all()
@@ -929,10 +954,17 @@ async def get_event_enrichments(
         for det in detections
     ]
 
+    # Calculate has_more based on total and current position
+    has_more = offset + len(enrichments) < total
+
     return {
         "event_id": event.id,
         "enrichments": enrichments,
         "count": len(enrichments),
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
     }
 
 

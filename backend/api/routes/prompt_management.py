@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.prompt_management import (
     AIModelEnum,
     AllPromptsResponse,
@@ -26,7 +27,9 @@ from backend.api.schemas.prompt_management import (
     PromptTestRequest,
     PromptTestResult,
     PromptUpdateRequest,
+    PromptVersionConflictError,
     PromptVersionInfo,
+    validate_config_for_model,
 )
 from backend.core.database import get_db
 from backend.services.prompt_service import get_prompt_service
@@ -118,16 +121,41 @@ async def get_prompt_history(
     )
 
 
+# Rate limiter for prompt test endpoint (AI inference is computationally expensive)
+# Limit: 10 requests per minute per client with burst of 3 to prevent AI service abuse
+prompt_test_rate_limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+
+
 @router.post("/test", response_model=PromptTestResult)
 async def test_prompt(
     request: PromptTestRequest,
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(prompt_test_rate_limiter),
 ) -> PromptTestResult:
     """Test a modified prompt configuration against an event or image.
 
     Runs inference with the modified configuration and compares results
     with the original configuration.
+
+    Rate Limited:
+        This endpoint is rate limited to 10 requests per minute per client
+        with a burst allowance of 3. This protects the AI services from abuse
+        since prompt testing runs LLM inference which is computationally expensive.
+
+    Returns 429 Too Many Requests if rate limit is exceeded.
     """
+    # Validate config structure for the specific model
+    validation_errors = validate_config_for_model(request.model, request.config)
+    if validation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Invalid configuration for model",
+                "model": request.model.value,
+                "errors": validation_errors,
+            },
+        )
+
     service = get_prompt_service()
 
     result = await service.test_prompt(
@@ -338,15 +366,45 @@ async def update_prompt_for_model(
     """Update prompt configuration for a specific AI model.
 
     Creates a new version of the configuration while preserving history.
+    Validates the configuration structure before saving.
+
+    Supports optimistic locking via expected_version in the request body.
+    If expected_version is provided and doesn't match the current version,
+    returns 409 Conflict to indicate concurrent modification.
     """
+    # Validate config structure for the specific model
+    validation_errors = validate_config_for_model(model, request.config)
+    if validation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Invalid configuration for model",
+                "model": model.value,
+                "errors": validation_errors,
+            },
+        )
+
     service = get_prompt_service()
 
-    new_version = await service.update_prompt_for_model(
-        session=db,
-        model=model.value,
-        config=request.config,
-        change_description=request.change_description,
-    )
+    try:
+        new_version = await service.update_prompt_for_model(
+            session=db,
+            model=model.value,
+            config=request.config,
+            change_description=request.change_description,
+            expected_version=request.expected_version,
+        )
+    except PromptVersionConflictError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Concurrent modification detected",
+                "model": e.model,
+                "expected_version": e.expected_version,
+                "actual_version": e.actual_version,
+                "suggestion": "Please refresh and retry your update with the latest version",
+            },
+        ) from e
 
     return ModelPromptConfig(
         model=model,

@@ -963,6 +963,14 @@ async def acknowledge_scene_change(
             detail=f"Scene change with id {scene_change_id} not found for camera {camera_id}",
         )
 
+    # NEM-1354: Idempotency - if already acknowledged, return existing data without modification
+    if scene_change.acknowledged and scene_change.acknowledged_at:
+        return SceneChangeAcknowledgeResponse(
+            id=scene_change.id,
+            acknowledged=scene_change.acknowledged,
+            acknowledged_at=scene_change.acknowledged_at,
+        )
+
     # Update acknowledgement status
     acknowledged_at = datetime.now(UTC)
     scene_change.acknowledged = True

@@ -9,13 +9,12 @@ Tests cover:
 - Property-based tests for field values
 """
 
-from datetime import UTC, datetime
-
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus
+from backend.tests.factories import AlertFactory, AlertRuleFactory
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -58,13 +57,12 @@ dedup_templates = st.sampled_from(
 
 @pytest.fixture
 def sample_alert():
-    """Create a sample alert for testing."""
-    return Alert(
+    """Create a sample alert for testing using factory."""
+    return AlertFactory(
         id="alert-001",
         event_id=1,
         rule_id="rule-001",
-        severity=AlertSeverity.HIGH,
-        status=AlertStatus.PENDING,
+        high_severity=True,  # Use factory trait
         dedup_key="front_door:rule-001",
         channels=["email", "push"],
         alert_metadata={"triggered_by": "person_detection"},
@@ -74,6 +72,8 @@ def sample_alert():
 @pytest.fixture
 def minimal_alert():
     """Create an alert with minimal required fields."""
+    # Use direct model instantiation for minimal test
+    # to verify model's actual defaults (not factory defaults)
     return Alert(
         event_id=1,
         dedup_key="test_key",
@@ -82,20 +82,19 @@ def minimal_alert():
 
 @pytest.fixture
 def delivered_alert():
-    """Create a delivered alert."""
-    return Alert(
+    """Create a delivered alert using factory."""
+    return AlertFactory(
         id="alert-002",
         event_id=2,
-        severity=AlertSeverity.MEDIUM,
-        status=AlertStatus.DELIVERED,
+        delivered=True,  # Use factory trait
         dedup_key="back_yard:rule-002",
-        delivered_at=datetime.now(UTC),
     )
 
 
 @pytest.fixture
 def sample_alert_rule():
     """Create a sample alert rule for testing."""
+    # Use direct model instantiation to match original test expectations
     return AlertRule(
         id="rule-001",
         name="High Risk Alert",
@@ -113,6 +112,7 @@ def sample_alert_rule():
 @pytest.fixture
 def minimal_alert_rule():
     """Create an alert rule with minimal required fields."""
+    # Use direct model instantiation to verify model's actual defaults
     return AlertRule(
         name="Test Rule",
     )
@@ -120,11 +120,11 @@ def minimal_alert_rule():
 
 @pytest.fixture
 def disabled_rule():
-    """Create a disabled alert rule."""
-    return AlertRule(
+    """Create a disabled alert rule using factory."""
+    return AlertRuleFactory(
         id="rule-disabled",
         name="Disabled Rule",
-        enabled=False,
+        disabled=True,  # Use factory trait
     )
 
 

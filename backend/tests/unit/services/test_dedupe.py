@@ -501,6 +501,37 @@ class TestIsDuplicateAndMark:
             mock_redis_client.set.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_is_duplicate_and_mark_passes_file_path_to_mark_processed(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that is_duplicate_and_mark passes the correct file_path to mark_processed.
+
+        This test validates that the file_path parameter is correctly passed through
+        to mark_processed, which stores it in Redis as the value (useful for debugging).
+        The mutation test discovered that file_path could be replaced with None without
+        failing existing tests.
+        """
+        mock_redis_client.exists.return_value = 0
+
+        with patch("backend.services.dedupe.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(spec=[])
+            service = DedupeService(redis_client=mock_redis_client)
+            is_dup, file_hash = await service.is_duplicate_and_mark(temp_file)
+
+            assert is_dup is False
+            assert file_hash is not None
+
+            # Verify mark_processed was called with the correct file_path
+            # The set call should have been made with the file_path as the value
+            call_args = mock_redis_client.set.call_args
+            # Args are: (key, value, expire=ttl)
+            stored_value = call_args[0][1]  # Second positional arg is the value
+            assert stored_value == temp_file, (
+                f"mark_processed should store file_path in Redis, "
+                f"got {stored_value} instead of {temp_file}"
+            )
+
+    @pytest.mark.asyncio
     async def test_is_duplicate_and_mark_duplicate_file(
         self, mock_redis_client: AsyncMock, temp_file: str
     ) -> None:

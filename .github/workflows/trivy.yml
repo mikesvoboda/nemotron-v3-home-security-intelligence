@@ -13,6 +13,12 @@ on:
       - 'frontend/package.json'
       - 'pyproject.toml'
       - 'uv.lock'
+      - '.trivyignore'
+  # Weekly check for expired CVE reviews (every Monday at 9am UTC)
+  schedule:
+    - cron: '0 9 * * 1'
+  # Allow manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,12 +29,53 @@ env:
   LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'
 
 jobs:
+  check-cve-expiry:
+    name: Check CVE Review Dates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check for expired CVE review dates
+        id: expiry-check
+        run: |
+          ./scripts/check-trivyignore-expiry.sh --warn-days 14
+        continue-on-error: true
+
+      - name: Create Linear issue on expired CVEs
+        if: steps.expiry-check.outcome == 'failure'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "'"$LINEAR_TEAM_ID"'",
+                  "title": "CVE review dates expired in .trivyignore",
+                  "description": "## CVE Review Required\n\nOne or more CVEs in `.trivyignore` have expired review dates.\n\n### Details\n- **Workflow Run:** [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n### Next Steps\n1. Review each expired CVE in `.trivyignore`\n2. Check if a fix is now available\n3. Either remove the CVE (if fixed) or extend the review date\n4. Update the `Last reviewed` date at the bottom of the file\n\n### References\n- [.trivyignore file](https://github.com/${{ github.repository }}/blob/main/.trivyignore)\n- [Trivy ignore documentation](https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/)",
+                  "priority": 2,
+                  "labelIds": []
+                }
+              }
+            }'
+
+      - name: Fail on expired CVEs
+        if: steps.expiry-check.outcome == 'failure'
+        run: exit 1
+
   scan-backend:
+    needs: check-cve-expiry
+    # Run scans even if CVE check fails (for visibility)
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     name: Scan Backend Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Free up disk space
         # Backend image includes heavy ML dependencies (PyTorch, transformers)
@@ -96,11 +143,14 @@ jobs:
             }'
 
   scan-frontend:
+    needs: check-cve-expiry
+    # Run scans even if CVE check fails (for visibility)
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     name: Scan Frontend Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Build frontend image
         id: build

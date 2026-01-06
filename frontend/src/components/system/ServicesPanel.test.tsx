@@ -22,7 +22,6 @@ vi.mock('../../hooks/useServiceStatus', () => ({
 // Mock the fetchHealth API
 const mockFetchHealth = vi.fn();
 vi.mock('../../services/api', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   fetchHealth: () => mockFetchHealth(),
 }));
 

@@ -171,6 +171,7 @@ test.describe('All Routes Smoke Tests', () => {
    * and sequential navigation is slower on secondary browsers.
    */
   test('all 8 routes load without error', async ({ page, browserName }) => {
+    test.setTimeout(30000); // Increase timeout for 8-route navigation
     test.skip(
       browserName === 'firefox' || browserName === 'webkit',
       'Sequential multi-route test too slow on secondary browsers'

@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -117,7 +117,7 @@ class ManagedService:
     category: ServiceCategory = ServiceCategory.AI
 
     # State
-    status: ServiceStatus = ServiceStatus.NOT_FOUND
+    status: ContainerServiceStatus = ContainerServiceStatus.NOT_FOUND
     enabled: bool = True
 
     # Self-healing tracking
@@ -247,12 +247,12 @@ class ServiceRegistry:
             service.last_failure_at = None
             logger.info(f"Reset failures for {name}")
 
-    def update_status(self, name: str, status: ServiceStatus) -> None:
+    def update_status(self, name: str, status: ContainerServiceStatus) -> None:
         """Update the status of a service.
 
         Args:
             name: Service name.
-            status: New ServiceStatus value.
+            status: New ContainerServiceStatus value.
         """
         service = self._services.get(name)
         if service:
@@ -475,7 +475,7 @@ class LifecycleManager:
             if success:
                 # Update tracking
                 self.registry.record_restart(service.name)
-                self.registry.update_status(service.name, ServiceStatus.STARTING)
+                self.registry.update_status(service.name, ContainerServiceStatus.STARTING)
                 await self.registry.persist_state(service.name)
 
                 if self.on_restart:
@@ -505,7 +505,7 @@ class LifecycleManager:
         try:
             success = await self.docker_client.start_container(service.container_id)
             if success:
-                self.registry.update_status(service.name, ServiceStatus.STARTING)
+                self.registry.update_status(service.name, ContainerServiceStatus.STARTING)
                 await self.registry.persist_state(service.name)
                 logger.info(f"Started service {service.name}")
             return success
@@ -529,7 +529,7 @@ class LifecycleManager:
         try:
             success = await self.docker_client.stop_container(service.container_id, timeout=10)
             if success:
-                self.registry.update_status(service.name, ServiceStatus.STOPPED)
+                self.registry.update_status(service.name, ContainerServiceStatus.STOPPED)
                 await self.registry.persist_state(service.name)
                 logger.info(f"Stopped service {service.name}")
             return success
@@ -555,7 +555,7 @@ class LifecycleManager:
 
         self.registry.reset_failures(name)
         self.registry.set_enabled(name, True)
-        self.registry.update_status(name, ServiceStatus.STOPPED)
+        self.registry.update_status(name, ContainerServiceStatus.STOPPED)
         await self.registry.persist_state(name)
 
         logger.info(f"Enabled service {name}, ready for restart")
@@ -578,7 +578,7 @@ class LifecycleManager:
             return False
 
         self.registry.set_enabled(name, False)
-        self.registry.update_status(name, ServiceStatus.DISABLED)
+        self.registry.update_status(name, ContainerServiceStatus.DISABLED)
         await self.registry.persist_state(name)
 
         logger.info(f"Disabled service {name}")
@@ -607,7 +607,7 @@ class LifecycleManager:
 
         if new_count >= service.max_failures:
             # Disable service
-            self.registry.update_status(service.name, ServiceStatus.DISABLED)
+            self.registry.update_status(service.name, ContainerServiceStatus.DISABLED)
             self.registry.set_enabled(service.name, False)
             await self.registry.persist_state(service.name)
 
@@ -653,7 +653,7 @@ class LifecycleManager:
         Args:
             service: The missing ManagedService.
         """
-        self.registry.update_status(service.name, ServiceStatus.NOT_FOUND)
+        self.registry.update_status(service.name, ContainerServiceStatus.NOT_FOUND)
         self.registry.update_container_id(service.name, None)
         await self.registry.persist_state(service.name)
 

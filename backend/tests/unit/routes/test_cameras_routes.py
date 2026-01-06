@@ -28,6 +28,7 @@ from backend.api.schemas.camera import (
 )
 from backend.core.database import get_db
 from backend.models.camera import Camera
+from backend.tests.factories import CameraFactory
 
 # =============================================================================
 # Fixtures
@@ -92,8 +93,8 @@ def client(mock_db_session: AsyncMock, mock_cache_service: MagicMock) -> TestCli
 
 @pytest.fixture
 def sample_camera() -> Camera:
-    """Create a sample camera object for testing."""
-    camera = Camera(
+    """Create a sample camera object for testing using factory."""
+    return CameraFactory(
         id="123e4567-e89b-12d3-a456-426614174000",
         name="Front Door Camera",
         folder_path="/export/foscam/front_door",
@@ -101,14 +102,13 @@ def sample_camera() -> Camera:
         created_at=datetime(2025, 12, 23, 10, 0, 0),
         last_seen_at=datetime(2025, 12, 23, 12, 0, 0),
     )
-    return camera
 
 
 @pytest.fixture
 def sample_camera_list() -> list[Camera]:
-    """Create a list of sample cameras for testing."""
+    """Create a list of sample cameras for testing using factory."""
     return [
-        Camera(
+        CameraFactory(
             id=str(uuid.uuid4()),
             name="Front Door Camera",
             folder_path="/export/foscam/front_door",
@@ -116,15 +116,15 @@ def sample_camera_list() -> list[Camera]:
             created_at=datetime(2025, 12, 23, 10, 0, 0),
             last_seen_at=datetime(2025, 12, 23, 12, 0, 0),
         ),
-        Camera(
+        CameraFactory(
             id=str(uuid.uuid4()),
             name="Back Door Camera",
             folder_path="/export/foscam/back_door",
-            status="offline",
+            offline=True,  # Use factory trait
             created_at=datetime(2025, 12, 23, 10, 0, 0),
             last_seen_at=None,
         ),
-        Camera(
+        CameraFactory(
             id=str(uuid.uuid4()),
             name="Garage Camera",
             folder_path="/export/foscam/garage",

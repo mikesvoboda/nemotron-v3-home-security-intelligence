@@ -2029,7 +2029,7 @@ export interface paths {
         };
         /**
          * Get Event Enrichments
-         * @description Get enrichment data for all detections in an event.
+         * @description Get enrichment data for detections in an event with pagination.
          *
          *     Returns structured vision model results from the enrichment pipeline for
          *     each detection in the event. Results include:
@@ -2043,10 +2043,12 @@ export interface paths {
          *
          *     Args:
          *         event_id: Event ID
+         *         limit: Maximum number of enrichments to return (1-200, default 50)
+         *         offset: Number of enrichments to skip (default 0)
          *         db: Database session
          *
          *     Returns:
-         *         EventEnrichmentsResponse with enrichment data for each detection
+         *         EventEnrichmentsResponse with enrichment data for each detection and pagination metadata
          *
          *     Raises:
          *         HTTPException: 404 if event not found
@@ -4018,6 +4020,11 @@ export interface components {
          *
          *     If start_time > end_time, the schedule spans midnight (e.g., 22:00-06:00).
          *     Empty days array means all days. No schedule = always active (vacation mode).
+         *
+         *     Validation:
+         *     - Days must be valid day names (monday-sunday)
+         *     - Times must be valid HH:MM format with hours 00-23, minutes 00-59
+         *     - Start and end times are validated but can span midnight
          * @example {
          *       "days": [
          *         "monday",
@@ -4039,12 +4046,12 @@ export interface components {
             days?: string[] | null;
             /**
              * Start Time
-             * @description Start time in HH:MM format
+             * @description Start time in HH:MM format (00:00-23:59)
              */
             start_time?: string | null;
             /**
              * End Time
-             * @description End time in HH:MM format
+             * @description End time in HH:MM format (00:00-23:59)
              */
             end_time?: string | null;
             /**
@@ -5190,6 +5197,11 @@ export interface components {
         /**
          * ClipGenerateRequest
          * @description Schema for clip generation request (POST /api/events/{event_id}/clip/generate).
+         *
+         *     Offset validation (NEM-1355):
+         *     - start_offset_seconds: -30 to 3600 seconds
+         *     - end_offset_seconds: -30 to 3600 seconds
+         *     - end_offset_seconds must be >= start_offset_seconds
          * @example {
          *       "end_offset_seconds": 30,
          *       "force": false,
@@ -5199,13 +5211,13 @@ export interface components {
         ClipGenerateRequest: {
             /**
              * Start Offset Seconds
-             * @description Seconds before event start to include (negative value, max -300)
+             * @description Seconds relative to event start to begin clip (negative = before event, range: -30 to 3600)
              * @default -15
              */
             start_offset_seconds: number;
             /**
              * End Offset Seconds
-             * @description Seconds after event end to include (max 300)
+             * @description Seconds relative to event start to end clip (range: -30 to 3600, must be >= start_offset_seconds)
              * @default 30
              */
             end_offset_seconds: number;
@@ -5430,6 +5442,20 @@ export interface components {
              */
             detection_confidence_threshold?: number | null;
         };
+        /**
+         * ContainerServiceStatus
+         * @description Current status of a managed container service.
+         *
+         *     Status values:
+         *     - RUNNING: Container is up and passing health checks
+         *     - STARTING: Container is starting, not yet healthy
+         *     - UNHEALTHY: Running but failing health checks
+         *     - STOPPED: Container is not running
+         *     - DISABLED: Exceeded failure limit, requires manual reset
+         *     - NOT_FOUND: Container doesn't exist yet
+         * @enum {string}
+         */
+        ContainerServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
         /**
          * CurrentDeviation
          * @description Current activity deviation from established baseline.
@@ -6531,7 +6557,7 @@ export interface components {
         };
         /**
          * EventEnrichmentsResponse
-         * @description Enrichment data for all detections in an event.
+         * @description Enrichment data for all detections in an event with pagination support.
          * @example {
          *       "count": 2,
          *       "enrichments": [
@@ -6567,7 +6593,11 @@ export interface components {
          *           }
          *         }
          *       ],
-         *       "event_id": 100
+         *       "event_id": 100,
+         *       "has_more": false,
+         *       "limit": 50,
+         *       "offset": 0,
+         *       "total": 10
          *     }
          */
         EventEnrichmentsResponse: {
@@ -6583,9 +6613,29 @@ export interface components {
             enrichments: components["schemas"]["EnrichmentResponse"][];
             /**
              * Count
-             * @description Number of detections with enrichment data
+             * @description Number of enrichments in this response (page size)
              */
             count: number;
+            /**
+             * Total
+             * @description Total number of detections with enrichment data for this event
+             */
+            total: number;
+            /**
+             * Limit
+             * @description Maximum number of results requested
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+            /**
+             * Has More
+             * @description Whether there are more results available
+             */
+            has_more: boolean;
         };
         /**
          * EventListResponse
@@ -9463,7 +9513,7 @@ export interface components {
             /** @description Service category: infrastructure, ai, or monitoring */
             category: components["schemas"]["ServiceCategory"];
             /** @description Current service status: running, starting, unhealthy, stopped, disabled, not_found */
-            status: components["schemas"]["backend__api__schemas__services__ServiceStatus"];
+            status: components["schemas"]["ContainerServiceStatus"];
             /**
              * Enabled
              * @description Whether auto-restart is enabled for this service
@@ -10505,20 +10555,6 @@ export interface components {
              */
             priority?: number | null;
         };
-        /**
-         * ServiceStatus
-         * @description Current status of a managed service.
-         *
-         *     Status values:
-         *     - RUNNING: Container is up and passing health checks
-         *     - STARTING: Container is starting, not yet healthy
-         *     - UNHEALTHY: Running but failing health checks
-         *     - STOPPED: Container is not running
-         *     - DISABLED: Exceeded failure limit, requires manual reset
-         *     - NOT_FOUND: Container doesn't exist yet
-         * @enum {string}
-         */
-        backend__api__schemas__services__ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
     };
     responses: never;
     parameters: never;
@@ -12769,7 +12805,12 @@ export interface operations {
     };
     get_event_enrichments_api_events__event_id__enrichments_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Maximum number of enrichments to return */
+                limit?: number;
+                /** @description Number of enrichments to skip */
+                offset?: number;
+            };
             header?: never;
             path: {
                 event_id: number;
