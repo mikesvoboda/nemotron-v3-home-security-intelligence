@@ -1133,3 +1133,70 @@ def test_validate_image_for_detection_too_small(detector_client, tmp_path):
     result = detector_client._validate_image_for_detection(str(image_path), "camera1")
 
     assert result is False
+
+
+# Test: Semaphore Concurrency Limiting (NEM-1500)
+
+
+def test_detector_client_has_semaphore():
+    """Test that DetectorClient has class-level semaphore for concurrency limiting."""
+    # Reset class-level semaphore to ensure clean state
+    DetectorClient._request_semaphore = None
+    DetectorClient._semaphore_limit = 0
+
+    # Create a client - this will initialize the semaphore on first use
+    _client = DetectorClient(max_retries=1)
+
+    # Verify semaphore is created when accessed
+    semaphore = DetectorClient._get_semaphore()
+    assert semaphore is not None
+    # Default limit is 4
+    assert DetectorClient._semaphore_limit == 4
+
+
+@pytest.mark.asyncio
+async def test_semaphore_limits_concurrent_requests(mock_session):
+    """Test that semaphore properly limits concurrent AI requests.
+
+    This verifies the concurrency limiting functionality (NEM-1500).
+    """
+    import asyncio
+
+    # Create a semaphore with limit 2 for testing
+    test_semaphore = asyncio.Semaphore(2)
+
+    client = DetectorClient(max_retries=1)
+
+    # Track concurrent requests
+    concurrent_count = 0
+    max_concurrent = 0
+
+    async def mock_request(*args, **kwargs):
+        nonlocal concurrent_count, max_concurrent
+        concurrent_count += 1
+        max_concurrent = max(max_concurrent, concurrent_count)
+        await asyncio.sleep(0.05)  # Simulate processing time
+        concurrent_count -= 1
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"detections": []}
+        return mock_response
+
+    mock_image_data = b"fake_image_data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=mock_request),
+        patch.object(client, "_validate_image_for_detection", return_value=True),
+        # Mock _get_semaphore to return our test semaphore with limit 2
+        patch.object(DetectorClient, "_get_semaphore", return_value=test_semaphore),
+    ):
+        # Launch 4 concurrent detection requests
+        tasks = [
+            client.detect_objects(f"/path/image_{i}.jpg", "camera1", mock_session) for i in range(4)
+        ]
+        await asyncio.gather(*tasks)
+
+        # Max concurrent should be limited to 2 (semaphore limit)
+        assert max_concurrent <= 2

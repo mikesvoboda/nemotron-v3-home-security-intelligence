@@ -173,26 +173,32 @@ class TestLogsAPI:
 
     async def test_list_logs_pagination(self, client: AsyncClient, db_session, clean_logs):
         """Test pagination of logs."""
+        # Use a unique component to isolate this test's data from other concurrent tests
+        # This avoids race conditions with shared database state in CI
+        import uuid
+
+        unique_component = f"pagination_test_{uuid.uuid4().hex[:8]}"
+
         for i in range(15):
             log = Log(
                 timestamp=datetime.now(UTC),
                 level="INFO",
-                component="test",
+                component=unique_component,
                 message=f"Message {i}",
                 source="backend",
             )
             db_session.add(log)
         await db_session.commit()
 
-        # First page
-        response = await client.get("/api/logs?limit=10&offset=0")
+        # First page - filter by our unique component
+        response = await client.get(f"/api/logs?component={unique_component}&limit=10&offset=0")
         assert response.status_code == 200
         data = response.json()
         assert len(data["logs"]) == 10
         assert data["count"] == 15
 
-        # Second page
-        response = await client.get("/api/logs?limit=10&offset=10")
+        # Second page - filter by our unique component
+        response = await client.get(f"/api/logs?component={unique_component}&limit=10&offset=10")
         assert response.status_code == 200
         data = response.json()
         assert len(data["logs"]) == 5

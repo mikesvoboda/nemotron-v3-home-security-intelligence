@@ -7,6 +7,9 @@ This module implements security headers to protect against common web vulnerabil
 - Referrer-Policy: Controls referrer information sent with requests
 - Content-Security-Policy: Restricts resource loading sources
 - Permissions-Policy: Controls browser feature access
+- Strict-Transport-Security: Enforces HTTPS connections (HSTS)
+- Cross-Origin-Opener-Policy: Isolates browsing context
+- Cross-Origin-Resource-Policy: Prevents cross-origin resource loading
 """
 
 from collections.abc import Awaitable, Callable
@@ -31,6 +34,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         referrer_policy: Referrer-Policy header value
         content_security_policy: Content-Security-Policy header value
         permissions_policy: Permissions-Policy header value
+        hsts_enabled: Whether to add HSTS header (only on HTTPS)
+        hsts_max_age: HSTS max-age in seconds (default: 1 year)
+        hsts_include_subdomains: Whether HSTS includes subdomains
+        csp_report_only: Use Content-Security-Policy-Report-Only instead
+        cross_origin_opener_policy: Cross-Origin-Opener-Policy value
+        cross_origin_resource_policy: Cross-Origin-Resource-Policy value
     """
 
     def __init__(
@@ -43,6 +52,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         referrer_policy: str = "strict-origin-when-cross-origin",
         content_security_policy: str | None = None,
         permissions_policy: str | None = None,
+        hsts_enabled: bool = True,
+        hsts_max_age: int = 31536000,
+        hsts_include_subdomains: bool = True,
+        csp_report_only: bool = False,
+        cross_origin_opener_policy: str = "same-origin",
+        cross_origin_resource_policy: str = "same-origin",
     ):
         """Initialize security headers middleware.
 
@@ -54,6 +69,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             referrer_policy: Referrer-Policy value (default: "strict-origin-when-cross-origin")
             content_security_policy: Content-Security-Policy value (default: secure policy)
             permissions_policy: Permissions-Policy value (default: restrictive policy)
+            hsts_enabled: Add HSTS header when request is HTTPS (default: True)
+            hsts_max_age: HSTS max-age in seconds (default: 31536000 = 1 year)
+            hsts_include_subdomains: Include subdomains in HSTS (default: True)
+            csp_report_only: Use report-only mode for CSP testing (default: False)
+            cross_origin_opener_policy: COOP value (default: "same-origin")
+            cross_origin_resource_policy: CORP value (default: "same-origin")
         """
         super().__init__(app)
         self.content_type_options = content_type_options
@@ -61,8 +82,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.xss_protection = xss_protection
         self.referrer_policy = referrer_policy
 
+        # HSTS settings
+        self.hsts_enabled = hsts_enabled
+        self.hsts_max_age = hsts_max_age
+        self.hsts_include_subdomains = hsts_include_subdomains
+
+        # CSP settings
+        self.csp_report_only = csp_report_only
+
+        # Cross-Origin policies
+        self.cross_origin_opener_policy = cross_origin_opener_policy
+        self.cross_origin_resource_policy = cross_origin_resource_policy
+
         # Default CSP: Allow self, inline styles (for Tremor/Tailwind), and data URIs for images
         # WebSocket connections are allowed to same origin
+        # Added: upgrade-insecure-requests to automatically upgrade HTTP to HTTPS
         self.content_security_policy = content_security_policy or (
             "default-src 'self'; "
             "script-src 'self'; "
@@ -72,7 +106,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "connect-src 'self' ws: wss:; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
-            "form-action 'self'"
+            "form-action 'self'; "
+            "upgrade-insecure-requests"
         )
 
         # Default Permissions-Policy: Restrict access to sensitive browser features
@@ -106,7 +141,30 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = self.frame_options
         response.headers["X-XSS-Protection"] = self.xss_protection
         response.headers["Referrer-Policy"] = self.referrer_policy
-        response.headers["Content-Security-Policy"] = self.content_security_policy
         response.headers["Permissions-Policy"] = self.permissions_policy
+
+        # Add CSP header (report-only or enforcing mode)
+        csp_header_name = (
+            "Content-Security-Policy-Report-Only"
+            if self.csp_report_only
+            else "Content-Security-Policy"
+        )
+        response.headers[csp_header_name] = self.content_security_policy
+
+        # Add Cross-Origin headers for additional isolation
+        response.headers["Cross-Origin-Opener-Policy"] = self.cross_origin_opener_policy
+        response.headers["Cross-Origin-Resource-Policy"] = self.cross_origin_resource_policy
+
+        # Add HSTS header only when request came via HTTPS
+        # Check both the scheme and X-Forwarded-Proto header (for reverse proxy setups)
+        is_https = (
+            request.url.scheme == "https"
+            or request.headers.get("X-Forwarded-Proto", "").lower() == "https"
+        )
+        if self.hsts_enabled and is_https:
+            hsts_value = f"max-age={self.hsts_max_age}"
+            if self.hsts_include_subdomains:
+                hsts_value += "; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = hsts_value
 
         return response
