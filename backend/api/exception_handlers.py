@@ -16,6 +16,7 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -61,6 +62,7 @@ def build_error_response(
     status_code: int,
     request: Request | None = None,
     details: dict[str, Any] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     """Build a standardized error response.
 
@@ -70,6 +72,7 @@ def build_error_response(
         status_code: HTTP status code
         request: Optional request for extracting request ID
         details: Optional additional error details
+        headers: Optional custom headers to include in response (e.g., Retry-After, Content-Range)
 
     Returns:
         JSONResponse with standardized error format
@@ -92,6 +95,7 @@ def build_error_response(
     return JSONResponse(
         status_code=status_code,
         content={"error": error_body},
+        headers=headers,
     )
 
 
@@ -201,6 +205,7 @@ async def http_exception_handler(
         message=message,
         status_code=exc.status_code,
         request=request,
+        headers=exc.headers,
     )
 
 
