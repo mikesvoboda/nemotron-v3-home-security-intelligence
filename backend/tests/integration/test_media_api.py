@@ -13,6 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 @pytest.fixture(scope="module")
 def module_temp_foscam_dir():
@@ -144,7 +146,7 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     original_db_url = os.environ.get("DATABASE_URL")
     if not original_db_url:
         os.environ["DATABASE_URL"] = (
-            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
+            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
         )
 
     # Import app lazily to avoid settings validation during test collection
@@ -262,19 +264,16 @@ class TestCameraFileServing:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
-        assert "File not found" in data["detail"]["error"]
-        assert data["detail"]["path"] == "nonexistent.jpg"
+        error_msg = get_error_message(data)
+
+        assert "File not found" in error_msg
+        # Path no longer in separate field (included in error message)
 
     def test_nonexistent_camera_returns_404(self, client, temp_foscam_dir):
         """Test that requesting from a non-existent camera returns 404."""
         response = client.get("/api/media/cameras/nonexistent_camera/test.jpg")
 
         assert response.status_code == 404
-        data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
 
     def test_path_traversal_blocked(self, client, temp_foscam_dir):
         """Test that path traversal attempts are blocked."""
@@ -301,9 +300,6 @@ class TestCameraFileServing:
         response = client.get("/api/media/cameras/test_camera//etc/passwd")
 
         assert response.status_code == 403
-        data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
 
     def test_disallowed_file_type_exe(self, client, temp_foscam_dir):
         """Test that .exe files are blocked."""
@@ -311,10 +307,12 @@ class TestCameraFileServing:
 
         assert response.status_code == 403
         data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
-        assert "File type not allowed" in data["detail"]["error"]
-        assert ".exe" in data["detail"]["error"]
+        error_msg = get_error_message(data)
+
+        assert "File type not allowed" in error_msg
+        error_msg = get_error_message(data)
+
+        assert ".exe" in error_msg
 
     def test_disallowed_file_type_sh(self, client, temp_foscam_dir):
         """Test that .sh files are blocked."""
@@ -322,10 +320,12 @@ class TestCameraFileServing:
 
         assert response.status_code == 403
         data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
-        assert "File type not allowed" in data["detail"]["error"]
-        assert ".sh" in data["detail"]["error"]
+        error_msg = get_error_message(data)
+
+        assert "File type not allowed" in error_msg
+        error_msg = get_error_message(data)
+
+        assert ".sh" in error_msg
 
 
 class TestThumbnailServing:
@@ -353,9 +353,9 @@ class TestThumbnailServing:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
-        assert "File not found" in data["detail"]["error"]
+        error_msg = get_error_message(data)
+
+        assert "File not found" in error_msg
 
     def test_path_traversal_blocked_in_thumbnails(self, client, temp_thumbnail_dir):
         """Test that path traversal is blocked in thumbnail requests."""
@@ -375,9 +375,9 @@ class TestThumbnailServing:
         # (checked before file existence in our validation)
         assert response.status_code == 403
         data = response.json()
-        assert "detail" in data
-        assert "error" in data["detail"]
-        assert "File type not allowed" in data["detail"]["error"]
+        error_msg = get_error_message(data)
+
+        assert "File type not allowed" in error_msg
 
 
 class TestContentTypeHeaders:

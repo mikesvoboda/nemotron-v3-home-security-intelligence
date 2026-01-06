@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 if TYPE_CHECKING:
     from httpx import AsyncClient
 
@@ -278,7 +280,9 @@ class TestGetEventAudit:
         response = await async_client.get("/api/ai-audit/events/999999")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_get_event_audit_no_audit_record(
         self,
@@ -289,7 +293,9 @@ class TestGetEventAudit:
         response = await async_client.get(f"/api/ai-audit/events/{sample_event_for_audit.id}")
         assert response.status_code == 404
         data = response.json()
-        assert "no audit found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "no audit found" in error_msg.lower()
 
 
 class TestGetAuditStats:
@@ -544,7 +550,9 @@ class TestEvaluateEvent:
         response = await async_client.post("/api/ai-audit/events/999999/evaluate")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_evaluate_event_no_audit(
         self,
@@ -557,7 +565,9 @@ class TestEvaluateEvent:
         )
         assert response.status_code == 404
         data = response.json()
-        assert "no audit found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "no audit found" in error_msg.lower()
 
 
 class TestAuditAPIResponseStructure:
