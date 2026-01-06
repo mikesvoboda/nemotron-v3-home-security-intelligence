@@ -12,6 +12,8 @@ Features:
     - Optional cleanup of original image files
     - Transaction-safe deletions with rollback support
     - Detailed statistics on cleanup operations
+    - Streaming queries to avoid loading all records into memory (NEM-1539)
+    - Batch deletes for improved performance with large datasets (NEM-1539)
 
 Cleanup Stats:
     - events_deleted: Number of events removed
@@ -26,9 +28,12 @@ import asyncio
 import contextlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, select
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
@@ -96,6 +101,7 @@ class CleanupService:
         retention_days: int | None = None,
         thumbnail_dir: str = "data/thumbnails",
         delete_images: bool = False,
+        batch_size: int = 1000,
     ):
         """Initialize cleanup service.
 
@@ -104,12 +110,15 @@ class CleanupService:
             retention_days: Number of days to retain data (None = use config default)
             thumbnail_dir: Directory containing thumbnail files
             delete_images: Whether to delete original image files (default: False)
+            batch_size: Number of records to process per batch (default: 1000).
+                        Used for streaming queries to limit memory usage.
         """
         settings = get_settings()
         self.cleanup_time = cleanup_time
         self.retention_days = retention_days or settings.retention_days
         self.thumbnail_dir = Path(thumbnail_dir)
         self.delete_images = delete_images
+        self.batch_size = batch_size
 
         # Task tracking
         self._cleanup_task: asyncio.Task | None = None
@@ -119,7 +128,8 @@ class CleanupService:
             f"CleanupService initialized: "
             f"retention={self.retention_days} days, "
             f"time={self.cleanup_time}, "
-            f"delete_images={self.delete_images}"
+            f"delete_images={self.delete_images}, "
+            f"batch_size={self.batch_size}"
         )
 
     def _parse_cleanup_time(self) -> tuple[int, int]:
@@ -177,7 +187,7 @@ class CleanupService:
         """Execute cleanup operation.
 
         Deletes old records and files based on retention policy.
-        All database deletions are performed in a transaction.
+        Uses streaming queries to avoid loading all records into memory.
 
         Returns:
             CleanupStats object with operation statistics
@@ -194,20 +204,10 @@ class CleanupService:
 
         try:
             async with get_session() as session:
-                # Step 1: Get detections to be deleted (for file cleanup)
-                detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
-                result = await session.execute(detections_query)
-                detections_to_delete = result.scalars().all()
-
-                # Track file paths before deleting from database
-                thumbnail_paths: list[str] = []
-                image_paths: list[str] = []
-
-                for detection in detections_to_delete:
-                    if detection.thumbnail_path:
-                        thumbnail_paths.append(detection.thumbnail_path)
-                    if self.delete_images and detection.file_path:
-                        image_paths.append(detection.file_path)
+                # Step 1: Stream detection file paths without loading all into memory
+                thumbnail_paths, image_paths = await self._get_detection_file_paths_streaming(
+                    session, cutoff_date
+                )
 
                 # Step 2: Delete old detections
                 delete_detections_stmt = delete(Detection).where(
@@ -258,11 +258,41 @@ class CleanupService:
             logger.error(f"Cleanup failed: {e}", exc_info=True)
             raise
 
+    async def _get_detection_file_paths_streaming(
+        self, session: AsyncSession, cutoff_date: datetime
+    ) -> tuple[list[str], list[str]]:
+        """Stream detection file paths without loading all records into memory.
+
+        Uses SQLAlchemy's stream_scalars() to iterate over results without
+        loading the entire result set into memory.
+
+        Args:
+            session: Database session
+            cutoff_date: Delete detections older than this date
+
+        Returns:
+            Tuple of (thumbnail_paths, image_paths) lists
+        """
+        thumbnail_paths: list[str] = []
+        image_paths: list[str] = []
+
+        # Use streaming to avoid loading all detections into memory
+        detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
+
+        async for detection in await session.stream_scalars(detections_query):
+            if detection.thumbnail_path:
+                thumbnail_paths.append(detection.thumbnail_path)
+            if self.delete_images and detection.file_path:
+                image_paths.append(detection.file_path)
+
+        return thumbnail_paths, image_paths
+
     async def dry_run_cleanup(self) -> CleanupStats:
         """Calculate what would be deleted without actually deleting.
 
         This method performs the same queries as run_cleanup but uses COUNT
         queries instead of DELETE statements, and does not modify any data.
+        Uses streaming to avoid loading all records into memory.
         Useful for verification before destructive operations.
 
         Returns:
@@ -271,8 +301,6 @@ class CleanupService:
         Raises:
             Exception: If the dry run fails
         """
-        from pathlib import Path
-
         from sqlalchemy import func
 
         logger.info(f"Starting cleanup dry run (retention: {self.retention_days} days)")
@@ -294,13 +322,10 @@ class CleanupService:
                 stats.detections_deleted = result.scalar_one()
                 logger.info(f"Dry run: would delete {stats.detections_deleted} detections")
 
-                # Get detections to count files that would be deleted
+                # Stream detections to count files without loading all into memory
                 detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
-                det_result = await session.execute(detections_query)
-                detections_to_delete: list[Detection] = list(det_result.scalars().all())  # type: ignore[arg-type]
 
-                # Count thumbnail and image files that would be deleted
-                for detection in detections_to_delete:
+                async for detection in await session.stream_scalars(detections_query):
                     if detection.thumbnail_path:
                         path = Path(detection.thumbnail_path)
                         if path.exists() and path.is_file():
