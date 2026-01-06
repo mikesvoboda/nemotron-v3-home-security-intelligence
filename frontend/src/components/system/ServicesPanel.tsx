@@ -16,7 +16,7 @@ import {
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 
 import { useServiceStatus, type ServiceName } from '../../hooks/useServiceStatus';
-import { fetchHealth, type HealthResponse, type ServiceStatus as HealthServiceStatus } from '../../services/api';
+import { fetchHealth, type HealthResponse, type HealthServiceStatus } from '../../services/api';
 
 /**
  * Service category types
