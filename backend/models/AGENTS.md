@@ -168,6 +168,9 @@ backend/models/
 - `idx_events_batch_id` - Single-column index on batch_id
 - `idx_events_search_vector` - GIN index for full-text search
 - `idx_events_object_types_trgm` - GIN trigram index for LIKE/ILIKE queries on object_types (requires pg_trgm extension)
+- `idx_events_risk_level_started_at` - Composite index on (risk_level, started_at) for combined filtering (NEM-1529)
+- `idx_events_export_covering` - Covering index for export query with columns: started_at, id, ended_at, risk_level, risk_score, camera_id, object_types, summary (NEM-1535)
+- `idx_events_unreviewed` - Partial index on id WHERE reviewed = false for unreviewed count queries (NEM-1536)
 
 **Additional Fields:**
 
