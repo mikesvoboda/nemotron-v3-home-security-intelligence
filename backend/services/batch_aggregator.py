@@ -37,7 +37,7 @@ from typing import Any
 
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 logger = get_logger(__name__)
@@ -147,7 +147,7 @@ class BatchAggregator:
                 result.append(int(item))
             except (ValueError, TypeError):
                 # Skip invalid entries
-                logger.warning(f"Invalid detection ID in batch list: {item}")
+                logger.warning(f"Invalid detection ID in batch list: {sanitize_log_value(item)}")
         return result
 
     async def add_detection(
@@ -370,7 +370,9 @@ class BatchAggregator:
                 last_activity_raw = metadata_results[i * 2 + 1]
 
                 if not started_at_raw:
-                    logger.warning(f"Batch {batch_id} missing started_at timestamp, skipping")
+                    logger.warning(
+                        f"Batch {sanitize_log_value(batch_id)} missing started_at timestamp, skipping"
+                    )
                     continue
 
                 # Decode bytes to str before float conversion

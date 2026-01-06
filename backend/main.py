@@ -22,6 +22,7 @@ from backend.api.routes import (
     media,
     metrics,
     notification,
+    services,
     system,
     websocket,
     zones,
@@ -29,6 +30,7 @@ from backend.api.routes import (
 from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_settings, init_db
+from backend.core.docker_client import DockerClient
 from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.models.camera import Camera
@@ -36,6 +38,7 @@ from backend.services.audit_service import get_audit_service
 from backend.services.background_evaluator import BackgroundEvaluator
 from backend.services.circuit_breaker import CircuitBreakerConfig, get_circuit_breaker
 from backend.services.cleanup_service import CleanupService
+from backend.services.container_orchestrator import ContainerOrchestrator
 from backend.services.evaluation_queue import get_evaluation_queue
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
@@ -426,6 +429,34 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             f"Service health monitor initialized (RT-DETRv2, Nemotron) - restart: {restart_status}"
         )
 
+    # Initialize container orchestrator (if enabled)
+    # This provides health monitoring and self-healing for Docker/Podman containers
+    container_orchestrator: ContainerOrchestrator | None = None
+    docker_client: DockerClient | None = None
+
+    if settings.orchestrator.enabled and redis_client:
+        try:
+            docker_client = DockerClient(settings.orchestrator.docker_host)
+
+            # Get event broadcaster for WebSocket updates
+            event_broadcaster = await get_broadcaster(redis_client)
+
+            container_orchestrator = ContainerOrchestrator(
+                docker_client=docker_client,
+                redis_client=redis_client,
+                settings=settings.orchestrator,
+                broadcast_fn=event_broadcaster.broadcast_service_status,
+            )
+
+            # Store in app.state for route access
+            _app.state.orchestrator = container_orchestrator
+
+            await container_orchestrator.start()
+            print("Container orchestrator started")
+        except Exception as e:
+            print(f"Container orchestrator initialization failed: {e}")
+            print("Continuing without orchestrator")
+
     # Register workers with system routes for readiness checks
     register_workers(
         gpu_monitor=gpu_monitor,
@@ -439,7 +470,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     yield
 
     # Shutdown
-    # Stop service health monitor first (before stopping services it monitors)
+    # Stop container orchestrator first (before stopping docker client)
+    if container_orchestrator is not None:
+        await container_orchestrator.stop()
+        print("Container orchestrator stopped")
+    if docker_client is not None:
+        await docker_client.close()
+        print("Docker client closed")
+
+    # Stop service health monitor (before stopping services it monitors)
     if service_health_monitor is not None:
         await service_health_monitor.stop()
         print("Service health monitor stopped")
@@ -524,6 +563,7 @@ app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
+app.include_router(services.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
 app.include_router(zones.router)

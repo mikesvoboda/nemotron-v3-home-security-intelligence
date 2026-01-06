@@ -56,6 +56,7 @@ export type {
   SearchResponse,
   SearchResult,
   ServiceStatus,
+  HealthServiceStatus,
   StageLatency,
   SystemConfig,
   SystemConfigUpdate,

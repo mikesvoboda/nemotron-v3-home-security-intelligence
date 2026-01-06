@@ -30,7 +30,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -60,7 +60,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -102,7 +102,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -188,7 +188,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -271,7 +271,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -354,7 +354,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -437,7 +437,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -570,7 +570,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -613,7 +613,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -641,7 +641,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1038,7 +1038,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1096,7 +1096,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1156,7 +1156,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1350,7 +1350,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}

@@ -75,7 +75,7 @@ from backend.api.schemas.system import (
 from backend.core import get_db, get_settings
 from backend.core.config import Settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.redis import (
     QueueOverflowPolicy,
     RedisClient,
@@ -1177,7 +1177,7 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
         f.write(content)
         f.flush()
         os.fsync(f.fileno())
-    logger.info(f"Wrote runtime env to {path}: {overrides}")
+    logger.info(f"Wrote runtime env to {path}: {sanitize_log_value(overrides)}")
 
 
 @router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])

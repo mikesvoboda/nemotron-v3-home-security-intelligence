@@ -291,7 +291,7 @@ def analyze_parallelization(graph: dict[str, list[str]]) -> list[str]:
     for job, depth in depths.items():
         depth_groups[depth].append(job)
 
-    for _depth, jobs_at_depth in depth_groups.items():
+    for jobs_at_depth in depth_groups.values():
         if len(jobs_at_depth) > 1:
             # Check if they share similar dependency patterns
             deps_by_job = {j: frozenset(graph.get(j, [])) for j in jobs_at_depth}

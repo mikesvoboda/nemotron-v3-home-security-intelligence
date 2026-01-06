@@ -29,7 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.services.prompts import MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
 
 logger = get_logger(__name__)
@@ -55,7 +55,7 @@ def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> 
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, TypeError):
-        logger.warning(f"Invalid datetime format: {value}, using fallback")
+        logger.warning(f"Invalid datetime format: {sanitize_log_value(value)}, using fallback")
         return fallback
 
 
@@ -193,7 +193,7 @@ class PromptStorageService:
     def _get_model_dir(self, model_name: str) -> Path:
         """Get the directory for a model's configurations."""
         if model_name not in SUPPORTED_MODELS:
-            logger.warning(f"Invalid model requested: {model_name}")
+            logger.warning(f"Invalid model requested: {sanitize_log_value(model_name)}")
             raise ValueError(f"Unsupported model: {model_name}")
         return self.storage_path / model_name
 
@@ -345,7 +345,7 @@ class PromptStorageService:
         self._write_json(self._get_current_path(model_name), version_data)
 
         logger.info(
-            f"Updated {model_name} config to version {version}",
+            f"Updated {sanitize_log_value(model_name)} config to version {version}",
             extra={"model_name": model_name, "version": version, "created_by": created_by},
         )
 
