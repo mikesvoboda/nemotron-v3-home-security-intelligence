@@ -51,8 +51,9 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
 // ServiceStatus is an object type with {status, message?, details?} for HealthResponse.services
+// (Backend renamed from ServiceStatus to HealthCheckServiceStatus to avoid collision)
 export type ServiceStatus =
-  components['schemas']['ServiceStatus'];
+  components['schemas']['HealthCheckServiceStatus'];
 // ContainerServiceStatus is the enum used by the orchestrator: running, starting, unhealthy, etc.
 export type ContainerServiceStatus = components['schemas']['ContainerServiceStatus'];
 export type GPUStats = components['schemas']['GPUStatsResponse'];

@@ -15,8 +15,12 @@ class SeverityEnum(str, Enum):
     CRITICAL = "critical"
 
 
-class ServiceStatus(BaseModel):
-    """Status information for a service component."""
+class HealthCheckServiceStatus(BaseModel):
+    """Status information for a service component in health checks.
+
+    Note: Renamed from ServiceStatus to avoid name collision with
+    backend.api.schemas.services.ServiceStatus (orchestrator enum).
+    """
 
     status: str = Field(
         ...,
@@ -39,7 +43,7 @@ class HealthResponse(BaseModel):
         ...,
         description="Overall system status: healthy, degraded, or unhealthy",
     )
-    services: dict[str, ServiceStatus] = Field(
+    services: dict[str, HealthCheckServiceStatus] = Field(
         ...,
         description="Status of individual services (database, redis, ai)",
     )
@@ -338,7 +342,7 @@ class ReadinessResponse(BaseModel):
         ...,
         description="Status string: 'ready', 'degraded', or 'not_ready'",
     )
-    services: dict[str, ServiceStatus] = Field(
+    services: dict[str, HealthCheckServiceStatus] = Field(
         ...,
         description="Status of infrastructure services (database, redis, ai)",
     )

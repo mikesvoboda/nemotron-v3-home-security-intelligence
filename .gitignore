@@ -67,3 +67,7 @@ coverage.json
 .worktrees/
 .hypothesis/
 .mcp.json
+*.tsbuildinfo
+
+# Accidental connection string paths
+postgresql+asyncpg:*
