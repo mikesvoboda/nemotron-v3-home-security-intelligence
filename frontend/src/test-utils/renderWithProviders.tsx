@@ -192,6 +192,7 @@ function createWrapper(options: RenderWithProvidersOptions): React.ComponentType
  *   }
  * });
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function renderWithProviders(
   ui: ReactElement,
   options: RenderWithProvidersOptions = {}
@@ -227,6 +228,7 @@ export function renderWithProviders(
  *   wrapper: createQueryWrapper(),
  * });
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function createQueryWrapper(queryClient?: QueryClient) {
   const testQueryClient = queryClient ?? createQueryClient();
   return function QueryWrapper({ children }: { children: ReactNode }) {
@@ -242,6 +244,8 @@ export function createQueryWrapper(queryClient?: QueryClient) {
  * Re-export common testing utilities for convenience.
  * This allows tests to import everything from test-utils.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export { screen, within, waitFor, act } from '@testing-library/react';
+// eslint-disable-next-line react-refresh/only-export-components
 export { default as userEvent } from '@testing-library/user-event';
 export { QueryClient } from '@tanstack/react-query';

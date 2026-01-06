@@ -69,6 +69,7 @@ describe('ChunkLoadErrorBoundary', () => {
     // Use delete and reassignment pattern that works in jsdom
     // @ts-expect-error - Need to delete window.location for mock in jsdom
     delete window.location;
+    // @ts-expect-error - Assigning mock location for testing purposes
     window.location = { ...originalLocation, reload: reloadMock } as Location;
 
     render(
@@ -83,6 +84,7 @@ describe('ChunkLoadErrorBoundary', () => {
     expect(reloadMock).toHaveBeenCalledTimes(1);
 
     // Restore original location
+    // @ts-expect-error - Restoring original location after mock
     window.location = originalLocation;
   });
 

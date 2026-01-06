@@ -1,14 +1,14 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { createQueryClient, queryKeys } from '../services/queryClient';
-import { createQueryWrapper } from '../test-utils/renderWithProviders';
-import * as api from '../services/api';
 import {
   useCamerasQuery,
   useCameraQuery,
   useCameraMutation,
 } from './useCamerasQuery';
+import * as api from '../services/api';
+import { createQueryClient, queryKeys } from '../services/queryClient';
+import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
 // Mock the API module
 vi.mock('../services/api', () => ({
