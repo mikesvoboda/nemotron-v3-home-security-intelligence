@@ -749,8 +749,6 @@ jobs:
     timeout-minutes: 3
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
-    # Allow shard 5 to fail - it has a hanging test that needs investigation
-    continue-on-error: ${{ matrix.shard == 5 }}
     strategy:
       fail-fast: false
       matrix:
@@ -775,8 +773,9 @@ jobs:
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~12% of total coverage
-        # --teardownTimeout ensures vitest exits even if cleanup hangs
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --teardownTimeout=5000
+        # --teardownTimeout is now configured in vite.config.ts (5000ms)
+        # --reporter=verbose provides detailed output for debugging
+        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --reporter=verbose
 
       - name: Upload coverage artifact
         if: always()
