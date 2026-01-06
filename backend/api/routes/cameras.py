@@ -1,5 +1,6 @@
 """API routes for camera management."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -816,24 +817,27 @@ async def get_camera_class_baseline(
 async def get_camera_scene_changes(
     camera_id: str,
     acknowledged: bool | None = Query(default=None, description="Filter by acknowledgement status"),
-    limit: int = Query(default=50, ge=1, le=1000, description="Maximum number of results"),
-    offset: int = Query(default=0, ge=0, description="Number of results to skip"),
+    limit: int = Query(default=50, ge=1, le=100, description="Maximum number of results"),
+    cursor: datetime | None = Query(
+        default=None, description="Cursor for pagination (detected_at timestamp)"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SceneChangeListResponse:
-    """Get scene changes for a camera.
+    """Get scene changes for a camera with cursor-based pagination.
 
     Returns a list of detected scene changes that may indicate camera
-    tampering, angle changes, or blocked views.
+    tampering, angle changes, or blocked views. Uses cursor-based pagination
+    for efficient navigation through large datasets.
 
     Args:
         camera_id: ID of the camera
         acknowledged: Filter by acknowledgement status (None = all)
-        limit: Maximum number of results (default: 50, max: 1000)
-        offset: Number of results to skip (default: 0)
+        limit: Maximum number of results (default: 50, max: 100)
+        cursor: Cursor for pagination (detected_at timestamp from previous response)
         db: Database session
 
     Returns:
-        SceneChangeListResponse with list of scene changes
+        SceneChangeListResponse with list of scene changes and pagination info
 
     Raises:
         HTTPException: 404 if camera not found
@@ -850,14 +854,16 @@ async def get_camera_scene_changes(
     if acknowledged is not None:
         query = query.where(SceneChange.acknowledged == acknowledged)
 
-    # Order by detected_at descending (most recent first)
-    query = query.order_by(SceneChange.detected_at.desc())
+    # Apply cursor filter for pagination (fetch items before the cursor timestamp)
+    if cursor is not None:
+        query = query.where(SceneChange.detected_at < cursor)
 
-    # Apply pagination
-    query = query.offset(offset).limit(limit)
+    # Order by detected_at descending (most recent first)
+    # Fetch one extra to determine if there are more results
+    query = query.order_by(SceneChange.detected_at.desc()).limit(limit + 1)
 
     changes_result = await db.execute(query)
-    scene_changes = changes_result.unique().scalars().all()
+    scene_changes = list(changes_result.unique().scalars().all())
 
     # If no results, verify camera exists (fallback query only when needed)
     if not scene_changes:
@@ -868,6 +874,18 @@ async def get_camera_scene_changes(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Camera with id {camera_id} not found",
             )
+
+    # Determine if there are more results
+    has_more = len(scene_changes) > limit
+
+    # Calculate next cursor from the last item we'll return
+    next_cursor: str | None = None
+    if has_more and len(scene_changes) > limit:
+        # The cursor should be the detected_at of the last item we return
+        next_cursor = scene_changes[limit - 1].detected_at.isoformat()
+
+    # Trim to requested limit
+    scene_changes = scene_changes[:limit]
 
     # Convert to response models
     scene_change_responses = [
@@ -887,6 +905,8 @@ async def get_camera_scene_changes(
         camera_id=camera_id,
         scene_changes=scene_change_responses,
         total_changes=len(scene_change_responses),
+        next_cursor=next_cursor,
+        has_more=has_more,
     )
 
 

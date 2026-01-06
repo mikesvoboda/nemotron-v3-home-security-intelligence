@@ -17,6 +17,7 @@ from backend.api.schemas.scene_change import (
     SceneChangeListResponse,
     SceneChangeResponse,
 )
+from backend.models.scene_change import SceneChange, SceneChangeType
 
 
 class TestGetCameraSceneChanges:
@@ -41,7 +42,7 @@ class TestGetCameraSceneChanges:
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_scene_changes(
-                "nonexistent_camera", acknowledged=None, limit=50, offset=0, db=mock_db
+                "nonexistent_camera", acknowledged=None, limit=50, cursor=None, db=mock_db
             )
 
         assert exc_info.value.status_code == 404
@@ -68,19 +69,20 @@ class TestGetCameraSceneChanges:
         mock_db.execute.side_effect = [mock_changes_result, mock_camera_result]
 
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=None, limit=50, offset=0, db=mock_db
+            "test_camera", acknowledged=None, limit=50, cursor=None, db=mock_db
         )
 
         assert isinstance(result, SceneChangeListResponse)
         assert result.camera_id == "test_camera"
         assert result.scene_changes == []
         assert result.total_changes == 0
+        assert result.next_cursor is None
+        assert result.has_more is False
 
     @pytest.mark.asyncio
     async def test_get_scene_changes_with_data(self) -> None:
         """Test scene changes endpoint returns scene change data."""
         from backend.api.routes.cameras import get_camera_scene_changes
-        from backend.models.scene_change import SceneChange, SceneChangeType
 
         mock_db = AsyncMock()
 
@@ -116,7 +118,7 @@ class TestGetCameraSceneChanges:
         mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
-            "front_door", acknowledged=None, limit=50, offset=0, db=mock_db
+            "front_door", acknowledged=None, limit=50, cursor=None, db=mock_db
         )
 
         assert isinstance(result, SceneChangeListResponse)
@@ -129,12 +131,13 @@ class TestGetCameraSceneChanges:
         assert result.scene_changes[0].acknowledged is False
         assert result.scene_changes[1].id == 2
         assert result.scene_changes[1].acknowledged is True
+        assert result.has_more is False
+        assert result.next_cursor is None
 
     @pytest.mark.asyncio
     async def test_get_scene_changes_filters_unacknowledged(self) -> None:
         """Test scene changes endpoint can filter by acknowledged status."""
         from backend.api.routes.cameras import get_camera_scene_changes
-        from backend.models.scene_change import SceneChange, SceneChangeType
 
         mock_db = AsyncMock()
 
@@ -159,12 +162,124 @@ class TestGetCameraSceneChanges:
         mock_db.execute.return_value = mock_changes_result
 
         result = await get_camera_scene_changes(
-            "test_camera", acknowledged=False, limit=50, offset=0, db=mock_db
+            "test_camera", acknowledged=False, limit=50, cursor=None, db=mock_db
         )
 
         assert isinstance(result, SceneChangeListResponse)
         assert result.total_changes == 1
         assert result.scene_changes[0].acknowledged is False
+
+    @pytest.mark.asyncio
+    async def test_get_scene_changes_pagination_has_more(self) -> None:
+        """Test cursor pagination returns has_more and next_cursor when more results exist."""
+        from backend.api.routes.cameras import get_camera_scene_changes
+
+        mock_db = AsyncMock()
+
+        # Create 3 mock scene changes (limit=2 + 1 extra to detect has_more)
+        now = datetime.now(UTC)
+        mock_changes = []
+        for i in range(3):
+            mock_change = MagicMock(spec=SceneChange)
+            mock_change.id = i + 1
+            mock_change.camera_id = "test_camera"
+            mock_change.detected_at = now - timedelta(hours=i)
+            mock_change.change_type = SceneChangeType.VIEW_BLOCKED
+            mock_change.similarity_score = 0.30
+            mock_change.acknowledged = False
+            mock_change.acknowledged_at = None
+            mock_change.file_path = None
+            mock_changes.append(mock_change)
+
+        # Single query with joinedload returns 3 results (limit+1)
+        mock_changes_result = MagicMock()
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = mock_changes
+
+        mock_db.execute.return_value = mock_changes_result
+
+        result = await get_camera_scene_changes(
+            "test_camera", acknowledged=None, limit=2, cursor=None, db=mock_db
+        )
+
+        assert isinstance(result, SceneChangeListResponse)
+        assert result.total_changes == 2  # Only returns limit items
+        assert len(result.scene_changes) == 2
+        assert result.has_more is True
+        # next_cursor should be the detected_at of the last returned item
+        assert result.next_cursor == mock_changes[1].detected_at.isoformat()
+
+    @pytest.mark.asyncio
+    async def test_get_scene_changes_pagination_no_more(self) -> None:
+        """Test cursor pagination returns has_more=False when no more results."""
+        from backend.api.routes.cameras import get_camera_scene_changes
+
+        mock_db = AsyncMock()
+
+        # Create only 2 mock scene changes (less than limit+1)
+        now = datetime.now(UTC)
+        mock_changes = []
+        for i in range(2):
+            mock_change = MagicMock(spec=SceneChange)
+            mock_change.id = i + 1
+            mock_change.camera_id = "test_camera"
+            mock_change.detected_at = now - timedelta(hours=i)
+            mock_change.change_type = SceneChangeType.VIEW_BLOCKED
+            mock_change.similarity_score = 0.30
+            mock_change.acknowledged = False
+            mock_change.acknowledged_at = None
+            mock_change.file_path = None
+            mock_changes.append(mock_change)
+
+        mock_changes_result = MagicMock()
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = mock_changes
+
+        mock_db.execute.return_value = mock_changes_result
+
+        result = await get_camera_scene_changes(
+            "test_camera", acknowledged=None, limit=5, cursor=None, db=mock_db
+        )
+
+        assert isinstance(result, SceneChangeListResponse)
+        assert result.total_changes == 2
+        assert result.has_more is False
+        assert result.next_cursor is None
+
+    @pytest.mark.asyncio
+    async def test_get_scene_changes_with_cursor(self) -> None:
+        """Test cursor pagination filters results older than cursor."""
+        from backend.api.routes.cameras import get_camera_scene_changes
+
+        mock_db = AsyncMock()
+
+        # Create mock scene changes
+        now = datetime.now(UTC)
+        mock_change = MagicMock(spec=SceneChange)
+        mock_change.id = 2
+        mock_change.camera_id = "test_camera"
+        mock_change.detected_at = now - timedelta(hours=2)
+        mock_change.change_type = SceneChangeType.VIEW_BLOCKED
+        mock_change.similarity_score = 0.30
+        mock_change.acknowledged = False
+        mock_change.acknowledged_at = None
+        mock_change.file_path = None
+
+        mock_changes_result = MagicMock()
+        mock_changes_result.unique.return_value.scalars.return_value.all.return_value = [
+            mock_change
+        ]
+
+        mock_db.execute.return_value = mock_changes_result
+
+        # Pass a cursor timestamp
+        cursor_time = now - timedelta(hours=1)
+        result = await get_camera_scene_changes(
+            "test_camera", acknowledged=None, limit=50, cursor=cursor_time, db=mock_db
+        )
+
+        assert isinstance(result, SceneChangeListResponse)
+        assert result.total_changes == 1
+        # The result should only contain items before the cursor
+        assert result.scene_changes[0].id == 2
 
 
 class TestAcknowledgeSceneChange:
@@ -369,10 +484,26 @@ class TestSceneChangeSchemas:
             camera_id="test_camera",
             scene_changes=changes,
             total_changes=2,
+            next_cursor="2026-01-03T10:00:00+00:00",
+            has_more=True,
         )
         assert response.camera_id == "test_camera"
         assert response.total_changes == 2
         assert len(response.scene_changes) == 2
+        assert response.next_cursor == "2026-01-03T10:00:00+00:00"
+        assert response.has_more is True
+
+    def test_scene_change_list_response_no_more_pages(self) -> None:
+        """Test SceneChangeListResponse with no more pages."""
+        response = SceneChangeListResponse(
+            camera_id="test_camera",
+            scene_changes=[],
+            total_changes=0,
+            next_cursor=None,
+            has_more=False,
+        )
+        assert response.next_cursor is None
+        assert response.has_more is False
 
     def test_scene_change_acknowledge_response(self) -> None:
         """Test SceneChangeAcknowledgeResponse schema."""
