@@ -17,6 +17,8 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 | `logger.test.ts`         | Tests for logger functionality                                |
 | `metricsParser.ts`       | Prometheus text format parser for AI performance metrics      |
 | `metricsParser.test.ts`  | Tests for Prometheus metrics parsing                          |
+| `queryClient.ts`         | TanStack Query configuration and query key factories          |
+| `queryClient.test.ts`    | Tests for QueryClient configuration                           |
 | `.gitkeep`               | Placeholder file                                              |
 
 ## API Client Structure (`api.ts`)
@@ -478,6 +480,72 @@ interface AILatencyMetrics {
 }
 ```
 
+## TanStack Query Configuration (`queryClient.ts`)
+
+Provides centralized server-state management for the frontend using TanStack Query (React Query).
+
+### Features
+
+- **QueryClient Configuration**: Sensible defaults for stale time, retry logic, and caching
+- **Query Key Factories**: Type-safe, hierarchical cache key management
+- **Stale Time Constants**: Different freshness requirements for different data types
+
+### Stale Time Constants
+
+```typescript
+DEFAULT_STALE_TIME = 30 * 1000;   // 30 seconds - events, cameras
+REALTIME_STALE_TIME = 5 * 1000;   // 5 seconds - health, GPU metrics
+STATIC_STALE_TIME = 5 * 60 * 1000; // 5 minutes - config, severity
+```
+
+### Query Key Factories
+
+Hierarchical key structure enables granular cache invalidation:
+
+```typescript
+// Examples
+queryKeys.cameras.all           // ['cameras'] - invalidate all camera queries
+queryKeys.cameras.list()        // ['cameras', 'list']
+queryKeys.cameras.detail(id)    // ['cameras', 'detail', 'cam-1']
+queryKeys.events.list(filters)  // ['events', 'list', { camera_id: 'cam-1' }]
+queryKeys.system.health         // ['system', 'health']
+```
+
+### Usage
+
+```typescript
+import { queryClient, queryKeys } from './services/queryClient';
+import { useQueryClient } from '@tanstack/react-query';
+
+// In a component
+const queryClient = useQueryClient();
+
+// Invalidate all camera data
+queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
+
+// Invalidate specific camera
+queryClient.invalidateQueries({ queryKey: queryKeys.cameras.detail('cam-1') });
+```
+
+### App Integration
+
+The QueryClientProvider is configured in `App.tsx`:
+
+```tsx
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from './services/queryClient';
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {/* App content */}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+```
+
 ## Notes
 
 - All functions are async and return Promises
@@ -486,6 +554,7 @@ interface AILatencyMetrics {
 - FastAPI `detail` field automatically extracted from error responses
 - Logger automatically logs to console in all environments
 - Logger queue is preserved on flush failures (up to 100 entries)
+- TanStack Query DevTools available in development mode (bottom-right corner)
 
 ## Entry Points
 

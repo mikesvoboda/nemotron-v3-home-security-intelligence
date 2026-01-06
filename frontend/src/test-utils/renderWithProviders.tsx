@@ -21,12 +21,14 @@
  *   sidebarContext: { isMobileMenuOpen: true }
  * });
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, RenderOptions, RenderResult } from '@testing-library/react';
 import userEvent, { UserEvent } from '@testing-library/user-event';
 import { ReactElement, ReactNode } from 'react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
 import { SidebarContext, SidebarContextType } from '../hooks/useSidebarContext';
+import { createQueryClient } from '../services/queryClient';
 
 /**
  * Default sidebar context values for testing.
@@ -73,6 +75,19 @@ export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper
    * @default true
    */
   withRouter?: boolean;
+
+  /**
+   * Whether to wrap with QueryClientProvider.
+   * Set to false if testing components that don't use TanStack Query.
+   * @default true
+   */
+  withQueryClient?: boolean;
+
+  /**
+   * Custom QueryClient instance. If not provided, a fresh client is created.
+   * Useful for testing specific query states or pre-populating cache.
+   */
+  queryClient?: QueryClient;
 }
 
 /**
@@ -96,7 +111,13 @@ function createWrapper(options: RenderWithProvidersOptions): React.ComponentType
     sidebarContext,
     withSidebarContext = true,
     withRouter = true,
+    withQueryClient = true,
+    queryClient,
   } = options;
+
+  // Create a test QueryClient if not provided
+  // Uses fresh instance per test to avoid cross-test contamination
+  const testQueryClient = queryClient ?? createQueryClient();
 
   // Merge sidebar context with defaults
   const mergedSidebarContext: SidebarContextType = {
@@ -127,6 +148,15 @@ function createWrapper(options: RenderWithProvidersOptions): React.ComponentType
       } else {
         wrapped = <BrowserRouter>{wrapped}</BrowserRouter>;
       }
+    }
+
+    // Wrap with QueryClientProvider if needed (outermost provider)
+    if (withQueryClient) {
+      wrapped = (
+        <QueryClientProvider client={testQueryClient}>
+          {wrapped}
+        </QueryClientProvider>
+      );
     }
 
     return wrapped;
@@ -166,7 +196,7 @@ export function renderWithProviders(
   ui: ReactElement,
   options: RenderWithProvidersOptions = {}
 ): RenderWithProvidersResult {
-  const { route: _route, useMemoryRouter: _useMemoryRouter, sidebarContext: _sidebarContext, withSidebarContext: _withSidebarContext, withRouter: _withRouter, ...restOptions } = options;
+  const { route: _route, useMemoryRouter: _useMemoryRouter, sidebarContext: _sidebarContext, withSidebarContext: _withSidebarContext, withRouter: _withRouter, withQueryClient: _withQueryClient, queryClient: _queryClient, ...restOptions } = options;
 
   // Create userEvent instance for this test
   const user = userEvent.setup();
@@ -187,8 +217,31 @@ export function renderWithProviders(
 }
 
 /**
+ * Creates a wrapper component for renderHook tests that need QueryClientProvider.
+ *
+ * @param queryClient - Optional custom QueryClient. If not provided, a fresh client is created.
+ * @returns Wrapper component for use with renderHook
+ *
+ * @example
+ * const { result } = renderHook(() => useHealthStatusQuery(), {
+ *   wrapper: createQueryWrapper(),
+ * });
+ */
+export function createQueryWrapper(queryClient?: QueryClient) {
+  const testQueryClient = queryClient ?? createQueryClient();
+  return function QueryWrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={testQueryClient}>
+        {children}
+      </QueryClientProvider>
+    );
+  };
+}
+
+/**
  * Re-export common testing utilities for convenience.
  * This allows tests to import everything from test-utils.
  */
 export { screen, within, waitFor, act } from '@testing-library/react';
 export { default as userEvent } from '@testing-library/user-event';
+export { QueryClient } from '@tanstack/react-query';
