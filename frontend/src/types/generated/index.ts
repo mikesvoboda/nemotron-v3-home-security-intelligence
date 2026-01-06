@@ -51,7 +51,7 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
 // ServiceStatus is an object type with {status, message?, details?} for HealthResponse.services
-export type ServiceStatus = components['schemas']['ServiceStatus'];
+export type ServiceStatus = components['schemas']['backend__api__schemas__system__ServiceStatus'];
 // HealthServiceStatus is an alias for ServiceStatus for backward compatibility
 export type HealthServiceStatus = ServiceStatus;
 export type GPUStats = components['schemas']['GPUStatsResponse'];
