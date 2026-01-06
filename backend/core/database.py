@@ -259,3 +259,61 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
             raise
         finally:
             await session.close()
+
+
+async def get_pool_status() -> dict[str, Any]:
+    """Get connection pool status metrics.
+
+    Returns detailed information about the SQLAlchemy connection pool including:
+    - pool_size: Number of connections maintained in the pool
+    - overflow: Number of overflow connections currently in use
+    - checkedin: Number of connections available in the pool
+    - checkedout: Number of connections currently in use
+    - total_connections: Total connections (pool_size + overflow)
+
+    Returns:
+        dict: Pool status metrics. If database is not initialized or uses NullPool,
+        appropriate error information is included.
+
+    Example:
+        >>> status = await get_pool_status()
+        >>> print(f"Active connections: {status['checkedout']}")
+        >>> print(f"Available: {status['checkedin']}")
+    """
+    if _engine is None:
+        return {
+            "pool_size": 0,
+            "overflow": 0,
+            "checkedin": 0,
+            "checkedout": 0,
+            "total_connections": 0,
+            "error": "Database not initialized",
+        }
+
+    pool = _engine.pool
+
+    try:
+        # QueuePool and derived pools have these methods
+        # The base Pool type doesn't expose these, but QueuePool (our actual implementation) does
+        pool_size = pool.size()  # type: ignore[attr-defined]
+        overflow = pool.overflow()  # type: ignore[attr-defined]
+        checkedin = pool.checkedin()  # type: ignore[attr-defined]
+        checkedout = pool.checkedout()  # type: ignore[attr-defined]
+
+        return {
+            "pool_size": pool_size,
+            "overflow": overflow,
+            "checkedin": checkedin,
+            "checkedout": checkedout,
+            "total_connections": pool_size + overflow,
+        }
+    except AttributeError:
+        # NullPool or other pool types without these methods
+        return {
+            "pool_size": 0,
+            "overflow": 0,
+            "checkedin": 0,
+            "checkedout": 0,
+            "total_connections": 0,
+            "pooling_disabled": True,
+        }

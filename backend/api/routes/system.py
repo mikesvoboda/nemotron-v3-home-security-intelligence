@@ -476,16 +476,30 @@ async def check_database_health(db: AsyncSession) -> HealthCheckServiceStatus:
         db: Database session
 
     Returns:
-        HealthCheckServiceStatus with database health information
+        HealthCheckServiceStatus with database health information including pool status
     """
+    from backend.core.database import get_pool_status
+
     try:
         # Execute a simple query to verify database connectivity
         result = await db.execute(select(func.count()).select_from(Camera))
         result.scalar_one()
+
+        # Get connection pool status for monitoring
+        pool_status = await get_pool_status()
+
         return HealthCheckServiceStatus(
             status="healthy",
             message="Database operational",
-            details=None,
+            details={
+                "pool": {
+                    "size": pool_status.get("pool_size", 0),
+                    "overflow": pool_status.get("overflow", 0),
+                    "checkedin": pool_status.get("checkedin", 0),
+                    "checkedout": pool_status.get("checkedout", 0),
+                    "total_connections": pool_status.get("total_connections", 0),
+                }
+            },
         )
     except Exception as e:
         return HealthCheckServiceStatus(

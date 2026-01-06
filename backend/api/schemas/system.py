@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,9 +31,9 @@ class HealthCheckServiceStatus(BaseModel):
         None,
         description="Optional status message or error details",
     )
-    details: dict[str, str] | None = Field(
+    details: dict[str, Any] | None = Field(
         None,
-        description="Additional service-specific details",
+        description="Additional service-specific details (may contain nested objects)",
     )
 
 

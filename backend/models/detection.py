@@ -13,6 +13,7 @@ from .camera import Base
 
 if TYPE_CHECKING:
     from .camera import Camera
+    from .event_detection import EventDetection
 
 
 class Detection(Base):
@@ -62,6 +63,11 @@ class Detection(Base):
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")
+    # Junction table relationship for normalized event associations
+    # This provides access to EventDetection records for this detection
+    event_records: Mapped[list[EventDetection]] = relationship(
+        "EventDetection", back_populates="detection", cascade="all, delete-orphan"
+    )
 
     # Indexes for common queries
     __table_args__ = (

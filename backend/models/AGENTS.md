@@ -31,6 +31,7 @@ backend/models/
 ├── api_key.py        # API key authentication model
 ├── prompt_version.py # AI prompt configuration version tracking
 ├── scene_change.py   # Scene change detection for camera tampering alerts
+├── event_detection.py # Junction table for Event-Detection many-to-many relationship
 ├── enums.py          # Shared enumerations (Severity)
 └── README.md         # Detailed model documentation
 ```
@@ -44,6 +45,7 @@ backend/models/
 - `Detection` - Object detection results model
 - `Event` - Security event model
 - `EventAudit` - AI pipeline audit model
+- `EventDetection`, `event_detections` - Junction table model and SQLAlchemy Table for Event-Detection relationship
 - `Alert`, `AlertRule`, `AlertSeverity`, `AlertStatus` - Alerting system models and enums
 - `Zone`, `ZoneType`, `ZoneShape` - Zone definition models and enums
 - `ActivityBaseline`, `ClassBaseline` - Anomaly detection baseline models
@@ -296,6 +298,48 @@ backend/models/
 - `idx_audit_logs_actor` - Index on actor
 - `idx_audit_logs_status` - Index on status
 - `idx_audit_logs_resource` - Composite index on (resource_type, resource_id)
+
+## `event_detection.py` - Event Detection Junction Table
+
+**Model:** `EventDetection`
+**Table:** `event_detections`
+**Purpose:** Junction/association table normalizing the Event-Detection many-to-many relationship
+
+This junction table replaces the legacy `detection_ids` JSON array column in the events table,
+providing better query performance, referential integrity, and standard SQL patterns.
+
+**Fields:**
+
+| Field          | Type                        | Description                                              |
+| -------------- | --------------------------- | -------------------------------------------------------- |
+| `event_id`     | int (PK, FK->events.id)     | Foreign key to events table (CASCADE delete)             |
+| `detection_id` | int (PK, FK->detections.id) | Foreign key to detections table (CASCADE delete)         |
+| `created_at`   | datetime                    | When the association was created (server default: now()) |
+
+**Relationships:**
+
+- `event` - Many-to-one with Event (back_populates="detection_records")
+- `detection` - Many-to-one with Detection (back_populates="event_records")
+
+**Indexes:**
+
+- `idx_event_detections_event_id` - For efficient event-based lookups
+- `idx_event_detections_detection_id` - For efficient detection-based lookups
+- `idx_event_detections_created_at` - For time-range queries
+
+**Module Exports:**
+
+- `EventDetection` - ORM model class
+- `event_detections` - SQLAlchemy Table for use with `secondary` parameter in relationship()
+
+**Migration Notes:**
+
+The migration (`add_event_detections_junction_table.py`) handles both data formats:
+
+- JSON array: `"[1, 2, 3]"`
+- Legacy CSV: `"1,2,3"`
+
+The legacy `detection_ids` column is retained for backward compatibility during transition.
 
 ## `event_audit.py` - Event Audit Model
 
@@ -653,6 +697,9 @@ Camera (1) ----< (many) ClassBaseline (via backref)
 
 Event (1) ----< (many) Alert
 Event (1) ---- (one) EventAudit
+Event (1) ----< (many) EventDetection (junction table)
+
+Detection (1) ----< (many) EventDetection (junction table)
 
 AlertRule (1) ----< (many) Alert
 
@@ -661,11 +708,13 @@ APIKey (standalone, no foreign key relationships)
 Log (standalone, no foreign key relationships - for reliability)
 AuditLog (standalone, no foreign key relationships)
 PromptVersion (standalone, no foreign key relationships)
+EventDetection (junction table between Event and Detection)
 ```
 
 **Cascade Behavior:**
 
 - Deleting a Camera cascades to delete all its Detections, Events, Zones, SceneChanges, and Baselines
+- Deleting an Event or Detection cascades to delete EventDetection junction records
 - Deleting an Event cascades to delete all its Alerts and EventAudit
 - Deleting an AlertRule sets Alert.rule_id to NULL (SET NULL on delete)
 - `cascade="all, delete-orphan"` ensures orphaned records are removed

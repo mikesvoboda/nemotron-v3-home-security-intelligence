@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .alert import Alert
     from .camera import Camera
     from .event_audit import EventAudit
+    from .event_detection import EventDetection
 
 
 class Event(Base):
@@ -68,6 +69,11 @@ class Event(Base):
     )
     audit: Mapped[EventAudit | None] = relationship(
         "EventAudit", back_populates="event", uselist=False, cascade="all, delete-orphan"
+    )
+    # Junction table relationship for normalized detection associations
+    # This provides access to EventDetection records for this event
+    detection_records: Mapped[list[EventDetection]] = relationship(
+        "EventDetection", back_populates="event", cascade="all, delete-orphan"
     )
 
     # Indexes for common queries
