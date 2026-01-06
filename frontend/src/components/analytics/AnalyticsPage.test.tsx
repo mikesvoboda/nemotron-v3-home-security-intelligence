@@ -140,8 +140,10 @@ describe('AnalyticsPage', () => {
     const user = userEvent.setup();
     render(<AnalyticsPage />);
 
+    // Wait for cameras to load (selector should have cam1 selected)
     await waitFor(() => {
-      expect(screen.getByTestId('camera-selector')).toBeInTheDocument();
+      const selector = screen.getByTestId('camera-selector');
+      expect(selector).toHaveValue('cam1');
     });
 
     const selector = screen.getByTestId('camera-selector');
