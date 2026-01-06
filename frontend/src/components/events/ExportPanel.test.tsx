@@ -301,12 +301,14 @@ describe('ExportPanel', () => {
       const user = userEvent.setup();
       render(<ExportPanel />);
 
+      // Wait for camera options to actually render (not just API call)
+      const cameraSelect = screen.getByLabelText('Camera');
       await waitFor(() => {
-        expect(api.fetchCameras).toHaveBeenCalled();
+        const options = within(cameraSelect).getAllByRole('option');
+        expect(options.length).toBeGreaterThan(1); // More than just "All Cameras"
       });
 
       // Apply some filters
-      const cameraSelect = screen.getByLabelText('Camera');
       await user.selectOptions(cameraSelect, 'camera-1');
 
       const riskSelect = screen.getByLabelText('Risk Level');

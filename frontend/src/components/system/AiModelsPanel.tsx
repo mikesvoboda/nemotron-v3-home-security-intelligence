@@ -19,6 +19,8 @@ export interface AiModelsPanelProps {
   aiModels?: Record<string, AiModelData | null> | null;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -282,6 +284,7 @@ function LlmModelCard({ modelKey, metrics }: LlmModelCardProps) {
 export default function AiModelsPanel({
   aiModels,
   className,
+  'data-testid': testId = 'ai-models-panel',
 }: AiModelsPanelProps) {
   // If no models provided OR empty object, show empty state with known models
   // Check both null/undefined AND empty object cases
@@ -301,7 +304,7 @@ export default function AiModelsPanel({
   return (
     <div
       className={clsx('grid gap-4 md:grid-cols-2', className)}
-      data-testid="ai-models-panel"
+      data-testid={testId}
     >
       {sortedEntries.map(([key, modelData]) => {
         // Determine model type and render appropriate card

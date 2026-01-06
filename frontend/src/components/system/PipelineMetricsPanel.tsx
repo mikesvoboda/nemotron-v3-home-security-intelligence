@@ -56,6 +56,8 @@ export interface PipelineMetricsPanelProps {
   latencyWarningThreshold?: number;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 const DEFAULT_QUEUE_THRESHOLD = 10;
@@ -111,6 +113,7 @@ export default function PipelineMetricsPanel({
   queueWarningThreshold = DEFAULT_QUEUE_THRESHOLD,
   latencyWarningThreshold = DEFAULT_LATENCY_THRESHOLD,
   className,
+  'data-testid': testId = 'pipeline-metrics-panel',
 }: PipelineMetricsPanelProps) {
   const { detection_queue, analysis_queue } = queues;
 
@@ -133,7 +136,7 @@ export default function PipelineMetricsPanel({
   return (
     <Card
       className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
-      data-testid="pipeline-metrics-panel"
+      data-testid={testId}
     >
       <Title className="mb-3 flex items-center gap-2 text-white">
         <Activity className="h-5 w-5 text-[#76B900]" />

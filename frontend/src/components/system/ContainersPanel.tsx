@@ -44,6 +44,8 @@ export interface ContainersPanelProps {
   history: ContainerHistory;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -130,13 +132,14 @@ export default function ContainersPanel({
   containers,
   history,
   className,
+  'data-testid': testId = 'containers-panel',
 }: ContainersPanelProps) {
   // Calculate summary stats
   const healthyCount = containers.filter((c) => c.health.toLowerCase() === 'healthy').length;
   const totalCount = containers.length;
 
   return (
-    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="containers-panel">
+    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid={testId}>
       <div className="mb-4 flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
           <Box className="h-5 w-5 text-[#76B900]" />

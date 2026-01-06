@@ -41,6 +41,8 @@ export interface HostSystemPanelProps {
   history: HostHistoryData;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -107,6 +109,7 @@ export default function HostSystemPanel({
   timeRange: _timeRange,
   history,
   className,
+  'data-testid': testId = 'host-system-panel',
 }: HostSystemPanelProps) {
   const cpuChartData = transformToChartData(history.cpu);
   const ramChartData = transformToChartData(history.ram);
@@ -116,7 +119,7 @@ export default function HostSystemPanel({
   const diskPercent = host ? Math.round((host.disk_used_gb / host.disk_total_gb) * 100) : 0;
 
   return (
-    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="host-system-panel">
+    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid={testId}>
       <Title className="mb-4 flex items-center gap-2 text-white">
         <Monitor className="h-5 w-5 text-[#76B900]" />
         Host System
