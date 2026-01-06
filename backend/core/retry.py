@@ -148,7 +148,7 @@ def calculate_delay(attempt: int, config: RetryConfig) -> float:
     # purposes, just adding timing variation to avoid thundering herd scenarios.
     if config.jitter > 0:
         jitter_range = delay * config.jitter
-        delay = delay - jitter_range + (random.random() * 2 * jitter_range)  # noqa: S311
+        delay = delay - jitter_range + (random.random() * 2 * jitter_range)  # noqa: S311  # nosemgrep: insecure-random
 
     return max(0.0, delay)
 
