@@ -17,6 +17,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Requ
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -970,7 +971,9 @@ async def get_readiness(
 
 
 @router.get("/health/websocket", response_model=WebSocketHealthResponse)
-async def get_websocket_health() -> WebSocketHealthResponse:
+async def get_websocket_health(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> WebSocketHealthResponse:
     """Get health status of WebSocket broadcasters and their circuit breakers.
 
     Returns the current state of circuit breakers for:
