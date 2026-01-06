@@ -27,6 +27,7 @@ from backend.core.constants import (
     DLQ_DETECTION_QUEUE,
 )
 from backend.services.retry_handler import JobFailure, reset_retry_handler
+from backend.tests.integration.test_helpers import get_error_message
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -349,7 +350,8 @@ class TestGetDLQJobs:
 
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        error_msg = get_error_message(data)
+        assert error_msg
 
     @pytest.mark.asyncio
     async def test_jobs_empty_detection_queue(
@@ -466,7 +468,7 @@ class TestRequeueDLQJob:
 
         assert response.status_code == 401
         data = response.json()
-        assert "API key required" in data["detail"]
+        assert "API key required" in get_error_message(data)
 
     @pytest.mark.asyncio
     async def test_requeue_invalid_api_key(self, api_key_client: AsyncClient) -> None:
@@ -478,7 +480,7 @@ class TestRequeueDLQJob:
 
         assert response.status_code == 401
         data = response.json()
-        assert "Invalid API key" in data["detail"]
+        assert "Invalid API key" in get_error_message(data)
 
     @pytest.mark.asyncio
     async def test_requeue_valid_api_key_empty_dlq(
@@ -552,7 +554,7 @@ class TestRequeueAllDLQJobs:
 
         assert response.status_code == 401
         data = response.json()
-        assert "API key required" in data["detail"]
+        assert "API key required" in get_error_message(data)
 
     @pytest.mark.asyncio
     async def test_requeue_all_invalid_api_key(self, api_key_client: AsyncClient) -> None:
@@ -564,7 +566,7 @@ class TestRequeueAllDLQJobs:
 
         assert response.status_code == 401
         data = response.json()
-        assert "Invalid API key" in data["detail"]
+        assert "Invalid API key" in get_error_message(data)
 
     @pytest.mark.asyncio
     async def test_requeue_all_empty_dlq(
@@ -619,7 +621,7 @@ class TestClearDLQ:
 
         assert response.status_code == 401
         data = response.json()
-        assert "API key required" in data["detail"]
+        assert "API key required" in get_error_message(data)
 
     @pytest.mark.asyncio
     async def test_clear_invalid_api_key(self, api_key_client: AsyncClient) -> None:
@@ -631,7 +633,7 @@ class TestClearDLQ:
 
         assert response.status_code == 401
         data = response.json()
-        assert "Invalid API key" in data["detail"]
+        assert "Invalid API key" in get_error_message(data)
 
     @pytest.mark.asyncio
     async def test_clear_empty_dlq(

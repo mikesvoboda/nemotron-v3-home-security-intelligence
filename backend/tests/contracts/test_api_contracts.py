@@ -290,7 +290,9 @@ class TestEventsAPIContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
 
 
 # =============================================================================
@@ -372,7 +374,9 @@ class TestCamerasAPIContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
 
 
 # =============================================================================
@@ -500,7 +504,9 @@ class TestDetectionsAPIContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
 
 
 # =============================================================================
@@ -532,7 +538,7 @@ class TestErrorResponseContracts:
 
     @pytest.mark.asyncio
     async def test_404_error_format_events(self, client: AsyncClient, mock_session: MagicMock):
-        """Test 404 errors return consistent format with 'detail' field."""
+        """Test 404 errors return consistent standardized error format."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -541,12 +547,15 @@ class TestErrorResponseContracts:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
-        assert isinstance(data["detail"], str)
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
+        assert isinstance(data["error"]["code"], str)
+        assert isinstance(data["error"]["message"], str)
 
     @pytest.mark.asyncio
     async def test_404_error_format_cameras(self, client: AsyncClient, mock_session: MagicMock):
-        """Test 404 errors return consistent format for cameras."""
+        """Test 404 errors return consistent standardized error format for cameras."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -555,12 +564,15 @@ class TestErrorResponseContracts:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
-        assert isinstance(data["detail"], str)
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
+        assert isinstance(data["error"]["code"], str)
+        assert isinstance(data["error"]["message"], str)
 
     @pytest.mark.asyncio
     async def test_404_error_format_detections(self, client: AsyncClient, mock_session: MagicMock):
-        """Test 404 errors return consistent format for detections."""
+        """Test 404 errors return consistent standardized error format for detections."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -569,18 +581,25 @@ class TestErrorResponseContracts:
 
         assert response.status_code == 404
         data = response.json()
-        assert "detail" in data
-        assert isinstance(data["detail"], str)
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
+        assert isinstance(data["error"]["code"], str)
+        assert isinstance(data["error"]["message"], str)
 
     @pytest.mark.asyncio
     async def test_422_validation_error_format(self, client: AsyncClient):
-        """Test 422 validation errors return consistent format."""
+        """Test 422 validation errors return consistent standardized error format."""
         # Test with invalid pagination parameter
         response = await client.get("/api/events", params={"limit": -1})
 
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        assert "error" in data
+        assert "code" in data["error"]
+        assert "message" in data["error"]
+        assert "errors" in data["error"]
+        assert isinstance(data["error"]["errors"], list)
 
 
 # =============================================================================

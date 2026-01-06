@@ -12,6 +12,8 @@ from datetime import datetime
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 # Alias for backward compatibility - tests use async_client but conftest provides client
 @pytest.fixture
@@ -393,7 +395,8 @@ class TestGetEvent:
         response = await async_client.get("/api/events/99999")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     async def test_get_event_invalid_id(self, async_client):
         """Test getting an event with invalid ID format."""
@@ -443,7 +446,8 @@ class TestUpdateEvent:
         response = await async_client.patch("/api/events/99999", json={"reviewed": True})
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     async def test_update_event_invalid_payload(self, async_client, sample_event):
         """Test updating with invalid payload returns 422."""
@@ -605,7 +609,8 @@ class TestGetEventDetections:
         response = await async_client.get("/api/events/99999/detections")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     async def test_get_event_detections_multiple(self, async_client, sample_event, sample_camera):
         """Test getting multiple detections for an event."""
@@ -1240,7 +1245,8 @@ class TestGetEventEnrichments:
         response = await async_client.get("/api/events/99999/enrichments")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     async def test_get_event_enrichments_multiple_detections(
         self, async_client, sample_event, sample_camera, integration_db
@@ -1578,7 +1584,8 @@ class TestGetEventClip:
         response = await async_client.get("/api/events/99999/clip")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
 
 class TestGenerateEventClip:
@@ -1592,7 +1599,8 @@ class TestGenerateEventClip:
         )
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "not found" in error_msg.lower()
 
     async def test_generate_clip_no_detections(self, async_client, sample_event, integration_db):
         """Test generating clip for event with no detections returns 400."""
@@ -1614,7 +1622,8 @@ class TestGenerateEventClip:
         )
         assert response.status_code == 400
         data = response.json()
-        assert "no detections" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "no detections" in error_msg.lower()
 
     async def test_generate_clip_existing_clip_no_force(
         self, async_client, sample_event, sample_detection, integration_db, tmp_path
@@ -1692,7 +1701,8 @@ class TestGenerateEventClip:
         )
         assert response.status_code == 400
         data = response.json()
-        assert "no detection images" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "no detection images" in error_msg.lower()
 
     async def test_generate_clip_request_validation(self, async_client, sample_event):
         """Test clip generation request validation."""
@@ -1754,7 +1764,8 @@ class TestSearchEvents:
         response = await async_client.get("/api/events/search?q=test&severity=invalid")
         assert response.status_code == 400
         data = response.json()
-        assert "invalid severity" in data["detail"].lower()
+        error_msg = get_error_message(data)
+        assert "invalid severity" in error_msg.lower()
 
     async def test_search_events_missing_query(self, async_client):
         """Test searching without query returns 422."""

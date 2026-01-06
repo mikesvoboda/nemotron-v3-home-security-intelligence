@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
     AuthMiddleware,
     RequestTimingMiddleware,
@@ -573,6 +574,9 @@ app.add_middleware(
 
 # Add security headers middleware for defense-in-depth
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Register global exception handlers for consistent error responses
+register_exception_handlers(app)
 
 # Register routers
 app.include_router(admin.router)
