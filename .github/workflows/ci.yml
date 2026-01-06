@@ -1365,3 +1365,60 @@ jobs:
             --timeout=30 \
             -v \
             --tb=short
+
+  # ============================================================================
+  # CI Gate - Aggregates all required checks for branch protection
+  # ============================================================================
+  # This job provides a single status check that depends on all required jobs.
+  # Use this as the required check in branch protection to simplify configuration.
+  # Non-blocking workflows can use workflow_run trigger on CI completion.
+  ci-gate:
+    name: CI Gate (Required Checks)
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests-summary
+      - frontend-lint
+      - frontend-typecheck
+      - frontend-tests-summary
+      - api-types-check
+    if: always()
+    steps:
+      - name: Check required job results
+        run: |
+          echo "## Required CI Checks Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check each required job
+          FAILED=false
+
+          check_job() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" == "success" ] || [ "$result" == "skipped" ]; then
+              echo "✅ $name: $result" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ $name: $result" >> $GITHUB_STEP_SUMMARY
+              FAILED=true
+            fi
+          }
+
+          check_job "Backend Lint (Ruff)" "${{ needs.lint.result }}"
+          check_job "Backend Type Check (Mypy)" "${{ needs.typecheck.result }}"
+          check_job "Backend Unit Tests" "${{ needs.unit-tests.result }}"
+          check_job "Backend Integration Tests" "${{ needs.integration-tests-summary.result }}"
+          check_job "Frontend Lint (ESLint)" "${{ needs.frontend-lint.result }}"
+          check_job "Frontend Type Check (TypeScript)" "${{ needs.frontend-typecheck.result }}"
+          check_job "Frontend Tests (Vitest)" "${{ needs.frontend-tests-summary.result }}"
+          check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAILED" == "true" ]; then
+            echo "**Status: ❌ FAILED** - One or more required checks failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "**Status: ✅ PASSED** - All required checks passed" >> $GITHUB_STEP_SUMMARY
+          fi
