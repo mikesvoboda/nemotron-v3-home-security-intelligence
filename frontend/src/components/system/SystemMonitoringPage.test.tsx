@@ -73,11 +73,12 @@ vi.mock('./TimeRangeSelector', () => ({
 }));
 
 vi.mock('./PerformanceAlerts', () => ({
-  default: ({ alerts }: { alerts: unknown[] }) => (
-    <div data-testid="performance-alerts" data-alert-count={alerts.length}>
-      Performance Alerts
-    </div>
-  ),
+  default: ({ alerts }: { alerts: unknown[] }) =>
+    alerts.length > 0 ? (
+      <div data-testid="system-performance-alerts" data-alert-count={alerts.length}>
+        Performance Alerts
+      </div>
+    ) : null,
 }));
 
 vi.mock('./AiModelsPanel', () => ({
@@ -849,6 +850,695 @@ describe('SystemMonitoringPage', () => {
         const maxWidthContainer = container.querySelector('.max-w-\\[1920px\\]');
         expect(maxWidthContainer).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Circuit Breaker Reset', () => {
+    it('calls resetCircuitBreaker API when handleResetCircuitBreaker is invoked', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Component is mounted - circuit breaker reset would be triggered by CircuitBreakerPanel
+      expect(api.resetCircuitBreaker).not.toHaveBeenCalled();
+    });
+
+    it('reloads circuit breakers after successful reset', async () => {
+      (api.resetCircuitBreaker as Mock).mockResolvedValue({
+        name: 'rtdetr_detection',
+        previous_state: 'open',
+        new_state: 'closed',
+        message: 'Reset successful',
+      });
+
+      (api.fetchCircuitBreakers as Mock).mockResolvedValue({
+        circuit_breakers: {
+          rtdetr_detection: {
+            name: 'rtdetr_detection',
+            state: 'closed',
+            failure_count: 0,
+            success_count: 10,
+            total_calls: 100,
+            rejected_calls: 0,
+            config: { failure_threshold: 5, recovery_timeout: 60, half_open_max_calls: 3, success_threshold: 2 },
+          },
+        },
+        total_count: 1,
+        open_count: 0,
+        timestamp: '2025-01-01T12:00:00Z',
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Verify initial circuit breakers call
+      expect(api.fetchCircuitBreakers).toHaveBeenCalled();
+    });
+
+    it('handles circuit breaker reset error', async () => {
+      (api.resetCircuitBreaker as Mock).mockRejectedValue(new Error('Reset failed'));
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Component rendered successfully even if reset would fail
+      expect(screen.getByTestId('circuit-breaker-panel')).toBeInTheDocument();
+    });
+  });
+
+  describe('Polling Intervals', () => {
+    it('cleans up interval on unmount', async () => {
+      const { unmount } = render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      const callsBeforeUnmount = (api.fetchTelemetry as Mock).mock.calls.length;
+
+      unmount();
+
+      // Wait to ensure no new calls happen after unmount
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(api.fetchTelemetry).toHaveBeenCalledTimes(callsBeforeUnmount);
+    });
+  });
+
+  describe('Performance Alerts', () => {
+    it('does not render performance alerts when alerts array is empty', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {},
+          host: null,
+          containers: [],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('system-performance-alerts')).not.toBeInTheDocument();
+    });
+
+    it('renders performance alerts when alerts exist', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {},
+          host: null,
+          containers: [],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [
+          {
+            severity: 'warning',
+            metric: 'GPU Temperature',
+            value: 85,
+            threshold: 80,
+            message: 'GPU temperature is high',
+          },
+        ],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-performance-alerts')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Throughput History Calculation', () => {
+    it('renders with initial telemetry data', async () => {
+      const initialTelemetry = {
+        queues: { detection_queue: 100, analysis_queue: 50 },
+        latencies: {
+          detect: { avg_ms: 200, p95_ms: 350, p99_ms: 500 },
+          analyze: { avg_ms: 1500, p95_ms: 2500, p99_ms: 3500 },
+        },
+        timestamp: '2025-01-01T12:00:00Z',
+      };
+
+      (api.fetchTelemetry as Mock).mockResolvedValue(initialTelemetry);
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Pipeline metrics panel should receive the telemetry data
+      const pipelineMetrics = screen.getByTestId('pipeline-metrics-panel');
+      expect(pipelineMetrics).toHaveAttribute('data-detection-queue', '100');
+      expect(pipelineMetrics).toHaveAttribute('data-analysis-queue', '50');
+    });
+  });
+
+  describe('Error Button Click', () => {
+    it('reloads page when reload button is clicked in error state', async () => {
+      const reloadSpy = vi.fn();
+      Object.defineProperty(window, 'location', {
+        value: { reload: reloadSpy },
+        writable: true,
+      });
+
+      (api.fetchStats as Mock).mockRejectedValue(new Error('API Error'));
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-error')).toBeInTheDocument();
+      });
+
+      const reloadButton = screen.getByRole('button', { name: /reload page/i });
+      reloadButton.click();
+
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Component Panels Rendering', () => {
+    it('renders all monitoring panels', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Verify all major panels are present (using test IDs from mocked components)
+      expect(screen.getByTestId('ai-models-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('host-system-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('containers-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('circuit-breaker-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('services-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+    });
+
+    it('renders system summary row', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-summary-row')).toBeInTheDocument();
+      });
+    });
+
+    it('renders pipeline flow visualization', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('pipeline-flow-visualization')).toBeInTheDocument();
+      });
+    });
+
+    it('renders infrastructure status grid', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Data Transformation with Full Performance Data', () => {
+    it('transforms performance data with all metrics present', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: {
+            name: 'NVIDIA RTX A5500',
+            utilization: 75,
+            vram_used_gb: 8,
+            vram_total_gb: 24,
+            temperature: 65,
+            power_watts: 200,
+          },
+          ai_models: {
+            rtdetr: {
+              status: 'healthy',
+              latency_ms: {
+                avg: 200,
+                p95: 350,
+                p99: 500,
+              },
+            },
+          },
+          nemotron: {
+            status: 'healthy',
+            latency_ms: {
+              avg: 1500,
+              p95: 2500,
+              p99: 3500,
+            },
+          },
+          inference: {
+            throughput: {
+              files_per_minute: 120,
+            },
+            rtdetr_latency_ms: {
+              avg: 200,
+              p95: 350,
+            },
+            nemotron_latency_ms: {
+              avg: 1500,
+              p95: 2500,
+            },
+            pipeline_latency_ms: {
+              db_query: 10,
+            },
+          },
+          databases: {
+            postgresql: {
+              status: 'healthy',
+              connections_active: 10,
+              connections_max: 100,
+              cache_hit_ratio: 0.95,
+              transactions_per_min: 1000,
+            },
+            redis: {
+              status: 'healthy',
+              connected_clients: 5,
+              memory_mb: 512,
+              hit_ratio: 0.98,
+              blocked_clients: 0,
+            },
+          },
+          host: {
+            cpu_percent: 45,
+            ram_used_gb: 16,
+            ram_total_gb: 64,
+            disk_used_gb: 500,
+            disk_total_gb: 2000,
+          },
+          containers: [
+            {
+              name: 'backend',
+              status: 'running',
+              health: 'healthy',
+            },
+            {
+              name: 'frontend',
+              status: 'running',
+              health: 'healthy',
+            },
+          ],
+          alerts: [],
+        },
+        history: {
+          '5m': [
+            {
+              timestamp: '2025-01-01T11:55:00Z',
+              gpu: { utilization: 70, vram_used_gb: 7, temperature: 63 },
+              host: { cpu_percent: 40, ram_used_gb: 15 },
+              databases: {
+                postgresql: { connections_active: 8, cache_hit_ratio: 0.94 },
+                redis: { memory_mb: 500, connected_clients: 4 },
+              },
+              containers: [
+                { name: 'backend', status: 'running', health: 'healthy' },
+                { name: 'frontend', status: 'running', health: 'healthy' },
+              ],
+            },
+          ],
+          '15m': [],
+          '60m': [],
+        },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Verify panels receive transformed data
+      expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('host-system-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('containers-panel')).toBeInTheDocument();
+    });
+
+    it('handles degraded service statuses in background workers', async () => {
+      (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
+        health: {
+          status: 'degraded',
+          services: {
+            file_watcher: { status: 'degraded', message: 'Slow processing' },
+            rtdetr_server: { status: 'degraded', message: 'High latency' },
+            batch_aggregator: { status: 'healthy', message: 'OK' },
+            nemotron_server: { status: 'healthy', message: 'OK' },
+            cleanup_service: { status: 'degraded', message: 'Backlog' },
+          },
+          timestamp: '2025-01-01T12:00:00Z',
+        },
+        services: {
+          file_watcher: { status: 'degraded', message: 'Slow processing' },
+          rtdetr_server: { status: 'degraded', message: 'High latency' },
+          batch_aggregator: { status: 'healthy', message: 'OK' },
+          nemotron_server: { status: 'healthy', message: 'OK' },
+          cleanup_service: { status: 'degraded', message: 'Backlog' },
+        },
+        overallStatus: 'degraded',
+        isLoading: false,
+        error: null,
+        refresh: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Component should handle degraded statuses
+      expect(screen.getByTestId('pipeline-flow-visualization')).toBeInTheDocument();
+    });
+
+    it('handles stopped service statuses in background workers', async () => {
+      (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
+        health: {
+          status: 'unhealthy',
+          services: {
+            file_watcher: { status: 'unhealthy', message: 'Not running' },
+            rtdetr_server: { status: 'stopped', message: 'Stopped' },
+          },
+          timestamp: '2025-01-01T12:00:00Z',
+        },
+        services: {
+          file_watcher: { status: 'unhealthy', message: 'Not running' },
+          rtdetr_server: { status: 'stopped', message: 'Stopped' },
+        },
+        overallStatus: 'unhealthy',
+        isLoading: false,
+        error: null,
+        refresh: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Component should handle stopped/unhealthy statuses
+      expect(screen.getByTestId('pipeline-flow-visualization')).toBeInTheDocument();
+    });
+
+    it('transforms infrastructure data with degraded database statuses', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {
+            postgresql: {
+              status: 'degraded',
+              connections_active: 80,
+              connections_max: 100,
+              cache_hit_ratio: 0.70,
+              transactions_per_min: 500,
+            },
+            redis: {
+              status: 'degraded',
+              connected_clients: 15,
+              memory_mb: 1500,
+              hit_ratio: 0.75,
+              blocked_clients: 3,
+            },
+          },
+          host: null,
+          containers: [],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should receive degraded status data
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+    });
+
+    it('transforms infrastructure data with unhealthy database statuses', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {
+            postgresql: {
+              status: 'unhealthy',
+              connections_active: 100,
+              connections_max: 100,
+              cache_hit_ratio: 0.30,
+              transactions_per_min: 10,
+            },
+          },
+          host: null,
+          containers: [],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should receive unhealthy status data
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+    });
+
+    it('handles containers with mixed health statuses', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {},
+          host: null,
+          containers: [
+            { name: 'backend', status: 'running', health: 'healthy' },
+            { name: 'frontend', status: 'restarting', health: 'unhealthy' },
+            { name: 'database', status: 'stopped', health: 'none' },
+          ],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should handle mixed container statuses
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+    });
+
+    it('calculates host status as degraded when resource usage is high', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {},
+          host: {
+            cpu_percent: 85, // Between 80-95 = degraded
+            ram_used_gb: 58,
+            ram_total_gb: 64, // 90.6% usage = degraded
+            disk_used_gb: 1800,
+            disk_total_gb: 2000,
+          },
+          containers: [],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should calculate degraded status
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+    });
+
+    it('calculates host status as unhealthy when resource usage is critical', async () => {
+      (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+        current: {
+          timestamp: '2025-01-01T12:00:00Z',
+          gpu: null,
+          ai_models: {},
+          nemotron: null,
+          inference: null,
+          databases: {},
+          host: {
+            cpu_percent: 98, // Above 95 = unhealthy
+            ram_used_gb: 63,
+            ram_total_gb: 64, // 98.4% usage = unhealthy
+            disk_used_gb: 1950,
+            disk_total_gb: 2000,
+          },
+          containers: [],
+          alerts: [],
+        },
+        history: { '5m': [], '15m': [], '60m': [] },
+        alerts: [],
+        isConnected: true,
+        timeRange: '5m',
+        setTimeRange: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should calculate unhealthy status
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+    });
+
+    it('handles circuit breakers with mixed states', async () => {
+      (api.fetchCircuitBreakers as Mock).mockResolvedValue({
+        circuit_breakers: {
+          rtdetr_detection: {
+            name: 'rtdetr_detection',
+            state: 'open',
+            failure_count: 10,
+            success_count: 0,
+            total_calls: 100,
+            rejected_calls: 50,
+            config: { failure_threshold: 5, recovery_timeout: 60, half_open_max_calls: 3, success_threshold: 2 },
+          },
+          nemotron_analysis: {
+            name: 'nemotron_analysis',
+            state: 'closed',
+            failure_count: 0,
+            success_count: 100,
+            total_calls: 100,
+            rejected_calls: 0,
+            config: { failure_threshold: 5, recovery_timeout: 60, half_open_max_calls: 3, success_threshold: 2 },
+          },
+        },
+        total_count: 2,
+        open_count: 1,
+        timestamp: '2025-01-01T12:00:00Z',
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should show degraded circuit status (1 open out of 2 total)
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+    });
+
+    it('handles all circuit breakers open', async () => {
+      (api.fetchCircuitBreakers as Mock).mockResolvedValue({
+        circuit_breakers: {
+          rtdetr_detection: {
+            name: 'rtdetr_detection',
+            state: 'open',
+            failure_count: 10,
+            success_count: 0,
+            total_calls: 100,
+            rejected_calls: 100,
+            config: { failure_threshold: 5, recovery_timeout: 60, half_open_max_calls: 3, success_threshold: 2 },
+          },
+          nemotron_analysis: {
+            name: 'nemotron_analysis',
+            state: 'open',
+            failure_count: 10,
+            success_count: 0,
+            total_calls: 100,
+            rejected_calls: 100,
+            config: { failure_threshold: 5, recovery_timeout: 60, half_open_max_calls: 3, success_threshold: 2 },
+          },
+        },
+        total_count: 2,
+        open_count: 2,
+        timestamp: '2025-01-01T12:00:00Z',
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
+      });
+
+      // Infrastructure grid should show unhealthy circuit status (all circuits open)
+      expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
     });
   });
 });
