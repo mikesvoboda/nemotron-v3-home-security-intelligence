@@ -1380,6 +1380,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/log-level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Log Level
+         * @description Get current log level.
+         *
+         *     NEM-1471: Log level inspection endpoint
+         */
+        get: operations["get_log_level_api_debug_log_level_get"];
+        put?: never;
+        /**
+         * Set Log Level
+         * @description Set log level at runtime for debugging.
+         *
+         *     Allows changing the log level without restarting the application.
+         *     Useful for temporarily enabling DEBUG logging to investigate issues.
+         *
+         *     NEM-1471: Log level runtime override
+         *
+         *     Args:
+         *         request: Log level request with new level
+         *
+         *     Returns:
+         *         Current and previous log level
+         *
+         *     Raises:
+         *         HTTPException: If the log level is invalid
+         */
+        post: operations["set_log_level_api_debug_log_level_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/pipeline-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline State
+         * @description Get current state of the AI processing pipeline.
+         *
+         *     Returns queue depths, worker status, and recent errors for debugging
+         *     pipeline issues and monitoring system health.
+         *
+         *     NEM-1470: Debug endpoint for pipeline state inspection
+         */
+        get: operations["get_pipeline_state_api_debug_pipeline_state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections": {
         parameters: {
             query?: never;
@@ -7449,6 +7514,38 @@ export interface components {
             timestamp: string;
         };
         /**
+         * LogLevelRequest
+         * @description Request to change log level.
+         */
+        LogLevelRequest: {
+            /**
+             * Level
+             * @description New log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+             */
+            level: string;
+        };
+        /**
+         * LogLevelResponse
+         * @description Response for log level operations.
+         */
+        LogLevelResponse: {
+            /**
+             * Level
+             * @description Current log level
+             */
+            level: string;
+            /**
+             * Previous Level
+             * @description Previous log level (on change)
+             */
+            previous_level?: string | null;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
          * LogStats
          * @description Schema for log statistics (dashboard).
          */
@@ -8362,6 +8459,31 @@ export interface components {
             sample_count: number;
         };
         /**
+         * PipelineStateResponse
+         * @description Response for pipeline state inspection.
+         */
+        PipelineStateResponse: {
+            /**
+             * Correlation Id
+             * @description Correlation ID from request
+             */
+            correlation_id?: string | null;
+            /** @description Current queue depths */
+            queue_depths: components["schemas"]["QueueDepths"];
+            /**
+             * Recent Errors
+             * @description Recent errors (last 10)
+             */
+            recent_errors?: components["schemas"]["RecentError"][];
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+            /** @description Worker status */
+            workers: components["schemas"]["WorkersStatus"];
+        };
+        /**
          * PipelineStatusResponse
          * @description Combined status of all pipeline operations.
          *
@@ -8811,21 +8933,17 @@ export interface components {
         };
         /**
          * QueueDepths
-         * @description Queue depth information for pipeline queues.
-         * @example {
-         *       "analysis_queue": 2,
-         *       "detection_queue": 5
-         *     }
+         * @description Queue depth information for AI pipeline.
          */
         QueueDepths: {
             /**
              * Analysis Queue
-             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             * @description Number of items in analysis queue
              */
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             * @description Number of items in detection queue
              */
             detection_queue: number;
         };
@@ -8900,7 +9018,33 @@ export interface components {
              * Workers
              * @description Status of background workers
              */
-            workers?: components["schemas"]["WorkerStatus"][];
+            workers?: components["schemas"]["backend__api__schemas__system__WorkerStatus"][];
+        };
+        /**
+         * RecentError
+         * @description Recent error information.
+         */
+        RecentError: {
+            /**
+             * Component
+             * @description Component that generated error
+             */
+            component: string;
+            /**
+             * Error Type
+             * @description Type of error
+             */
+            error_type: string;
+            /**
+             * Message
+             * @description Error message
+             */
+            message?: string | null;
+            /**
+             * Timestamp
+             * @description ISO timestamp of error
+             */
+            timestamp: string;
         };
         /**
          * RecommendationItem
@@ -10075,7 +10219,7 @@ export interface components {
             /** @description Latency statistics for each pipeline stage */
             latencies?: components["schemas"]["PipelineLatencies"] | null;
             /** @description Current queue depths for detection and analysis queues */
-            queues: components["schemas"]["QueueDepths"];
+            queues: components["schemas"]["backend__api__schemas__system__QueueDepths"];
             /**
              * Timestamp
              * Format: date-time
@@ -10288,24 +10432,42 @@ export interface components {
         };
         /**
          * WorkerStatus
-         * @description Status information for a background worker/service.
+         * @description Status of a pipeline worker.
          */
         WorkerStatus: {
             /**
-             * Message
-             * @description Optional status message or error details
+             * Error Count
+             * @description Number of recent errors
+             * @default 0
              */
-            message?: string | null;
+            error_count: number;
+            /**
+             * Last Activity
+             * @description ISO timestamp of last activity
+             */
+            last_activity?: string | null;
             /**
              * Name
-             * @description Worker/service name
+             * @description Worker name
              */
             name: string;
             /**
              * Running
-             * @description Whether the worker is currently running
+             * @description Whether worker is currently running
              */
             running: boolean;
+        };
+        /**
+         * WorkersStatus
+         * @description Status of all pipeline workers.
+         */
+        WorkersStatus: {
+            /** @description Analyzer worker status */
+            analyzer: components["schemas"]["WorkerStatus"];
+            /** @description Detector worker status */
+            detector: components["schemas"]["WorkerStatus"];
+            /** @description File watcher status */
+            file_watcher: components["schemas"]["WorkerStatus"];
         };
         /**
          * ZoneCreate
@@ -10565,6 +10727,47 @@ export interface components {
             shape?: components["schemas"]["ZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
+        };
+        /**
+         * QueueDepths
+         * @description Queue depth information for pipeline queues.
+         * @example {
+         *       "analysis_queue": 2,
+         *       "detection_queue": 5
+         *     }
+         */
+        backend__api__schemas__system__QueueDepths: {
+            /**
+             * Analysis Queue
+             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             */
+            analysis_queue: number;
+            /**
+             * Detection Queue
+             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             */
+            detection_queue: number;
+        };
+        /**
+         * WorkerStatus
+         * @description Status information for a background worker/service.
+         */
+        backend__api__schemas__system__WorkerStatus: {
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
+            /**
+             * Name
+             * @description Worker/service name
+             */
+            name: string;
+            /**
+             * Running
+             * @description Whether the worker is currently running
+             */
+            running: boolean;
         };
     };
     responses: never;
@@ -12162,6 +12365,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_log_level_api_debug_log_level_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogLevelResponse"];
+                };
+            };
+        };
+    };
+    set_log_level_api_debug_log_level_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogLevelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogLevelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pipeline_state_api_debug_pipeline_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineStateResponse"];
                 };
             };
         };

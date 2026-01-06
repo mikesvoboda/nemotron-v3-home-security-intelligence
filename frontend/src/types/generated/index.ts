@@ -63,7 +63,10 @@ export type SystemConfig = components['schemas']['ConfigResponse'];
 export type SystemConfigUpdate = components['schemas']['ConfigUpdateRequest'];
 export type SystemStats = components['schemas']['SystemStatsResponse'];
 export type ReadinessResponse = components['schemas']['ReadinessResponse'];
-export type WorkerStatus = components['schemas']['WorkerStatus'];
+// WorkerStatus from system health endpoint (has message, name, running)
+export type WorkerStatus = components['schemas']['backend__api__schemas__system__WorkerStatus'];
+// Debug endpoint worker status (has error_count, last_activity, name, running)
+export type DebugWorkerStatus = components['schemas']['WorkerStatus'];
 
 // Telemetry types
 export type TelemetryResponse = components['schemas']['TelemetryResponse'];
