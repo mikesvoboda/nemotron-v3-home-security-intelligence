@@ -1,22 +1,27 @@
 name: Preview Deploy
 
-# Build preview containers for pull requests
+# Build preview containers for pull requests (manual trigger only)
 # Allows testers to pull and run PR changes locally before merge
+#
+# Disabled on PRs by default to save CI runner capacity.
+# Trigger manually via workflow_dispatch when preview containers are needed.
 #
 # Usage:
 # 1. Open a PR against main
-# 2. This workflow builds containers tagged with the PR number
+# 2. Manually trigger this workflow from the Actions tab
 # 3. A comment is posted with docker-compose instructions
 # 4. Testers can pull and run the containers locally
-# 5. Containers are automatically cleaned up when PR is closed
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to build preview for'
+        required: true
+        type: string
 
 concurrency:
-  group: preview-${{ github.event.pull_request.number }}
+  group: preview-${{ github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 
 env:

@@ -1,9 +1,9 @@
 name: CodeQL Security Analysis
 
+# Runs on merge to main and weekly schedule (not PRs) to save runner capacity.
+
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
   schedule:
     - cron: '0 6 * * 1' # Monday 6am UTC

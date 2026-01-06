@@ -2423,6 +2423,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Services
+         * @description Get status of all managed services.
+         *
+         *     Args:
+         *         category: Optional filter by category (infrastructure, ai, monitoring)
+         *         orchestrator: Container orchestrator instance (injected)
+         *
+         *     Returns:
+         *         List of services with status and category summaries.
+         */
+        get: operations["list_services_api_system_services_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/services/{name}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart Service
+         * @description Manually restart a service.
+         *
+         *     Resets failure count (manual restart is intentional).
+         *
+         *     Args:
+         *         name: Service name to restart
+         *         orchestrator: Container orchestrator instance (injected)
+         *
+         *     Returns:
+         *         Action result with updated service information
+         *
+         *     Raises:
+         *         HTTPException: 404 if service not found, 400 if service is disabled
+         */
+        post: operations["restart_service_api_system_services__name__restart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/services/{name}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable Service
+         * @description Re-enable a disabled service.
+         *
+         *     Resets failure count and allows self-healing to resume.
+         *
+         *     Args:
+         *         name: Service name to enable
+         *         orchestrator: Container orchestrator instance (injected)
+         *
+         *     Returns:
+         *         Action result with updated service information
+         *
+         *     Raises:
+         *         HTTPException: 404 if service not found
+         */
+        post: operations["enable_service_api_system_services__name__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/services/{name}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable Service
+         * @description Manually disable a service.
+         *
+         *     Prevents self-healing restarts.
+         *
+         *     Args:
+         *         name: Service name to disable
+         *         orchestrator: Container orchestrator instance (injected)
+         *
+         *     Returns:
+         *         Action result with updated service information
+         *
+         *     Raises:
+         *         HTTPException: 404 if service not found
+         */
+        post: operations["disable_service_api_system_services__name__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/services/{name}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Service
+         * @description Start a stopped service container.
+         *
+         *     Args:
+         *         name: Service name to start
+         *         orchestrator: Container orchestrator instance (injected)
+         *
+         *     Returns:
+         *         Action result with updated service information
+         *
+         *     Raises:
+         *         HTTPException: 404 if service not found,
+         *                        400 if service is already running or disabled
+         */
+        post: operations["start_service_api_system_services__name__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/health": {
         parameters: {
             query?: never;
@@ -4613,6 +4767,35 @@ export interface components {
             folder_path?: string | null;
             /** @description Camera status (online, offline, error, unknown) */
             status?: components["schemas"]["CameraStatus"] | null;
+        };
+        /**
+         * CategorySummary
+         * @description Summary of services in a category.
+         *
+         *     Provides a quick overview of service health within a category
+         *     for dashboard displays.
+         * @example {
+         *       "healthy": 3,
+         *       "total": 5,
+         *       "unhealthy": 2
+         *     }
+         */
+        CategorySummary: {
+            /**
+             * Total
+             * @description Total number of services in this category
+             */
+            total: number;
+            /**
+             * Healthy
+             * @description Number of healthy (running) services
+             */
+            healthy: number;
+            /**
+             * Unhealthy
+             * @description Number of unhealthy/stopped/disabled services
+             */
+            unhealthy: number;
         };
         /**
          * CircuitBreakerConfigResponse
@@ -9167,6 +9350,54 @@ export interface components {
             detections_cleared: number;
         };
         /**
+         * ServiceActionResponse
+         * @description Response for service action endpoints (restart, enable, disable, start).
+         *
+         *     Returned after POST /api/system/services/{name}/restart, enable, disable, or start.
+         * @example {
+         *       "message": "Service restarted successfully",
+         *       "service": {
+         *         "category": "ai",
+         *         "container_id": "abc123...",
+         *         "display_name": "RT-DETRv2",
+         *         "enabled": true,
+         *         "failure_count": 0,
+         *         "image": "ghcr.io/.../rtdetr:latest",
+         *         "last_restart_at": "2026-01-05T15:50:00Z",
+         *         "name": "ai-detector",
+         *         "port": 8090,
+         *         "restart_count": 3,
+         *         "status": "starting"
+         *       },
+         *       "success": true
+         *     }
+         */
+        ServiceActionResponse: {
+            /**
+             * Success
+             * @description Whether the action completed successfully
+             */
+            success: boolean;
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /** @description Updated service information after the action */
+            service: components["schemas"]["ServiceInfo"];
+        };
+        /**
+         * ServiceCategory
+         * @description Service category for classification and restart policy.
+         *
+         *     Categories determine restart behavior and priority:
+         *     - INFRASTRUCTURE: Critical services (PostgreSQL, Redis) with aggressive restart
+         *     - AI: AI/ML services with standard backoff
+         *     - MONITORING: Optional monitoring services with lenient restart
+         * @enum {string}
+         */
+        ServiceCategory: "infrastructure" | "ai" | "monitoring";
+        /**
          * ServiceHealthStatusResponse
          * @description Health status of a registered service.
          */
@@ -9198,6 +9429,86 @@ export interface components {
             error_message?: string | null;
         };
         /**
+         * ServiceInfo
+         * @description Information about a single managed service.
+         *
+         *     Contains identity, configuration, and runtime status for a container
+         *     managed by the orchestrator.
+         * @example {
+         *       "category": "ai",
+         *       "container_id": "abc123def456",
+         *       "display_name": "RT-DETRv2",
+         *       "enabled": true,
+         *       "failure_count": 0,
+         *       "image": "ghcr.io/.../rtdetr:latest",
+         *       "last_restart_at": "2026-01-05T10:30:00Z",
+         *       "name": "ai-detector",
+         *       "port": 8090,
+         *       "restart_count": 2,
+         *       "status": "running",
+         *       "uptime_seconds": 3600
+         *     }
+         */
+        ServiceInfo: {
+            /**
+             * Name
+             * @description Service identifier (e.g., 'ai-detector', 'postgres', 'grafana')
+             */
+            name: string;
+            /**
+             * Display Name
+             * @description Human-readable display name (e.g., 'RT-DETRv2', 'PostgreSQL')
+             */
+            display_name: string;
+            /** @description Service category: infrastructure, ai, or monitoring */
+            category: components["schemas"]["ServiceCategory"];
+            /** @description Current service status: running, starting, unhealthy, stopped, disabled, not_found */
+            status: components["schemas"]["backend__api__schemas__services__ServiceStatus"];
+            /**
+             * Enabled
+             * @description Whether auto-restart is enabled for this service
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Container Id
+             * @description Docker container ID (short form)
+             */
+            container_id?: string | null;
+            /**
+             * Image
+             * @description Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../rtdetr:latest')
+             */
+            image?: string | null;
+            /**
+             * Port
+             * @description Primary service port
+             */
+            port: number;
+            /**
+             * Failure Count
+             * @description Consecutive health check failure count
+             * @default 0
+             */
+            failure_count: number;
+            /**
+             * Restart Count
+             * @description Total restarts since backend boot
+             * @default 0
+             */
+            restart_count: number;
+            /**
+             * Last Restart At
+             * @description Timestamp of last restart (null if never restarted)
+             */
+            last_restart_at?: string | null;
+            /**
+             * Uptime Seconds
+             * @description Seconds since container started (null if not running)
+             */
+            uptime_seconds?: number | null;
+        };
+        /**
          * ServiceStatus
          * @description Status information for a service component.
          */
@@ -9219,6 +9530,82 @@ export interface components {
             details?: {
                 [key: string]: string;
             } | null;
+        };
+        /**
+         * ServicesResponse
+         * @description Response for GET /api/system/services.
+         *
+         *     Returns a list of all managed services with their current status
+         *     and category-level summaries.
+         * @example {
+         *       "by_category": {
+         *         "ai": {
+         *           "healthy": 3,
+         *           "total": 5,
+         *           "unhealthy": 2
+         *         },
+         *         "infrastructure": {
+         *           "healthy": 2,
+         *           "total": 2,
+         *           "unhealthy": 0
+         *         },
+         *         "monitoring": {
+         *           "healthy": 4,
+         *           "total": 4,
+         *           "unhealthy": 0
+         *         }
+         *       },
+         *       "services": [
+         *         {
+         *           "category": "infrastructure",
+         *           "container_id": "def456...",
+         *           "display_name": "PostgreSQL",
+         *           "enabled": true,
+         *           "failure_count": 0,
+         *           "image": "postgres:16-alpine",
+         *           "name": "postgres",
+         *           "port": 5432,
+         *           "restart_count": 0,
+         *           "status": "running",
+         *           "uptime_seconds": 86400
+         *         },
+         *         {
+         *           "category": "ai",
+         *           "container_id": "abc123...",
+         *           "display_name": "RT-DETRv2",
+         *           "enabled": true,
+         *           "failure_count": 0,
+         *           "image": "ghcr.io/.../rtdetr:latest",
+         *           "last_restart_at": "2026-01-05T10:30:00Z",
+         *           "name": "ai-detector",
+         *           "port": 8090,
+         *           "restart_count": 2,
+         *           "status": "running",
+         *           "uptime_seconds": 3600
+         *         }
+         *       ],
+         *       "timestamp": "2026-01-05T15:45:00Z"
+         *     }
+         */
+        ServicesResponse: {
+            /**
+             * Services
+             * @description List of all managed services with current status
+             */
+            services: components["schemas"]["ServiceInfo"][];
+            /**
+             * By Category
+             * @description Health summary by category (infrastructure, ai, monitoring)
+             */
+            by_category: {
+                [key: string]: components["schemas"]["CategorySummary"];
+            };
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
+             */
+            timestamp: string;
         };
         /**
          * SeverityDefinitionResponse
@@ -10118,6 +10505,20 @@ export interface components {
              */
             priority?: number | null;
         };
+        /**
+         * ServiceStatus
+         * @description Current status of a managed service.
+         *
+         *     Status values:
+         *     - RUNNING: Container is up and passing health checks
+         *     - STARTING: Container is starting, not yet healthy
+         *     - UNHEALTHY: Running but failing health checks
+         *     - STOPPED: Container is not running
+         *     - DISABLED: Exceeded failure limit, requires manual reset
+         *     - NOT_FOUND: Container doesn't exist yet
+         * @enum {string}
+         */
+        backend__api__schemas__services__ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
     };
     responses: never;
     parameters: never;
@@ -12874,6 +13275,161 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestNotificationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_services_api_system_services_get: {
+        parameters: {
+            query?: {
+                category?: components["schemas"]["ServiceCategory"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restart_service_api_system_services__name__restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enable_service_api_system_services__name__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_service_api_system_services__name__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_service_api_system_services__name__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
             /** @description Validation Error */

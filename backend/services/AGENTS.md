@@ -29,9 +29,10 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 5. **Model Loaders** - Individual model loading functions for Model Zoo
 6. **Pipeline Workers** - Background queue consumers and managers
 7. **Background Services** - GPU monitoring, cleanup, health checks
-8. **Infrastructure** - Circuit breakers, retry handlers, degradation
-9. **Alerting** - Alert rules, deduplication, notifications
-10. **Utility** - Search, severity mapping, prompt templates
+8. **Container Orchestrator** - Container discovery, lifecycle management
+9. **Infrastructure** - Circuit breakers, retry handlers, degradation
+10. **Alerting** - Alert rules, deduplication, notifications
+11. **Utility** - Search, severity mapping, prompt templates
 
 ## Service Files Overview
 
@@ -112,13 +113,21 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Background Services
 
-| Service                    | Purpose                                   | Exported via `__init__.py` |
-| -------------------------- | ----------------------------------------- | -------------------------- |
-| `gpu_monitor.py`           | Poll NVIDIA GPU metrics                   | Yes                        |
-| `cleanup_service.py`       | Enforce data retention policies           | Yes                        |
-| `health_monitor.py`        | Monitor service health with auto-recovery | No (import directly)       |
-| `system_broadcaster.py`    | Broadcast system health status            | No (import directly)       |
-| `performance_collector.py` | Collect system performance metrics        | No (import directly)       |
+| Service                          | Purpose                                       | Exported via `__init__.py` |
+| -------------------------------- | --------------------------------------------- | -------------------------- |
+| `gpu_monitor.py`                 | Poll NVIDIA GPU metrics                       | Yes                        |
+| `cleanup_service.py`             | Enforce data retention policies               | Yes                        |
+| `health_monitor.py`              | Monitor service health with auto-recovery     | No (import directly)       |
+| `health_monitor_orchestrator.py` | Container orchestrator health monitoring loop | No (import directly)       |
+| `system_broadcaster.py`          | Broadcast system health status                | No (import directly)       |
+| `performance_collector.py`       | Collect system performance metrics            | No (import directly)       |
+
+### Container Orchestrator Services
+
+| Service                  | Purpose                                             | Exported via `__init__.py` |
+| ------------------------ | --------------------------------------------------- | -------------------------- |
+| `container_discovery.py` | Discover Docker containers by name pattern          | No (import directly)       |
+| `lifecycle_manager.py`   | Self-healing restart logic with exponential backoff | No (import directly)       |
 
 ### Infrastructure Services
 
@@ -129,6 +138,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `circuit_breaker.py`     | Circuit breaker for service resilience  | Yes                        |
 | `degradation_manager.py` | Graceful degradation management         | Yes                        |
 | `cache_service.py`       | Redis caching utilities                 | No (import directly)       |
+| `service_registry.py`    | Service registry with Redis persistence | No (import directly)       |
 
 ### Alerting Services
 
@@ -616,6 +626,78 @@ rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality
 - `async cleanup(dry_run=False)` - Run cleanup
 - `async get_stats()` - Get cleanup statistics
 
+### health_monitor_orchestrator.py
+
+**Purpose:** Health monitoring loop for the container orchestrator.
+
+**Features:**
+
+- Periodic health checks for all enabled services (default: every 30 seconds)
+- HTTP health endpoint checks for AI services (RT-DETRv2, Nemotron, Florence, CLIP)
+- Command-based health checks for infrastructure (PostgreSQL, Redis)
+- Container running status as fallback health check
+- Grace period support for recently started containers
+- Failure tracking with automatic status updates
+- Callback support for health change notifications
+
+**Note:** This is separate from `health_monitor.py` (ServiceHealthMonitor) which uses ServiceManager/ServiceConfig for AI service restart scripts. This module uses DockerClient for container management through Docker API.
+
+**Key Classes:**
+
+- `ManagedService` - Dataclass holding state and config for a managed container
+- `ServiceRegistry` - Registry for managed services with lookup and update methods
+- `HealthMonitor` - Main health monitoring loop class
+
+**Health Check Priority:**
+
+1. HTTP health check - If `health_endpoint` is set (e.g., `/health`)
+2. Command health check - If `health_cmd` is set (e.g., `pg_isready -U security`)
+3. Container running check - Fallback if neither is defined
+
+**Grace Period:**
+
+Services are not health-checked during their startup grace period (default: 60s for AI services, 10s for PostgreSQL). This allows time for the service to initialize.
+
+**Public API:**
+
+```python
+from backend.services.health_monitor_orchestrator import (
+    HealthMonitor,
+    ManagedService,
+    ServiceRegistry,
+    check_http_health,
+    check_cmd_health,
+)
+
+# Create registry and register services
+registry = ServiceRegistry()
+service = ManagedService(
+    name="ai-detector",
+    container_id="abc123",
+    image="ghcr.io/.../rtdetr:latest",
+    port=8090,
+    health_endpoint="/health",
+    category=ServiceCategory.AI,
+)
+registry.register(service)
+
+# Create and start health monitor
+async with DockerClient() as docker:
+    monitor = HealthMonitor(
+        registry=registry,
+        docker_client=docker,
+        settings=orchestrator_settings,
+        on_health_change=my_callback,  # Optional callback
+    )
+    await monitor.start()
+    # ... monitor runs in background
+    await monitor.stop()
+
+# Check individual service health
+healthy = await check_http_health("localhost", 8090, "/health")
+healthy = await check_cmd_health(docker_client, "container_id", "pg_isready")
+```
+
 ### alert_engine.py
 
 **Purpose:** Core engine for evaluating alert rules against events.
@@ -682,6 +764,84 @@ rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality
 - `async get_dlq_stats()` - Get DLQ statistics
 - `async get_dlq_jobs(dlq_name)` - Inspect DLQ contents
 - `async requeue_dlq_job(dlq_name)` - Move job back to processing
+
+### service_registry.py
+
+**Purpose:** Service registry with Redis persistence for Container Orchestrator.
+
+**Key Features:**
+
+- In-memory storage for fast access during health checks
+- Redis persistence for state recovery across backend restarts
+- Thread-safe concurrent access via RLock
+- Redis key pattern: `orchestrator:service:{name}:state`
+
+**ManagedService Dataclass:**
+
+- `name` - Service identifier (e.g., "postgres", "ai-detector")
+- `display_name` - Human-readable name (e.g., "PostgreSQL", "RT-DETRv2")
+- `container_id` - Docker container ID or None
+- `image` - Container image (e.g., "postgres:16-alpine")
+- `port` - Primary service port
+- `health_endpoint` - HTTP health check path or None
+- `health_cmd` - Docker exec health command or None
+- `category` - ServiceCategory (infrastructure, ai, monitoring)
+- `status` - ServiceStatus (running, stopped, unhealthy, etc.)
+- `enabled` - Whether auto-restart is enabled
+- `failure_count` - Consecutive health check failures
+- `restart_count` - Total restarts since backend boot
+- `max_failures` - Disable service after N consecutive failures (default 5)
+- `restart_backoff_base` - Base delay for exponential backoff (default 5.0s)
+- `restart_backoff_max` - Maximum backoff delay (default 300.0s)
+- `startup_grace_period` - Seconds before counting health failures (default 60)
+
+**Public API:**
+
+```python
+from backend.services.service_registry import (
+    ServiceRegistry,
+    ManagedService,
+    get_service_registry,
+    reset_service_registry,
+)
+
+# Get global singleton
+registry = get_service_registry()
+
+# Registration
+registry.register(service)
+registry.unregister(name)
+registry.get(name) -> ManagedService | None
+registry.get_all() -> list[ManagedService]
+registry.get_by_category(category) -> list[ManagedService]
+registry.get_enabled() -> list[ManagedService]
+
+# State updates
+registry.update_status(name, status)
+registry.increment_failure(name) -> int  # returns new count
+registry.reset_failures(name)
+registry.record_restart(name)
+registry.set_enabled(name, enabled)
+
+# Redis persistence
+await registry.persist_state(name)
+await registry.load_state(name)
+await registry.load_all_state()
+await registry.clear_state(name)
+```
+
+**Redis State Schema:**
+
+```json
+{
+  "enabled": true,
+  "failure_count": 2,
+  "last_failure_at": "2026-01-05T10:30:00+00:00",
+  "last_restart_at": "2026-01-05T10:29:00+00:00",
+  "restart_count": 5,
+  "status": "running"
+}
+```
 
 ### vision_extractor.py
 
@@ -756,6 +916,181 @@ from backend.services.performance_collector import PerformanceCollector
 collector = PerformanceCollector()
 metrics = await collector.collect_all()  # Returns PerformanceUpdate schema
 await collector.close()
+```
+
+### container_discovery.py
+
+**Purpose:** Discovers Docker containers by name pattern and creates ManagedService objects with proper configuration for the container orchestrator.
+
+**Key Features:**
+
+- Pattern-based container name matching (e.g., "postgres" matches "security-postgres-1")
+- Pre-configured service definitions for infrastructure, AI, and monitoring services
+- Category-based discovery filtering (infrastructure, AI, monitoring)
+- Automatic configuration assignment from matched patterns
+- Supports both HTTP health endpoints and Docker exec health commands
+
+**Pre-configured Service Categories:**
+
+| Category       | Services                                           | Restart Policy        |
+| -------------- | -------------------------------------------------- | --------------------- |
+| Infrastructure | PostgreSQL (:5432), Redis (:6379)                  | Critical - aggressive |
+| AI             | RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment  | Standard backoff      |
+| Monitoring     | Prometheus, Grafana, Redis Exporter, JSON Exporter | Lenient               |
+
+**Key Classes:**
+
+- `ServiceConfig` - Configuration dataclass for service patterns (port, health check, limits)
+- `ManagedService` - Represents a discovered container with config values
+- `ContainerDiscoveryService` - Main service for container discovery
+
+**Public API:**
+
+```python
+from backend.services.container_discovery import (
+    ContainerDiscoveryService,
+    ServiceConfig,
+    ManagedService,
+    ALL_CONFIGS,
+    INFRASTRUCTURE_CONFIGS,
+    AI_CONFIGS,
+    MONITORING_CONFIGS,
+)
+
+# Create discovery service
+service = ContainerDiscoveryService(docker_client)
+
+# Discover all containers matching known patterns
+all_services = await service.discover_all()
+
+# Discover by category
+ai_services = await service.discover_by_category(ServiceCategory.AI)
+
+# Get config for a service name
+config = service.get_config("postgres")
+
+# Match container name against patterns (returns config key or None)
+config_key = service.match_container_name("security-postgres-1")  # Returns "postgres"
+```
+
+### lifecycle_manager.py
+
+**Purpose:** Self-healing restart logic with exponential backoff for the container orchestrator.
+
+**Key Features:**
+
+- Exponential backoff calculation: base \* 2^failure_count, capped at max
+- Category-specific defaults for Infrastructure, AI, and Monitoring services
+- Automatic disabling of services after max_failures consecutive failures
+- Callbacks for restart and disabled events
+- State persistence to Redis for durability across backend restarts
+
+**Self-Healing Decision Tree:**
+
+```
+Container Missing/Stopped/Unhealthy
+            |
+            v
+    +-------------------+
+    | failure_count >=  |--Yes--> Mark DISABLED, alert, skip
+    | max_failures?     |
+    +-------------------+
+            | No
+            v
+    +-------------------+
+    | Backoff elapsed?  |--No---> Skip this cycle
+    | (exponential)     |
+    +-------------------+
+            | Yes
+            v
+    +-------------------+
+    | Restart container |
+    | Increment counts  |
+    | Record timestamp  |
+    +-------------------+
+```
+
+**Backoff Calculation:**
+
+```python
+# Exponential backoff: 5s, 10s, 20s, 40s, 80s, 160s, 300s (cap)
+def calculate_backoff(failure_count, base=5.0, max_backoff=300.0):
+    return min(base * (2 ** failure_count), max_backoff)
+```
+
+**Category-Specific Defaults:**
+
+| Category       | max_failures | backoff_base | backoff_max |
+| -------------- | ------------ | ------------ | ----------- |
+| Infrastructure | 10           | 2.0s         | 60s         |
+| AI             | 5            | 5.0s         | 300s        |
+| Monitoring     | 3            | 10.0s        | 600s        |
+
+**Key Classes:**
+
+- `ManagedService` - Dataclass representing a managed container with lifecycle tracking
+- `ServiceRegistry` - Registry for managing ManagedService instances with Redis persistence
+- `LifecycleManager` - Main orchestration class for self-healing restart logic
+
+**Public API:**
+
+```python
+from backend.services.lifecycle_manager import (
+    LifecycleManager,
+    ManagedService,
+    ServiceRegistry,
+    calculate_backoff,
+)
+
+# Create lifecycle manager with dependencies
+manager = LifecycleManager(
+    registry=registry,
+    docker_client=docker_client,
+    on_restart=my_restart_callback,
+    on_disabled=my_disabled_callback,
+)
+
+# Backoff calculation
+backoff = manager.calculate_backoff(service)
+should_restart = manager.should_restart(service)
+remaining = manager.backoff_remaining(service)
+
+# Lifecycle actions
+await manager.restart_service(service)
+await manager.start_service(service)
+await manager.stop_service(service)
+await manager.enable_service("ai-detector")  # Reset failures and enable
+await manager.disable_service("ai-detector")
+
+# Self-healing handlers
+await manager.handle_unhealthy(service)
+await manager.handle_stopped(service)
+await manager.handle_missing(service)
+```
+
+**ServiceRegistry API:**
+
+```python
+registry = ServiceRegistry(redis_client=redis)
+
+# Register a service
+registry.register(service)
+
+# Get service(s)
+service = registry.get("ai-detector")
+all_services = registry.get_all()
+enabled = registry.get_enabled_services()
+
+# Update tracking
+registry.record_restart("ai-detector")
+new_count = registry.increment_failure("ai-detector")
+registry.reset_failures("ai-detector")
+registry.update_status("ai-detector", ServiceStatus.RUNNING)
+registry.set_enabled("ai-detector", False)
+
+# Persistence
+await registry.persist_state("ai-detector")
+await registry.load_state()
 ```
 
 ## Data Flow Between Services
