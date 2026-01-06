@@ -1,7 +1,6 @@
 """API routes for detections management."""
 
 import os
-import re
 from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
@@ -54,36 +53,6 @@ _ERROR_CATEGORIES = [
     "re-identification",
     "scene change detection",
     "processing",
-]
-
-# Regex patterns for sensitive data that should be redacted
-_SENSITIVE_PATTERNS = [
-    # File paths (Unix and Windows)
-    re.compile(r"(?:/[a-zA-Z0-9._-]+)+(?:\.[a-zA-Z0-9]+)?"),
-    re.compile(r"[A-Za-z]:\\(?:[^\\/:*?\"<>|\r\n]+\\)*[^\\/:*?\"<>|\r\n]*"),
-    # IP addresses (IPv4)
-    re.compile(r"\b(?:10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b"),
-    re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
-    # Port numbers (standalone like :8080)
-    re.compile(r":\d{2,5}\b"),
-    # URLs with internal hostnames
-    re.compile(r"https?://[^\s]+"),
-    # Internal hostnames (*.internal, *.local, *.svc.cluster.local, etc.)
-    re.compile(r"\b[a-zA-Z0-9.-]+\.(?:internal|local|svc\.cluster\.local|company\.com)\b"),
-    # Stack trace elements
-    re.compile(r"Traceback \(most recent call last\):", re.IGNORECASE),
-    re.compile(r'File "[^"]+", line \d+'),
-    re.compile(r"line \d+", re.IGNORECASE),
-    # Python module paths
-    re.compile(r"\bbackend\.[a-zA-Z0-9_.]+"),
-    # Environment variable patterns
-    re.compile(r"[A-Z_]+=[^\s]+"),
-    # Database URLs
-    re.compile(r"postgresql://[^\s]+"),
-    re.compile(r"redis://[^\s]+"),
-    # API keys and secrets
-    re.compile(r"sk-[a-zA-Z0-9]+"),
-    re.compile(r"password[=:][^\s]+", re.IGNORECASE),
 ]
 
 

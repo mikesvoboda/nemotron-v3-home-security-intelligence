@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.prompt_management import AIModelEnum
 from backend.core.config import get_settings
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.prompt_version import PromptVersion
 from backend.services.prompts import MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
 
@@ -188,7 +188,7 @@ class PromptService:
         await session.refresh(new_prompt)
 
         logger.info(
-            f"Created new prompt version {new_version} for model {model}",
+            f"Created new prompt version {new_version} for model {sanitize_log_value(model)}",
             extra={"model": model, "version": new_version},
         )
 
@@ -271,7 +271,7 @@ class PromptService:
                     result["improved"] = abs(result["after_score"] - result["before_score"]) <= 10
 
         except Exception as e:
-            logger.exception(f"Error testing prompt for model {model}")
+            logger.exception(f"Error testing prompt for model {sanitize_log_value(model)}")
             result["error"] = str(e)
 
         result["test_duration_ms"] = int((time.monotonic() - start_time) * 1000)
@@ -437,7 +437,7 @@ class PromptService:
         for model_name, config in import_data.items():
             if model_name not in valid_models:
                 skipped_models.append(model_name)
-                logger.warning(f"Skipping unknown model: {model_name}")
+                logger.warning(f"Skipping unknown model: {sanitize_log_value(model_name)}")
                 continue
 
             try:
@@ -450,7 +450,7 @@ class PromptService:
                 imported_models.append(model_name)
                 new_versions[model_name] = new_version.version
             except Exception as e:
-                logger.error(f"Failed to import config for {model_name}: {e}")
+                logger.error(f"Failed to import config for {sanitize_log_value(model_name)}: {e}")
                 skipped_models.append(model_name)
 
         return {
