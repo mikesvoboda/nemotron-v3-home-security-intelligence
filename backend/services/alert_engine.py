@@ -56,7 +56,7 @@ SEVERITY_PRIORITY = {
 DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
-@dataclass
+@dataclass(slots=True)
 class TriggeredRule:
     """Result of a rule evaluation that matched."""
 
@@ -66,7 +66,7 @@ class TriggeredRule:
     dedup_key: str = ""
 
 
-@dataclass
+@dataclass(slots=True)
 class EvaluationResult:
     """Complete result of evaluating all rules against an event."""
 

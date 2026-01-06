@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 REDIS_KEY_PREFIX = "orchestrator:service"
 
 
-@dataclass
+@dataclass(slots=True)
 class ManagedService:
     """A container service managed by the orchestrator.
 

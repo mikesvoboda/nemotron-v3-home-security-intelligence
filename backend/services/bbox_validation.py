@@ -97,7 +97,7 @@ class BoundingBoxOutOfBoundsError(BoundingBoxValidationError):
         self.image_size = image_size
 
 
-@dataclass
+@dataclass(slots=True)
 class BoundingBoxValidationResult:
     """Result of bounding box validation.
 

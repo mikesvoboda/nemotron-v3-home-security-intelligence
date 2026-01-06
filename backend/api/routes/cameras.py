@@ -223,18 +223,22 @@ async def create_camera(
             request=request,
         )
         await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to commit audit log: {e}")
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "camera_created", "camera_id": camera.id},
+        )
         await db.rollback()
         # Re-add camera since we rolled back the audit log
         db.add(camera)
         await db.commit()
     await db.refresh(camera)
 
-    # Invalidate cameras cache
+    # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
         cache = await get_cache_service()
-        await cache.invalidate_pattern("cameras:*")
+        await cache.invalidate_cameras(reason="camera_created")
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
@@ -295,8 +299,12 @@ async def update_camera(
             request=request,
         )
         await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to commit audit log: {e}")
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "camera_updated", "camera_id": camera_id},
+        )
         await db.rollback()
         # Re-apply the update changes since we rolled back
         update_data = camera_data.model_dump(exclude_unset=True)
@@ -305,10 +313,10 @@ async def update_camera(
         await db.commit()
     await db.refresh(camera)
 
-    # Invalidate cameras cache
+    # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
         cache = await get_cache_service()
-        await cache.invalidate_pattern("cameras:*")
+        await cache.invalidate_cameras(reason="camera_updated")
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
@@ -354,19 +362,23 @@ async def delete_camera(
         # Delete camera (cascade will handle related data)
         await db.delete(camera)
         await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to commit audit log: {e}")
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "camera_deleted", "camera_id": camera_id},
+        )
         await db.rollback()
         # Retry deletion without audit log - deletion is the primary operation
         await db.delete(camera)
         await db.commit()
 
-    # Invalidate cameras cache
+    # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
         cache = await get_cache_service()
-        await cache.invalidate_pattern("cameras:*")
-    except Exception as e:
-        logger.warning(f"Cache invalidation failed: {e}")
+        await cache.invalidate_cameras(reason="camera_deleted")
+    except Exception:
+        logger.warning("Cache invalidation failed", exc_info=True, extra={"camera_id": camera_id})
 
 
 @router.get(
@@ -992,8 +1004,12 @@ async def acknowledge_scene_change(
             request=request,
         )
         await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to commit audit log: {e}")
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "scene_change_acknowledged", "scene_change_id": scene_change_id},
+        )
         await db.rollback()
         # Re-apply the acknowledgement since we rolled back
         scene_change.acknowledged = True

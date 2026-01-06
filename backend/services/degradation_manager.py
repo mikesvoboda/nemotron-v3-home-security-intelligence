@@ -81,7 +81,7 @@ class DegradationServiceStatus(Enum):
     UNKNOWN = "unknown"
 
 
-@dataclass
+@dataclass(slots=True)
 class ServiceHealth:
     """Health information for a monitored service.
 
@@ -118,7 +118,7 @@ class ServiceHealth:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class QueuedJob:
     """A job queued for later processing.
 
@@ -154,7 +154,7 @@ class QueuedJob:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class RegisteredService:
     """A registered service for health monitoring.
 

@@ -66,7 +66,7 @@ ENVIRONMENT_QUERIES = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class VehicleAttributes:
     """Extracted attributes for a detected vehicle.
 
@@ -113,7 +113,7 @@ class VehicleAttributes:
         return ", ".join(parts) if parts else "No attributes extracted"
 
 
-@dataclass
+@dataclass(slots=True)
 class PersonAttributes:
     """Extracted attributes for a detected person.
 
@@ -160,7 +160,7 @@ class PersonAttributes:
         return ", ".join(parts) if parts else "No attributes extracted"
 
 
-@dataclass
+@dataclass(slots=True)
 class SceneAnalysis:
     """Analysis of the overall scene in the image.
 
@@ -206,7 +206,7 @@ class SceneAnalysis:
         return "; ".join(parts) if parts else "No unusual elements detected"
 
 
-@dataclass
+@dataclass(slots=True)
 class EnvironmentContext:
     """Environmental context extracted from the image.
 

@@ -54,6 +54,11 @@ function StatCard({
       }
     : undefined;
 
+  /*
+   * StatCard conditionally becomes interactive when onClick is provided.
+   * When onClick is undefined, it's a display-only card with no interactions.
+   * eslint rule doesn't recognize this conditional pattern.
+   */
   return (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div

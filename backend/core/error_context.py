@@ -84,7 +84,7 @@ def _sanitize_extra(extra: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@dataclass
+@dataclass(slots=True)
 class ErrorContext:
     """Structured context for error logging and debugging.
 

@@ -80,7 +80,7 @@ RETRY_OPERATIONS_TOTAL = Counter(
 # =============================================================================
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RetryConfig:
     """Configuration for retry behavior.
 

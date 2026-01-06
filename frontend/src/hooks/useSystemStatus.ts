@@ -2,9 +2,21 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions, fetchHealth } from '../services/api';
+import {
+  type SystemStatusData,
+  type HealthStatus,
+  isSystemStatusMessage,
+  isServiceStatusMessage,
+  isHeartbeatMessage,
+  isErrorMessage,
+} from '../types/websocket';
 
+/**
+ * Frontend-friendly system status representation.
+ * Flattens the nested WebSocket message structure for easier consumption.
+ */
 export interface SystemStatus {
-  health: 'healthy' | 'degraded' | 'unhealthy';
+  health: HealthStatus;
   gpu_utilization: number | null;
   gpu_temperature: number | null;
   gpu_memory_used: number | null;
@@ -19,46 +31,20 @@ export interface UseSystemStatusReturn {
   isConnected: boolean;
 }
 
-// Backend message structure from SystemBroadcaster
-interface BackendSystemStatus {
-  type: 'system_status';
-  data: {
-    gpu: {
-      utilization: number | null;
-      memory_used: number | null;
-      memory_total: number | null;
-      temperature: number | null;
-      inference_fps: number | null;
-    };
-    cameras: {
-      active: number;
-      total: number;
-    };
-    queue: {
-      pending: number;
-      processing: number;
-    };
-    health: 'healthy' | 'degraded' | 'unhealthy';
+/**
+ * Transform SystemStatusData from WebSocket into the flattened SystemStatus format.
+ */
+function transformSystemStatus(data: SystemStatusData, timestamp: string): SystemStatus {
+  return {
+    health: data.health,
+    gpu_utilization: data.gpu.utilization,
+    gpu_temperature: data.gpu.temperature,
+    gpu_memory_used: data.gpu.memory_used,
+    gpu_memory_total: data.gpu.memory_total,
+    inference_fps: data.gpu.inference_fps,
+    active_cameras: data.cameras.active,
+    last_update: timestamp,
   };
-  timestamp: string;
-}
-
-function isBackendSystemStatus(data: unknown): data is BackendSystemStatus {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-
-  const msg = data as Record<string, unknown>;
-
-  return (
-    msg.type === 'system_status' &&
-    typeof msg.data === 'object' &&
-    msg.data !== null &&
-    typeof msg.timestamp === 'string' &&
-    'gpu' in msg.data &&
-    'cameras' in msg.data &&
-    'health' in msg.data
-  );
 }
 
 export function useSystemStatus(): UseSystemStatusReturn {
@@ -102,21 +88,37 @@ export function useSystemStatus(): UseSystemStatusReturn {
   }, []);
 
   const handleMessage = useCallback((data: unknown) => {
-    // Check if message matches backend structure
-    if (isBackendSystemStatus(data)) {
+    // Use type guards to validate and narrow the message type
+    // First, check for system status messages (most common case for this hook)
+    if (isSystemStatusMessage(data)) {
       hasReceivedWsMessageRef.current = true;
-      const systemStatus: SystemStatus = {
-        health: data.data.health,
-        gpu_utilization: data.data.gpu.utilization,
-        gpu_temperature: data.data.gpu.temperature,
-        gpu_memory_used: data.data.gpu.memory_used,
-        gpu_memory_total: data.data.gpu.memory_total,
-        inference_fps: data.data.gpu.inference_fps,
-        active_cameras: data.data.cameras.active,
-        last_update: data.timestamp,
-      };
+      // Use the transform function to flatten the nested structure
+      const systemStatus = transformSystemStatus(data.data, data.timestamp);
       setStatus(systemStatus);
+      return;
     }
+
+    // Handle other valid SystemChannelMessage types with exhaustive checking pattern
+    if (isServiceStatusMessage(data)) {
+      // Service status messages could be handled here if needed
+      // For now, we just acknowledge them - system status will update from
+      // the regular system_status broadcasts
+      return;
+    }
+
+    if (isHeartbeatMessage(data)) {
+      // Heartbeat messages are handled by useWebSocket internally
+      return;
+    }
+
+    if (isErrorMessage(data)) {
+      // Error messages could be logged or handled here
+      console.warn('System WebSocket error:', data.message);
+      return;
+    }
+
+    // Unknown message types are silently ignored
+    // This is intentional - the backend may send messages we don't care about
   }, []);
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)

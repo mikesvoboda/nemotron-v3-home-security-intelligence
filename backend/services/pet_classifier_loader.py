@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 PET_LABELS = ["cat", "dog"]
 
 
-@dataclass
+@dataclass(slots=True)
 class PetClassificationResult:
     """Result from pet classification.
 
@@ -125,7 +125,9 @@ async def load_pet_classifier_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load pet classifier model from {model_path}: {e}")
+        logger.error(
+            "Failed to load pet classifier model", exc_info=True, extra={"model_path": model_path}
+        )
         raise RuntimeError(f"Failed to load pet classifier model: {e}") from e
 
 
@@ -199,7 +201,7 @@ async def classify_pet(
         return await loop.run_in_executor(None, _classify)
 
     except Exception as e:
-        logger.error(f"Pet classification failed: {e}")
+        logger.error("Pet classification failed", exc_info=True)
         raise RuntimeError(f"Pet classification failed: {e}") from e
 
 

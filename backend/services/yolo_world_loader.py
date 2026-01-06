@@ -135,7 +135,9 @@ async def load_yolo_world_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load YOLO-World model from {model_path}: {e}")
+        logger.error(
+            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+        )
         raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
 
 

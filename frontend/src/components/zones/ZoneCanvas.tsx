@@ -326,13 +326,33 @@ export default function ZoneCanvas({
     return null;
   };
 
+  // Keyboard handler for accessibility - allows Enter/Space to simulate click for zone selection
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isDrawing && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      // When not drawing, Enter/Space could select the first zone if any exist
+      if (zones.length > 0 && onZoneClick) {
+        onZoneClick(zones[0].id);
+      }
+    }
+    // Escape handling is done via window event listener
+  };
+
+  /*
+   * Zone canvas container uses role="application" when drawing (custom widget with
+   * mouse interactions) and role="img" when viewing (zones are visual overlays).
+   * eslint rule doesn't recognize conditional roles - justified disable.
+   */
   return (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       ref={containerRef}
+      role={isDrawing ? 'application' : 'img'}
       aria-label={isDrawing ? 'Zone drawing canvas - click and drag to draw' : 'Camera zones view'}
+      tabIndex={0}
       className={clsx(
         'relative overflow-hidden rounded-lg border border-gray-700 bg-gray-900',
+        'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-gray-900',
         isDrawing && 'cursor-crosshair'
       )}
       style={{ aspectRatio: '16/9' }}
@@ -340,6 +360,7 @@ export default function ZoneCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onDoubleClick={handleDoubleClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Camera snapshot background */}
       {imageError ? (

@@ -78,7 +78,7 @@ def calculate_backoff(
     return min(calculated, max_backoff)
 
 
-@dataclass
+@dataclass(slots=True)
 class ManagedService:
     """Represents a managed container service with lifecycle tracking.
 

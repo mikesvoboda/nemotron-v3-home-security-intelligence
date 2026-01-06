@@ -19,6 +19,7 @@ from backend.services.cache_service import (
     STATS_PREFIX,
     CacheKeys,
     CacheService,
+    cached,
     get_cache_service,
     reset_cache_service,
 )
@@ -798,3 +799,402 @@ async def test_cache_invalidation_workflow(cache_service, mock_redis_client):
     assert result is True
 
     assert mock_redis_client.delete.await_count == 2
+
+
+# =============================================================================
+# Cache Metrics Tests (NEM-1682)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_cache_get_records_hit_metric(cache_service, mock_redis_client):
+    """Test cache get records hit metric when key exists."""
+    mock_redis_client.get.return_value = {"data": "cached"}
+
+    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+        await cache_service.get("cameras:list")
+
+    mock_hit.assert_called_once_with("cameras")
+
+
+@pytest.mark.asyncio
+async def test_cache_get_records_miss_metric(cache_service, mock_redis_client):
+    """Test cache get records miss metric when key doesn't exist."""
+    mock_redis_client.get.return_value = None
+
+    with patch("backend.services.cache_service.record_cache_miss") as mock_miss:
+        await cache_service.get("cameras:list")
+
+    mock_miss.assert_called_once_with("cameras")
+
+
+@pytest.mark.asyncio
+async def test_cache_get_records_miss_on_error(cache_service, mock_redis_client):
+    """Test cache get records miss metric on Redis error."""
+    mock_redis_client.get.side_effect = Exception("Redis error")
+
+    with patch("backend.services.cache_service.record_cache_miss") as mock_miss:
+        await cache_service.get("cameras:list")
+
+    mock_miss.assert_called_once_with("cameras")
+
+
+@pytest.mark.asyncio
+async def test_cache_get_infers_event_stats_type(cache_service, mock_redis_client):
+    """Test cache get infers 'event_stats' type from stats:events: prefix."""
+    mock_redis_client.get.return_value = {"stats": "data"}
+
+    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+        await cache_service.get("stats:events:2024-01-01:2024-01-31")
+
+    mock_hit.assert_called_once_with("event_stats")
+
+
+@pytest.mark.asyncio
+async def test_cache_get_infers_system_type(cache_service, mock_redis_client):
+    """Test cache get infers 'system' type from system: prefix."""
+    mock_redis_client.get.return_value = {"status": "healthy"}
+
+    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+        await cache_service.get("system:status")
+
+    mock_hit.assert_called_once_with("system")
+
+
+@pytest.mark.asyncio
+async def test_cache_get_with_explicit_cache_type(cache_service, mock_redis_client):
+    """Test cache get uses explicit cache_type for metrics."""
+    mock_redis_client.get.return_value = {"data": "value"}
+
+    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+        await cache_service.get("custom:key", cache_type="custom_type")
+
+    mock_hit.assert_called_once_with("custom_type")
+
+
+@pytest.mark.asyncio
+async def test_cache_get_defaults_to_other_type(cache_service, mock_redis_client):
+    """Test cache get defaults to 'other' for unknown prefixes."""
+    mock_redis_client.get.return_value = {"data": "value"}
+
+    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+        await cache_service.get("unknown:key")
+
+    mock_hit.assert_called_once_with("other")
+
+
+# =============================================================================
+# Cache Invalidation with Reason Tests (NEM-1682)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_invalidate_pattern_records_invalidation_metric(cache_service, mock_redis_client):
+    """Test invalidate_pattern records invalidation metric."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(
+        side_effect=[
+            "cache:cameras:cam1",
+            StopAsyncIteration,
+        ]
+    )
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+    mock_redis_client.delete.return_value = 1
+
+    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+        await cache_service.invalidate_pattern("cameras:*", reason="camera_updated")
+
+    mock_invalidation.assert_called_once_with("cameras", "camera_updated")
+
+
+@pytest.mark.asyncio
+async def test_invalidate_pattern_no_metric_when_no_keys(cache_service, mock_redis_client):
+    """Test invalidate_pattern doesn't record metric when no keys match."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+        await cache_service.invalidate_pattern("nonexistent:*")
+
+    mock_invalidation.assert_not_called()
+
+
+# =============================================================================
+# Specialized Invalidation Method Tests (NEM-1682)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_invalidate_event_stats_uses_correct_pattern(cache_service, mock_redis_client):
+    """Test invalidate_event_stats uses stats:events:* pattern."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_event_stats()
+
+    mock_client.scan_iter.assert_called_once_with(match="cache:stats:events:*", count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_event_stats_with_custom_reason(cache_service, mock_redis_client):
+    """Test invalidate_event_stats accepts custom reason."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(
+        side_effect=["cache:stats:events:data", StopAsyncIteration]
+    )
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+    mock_redis_client.delete.return_value = 1
+
+    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+        await cache_service.invalidate_event_stats(reason="event_deleted")
+
+    mock_invalidation.assert_called_once_with("event_stats", "event_deleted")
+
+
+@pytest.mark.asyncio
+async def test_invalidate_events_uses_correct_pattern(cache_service, mock_redis_client):
+    """Test invalidate_events uses events:* pattern."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_events()
+
+    mock_client.scan_iter.assert_called_once_with(match="cache:events:*", count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_cameras_uses_correct_pattern(cache_service, mock_redis_client):
+    """Test invalidate_cameras uses cameras:* pattern."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_cameras()
+
+    mock_client.scan_iter.assert_called_once_with(match="cache:cameras:*", count=100)
+
+
+@pytest.mark.asyncio
+async def test_invalidate_cameras_with_custom_reason(cache_service, mock_redis_client):
+    """Test invalidate_cameras accepts custom reason."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=["cache:cameras:cam1", StopAsyncIteration])
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+    mock_redis_client.delete.return_value = 1
+
+    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+        await cache_service.invalidate_cameras(reason="camera_deleted")
+
+    mock_invalidation.assert_called_once_with("cameras", "camera_deleted")
+
+
+@pytest.mark.asyncio
+async def test_invalidate_system_status_uses_correct_pattern(cache_service, mock_redis_client):
+    """Test invalidate_system_status uses system:* pattern."""
+    mock_scan_iter = AsyncMock()
+    mock_scan_iter.__aiter__ = lambda self: self
+    mock_scan_iter.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.return_value = mock_scan_iter
+    mock_redis_client._ensure_connected.return_value = mock_client
+
+    await cache_service.invalidate_system_status()
+
+    mock_client.scan_iter.assert_called_once_with(match="cache:system:*", count=100)
+
+
+# =============================================================================
+# Cache Type Inference Tests (NEM-1682)
+# =============================================================================
+
+
+def test_infer_cache_type_event_stats(cache_service):
+    """Test _infer_cache_type returns 'event_stats' for stats:events: prefix."""
+    assert cache_service._infer_cache_type("stats:events:2024") == "event_stats"
+
+
+def test_infer_cache_type_cameras(cache_service):
+    """Test _infer_cache_type returns 'cameras' for cameras: prefix."""
+    assert cache_service._infer_cache_type("cameras:list") == "cameras"
+
+
+def test_infer_cache_type_system(cache_service):
+    """Test _infer_cache_type returns 'system' for system: prefix."""
+    assert cache_service._infer_cache_type("system:status") == "system"
+
+
+def test_infer_cache_type_events(cache_service):
+    """Test _infer_cache_type returns 'events' for events: prefix."""
+    assert cache_service._infer_cache_type("events:123") == "events"
+
+
+def test_infer_cache_type_other(cache_service):
+    """Test _infer_cache_type returns 'other' for unknown prefix."""
+    assert cache_service._infer_cache_type("unknown:key") == "other"
+
+
+# =============================================================================
+# Cached Decorator Tests (NEM-1682)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_returns_cached_value():
+    """Test cached decorator returns cached value on hit."""
+    mock_cache = AsyncMock()
+    mock_cache.get.return_value = {"cached": True}
+    mock_cache.set.return_value = True
+
+    call_count = 0
+
+    @cached("test:key", ttl=60)
+    async def test_function():
+        nonlocal call_count
+        call_count += 1
+        return {"fresh": True}
+
+    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+        result = await test_function()
+
+    assert result == {"cached": True}
+    assert call_count == 0  # Function should not have been called
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_calls_function_on_miss():
+    """Test cached decorator calls function and caches result on miss."""
+    mock_cache = AsyncMock()
+    mock_cache.get.return_value = None
+    mock_cache.set.return_value = True
+
+    call_count = 0
+
+    @cached("test:key", ttl=120)
+    async def test_function():
+        nonlocal call_count
+        call_count += 1
+        return {"fresh": True}
+
+    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+        result = await test_function()
+
+    assert result == {"fresh": True}
+    assert call_count == 1
+    mock_cache.set.assert_awaited_once_with("test:key", {"fresh": True}, ttl=120)
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_with_callable_key():
+    """Test cached decorator with callable cache key."""
+    mock_cache = AsyncMock()
+    mock_cache.get.return_value = {"cached": True}
+
+    @cached(lambda item_id: f"items:{item_id}", ttl=60)
+    async def get_item(item_id: str):
+        return {"id": item_id}
+
+    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+        result = await get_item("123")
+
+    assert result == {"cached": True}
+    mock_cache.get.assert_awaited_once_with("items:123", cache_type="other")
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_with_kwargs():
+    """Test cached decorator with keyword arguments in key function."""
+    mock_cache = AsyncMock()
+    mock_cache.get.return_value = None
+    mock_cache.set.return_value = True
+
+    @cached(lambda start=None, end=None: f"stats:{start}:{end}", ttl=300)
+    async def get_stats(start=None, end=None):
+        return {"start": start, "end": end}
+
+    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+        result = await get_stats(start="2024-01-01", end="2024-01-31")
+
+    assert result == {"start": "2024-01-01", "end": "2024-01-31"}
+    mock_cache.get.assert_awaited_once_with("stats:2024-01-01:2024-01-31", cache_type="other")
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_passes_cache_type_to_get():
+    """Test cached decorator passes cache_type to get for metrics."""
+    mock_cache = AsyncMock()
+    mock_cache.get.return_value = {"cached": True}
+
+    @cached("event_stats:key", ttl=60, cache_type="event_stats")
+    async def get_event_stats():
+        return {"stats": "data"}
+
+    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+        await get_event_stats()
+
+    mock_cache.get.assert_awaited_once_with("event_stats:key", cache_type="event_stats")
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_falls_back_on_cache_error():
+    """Test cached decorator falls back to uncached execution on error."""
+    mock_cache = AsyncMock()
+    mock_cache.get.side_effect = Exception("Redis error")
+
+    call_count = 0
+
+    @cached("test:key", ttl=60)
+    async def test_function():
+        nonlocal call_count
+        call_count += 1
+        return {"fresh": True}
+
+    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+        result = await test_function()
+
+    assert result == {"fresh": True}
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cached_decorator_preserves_function_metadata():
+    """Test cached decorator preserves function name and docstring."""
+
+    @cached("test:key")
+    async def my_function():
+        """My docstring."""
+        return "result"
+
+    assert my_function.__name__ == "my_function"
+    assert my_function.__doc__ == "My docstring."

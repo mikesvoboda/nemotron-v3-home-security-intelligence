@@ -4,6 +4,12 @@ This service implements a cache-aside (lazy loading) pattern for frequently acce
 It wraps the RedisClient with higher-level caching operations that generate actual cache
 hits in Redis, improving the cache hit ratio metric.
 
+Features (NEM-1682):
+- Cache-aside pattern with automatic cache population
+- Pattern-based invalidation for efficient cache clearing
+- Prometheus metrics for cache hit/miss tracking
+- Caching decorator for consistent patterns across endpoints
+
 Usage:
     cache = await get_cache_service()
 
@@ -21,18 +27,24 @@ Usage:
     # Invalidation
     await cache.invalidate("cameras:list")
     await cache.invalidate_pattern("cameras:*")
+
+    # Invalidate event stats when events are created
+    await cache.invalidate_event_stats()
 """
 
 import asyncio
-from collections.abc import Callable
-from typing import Any, TypeVar
+import functools
+from collections.abc import Awaitable, Callable
+from typing import Any, ParamSpec, TypeVar
 
 from backend.core.logging import get_logger
+from backend.core.metrics import record_cache_hit, record_cache_invalidation, record_cache_miss
 from backend.core.redis import RedisClient, init_redis
 
 logger = get_logger(__name__)
 
 T = TypeVar("T")
+P = ParamSpec("P")
 
 # Default TTL values in seconds
 DEFAULT_TTL = 300  # 5 minutes
@@ -67,26 +79,55 @@ class CacheService:
         """
         self._redis = redis_client
 
-    async def get(self, key: str) -> Any | None:
+    async def get(self, key: str, cache_type: str | None = None) -> Any | None:
         """Get a value from the cache.
 
-        This operation generates a keyspace_hit or keyspace_miss in Redis stats.
+        This operation generates a keyspace_hit or keyspace_miss in Redis stats,
+        and records Prometheus metrics for cache hit/miss tracking.
 
         Args:
             key: Cache key (will be prefixed with 'cache:')
+            cache_type: Optional cache type for metrics (e.g., "event_stats", "cameras").
+                If not provided, will be inferred from the key prefix.
 
         Returns:
             Cached value if found, None otherwise
         """
         full_key = f"{CACHE_PREFIX}{key}"
+        # Infer cache type from key prefix if not provided
+        metric_type = cache_type or self._infer_cache_type(key)
         try:
             value = await self._redis.get(full_key)
             if value is not None:
                 logger.debug(f"Cache hit for key: {key}")
+                record_cache_hit(metric_type)
+            else:
+                record_cache_miss(metric_type)
             return value
         except Exception as e:
             logger.warning(f"Cache get failed for key {key}: {e}")
+            record_cache_miss(metric_type)
             return None
+
+    def _infer_cache_type(self, key: str) -> str:
+        """Infer cache type from key prefix for metrics.
+
+        Args:
+            key: Cache key
+
+        Returns:
+            Inferred cache type string
+        """
+        if key.startswith("stats:events:"):
+            return "event_stats"
+        elif key.startswith("cameras:"):
+            return "cameras"
+        elif key.startswith("system:"):
+            return "system"
+        elif key.startswith("events:"):
+            return "events"
+        else:
+            return "other"
 
     async def set(
         self,
@@ -175,19 +216,28 @@ class CacheService:
             logger.warning(f"Cache invalidation failed for key {key}: {e}")
             return False
 
-    async def invalidate_pattern(self, pattern: str) -> int:
+    async def invalidate_pattern(
+        self, pattern: str, reason: str = "manual", cache_type: str | None = None
+    ) -> int:
         """Invalidate all cache keys matching a pattern.
 
         Uses SCAN to find matching keys (non-blocking).
+        Records invalidation metrics for monitoring.
 
         Args:
             pattern: Glob-style pattern (e.g., "cameras:*")
                      Will be prefixed with 'cache:'
+            reason: Reason for invalidation for metrics tracking
+                    (e.g., "event_created", "camera_updated", "manual")
+            cache_type: Optional cache type for metrics. If not provided,
+                       will be inferred from the pattern prefix.
 
         Returns:
             Number of keys deleted
         """
         full_pattern = f"{CACHE_PREFIX}{pattern}"
+        # Infer cache type from pattern if not provided
+        metric_type = cache_type or self._infer_cache_type(pattern.rstrip("*"))
         try:
             client = self._redis._ensure_connected()
             keys_to_delete: list[str] = []
@@ -199,11 +249,68 @@ class CacheService:
             if keys_to_delete:
                 deleted = await self._redis.delete(*keys_to_delete)
                 logger.debug(f"Cache invalidated {deleted} keys matching pattern: {pattern}")
+                # Record invalidation metric
+                record_cache_invalidation(metric_type, reason)
                 return deleted
             return 0
         except Exception as e:
             logger.warning(f"Cache pattern invalidation failed for {pattern}: {e}")
             return 0
+
+    async def invalidate_event_stats(self, reason: str = "event_created") -> int:
+        """Invalidate all event statistics cache entries.
+
+        Should be called when events are created, updated, or deleted
+        to ensure event stats endpoints return fresh data.
+
+        Args:
+            reason: Reason for invalidation (default: "event_created")
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern(
+            "stats:events:*", reason=reason, cache_type="event_stats"
+        )
+
+    async def invalidate_events(self, reason: str = "event_created") -> int:
+        """Invalidate all events cache entries.
+
+        Should be called when events are created, updated, or deleted.
+
+        Args:
+            reason: Reason for invalidation (default: "event_created")
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
+
+    async def invalidate_cameras(self, reason: str = "camera_updated") -> int:
+        """Invalidate all cameras cache entries.
+
+        Should be called when cameras are created, updated, or deleted.
+
+        Args:
+            reason: Reason for invalidation (default: "camera_updated")
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("cameras:*", reason=reason, cache_type="cameras")
+
+    async def invalidate_system_status(self, reason: str = "status_changed") -> int:
+        """Invalidate system status cache.
+
+        Should be called when system status changes.
+
+        Args:
+            reason: Reason for invalidation (default: "status_changed")
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
 
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.
@@ -293,3 +400,82 @@ async def reset_cache_service() -> None:
     """Reset the cache service singleton (for testing)."""
     global _cache_service  # noqa: PLW0603
     _cache_service = None
+
+
+# =============================================================================
+# Caching Decorator (NEM-1682)
+# =============================================================================
+
+
+def cached(
+    cache_key: str | Callable[..., str],
+    ttl: int = DEFAULT_TTL,
+    cache_type: str = "other",
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+    """Decorator for caching async function results.
+
+    Provides a consistent caching pattern for async functions:
+    1. Check cache for existing value (records hit/miss metrics)
+    2. If cache miss, execute function and cache result
+    3. Return cached or computed value
+
+    Args:
+        cache_key: Either a static cache key string, or a callable that takes
+                   the decorated function's arguments and returns the cache key.
+        ttl: Time to live in seconds (default: 5 minutes)
+        cache_type: Cache type for metrics (e.g., "event_stats", "cameras")
+
+    Returns:
+        Decorated function with caching behavior
+
+    Example:
+        # Static cache key
+        @cached("system:health", ttl=30)
+        async def get_system_health():
+            return await compute_health()
+
+        # Dynamic cache key from arguments
+        @cached(lambda camera_id: f"cameras:{camera_id}", ttl=60)
+        async def get_camera(camera_id: str):
+            return await db.get_camera(camera_id)
+
+        # With keyword arguments
+        @cached(
+            lambda start_date=None, end_date=None: f"stats:{start_date}:{end_date}",
+            ttl=300,
+            cache_type="event_stats"
+        )
+        async def get_event_stats(start_date=None, end_date=None):
+            return await compute_stats(start_date, end_date)
+    """
+
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+        @functools.wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            # Compute cache key
+            key = cache_key(*args, **kwargs) if callable(cache_key) else cache_key
+
+            try:
+                cache = await get_cache_service()
+                # Check cache first (this records hit/miss metrics)
+                cached_value = await cache.get(key, cache_type=cache_type)
+                if cached_value is not None:
+                    return cached_value  # type: ignore[no-any-return]
+
+                # Cache miss - execute function
+                result = await func(*args, **kwargs)
+
+                # Cache the result
+                await cache.set(key, result, ttl=ttl)
+
+                return result
+            except Exception as e:
+                # On cache failure, just execute function without caching
+                logger.warning(
+                    f"Cache operation failed for key {key}: {e}, falling back to uncached"
+                )
+                return await func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

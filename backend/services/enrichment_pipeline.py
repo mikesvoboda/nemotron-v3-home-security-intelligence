@@ -96,7 +96,7 @@ from backend.services.weather_loader import (
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class BoundingBox:
     """Bounding box coordinates.
 
@@ -138,7 +138,7 @@ class BoundingBox:
         return ((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
 
 
-@dataclass
+@dataclass(slots=True)
 class LicensePlateResult:
     """Result from license plate detection and OCR.
 
@@ -157,7 +157,7 @@ class LicensePlateResult:
     source_detection_id: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class FaceResult:
     """Result from face detection.
 
@@ -172,7 +172,7 @@ class FaceResult:
     source_detection_id: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class EnrichmentResult:
     """Result from the enrichment pipeline.
 
@@ -764,7 +764,7 @@ class EnrichmentResult:
         return enrichment if enrichment else None
 
 
-@dataclass
+@dataclass(slots=True)
 class DetectionInput:
     """Input detection for enrichment pipeline.
 
@@ -1465,8 +1465,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("yolo11-license-plate model not available")
-        except RuntimeError as e:
-            logger.error(f"License plate detection error: {e}")
+        except RuntimeError:
+            logger.error("License plate detection error", exc_info=True)
 
         return results
 
@@ -1511,8 +1511,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("paddleocr model not available")
-        except RuntimeError as e:
-            logger.error(f"OCR error: {e}")
+        except RuntimeError:
+            logger.error("OCR error", exc_info=True)
 
     async def _detect_faces(
         self,
@@ -1548,8 +1548,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("yolo11-face model not available")
-        except RuntimeError as e:
-            logger.error(f"Face detection error: {e}")
+        except RuntimeError:
+            logger.error("Face detection error", exc_info=True)
 
         return results
 
@@ -1794,8 +1794,8 @@ class EnrichmentPipeline:
         except KeyError as e:
             logger.warning("violence-detection model not available in MODEL_ZOO")
             raise RuntimeError("violence-detection model not configured") from e
-        except Exception as e:
-            logger.error(f"Violence detection error: {e}")
+        except Exception:
+            logger.error("Violence detection error", exc_info=True)
             raise
 
     async def _classify_weather(self, image: Image.Image) -> WeatherResult:
@@ -1829,8 +1829,8 @@ class EnrichmentPipeline:
         except KeyError as e:
             logger.warning("weather-classification model not available in MODEL_ZOO")
             raise RuntimeError("weather-classification model not configured") from e
-        except Exception as e:
-            logger.error(f"Weather classification error: {e}")
+        except Exception:
+            logger.error("Weather classification error", exc_info=True)
             raise
 
     async def _classify_person_clothing(
@@ -1882,8 +1882,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("fashion-clip model not available in MODEL_ZOO")
-        except Exception as e:
-            logger.error(f"Clothing classification error: {e}")
+        except Exception:
+            logger.error("Clothing classification error", exc_info=True)
 
         return results
 
@@ -1944,8 +1944,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("segformer-b2-clothes model not available in MODEL_ZOO")
-        except Exception as e:
-            logger.error(f"Clothing segmentation error: {e}")
+        except Exception:
+            logger.error("Clothing segmentation error", exc_info=True)
 
         return results
 
@@ -2001,8 +2001,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("vehicle-segment-classification model not available in MODEL_ZOO")
-        except Exception as e:
-            logger.error(f"Vehicle classification error: {e}")
+        except Exception:
+            logger.error("Vehicle classification error", exc_info=True)
 
         return results
 
@@ -2069,8 +2069,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("vehicle-damage-detection model not available in MODEL_ZOO")
-        except Exception as e:
-            logger.error(f"Vehicle damage detection error: {e}")
+        except Exception:
+            logger.error("Vehicle damage detection error", exc_info=True)
 
         return results
 
@@ -2126,10 +2126,10 @@ class EnrichmentPipeline:
             if "disabled" in str(e).lower():
                 logger.debug(f"Image quality assessment skipped: {e}")
             else:
-                logger.error(f"Image quality assessment error: {e}")
+                logger.error("Image quality assessment error (runtime)", exc_info=True)
             raise
-        except Exception as e:
-            logger.error(f"Image quality assessment error: {e}")
+        except Exception:
+            logger.error("Image quality assessment error", exc_info=True)
             raise
 
     async def _classify_pets(
@@ -2186,8 +2186,8 @@ class EnrichmentPipeline:
 
         except KeyError:
             logger.warning("pet-classifier model not available in MODEL_ZOO")
-        except Exception as e:
-            logger.error(f"Pet classification error: {e}")
+        except Exception:
+            logger.error("Pet classification error", exc_info=True)
 
         return results
 
