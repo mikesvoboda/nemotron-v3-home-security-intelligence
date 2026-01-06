@@ -134,7 +134,7 @@ async def list_services(
     Returns:
         List of services with status and category summaries.
     """
-    all_services = await orchestrator.get_all_services()
+    all_services = orchestrator.get_all_services()
 
     filtered = [s for s in all_services if s.category == category] if category else all_services
 
@@ -164,7 +164,7 @@ async def restart_service(
     Raises:
         HTTPException: 404 if service not found, 400 if service is disabled
     """
-    service = await orchestrator.get_service(name)
+    service = orchestrator.get_service(name)
     if not service:
         raise HTTPException(404, f"Service '{name}' not found")
 
@@ -173,7 +173,7 @@ async def restart_service(
 
     success = await orchestrator.restart_service(name, reset_failures=True)
 
-    updated_service = await orchestrator.get_service(name)
+    updated_service = orchestrator.get_service(name)
     return ServiceActionResponse(
         success=success,
         message=f"Service '{name}' restart initiated" if success else f"Failed to restart '{name}'",
@@ -200,13 +200,13 @@ async def enable_service(
     Raises:
         HTTPException: 404 if service not found
     """
-    service = await orchestrator.get_service(name)
+    service = orchestrator.get_service(name)
     if not service:
         raise HTTPException(404, f"Service '{name}' not found")
 
     success = await orchestrator.enable_service(name)
 
-    updated_service = await orchestrator.get_service(name)
+    updated_service = orchestrator.get_service(name)
     return ServiceActionResponse(
         success=success,
         message=f"Service '{name}' enabled" if success else f"Failed to enable '{name}'",
@@ -233,13 +233,13 @@ async def disable_service(
     Raises:
         HTTPException: 404 if service not found
     """
-    service = await orchestrator.get_service(name)
+    service = orchestrator.get_service(name)
     if not service:
         raise HTTPException(404, f"Service '{name}' not found")
 
     success = await orchestrator.disable_service(name)
 
-    updated_service = await orchestrator.get_service(name)
+    updated_service = orchestrator.get_service(name)
     return ServiceActionResponse(
         success=success,
         message=f"Service '{name}' disabled" if success else f"Failed to disable '{name}'",
@@ -265,7 +265,7 @@ async def start_service(
         HTTPException: 404 if service not found,
                        400 if service is already running or disabled
     """
-    service = await orchestrator.get_service(name)
+    service = orchestrator.get_service(name)
     if not service:
         raise HTTPException(404, f"Service '{name}' not found")
 
@@ -277,7 +277,7 @@ async def start_service(
 
     success = await orchestrator.start_service(name)
 
-    updated_service = await orchestrator.get_service(name)
+    updated_service = orchestrator.get_service(name)
     return ServiceActionResponse(
         success=success,
         message=f"Service '{name}' start initiated" if success else f"Failed to start '{name}'",
