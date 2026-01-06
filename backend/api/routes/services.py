@@ -107,7 +107,7 @@ def _build_category_summaries(services: list[ManagedServiceProtocol]) -> dict[st
     """
     summaries: dict[str, CategorySummary] = {}
 
-    for category in ServiceCategory:
+    for category in list(ServiceCategory):
         cat_services = [s for s in services if s.category == category]
         healthy = sum(1 for s in cat_services if s.status == ServiceStatus.RUNNING)
         unhealthy = len(cat_services) - healthy
