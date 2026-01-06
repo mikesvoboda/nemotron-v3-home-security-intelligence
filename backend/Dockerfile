@@ -57,6 +57,9 @@ RUN chown -R appuser:appgroup /app
 # Add venv to PATH
 ENV PATH=/app/.venv/bin:$PATH
 
+# Default API port (configurable via environment variable)
+ENV API_PORT=8000
+
 # Expose FastAPI port
 EXPOSE 8000
 
@@ -64,8 +67,9 @@ EXPOSE 8000
 USER appuser
 
 # Health check - use /ready endpoint to verify database/redis connectivity
+# Uses API_PORT environment variable for configurable port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/api/system/health/ready').status_code == 200 else 1)"
+    CMD python -c "import os, httpx; port=os.getenv('API_PORT', '8000'); exit(0 if httpx.get(f'http://localhost:{port}/api/system/health/ready').status_code == 200 else 1)"
 
 # Run FastAPI with uvicorn (hot reload enabled for dev)
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
@@ -88,10 +92,8 @@ FROM python:3.14-slim-bookworm AS prod
 WORKDIR /app
 
 # Install runtime dependencies only (no build tools like gcc)
-# wget for healthcheck, ffmpeg for video processing,
-# libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
+# ffmpeg for video processing, libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -115,6 +117,9 @@ RUN chown -R appuser:appuser /app
 # Add venv to PATH
 ENV PATH=/app/.venv/bin:$PATH
 
+# Default API port (configurable via environment variable)
+ENV API_PORT=8000
+
 # Switch to non-root user
 USER appuser
 
@@ -122,8 +127,9 @@ USER appuser
 EXPOSE 8000
 
 # Health check - use /ready endpoint to verify database/redis connectivity
+# Uses API_PORT environment variable for configurable port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/api/system/health/ready').status_code == 200 else 1)"
+    CMD python -c "import os, httpx; port=os.getenv('API_PORT', '8000'); exit(0 if httpx.get(f'http://localhost:{port}/api/system/health/ready').status_code == 200 else 1)"
 
 # ============================================================================
 # IMPORTANT: Single Worker Requirement for In-Process Background Services

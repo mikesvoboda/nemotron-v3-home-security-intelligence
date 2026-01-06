@@ -20,15 +20,167 @@ testcontainers are used for full isolation.
 
 from __future__ import annotations
 
+import logging
 import os
 import socket
 import tempfile
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy import inspect
+
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Table Dependency Detection
+# =============================================================================
+
+
+# Fallback hardcoded table order in case reflection fails
+# NOTE: Only include tables that actually exist in the schema.
+# New tables should be added here when their migrations are created.
+HARDCODED_TABLE_DELETION_ORDER = [
+    # First: Delete tables with foreign key references (leaf tables)
+    "alerts",
+    "event_audits",
+    "detections",
+    "activity_baselines",
+    "class_baselines",
+    "events",
+    "scene_changes",
+    # Second: Delete tables without FK references (standalone)
+    "alert_rules",
+    "audit_logs",
+    "gpu_stats",
+    "logs",
+    "api_keys",
+    "zones",
+    "prompt_configs",
+    # Last: Delete parent tables
+    "cameras",
+]
+
+
+def _build_dependency_graph(inspector, tables: set[str]) -> dict[str, set[str]]:
+    """Build a dependency graph from foreign key relationships.
+
+    Args:
+        inspector: SQLAlchemy inspector instance
+        tables: Set of table names to process
+
+    Returns:
+        Dictionary mapping each table to the set of tables it references via FK
+    """
+    dependencies: dict[str, set[str]] = defaultdict(set)
+    for table in tables:
+        try:
+            fks = inspector.get_foreign_keys(table)
+            for fk in fks:
+                referred_table = fk.get("referred_table")
+                if referred_table and referred_table in tables:
+                    # table depends on referred_table
+                    dependencies[table].add(referred_table)
+        except Exception as e:
+            logger.warning(f"Failed to get foreign keys for {table}: {e}")
+
+    # Ensure all tables are in the dependencies dict (even those with no FKs)
+    for table in tables:
+        if table not in dependencies:
+            dependencies[table] = set()
+
+    return dependencies
+
+
+def _topological_sort(tables: set[str], dependencies: dict[str, set[str]]) -> list[str] | None:
+    """Perform topological sort using Kahn's algorithm.
+
+    Args:
+        tables: Set of all table names
+        dependencies: Dictionary mapping each table to tables it references
+
+    Returns:
+        Sorted list of table names, or None if a cycle is detected
+    """
+    # Count incoming edges (tables that depend on each table)
+    in_degree: dict[str, int] = dict.fromkeys(tables, 0)
+    for table, deps in dependencies.items():
+        for dep in deps:
+            in_degree[dep] = in_degree.get(dep, 0) + 1
+
+    # Start with tables that have no incoming edges (nothing depends on them)
+    # These are the leaf tables that should be deleted first
+    queue = [table for table, degree in in_degree.items() if degree == 0]
+    sorted_tables: list[str] = []
+
+    while queue:
+        # Sort for deterministic ordering
+        queue.sort()
+        table = queue.pop(0)
+        sorted_tables.append(table)
+
+        # Remove this table's edges
+        for dep in dependencies.get(table, set()):
+            in_degree[dep] -= 1
+            if in_degree[dep] == 0:
+                queue.append(dep)
+
+    # Check for cycles
+    if len(sorted_tables) != len(tables):
+        return None
+
+    return sorted_tables
+
+
+def get_table_deletion_order(engine) -> list[str]:
+    """Get tables in FK-safe deletion order using topological sort.
+
+    Uses SQLAlchemy's inspector to dynamically discover all tables and their
+    foreign key relationships, then performs a topological sort to determine
+    the safe deletion order. Tables that reference other tables (via FK) must
+    be deleted first.
+
+    Args:
+        engine: SQLAlchemy engine (sync or async)
+
+    Returns:
+        List of table names in safe deletion order (dependent tables first,
+        parent tables last).
+    """
+    try:
+        # For async engines, we need to get the sync engine
+        sync_engine = getattr(engine, "sync_engine", engine)
+        inspector = inspect(sync_engine)
+        tables = set(inspector.get_table_names())
+
+        if not tables:
+            logger.warning("No tables found via reflection, using hardcoded order")
+            return HARDCODED_TABLE_DELETION_ORDER
+
+        # Build dependency graph from foreign key relationships
+        dependencies = _build_dependency_graph(inspector, tables)
+
+        # Perform topological sort
+        sorted_tables = _topological_sort(tables, dependencies)
+
+        if sorted_tables is None:
+            remaining = tables - set(sorted_tables or [])
+            logger.error(f"Circular dependency detected among tables: {remaining}")
+            logger.warning("Falling back to hardcoded table order")
+            return HARDCODED_TABLE_DELETION_ORDER
+
+        logger.debug(f"Computed table deletion order: {sorted_tables}")
+        return sorted_tables
+
+    except Exception as e:
+        logger.warning(f"Failed to compute table deletion order: {e}")
+        logger.warning("Falling back to hardcoded table order")
+        return HARDCODED_TABLE_DELETION_ORDER
+
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -44,9 +196,7 @@ if TYPE_CHECKING:
 # =============================================================================
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
-DEFAULT_DEV_POSTGRES_URL = (
-    "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
-)
+DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
 
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
@@ -101,7 +251,7 @@ def wait_for_postgres_container(container: PostgresContainer, timeout: float = 3
                 host=host,
                 port=port,
                 user="postgres",
-                password="postgres",  # noqa: S106 - test password
+                password="postgres",  # noqa: S106  # pragma: allowlist secret
                 dbname="security_test",
                 connect_timeout=1,
             )
@@ -193,7 +343,7 @@ def postgres_container() -> Generator[PostgresContainer | LocalPostgresService]:
     container = PostgresContainer(
         "postgres:16-alpine",
         username="postgres",
-        password="postgres",  # noqa: S106 - test password
+        password="postgres",  # noqa: S106  # pragma: allowlist secret
         dbname="security_test",
         driver="asyncpg",
     )
@@ -439,18 +589,31 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
     This fixture should be used by tests that need a clean database state.
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
     when tests run in parallel.
+
+    The table deletion order is automatically determined using SQLAlchemy's
+    reflection API to inspect foreign key relationships.
     """
     from sqlalchemy import text
 
-    from backend.core.database import get_session
+    from backend.core.database import get_engine, get_session
 
     async def delete_all() -> None:
+        engine = get_engine()
+        if engine is None:
+            return
+
+        # Get tables in FK-safe deletion order
+        deletion_order = get_table_deletion_order(engine)
+
         async with get_session() as session:
             # Delete data in order (respecting foreign key constraints)
-            await session.execute(text("DELETE FROM detections"))
-            await session.execute(text("DELETE FROM events"))
-            await session.execute(text("DELETE FROM gpu_stats"))
-            await session.execute(text("DELETE FROM cameras"))
+            for table_name in deletion_order:
+                try:
+                    # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
+                    await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
+                except Exception as e:
+                    # Skip tables that don't exist
+                    logger.debug(f"Skipping table {table_name}: {e}")
             await session.commit()
 
     # Delete before test
@@ -577,8 +740,12 @@ async def real_redis(
         try:
             redis_client = client._ensure_connected()
             await redis_client.flushdb()
-        except Exception:  # noqa: S110
-            pass  # Ignore errors during cleanup
+        except Exception as e:
+            logger.warning(
+                f"Redis cleanup failed: {e}",
+                exc_info=True,
+            )
+            # Continue to allow tests to run even if cleanup fails
         await client.disconnect()
 
 
@@ -590,6 +757,10 @@ async def _cleanup_test_data() -> None:
     in the database.
 
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
+
+    The table deletion order is automatically determined using SQLAlchemy's
+    reflection API to inspect foreign key relationships, with a fallback to
+    a hardcoded list if reflection fails.
     """
     from sqlalchemy import text
 
@@ -600,47 +771,35 @@ async def _cleanup_test_data() -> None:
         if engine is None:
             return
 
+        # Get tables in FK-safe deletion order (dependent tables first)
+        deletion_order = get_table_deletion_order(engine)
+
         async with get_session() as session:
-            # Delete all test-related data in correct order (respecting FK constraints)
-            # Tables with foreign keys must be deleted before their parent tables
-            # Order: leaf tables first, parent tables last
-            #
-            # Dependency tree:
-            # - alerts -> alert_rules, events
-            # - audit_logs -> (standalone)
-            # - activity_baselines -> cameras
-            # - class_baselines -> cameras
-            # - detections -> cameras, events
-            # - events -> cameras
-            # - event_audits -> events
-            # - gpu_stats -> (standalone)
-            # - logs -> (standalone)
-            # - api_keys -> (standalone)
-            # - zones -> (standalone)
-            # - cameras -> (parent)
-
-            # First: Delete tables with foreign key references
-            await session.execute(text("DELETE FROM alerts"))
-            await session.execute(text("DELETE FROM event_audits"))
-            await session.execute(text("DELETE FROM detections"))
-            await session.execute(text("DELETE FROM activity_baselines"))
-            await session.execute(text("DELETE FROM class_baselines"))
-            await session.execute(text("DELETE FROM events"))
-
-            # Second: Delete tables without FK references (standalone)
-            await session.execute(text("DELETE FROM alert_rules"))
-            await session.execute(text("DELETE FROM audit_logs"))
-            await session.execute(text("DELETE FROM gpu_stats"))
-            await session.execute(text("DELETE FROM logs"))
-            await session.execute(text("DELETE FROM api_keys"))
-            await session.execute(text("DELETE FROM zones"))
-
-            # Last: Delete parent tables
-            await session.execute(text("DELETE FROM cameras"))
+            # Delete all test-related data in FK-safe order
+            # The order is automatically computed from foreign key relationships
+            for tbl in deletion_order:
+                try:
+                    # Use SAVEPOINT so failures don't abort the transaction
+                    # This handles missing tables (not yet migrated) gracefully
+                    await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
+                    # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
+                    await session.execute(text(f"DELETE FROM {tbl}"))  # noqa: S608 nosemgrep
+                    await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
+                except Exception as e:
+                    # Rollback to savepoint and continue - table may not exist yet
+                    try:
+                        await session.execute(text(f"ROLLBACK TO SAVEPOINT sp_{tbl}"))  # nosemgrep
+                    except Exception as rb_err:
+                        logger.debug(f"Savepoint rollback failed for {tbl}: {rb_err}")
+                    logger.debug(f"Skipping table {tbl}: {e}")
 
             await session.commit()
-    except Exception:  # noqa: S110
-        pass
+    except Exception as e:
+        logger.warning(
+            f"Database cleanup failed: {e}",
+            exc_info=True,
+        )
+        # Continue to allow tests to run even if cleanup fails
 
 
 # Keep the old name as an alias for backward compatibility

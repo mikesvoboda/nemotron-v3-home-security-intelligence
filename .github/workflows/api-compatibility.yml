@@ -200,7 +200,7 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -X POST https://api.linear.app/graphql \
+          response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
@@ -214,4 +214,15 @@ jobs:
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
               }
-            }'
+            }')
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::warning::Failed to create Linear issue (HTTP $http_code)"
+            echo "Response: $body"
+          else
+            echo "Linear issue created successfully"
+            echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+          fi

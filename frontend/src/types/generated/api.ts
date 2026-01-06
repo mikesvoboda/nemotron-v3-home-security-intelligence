@@ -1195,20 +1195,21 @@ export interface paths {
         };
         /**
          * Get Camera Scene Changes
-         * @description Get scene changes for a camera.
+         * @description Get scene changes for a camera with cursor-based pagination.
          *
          *     Returns a list of detected scene changes that may indicate camera
-         *     tampering, angle changes, or blocked views.
+         *     tampering, angle changes, or blocked views. Uses cursor-based pagination
+         *     for efficient navigation through large datasets.
          *
          *     Args:
          *         camera_id: ID of the camera
          *         acknowledged: Filter by acknowledgement status (None = all)
-         *         limit: Maximum number of results (default: 50, max: 1000)
-         *         offset: Number of results to skip (default: 0)
+         *         limit: Maximum number of results (default: 50, max: 100)
+         *         cursor: Cursor for pagination (detected_at timestamp from previous response)
          *         db: Database session
          *
          *     Returns:
-         *         SceneChangeListResponse with list of scene changes
+         *         SceneChangeListResponse with list of scene changes and pagination info
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
@@ -1309,6 +1310,12 @@ export interface paths {
          *     - Average confidence score across all detections
          *
          *     Used by the AI Performance page to display detection class distribution charts.
+         *
+         *     Optimized to use a single query with window functions instead of 3 separate queries
+         *     (NEM-1321). The query combines:
+         *     - Per-class counts via GROUP BY
+         *     - Total count via SUM(COUNT(*)) OVER() window function
+         *     - Per-class avg confidence, then combined using weighted average formula
          *
          *     Args:
          *         db: Database session
@@ -4658,7 +4665,7 @@ export interface components {
          * @description Circuit breaker states.
          * @enum {string}
          */
-        CircuitBreakerStateEnum: "closed" | "open" | "half_open";
+        CircuitBreakerStateEnum: "closed" | "open" | "half_open" | "unavailable";
         /**
          * CircuitBreakerStatusResponse
          * @description Status of a single circuit breaker.
@@ -6301,6 +6308,12 @@ export interface components {
              */
             thumbnail_url?: string | null;
         };
+        /**
+         * EntityTypeEnum
+         * @description Valid entity types for filtering.
+         * @enum {string}
+         */
+        EntityTypeEnum: "person" | "vehicle";
         /**
          * EventAuditResponse
          * @description Full audit response for a single event.
@@ -8826,9 +8839,11 @@ export interface components {
          * SceneChangeListResponse
          * @description Response schema for listing scene changes.
          *
-         *     Returns a list of scene changes for a camera with total count.
+         *     Returns a list of scene changes for a camera with cursor-based pagination.
          * @example {
          *       "camera_id": "front_door",
+         *       "has_more": true,
+         *       "next_cursor": "2026-01-03T09:30:00Z",
          *       "scene_changes": [
          *         {
          *           "acknowledged": false,
@@ -8854,10 +8869,21 @@ export interface components {
             scene_changes?: components["schemas"]["SceneChangeResponse"][];
             /**
              * Total Changes
-             * @description Total number of scene changes
+             * @description Number of scene changes returned
              * @default 0
              */
             total_changes: number;
+            /**
+             * Next Cursor
+             * @description Cursor for fetching the next page (ISO 8601 timestamp)
+             */
+            next_cursor?: string | null;
+            /**
+             * Has More
+             * @description Whether there are more results available
+             * @default false
+             */
+            has_more: boolean;
         };
         /**
          * SceneChangeResponse
@@ -9741,7 +9767,7 @@ export interface components {
          * @description Status of a WebSocket broadcaster's circuit breaker.
          */
         WebSocketBroadcasterStatus: {
-            /** @description Current circuit state: closed (normal), open (failing), half_open (testing) */
+            /** @description Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized) */
             state: components["schemas"]["CircuitBreakerStateEnum"];
             /**
              * Failure Count
@@ -9753,6 +9779,11 @@ export interface components {
              * @description Whether the broadcaster is in degraded mode
              */
             is_degraded: boolean;
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
         };
         /**
          * WebSocketHealthResponse
@@ -11435,8 +11466,8 @@ export interface operations {
                 acknowledged?: boolean | null;
                 /** @description Maximum number of results */
                 limit?: number;
-                /** @description Number of results to skip */
-                offset?: number;
+                /** @description Cursor for pagination (detected_at timestamp) */
+                cursor?: string | null;
             };
             header?: never;
             path: {
@@ -11965,7 +11996,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
-                entity_type?: string | null;
+                entity_type?: components["schemas"]["EntityTypeEnum"] | null;
                 /** @description Filter by camera ID */
                 camera_id?: string | null;
                 /** @description Filter entities seen since this time */

@@ -8,13 +8,19 @@ Analysis Flow:
     2. Enrich context with zones, baselines, and cross-camera activity
     3. Run enrichment pipeline for license plates, faces, OCR (optional)
     4. Format prompt with enriched detection details
-    5. POST to llama.cpp completion endpoint
+    5. POST to llama.cpp completion endpoint (with retry on transient failures)
     6. Parse JSON response
     7. Create Event with risk assessment
     8. Store Event in database
     9. Broadcast via WebSocket (if available)
+
+Retry Logic (NEM-1343):
+    - Configurable max retries via NEMOTRON_MAX_RETRIES setting (default: 3)
+    - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
+    - Only retries transient failures (connection, timeout, HTTP 5xx)
 """
 
+import asyncio
 import json
 import re
 import time
@@ -86,6 +92,12 @@ class NemotronAnalyzer:
     batches, queries the database for detection details, formats a prompt
     for the LLM, and creates Events with risk scores and summaries.
 
+    Features:
+        - Retry logic with exponential backoff for transient failures (NEM-1343)
+        - Configurable timeouts and retry attempts via settings
+        - Context enrichment with zone, baseline, and cross-camera data
+        - Enrichment pipeline for license plates, faces, and OCR
+
     With context enrichment enabled, the analyzer will include zone information,
     baseline deviation data, and cross-camera activity in the prompt.
 
@@ -101,6 +113,7 @@ class NemotronAnalyzer:
         enrichment_pipeline: EnrichmentPipeline | None = None,
         use_enriched_context: bool = True,
         use_enrichment_pipeline: bool = True,
+        max_retries: int | None = None,
     ):
         """Initialize Nemotron analyzer with Redis client.
 
@@ -116,6 +129,8 @@ class NemotronAnalyzer:
                 Set to False for basic analysis without zone/baseline data.
             use_enrichment_pipeline: Whether to run the enrichment pipeline for
                 license plates and faces. Set to False to skip this step.
+            max_retries: Maximum retry attempts for transient LLM failures.
+                If not provided, uses NEMOTRON_MAX_RETRIES from settings (default: 3).
         """
         self._redis = redis_client
         settings = get_settings()
@@ -140,6 +155,14 @@ class NemotronAnalyzer:
         self._use_enrichment_pipeline = use_enrichment_pipeline
         self._context_enricher = context_enricher
         self._enrichment_pipeline = enrichment_pipeline
+        # Retry configuration (NEM-1343)
+        self._max_retries = (
+            max_retries if max_retries is not None else settings.nemotron_max_retries
+        )
+        logger.debug(
+            f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
+            f"timeout={settings.nemotron_read_timeout}s"
+        )
 
     def _get_context_enricher(self) -> ContextEnricher:
         """Get the context enricher, creating global singleton if needed.
@@ -804,7 +827,7 @@ class NemotronAnalyzer:
 
         return result
 
-    async def _call_llm(
+    async def _call_llm(  # noqa: PLR0912
         self,
         camera_name: str,
         start_time: str,
@@ -1051,7 +1074,7 @@ class NemotronAnalyzer:
                 detections_list=detections_list,
             )
 
-        # Call llama.cpp completion endpoint
+        # Call llama.cpp completion endpoint with retry logic (NEM-1343)
         # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
         payload = {
             "prompt": prompt,
@@ -1065,19 +1088,142 @@ class NemotronAnalyzer:
         headers = {"Content-Type": "application/json"}
         headers.update(self._get_auth_headers())
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            response = await client.post(
-                f"{self._llm_url}/completion",
-                json=payload,
-                headers=headers,
-            )
-            response.raise_for_status()
-            result = response.json()
+        # Retry loop with exponential backoff for transient failures
+        last_exception: Exception | None = None
+        completion_text: str = ""
 
-        # Extract completion text
-        completion_text = result.get("content", "")
-        if not completion_text:
-            raise ValueError("Empty completion from LLM")
+        for attempt in range(self._max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    response = await client.post(
+                        f"{self._llm_url}/completion",
+                        json=payload,
+                        headers=headers,
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+
+                # Extract completion text
+                completion_text = result.get("content", "")
+                if not completion_text:
+                    raise ValueError("Empty completion from LLM")
+                break  # Success, exit retry loop
+
+            except httpx.ConnectError as e:
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Nemotron connection error (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {e}",
+                        extra={
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("nemotron_connection_error")
+                    logger.error(
+                        f"Nemotron connection error after {self._max_retries} attempts: {e}",
+                        extra={"attempts": self._max_retries},
+                        exc_info=True,
+                    )
+
+            except httpx.TimeoutException as e:
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Nemotron timeout (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {e}",
+                        extra={
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("nemotron_timeout")
+                    logger.error(
+                        f"Nemotron timeout after {self._max_retries} attempts: {e}",
+                        extra={"attempts": self._max_retries},
+                        exc_info=True,
+                    )
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+
+                # 5xx errors are server-side failures that should be retried
+                if status_code >= 500:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)  # Cap at 30 seconds
+                        logger.warning(
+                            f"Nemotron server error {status_code} "
+                            f"(attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s",
+                            extra={
+                                "status_code": status_code,
+                                "attempt": attempt + 1,
+                                "max_retries": self._max_retries,
+                                "retry_delay": delay,
+                            },
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error("nemotron_server_error")
+                        logger.error(
+                            f"Nemotron server error {status_code} after {self._max_retries} attempts",
+                            extra={
+                                "status_code": status_code,
+                                "attempts": self._max_retries,
+                            },
+                            exc_info=True,
+                        )
+                else:
+                    # 4xx errors are client errors - don't retry
+                    record_pipeline_error("nemotron_client_error")
+                    logger.error(
+                        f"Nemotron client error {status_code}: {e}",
+                        extra={"status_code": status_code},
+                    )
+                    raise  # Re-raise immediately for client errors
+
+            except ValueError:
+                # Empty completion - not retryable, re-raise immediately
+                raise
+
+            except Exception as e:
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Unexpected Nemotron error (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {sanitize_error(e)}",
+                        extra={
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("nemotron_unexpected_error")
+                    logger.error(
+                        f"Unexpected Nemotron error after {self._max_retries} attempts: "
+                        f"{sanitize_error(e)}",
+                        extra={"attempts": self._max_retries},
+                        exc_info=True,
+                    )
+        else:
+            # All retries exhausted without success
+            error_msg = f"Nemotron LLM call failed after {self._max_retries} attempts"
+            if last_exception:
+                raise RuntimeError(error_msg) from last_exception
+            raise RuntimeError(error_msg)
 
         # Parse JSON from completion
         risk_data = self._parse_llm_response(completion_text)

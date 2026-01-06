@@ -18,7 +18,7 @@ Size: 1200x700 pixels (12:7 aspect ratio)
 Alt text: Full-text search interface showing search bar, filter controls, and search results with relevance scoring
 -->
 
-![Search Interface](../images/placeholder-search-interface.png)
+![Full-text search interface showing the search bar with magnifying glass icon, help button, Filters button with Active badge, expanded filter dropdowns for camera, severity, object type, status, and date range, and search results displaying event cards with relevance percentage scores](../images/placeholder-search-interface.png)
 _Caption: The full-text search lets you find specific events using keywords and filters._
 
 ## Accessing Search
@@ -161,7 +161,7 @@ Size: 1000x500 pixels (2:1 aspect ratio)
 Alt text: Search results showing event cards with relevance scores, risk indicators, and highlighted search terms
 -->
 
-![Search Results](../images/placeholder-search-results.png)
+![Search results grid showing event cards with color-coded relevance percentage badges (green for 80%+, yellow for 50-79%), risk severity badges, event summaries with highlighted search terms, camera names, timestamps, detection counts, and reviewed status indicators](../images/placeholder-search-results.png)
 _Caption: Search results show relevance scores to help you find the best matches._
 
 ### Results Display
