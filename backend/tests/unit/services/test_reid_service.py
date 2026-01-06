@@ -545,7 +545,8 @@ class TestGenerateEmbedding:
             await service.generate_embedding(image)
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_generic_error(self) -> None:
+    @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
+    async def test_generate_embedding_generic_error(self, mock_sleep: AsyncMock) -> None:
         """Test embedding generation with generic error raises RuntimeError."""
         mock_client = AsyncMock()
         mock_client.embed.side_effect = ValueError("Some error")
@@ -1709,7 +1710,8 @@ class TestRateLimitingEdgeCases:
     """Tests for rate limiting edge cases and error handling."""
 
     @pytest.mark.asyncio
-    async def test_rate_limit_released_on_exception(self) -> None:
+    @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
+    async def test_rate_limit_released_on_exception(self, mock_sleep: AsyncMock) -> None:
         """Test that semaphore is released even when operation raises exception."""
         import asyncio
 
@@ -1881,7 +1883,8 @@ class TestReIDRetryBehavior:
     """Tests for ReID embedding retry behavior with exponential backoff."""
 
     @pytest.mark.asyncio
-    async def test_retry_on_transient_error(self) -> None:
+    @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
+    async def test_retry_on_transient_error(self, mock_sleep: AsyncMock) -> None:
         """Test that transient errors trigger retry."""
         mock_client = AsyncMock()
         call_count = 0
@@ -1904,9 +1907,12 @@ class TestReIDRetryBehavior:
 
         assert len(embedding) == EMBEDDING_DIMENSION
         assert call_count == 3  # 2 failures + 1 success
+        # Verify sleep was called for backoff (2 retries = 2 sleeps)
+        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_retry_exhausted_raises_error(self) -> None:
+    @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
+    async def test_retry_exhausted_raises_error(self, mock_sleep: AsyncMock) -> None:
         """Test that error is raised when all retries are exhausted."""
         mock_client = AsyncMock()
         mock_client.embed.side_effect = ConnectionError("Persistent failure")
@@ -1922,6 +1928,8 @@ class TestReIDRetryBehavior:
         assert "failed" in str(exc_info.value).lower()
         # Should have tried 3 times
         assert mock_client.embed.call_count == 3
+        # Should have slept between retries (2 sleeps for 3 attempts)
+        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
     async def test_no_retry_on_clip_unavailable_error(self) -> None:
@@ -1941,18 +1949,11 @@ class TestReIDRetryBehavior:
         assert mock_client.embed.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_exponential_backoff_timing(self) -> None:
+    @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
+    async def test_exponential_backoff_timing(self, mock_sleep: AsyncMock) -> None:
         """Test that retry uses exponential backoff (2^attempt seconds)."""
-        import time
-
         mock_client = AsyncMock()
-        call_times: list[float] = []
-
-        async def tracking_failure(image: Image.Image) -> list[float]:
-            call_times.append(time.monotonic())
-            raise ConnectionError("Temporary failure")
-
-        mock_client.embed.side_effect = tracking_failure
+        mock_client.embed.side_effect = ConnectionError("Temporary failure")
 
         service = ReIdentificationService(
             clip_client=mock_client, max_retries=3, embedding_timeout=30.0
@@ -1964,25 +1965,24 @@ class TestReIDRetryBehavior:
         except RuntimeError:
             pass
 
-        # Should have 3 calls with increasing delays
-        assert len(call_times) == 3
+        # Should have 3 attempts
+        assert mock_client.embed.call_count == 3
 
-        # Check delays (with some tolerance for execution time)
-        # Delay after 1st failure: ~1 second (2^0)
-        # Delay after 2nd failure: ~2 seconds (2^1)
-        if len(call_times) >= 2:
-            delay1 = call_times[1] - call_times[0]
-            assert delay1 >= 0.8, f"First delay too short: {delay1}s"
-        if len(call_times) >= 3:
-            delay2 = call_times[2] - call_times[1]
-            assert delay2 >= 1.5, f"Second delay too short: {delay2}s"
+        # Verify exponential backoff delays were requested
+        # Delay after 1st failure: 1 second (2^0)
+        # Delay after 2nd failure: 2 seconds (2^1)
+        assert mock_sleep.call_count == 2
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls[0] == 1.0, f"First delay should be 1s, got {sleep_calls[0]}"
+        assert sleep_calls[1] == 2.0, f"Second delay should be 2s, got {sleep_calls[1]}"
 
 
 class TestReIDRetryLogging:
     """Tests for retry logging behavior."""
 
     @pytest.mark.asyncio
-    async def test_retry_logs_warning(self) -> None:
+    @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
+    async def test_retry_logs_warning(self, mock_sleep: AsyncMock) -> None:
         """Test that retry attempts are logged at warning level."""
         mock_client = AsyncMock()
         call_count = 0
