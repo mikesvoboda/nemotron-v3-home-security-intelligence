@@ -141,6 +141,9 @@ export default defineConfig({
         // Firefox can be slower - increase action timeout
         actionTimeout: 8000,
       },
+      // Firefox needs longer test timeout for complex workflows
+      // (same as WebKit - runs full 433 test suite without sharding)
+      timeout: 30000,
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },
