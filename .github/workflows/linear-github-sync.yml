@@ -70,6 +70,68 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Validate workflow_dispatch inputs
+      - name: Validate inputs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          INPUT_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+          INPUT_BATCH_DELAY: ${{ github.event.inputs.batch_delay }}
+          INPUT_RATE_LIMIT: ${{ github.event.inputs.rate_limit }}
+          INPUT_MIN_SIMILARITY: ${{ github.event.inputs.min_similarity }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          ERRORS=()
+
+          # Validate batch_size: must be a positive integer
+          if ! [[ "$INPUT_BATCH_SIZE" =~ ^[1-9][0-9]*$ ]]; then
+            ERRORS+=("batch_size must be a positive integer (got: '$INPUT_BATCH_SIZE')")
+          fi
+
+          # Validate batch_delay: must be a non-negative integer
+          if ! [[ "$INPUT_BATCH_DELAY" =~ ^[0-9]+$ ]]; then
+            ERRORS+=("batch_delay must be a non-negative integer (got: '$INPUT_BATCH_DELAY')")
+          fi
+
+          # Validate rate_limit: must be a positive integer or decimal
+          if ! [[ "$INPUT_RATE_LIMIT" =~ ^[0-9]*\.?[0-9]+$ ]] || [[ "$INPUT_RATE_LIMIT" == "0" ]] || [[ "$INPUT_RATE_LIMIT" == "0.0" ]]; then
+            ERRORS+=("rate_limit must be a positive number (got: '$INPUT_RATE_LIMIT')")
+          fi
+
+          # Validate min_similarity: must be an integer between 0-100
+          if ! [[ "$INPUT_MIN_SIMILARITY" =~ ^[0-9]+$ ]]; then
+            ERRORS+=("min_similarity must be an integer (got: '$INPUT_MIN_SIMILARITY')")
+          elif [ "$INPUT_MIN_SIMILARITY" -lt 0 ] || [ "$INPUT_MIN_SIMILARITY" -gt 100 ]; then
+            ERRORS+=("min_similarity must be between 0 and 100 (got: '$INPUT_MIN_SIMILARITY')")
+          fi
+
+          # Validate limit: must be empty or a positive integer
+          if [ -n "$INPUT_LIMIT" ]; then
+            if ! [[ "$INPUT_LIMIT" =~ ^[1-9][0-9]*$ ]]; then
+              ERRORS+=("limit must be a positive integer or empty (got: '$INPUT_LIMIT')")
+            fi
+          fi
+
+          # Report all errors and fail if any
+          if [ ${#ERRORS[@]} -gt 0 ]; then
+            echo "::error::Input validation failed:"
+            for error in "${ERRORS[@]}"; do
+              echo "::error::  - $error"
+            done
+            echo ""
+            echo "Validation Errors:"
+            for error in "${ERRORS[@]}"; do
+              echo "  - $error"
+            done
+            exit 1
+          fi
+
+          echo "All inputs validated successfully:"
+          echo "  - batch_size: $INPUT_BATCH_SIZE"
+          echo "  - batch_delay: $INPUT_BATCH_DELAY"
+          echo "  - rate_limit: $INPUT_RATE_LIMIT"
+          echo "  - min_similarity: $INPUT_MIN_SIMILARITY"
+          echo "  - limit: ${INPUT_LIMIT:-'(all)'}"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -138,9 +200,106 @@ jobs:
             $LIMIT_ARG \
             --output table
 
+      # Validate Linear webhook payload
+      - name: Validate Webhook Payload
+        if: github.event_name == 'repository_dispatch'
+        id: validate_webhook
+        env:
+          WEBHOOK_ACTION: ${{ github.event.action }}
+          WEBHOOK_ISSUE_IDENTIFIER: ${{ github.event.client_payload.issue_identifier }}
+          WEBHOOK_STATUS: ${{ github.event.client_payload.status }}
+          WEBHOOK_ISSUE_TITLE: ${{ github.event.client_payload.issue_title }}
+        run: |
+          echo "Validating Linear webhook payload..."
+          ERRORS=()
+          WARNINGS=()
+
+          # 1. Validate event type matches expected value
+          if [ "$WEBHOOK_ACTION" != "linear-issue-updated" ]; then
+            ERRORS+=("Unexpected event type '$WEBHOOK_ACTION'. Expected 'linear-issue-updated'.")
+          fi
+
+          # 2. Validate required fields are present
+          if [ -z "$WEBHOOK_ISSUE_IDENTIFIER" ]; then
+            ERRORS+=("Missing required field 'issue_identifier' in webhook payload.")
+          fi
+
+          if [ -z "$WEBHOOK_STATUS" ]; then
+            ERRORS+=("Missing required field 'status' in webhook payload.")
+          fi
+
+          if [ -z "$WEBHOOK_ISSUE_TITLE" ]; then
+            ERRORS+=("Missing required field 'issue_title' in webhook payload.")
+          fi
+
+          # 3. Validate status is a known value (if present)
+          if [ -n "$WEBHOOK_STATUS" ]; then
+            case "$WEBHOOK_STATUS" in
+              Backlog|Todo|"In Progress"|"In Review"|Done|Canceled|Duplicate)
+                echo "Status '$WEBHOOK_STATUS' is valid."
+                ;;
+              *)
+                WARNINGS+=("Unknown status '$WEBHOOK_STATUS'. Proceeding with caution.")
+                ;;
+            esac
+          fi
+
+          # 4. Validate issue_identifier format (should match TEAM-XXX pattern like NEM-123)
+          if [ -n "$WEBHOOK_ISSUE_IDENTIFIER" ]; then
+            if ! echo "$WEBHOOK_ISSUE_IDENTIFIER" | grep -qE '^[A-Z]+-[0-9]+$'; then
+              WARNINGS+=("Issue identifier '$WEBHOOK_ISSUE_IDENTIFIER' does not match expected format (e.g., NEM-123).")
+            fi
+          fi
+
+          # Report warnings
+          if [ ${#WARNINGS[@]} -gt 0 ]; then
+            echo ""
+            echo "Validation Warnings:"
+            for warning in "${WARNINGS[@]}"; do
+              echo "::warning::$warning"
+              echo "  - $warning"
+            done
+          fi
+
+          # Report errors and fail if any
+          if [ ${#ERRORS[@]} -gt 0 ]; then
+            echo ""
+            echo "::error::Webhook payload validation failed:"
+            for error in "${ERRORS[@]}"; do
+              echo "::error::  - $error"
+            done
+            echo ""
+            echo "Validation Errors:"
+            for error in "${ERRORS[@]}"; do
+              echo "  - $error"
+            done
+            echo ""
+            echo "Expected payload format:"
+            echo "  {"
+            echo "    \"issue_identifier\": \"NEM-123\","
+            echo "    \"status\": \"Done|Todo|In Progress|...\","
+            echo "    \"issue_title\": \"Issue title text\""
+            echo "  }"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo ""
+          echo "Webhook payload validation passed."
+          echo "valid=true" >> $GITHUB_OUTPUT
+
+          # Log validated payload summary
+          echo ""
+          echo "=== Validated Payload Summary ==="
+          echo "Event Type: $WEBHOOK_ACTION"
+          echo "Issue Identifier: $WEBHOOK_ISSUE_IDENTIFIER"
+          echo "Status: $WEBHOOK_STATUS"
+          echo "Issue Title: $WEBHOOK_ISSUE_TITLE"
+          echo "================================="
+
       # Handle Linear webhook events
       - name: Handle Linear Webhook
-        if: github.event_name == 'repository_dispatch'
+        if: github.event_name == 'repository_dispatch' && steps.validate_webhook.outputs.valid == 'true'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -148,7 +307,7 @@ jobs:
           WEBHOOK_STATUS: ${{ github.event.client_payload.status }}
           WEBHOOK_ISSUE_TITLE: ${{ github.event.client_payload.issue_title }}
         run: |
-          echo "Received Linear webhook event"
+          echo "Processing validated Linear webhook event"
           echo "Issue: $WEBHOOK_ISSUE_IDENTIFIER"
           echo "Status: $WEBHOOK_STATUS"
 

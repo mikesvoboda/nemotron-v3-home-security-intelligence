@@ -82,7 +82,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -92,8 +92,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -156,7 +156,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -175,8 +175,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -239,7 +239,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -258,8 +258,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -322,7 +322,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -341,8 +341,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -405,7 +405,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -424,8 +424,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -544,7 +544,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -580,7 +580,7 @@ jobs:
 
       - name: Run contract tests
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/15
           REDIS_HOST: localhost
           REDIS_PORT: 6379
@@ -632,7 +632,7 @@ jobs:
     name: API Types Contract Check
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql://user:pass@localhost/db
+      DATABASE_URL: postgresql://user:pass@localhost/db # pragma: allowlist secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -1005,7 +1005,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -1024,8 +1024,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -1318,7 +1318,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -1337,8 +1337,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379

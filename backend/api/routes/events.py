@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_event_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.clips import (
     ClipGenerateRequest,
@@ -623,26 +624,31 @@ async def export_events(
     filename = f"events_export_{timestamp}.csv"
 
     # Log the export action
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.MEDIA_EXPORTED,
-        resource_type="event",
-        actor="anonymous",
-        details={
-            "export_type": "csv",
-            "filters": {
-                "camera_id": camera_id,
-                "risk_level": risk_level,
-                "start_date": start_date.isoformat() if start_date else None,
-                "end_date": end_date.isoformat() if end_date else None,
-                "reviewed": reviewed,
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.MEDIA_EXPORTED,
+            resource_type="event",
+            actor="anonymous",
+            details={
+                "export_type": "csv",
+                "filters": {
+                    "camera_id": camera_id,
+                    "risk_level": risk_level,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None,
+                    "reviewed": reviewed,
+                },
+                "event_count": len(events),
+                "filename": filename,
             },
-            "event_count": len(events),
-            "filename": filename,
-        },
-        request=request,
-    )
-    await db.commit()
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Don't fail the main operation - audit is non-critical
 
     # Return as streaming response with CSV content type
     output.seek(0)
@@ -670,14 +676,7 @@ async def get_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids and calculate count
     parsed_detection_ids = parse_detection_ids(event.detection_ids)
@@ -726,14 +725,7 @@ async def update_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Track changes for audit log
     changes: dict[str, Any] = {}
@@ -766,21 +758,29 @@ async def update_event(
         action = AuditAction.EVENT_REVIEWED  # Default for notes-only updates
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=action,
-        resource_type="event",
-        resource_id=str(event_id),
-        actor="anonymous",  # No auth in this system
-        details={
-            "changes": changes,
-            "risk_level": event.risk_level,
-            "camera_id": event.camera_id,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=action,
+            resource_type="event",
+            resource_id=str(event_id),
+            actor="anonymous",  # No auth in this system
+            details={
+                "changes": changes,
+                "risk_level": event.risk_level,
+                "camera_id": event.camera_id,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the event changes since we rolled back
+        update_data_dict = update_data.model_dump(exclude_unset=True)
+        for key, value in update_data_dict.items():
+            setattr(event, key, value)
+        await db.commit()
     await db.refresh(event)
 
     # Parse detection_ids and calculate count
@@ -830,15 +830,7 @@ async def get_event_detections(
     Raises:
         HTTPException: 404 if event not found
     """
-    # Get event to verify it exists and get detection_ids
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
@@ -908,15 +900,7 @@ async def get_event_enrichments(
     # Import transform function from detections route
     from backend.api.routes.detections import _transform_enrichment_data
 
-    # Get event to verify it exists and get detection_ids
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
     detection_ids = parse_detection_ids(event.detection_ids)
@@ -974,15 +958,7 @@ async def get_event_clip(
     """
     from pathlib import Path
 
-    # Get event
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Check if clip exists
     if not event.clip_path:
@@ -1063,15 +1039,7 @@ async def generate_event_clip(
     from backend.api.schemas.clips import ClipGenerateResponse, ClipStatus
     from backend.services.clip_generator import get_clip_generator
 
-    # Get event
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found",
-        )
+    event = await get_event_or_404(event_id, db)
 
     # Check if clip already exists and force is False
     if event.clip_path and not request.force:

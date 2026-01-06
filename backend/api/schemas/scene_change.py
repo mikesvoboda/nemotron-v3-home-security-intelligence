@@ -66,14 +66,22 @@ class SceneChangeResponse(BaseModel):
 class SceneChangeListResponse(BaseModel):
     """Response schema for listing scene changes.
 
-    Returns a list of scene changes for a camera with total count.
+    Returns a list of scene changes for a camera with cursor-based pagination.
     """
 
     camera_id: str = Field(..., description="Camera ID")
     scene_changes: list[SceneChangeResponse] = Field(
         default_factory=list, description="List of scene changes"
     )
-    total_changes: int = Field(default=0, ge=0, description="Total number of scene changes")
+    total_changes: int = Field(default=0, ge=0, description="Number of scene changes returned")
+    next_cursor: str | None = Field(
+        default=None,
+        description="Cursor for fetching the next page (ISO 8601 timestamp)",
+    )
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results available",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -91,6 +99,8 @@ class SceneChangeListResponse(BaseModel):
                     }
                 ],
                 "total_changes": 1,
+                "next_cursor": "2026-01-03T09:30:00Z",
+                "has_more": True,
             }
         },
     )
