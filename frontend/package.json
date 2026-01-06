@@ -29,7 +29,8 @@
     "dead-code": "knip",
     "test:mutation": "stryker run",
     "docs": "typedoc",
-    "docs:watch": "typedoc --watch"
+    "docs:watch": "typedoc --watch",
+    "analyze": "vite build --mode analyze"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -80,6 +81,7 @@
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.1",
     "typedoc": "0.26.11",
     "typedoc-plugin-markdown": "4.2.10",
