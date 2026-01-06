@@ -12,6 +12,8 @@ from datetime import datetime
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 
 # Alias for backward compatibility - tests use async_client but conftest provides client
 @pytest.fixture
@@ -444,7 +446,9 @@ class TestGetDetectionEnrichment:
         response = await async_client.get("/api/detections/99999/enrichment")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_get_enrichment_with_errors(self, async_client, sample_camera, integration_db):
         """Test enrichment response includes sanitized error messages."""
@@ -635,7 +639,9 @@ class TestGetDetectionImageFullParameter:
         response = await async_client.get(f"/api/detections/{detection_id}/image?full=true")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
 
 class TestGetDetectionImageAdvanced:
@@ -669,7 +675,9 @@ class TestGetDetectionImageAdvanced:
         response = await async_client.get(f"/api/detections/{detection_id}/image")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_get_detection_image_invalid_id(self, async_client):
         """Test image endpoint with invalid detection ID format."""
@@ -685,7 +693,9 @@ class TestStreamDetectionVideo:
         response = await async_client.get("/api/detections/99999/video")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_stream_video_not_a_video(self, async_client, sample_detection):
         """Test streaming for an image detection returns 400."""
@@ -693,7 +703,9 @@ class TestStreamDetectionVideo:
         response = await async_client.get(f"/api/detections/{sample_detection.id}/video")
         assert response.status_code == 400
         data = response.json()
-        assert "not a video" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not a video" in error_msg.lower()
 
     async def test_stream_video_missing_file(self, async_client, sample_camera, integration_db):
         """Test streaming video when file doesn't exist returns 404."""
@@ -723,7 +735,9 @@ class TestStreamDetectionVideo:
         response = await async_client.get(f"/api/detections/{detection_id}/video")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_stream_video_with_invalid_range_header(
         self, async_client, sample_camera, integration_db, tmp_path
@@ -852,14 +866,18 @@ class TestGetVideoThumbnail:
         response = await async_client.get("/api/detections/99999/video/thumbnail")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_get_video_thumbnail_not_a_video(self, async_client, sample_detection):
         """Test getting thumbnail for image detection returns 400."""
         response = await async_client.get(f"/api/detections/{sample_detection.id}/video/thumbnail")
         assert response.status_code == 400
         data = response.json()
-        assert "not a video" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not a video" in error_msg.lower()
 
     async def test_get_video_thumbnail_missing_video_file(
         self, async_client, sample_camera, integration_db
@@ -891,7 +909,9 @@ class TestGetVideoThumbnail:
         response = await async_client.get(f"/api/detections/{detection_id}/video/thumbnail")
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        error_msg = get_error_message(data)
+
+        assert "not found" in error_msg.lower()
 
     async def test_get_video_thumbnail_with_existing_thumbnail(
         self, async_client, sample_camera, integration_db, tmp_path

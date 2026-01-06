@@ -59,6 +59,10 @@ export default defineConfig({
   // Global timeout for each test
   timeout: 15000,
 
+  // Global setup script to optimize test startup (future optimization)
+  // This runs once before all tests, reducing per-test overhead
+  // globalSetup: './tests/e2e/global-setup.ts',  // Uncomment when created
+
   // Expect timeout - keep short for fast feedback
   // Error state tests use explicit longer timeouts where needed
   expect: {
@@ -97,6 +101,9 @@ export default defineConfig({
 
     // Action timeout (clicks, fills, etc.)
     actionTimeout: 5000,
+
+    // NOTE: launchOptions with --disable-gpu moved to Chromium-specific projects
+    // WebKit doesn't support these Chromium-specific flags
   },
 
   // Projects - Multi-browser testing configuration
@@ -107,13 +114,23 @@ export default defineConfig({
     // Visual tests are in tests/e2e/visual/ directory
     {
       name: 'visual-chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       testMatch: /visual\/.*\.spec\.ts$/,
     },
     // Desktop browsers
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       // Only run specs, exclude visual tests (run via visual-chromium project)
       testMatch: /specs\/.*\.spec\.ts$/,
     },
@@ -124,6 +141,9 @@ export default defineConfig({
         // Firefox can be slower - increase action timeout
         actionTimeout: 8000,
       },
+      // Firefox needs longer test timeout for complex workflows
+      // (same as WebKit - runs full 433 test suite without sharding)
+      timeout: 30000,
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },
@@ -143,7 +163,12 @@ export default defineConfig({
     // Mobile viewports (only run locally, not in CI parallel jobs)
     {
       name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
+      use: {
+        ...devices['Pixel 5'],
+        launchOptions: {
+          args: ['--disable-gpu', '--disable-dev-shm-usage'],
+        },
+      },
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },

@@ -4,6 +4,8 @@ import uuid
 
 import pytest
 
+from backend.tests.integration.test_helpers import get_error_message
+
 # === Helper Functions ===
 
 
@@ -148,7 +150,9 @@ async def test_create_zone_nonexistent_camera(client):
     response = await client.post(f"/api/cameras/{fake_camera_id}/zones", json=zone_data)
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    data = response.json()
+    error_msg = get_error_message(data)
+    assert "not found" in error_msg.lower()
 
 
 @pytest.mark.asyncio
@@ -540,7 +544,9 @@ async def test_get_zone_nonexistent_zone(client):
     response = await client.get(f"/api/cameras/{camera_id}/zones/{fake_zone_id}")
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    data = response.json()
+    error_msg = get_error_message(data)
+    assert "not found" in error_msg.lower()
 
 
 @pytest.mark.asyncio
