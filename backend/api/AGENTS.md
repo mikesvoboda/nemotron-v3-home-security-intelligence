@@ -10,6 +10,7 @@ The `backend/api/` package contains the FastAPI REST API layer for the home secu
 backend/api/
 ├── __init__.py          # Package initialization
 ├── AGENTS.md            # This file
+├── dependencies.py      # Reusable utility functions for entity existence checks
 ├── validators.py        # Shared validation utilities for routes
 ├── routes/              # API route handlers (endpoints)
 ├── schemas/             # Pydantic schemas for request/response validation
@@ -21,6 +22,27 @@ backend/api/
 ### `__init__.py`
 
 Package initialization. Contains a simple docstring: "API package for routes and websocket handlers."
+
+### `dependencies.py`
+
+Reusable utility functions for entity existence checks. These functions abstract the repeated
+pattern of querying for an entity by ID and raising a 404 if not found:
+
+| Function               | Purpose                                         |
+| ---------------------- | ----------------------------------------------- |
+| `get_camera_or_404`    | Get camera by ID or raise HTTPException(404)    |
+| `get_event_or_404`     | Get event by ID or raise HTTPException(404)     |
+| `get_detection_or_404` | Get detection by ID or raise HTTPException(404) |
+
+Usage pattern:
+
+```python
+from backend.api.dependencies import get_camera_or_404
+
+@router.get("/{camera_id}")
+async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Camera:
+    return await get_camera_or_404(camera_id, db)
+```
 
 ### `validators.py`
 

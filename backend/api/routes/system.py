@@ -17,6 +17,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Requ
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -970,7 +971,9 @@ async def get_readiness(
 
 
 @router.get("/health/websocket", response_model=WebSocketHealthResponse)
-async def get_websocket_health() -> WebSocketHealthResponse:
+async def get_websocket_health(
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+) -> WebSocketHealthResponse:
     """Get health status of WebSocket broadcasters and their circuit breakers.
 
     Returns the current state of circuit breakers for:
@@ -995,8 +998,14 @@ async def get_websocket_health() -> WebSocketHealthResponse:
         _system_broadcaster as system_broadcaster,
     )
 
-    event_status: WebSocketBroadcasterStatus | None = None
-    system_status: WebSocketBroadcasterStatus | None = None
+    # Helper function to create unavailable status for uninitialized broadcasters
+    def get_unavailable_status(broadcaster_name: str) -> WebSocketBroadcasterStatus:
+        return WebSocketBroadcasterStatus(
+            state=CircuitBreakerStateEnum.UNAVAILABLE,
+            is_degraded=True,
+            failure_count=0,
+            message=f"{broadcaster_name} not initialized",
+        )
 
     # Get event broadcaster status
     if event_broadcaster is not None:
@@ -1006,6 +1015,8 @@ async def get_websocket_health() -> WebSocketHealthResponse:
             failure_count=event_broadcaster.circuit_breaker.failure_count,
             is_degraded=event_broadcaster.is_degraded(),
         )
+    else:
+        event_status = get_unavailable_status("Event broadcaster")
 
     # Get system broadcaster status
     if system_broadcaster is not None:
@@ -1015,6 +1026,8 @@ async def get_websocket_health() -> WebSocketHealthResponse:
             failure_count=system_broadcaster.circuit_breaker.failure_count,
             is_degraded=not system_broadcaster._pubsub_listening,
         )
+    else:
+        system_status = get_unavailable_status("System broadcaster")
 
     return WebSocketHealthResponse(
         event_broadcaster=event_status,
@@ -1233,15 +1246,20 @@ async def patch_config(
 
     # Log the audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.SETTINGS_CHANGED,
+                resource_type="settings",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     return ConfigResponse(
         app_name=settings.app_name,
@@ -1342,16 +1360,21 @@ async def update_anomaly_config(
 
     # Log audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.CONFIG_UPDATED,
-            resource_type="anomaly_config",
-            resource_id="system",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.CONFIG_UPDATED,
+                resource_type="anomaly_config",
+                resource_id="system",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     return AnomalyConfig(
         threshold_stdev=service.anomaly_threshold_std,
@@ -1960,15 +1983,20 @@ async def update_severity_thresholds(
 
     # Log the audit entry
     if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="severity_thresholds",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.SETTINGS_CHANGED,
+                resource_type="severity_thresholds",
+                actor="anonymous",
+                details={"changes": changes},
+                request=request,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit audit log: {e}")
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
     logger.info(
         f"Severity thresholds updated: low_max={new_thresholds['low_max']}, "

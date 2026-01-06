@@ -1243,6 +1243,7 @@ class CircuitBreakerStateEnum(str, Enum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
+    UNAVAILABLE = "unavailable"
 
 
 class CircuitBreakerConfigResponse(BaseModel):
@@ -1413,7 +1414,7 @@ class WebSocketBroadcasterStatus(BaseModel):
 
     state: CircuitBreakerStateEnum = Field(
         ...,
-        description="Current circuit state: closed (normal), open (failing), half_open (testing)",
+        description="Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized)",
     )
     failure_count: int = Field(
         ...,
@@ -1423,6 +1424,10 @@ class WebSocketBroadcasterStatus(BaseModel):
     is_degraded: bool = Field(
         ...,
         description="Whether the broadcaster is in degraded mode",
+    )
+    message: str | None = Field(
+        None,
+        description="Optional status message or error details",
     )
 
 
@@ -1449,11 +1454,13 @@ class WebSocketHealthResponse(BaseModel):
                     "state": "closed",
                     "failure_count": 0,
                     "is_degraded": False,
+                    "message": None,
                 },
                 "system_broadcaster": {
                     "state": "closed",
                     "failure_count": 0,
                     "is_degraded": False,
+                    "message": None,
                 },
                 "timestamp": "2025-12-30T10:30:00Z",
             }

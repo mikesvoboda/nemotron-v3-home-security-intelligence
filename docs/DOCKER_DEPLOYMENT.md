@@ -4,7 +4,7 @@ This guide covers deploying the Home Security Intelligence system using Docker C
 
 ## Deployment Architecture
 
-![Docker Deployment Topology](images/deploy-docker-topology.png)
+![Docker deployment topology diagram showing the five service groups: Frontend (React/Nginx on ports 5173/80), Backend (FastAPI on port 8000), Redis (cache on port 6379), PostgreSQL (database on port 5432), and AI Services (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment on ports 8090-8094) connected via Docker Compose networking](images/deploy-docker-topology.png)
 
 ## Overview
 

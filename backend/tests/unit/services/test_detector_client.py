@@ -24,8 +24,8 @@ def mock_session():
 
 @pytest.fixture
 def detector_client():
-    """Create detector client instance."""
-    return DetectorClient()
+    """Create detector client instance with minimal retries for faster tests."""
+    return DetectorClient(max_retries=1)
 
 
 @pytest.fixture
@@ -227,7 +227,7 @@ async def test_detect_objects_file_not_found(detector_client, mock_session):
 
 @pytest.mark.asyncio
 async def test_detect_objects_connection_error_raises_exception(detector_client, mock_session):
-    """Test that connection errors raise DetectorUnavailableError for retry."""
+    """Test that connection errors raise DetectorUnavailableError after retry exhaustion."""
     image_path = "/export/foscam/front_door/image_004.jpg"
     camera_id = "front_door"
 
@@ -242,14 +242,17 @@ async def test_detect_objects_connection_error_raises_exception(detector_client,
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "Connection refused" in str(exc_info.value)
+        # After retry exhaustion, error message indicates retry failure (NEM-1343)
+        assert "failed after" in str(exc_info.value)
         assert exc_info.value.original_error is not None
+        # Verify original error is preserved
+        assert isinstance(exc_info.value.original_error, httpx.ConnectError)
         assert not mock_session.add.called
 
 
 @pytest.mark.asyncio
 async def test_detect_objects_timeout_raises_exception(detector_client, mock_session):
-    """Test that timeout errors raise DetectorUnavailableError for retry."""
+    """Test that timeout errors raise DetectorUnavailableError after retry exhaustion."""
     image_path = "/export/foscam/front_door/image_005.jpg"
     camera_id = "front_door"
 
@@ -264,13 +267,16 @@ async def test_detect_objects_timeout_raises_exception(detector_client, mock_ses
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "timed out" in str(exc_info.value)
+        # After retry exhaustion, error message indicates retry failure (NEM-1343)
+        assert "failed after" in str(exc_info.value)
+        # Verify original error is preserved
+        assert isinstance(exc_info.value.original_error, httpx.TimeoutException)
         assert not mock_session.add.called
 
 
 @pytest.mark.asyncio
 async def test_detect_objects_server_error_raises_exception(detector_client, mock_session):
-    """Test that HTTP 5xx errors raise DetectorUnavailableError for retry."""
+    """Test that HTTP 5xx errors raise DetectorUnavailableError after retry exhaustion."""
     image_path = "/export/foscam/front_door/image_006.jpg"
     camera_id = "front_door"
 
@@ -292,7 +298,10 @@ async def test_detect_objects_server_error_raises_exception(detector_client, moc
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "server error: 500" in str(exc_info.value)
+        # After retry exhaustion, error message indicates retry failure (NEM-1343)
+        assert "failed after" in str(exc_info.value)
+        # Verify original error is preserved
+        assert isinstance(exc_info.value.original_error, httpx.HTTPStatusError)
         assert not mock_session.add.called
 
 
@@ -326,10 +335,10 @@ async def test_detect_objects_client_error_returns_empty(detector_client, mock_s
 
 @pytest.mark.asyncio
 async def test_detect_objects_invalid_json_raises_exception(detector_client, mock_session):
-    """Test that invalid JSON raises DetectorUnavailableError for retry.
+    """Test that invalid JSON raises DetectorUnavailableError after retry exhaustion.
 
     Invalid JSON could indicate a server-side issue (corrupt response,
-    partial response, etc.) so it should be retried.
+    partial response, etc.) so it should be retried (NEM-1343).
     """
     image_path = "/export/foscam/front_door/image_007.jpg"
     camera_id = "front_door"
@@ -350,7 +359,10 @@ async def test_detect_objects_invalid_json_raises_exception(detector_client, moc
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "Invalid JSON" in str(exc_info.value)
+        # After retry exhaustion, error message indicates retry failure (NEM-1343)
+        assert "failed after" in str(exc_info.value)
+        # Verify original error is a JSONDecodeError
+        assert isinstance(exc_info.value.original_error, json.JSONDecodeError)
         assert not mock_session.add.called
 
 
@@ -613,7 +625,7 @@ def test_detector_unavailable_error_without_original():
 
 @pytest.mark.asyncio
 async def test_detect_objects_http_502_raises_exception(detector_client, mock_session):
-    """Test that HTTP 502 Bad Gateway raises DetectorUnavailableError."""
+    """Test that HTTP 502 Bad Gateway raises DetectorUnavailableError after retry exhaustion."""
     image_path = "/export/foscam/front_door/image_502.jpg"
     camera_id = "front_door"
     mock_image_data = b"fake_image_data"
@@ -634,7 +646,9 @@ async def test_detect_objects_http_502_raises_exception(detector_client, mock_se
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "502" in str(exc_info.value)
+        # After retry exhaustion, error message indicates retry failure (NEM-1343)
+        assert "failed after" in str(exc_info.value)
+        assert isinstance(exc_info.value.original_error, httpx.HTTPStatusError)
 
 
 @pytest.mark.asyncio
@@ -689,7 +703,7 @@ async def test_detect_objects_http_404_returns_empty(detector_client, mock_sessi
 
 @pytest.mark.asyncio
 async def test_detect_objects_unexpected_error_raises_exception(detector_client, mock_session):
-    """Test that unexpected errors raise DetectorUnavailableError."""
+    """Test that unexpected errors raise DetectorUnavailableError after retry exhaustion."""
     image_path = "/export/foscam/front_door/image_unexpected.jpg"
     camera_id = "front_door"
     mock_image_data = b"fake_image_data"
@@ -703,7 +717,95 @@ async def test_detect_objects_unexpected_error_raises_exception(detector_client,
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "Unexpected" in str(exc_info.value)
+        # After retry exhaustion, error message indicates retry failure (NEM-1343)
+        assert "failed after" in str(exc_info.value)
+        # Verify original error is preserved
+        assert isinstance(exc_info.value.original_error, RuntimeError)
+
+
+# Test: Retry Logic (NEM-1343)
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_retry_succeeds_after_transient_failure(mock_session):
+    """Test that retry logic succeeds when transient failure resolves.
+
+    This verifies the exponential backoff retry logic works correctly (NEM-1343).
+    """
+    image_path = "/export/foscam/front_door/image_retry.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Create client with 3 retries
+    detector_client = DetectorClient(max_retries=3)
+
+    # Success response for second attempt
+    success_response = MagicMock(spec=httpx.Response)
+    success_response.status_code = 200
+    success_response.json.return_value = {
+        "detections": [{"class": "person", "confidence": 0.95, "bbox": [100, 150, 300, 400]}]
+    }
+
+    call_count = 0
+
+    async def mock_post(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            # First attempt fails with connection error
+            raise httpx.ConnectError("Temporary connection error")
+        # Second attempt succeeds
+        return success_response
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=mock_post),
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch("asyncio.sleep", new_callable=AsyncMock),  # Speed up test by mocking sleep
+    ):
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Should succeed on second attempt
+        assert call_count == 2
+        assert len(detections) == 1
+        assert detections[0].object_type == "person"
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_retry_exhausts_all_attempts(mock_session):
+    """Test that retry logic exhausts all attempts before failing.
+
+    This verifies the exponential backoff retry logic reports the correct
+    number of attempts (NEM-1343).
+    """
+    image_path = "/export/foscam/front_door/image_retry_fail.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Create client with 3 retries
+    detector_client = DetectorClient(max_retries=3)
+
+    call_count = 0
+
+    async def mock_post(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        raise httpx.TimeoutException("Request timeout")
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=mock_post),
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+        patch("asyncio.sleep", new_callable=AsyncMock),  # Speed up test by mocking sleep
+    ):
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Should exhaust all 3 attempts
+        assert call_count == 3
+        assert "failed after 3 attempts" in str(exc_info.value)
 
 
 # Test: HTTP 400 error with error detail extraction

@@ -1,5 +1,6 @@
 """API routes for camera management."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from backend.api.dependencies import get_camera_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     ActivityBaselineEntry,
@@ -146,17 +148,7 @@ async def get_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
-    # Type is already narrowed by the None check above
-    return camera
+    return await get_camera_or_404(camera_id, db)
 
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED)
@@ -216,21 +208,27 @@ async def create_camera(
     db.add(camera)
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.CAMERA_CREATED,
-        resource_type="camera",
-        resource_id=camera.id,
-        actor="anonymous",
-        details={
-            "name": camera.name,
-            "folder_path": camera.folder_path,
-            "status": camera.status,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_CREATED,
+            resource_type="camera",
+            resource_id=camera.id,
+            actor="anonymous",
+            details={
+                "name": camera.name,
+                "folder_path": camera.folder_path,
+                "status": camera.status,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-add camera since we rolled back the audit log
+        db.add(camera)
+        await db.commit()
     await db.refresh(camera)
 
     # Invalidate cameras cache
@@ -264,15 +262,7 @@ async def update_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Get existing camera
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    camera = await get_camera_or_404(camera_id, db)
 
     # Track changes for audit log
     old_values = {
@@ -294,17 +284,25 @@ async def update_camera(
             changes[field] = {"old": old_value, "new": new_value}
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.CAMERA_UPDATED,
-        resource_type="camera",
-        resource_id=camera_id,
-        actor="anonymous",
-        details={"changes": changes},
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_UPDATED,
+            resource_type="camera",
+            resource_id=camera_id,
+            actor="anonymous",
+            details={"changes": changes},
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the update changes since we rolled back
+        update_data = camera_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(camera, field, value)
+        await db.commit()
     await db.refresh(camera)
 
     # Invalidate cameras cache
@@ -336,34 +334,32 @@ async def delete_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Get existing camera
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    camera = await get_camera_or_404(camera_id, db)
 
     # Log the audit entry before deletion
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.CAMERA_DELETED,
-        resource_type="camera",
-        resource_id=camera_id,
-        actor="anonymous",
-        details={
-            "name": camera.name,
-            "folder_path": camera.folder_path,
-            "status": camera.status,
-        },
-        request=request,
-    )
-
-    # Delete camera (cascade will handle related data)
-    await db.delete(camera)
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_DELETED,
+            resource_type="camera",
+            resource_id=camera_id,
+            actor="anonymous",
+            details={
+                "name": camera.name,
+                "folder_path": camera.folder_path,
+                "status": camera.status,
+            },
+            request=request,
+        )
+        # Delete camera (cascade will handle related data)
+        await db.delete(camera)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Retry deletion without audit log - deletion is the primary operation
+        await db.delete(camera)
+        await db.commit()
 
     # Invalidate cameras cache
     try:
@@ -397,15 +393,7 @@ async def get_camera_snapshot(
     This endpoint uses the camera's configured `folder_path` and returns the most recently
     modified image file under that directory.
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
-
+    camera = await get_camera_or_404(camera_id, db)
     settings = get_settings()
     base_root = Path(settings.foscam_base_path).resolve()
 
@@ -624,15 +612,7 @@ async def get_camera_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    camera = await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch data
     baseline_service = get_baseline_service()
@@ -685,15 +665,7 @@ async def get_camera_baseline_anomalies(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch anomalies
     baseline_service = get_baseline_service()
@@ -728,15 +700,7 @@ async def get_camera_activity_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch raw activity baselines
     baseline_service = get_baseline_service()
@@ -808,15 +772,7 @@ async def get_camera_class_baseline(
     Raises:
         HTTPException: 404 if camera not found
     """
-    # Verify camera exists
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-
-    if not camera:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Camera with id {camera_id} not found",
-        )
+    await get_camera_or_404(camera_id, db)
 
     # Get baseline service and fetch raw class baselines
     baseline_service = get_baseline_service()
@@ -861,24 +817,27 @@ async def get_camera_class_baseline(
 async def get_camera_scene_changes(
     camera_id: str,
     acknowledged: bool | None = Query(default=None, description="Filter by acknowledgement status"),
-    limit: int = Query(default=50, ge=1, le=1000, description="Maximum number of results"),
-    offset: int = Query(default=0, ge=0, description="Number of results to skip"),
+    limit: int = Query(default=50, ge=1, le=100, description="Maximum number of results"),
+    cursor: datetime | None = Query(
+        default=None, description="Cursor for pagination (detected_at timestamp)"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SceneChangeListResponse:
-    """Get scene changes for a camera.
+    """Get scene changes for a camera with cursor-based pagination.
 
     Returns a list of detected scene changes that may indicate camera
-    tampering, angle changes, or blocked views.
+    tampering, angle changes, or blocked views. Uses cursor-based pagination
+    for efficient navigation through large datasets.
 
     Args:
         camera_id: ID of the camera
         acknowledged: Filter by acknowledgement status (None = all)
-        limit: Maximum number of results (default: 50, max: 1000)
-        offset: Number of results to skip (default: 0)
+        limit: Maximum number of results (default: 50, max: 100)
+        cursor: Cursor for pagination (detected_at timestamp from previous response)
         db: Database session
 
     Returns:
-        SceneChangeListResponse with list of scene changes
+        SceneChangeListResponse with list of scene changes and pagination info
 
     Raises:
         HTTPException: 404 if camera not found
@@ -895,14 +854,16 @@ async def get_camera_scene_changes(
     if acknowledged is not None:
         query = query.where(SceneChange.acknowledged == acknowledged)
 
-    # Order by detected_at descending (most recent first)
-    query = query.order_by(SceneChange.detected_at.desc())
+    # Apply cursor filter for pagination (fetch items before the cursor timestamp)
+    if cursor is not None:
+        query = query.where(SceneChange.detected_at < cursor)
 
-    # Apply pagination
-    query = query.offset(offset).limit(limit)
+    # Order by detected_at descending (most recent first)
+    # Fetch one extra to determine if there are more results
+    query = query.order_by(SceneChange.detected_at.desc()).limit(limit + 1)
 
     changes_result = await db.execute(query)
-    scene_changes = changes_result.unique().scalars().all()
+    scene_changes = list(changes_result.unique().scalars().all())
 
     # If no results, verify camera exists (fallback query only when needed)
     if not scene_changes:
@@ -913,6 +874,18 @@ async def get_camera_scene_changes(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Camera with id {camera_id} not found",
             )
+
+    # Determine if there are more results
+    has_more = len(scene_changes) > limit
+
+    # Calculate next cursor from the last item we'll return
+    next_cursor: str | None = None
+    if has_more and len(scene_changes) > limit:
+        # The cursor should be the detected_at of the last item we return
+        next_cursor = scene_changes[limit - 1].detected_at.isoformat()
+
+    # Trim to requested limit
+    scene_changes = scene_changes[:limit]
 
     # Convert to response models
     scene_change_responses = [
@@ -932,6 +905,8 @@ async def get_camera_scene_changes(
         camera_id=camera_id,
         scene_changes=scene_change_responses,
         total_changes=len(scene_change_responses),
+        next_cursor=next_cursor,
+        has_more=has_more,
     )
 
 
@@ -994,21 +969,28 @@ async def acknowledge_scene_change(
     scene_change.acknowledged_at = acknowledged_at
 
     # Log the audit entry
-    await AuditService.log_action(
-        db=db,
-        action=AuditAction.EVENT_REVIEWED,  # Reusing existing audit action
-        resource_type="scene_change",
-        resource_id=str(scene_change_id),
-        actor="anonymous",
-        details={
-            "camera_id": camera_id,
-            "change_type": scene_change.change_type.value,
-            "similarity_score": scene_change.similarity_score,
-        },
-        request=request,
-    )
-
-    await db.commit()
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.EVENT_REVIEWED,  # Reusing existing audit action
+            resource_type="scene_change",
+            resource_id=str(scene_change_id),
+            actor="anonymous",
+            details={
+                "camera_id": camera_id,
+                "change_type": scene_change.change_type.value,
+                "similarity_score": scene_change.similarity_score,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to commit audit log: {e}")
+        await db.rollback()
+        # Re-apply the acknowledgement since we rolled back
+        scene_change.acknowledged = True
+        scene_change.acknowledged_at = acknowledged_at
+        await db.commit()
     await db.refresh(scene_change)
 
     return SceneChangeAcknowledgeResponse(
