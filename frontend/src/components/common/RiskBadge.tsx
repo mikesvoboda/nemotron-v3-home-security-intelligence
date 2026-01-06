@@ -77,6 +77,7 @@ export default function RiskBadge({
         shouldAnimate && 'animate-pulse',
         className
       )}
+      data-testid="risk-badge"
     >
       <Icon className={iconSize} />
       {displayText}

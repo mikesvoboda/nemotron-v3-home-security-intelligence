@@ -965,10 +965,11 @@ class TestValidateConfig:
 class TestRunMockTest:
     """Tests for run_mock_test() method."""
 
-    def test_run_mock_test_returns_result_format(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_returns_result_format(self, storage_service: PromptStorageService):
         """Test run_mock_test returns correct result format."""
         config = {"system_prompt": "Test prompt", "temperature": 0.7}
-        result = storage_service.run_mock_test(
+        result = await storage_service.run_mock_test(
             model_name="nemotron",
             config=config,
             event_id=123,
@@ -979,10 +980,13 @@ class TestRunMockTest:
         assert "improved" in result
         assert "inference_time_ms" in result
 
-    def test_run_mock_test_before_after_structure(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_before_after_structure(
+        self, storage_service: PromptStorageService
+    ):
         """Test run_mock_test before/after have correct structure."""
         config = {"system_prompt": "Test"}
-        result = storage_service.run_mock_test(
+        result = await storage_service.run_mock_test(
             model_name="nemotron",
             config=config,
             event_id=1,
@@ -993,10 +997,11 @@ class TestRunMockTest:
             assert "risk_level" in result[key]
             assert "summary" in result[key]
 
-    def test_run_mock_test_risk_levels_valid(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_risk_levels_valid(self, storage_service: PromptStorageService):
         """Test run_mock_test returns valid risk levels."""
         config = {"system_prompt": "Test"}
-        result = storage_service.run_mock_test(
+        result = await storage_service.run_mock_test(
             model_name="nemotron",
             config=config,
             event_id=1,
@@ -1006,41 +1011,49 @@ class TestRunMockTest:
         assert result["before"]["risk_level"] in valid_levels
         assert result["after"]["risk_level"] in valid_levels
 
-    def test_run_mock_test_improved_is_boolean(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_improved_is_boolean(self, storage_service: PromptStorageService):
         """Test run_mock_test improved field is boolean."""
         config = {"system_prompt": "Test"}
-        result = storage_service.run_mock_test(
+        result = await storage_service.run_mock_test(
             model_name="nemotron",
             config=config,
             event_id=1,
         )
         assert isinstance(result["improved"], bool)
 
-    def test_run_mock_test_inference_time_positive(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_inference_time_positive(
+        self, storage_service: PromptStorageService
+    ):
         """Test run_mock_test inference_time_ms is positive."""
         config = {"system_prompt": "Test"}
-        result = storage_service.run_mock_test(
+        result = await storage_service.run_mock_test(
             model_name="nemotron",
             config=config,
             event_id=1,
         )
         assert result["inference_time_ms"] >= 0
 
-    def test_run_mock_test_invalid_config_raises(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_invalid_config_raises(self, storage_service: PromptStorageService):
         """Test run_mock_test raises ValueError for invalid config."""
         config = {}  # Missing system_prompt for nemotron
         with pytest.raises(ValueError) as exc_info:
-            storage_service.run_mock_test(
+            await storage_service.run_mock_test(
                 model_name="nemotron",
                 config=config,
                 event_id=1,
             )
         assert "Invalid configuration" in str(exc_info.value)
 
-    def test_run_mock_test_summary_includes_model_name(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_run_mock_test_summary_includes_model_name(
+        self, storage_service: PromptStorageService
+    ):
         """Test run_mock_test summary includes model name."""
         config = {"system_prompt": "Test"}
-        result = storage_service.run_mock_test(
+        result = await storage_service.run_mock_test(
             model_name="nemotron",
             config=config,
             event_id=42,
@@ -1368,53 +1381,57 @@ class TestValidationHelpers:
 class TestRiskLevelMapping:
     """Tests for risk level score-to-level mapping in run_mock_test."""
 
-    def test_score_to_level_low(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_score_to_level_low(self, storage_service: PromptStorageService):
         """Test low risk level for scores under 30."""
         # Use mock to control random scores
         with (
             patch("random.randint", return_value=15),
             patch("random.uniform", return_value=0.1),
         ):
-            result = storage_service.run_mock_test(
+            result = await storage_service.run_mock_test(
                 model_name="nemotron",
                 config={"system_prompt": "Test"},
                 event_id=1,
             )
             assert result["before"]["risk_level"] == "low"
 
-    def test_score_to_level_medium(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_score_to_level_medium(self, storage_service: PromptStorageService):
         """Test medium risk level for scores 30-59."""
         with (
             patch("random.randint", return_value=45),
             patch("random.uniform", return_value=0.1),
         ):
-            result = storage_service.run_mock_test(
+            result = await storage_service.run_mock_test(
                 model_name="nemotron",
                 config={"system_prompt": "Test"},
                 event_id=1,
             )
             assert result["before"]["risk_level"] == "medium"
 
-    def test_score_to_level_high(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_score_to_level_high(self, storage_service: PromptStorageService):
         """Test high risk level for scores 60-84."""
         with (
             patch("random.randint", return_value=75),
             patch("random.uniform", return_value=0.1),
         ):
-            result = storage_service.run_mock_test(
+            result = await storage_service.run_mock_test(
                 model_name="nemotron",
                 config={"system_prompt": "Test"},
                 event_id=1,
             )
             assert result["before"]["risk_level"] == "high"
 
-    def test_score_to_level_critical(self, storage_service: PromptStorageService):
+    @pytest.mark.asyncio
+    async def test_score_to_level_critical(self, storage_service: PromptStorageService):
         """Test critical risk level for scores 85+."""
         with (
             patch("random.randint", return_value=90),
             patch("random.uniform", return_value=0.1),
         ):
-            result = storage_service.run_mock_test(
+            result = await storage_service.run_mock_test(
                 model_name="nemotron",
                 config={"system_prompt": "Test"},
                 event_id=1,

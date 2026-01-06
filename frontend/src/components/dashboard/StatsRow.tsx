@@ -148,7 +148,7 @@ export default function StatsRow({
           <div className="text-2xl font-bold text-white" data-testid="active-cameras-count">
             {activeCameras}
           </div>
-          <div className="text-sm text-gray-400">Active Cameras</div>
+          <div className="text-sm text-text-secondary">Active Cameras</div>
         </div>
       </button>
 
@@ -169,7 +169,7 @@ export default function StatsRow({
           <div className="text-2xl font-bold text-white" data-testid="events-today-count">
             {eventsToday}
           </div>
-          <div className="text-sm text-gray-400">Events Today</div>
+          <div className="text-sm text-text-secondary">Events Today</div>
         </div>
       </button>
 
@@ -254,7 +254,7 @@ export default function StatsRow({
               {statusLabel}
             </div>
           </div>
-          <div className="text-sm text-gray-400">System Status</div>
+          <div className="text-sm text-text-secondary">System Status</div>
         </div>
       </button>
     </div>

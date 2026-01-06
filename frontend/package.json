@@ -29,7 +29,8 @@
     "dead-code": "knip",
     "test:mutation": "stryker run",
     "docs": "typedoc",
-    "docs:watch": "typedoc --watch"
+    "docs:watch": "typedoc --watch",
+    "analyze": "vite build --mode analyze"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -54,7 +55,7 @@
     "@playwright/test": "^1.57.0",
     "@stryker-mutator/core": "^8.7.1",
     "@stryker-mutator/typescript-checker": "^8.7.1",
-    "@stryker-mutator/vitest-runner": "^8.7.1",
+    "@stryker-mutator/vitest-runner": "^9.4.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^16.3.1",
@@ -80,6 +81,7 @@
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.1",
     "typedoc": "0.28.15",
     "typedoc-plugin-markdown": "4.9.0",

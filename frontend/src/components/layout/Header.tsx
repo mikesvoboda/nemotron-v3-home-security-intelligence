@@ -64,13 +64,13 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
       role="tooltip"
       data-testid="health-tooltip"
     >
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
         Service Status
       </div>
       <div className="space-y-2">
         {Object.entries(services).map(([name, service]) => (
           <div key={name} className="flex items-center justify-between gap-4">
-            <span className="text-sm capitalize text-gray-300">{name}</span>
+            <span className="text-sm capitalize text-text-secondary">{name}</span>
             <div className="flex items-center gap-2">
               <div
                 className={`h-2 w-2 rounded-full ${
@@ -185,7 +185,7 @@ export default function Header() {
         {/* Mobile hamburger menu button */}
         <button
           onClick={toggleMobileMenu}
-          className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white md:hidden"
+          className="rounded-lg p-2 text-text-secondary hover:bg-gray-800 hover:text-white md:hidden"
           aria-label="Open menu"
           data-testid="hamburger-menu"
         >
@@ -227,7 +227,7 @@ export default function Header() {
             }`}
             data-testid="health-dot"
           />
-          <span className="hidden text-sm text-gray-400 sm:inline">
+          <span className="hidden text-sm text-text-secondary sm:inline">
             {!isConnected
               ? 'Connecting...'
               : healthLoading && !apiHealth
@@ -256,7 +256,7 @@ export default function Header() {
 
         {/* GPU Quick Stats - hidden on mobile */}
         <div className="hidden items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5 md:flex">
-          <div className="text-xs text-gray-400">GPU:</div>
+          <div className="text-xs text-text-secondary">GPU:</div>
           <div className="text-xs font-semibold text-[#76B900]">{formatGpuStats()}</div>
         </div>
       </div>
