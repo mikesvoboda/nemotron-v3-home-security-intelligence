@@ -721,7 +721,7 @@ class TestRunSelfCritique:
         ):
             result = await audit_service._run_self_critique(sample_event)
 
-        assert "request failed" in result.lower()
+        assert "network error" in result.lower()
         assert "LLM unavailable" in result
 
 
