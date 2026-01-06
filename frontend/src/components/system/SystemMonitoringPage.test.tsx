@@ -82,27 +82,39 @@ vi.mock('./PerformanceAlerts', () => ({
 }));
 
 vi.mock('./AiModelsPanel', () => ({
-  default: () => <div data-testid="ai-models-panel">AI Models Panel</div>,
+  default: ({ 'data-testid': testId = 'ai-models-panel' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>AI Models Panel</div>
+  ),
 }));
 
 vi.mock('./DatabasesPanel', () => ({
-  default: () => <div data-testid="databases-panel">Databases Panel</div>,
+  default: ({ 'data-testid': testId = 'databases-panel' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Databases Panel</div>
+  ),
 }));
 
 vi.mock('./HostSystemPanel', () => ({
-  default: () => <div data-testid="host-system-panel">Host System Panel</div>,
+  default: ({ 'data-testid': testId = 'host-system-panel' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Host System Panel</div>
+  ),
 }));
 
 vi.mock('./ContainersPanel', () => ({
-  default: () => <div data-testid="containers-panel">Containers Panel</div>,
+  default: ({ 'data-testid': testId = 'containers-panel' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Containers Panel</div>
+  ),
 }));
 
 vi.mock('./CircuitBreakerPanel', () => ({
-  default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
+  default: ({ 'data-testid': testId = 'circuit-breaker-panel' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Circuit Breaker Panel</div>
+  ),
 }));
 
 vi.mock('./ServicesPanel', () => ({
-  default: () => <div data-testid="services-panel">Services Panel</div>,
+  default: ({ 'data-testid': testId = 'services-panel' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Services Panel</div>
+  ),
 }));
 
 // Mock SystemSummaryRow to avoid rendering actual component

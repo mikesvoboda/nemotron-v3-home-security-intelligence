@@ -17,6 +17,8 @@ export interface WorkerStatusPanelProps {
   defaultExpanded?: boolean;
   /** Whether to show in compact mode (default: false) */
   compact?: boolean;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -155,6 +157,7 @@ export default function WorkerStatusPanel({
   onStatusChange,
   defaultExpanded = false,
   compact = false,
+  'data-testid': testId = 'worker-status-panel',
 }: WorkerStatusPanelProps) {
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,7 +256,7 @@ export default function WorkerStatusPanel({
         'border-gray-800 bg-[#1A1A1A] shadow-lg',
         hasEssentialStopped && 'border-red-500/50'
       )}
-      data-testid="worker-status-panel"
+      data-testid={testId}
     >
       {/* Collapsible Header */}
       <button

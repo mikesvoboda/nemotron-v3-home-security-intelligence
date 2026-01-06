@@ -22,6 +22,8 @@ export interface CircuitBreakerPanelProps {
   onReset: (name: string) => void | Promise<void>;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -92,6 +94,7 @@ export default function CircuitBreakerPanel({
   error,
   onReset,
   className,
+  'data-testid': testId = 'circuit-breaker-panel',
 }: CircuitBreakerPanelProps) {
   // Loading state
   if (loading) {
@@ -147,7 +150,7 @@ export default function CircuitBreakerPanel({
   return (
     <Card
       className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
-      data-testid="circuit-breaker-panel"
+      data-testid={testId}
     >
       <div className="mb-4 flex items-center justify-between">
         <Title className="flex items-center gap-2 text-white">
