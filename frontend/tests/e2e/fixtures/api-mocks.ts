@@ -30,6 +30,10 @@ import {
   mockAiAuditStats,
   mockAiAuditLeaderboard,
   mockAiAuditRecommendations,
+  mockActivityBaseline,
+  mockClassBaseline,
+  mockAnomalyConfig,
+  mockAIMetrics,
 } from './test-data';
 
 /**
@@ -90,6 +94,16 @@ export interface ApiMockConfig {
   aiAuditRecommendations?: typeof mockAiAuditRecommendations.normal;
   aiAuditError?: boolean;
 
+  // Analytics/Baseline
+  activityBaseline?: typeof mockActivityBaseline.normal;
+  classBaseline?: typeof mockClassBaseline.normal;
+  anomalyConfig?: typeof mockAnomalyConfig.default;
+  analyticsError?: boolean;
+
+  // AI Metrics (for AI Performance page)
+  aiMetrics?: typeof mockAIMetrics.normal;
+  aiMetricsError?: boolean;
+
   // Entities
   entities?: Array<{
     id: string;
@@ -129,6 +143,10 @@ export const defaultMockConfig: ApiMockConfig = {
   aiAuditStats: mockAiAuditStats.normal,
   aiAuditLeaderboard: mockAiAuditLeaderboard.normal,
   aiAuditRecommendations: mockAiAuditRecommendations.normal,
+  activityBaseline: mockActivityBaseline.normal,
+  classBaseline: mockClassBaseline.normal,
+  anomalyConfig: mockAnomalyConfig.default,
+  aiMetrics: mockAIMetrics.normal,
   wsConnectionFail: true, // Default to failing WS in E2E tests
 };
 
@@ -145,6 +163,8 @@ export const errorMockConfig: ApiMockConfig = {
   telemetryError: true,
   alertRulesError: true,
   aiAuditError: true,
+  analyticsError: true,
+  aiMetricsError: true,
   wsConnectionFail: true,
 };
 
@@ -168,6 +188,9 @@ export const emptyMockConfig: ApiMockConfig = {
   aiAuditStats: mockAiAuditStats.empty,
   aiAuditLeaderboard: mockAiAuditLeaderboard.empty,
   aiAuditRecommendations: mockAiAuditRecommendations.empty,
+  activityBaseline: mockActivityBaseline.empty,
+  classBaseline: mockClassBaseline.empty,
+  anomalyConfig: mockAnomalyConfig.default,
   wsConnectionFail: true,
 };
 
@@ -212,6 +235,58 @@ export async function setupApiMocks(
           samples: mergedConfig.gpuHistory || [],
           total: mergedConfig.gpuHistory?.length || 0,
           limit: 100,
+        }),
+      });
+    }
+  });
+
+  // Baseline Activity endpoint (BEFORE all other /api/cameras/* routes)
+  await page.route('**/api/cameras/*/baseline/activity', async (route) => {
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch activity baseline' }),
+      });
+    } else {
+      // Extract camera_id from URL
+      const url = route.request().url();
+      const match = url.match(/\/api\/cameras\/([^/]+)\/baseline\/activity/);
+      const cameraId = match?.[1] || 'cam-1';
+      const baseline = mergedConfig.activityBaseline || mockActivityBaseline.normal;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...baseline,
+          camera_id: cameraId,
+        }),
+      });
+    }
+  });
+
+  // Baseline Classes endpoint (BEFORE all other /api/cameras/* routes)
+  await page.route('**/api/cameras/*/baseline/classes', async (route) => {
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch class baseline' }),
+      });
+    } else {
+      // Extract camera_id from URL
+      const url = route.request().url();
+      const match = url.match(/\/api\/cameras\/([^/]+)\/baseline\/classes/);
+      const cameraId = match?.[1] || 'cam-1';
+      const baseline = mergedConfig.classBaseline || mockClassBaseline.normal;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...baseline,
+          camera_id: cameraId,
         }),
       });
     }
@@ -886,6 +961,56 @@ export async function setupApiMocks(
       }
     } else {
       await route.continue();
+    }
+  });
+
+  // Anomaly Config endpoint
+  await page.route('**/api/system/anomaly-config', async (route) => {
+    const method = route.request().method();
+
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch anomaly config' }),
+      });
+    } else if (method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.anomalyConfig || mockAnomalyConfig.default),
+      });
+    } else if (method === 'PATCH') {
+      const body = route.request().postDataJSON();
+      const updatedConfig = {
+        ...(mergedConfig.anomalyConfig || mockAnomalyConfig.default),
+        ...body,
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(updatedConfig),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  // AI Metrics endpoint (for AI Performance page telemetry)
+  await page.route('**/api/system/ai-metrics', async (route) => {
+    if (mergedConfig.aiMetricsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI metrics' }),
+      });
+    } else {
+      const metrics = mergedConfig.aiMetrics || mockAIMetrics.normal;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(metrics),
+      });
     }
   });
 

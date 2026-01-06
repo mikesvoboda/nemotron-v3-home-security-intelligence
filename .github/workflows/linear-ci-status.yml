@@ -1,6 +1,6 @@
 name: Linear CI Status Sync
 
-# This workflow automatically updates Linear issue status based on CI/CD events:
+# This workflow automatically updates Linear issue status based on CI/CD events.
 # - When a PR passes all CI checks -> Move linked issue to "In Review"
 # - When a PR is merged to main -> Move linked issue to "Done"
 # - When CI fails -> Add a comment to the Linear issue
@@ -401,8 +401,9 @@ jobs:
         if: github.event.inputs.pr_number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
         run: |
-          PR_NUMBER="${{ github.event.inputs.pr_number }}"
+          # PR_NUMBER is set via env to avoid shell injection
 
           PR_DATA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER" --jq '{title: .title, head_ref: .head.ref, state: .state, merged: .merged}' || echo "{}")
 

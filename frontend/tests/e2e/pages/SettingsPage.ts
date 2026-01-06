@@ -17,9 +17,11 @@ export class SettingsPage extends BasePage {
   readonly pageTitle: Locator;
   readonly pageSubtitle: Locator;
 
-  // Tab Navigation
+  // Tab Navigation (5 tabs: Cameras, Analytics, Rules, Processing, Notifications)
   readonly tabList: Locator;
   readonly camerasTab: Locator;
+  readonly analyticsTab: Locator;
+  readonly rulesTab: Locator;
   readonly processingTab: Locator;
   readonly notificationsTab: Locator;
 
@@ -59,10 +61,13 @@ export class SettingsPage extends BasePage {
     this.pageTitle = page.getByRole('heading', { name: /Settings/i }).first();
     this.pageSubtitle = page.getByText(/Configure your security monitoring system/i);
 
-    // Tab Navigation - Headless UI renders tabs as buttons, not role="tab"
+    // Tab Navigation - Headless UI renders tabs as buttons
+    // Order: Cameras, Analytics, Rules, Processing, Notifications
     // Note: AI Models tab was moved to /ai page
     this.tabList = page.locator('[role="tablist"]');
     this.camerasTab = page.getByRole('tab', { name: /CAMERAS/i }).or(page.locator('button').filter({ hasText: 'CAMERAS' }));
+    this.analyticsTab = page.getByRole('tab', { name: /ANALYTICS/i }).or(page.locator('button').filter({ hasText: 'ANALYTICS' }));
+    this.rulesTab = page.getByRole('tab', { name: /RULES/i }).or(page.locator('button').filter({ hasText: 'RULES' }));
     this.processingTab = page.getByRole('tab', { name: /PROCESSING/i }).or(page.locator('button').filter({ hasText: 'PROCESSING' }));
     this.notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i }).or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
 
@@ -135,11 +140,29 @@ export class SettingsPage extends BasePage {
   }
 
   /**
+   * Go to Analytics tab
+   */
+  async goToAnalyticsTab(): Promise<void> {
+    await this.analyticsTab.click();
+    await expect(this.analyticsTab).toHaveAttribute('data-selected', 'true');
+  }
+
+  /**
+   * Go to Rules tab
+   */
+  async goToRulesTab(): Promise<void> {
+    await this.rulesTab.click();
+    await expect(this.rulesTab).toHaveAttribute('data-selected', 'true');
+  }
+
+  /**
    * Check if a tab is selected
    */
-  async isTabSelected(tab: 'cameras' | 'processing' | 'notifications'): Promise<boolean> {
+  async isTabSelected(tab: 'cameras' | 'analytics' | 'rules' | 'processing' | 'notifications'): Promise<boolean> {
     const tabs: Record<string, Locator> = {
       cameras: this.camerasTab,
+      analytics: this.analyticsTab,
+      rules: this.rulesTab,
       processing: this.processingTab,
       notifications: this.notificationsTab,
     };
