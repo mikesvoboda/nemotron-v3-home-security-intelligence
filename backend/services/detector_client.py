@@ -473,6 +473,21 @@ class DetectorClient:
             )
             return False
 
+    async def _validate_image_for_detection_async(self, image_path: str, camera_id: str) -> bool:
+        """Validate image file asynchronously without blocking the event loop.
+
+        This is the non-blocking version that runs the validation in a thread pool
+        executor. Use this in async code instead of _validate_image_for_detection.
+
+        Args:
+            image_path: Path to the image file
+            camera_id: Camera ID for logging context
+
+        Returns:
+            True if image is valid and suitable for detection
+        """
+        return await asyncio.to_thread(self._validate_image_for_detection, image_path, camera_id)
+
     async def detect_objects(  # noqa: PLR0912
         self,
         image_path: str,
@@ -521,9 +536,9 @@ class DetectorClient:
             record_pipeline_error("file_not_found")
             return []
 
-        # Validate image integrity before sending to detector
+        # Validate image integrity before sending to detector (async to avoid blocking)
         # This catches truncated/corrupt images from incomplete FTP uploads
-        if not self._validate_image_for_detection(image_path, camera_id):
+        if not await self._validate_image_for_detection_async(image_path, camera_id):
             record_pipeline_error("invalid_image")
             return []
 
@@ -533,8 +548,8 @@ class DetectorClient:
         )
 
         try:
-            # Read image file
-            image_data = image_file.read_bytes()
+            # Read image file asynchronously to avoid blocking the event loop
+            image_data = await asyncio.to_thread(image_file.read_bytes)
 
             # Track AI request time separately
             ai_start_time = time.time()

@@ -236,6 +236,123 @@ npx playwright test --project=visual-chromium --update-snapshots
 
 See `visual/AGENTS.md` for detailed visual testing documentation.
 
+## Test Tagging (NEM-1478)
+
+Tests can be tagged using annotations in test titles for selective execution:
+
+| Tag        | Purpose                                            |
+| ---------- | -------------------------------------------------- |
+| `@smoke`   | Critical path tests that run on every commit       |
+| `@critical`| High-priority tests for core functionality         |
+| `@slow`    | Tests that take longer to execute                  |
+| `@flaky`   | Tests known to be flaky (tracked for improvements) |
+| `@network` | Tests that simulate network conditions             |
+
+**Selective Execution:**
+```bash
+# Run only smoke tests
+npx playwright test --grep @smoke
+
+# Run only critical tests
+npx playwright test --grep @critical
+
+# Exclude slow tests for quick feedback
+npx playwright test --grep-invert @slow
+
+# Run smoke OR critical tests
+npx playwright test --grep "@smoke|@critical"
+
+# Use smoke project (pre-configured)
+npx playwright test --project=smoke
+```
+
+**Adding Tags to Tests:**
+```typescript
+// Tag in test title
+test('dashboard loads correctly @smoke @critical', async ({ page }) => {
+  // test code
+});
+
+// Tag in describe block
+test.describe('Dashboard Tests @smoke', () => {
+  test('loads data', async ({ page }) => {
+    // inherits @smoke tag
+  });
+});
+```
+
+## Retry Isolation (NEM-1477)
+
+Tests are retried in complete isolation on failure (CI only, 2 retries):
+
+- Fresh browser context for each retry
+- No shared state between attempts
+- Flaky tests (pass on retry) are tracked via JSON reporter
+
+**Configure retries per describe block:**
+```typescript
+test.describe('Flaky Area', () => {
+  test.describe.configure({ retries: 3 });
+
+  test('potentially flaky test', async ({ page }) => {
+    // test code
+  });
+});
+```
+
+## Network Condition Simulation (NEM-1479)
+
+Test how the application handles poor network conditions:
+
+```typescript
+// Simulate slow network
+await page.route('**/api/**', async (route) => {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  await route.continue();
+});
+
+// Simulate network failure
+await page.route('**/api/cameras', route => route.abort('failed'));
+
+// Simulate intermittent failures (50% failure rate)
+await page.route('**/api/**', async route => {
+  if (Math.random() < 0.5) {
+    await route.abort('failed');
+  } else {
+    await route.continue();
+  }
+});
+```
+
+## Waiting for API Responses (NEM-1480)
+
+BasePage provides methods to wait for specific API responses:
+
+```typescript
+// Wait for a specific endpoint
+const response = await basePage.waitForApiResponse('/api/cameras');
+
+// Wait with options
+const response = await basePage.waitForApiResponse('/api/events', {
+  timeout: 15000,
+  status: 200,
+  method: 'GET',
+});
+
+// Wait for multiple endpoints
+const responses = await basePage.waitForMultipleApiResponses([
+  '/api/cameras',
+  '/api/events',
+  '/api/system/stats',
+]);
+
+// Perform action and wait for API
+const response = await basePage.performActionAndWaitForApi(
+  () => page.click('button.refresh'),
+  '/api/cameras'
+);
+```
+
 ## Notes for AI Agents
 
 - Tests use **mocked backend** - no real backend required
@@ -247,6 +364,8 @@ See `visual/AGENTS.md` for detailed visual testing documentation.
 - Response shapes must match actual API schemas
 - Camera snapshots return a transparent 1x1 PNG
 - Page objects encapsulate all selectors - update there, not in specs
+- Use `@smoke` tag for critical path tests
+- Use `waitForApiResponse()` for reliable API-dependent tests
 
 ## Cross-Browser Testing
 

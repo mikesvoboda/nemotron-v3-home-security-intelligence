@@ -146,8 +146,8 @@ export default function ActivityFeed({
           /* Empty State */
           <div className="flex h-full flex-col items-center justify-center text-center">
             <Camera className="mb-4 h-16 w-16 text-gray-700" />
-            <h4 className="mb-2 text-lg font-medium text-gray-400">No Activity Yet</h4>
-            <p className="text-sm text-gray-600">Security events will appear here as they occur.</p>
+            <h4 className="mb-2 text-lg font-medium text-text-secondary">No Activity Yet</h4>
+            <p className="text-sm text-text-muted">Security events will appear here as they occur.</p>
           </div>
         ) : (
           /* Event Items */
@@ -172,6 +172,7 @@ export default function ActivityFeed({
                     }
                   }}
                   aria-label={`Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, risk level ${riskLevel}`}
+                  data-testid={`activity-item-${event.id}`}
                 >
                   {/* Thumbnail */}
                   <div className="flex-shrink-0">
@@ -203,17 +204,17 @@ export default function ActivityFeed({
                     {/* Top Row: Camera Name + Risk Badge */}
                     <div className="mb-1.5 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-sm">
-                        <Camera className="h-3.5 w-3.5 text-gray-500" />
+                        <Camera className="h-3.5 w-3.5 text-text-muted" />
                         <span className="font-medium text-white">{event.camera_name}</span>
                       </div>
                       <RiskBadge level={riskLevel} score={event.risk_score} showScore size="sm" />
                     </div>
 
                     {/* Summary */}
-                    <p className="mb-1.5 line-clamp-2 text-sm text-gray-400">{event.summary}</p>
+                    <p className="mb-1.5 line-clamp-2 text-sm text-text-secondary">{event.summary}</p>
 
                     {/* Timestamp */}
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <div className="flex items-center gap-1.5 text-xs text-text-muted">
                       <Clock className="h-3 w-3" />
                       <time dateTime={event.timestamp}>{formatTimestamp(event.timestamp)}</time>
                     </div>
@@ -235,7 +236,7 @@ export default function ActivityFeed({
       {/* Footer */}
       {displayedEvents.length > 0 && (
         <div className="border-t border-gray-800 px-4 py-2">
-          <p className="text-center text-xs text-gray-600">
+          <p className="text-center text-xs text-text-muted">
             Showing {displayedEvents.length} of {events.length} events
           </p>
         </div>

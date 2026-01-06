@@ -664,9 +664,9 @@ async def test_prompt(
 
     storage = get_prompt_storage()
 
-    # Run mock test
+    # Run mock test (async method)
     try:
-        results = storage.run_mock_test(
+        results = await storage.run_mock_test(
             model_name=request.model,
             config=request.config,
             event_id=request.event_id,

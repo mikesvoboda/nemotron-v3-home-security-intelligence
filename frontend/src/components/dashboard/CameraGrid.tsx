@@ -102,6 +102,7 @@ function CameraCard({
       )}
       aria-label={`Camera ${camera.name}, status: ${getStatusLabel(camera.status)}`}
       aria-pressed={isSelected}
+      data-testid={`camera-card-${camera.id}`}
     >
       {/* Thumbnail or placeholder */}
       <div className="relative aspect-video w-full bg-gray-900">
