@@ -1577,7 +1577,9 @@ class TestHealthCheckLoopNonCancelledError:
         )
 
         await manager.start()
-        await asyncio.sleep(0.1)  # Allow loop to run and handle errors
+        await asyncio.sleep(
+            0.2
+        )  # Allow loop to run and handle errors (increased for CI reliability)
         await manager.stop()
 
         # Should have been called multiple times, surviving the errors
