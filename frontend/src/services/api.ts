@@ -21,6 +21,7 @@ export type {
   AlertRuleUpdate,
   AlertSeverity,
   AuditLogListResponse,
+  DayOfWeek,
   AuditLogResponse,
   AuditLogStats,
   Camera,
@@ -97,10 +98,10 @@ import type {
   AiAuditLeaderboardResponse,
   AiAuditRecommendationsResponse,
   AiAuditStatsResponse,
-  AlertRule as GeneratedAlertRule,
-  AlertRuleCreate as GeneratedAlertRuleCreate,
-  AlertRuleListResponse as GeneratedAlertRuleListResponse,
-  AlertRuleUpdate as GeneratedAlertRuleUpdate,
+  AlertRule,
+  AlertRuleCreate,
+  AlertRuleListResponse,
+  AlertRuleUpdate,
   AlertSeverity,
   AuditLogListResponse as GeneratedAuditLogListResponse,
   AuditLogResponse as GeneratedAuditLogResponse,
@@ -1534,7 +1535,7 @@ export interface AlertRulesQueryParams {
  */
 export async function fetchAlertRules(
   params?: AlertRulesQueryParams
-): Promise<GeneratedAlertRuleListResponse> {
+): Promise<AlertRuleListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params) {
@@ -1547,7 +1548,7 @@ export async function fetchAlertRules(
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/alerts/rules?${queryString}` : '/api/alerts/rules';
 
-  return fetchApi<GeneratedAlertRuleListResponse>(endpoint);
+  return fetchApi<AlertRuleListResponse>(endpoint);
 }
 
 /**
@@ -1556,8 +1557,8 @@ export async function fetchAlertRules(
  * @param id - Alert rule UUID
  * @returns AlertRule with rule details
  */
-export async function fetchAlertRule(id: string): Promise<GeneratedAlertRule> {
-  return fetchApi<GeneratedAlertRule>(`/api/alerts/rules/${id}`);
+export async function fetchAlertRule(id: string): Promise<AlertRule> {
+  return fetchApi<AlertRule>(`/api/alerts/rules/${id}`);
 }
 
 /**
@@ -1566,8 +1567,8 @@ export async function fetchAlertRule(id: string): Promise<GeneratedAlertRule> {
  * @param data - Alert rule creation data
  * @returns Created AlertRule
  */
-export async function createAlertRule(data: GeneratedAlertRuleCreate): Promise<GeneratedAlertRule> {
-  return fetchApi<GeneratedAlertRule>('/api/alerts/rules', {
+export async function createAlertRule(data: AlertRuleCreate): Promise<AlertRule> {
+  return fetchApi<AlertRule>('/api/alerts/rules', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -1582,9 +1583,9 @@ export async function createAlertRule(data: GeneratedAlertRuleCreate): Promise<G
  */
 export async function updateAlertRule(
   id: string,
-  data: GeneratedAlertRuleUpdate
-): Promise<GeneratedAlertRule> {
-  return fetchApi<GeneratedAlertRule>(`/api/alerts/rules/${id}`, {
+  data: AlertRuleUpdate
+): Promise<AlertRule> {
+  return fetchApi<AlertRule>(`/api/alerts/rules/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });

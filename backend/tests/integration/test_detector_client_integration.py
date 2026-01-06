@@ -75,6 +75,15 @@ def detector_client():
 
 
 @pytest.fixture
+def detector_client_no_retry():
+    """Create a DetectorClient instance with no retries for error handling tests.
+
+    Using max_retries=1 speeds up error handling tests by skipping retry delays.
+    """
+    return DetectorClient(max_retries=1)
+
+
+@pytest.fixture
 def mock_detector_response():
     """Standard detector response with multiple detections."""
     return {
@@ -324,7 +333,7 @@ class TestConnectionErrorHandling:
     """Tests for handling connection errors with DetectorUnavailableError."""
 
     async def test_detect_objects_handles_connection_error(
-        self, integration_db, sample_camera, temp_image_file, detector_client
+        self, integration_db, sample_camera, temp_image_file, detector_client_no_retry
     ):
         """Test that connection errors raise DetectorUnavailableError for retry handling."""
         from backend.core.database import get_session
@@ -335,13 +344,16 @@ class TestConnectionErrorHandling:
             async with get_session() as session:
                 # Connection errors should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
-                    await detector_client.detect_objects(
+                    await detector_client_no_retry.detect_objects(
                         image_path=temp_image_file,
                         camera_id=sample_camera.id,
                         session=session,
                     )
 
-                assert "Failed to connect to detector service" in str(exc_info.value)
+                # After retry exhaustion, error message indicates failed attempts
+                assert "failed after" in str(exc_info.value).lower()
+                # Original error is preserved for inspection
+                assert isinstance(exc_info.value.original_error, httpx.ConnectError)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -355,7 +367,7 @@ class TestTimeoutHandling:
     """Tests for handling timeout scenarios with DetectorUnavailableError."""
 
     async def test_detect_objects_handles_timeout(
-        self, integration_db, sample_camera, temp_image_file, detector_client
+        self, integration_db, sample_camera, temp_image_file, detector_client_no_retry
     ):
         """Test that timeouts raise DetectorUnavailableError for retry handling."""
         from backend.core.database import get_session
@@ -366,13 +378,16 @@ class TestTimeoutHandling:
             async with get_session() as session:
                 # Timeouts should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
-                    await detector_client.detect_objects(
+                    await detector_client_no_retry.detect_objects(
                         image_path=temp_image_file,
                         camera_id=sample_camera.id,
                         session=session,
                     )
 
-                assert "timed out" in str(exc_info.value)
+                # After retry exhaustion, error message indicates failed attempts
+                assert "failed after" in str(exc_info.value).lower()
+                # Original error is preserved for inspection
+                assert isinstance(exc_info.value.original_error, httpx.TimeoutException)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -488,7 +503,7 @@ class TestBadResponseHandling:
     """Tests for handling malformed or bad responses from detector."""
 
     async def test_detect_objects_handles_http_error(
-        self, integration_db, sample_camera, temp_image_file, detector_client
+        self, integration_db, sample_camera, temp_image_file, detector_client_no_retry
     ):
         """Test that HTTP 5xx errors raise DetectorUnavailableError for retry handling."""
         from backend.core.database import get_session
@@ -503,13 +518,16 @@ class TestBadResponseHandling:
             async with get_session() as session:
                 # 5xx errors should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
-                    await detector_client.detect_objects(
+                    await detector_client_no_retry.detect_objects(
                         image_path=temp_image_file,
                         camera_id=sample_camera.id,
                         session=session,
                     )
 
-                assert "server error: 500" in str(exc_info.value)
+                # After retry exhaustion, error message indicates failed attempts
+                assert "failed after" in str(exc_info.value).lower()
+                # Original error is preserved for inspection
+                assert isinstance(exc_info.value.original_error, httpx.HTTPStatusError)
 
     async def test_detect_objects_handles_missing_detections_key(
         self, integration_db, sample_camera, temp_image_file, detector_client

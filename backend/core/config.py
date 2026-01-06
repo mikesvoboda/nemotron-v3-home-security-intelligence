@@ -236,6 +236,22 @@ class Settings(BaseSettings):
         description="Maximum time (seconds) to wait for Nemotron LLM response",
     )
 
+    # AI service retry settings
+    detector_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for RT-DETR detector on transient failures. "
+        "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
+    )
+    nemotron_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for Nemotron LLM on transient failures. "
+        "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
+    )
+
     @field_validator("rtdetr_url", "nemotron_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:
