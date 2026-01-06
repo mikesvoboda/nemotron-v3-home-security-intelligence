@@ -1,5 +1,6 @@
 """Unit tests for thumbnail generator service."""
 
+import asyncio
 import os
 import tempfile
 from pathlib import Path
@@ -277,9 +278,10 @@ def test_thumbnail_generator_init_default_path():
 # Test: Generate Thumbnail
 
 
-def test_generate_thumbnail_success(thumbnail_generator, temp_test_image, sample_detections):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_success(thumbnail_generator, temp_test_image, sample_detections):
     """Test successful thumbnail generation with detections."""
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=sample_detections,
         output_size=(320, 240),
@@ -299,11 +301,12 @@ def test_generate_thumbnail_success(thumbnail_generator, temp_test_image, sample
     assert img.format == "JPEG"
 
 
-def test_generate_thumbnail_no_detection_id(
+@pytest.mark.asyncio
+async def test_generate_thumbnail_no_detection_id(
     thumbnail_generator, temp_test_image, sample_detections
 ):
     """Test thumbnail generation without explicit detection_id."""
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=sample_detections,
     )
@@ -314,9 +317,10 @@ def test_generate_thumbnail_no_detection_id(
     assert Path(output_path).exists()
 
 
-def test_generate_thumbnail_empty_detections(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_empty_detections(thumbnail_generator, temp_test_image):
     """Test thumbnail generation with no detections."""
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=[],
         detection_id="det_002",
@@ -327,9 +331,10 @@ def test_generate_thumbnail_empty_detections(thumbnail_generator, temp_test_imag
     assert Path(output_path).exists()
 
 
-def test_generate_thumbnail_invalid_image_path(thumbnail_generator, sample_detections):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_invalid_image_path(thumbnail_generator, sample_detections):
     """Test thumbnail generation with non-existent image file."""
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path="/nonexistent/image.jpg",
         detections=sample_detections,
         detection_id="det_003",
@@ -339,12 +344,13 @@ def test_generate_thumbnail_invalid_image_path(thumbnail_generator, sample_detec
     assert output_path is None
 
 
-def test_generate_thumbnail_permission_error(
+@pytest.mark.asyncio
+async def test_generate_thumbnail_permission_error(
     thumbnail_generator, temp_test_image, sample_detections
 ):
     """Test thumbnail generation with permission error on save."""
     with patch.object(Image.Image, "save", side_effect=PermissionError("Permission denied")):
-        output_path = thumbnail_generator.generate_thumbnail(
+        output_path = await thumbnail_generator.generate_thumbnail(
             image_path=temp_test_image,
             detections=sample_detections,
             detection_id="det_004",
@@ -354,11 +360,12 @@ def test_generate_thumbnail_permission_error(
         assert output_path is None
 
 
-def test_generate_thumbnail_custom_output_size(
+@pytest.mark.asyncio
+async def test_generate_thumbnail_custom_output_size(
     thumbnail_generator, temp_test_image, sample_detections
 ):
     """Test thumbnail generation with custom output size."""
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=sample_detections,
         output_size=(640, 480),
@@ -624,11 +631,12 @@ def test_get_output_path(thumbnail_generator):
     assert output_path.parent == thumbnail_generator.output_dir
 
 
-def test_delete_thumbnail_existing_file(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_delete_thumbnail_existing_file(thumbnail_generator, temp_test_image):
     """Test deleting an existing thumbnail."""
     # First generate a thumbnail
     detection_id = "det_delete_001"
-    thumbnail_generator.generate_thumbnail(
+    await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=[],
         detection_id=detection_id,
@@ -656,11 +664,12 @@ def test_delete_thumbnail_nonexistent_file(thumbnail_generator):
     assert result is False
 
 
-def test_delete_thumbnail_permission_error(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_delete_thumbnail_permission_error(thumbnail_generator, temp_test_image):
     """Test deleting thumbnail with permission error."""
     # Generate a thumbnail
     detection_id = "det_delete_002"
-    thumbnail_generator.generate_thumbnail(
+    await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=[],
         detection_id=detection_id,
@@ -677,7 +686,8 @@ def test_delete_thumbnail_permission_error(thumbnail_generator, temp_test_image)
 # Test: Integration Scenarios
 
 
-def test_end_to_end_thumbnail_generation(temp_output_dir, temp_test_image):
+@pytest.mark.asyncio
+async def test_end_to_end_thumbnail_generation(temp_output_dir, temp_test_image):
     """Test complete thumbnail generation workflow."""
     generator = ThumbnailGenerator(output_dir=temp_output_dir)
 
@@ -709,7 +719,7 @@ def test_end_to_end_thumbnail_generation(temp_output_dir, temp_test_image):
     ]
 
     # Generate thumbnail
-    output_path = generator.generate_thumbnail(
+    output_path = await generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=detections,
         output_size=(320, 240),
@@ -729,7 +739,8 @@ def test_end_to_end_thumbnail_generation(temp_output_dir, temp_test_image):
     assert generator.delete_thumbnail("det_integration") is True
 
 
-def test_generate_thumbnail_with_various_object_types(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_with_various_object_types(thumbnail_generator, temp_test_image):
     """Test thumbnail generation with various object types for color mapping."""
     detections = [
         {
@@ -798,7 +809,7 @@ def test_generate_thumbnail_with_various_object_types(thumbnail_generator, temp_
         },
     ]
 
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=detections,
         detection_id="det_colors",
@@ -811,7 +822,8 @@ def test_generate_thumbnail_with_various_object_types(thumbnail_generator, temp_
 # Test: Edge Cases
 
 
-def test_generate_thumbnail_with_rgba_image(thumbnail_generator):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_with_rgba_image(thumbnail_generator):
     """Test thumbnail generation with RGBA (PNG) image."""
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         # Create RGBA image
@@ -829,7 +841,7 @@ def test_generate_thumbnail_with_rgba_image(thumbnail_generator):
             }
         ]
 
-        output_path = thumbnail_generator.generate_thumbnail(
+        output_path = await thumbnail_generator.generate_thumbnail(
             image_path=tmp.name,
             detections=detections,
             detection_id="det_rgba",
@@ -843,7 +855,8 @@ def test_generate_thumbnail_with_rgba_image(thumbnail_generator):
         Path(tmp.name).unlink()
 
 
-def test_generate_thumbnail_with_bbox_at_edge(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_with_bbox_at_edge(thumbnail_generator, temp_test_image):
     """Test thumbnail generation with bbox at image edge."""
     detections = [
         {
@@ -864,7 +877,7 @@ def test_generate_thumbnail_with_bbox_at_edge(thumbnail_generator, temp_test_ima
         },
     ]
 
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=detections,
         detection_id="det_edge",
@@ -875,7 +888,8 @@ def test_generate_thumbnail_with_bbox_at_edge(thumbnail_generator, temp_test_ima
     assert Path(output_path).exists()
 
 
-def test_generate_thumbnail_with_very_small_bbox(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_with_very_small_bbox(thumbnail_generator, temp_test_image):
     """Test thumbnail generation with very small bounding box."""
     detections = [
         {
@@ -888,7 +902,7 @@ def test_generate_thumbnail_with_very_small_bbox(thumbnail_generator, temp_test_
         }
     ]
 
-    output_path = thumbnail_generator.generate_thumbnail(
+    output_path = await thumbnail_generator.generate_thumbnail(
         image_path=temp_test_image,
         detections=detections,
         detection_id="det_small",
@@ -899,7 +913,8 @@ def test_generate_thumbnail_with_very_small_bbox(thumbnail_generator, temp_test_
     assert Path(output_path).exists()
 
 
-def test_generate_thumbnail_general_exception(thumbnail_generator, temp_test_image):
+@pytest.mark.asyncio
+async def test_generate_thumbnail_general_exception(thumbnail_generator, temp_test_image):
     """Test thumbnail generation with unexpected exception during processing."""
     detections = [
         {
@@ -917,7 +932,7 @@ def test_generate_thumbnail_general_exception(thumbnail_generator, temp_test_ima
         "backend.services.thumbnail_generator.Image.open",
         side_effect=RuntimeError("Unexpected error"),
     ):
-        output_path = thumbnail_generator.generate_thumbnail(
+        output_path = await thumbnail_generator.generate_thumbnail(
             image_path=temp_test_image,
             detections=detections,
             detection_id="det_error",
@@ -1001,3 +1016,100 @@ def test_draw_bounding_boxes_with_none_coordinates(thumbnail_generator):
     result = thumbnail_generator.draw_bounding_boxes(img, detections)
 
     assert isinstance(result, Image.Image)
+
+
+# Test: Async-specific behavior
+
+
+@pytest.mark.asyncio
+async def test_generate_thumbnail_uses_asyncio_to_thread(
+    thumbnail_generator, temp_test_image, sample_detections
+):
+    """Test that generate_thumbnail uses asyncio.to_thread for blocking operations."""
+    with patch(
+        "backend.services.thumbnail_generator.asyncio.to_thread",
+        wraps=asyncio.to_thread,
+    ) as mock_to_thread:
+        output_path = await thumbnail_generator.generate_thumbnail(
+            image_path=temp_test_image,
+            detections=sample_detections,
+            detection_id="det_async_test",
+        )
+
+        # Verify asyncio.to_thread was called
+        mock_to_thread.assert_called_once()
+
+        # Verify it was called with _generate_thumbnail_sync
+        args = mock_to_thread.call_args[0]
+        assert args[0] == thumbnail_generator._generate_thumbnail_sync
+
+        # Verify output is correct
+        assert output_path is not None
+        assert Path(output_path).exists()
+
+
+def test_generate_thumbnail_sync_method_exists(thumbnail_generator):
+    """Test that _generate_thumbnail_sync method exists and is callable."""
+    assert hasattr(thumbnail_generator, "_generate_thumbnail_sync")
+    assert callable(thumbnail_generator._generate_thumbnail_sync)
+
+
+def test_generate_thumbnail_sync_success(thumbnail_generator, temp_test_image, sample_detections):
+    """Test synchronous thumbnail generation method directly."""
+    output_path = thumbnail_generator.output_dir / "det_sync_test_thumb.jpg"
+
+    result = thumbnail_generator._generate_thumbnail_sync(
+        image_path=temp_test_image,
+        detections=sample_detections,
+        output_size=(320, 240),
+        output_path=output_path,
+    )
+
+    # Verify output path returned
+    assert result is not None
+    assert result == str(output_path)
+
+    # Verify file was created
+    assert output_path.exists()
+
+    # Verify image is correct size
+    img = Image.open(result)
+    assert img.size == (320, 240)
+    assert img.format == "JPEG"
+
+
+def test_generate_thumbnail_sync_raises_file_not_found(thumbnail_generator, sample_detections):
+    """Test that _generate_thumbnail_sync raises FileNotFoundError for missing image."""
+    output_path = thumbnail_generator.output_dir / "det_sync_error_thumb.jpg"
+
+    with pytest.raises(FileNotFoundError):
+        thumbnail_generator._generate_thumbnail_sync(
+            image_path="/nonexistent/image.jpg",
+            detections=sample_detections,
+            output_size=(320, 240),
+            output_path=output_path,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_thumbnail_concurrent_calls(
+    thumbnail_generator, temp_test_image, sample_detections
+):
+    """Test that multiple concurrent thumbnail generations work correctly."""
+    # Generate multiple thumbnails concurrently
+    tasks = [
+        thumbnail_generator.generate_thumbnail(
+            image_path=temp_test_image,
+            detections=sample_detections,
+            detection_id=f"det_concurrent_{i}",
+        )
+        for i in range(3)
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    # Verify all thumbnails were generated
+    for i, result in enumerate(results):
+        assert result is not None
+        assert f"det_concurrent_{i}_thumb.jpg" in result
+        assert Path(result).exists()

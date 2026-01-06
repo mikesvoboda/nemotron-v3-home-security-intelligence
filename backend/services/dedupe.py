@@ -24,6 +24,7 @@ Error Handling:
 - File read errors: Returns False (don't process corrupted files)
 """
 
+import asyncio
 import hashlib
 from pathlib import Path
 
@@ -68,6 +69,7 @@ def compute_file_hash(file_path: str) -> str | None:
 
         # Read file and compute hash
         sha256_hash = hashlib.sha256()
+        # nosemgrep: path-traversal-open - file_path comes from internal service, not user input
         with open(file_path, "rb") as f:
             # Read in chunks for memory efficiency with large files
             for chunk in iter(lambda: f.read(8192), b""):
@@ -142,7 +144,8 @@ class DedupeService:
         """
         # Compute hash if not provided
         if file_hash is None:
-            file_hash = compute_file_hash(file_path)
+            # Run blocking file I/O in thread pool to avoid blocking event loop
+            file_hash = await asyncio.to_thread(compute_file_hash, file_path)
 
         if file_hash is None:
             # Could not compute hash - likely file issue, let caller decide
@@ -206,7 +209,8 @@ class DedupeService:
         """
         # Compute hash if not provided
         if file_hash is None:
-            file_hash = compute_file_hash(file_path)
+            # Run blocking file I/O in thread pool to avoid blocking event loop
+            file_hash = await asyncio.to_thread(compute_file_hash, file_path)
 
         if file_hash is None:
             logger.warning(f"Could not compute hash to mark as processed: {file_path}")
@@ -247,8 +251,8 @@ class DedupeService:
             - is_duplicate: True if file was already processed
             - file_hash: The SHA256 hash of the file
         """
-        # Compute hash once
-        file_hash = compute_file_hash(file_path)
+        # Compute hash once - run blocking file I/O in thread pool
+        file_hash = await asyncio.to_thread(compute_file_hash, file_path)
         if file_hash is None:
             return (False, None)
 

@@ -985,6 +985,157 @@ class TestEdgeCases:
 
 
 # =============================================================================
+# Async Thread Offloading Tests
+# =============================================================================
+
+
+class TestAsyncioToThread:
+    """Tests to verify blocking file hash computation is offloaded to thread pool.
+
+    These tests ensure that compute_file_hash calls in async methods use
+    asyncio.to_thread() to avoid blocking the event loop.
+    """
+
+    @pytest.mark.asyncio
+    async def test_is_duplicate_uses_asyncio_to_thread_for_hash(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that is_duplicate uses asyncio.to_thread when computing hash."""
+        mock_redis_client.exists.return_value = 0
+
+        with (
+            patch("backend.services.dedupe.get_settings") as mock_settings,
+            patch("backend.services.dedupe.asyncio.to_thread") as mock_to_thread,
+        ):
+            mock_settings.return_value = MagicMock(spec=[])
+            # Return a valid hash from to_thread
+            mock_to_thread.return_value = "a" * 64
+
+            service = DedupeService(redis_client=mock_redis_client)
+            _is_dup, _file_hash = await service.is_duplicate(temp_file)
+
+            # Verify to_thread was called with compute_file_hash
+            mock_to_thread.assert_awaited_once()
+            call_args = mock_to_thread.call_args
+            assert call_args[0][0] == compute_file_hash
+            assert call_args[0][1] == temp_file
+
+    @pytest.mark.asyncio
+    async def test_is_duplicate_skips_to_thread_when_hash_provided(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that is_duplicate does NOT use asyncio.to_thread when hash is provided."""
+        mock_redis_client.exists.return_value = 0
+
+        with (
+            patch("backend.services.dedupe.get_settings") as mock_settings,
+            patch("backend.services.dedupe.asyncio.to_thread") as mock_to_thread,
+        ):
+            mock_settings.return_value = MagicMock(spec=[])
+
+            service = DedupeService(redis_client=mock_redis_client)
+            # Pass pre-computed hash
+            _is_dup, file_hash = await service.is_duplicate(temp_file, "precomputed_hash")
+
+            # Verify to_thread was NOT called (hash was provided)
+            mock_to_thread.assert_not_awaited()
+            assert file_hash == "precomputed_hash"
+
+    @pytest.mark.asyncio
+    async def test_mark_processed_uses_asyncio_to_thread_for_hash(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that mark_processed uses asyncio.to_thread when computing hash."""
+        with (
+            patch("backend.services.dedupe.get_settings") as mock_settings,
+            patch("backend.services.dedupe.asyncio.to_thread") as mock_to_thread,
+        ):
+            mock_settings.return_value = MagicMock(spec=[])
+            mock_to_thread.return_value = "b" * 64
+
+            service = DedupeService(redis_client=mock_redis_client)
+            _result = await service.mark_processed(temp_file)
+
+            # Verify to_thread was called with compute_file_hash
+            mock_to_thread.assert_awaited_once()
+            call_args = mock_to_thread.call_args
+            assert call_args[0][0] == compute_file_hash
+            assert call_args[0][1] == temp_file
+
+    @pytest.mark.asyncio
+    async def test_mark_processed_skips_to_thread_when_hash_provided(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that mark_processed does NOT use asyncio.to_thread when hash is provided."""
+        with (
+            patch("backend.services.dedupe.get_settings") as mock_settings,
+            patch("backend.services.dedupe.asyncio.to_thread") as mock_to_thread,
+        ):
+            mock_settings.return_value = MagicMock(spec=[])
+
+            service = DedupeService(redis_client=mock_redis_client)
+            result = await service.mark_processed(temp_file, "precomputed_hash")
+
+            # Verify to_thread was NOT called
+            mock_to_thread.assert_not_awaited()
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_is_duplicate_and_mark_uses_asyncio_to_thread(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that is_duplicate_and_mark uses asyncio.to_thread for hash computation."""
+        mock_redis_client.exists.return_value = 0
+
+        with (
+            patch("backend.services.dedupe.get_settings") as mock_settings,
+            patch("backend.services.dedupe.asyncio.to_thread") as mock_to_thread,
+        ):
+            mock_settings.return_value = MagicMock(spec=[])
+            mock_to_thread.return_value = "c" * 64
+
+            service = DedupeService(redis_client=mock_redis_client)
+            _is_dup, _file_hash = await service.is_duplicate_and_mark(temp_file)
+
+            # Verify to_thread was called exactly once (hash computed once and reused)
+            mock_to_thread.assert_awaited_once()
+            call_args = mock_to_thread.call_args
+            assert call_args[0][0] == compute_file_hash
+            assert call_args[0][1] == temp_file
+
+    @pytest.mark.asyncio
+    async def test_asyncio_to_thread_does_not_block_event_loop(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that hash computation in async methods does not block the event loop.
+
+        This test verifies that multiple concurrent hash operations can run
+        efficiently because they're offloaded to the thread pool.
+        """
+        import asyncio
+
+        mock_redis_client.exists.return_value = 0
+
+        with patch("backend.services.dedupe.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(spec=[])
+            service = DedupeService(redis_client=mock_redis_client)
+
+            # Run multiple is_duplicate calls concurrently
+            # If blocking, this would serialize; with to_thread, it parallelizes
+            results = await asyncio.gather(
+                service.is_duplicate(temp_file),
+                service.is_duplicate(temp_file),
+                service.is_duplicate(temp_file),
+            )
+
+            # All should complete and return valid results
+            for is_dup, file_hash in results:
+                assert is_dup is False
+                assert file_hash is not None
+                assert len(file_hash) == 64
+
+
+# =============================================================================
 # Property-Based Tests (Hypothesis)
 # =============================================================================
 

@@ -533,8 +533,8 @@ class DetectorClient:
         )
 
         try:
-            # Read image file
-            image_data = image_file.read_bytes()
+            # Read image file asynchronously to avoid blocking the event loop (NEM-1462)
+            image_data = await asyncio.to_thread(image_file.read_bytes)
 
             # Track AI request time separately
             ai_start_time = time.time()

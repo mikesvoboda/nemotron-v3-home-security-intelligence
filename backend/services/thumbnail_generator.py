@@ -10,6 +10,7 @@ Features:
     - Add text labels with object type and confidence score
     - Maintain aspect ratio with padding
     - Save as optimized JPEG files
+    - Async execution with thread pool for blocking PIL operations
 
 Color Scheme (by object type):
     - person: red (#E74856)
@@ -33,6 +34,7 @@ Font Configuration:
     Falls back to PIL's default bitmap font if no TrueType font is found.
 """
 
+import asyncio
 import os
 import platform
 from pathlib import Path
@@ -169,7 +171,7 @@ class ThumbnailGenerator:
             )
             raise
 
-    def generate_thumbnail(
+    async def generate_thumbnail(
         self,
         image_path: str,
         detections: list[dict[str, Any]],
@@ -180,7 +182,8 @@ class ThumbnailGenerator:
 
         Loads the original image, draws bounding boxes for all detections,
         resizes to thumbnail size (maintaining aspect ratio with padding),
-        and saves as JPEG.
+        and saves as JPEG. Blocking PIL operations are run in a thread pool
+        to avoid blocking the event loop.
 
         Args:
             image_path: Path to original detection image
@@ -201,30 +204,23 @@ class ThumbnailGenerator:
                 "bbox_height": 400
             }
         """
+        # Generate output filename before thread work
+        if detection_id is None:
+            detection_id = Path(image_path).stem
+
+        output_filename = f"{detection_id}_thumb.jpg"
+        output_path = self.output_dir / output_filename
+
         try:
-            # Load original image
-            image: Image.Image = Image.open(image_path)  # type: ignore[assignment]
-            if image.mode != "RGB":
-                image = image.convert("RGB")
-
-            # Draw bounding boxes
-            image_with_boxes = self.draw_bounding_boxes(image, detections)
-
-            # Resize to thumbnail size (maintain aspect ratio)
-            thumbnail = self._resize_with_padding(image_with_boxes, output_size)
-
-            # Generate output filename
-            if detection_id is None:
-                detection_id = Path(image_path).stem
-
-            output_filename = f"{detection_id}_thumb.jpg"
-            output_path = self.output_dir / output_filename
-
-            # Save as JPEG with quality 85
-            thumbnail.save(output_path, "JPEG", quality=85, optimize=True)
-
-            logger.debug(f"Generated thumbnail: {output_path}")
-            return str(output_path)
+            # Run blocking PIL operations in thread pool
+            result = await asyncio.to_thread(
+                self._generate_thumbnail_sync,
+                image_path,
+                detections,
+                output_size,
+                output_path,
+            )
+            return result
 
         except FileNotFoundError:
             logger.error(f"Image file not found: {image_path}")
@@ -235,6 +231,48 @@ class ThumbnailGenerator:
         except Exception as e:
             logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=True)
             return None
+
+    def _generate_thumbnail_sync(
+        self,
+        image_path: str,
+        detections: list[dict[str, Any]],
+        output_size: tuple[int, int],
+        output_path: Path,
+    ) -> str:
+        """Synchronous thumbnail generation (runs in thread pool).
+
+        This method contains the blocking PIL operations and is called via
+        asyncio.to_thread() from the async generate_thumbnail method.
+
+        Args:
+            image_path: Path to original detection image
+            detections: List of detection dicts with bbox coordinates and metadata
+            output_size: Thumbnail size as (width, height)
+            output_path: Path to save thumbnail to
+
+        Returns:
+            Path to saved thumbnail file
+
+        Raises:
+            FileNotFoundError: If source image doesn't exist
+            PermissionError: If unable to save thumbnail
+        """
+        # Load original image
+        image: Image.Image = Image.open(image_path)  # type: ignore[assignment]
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Draw bounding boxes
+        image_with_boxes = self.draw_bounding_boxes(image, detections)
+
+        # Resize to thumbnail size (maintain aspect ratio)
+        thumbnail = self._resize_with_padding(image_with_boxes, output_size)
+
+        # Save as JPEG with quality 85
+        thumbnail.save(output_path, "JPEG", quality=85, optimize=True)
+
+        logger.debug(f"Generated thumbnail: {output_path}")
+        return str(output_path)
 
     def draw_bounding_boxes(
         self,

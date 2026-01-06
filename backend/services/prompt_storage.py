@@ -22,6 +22,7 @@ Storage Structure:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
@@ -210,6 +211,7 @@ class PromptStorageService:
         if not path.exists():
             return None
         try:
+            # nosemgrep: path-traversal-open - path built from sanitized model name via _get_prompt_path
             with open(path, encoding="utf-8") as f:
                 result: dict[str, Any] = json.load(f)
                 return result
@@ -220,6 +222,7 @@ class PromptStorageService:
     def _write_json(self, path: Path, data: dict[str, Any]) -> None:
         """Write data to a JSON file with pretty formatting."""
         path.parent.mkdir(parents=True, exist_ok=True)
+        # nosemgrep: path-traversal-open - path built from sanitized model name via _get_prompt_path
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
@@ -632,7 +635,7 @@ class PromptStorageService:
 
         return errors
 
-    def run_mock_test(
+    async def run_mock_test(
         self,
         model_name: str,
         config: dict[str, Any],
@@ -666,11 +669,12 @@ class PromptStorageService:
         # Simulate some processing time
         import random
 
-        time.sleep(random.uniform(0.05, 0.15))  # noqa: S311
+        await asyncio.sleep(random.uniform(0.05, 0.15))  # noqa: S311
 
         # Generate mock results based on model type
+        # nosemgrep: insecure-random - not security-sensitive, just mock test data
         before_score = random.randint(30, 70)  # noqa: S311
-        after_score = random.randint(20, 60)  # noqa: S311
+        after_score = random.randint(20, 60)  # noqa: S311  # nosemgrep: insecure-random
 
         def _score_to_level(score: int) -> str:
             if score < 30:

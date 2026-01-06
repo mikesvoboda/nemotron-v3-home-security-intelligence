@@ -493,7 +493,7 @@ async def test_get_detection_image_generate_thumbnail_on_fly(
     image_data = b"\xff\xd8\xff\xe0fake_jpeg_data"
 
     mock_thumbnail_gen = MagicMock()
-    mock_thumbnail_gen.generate_thumbnail.return_value = generated_thumbnail_path
+    mock_thumbnail_gen.generate_thumbnail = AsyncMock(return_value=generated_thumbnail_path)
 
     def path_exists(path: str) -> bool:
         # Thumbnail doesn't exist, but source image does
@@ -517,7 +517,7 @@ async def test_get_detection_image_generate_thumbnail_on_fly(
     assert result.body == image_data
 
     # Verify thumbnail was generated with correct parameters
-    mock_thumbnail_gen.generate_thumbnail.assert_called_once()
+    mock_thumbnail_gen.generate_thumbnail.assert_awaited_once()
     call_kwargs = mock_thumbnail_gen.generate_thumbnail.call_args.kwargs
     assert call_kwargs["image_path"] == mock_detection_no_thumbnail.file_path
     assert call_kwargs["detection_id"] == str(mock_detection_no_thumbnail.id)
@@ -554,7 +554,7 @@ async def test_get_detection_image_thumbnail_generation_fails(
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     mock_thumbnail_gen = MagicMock()
-    mock_thumbnail_gen.generate_thumbnail.return_value = None  # Generation failed
+    mock_thumbnail_gen.generate_thumbnail = AsyncMock(return_value=None)  # Generation failed
 
     def path_exists(path: str) -> bool:
         # Source exists, thumbnail doesn't exist
@@ -606,7 +606,7 @@ async def test_get_detection_image_thumbnail_path_exists_but_file_missing(
     image_data = b"\xff\xd8\xff\xe0fake_jpeg_data"
 
     mock_thumbnail_gen = MagicMock()
-    mock_thumbnail_gen.generate_thumbnail.return_value = generated_thumbnail_path
+    mock_thumbnail_gen.generate_thumbnail = AsyncMock(return_value=generated_thumbnail_path)
 
     call_count = [0]
 
@@ -632,7 +632,7 @@ async def test_get_detection_image_thumbnail_path_exists_but_file_missing(
 
     assert result.status_code == 200
     # Thumbnail should be regenerated
-    mock_thumbnail_gen.generate_thumbnail.assert_called_once()
+    mock_thumbnail_gen.generate_thumbnail.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -649,7 +649,7 @@ async def test_get_detection_image_verifies_detection_data_for_thumbnail(
     image_data = b"\xff\xd8\xff\xe0fake_jpeg_data"
 
     mock_thumbnail_gen = MagicMock()
-    mock_thumbnail_gen.generate_thumbnail.return_value = generated_thumbnail_path
+    mock_thumbnail_gen.generate_thumbnail = AsyncMock(return_value=generated_thumbnail_path)
 
     def path_exists(path: str) -> bool:
         if path == mock_detection_no_thumbnail.file_path:
@@ -826,7 +826,7 @@ async def test_get_detection_image_with_none_thumbnail_path(mock_db_session: Asy
     image_data = b"\xff\xd8\xff\xe0fake"
 
     mock_thumbnail_gen = MagicMock()
-    mock_thumbnail_gen.generate_thumbnail.return_value = generated_path
+    mock_thumbnail_gen.generate_thumbnail = AsyncMock(return_value=generated_path)
 
     def path_exists(path: str) -> bool:
         if path == detection.file_path:
