@@ -45,7 +45,7 @@ from backend.api.schemas.ai_audit import (
     RecommendationsResponse,
 )
 from backend.core.database import get_db
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
@@ -77,7 +77,7 @@ def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> 
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, TypeError):
-        logger.warning(f"Invalid datetime format: {value}, using fallback")
+        logger.warning(f"Invalid datetime format: {sanitize_log_value(value)}, using fallback")
         return fallback
 
 
@@ -464,7 +464,7 @@ def _validate_model_name(model: str) -> None:
         HTTPException: 404 if model is not supported
     """
     if model not in SUPPORTED_MODELS:
-        logger.warning(f"Invalid model requested: {model}")
+        logger.warning(f"Invalid model requested: {sanitize_log_value(model)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model not found",
@@ -1019,7 +1019,7 @@ def _validate_db_model_name(model: str) -> None:
         HTTPException: 404 if model is not supported
     """
     if model not in DB_SUPPORTED_MODELS:
-        logger.warning(f"Invalid model requested: {model}")
+        logger.warning(f"Invalid model requested: {sanitize_log_value(model)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model not found",

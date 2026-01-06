@@ -29,7 +29,7 @@ from backend.api.schemas.events import (
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_reviewed
 from backend.core.sanitization import sanitize_error_for_response
 from backend.models.audit import AuditAction
@@ -1119,7 +1119,9 @@ async def generate_event_clip(
             )
 
     except Exception as e:
-        logger.error(f"Clip generation failed for event {event_id}: {e}", exc_info=True)
+        logger.error(
+            f"Clip generation failed for event {sanitize_log_value(event_id)}: {e}", exc_info=True
+        )
         # Sanitize exception message to prevent information leakage (NEM-1059)
         # Full error details are logged server-side above
         safe_message = sanitize_error_for_response(e, context="generating clip")

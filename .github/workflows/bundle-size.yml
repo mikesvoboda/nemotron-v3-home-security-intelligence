@@ -1,11 +1,8 @@
 name: Bundle Size Tracking
 
+# Runs on merge to main only (not PRs) to save runner capacity.
+
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/bundle-size.yml'
   push:
     branches: [main]
     paths:
