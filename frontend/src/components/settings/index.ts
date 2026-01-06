@@ -5,8 +5,6 @@ export type { AIModelsSettingsProps, ModelInfo } from './AIModelsSettings';
 export { default as AlertRulesSettings } from './AlertRulesSettings';
 export { default as AnomalyConfigPanel } from './AnomalyConfigPanel';
 export type { AnomalyConfigPanelProps } from './AnomalyConfigPanel';
-export { default as BaselineAnalytics } from './BaselineAnalytics';
-export type { BaselineAnalyticsProps } from './BaselineAnalytics';
 export { default as CamerasSettings } from './CamerasSettings';
 export { default as ClassFrequencyChart } from './ClassFrequencyChart';
 export type { ClassFrequencyChartProps } from './ClassFrequencyChart';

@@ -50,6 +50,7 @@ from backend.core.metrics import (
 from backend.core.mime_types import get_mime_type_with_default
 from backend.models.camera import Camera
 from backend.models.detection import Detection
+from backend.services.baseline import get_baseline_service
 
 logger = get_logger(__name__)
 
@@ -614,6 +615,28 @@ class DetectorClient:
                         f"Updated camera {camera_id} last_seen_at to {detected_at}",
                         extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
                     )
+
+                # Update baseline for analytics (NEM-1259)
+                # This populates ActivityBaseline and ClassBaseline tables for the Analytics page
+                # Only update once per unique object_type to avoid duplicate updates in same transaction
+                baseline_service = get_baseline_service()
+                unique_classes = {
+                    detection.object_type
+                    for detection in detections
+                    if detection.object_type is not None
+                }
+                # Use the first detection's timestamp for consistency
+                baseline_timestamp = detections[0].detected_at
+                for object_type in unique_classes:
+                    await baseline_service.update_baseline(
+                        camera_id=camera_id,
+                        detection_class=object_type,
+                        timestamp=baseline_timestamp,
+                        session=session,
+                    )
+                    # Flush after each baseline update to ensure the SELECT in the next
+                    # update_baseline call sees the previous INSERT
+                    await session.flush()
 
                 await session.commit()
                 duration_ms = int((time.time() - start_time) * 1000)

@@ -1893,6 +1893,39 @@ export async function resetCircuitBreaker(name: string): Promise<GeneratedCircui
 }
 
 // ============================================================================
+// Service Management Endpoints
+// ============================================================================
+
+/**
+ * Response from restarting a service
+ */
+export interface ServiceRestartResponse {
+  service: string;
+  status: 'restarting' | 'restart_failed' | 'already_restarting';
+  message: string;
+  timestamp: string;
+}
+
+/**
+ * Restart a specific service.
+ *
+ * Triggers a restart of the named service (e.g., rtdetr, nemotron).
+ * The restart is asynchronous - the service will go through a restart cycle
+ * and its status will be broadcast via WebSocket when complete.
+ *
+ * @param name - The name of the service to restart (e.g., 'rtdetr', 'nemotron')
+ * @returns ServiceRestartResponse with restart confirmation
+ * @throws ApiError 400 if service name is invalid
+ * @throws ApiError 404 if service not found
+ */
+export async function restartService(name: string): Promise<ServiceRestartResponse> {
+  return fetchApi<ServiceRestartResponse>(
+    `/api/system/services/${encodeURIComponent(name)}/restart`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
 // Severity Metadata Endpoints
 // ============================================================================
 

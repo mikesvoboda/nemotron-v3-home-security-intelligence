@@ -50,6 +50,16 @@ export type {
 export { default as CircuitBreakerPanel } from './CircuitBreakerPanel';
 export type { CircuitBreakerPanelProps } from './CircuitBreakerPanel';
 
+// Services panel (NEM-1290)
+export { default as ServicesPanel } from './ServicesPanel';
+export type {
+  ServicesPanelProps,
+  ServiceCategory,
+  ServiceInfo,
+  ServiceWithStatus,
+  CategorySummary,
+} from './ServicesPanel';
+
 // SeverityConfigPanel kept for potential other uses, but severity editing moved to Settings page (NEM-1142)
 export { default as SeverityConfigPanel } from './SeverityConfigPanel';
 export type { SeverityConfigPanelProps } from './SeverityConfigPanel';

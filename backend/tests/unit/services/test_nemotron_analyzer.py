@@ -14,6 +14,12 @@ import pytest
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.tests.async_utils import (
+    create_async_session_mock,
+    create_mock_db_context,
+    create_mock_redis_client,
+    create_mock_response,
+)
 from backend.tests.conftest import unique_id
 
 # Mark all tests in this file as unit tests
@@ -2248,3 +2254,186 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
     # Event should be created with correct risk score
     assert event is not None
     assert event.risk_score == 55
+
+
+# =============================================================================
+# Tests Using Improved Async Patterns (async_utils module)
+# =============================================================================
+
+
+class TestNemotronAnalyzerImprovedPatterns:
+    """Tests demonstrating improved async patterns from async_utils module.
+
+    These tests show how to use the async_utils helpers to simplify
+    database session mocking and reduce boilerplate code.
+    """
+
+    @pytest.fixture
+    def mock_settings_for_class(self):
+        """Create mock settings for NemotronAnalyzer."""
+        from backend.core.config import Settings
+
+        mock = MagicMock(spec=Settings)
+        mock.nemotron_url = "http://localhost:8091"
+        mock.nemotron_api_key = None
+        mock.ai_connect_timeout = 10.0
+        mock.nemotron_read_timeout = 120.0
+        mock.ai_health_timeout = 5.0
+        mock.severity_low_max = 29
+        mock.severity_medium_max = 59
+        mock.severity_high_max = 84
+        return mock
+
+    @pytest.fixture
+    def analyzer_with_mock_redis(self, mock_settings_for_class):
+        """Create NemotronAnalyzer with mock Redis using async_utils helper."""
+        # Use the async_utils helper instead of manual setup
+        mock_redis = create_mock_redis_client(
+            get_values={
+                "batch:test:camera_id": "front_door",
+                "batch:test:detections": json.dumps([1, 2]),
+            }
+        )
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_class,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_class,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis)
+            yield analyzer, mock_redis
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_health_check_with_mock_response(self, analyzer_with_mock_redis) -> None:
+        """Test health check using create_mock_response helper.
+
+        Demonstrates cleaner HTTP response mocking.
+        """
+        analyzer, _ = analyzer_with_mock_redis
+
+        # Use create_mock_response for cleaner response creation
+        mock_response = create_mock_response(
+            json_data={"status": "ok"},
+            status_code=200,
+        )
+
+        with patch("httpx.AsyncClient.get") as mock_get:
+            mock_get.return_value = mock_response
+
+            result = await analyzer.health_check()
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_session_mock_with_helper(self, analyzer_with_mock_redis) -> None:
+        """Test using create_async_session_mock and create_mock_db_context.
+
+        This demonstrates the simplified database mocking pattern that
+        eliminates the verbose __aenter__/__aexit__ setup.
+        """
+        analyzer, _mock_redis = analyzer_with_mock_redis
+        from datetime import UTC
+
+        from backend.models.camera import Camera
+        from backend.models.detection import Detection
+
+        # Create test data
+        camera = Camera(
+            id="test_camera",
+            name="Test Camera",
+            folder_path="/export/foscam/test",
+            status="online",
+        )
+        detections = [
+            Detection(
+                id=1,
+                camera_id="test_camera",
+                file_path="/export/foscam/test/img1.jpg",
+                detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+                object_type="person",
+                confidence=0.95,
+            ),
+        ]
+
+        # Setup mock results
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = camera
+
+        mock_det_result = MagicMock()
+        mock_det_scalars = MagicMock()
+        mock_det_scalars.all.return_value = detections
+        mock_det_result.scalars.return_value = mock_det_scalars
+
+        # Use helpers for cleaner session setup
+        # Note: create_async_session_mock provides basic session methods
+        mock_session = create_async_session_mock(
+            execute_results=[mock_camera_result, mock_det_result]
+        )
+
+        # create_mock_db_context eliminates __aenter__/__aexit__ boilerplate
+        mock_context = create_mock_db_context(mock_session)
+
+        # Mock LLM response
+        mock_llm_response = {
+            "risk_score": 60,
+            "risk_level": "high",
+            "summary": "Test detection",
+            "reasoning": "Test reasoning",
+        }
+
+        async def mock_call_llm(*args, **kwargs):
+            return mock_llm_response
+
+        mock_broadcaster = MagicMock()
+        mock_broadcaster.broadcast_event = AsyncMock()
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_session",
+                return_value=mock_context,
+            ),
+            patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+            patch(
+                "backend.services.event_broadcaster.get_broadcaster",
+                new=AsyncMock(return_value=mock_broadcaster),
+            ),
+        ):
+            event = await analyzer.analyze_batch(
+                batch_id="test_batch",
+                camera_id="test_camera",
+                detection_ids=[1],
+            )
+
+        assert event.risk_score == 60
+        assert event.risk_level == "high"
+
+    @pytest.mark.asyncio
+    async def test_redis_mock_with_helper(self, analyzer_with_mock_redis) -> None:
+        """Test Redis operations using create_mock_redis_client helper.
+
+        Shows how the helper pre-configures common Redis operations.
+        """
+        _analyzer, mock_redis = analyzer_with_mock_redis
+
+        # The mock_redis was created with pre-configured get_values
+        # Verify the helper works correctly
+        camera_id = await mock_redis.get("batch:test:camera_id")
+        assert camera_id == "front_door"
+
+        # Common operations are pre-configured
+        await mock_redis.set("new_key", "new_value")
+        await mock_redis.delete("some_key")
+        await mock_redis.publish("channel", "message")
+
+        # Health check is pre-configured
+        health = await mock_redis.health_check()
+        assert health["status"] == "healthy"

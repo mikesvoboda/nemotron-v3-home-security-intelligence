@@ -1,0 +1,433 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Sets permissions for GITHUB_TOKEN for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # Generate OpenAPI Specification
+  # ============================================================================
+  openapi:
+    name: Generate OpenAPI Spec
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Generate OpenAPI spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          mkdir -p docs-output/api
+          uv run python -c "
+          from backend.main import app
+          import json
+
+          spec = app.openapi()
+          with open('docs-output/api/openapi.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print(f'OpenAPI spec written with {len(spec.get(\"paths\", {}))} paths')
+          "
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-artifact@v6
+        with:
+          name: openapi-spec
+          path: docs-output/api/openapi.json
+          retention-days: 30
+
+  # ============================================================================
+  # Generate TypeScript Documentation with TypeDoc
+  # ============================================================================
+  typedoc:
+    name: Generate TypeDoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Install TypeDoc
+        run: cd frontend && npm install --save-dev typedoc typedoc-plugin-markdown
+
+      - name: Generate TypeDoc documentation
+        run: |
+          cd frontend
+          npx typedoc --out ../docs-output/typescript \
+            --entryPoints src \
+            --entryPointStrategy expand \
+            --exclude "**/*.test.ts" \
+            --exclude "**/*.test.tsx" \
+            --exclude "**/tests/**" \
+            --exclude "**/node_modules/**" \
+            --plugin typedoc-plugin-markdown \
+            --readme none \
+            --name "Home Security Dashboard - Frontend API" \
+            --includeVersion \
+            --excludePrivate \
+            --excludeInternal
+
+      - name: Upload TypeDoc output
+        uses: actions/upload-artifact@v6
+        with:
+          name: typedoc-output
+          path: docs-output/typescript/
+          retention-days: 30
+
+  # ============================================================================
+  # Generate API Documentation HTML (Redoc)
+  # ============================================================================
+  redoc:
+    name: Generate Redoc HTML
+    runs-on: ubuntu-latest
+    needs: openapi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download OpenAPI spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs-output/api/
+
+      - name: Install redoc-cli
+        run: npm install -g @redocly/cli
+
+      - name: Generate Redoc HTML
+        run: |
+          mkdir -p docs-output/api-html
+          redocly build-docs docs-output/api/openapi.json \
+            --output docs-output/api-html/index.html \
+            --title "Home Security Intelligence API Documentation"
+
+      - name: Upload Redoc output
+        uses: actions/upload-artifact@v6
+        with:
+          name: redoc-html
+          path: docs-output/api-html/
+          retention-days: 30
+
+  # ============================================================================
+  # Build Documentation Site
+  # ============================================================================
+  build-docs:
+    name: Build Documentation Site
+    runs-on: ubuntu-latest
+    needs: [openapi, typedoc, redoc]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download OpenAPI spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs-site/api/
+
+      - name: Download TypeDoc output
+        uses: actions/download-artifact@v4
+        with:
+          name: typedoc-output
+          path: docs-site/typescript/
+
+      - name: Download Redoc HTML
+        uses: actions/download-artifact@v4
+        with:
+          name: redoc-html
+          path: docs-site/api-docs/
+
+      - name: Copy markdown docs
+        run: |
+          # Copy existing markdown documentation
+          cp -r docs/* docs-site/ 2>/dev/null || true
+
+          # Create index page
+          cat > docs-site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Home Security Intelligence - Documentation</title>
+              <style>
+                  :root {
+                      --bg-color: #0f172a;
+                      --card-bg: #1e293b;
+                      --text-color: #e2e8f0;
+                      --accent-color: #3b82f6;
+                      --accent-hover: #2563eb;
+                      --border-color: #334155;
+                  }
+                  * {
+                      margin: 0;
+                      padding: 0;
+                      box-sizing: border-box;
+                  }
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                      background: var(--bg-color);
+                      color: var(--text-color);
+                      line-height: 1.6;
+                      min-height: 100vh;
+                  }
+                  .container {
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 2rem;
+                  }
+                  header {
+                      text-align: center;
+                      padding: 3rem 0;
+                      border-bottom: 1px solid var(--border-color);
+                      margin-bottom: 3rem;
+                  }
+                  h1 {
+                      font-size: 2.5rem;
+                      margin-bottom: 0.5rem;
+                      background: linear-gradient(90deg, var(--accent-color), #8b5cf6);
+                      -webkit-background-clip: text;
+                      -webkit-text-fill-color: transparent;
+                  }
+                  .subtitle {
+                      color: #94a3b8;
+                      font-size: 1.1rem;
+                  }
+                  .cards {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                      gap: 1.5rem;
+                  }
+                  .card {
+                      background: var(--card-bg);
+                      border: 1px solid var(--border-color);
+                      border-radius: 12px;
+                      padding: 1.5rem;
+                      transition: transform 0.2s, box-shadow 0.2s;
+                  }
+                  .card:hover {
+                      transform: translateY(-4px);
+                      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+                  }
+                  .card h2 {
+                      font-size: 1.25rem;
+                      margin-bottom: 0.75rem;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.5rem;
+                  }
+                  .card p {
+                      color: #94a3b8;
+                      margin-bottom: 1rem;
+                      font-size: 0.95rem;
+                  }
+                  .card a {
+                      display: inline-block;
+                      color: var(--accent-color);
+                      text-decoration: none;
+                      font-weight: 500;
+                      padding: 0.5rem 1rem;
+                      border: 1px solid var(--accent-color);
+                      border-radius: 6px;
+                      transition: all 0.2s;
+                  }
+                  .card a:hover {
+                      background: var(--accent-color);
+                      color: white;
+                  }
+                  .icon {
+                      font-size: 1.5rem;
+                  }
+                  footer {
+                      text-align: center;
+                      padding: 2rem 0;
+                      margin-top: 3rem;
+                      border-top: 1px solid var(--border-color);
+                      color: #64748b;
+                      font-size: 0.875rem;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <header>
+                      <h1>Home Security Intelligence</h1>
+                      <p class="subtitle">AI-Powered Security Monitoring Documentation</p>
+                  </header>
+
+                  <div class="cards">
+                      <div class="card">
+                          <h2><span class="icon">📡</span> REST API Reference</h2>
+                          <p>Interactive API documentation generated from OpenAPI specification. Explore all endpoints, schemas, and examples.</p>
+                          <a href="api-docs/index.html">View API Docs</a>
+                      </div>
+
+                      <div class="card">
+                          <h2><span class="icon">📋</span> OpenAPI Spec</h2>
+                          <p>Raw OpenAPI 3.0 specification in JSON format. Use for code generation, testing, or importing into API clients.</p>
+                          <a href="api/openapi.json">Download JSON</a>
+                      </div>
+
+                      <div class="card">
+                          <h2><span class="icon">⚛️</span> Frontend TypeScript</h2>
+                          <p>TypeDoc-generated documentation for React components, hooks, services, and TypeScript utilities.</p>
+                          <a href="typescript/README.md">View TypeScript Docs</a>
+                      </div>
+
+                      <div class="card">
+                          <h2><span class="icon">🏗️</span> Architecture</h2>
+                          <p>System architecture, data models, AI pipeline documentation, and design decisions.</p>
+                          <a href="architecture/overview.md">View Architecture</a>
+                      </div>
+
+                      <div class="card">
+                          <h2><span class="icon">🚀</span> Getting Started</h2>
+                          <p>Installation guide, prerequisites, and first-run instructions for local development.</p>
+                          <a href="getting-started/installation.md">Get Started</a>
+                      </div>
+
+                      <div class="card">
+                          <h2><span class="icon">👨‍💻</span> Developer Guide</h2>
+                          <p>Development setup, testing practices, code quality tools, and contribution guidelines.</p>
+                          <a href="development/setup.md">Developer Docs</a>
+                      </div>
+                  </div>
+
+                  <footer>
+                      <p>Generated automatically from source code</p>
+                  </footer>
+              </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload documentation site
+        uses: actions/upload-artifact@v6
+        with:
+          name: docs-site
+          path: docs-site/
+          retention-days: 30
+
+      - name: Setup Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/
+
+  # ============================================================================
+  # Deploy to GitHub Pages (main branch only)
+  # ============================================================================
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build-docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ============================================================================
+  # Archive OpenAPI Spec (for versioning)
+  # ============================================================================
+  archive-openapi:
+    name: Archive OpenAPI Spec
+    runs-on: ubuntu-latest
+    needs: openapi
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download OpenAPI spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi-archive/
+
+      - name: Create versioned archive
+        run: |
+          mkdir -p openapi-versions
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          # Copy with version info
+          cp openapi-archive/openapi.json "openapi-versions/openapi-${TIMESTAMP}-${SHORT_SHA}.json"
+          cp openapi-archive/openapi.json "openapi-versions/openapi-latest.json"
+
+          # Create manifest
+          cat > openapi-versions/manifest.json << EOF
+          {
+            "latest": "openapi-latest.json",
+            "versions": [
+              {
+                "file": "openapi-${TIMESTAMP}-${SHORT_SHA}.json",
+                "timestamp": "${TIMESTAMP}",
+                "commit": "${{ github.sha }}",
+                "short_sha": "${SHORT_SHA}"
+              }
+            ]
+          }
+          EOF
+
+          echo "Created OpenAPI archive: openapi-${TIMESTAMP}-${SHORT_SHA}.json"
+
+      - name: Upload versioned OpenAPI
+        uses: actions/upload-artifact@v6
+        with:
+          name: openapi-versioned-${{ github.sha }}
+          path: openapi-versions/
+          retention-days: 90

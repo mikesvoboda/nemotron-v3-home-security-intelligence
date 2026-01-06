@@ -1,0 +1,281 @@
+name: CI Analytics
+
+# Collect CI/CD metrics and publish to Prometheus/Grafana
+# Runs on schedule and manually to generate observability data
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC to collect previous day's metrics
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to analyze'
+        required: false
+        default: '7'
+        type: choice
+        options:
+          - '1'
+          - '7'
+          - '14'
+          - '30'
+      output_format:
+        description: 'Output format'
+        required: false
+        default: 'summary'
+        type: choice
+        options:
+          - 'summary'
+          - 'json'
+          - 'prometheus'
+
+env:
+  PYTHON_VERSION: '3.14'
+
+jobs:
+  collect-metrics:
+    name: Collect CI/CD Metrics
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Collect workflow metrics
+        id: metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CI_METRICS_DAYS: ${{ inputs.days || '7' }}
+        run: |
+          # Run metrics collector with specified output format
+          OUTPUT_FORMAT="${{ inputs.output_format || 'summary' }}"
+
+          echo "=== CI/CD Metrics Collection ==="
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Days: $CI_METRICS_DAYS"
+          echo "Output: $OUTPUT_FORMAT"
+          echo ""
+
+          uv run python scripts/ci-metrics-collector.py \
+            --days="$CI_METRICS_DAYS" \
+            --output="$OUTPUT_FORMAT" \
+            --sample-jobs=30 | tee metrics-output.txt
+
+          # Export key metrics as outputs for downstream jobs
+          if [ "$OUTPUT_FORMAT" = "json" ]; then
+            echo "metrics_json<<EOF" >> $GITHUB_OUTPUT
+            cat metrics-output.txt >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-metrics-${{ github.run_id }}
+          path: metrics-output.txt
+          retention-days: 30
+
+      - name: Generate Prometheus metrics file
+        if: inputs.output_format == 'prometheus' || github.event_name == 'schedule'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CI_METRICS_DAYS: ${{ inputs.days || '7' }}
+        run: |
+          uv run python scripts/ci-metrics-collector.py \
+            --days="$CI_METRICS_DAYS" \
+            --output=prometheus \
+            --sample-jobs=30 > prometheus-metrics.txt
+
+      - name: Upload Prometheus metrics
+        if: inputs.output_format == 'prometheus' || github.event_name == 'schedule'
+        uses: actions/upload-artifact@v6
+        with:
+          name: prometheus-metrics-${{ github.run_id }}
+          path: prometheus-metrics.txt
+          retention-days: 30
+
+  # Weekly comprehensive report (runs on Sundays)
+  weekly-report:
+    name: Weekly CI Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' && github.event.schedule == '0 6 * * 0'
+    needs: collect-metrics
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Generate weekly report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "# Weekly CI/CD Report" > weekly-report.md
+          echo "" >> weekly-report.md
+          echo "Report generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> weekly-report.md
+          echo "" >> weekly-report.md
+          echo '```' >> weekly-report.md
+          uv run python scripts/ci-metrics-collector.py \
+            --days=7 \
+            --output=summary \
+            --sample-jobs=50 >> weekly-report.md
+          echo '```' >> weekly-report.md
+
+      - name: Upload weekly report
+        uses: actions/upload-artifact@v6
+        with:
+          name: weekly-ci-report-${{ github.run_id }}
+          path: weekly-report.md
+          retention-days: 90
+
+  # Alert on CI health degradation
+  check-alerts:
+    name: CI Health Alerts
+    runs-on: ubuntu-latest
+    needs: collect-metrics
+    if: github.event_name == 'schedule'
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: '0.9.18'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Check CI health thresholds
+        id: health-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          # Get metrics in JSON format
+          METRICS=$(uv run python scripts/ci-metrics-collector.py \
+            --days=7 \
+            --output=json \
+            --sample-jobs=30)
+
+          echo "$METRICS" > health-metrics.json
+
+          # Extract key metrics and check thresholds
+          python3 << 'PYEOF'
+          import json
+          import sys
+
+          with open('health-metrics.json') as f:
+              data = json.load(f)
+
+          alerts = []
+
+          # Check overall CI success rate (target: 95%)
+          ci_metrics = data.get('workflows', {}).get('CI', {})
+          if ci_metrics:
+              success_rate = ci_metrics.get('success_rate', 100)
+              if success_rate < 90:
+                  alerts.append(f"CI success rate is {success_rate:.1f}% (target: >= 90%)")
+
+          # Check DORA metrics
+          dora = data.get('dora_metrics', {})
+          if dora:
+              cfr = dora.get('change_failure_rate_percent', 0)
+              if cfr > 10:
+                  alerts.append(f"Change failure rate is {cfr:.1f}% (target: < 5%)")
+
+              mttr = dora.get('mean_time_to_recovery_hours', 0)
+              if mttr > 4:
+                  alerts.append(f"Mean time to recovery is {mttr:.1f}h (target: < 4h)")
+
+          # Check for bottleneck jobs (> 10 min average)
+          bottlenecks = data.get('bottleneck_jobs', [])
+          slow_jobs = [j for j in bottlenecks if j.get('avg_duration_seconds', 0) > 600]
+          if slow_jobs:
+              job_names = ', '.join(j['name'][:30] for j in slow_jobs[:3])
+              alerts.append(f"Slow jobs detected (>10min): {job_names}")
+
+          if alerts:
+              print("ALERTS_FOUND=true")
+              print("ALERT_MESSAGES<<EOF")
+              for alert in alerts:
+                  print(f"- {alert}")
+              print("EOF")
+              sys.exit(0)
+          else:
+              print("ALERTS_FOUND=false")
+              print("All CI health metrics within acceptable thresholds")
+          PYEOF
+
+      - name: Create alert issue if needed
+        if: steps.health-check.outputs.ALERTS_FOUND == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const alertMessages = process.env.ALERT_MESSAGES || 'CI health check failed';
+
+            // Check if there's already an open CI health alert issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'ci-health-alert',
+              state: 'open'
+            });
+
+            if (issues.data.length > 0) {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `## CI Health Check Update - ${new Date().toISOString().split('T')[0]}\n\n${alertMessages}`
+              });
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'CI Health Alert: Metrics below threshold',
+                body: `## CI Health Alert\n\nThe following CI health metrics are below acceptable thresholds:\n\n${alertMessages}\n\n### Next Steps\n1. Review recent CI failures\n2. Identify root causes\n3. Implement fixes\n\n### Dashboard\nView detailed metrics in the [CI Health Dashboard](../monitoring/grafana/dashboards/ci-health.json)`,
+                labels: ['ci-health-alert', 'automated']
+              });
+            }
