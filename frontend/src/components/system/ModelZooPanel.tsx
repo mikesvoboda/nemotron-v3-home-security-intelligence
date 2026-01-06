@@ -21,6 +21,8 @@ export interface ModelZooPanelProps {
   onRefresh: () => void;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -104,11 +106,12 @@ export default function ModelZooPanel({
   error,
   onRefresh,
   className,
+  'data-testid': testId = 'model-zoo-panel',
 }: ModelZooPanelProps) {
   return (
     <Card
       className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
-      data-testid="model-zoo-panel"
+      data-testid={testId}
     >
       {/* Header with title and refresh button */}
       <div className="mb-4 flex items-center justify-between">

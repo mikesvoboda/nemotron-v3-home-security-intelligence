@@ -82,27 +82,39 @@ vi.mock('./PerformanceAlerts', () => ({
 }));
 
 vi.mock('./AiModelsPanel', () => ({
-  default: () => <div data-testid="ai-models-panel">AI Models Panel</div>,
+  default: ({ 'data-testid': testId = 'ai-models-panel-section' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>AI Models Panel</div>
+  ),
 }));
 
 vi.mock('./DatabasesPanel', () => ({
-  default: () => <div data-testid="databases-panel">Databases Panel</div>,
+  default: ({ 'data-testid': testId = 'databases-panel-section' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Databases Panel</div>
+  ),
 }));
 
 vi.mock('./HostSystemPanel', () => ({
-  default: () => <div data-testid="host-system-panel">Host System Panel</div>,
+  default: ({ 'data-testid': testId = 'host-system-panel-section' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Host System Panel</div>
+  ),
 }));
 
 vi.mock('./ContainersPanel', () => ({
-  default: () => <div data-testid="containers-panel">Containers Panel</div>,
+  default: ({ 'data-testid': testId = 'containers-panel-section' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Containers Panel</div>
+  ),
 }));
 
 vi.mock('./CircuitBreakerPanel', () => ({
-  default: () => <div data-testid="circuit-breaker-panel">Circuit Breaker Panel</div>,
+  default: ({ 'data-testid': testId = 'circuit-breaker-panel-section' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Circuit Breaker Panel</div>
+  ),
 }));
 
 vi.mock('./ServicesPanel', () => ({
-  default: () => <div data-testid="services-panel">Services Panel</div>,
+  default: ({ 'data-testid': testId = 'services-panel-section' }: { 'data-testid'?: string }) => (
+    <div data-testid={testId}>Services Panel</div>
+  ),
 }));
 
 // Mock SystemSummaryRow to avoid rendering actual component
@@ -910,7 +922,7 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Component rendered successfully even if reset would fail
-      expect(screen.getByTestId('circuit-breaker-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('circuit-breaker-panel-section')).toBeInTheDocument();
     });
   });
 
@@ -1057,12 +1069,12 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Verify all major panels are present (using test IDs from mocked components)
-      expect(screen.getByTestId('ai-models-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('host-system-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('containers-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('circuit-breaker-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('services-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('ai-models-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('host-system-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('containers-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('circuit-breaker-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('services-panel-section')).toBeInTheDocument();
       expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
     });
 
@@ -1207,9 +1219,9 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Verify panels receive transformed data
-      expect(screen.getByTestId('databases-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('host-system-panel')).toBeInTheDocument();
-      expect(screen.getByTestId('containers-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('host-system-panel-section')).toBeInTheDocument();
+      expect(screen.getByTestId('containers-panel-section')).toBeInTheDocument();
     });
 
     it('handles degraded service statuses in background workers', async () => {

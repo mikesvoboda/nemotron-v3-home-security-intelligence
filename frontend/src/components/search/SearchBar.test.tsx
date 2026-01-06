@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import type { SavedSearch } from '../../hooks/useSavedSearches';
@@ -198,6 +199,15 @@ describe('SearchBar', () => {
       fireEvent.keyDown(input, { key: 'Enter' });
       expect(mockOnSearch).toHaveBeenCalledWith('person detected', expect.any(Object));
     });
+
+    it('does not submit whitespace-only query', () => {
+      render(
+        <SearchBar query="   " onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(mockOnSearch).not.toHaveBeenCalled();
+    });
   });
 
   describe('Search button', () => {
@@ -281,14 +291,9 @@ describe('SearchBar', () => {
     });
   });
 
-  // NOTE: These tests are skipped due to a known issue with jsdom not properly
-  // handling the component's mousedown event listener cleanup. The component's
-  // useEffect (line 119) adds document.addEventListener('mousedown', ...) when
-  // any dropdown/panel opens, which causes tests to hang in jsdom environment.
-  // The component works correctly in the browser - this is a test environment issue.
-  // Individual tests pass when run in isolation but hang when run together.
-  describe.skip('Advanced filters panel', () => {
-    it('toggles advanced filters panel', () => {
+  describe('Advanced filters panel', () => {
+    it('expands filters panel when toggle button is clicked', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar
           query=""
@@ -297,21 +302,20 @@ describe('SearchBar', () => {
           cameras={mockCameras}
         />
       );
+
       expect(screen.queryByLabelText('Camera')).not.toBeInTheDocument();
+
       const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      await user.click(filtersButton);
 
-      fireEvent.click(filtersButton);
-
-      expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+      });
       expect(filtersButton).toHaveAttribute('aria-expanded', 'true');
-
-      fireEvent.click(filtersButton);
-
-      expect(screen.queryByLabelText('Camera')).not.toBeInTheDocument();
-      expect(filtersButton).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('populates camera dropdown with provided cameras', () => {
+    it('shows all filter options when expanded', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar
           query=""
@@ -320,15 +324,44 @@ describe('SearchBar', () => {
           cameras={mockCameras}
         />
       );
+
       const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
-      fireEvent.click(filtersButton);
-      expect(screen.getByRole('option', { name: 'All Cameras' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Front Door' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Back Yard' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Garage' })).toBeInTheDocument();
+      await user.click(filtersButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+        expect(screen.getByLabelText('Severity')).toBeInTheDocument();
+        expect(screen.getByLabelText('Object Type')).toBeInTheDocument();
+        expect(screen.getByLabelText('Status')).toBeInTheDocument();
+        expect(screen.getByLabelText('Start Date')).toBeInTheDocument();
+        expect(screen.getByLabelText('End Date')).toBeInTheDocument();
+      });
     });
 
-    it('includes filters in search submission', () => {
+    it('populates camera dropdown with provided cameras', async () => {
+      const user = userEvent.setup();
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={mockCameras}
+        />
+      );
+
+      const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      await user.click(filtersButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'All Cameras' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Front Door' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Back Yard' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Garage' })).toBeInTheDocument();
+      });
+    });
+
+    it('updates filter values when selections are made', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar
           query="test"
@@ -337,18 +370,55 @@ describe('SearchBar', () => {
           cameras={mockCameras}
         />
       );
+
       const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
-      fireEvent.click(filtersButton);
-      fireEvent.change(screen.getByLabelText('Camera'), { target: { value: 'front_door' } });
-      fireEvent.change(screen.getByLabelText('Severity'), { target: { value: 'high' } });
-      fireEvent.click(screen.getByRole('button', { name: /^search$/i }));
+      await user.click(filtersButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+      });
+
+      const cameraSelect = screen.getByLabelText('Camera');
+      await user.selectOptions(cameraSelect, 'front_door');
+      expect(cameraSelect).toHaveValue('front_door');
+
+      const severitySelect = screen.getByLabelText('Severity');
+      await user.selectOptions(severitySelect, 'high');
+      expect(severitySelect).toHaveValue('high');
+    });
+
+    it('includes filters in search submission', async () => {
+      const user = userEvent.setup();
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={mockCameras}
+        />
+      );
+
+      const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      await user.click(filtersButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+      });
+
+      await user.selectOptions(screen.getByLabelText('Camera'), 'front_door');
+      await user.selectOptions(screen.getByLabelText('Severity'), 'high');
+
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      await user.click(searchButton);
+
       expect(mockOnSearch).toHaveBeenCalledWith('test', {
         camera_id: 'front_door',
         severity: 'high',
       });
     });
 
-    it('shows Active badge when filters are applied', () => {
+    it('shows Active badge when filters are applied', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar
           query=""
@@ -357,9 +427,46 @@ describe('SearchBar', () => {
           cameras={mockCameras}
         />
       );
-      fireEvent.click(screen.getByRole('button', { name: /toggle advanced filters/i }));
-      fireEvent.change(screen.getByLabelText('Camera'), { target: { value: 'front_door' } });
-      expect(screen.getByText('Active')).toBeInTheDocument();
+
+      const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      await user.click(filtersButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+      });
+
+      await user.selectOptions(screen.getByLabelText('Camera'), 'front_door');
+
+      await waitFor(() => {
+        expect(screen.getByText('Active')).toBeInTheDocument();
+      });
+    });
+
+    it('clears all filters when Clear All button is clicked', async () => {
+      const user = userEvent.setup();
+      render(
+        <SearchBar
+          query="test query"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={mockCameras}
+        />
+      );
+
+      const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      await user.click(filtersButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Camera')).toBeInTheDocument();
+      });
+
+      await user.selectOptions(screen.getByLabelText('Camera'), 'front_door');
+
+      const clearButton = screen.getByRole('button', { name: /clear all/i });
+      await user.click(clearButton);
+
+      expect(mockOnQueryChange).toHaveBeenCalledWith('');
+      expect(screen.getByLabelText('Camera')).toHaveValue('');
     });
 
     it('uses initial filters when provided', () => {
@@ -375,45 +482,61 @@ describe('SearchBar', () => {
           }}
         />
       );
-      fireEvent.click(screen.getByRole('button', { name: /toggle advanced filters/i }));
+
+      const filtersButton = screen.getByRole('button', { name: /toggle advanced filters/i });
+      fireEvent.click(filtersButton);
+
       expect(screen.getByLabelText('Camera')).toHaveValue('back_yard');
       expect(screen.getByLabelText('Severity')).toHaveValue('critical');
     });
   });
 
-  describe.skip('Query syntax help', () => {
-    it('shows query syntax help when help button is clicked', () => {
+  describe('Query syntax help', () => {
+    it('shows help button', () => {
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      fireEvent.click(screen.getByRole('button', { name: /show search syntax help/i }));
-      expect(screen.getByText('Search Syntax')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /show search syntax help/i })
+      ).toBeInTheDocument();
     });
 
-    it('closes query syntax help when clicking help button again', () => {
+    it('toggles help tooltip when help button is clicked', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
+
       const helpButton = screen.getByRole('button', { name: /show search syntax help/i });
-      fireEvent.click(helpButton);
-      expect(screen.getByText('Search Syntax')).toBeInTheDocument();
-      fireEvent.click(helpButton);
-      expect(screen.queryByText('Search Syntax')).not.toBeInTheDocument();
+      expect(helpButton).toHaveAttribute('aria-expanded', 'false');
+
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Search Syntax')).toBeInTheDocument();
+      });
+      expect(helpButton).toHaveAttribute('aria-expanded', 'true');
     });
 
-    it('displays query syntax examples', () => {
+    it('displays query syntax examples in help tooltip', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      fireEvent.click(screen.getByRole('button', { name: /show search syntax help/i }));
-      expect(screen.getByText('person vehicle')).toBeInTheDocument();
-      expect(screen.getByText('"suspicious person"')).toBeInTheDocument();
-      expect(screen.getByText('person OR animal')).toBeInTheDocument();
-      expect(screen.getByText('person NOT cat')).toBeInTheDocument();
+
+      const helpButton = screen.getByRole('button', { name: /show search syntax help/i });
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('person vehicle')).toBeInTheDocument();
+        expect(screen.getByText('"suspicious person"')).toBeInTheDocument();
+        expect(screen.getByText('person OR animal')).toBeInTheDocument();
+        expect(screen.getByText('person NOT cat')).toBeInTheDocument();
+      });
     });
   });
 
-  describe.skip('Save search functionality', () => {
+  describe('Save search functionality', () => {
     it('shows save button when query has content', () => {
       render(
         <SearchBar
@@ -422,6 +545,7 @@ describe('SearchBar', () => {
           onSearch={mockOnSearch}
         />
       );
+
       expect(screen.getByRole('button', { name: /save search/i })).toBeInTheDocument();
     });
 
@@ -429,10 +553,12 @@ describe('SearchBar', () => {
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
+
       expect(screen.queryByRole('button', { name: /save search/i })).not.toBeInTheDocument();
     });
 
-    it('opens save modal when save button is clicked', () => {
+    it('opens save modal when save button is clicked', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar
           query="test query"
@@ -440,11 +566,17 @@ describe('SearchBar', () => {
           onSearch={mockOnSearch}
         />
       );
-      fireEvent.click(screen.getByRole('button', { name: /save search/i }));
-      expect(screen.getByText('Save Search')).toBeInTheDocument();
+
+      const saveButton = screen.getByRole('button', { name: /save search/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Save Search')).toBeInTheDocument();
+      });
     });
 
-    it('calls saveSearch when save is confirmed', () => {
+    it('saves search with name when confirmed', async () => {
+      const user = userEvent.setup();
       render(
         <SearchBar
           query="my test query"
@@ -452,27 +584,84 @@ describe('SearchBar', () => {
           onSearch={mockOnSearch}
         />
       );
-      fireEvent.click(screen.getByRole('button', { name: /save search/i }));
-      fireEvent.change(screen.getByRole('textbox', { name: /search name/i }), {
-        target: { value: 'My Saved Search' },
+
+      const saveButton = screen.getByRole('button', { name: /save search/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Search name')).toBeInTheDocument();
       });
-      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+      const nameInput = screen.getByLabelText('Search name');
+      await user.type(nameInput, 'My Saved Search');
+
+      const confirmButton = screen.getByRole('button', { name: /^save$/i });
+      await user.click(confirmButton);
+
       expect(mockSaveSearch).toHaveBeenCalledWith('My Saved Search', 'my test query', {});
+    });
+
+    it('saves search on Enter key in name input', async () => {
+      const user = userEvent.setup();
+      render(
+        <SearchBar
+          query="test query"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+
+      const saveButton = screen.getByRole('button', { name: /save search/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Search name')).toBeInTheDocument();
+      });
+
+      const nameInput = screen.getByLabelText('Search name');
+      await user.type(nameInput, 'Quick Save{Enter}');
+
+      expect(mockSaveSearch).toHaveBeenCalledWith('Quick Save', 'test query', {});
+    });
+
+    it('disables Save button when name is empty', async () => {
+      const user = userEvent.setup();
+      render(
+        <SearchBar
+          query="test query"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+
+      const saveButton = screen.getByRole('button', { name: /save search/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        const confirmButton = screen.getByRole('button', { name: /^save$/i });
+        expect(confirmButton).toBeDisabled();
+      });
     });
   });
 
-  describe.skip('Load saved searches', () => {
+  describe('Saved searches', () => {
     it('renders saved searches button', () => {
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      // Find by aria-label to avoid matching dropdown title
+
       expect(screen.getByLabelText('Saved searches')).toBeInTheDocument();
     });
 
-    it('shows saved searches count badge when there are saved searches', () => {
+    it('shows count badge when there are saved searches', () => {
       setMockSavedSearches([
-        { id: '1', name: 'Test', query: 'test', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+        {
+          id: '1',
+          name: 'Test',
+          query: 'test',
+          filters: {},
+          createdAt: '2024-01-01T00:00:00Z',
+        },
         {
           id: '2',
           name: 'Another',
@@ -481,13 +670,16 @@ describe('SearchBar', () => {
           createdAt: '2024-01-01T00:00:00Z',
         },
       ]);
+
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
+
       expect(screen.getByText('2')).toBeInTheDocument();
     });
 
-    it('opens saved searches dropdown when clicked', () => {
+    it('opens saved searches dropdown when clicked', async () => {
+      const user = userEvent.setup();
       setMockSavedSearches([
         {
           id: '1',
@@ -497,23 +689,37 @@ describe('SearchBar', () => {
           createdAt: '2024-01-01T00:00:00Z',
         },
       ]);
+
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      fireEvent.click(screen.getByLabelText('Saved searches'));
-      expect(screen.getByText('My Search')).toBeInTheDocument();
+
+      const savedSearchesButton = screen.getByLabelText('Saved searches');
+      await user.click(savedSearchesButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('My Search')).toBeInTheDocument();
+      });
     });
 
-    it('shows empty state when no saved searches', () => {
+    it('shows empty state when no saved searches', async () => {
+      const user = userEvent.setup();
       setMockSavedSearches([]);
+
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      fireEvent.click(screen.getByLabelText('Saved searches'));
-      expect(screen.getByText('No saved searches yet.')).toBeInTheDocument();
+
+      const savedSearchesButton = screen.getByLabelText('Saved searches');
+      await user.click(savedSearchesButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('No saved searches yet.')).toBeInTheDocument();
+      });
     });
 
-    it('loads saved search when clicked', () => {
+    it('loads saved search when clicked', async () => {
+      const user = userEvent.setup();
       setMockSavedSearches([
         {
           id: 'search-1',
@@ -527,16 +733,27 @@ describe('SearchBar', () => {
         query: 'suspicious activity',
         filters: { severity: 'high' },
       });
+
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      fireEvent.click(screen.getByLabelText('Saved searches'));
-      fireEvent.click(screen.getByText('High Risk Events'));
+
+      const savedSearchesButton = screen.getByLabelText('Saved searches');
+      await user.click(savedSearchesButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('High Risk Events')).toBeInTheDocument();
+      });
+
+      const searchItem = screen.getByText('High Risk Events');
+      await user.click(searchItem);
+
       expect(mockLoadSearch).toHaveBeenCalledWith('search-1');
       expect(mockOnQueryChange).toHaveBeenCalledWith('suspicious activity');
     });
 
-    it('deletes saved search when delete button is clicked', () => {
+    it('deletes saved search when delete button is clicked', async () => {
+      const user = userEvent.setup();
       setMockSavedSearches([
         {
           id: 'search-to-delete',
@@ -546,12 +763,46 @@ describe('SearchBar', () => {
           createdAt: '2024-01-01T00:00:00Z',
         },
       ]);
+
       render(
         <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
       );
-      fireEvent.click(screen.getByLabelText('Saved searches'));
-      fireEvent.click(screen.getByRole('button', { name: /delete saved search/i }));
+
+      const savedSearchesButton = screen.getByLabelText('Saved searches');
+      await user.click(savedSearchesButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete saved search/i })).toBeInTheDocument();
+      });
+
+      const deleteButton = screen.getByRole('button', { name: /delete saved search/i });
+      await user.click(deleteButton);
+
       expect(mockDeleteSearch).toHaveBeenCalledWith('search-to-delete');
+    });
+
+    it('shows filter count for saved searches with multiple filters', async () => {
+      const user = userEvent.setup();
+      setMockSavedSearches([
+        {
+          id: '1',
+          name: 'Filtered Search',
+          query: 'test',
+          filters: { camera_id: 'front_door', severity: 'high' },
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ]);
+
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+
+      const savedSearchesButton = screen.getByLabelText('Saved searches');
+      await user.click(savedSearchesButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('+ 2 filters')).toBeInTheDocument();
+      });
     });
   });
 
