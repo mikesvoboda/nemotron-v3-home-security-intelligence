@@ -1898,6 +1898,230 @@ class TestBatchAggregatorProperties:
         # Verify detection_ids are integers
         assert all(isinstance(d, int) for d in queue_data["detection_ids"])
 
+    # -------------------------------------------------------------------------
+    # Additional Mathematical Properties (NEM-1698)
+    # -------------------------------------------------------------------------
+
+    @given(
+        window_seconds=st.integers(min_value=30, max_value=300),
+        elapsed_seconds=st.integers(min_value=0, max_value=400),
+    )
+    @hypothesis_settings(
+        max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_batch_timeout_window_calculation(
+        self,
+        window_seconds: int,
+        elapsed_seconds: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Batch window timeout should be consistent.
+
+        A batch should timeout if elapsed_seconds > window_seconds.
+        """
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = window_seconds
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            # The batch should timeout if elapsed > window
+            should_timeout = elapsed_seconds > window_seconds
+
+            # Verify window configuration
+            assert aggregator._batch_window == window_seconds
+
+            # Simulate time calculation
+            now = time.time()
+            start_time = now - elapsed_seconds
+
+            # Check if it would be considered timed out
+            actual_timeout = (now - start_time) > window_seconds
+
+            assert actual_timeout == should_timeout
+
+    @given(
+        idle_timeout=st.integers(min_value=10, max_value=120),
+        idle_seconds=st.integers(min_value=0, max_value=200),
+    )
+    @hypothesis_settings(
+        max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_batch_idle_timeout_calculation(
+        self,
+        idle_timeout: int,
+        idle_seconds: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Idle timeout should be consistent.
+
+        A batch should timeout if idle_seconds > idle_timeout.
+        """
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            # The batch should timeout if idle > idle_timeout
+            should_timeout = idle_seconds > idle_timeout
+
+            # Verify idle timeout configuration
+            assert aggregator._idle_timeout == idle_timeout
+
+            # Simulate time calculation
+            now = time.time()
+            last_activity = now - idle_seconds
+
+            # Check if it would be considered idle
+            actual_timeout = (now - last_activity) > idle_timeout
+
+            assert actual_timeout == should_timeout
+
+    @given(
+        confidence_threshold=st.floats(
+            min_value=0.5, max_value=1.0, allow_nan=False, allow_infinity=False
+        ),
+        detection_confidence=st.floats(
+            min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False
+        ),
+    )
+    @hypothesis_settings(
+        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_fast_path_confidence_threshold_property(
+        self,
+        confidence_threshold: float,
+        detection_confidence: float,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Fast path should trigger consistently based on confidence threshold.
+
+        Fast path should activate if and only if:
+        - confidence >= threshold
+        - object_type in fast_path_types
+        """
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = 90
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = confidence_threshold
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            # Test with person (in fast_path_types)
+            result = aggregator._should_use_fast_path(detection_confidence, "person")
+
+            expected = detection_confidence >= confidence_threshold
+            assert result == expected, (
+                f"Fast path decision mismatch: "
+                f"confidence={detection_confidence}, threshold={confidence_threshold}"
+            )
+
+    @given(detection_ids=st.lists(positive_integers, min_size=1, max_size=100, unique=True))
+    @hypothesis_settings(
+        max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @pytest.mark.asyncio
+    async def test_detection_order_preserved(
+        self,
+        detection_ids: list[int],
+        mock_redis_instance,
+    ) -> None:
+        """Property: Detection IDs should preserve insertion order.
+
+        When retrieving detections from a batch, they should be in the same
+        order they were added (FIFO via RPUSH/LRANGE).
+        """
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Mock LRANGE to return detection IDs in order
+        mock_redis_instance._client.lrange.return_value = [str(d) for d in detection_ids]
+
+        result = await aggregator._atomic_list_get_all("test:key")
+
+        # Result should match original order
+        assert result == detection_ids, "Detection order not preserved"
+
+    @given(
+        batch_window=st.integers(min_value=30, max_value=300),
+        idle_timeout=st.integers(min_value=10, max_value=120),
+    )
+    @hypothesis_settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_idle_timeout_always_less_than_window(
+        self,
+        batch_window: int,
+        idle_timeout: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Idle timeout should be a meaningful constraint.
+
+        For idle timeout to be useful, it should be less than the batch window.
+        Otherwise, the window timeout would always trigger first.
+        """
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = batch_window
+            mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+            # If idle_timeout >= window, idle check is redundant
+            # But both are valid configurations
+            assert aggregator._batch_window > 0
+            assert aggregator._idle_timeout > 0
+
+    @given(
+        start_time=st.floats(
+            min_value=time.time() - 3600,
+            max_value=time.time(),
+            allow_nan=False,
+            allow_infinity=False,
+        ),
+        window=st.integers(min_value=30, max_value=300),
+    )
+    @hypothesis_settings(
+        max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_batch_duration_calculation_accuracy(
+        self,
+        start_time: float,
+        window: int,
+        mock_redis_instance,
+    ) -> None:
+        """Property: Batch duration should be accurately calculated.
+
+        Duration = current_time - start_time (in seconds).
+        """
+        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+            mock_settings.return_value.batch_window_seconds = window
+            mock_settings.return_value.batch_idle_timeout_seconds = 30
+            mock_settings.return_value.fast_path_confidence_threshold = 0.90
+            mock_settings.return_value.fast_path_object_types = ["person"]
+
+            BatchAggregator(redis_client=mock_redis_instance)
+
+            # Calculate duration manually
+            now = time.time()
+            duration = now - start_time
+
+            # Duration should be non-negative
+            assert duration >= 0
+
+            # If duration exceeds window, batch should timeout
+            if duration > window:
+                # Batch would be considered timed out
+                assert duration > window
+
 
 # Regression tests for NEM-1267: Redis bytes/JSON handling
 

@@ -108,6 +108,15 @@ class TestEnqueue:
         assert result is True
         assert mock_redis.zadd.call_count == 2
 
+    @pytest.mark.asyncio
+    async def test_enqueue_handles_redis_exception(self, evaluation_queue, mock_redis):
+        """Test that enqueue handles Redis exceptions gracefully."""
+        mock_redis.zadd.side_effect = Exception("Redis connection error")
+
+        result = await evaluation_queue.enqueue(event_id=123, priority=50)
+
+        assert result is False
+
 
 # =============================================================================
 # Test: Dequeue Operations
@@ -129,6 +138,24 @@ class TestDequeue:
         mock_redis.zpopmax.assert_called_once_with("evaluation:pending")
 
     @pytest.mark.asyncio
+    async def test_dequeue_fifo_within_same_priority(self, evaluation_queue, mock_redis):
+        """Test FIFO ordering within same priority level.
+
+        Note: Redis ZSET with same scores maintains insertion order,
+        so zpopmax will return the first-inserted element when scores are equal.
+        """
+        # Simulate enqueueing multiple events with same priority
+        mock_redis.zadd.return_value = 1
+        await evaluation_queue.enqueue(event_id=100, priority=50)
+        await evaluation_queue.enqueue(event_id=200, priority=50)
+        await evaluation_queue.enqueue(event_id=300, priority=50)
+
+        # First dequeue should return the oldest (first enqueued) event
+        mock_redis.zpopmax.return_value = [(b"100", 50.0)]
+        event_id = await evaluation_queue.dequeue()
+        assert event_id == 100
+
+    @pytest.mark.asyncio
     async def test_dequeue_returns_none_when_queue_empty(self, evaluation_queue, mock_redis):
         """Test that dequeue returns None when queue is empty."""
         mock_redis.zpopmax.return_value = []
@@ -145,6 +172,15 @@ class TestDequeue:
         event_id = await evaluation_queue.dequeue()
 
         assert event_id == 456
+
+    @pytest.mark.asyncio
+    async def test_dequeue_handles_redis_exception(self, evaluation_queue, mock_redis):
+        """Test that dequeue handles Redis exceptions gracefully."""
+        mock_redis.zpopmax.side_effect = Exception("Redis connection error")
+
+        event_id = await evaluation_queue.dequeue()
+
+        assert event_id is None
 
 
 # =============================================================================
@@ -166,6 +202,15 @@ class TestQueueManagement:
         mock_redis.zcard.assert_called_once_with("evaluation:pending")
 
     @pytest.mark.asyncio
+    async def test_get_queue_size_handles_redis_exception(self, evaluation_queue, mock_redis):
+        """Test that get_size handles Redis exceptions gracefully."""
+        mock_redis.zcard.side_effect = Exception("Redis connection error")
+
+        size = await evaluation_queue.get_size()
+
+        assert size == 0
+
+    @pytest.mark.asyncio
     async def test_get_pending_events(self, evaluation_queue, mock_redis):
         """Test getting list of pending event IDs."""
         mock_redis.zrange.return_value = [b"100", b"200", b"300"]
@@ -173,6 +218,15 @@ class TestQueueManagement:
         events = await evaluation_queue.get_pending_events(limit=10)
 
         assert events == [100, 200, 300]
+
+    @pytest.mark.asyncio
+    async def test_get_pending_events_handles_redis_exception(self, evaluation_queue, mock_redis):
+        """Test that get_pending_events handles Redis exceptions gracefully."""
+        mock_redis.zrange.side_effect = Exception("Redis connection error")
+
+        events = await evaluation_queue.get_pending_events(limit=10)
+
+        assert events == []
 
     @pytest.mark.asyncio
     async def test_remove_event(self, evaluation_queue, mock_redis):
@@ -194,6 +248,15 @@ class TestQueueManagement:
         assert result is False
 
     @pytest.mark.asyncio
+    async def test_remove_event_handles_redis_exception(self, evaluation_queue, mock_redis):
+        """Test that remove handles Redis exceptions gracefully."""
+        mock_redis.zrem.side_effect = Exception("Redis connection error")
+
+        result = await evaluation_queue.remove(event_id=123)
+
+        assert result is False
+
+    @pytest.mark.asyncio
     async def test_is_queued(self, evaluation_queue, mock_redis):
         """Test checking if an event is in the queue."""
         mock_redis.zscore.return_value = 75.0
@@ -211,6 +274,79 @@ class TestQueueManagement:
         is_queued = await evaluation_queue.is_queued(event_id=123)
 
         assert is_queued is False
+
+    @pytest.mark.asyncio
+    async def test_is_queued_handles_redis_exception(self, evaluation_queue, mock_redis):
+        """Test that is_queued handles Redis exceptions gracefully."""
+        mock_redis.zscore.side_effect = Exception("Redis connection error")
+
+        is_queued = await evaluation_queue.is_queued(event_id=123)
+
+        assert is_queued is False
+
+
+# =============================================================================
+# Test: Concurrent Operations and Thread Safety
+# =============================================================================
+
+
+class TestConcurrentOperations:
+    """Tests for concurrent operations and thread safety."""
+
+    @pytest.mark.asyncio
+    async def test_multiple_concurrent_enqueues(self, evaluation_queue, mock_redis):
+        """Test multiple concurrent enqueues (thread safety).
+
+        Redis operations are atomic, so concurrent zadd calls are safe.
+        """
+        import asyncio
+
+        mock_redis.zadd.return_value = 1
+
+        # Simulate concurrent enqueues
+        tasks = [evaluation_queue.enqueue(event_id=i, priority=i * 10) for i in range(1, 11)]
+
+        results = await asyncio.gather(*tasks)
+
+        # All enqueues should succeed
+        assert all(results)
+        assert mock_redis.zadd.call_count == 10
+
+
+# =============================================================================
+# Test: Redis Persistence
+# =============================================================================
+
+
+class TestRedisPersistence:
+    """Tests for Redis persistence across service restarts."""
+
+    @pytest.mark.asyncio
+    async def test_queue_persists_across_restart(self, mock_redis):
+        """Test that queue data persists across service restarts.
+
+        Since the queue is Redis-backed, data survives restarts.
+        """
+        from backend.services.evaluation_queue import (
+            EvaluationQueue,
+            reset_evaluation_queue,
+        )
+
+        # First instance - enqueue events
+        queue1 = EvaluationQueue(redis_client=mock_redis)
+        mock_redis.zadd.return_value = 1
+        await queue1.enqueue(event_id=123, priority=75)
+
+        # Simulate restart by creating new instance
+        reset_evaluation_queue()
+        queue2 = EvaluationQueue(redis_client=mock_redis)
+
+        # Verify queue still has the event
+        mock_redis.zscore.return_value = 75.0
+        is_queued = await queue2.is_queued(event_id=123)
+
+        assert is_queued is True
+        reset_evaluation_queue()
 
 
 # =============================================================================

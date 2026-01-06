@@ -41,17 +41,14 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router-dom": "^7.11.0",
-    "tailwind-merge": "^3.4.0"
+    "react-router-dom": "^7.11.0"
   },
   "overrides": {
     "tmp": ">=0.2.4"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
-    "@axe-core/react": "^4.11.0",
     "@eslint/js": "^9.39.2",
-    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.57.0",
     "@stryker-mutator/core": "^8.7.1",
     "@stryker-mutator/typescript-checker": "^8.7.1",
@@ -65,7 +62,6 @@
     "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.4.17",
-    "axe-core": "^4.11.0",
     "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
