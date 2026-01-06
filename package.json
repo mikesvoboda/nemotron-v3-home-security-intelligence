@@ -2,9 +2,12 @@
   "scripts": {
     "test:frontend": "npm --prefix frontend test",
     "test:frontend:run": "npm --prefix frontend test -- --run",
-    "test:frontend:coverage": "npm --prefix frontend test -- --run --coverage"
+    "test:frontend:coverage": "npm --prefix frontend test -- --run --coverage",
+    "commitlint": "commitlint --edit"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
     "prettier": "^3.7.4",
     "prettier-plugin-tailwindcss": "^0.7.2"
   }

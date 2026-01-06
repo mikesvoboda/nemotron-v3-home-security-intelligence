@@ -63,6 +63,10 @@ dev = [
     "pytest-xdist>=3.5.0",
     "pytest-timeout>=2.3.0",
     "pytest-rerunfailures>=14.0",  # Flaky test detection - auto-retry failures
+    "pytest-sugar>=1.0.0",  # Pretty progress bar and improved output
+    "pytest-clarity>=1.0.0",  # Better assertion diffs
+    "pytest-randomly>=4.0.0",  # Randomize test execution order
+    "pytest-deadfixtures>=3.0.0",  # Detect unused fixtures
     "fakeredis>=2.20.0",
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
@@ -193,6 +197,9 @@ markers = [
     "benchmark: mark test as a benchmark test (requires pytest-benchmark)",
     "serial: mark test as requiring serial execution (no parallel)",
     "flaky: mark test as flaky (known to fail intermittently, quarantined)",
+    "network: mark test as requiring network access (for isolation in CI)",
+    "db: mark test as requiring database access",
+    "redis: mark test as requiring Redis access",
 ]
 
 [tool.coverage.run]
@@ -284,4 +291,12 @@ pytest_add_cli_args = ["-x", "-q", "--tb=short", "-p", "no:benchmark", "-o", "ad
 # Also copy backend modules to mutants directory for imports
 also_copy = [
     "backend/",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-clarity>=1.0.1",
+    "pytest-deadfixtures>=3.0.0",
+    "pytest-randomly>=4.0.1",
+    "pytest-sugar>=1.1.1",
 ]

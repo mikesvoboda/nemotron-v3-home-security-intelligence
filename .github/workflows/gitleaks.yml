@@ -1,4 +1,4 @@
-name: Gitleaks Secret Detection
+name: Secret Detection
 
 on:
   push:
@@ -10,9 +10,16 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  # Linear team ID for NEM team
+  LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'
+
 jobs:
+  # =============================================================================
+  # GITLEAKS - Pattern-based secret detection
+  # =============================================================================
   gitleaks:
-    name: Detect Secrets
+    name: Gitleaks Secret Detection
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,3 +32,44 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
+
+  # =============================================================================
+  # TRUFFLEHOG - Credential verification and deep scanning
+  # =============================================================================
+  trufflehog:
+    name: TruffleHog Deep Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified --results=verified,unknown
+
+      - name: Create Linear issue on secrets found
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "'"$LINEAR_TEAM_ID"'",
+                  "title": "URGENT: TruffleHog detected verified secrets in codebase",
+                  "description": "## Security Alert - Verified Secrets Found\n\nTruffleHog has detected **verified secrets** in the codebase. This means the secrets are confirmed to be valid credentials.\n\n### Immediate Actions Required\n1. **Rotate the compromised credentials immediately**\n2. Review the TruffleHog scan output in the workflow logs\n3. Remove secrets from git history if needed (git filter-branch or BFG)\n4. Update any services using the compromised credentials\n\n### Details\n- **Commit:** `${{ github.sha }}`\n- **Branch:** `${{ github.ref_name }}`\n- **Workflow Run:** [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n- **Triggered by:** ${{ github.actor }}\n\n### References\n- [TruffleHog Documentation](https://trufflesecurity.com/trufflehog)\n- [GitHub Secret Scanning](https://docs.github.com/en/code-security/secret-scanning)",
+                  "priority": 0,
+                  "labelIds": []
+                }
+              }
+            }'

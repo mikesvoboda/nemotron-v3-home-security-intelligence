@@ -1001,13 +1001,22 @@ class TestDLQFullCycleOperations:
         sample_job = create_sample_job_failure()
 
         # Simulate infinite jobs (always return a job)
-        mock_redis_for_dlq.get_queue_length.return_value = 10000  # More than limit
+        mock_redis_for_dlq.get_queue_length.return_value = 100  # More than our test limit
         mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = sample_job.to_dict()
         mock_redis_for_dlq.add_to_queue_safe.return_value = MagicMock(
             success=True, had_backpressure=False, queue_length=1, moved_to_dlq_count=0, error=None
         )
 
-        requeue_response = await dlq_client.post(f"/api/dlq/requeue-all/{DLQ_DETECTION_QUEUE}")
+        # Patch settings to use a small max_requeue_iterations for test speed
+        # Default is 10,000 which causes timeout
+        # Must include api_key_enabled=False to preserve auth bypass from fixture
+        with patch("backend.api.routes.dlq.get_settings") as mock_settings:
+            mock_obj = MagicMock()
+            mock_obj.api_key_enabled = False  # Preserve auth bypass from fixture
+            mock_obj.max_requeue_iterations = 10  # Small limit for fast test
+            mock_settings.return_value = mock_obj
+            requeue_response = await dlq_client.post(f"/api/dlq/requeue-all/{DLQ_DETECTION_QUEUE}")
+
         assert requeue_response.status_code == 200
 
         data = requeue_response.json()
