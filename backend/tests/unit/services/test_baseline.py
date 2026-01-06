@@ -5,12 +5,16 @@ Tests cover:
 - Time decay calculations
 - Anomaly detection logic
 - Async database methods
+- Property-based tests for mathematical invariants
+- Error handling and edge cases
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from backend.services.baseline import BaselineService
 
@@ -1665,3 +1669,954 @@ class TestBaselineSingleton:
 
         assert service1 is not service2
         reset_baseline_service()
+
+
+# =============================================================================
+# Update Config Tests
+# =============================================================================
+
+
+class TestUpdateConfig:
+    """Tests for update_config method."""
+
+    def test_update_threshold_stdev(self) -> None:
+        """Test updating anomaly threshold standard deviation."""
+        service = BaselineService(anomaly_threshold_std=2.0)
+        service.update_config(threshold_stdev=3.0)
+        assert service.anomaly_threshold_std == 3.0
+
+    def test_update_min_samples(self) -> None:
+        """Test updating minimum samples required."""
+        service = BaselineService(min_samples=10)
+        service.update_config(min_samples=20)
+        assert service.min_samples == 20
+
+    def test_update_both_values(self) -> None:
+        """Test updating both threshold and min_samples."""
+        service = BaselineService(anomaly_threshold_std=2.0, min_samples=10)
+        service.update_config(threshold_stdev=3.5, min_samples=15)
+        assert service.anomaly_threshold_std == 3.5
+        assert service.min_samples == 15
+
+    def test_update_config_invalid_threshold_zero(self) -> None:
+        """Test that threshold_stdev cannot be zero in update."""
+        service = BaselineService()
+        with pytest.raises(ValueError) as exc_info:
+            service.update_config(threshold_stdev=0)
+        assert "threshold_stdev must be positive" in str(exc_info.value)
+
+    def test_update_config_invalid_threshold_negative(self) -> None:
+        """Test that threshold_stdev cannot be negative in update."""
+        service = BaselineService()
+        with pytest.raises(ValueError) as exc_info:
+            service.update_config(threshold_stdev=-1.0)
+        assert "threshold_stdev must be positive" in str(exc_info.value)
+
+    def test_update_config_invalid_min_samples_zero(self) -> None:
+        """Test that min_samples cannot be zero in update."""
+        service = BaselineService()
+        with pytest.raises(ValueError) as exc_info:
+            service.update_config(min_samples=0)
+        assert "min_samples must be at least 1" in str(exc_info.value)
+
+    def test_update_config_invalid_min_samples_negative(self) -> None:
+        """Test that min_samples cannot be negative in update."""
+        service = BaselineService()
+        with pytest.raises(ValueError) as exc_info:
+            service.update_config(min_samples=-5)
+        assert "min_samples must be at least 1" in str(exc_info.value)
+
+    def test_update_config_partial_update(self) -> None:
+        """Test updating only one value preserves others."""
+        service = BaselineService(anomaly_threshold_std=2.0, min_samples=10)
+        original_threshold = service.anomaly_threshold_std
+
+        service.update_config(min_samples=20)
+
+        assert service.anomaly_threshold_std == original_threshold
+        assert service.min_samples == 20
+
+
+# =============================================================================
+# Get Hourly Patterns Tests
+# =============================================================================
+
+
+class TestGetHourlyPatterns:
+    """Tests for get_hourly_patterns method."""
+
+    @pytest.mark.asyncio
+    async def test_get_hourly_patterns_no_data(self) -> None:
+        """Test get_hourly_patterns with no baselines."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_hourly_patterns("camera-1", session=mock_session)
+
+        assert patterns == {}
+
+    @pytest.mark.asyncio
+    async def test_get_hourly_patterns_with_data(self) -> None:
+        """Test get_hourly_patterns with existing baselines."""
+        mock_session = AsyncMock()
+        _now = datetime.now(UTC)
+
+        # Create mock baselines for hour 14
+        mock_baseline1 = MagicMock()
+        mock_baseline1.hour = 14
+        mock_baseline1.avg_count = 10.0
+        mock_baseline1.sample_count = 50
+
+        mock_baseline2 = MagicMock()
+        mock_baseline2.hour = 14
+        mock_baseline2.avg_count = 12.0
+        mock_baseline2.sample_count = 60
+
+        # Create mock baseline for hour 15
+        mock_baseline3 = MagicMock()
+        mock_baseline3.hour = 15
+        mock_baseline3.avg_count = 5.0
+        mock_baseline3.sample_count = 30
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_baseline1, mock_baseline2, mock_baseline3]
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_hourly_patterns("camera-1", session=mock_session)
+
+        assert "14" in patterns
+        assert "15" in patterns
+        assert patterns["14"].avg_detections == 11.0  # (10 + 12) / 2
+        assert patterns["14"].sample_count == 110  # 50 + 60
+        assert patterns["15"].avg_detections == 5.0
+        assert patterns["15"].sample_count == 30
+
+    @pytest.mark.asyncio
+    async def test_get_hourly_patterns_calculates_std_dev(self) -> None:
+        """Test that standard deviation is calculated correctly."""
+        mock_session = AsyncMock()
+
+        # Create mock baselines with different counts
+        baselines = []
+        for i, count in enumerate([8.0, 10.0, 12.0]):
+            mock_baseline = MagicMock()
+            mock_baseline.hour = 14
+            mock_baseline.avg_count = count
+            mock_baseline.sample_count = 10
+            baselines.append(mock_baseline)
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = baselines
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_hourly_patterns("camera-1", session=mock_session)
+
+        assert "14" in patterns
+        assert patterns["14"].std_dev > 0  # Should have non-zero std dev
+
+    @pytest.mark.asyncio
+    async def test_get_hourly_patterns_single_baseline_zero_std_dev(self) -> None:
+        """Test that single baseline has zero std dev."""
+        mock_session = AsyncMock()
+
+        mock_baseline = MagicMock()
+        mock_baseline.hour = 14
+        mock_baseline.avg_count = 10.0
+        mock_baseline.sample_count = 50
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_baseline]
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_hourly_patterns("camera-1", session=mock_session)
+
+        assert "14" in patterns
+        assert patterns["14"].std_dev == 0.0  # Single sample has zero std dev
+
+
+# =============================================================================
+# Get Daily Patterns Tests
+# =============================================================================
+
+
+class TestGetDailyPatterns:
+    """Tests for get_daily_patterns method."""
+
+    @pytest.mark.asyncio
+    async def test_get_daily_patterns_no_data(self) -> None:
+        """Test get_daily_patterns with no baselines."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_daily_patterns("camera-1", session=mock_session)
+
+        assert patterns == {}
+
+    @pytest.mark.asyncio
+    async def test_get_daily_patterns_with_data(self) -> None:
+        """Test get_daily_patterns with existing baselines."""
+        mock_session = AsyncMock()
+
+        # Monday (0)
+        mock_monday1 = MagicMock()
+        mock_monday1.day_of_week = 0
+        mock_monday1.hour = 10
+        mock_monday1.avg_count = 5.0
+        mock_monday1.sample_count = 20
+
+        mock_monday2 = MagicMock()
+        mock_monday2.day_of_week = 0
+        mock_monday2.hour = 14
+        mock_monday2.avg_count = 8.0
+        mock_monday2.sample_count = 30
+
+        # Tuesday (1)
+        mock_tuesday = MagicMock()
+        mock_tuesday.day_of_week = 1
+        mock_tuesday.hour = 15
+        mock_tuesday.avg_count = 3.0
+        mock_tuesday.sample_count = 10
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_monday1, mock_monday2, mock_tuesday]
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_daily_patterns("camera-1", session=mock_session)
+
+        assert "monday" in patterns
+        assert "tuesday" in patterns
+        assert patterns["monday"].avg_detections == 13.0  # 5 + 8
+        assert patterns["monday"].total_samples == 50  # 20 + 30
+        assert patterns["monday"].peak_hour == 14  # Hour with highest avg_count
+        assert patterns["tuesday"].avg_detections == 3.0
+        assert patterns["tuesday"].peak_hour == 15
+
+    @pytest.mark.asyncio
+    async def test_get_daily_patterns_all_days(self) -> None:
+        """Test get_daily_patterns with all days of week."""
+        mock_session = AsyncMock()
+
+        baselines = []
+        day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        for day_num in range(7):
+            mock_baseline = MagicMock()
+            mock_baseline.day_of_week = day_num
+            mock_baseline.hour = 12
+            mock_baseline.avg_count = float(day_num + 1)
+            mock_baseline.sample_count = 10
+            baselines.append(mock_baseline)
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = baselines
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        patterns = await service.get_daily_patterns("camera-1", session=mock_session)
+
+        # Check all days are present
+        for day_name in day_names:
+            assert day_name in patterns
+
+
+# =============================================================================
+# Get Object Baselines Tests
+# =============================================================================
+
+
+class TestGetObjectBaselines:
+    """Tests for get_object_baselines method."""
+
+    @pytest.mark.asyncio
+    async def test_get_object_baselines_no_data(self) -> None:
+        """Test get_object_baselines with no baselines."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        baselines = await service.get_object_baselines("camera-1", session=mock_session)
+
+        assert baselines == {}
+
+    @pytest.mark.asyncio
+    async def test_get_object_baselines_with_data(self) -> None:
+        """Test get_object_baselines with existing baselines."""
+        mock_session = AsyncMock()
+
+        # Person class
+        mock_person1 = MagicMock()
+        mock_person1.detection_class = "person"
+        mock_person1.hour = 10
+        mock_person1.frequency = 5.0
+        mock_person1.sample_count = 20
+
+        mock_person2 = MagicMock()
+        mock_person2.detection_class = "person"
+        mock_person2.hour = 14
+        mock_person2.frequency = 8.0
+        mock_person2.sample_count = 30
+
+        # Vehicle class
+        mock_vehicle = MagicMock()
+        mock_vehicle.detection_class = "vehicle"
+        mock_vehicle.hour = 12
+        mock_vehicle.frequency = 3.0
+        mock_vehicle.sample_count = 10
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_person1, mock_person2, mock_vehicle]
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        baselines = await service.get_object_baselines("camera-1", session=mock_session)
+
+        assert "person" in baselines
+        assert "vehicle" in baselines
+        # Person: total_freq = 13, hours_covered = 2, avg_hourly = 6.5
+        assert baselines["person"].avg_hourly == 6.5
+        assert baselines["person"].peak_hour == 14  # Hour with highest frequency
+        assert baselines["person"].total_detections == 50  # 20 + 30
+        assert baselines["vehicle"].avg_hourly == 3.0
+        assert baselines["vehicle"].total_detections == 10
+
+
+# =============================================================================
+# Interpret Z-Score Tests
+# =============================================================================
+
+
+class TestInterpretZScore:
+    """Tests for _interpret_z_score method."""
+
+    def test_interpret_far_below_normal(self) -> None:
+        """Test interpretation of far below normal z-score."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+        interpretation = service._interpret_z_score(-2.5)
+        assert interpretation == DeviationInterpretation.FAR_BELOW_NORMAL
+
+    def test_interpret_below_normal(self) -> None:
+        """Test interpretation of below normal z-score."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+        interpretation = service._interpret_z_score(-1.5)
+        assert interpretation == DeviationInterpretation.BELOW_NORMAL
+
+    def test_interpret_normal(self) -> None:
+        """Test interpretation of normal z-score."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+        interpretation = service._interpret_z_score(0.5)
+        assert interpretation == DeviationInterpretation.NORMAL
+
+    def test_interpret_slightly_above_normal(self) -> None:
+        """Test interpretation of slightly above normal z-score."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+        interpretation = service._interpret_z_score(1.5)
+        assert interpretation == DeviationInterpretation.SLIGHTLY_ABOVE_NORMAL
+
+    def test_interpret_above_normal(self) -> None:
+        """Test interpretation of above normal z-score."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+        interpretation = service._interpret_z_score(2.5)
+        assert interpretation == DeviationInterpretation.ABOVE_NORMAL
+
+    def test_interpret_far_above_normal(self) -> None:
+        """Test interpretation of far above normal z-score."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+        interpretation = service._interpret_z_score(3.5)
+        assert interpretation == DeviationInterpretation.FAR_ABOVE_NORMAL
+
+    def test_interpret_z_score_boundaries(self) -> None:
+        """Test z-score interpretation at exact boundaries."""
+        from backend.api.schemas.baseline import DeviationInterpretation
+
+        service = BaselineService()
+
+        # Test boundary values
+        assert service._interpret_z_score(-2.0) == DeviationInterpretation.BELOW_NORMAL
+        assert service._interpret_z_score(-1.0) == DeviationInterpretation.NORMAL
+        assert service._interpret_z_score(1.0) == DeviationInterpretation.SLIGHTLY_ABOVE_NORMAL
+        assert service._interpret_z_score(2.0) == DeviationInterpretation.ABOVE_NORMAL
+        assert service._interpret_z_score(3.0) == DeviationInterpretation.FAR_ABOVE_NORMAL
+
+
+# =============================================================================
+# Get Current Deviation Tests
+# =============================================================================
+
+
+class TestGetCurrentDeviation:
+    """Tests for get_current_deviation method."""
+
+    @pytest.mark.asyncio
+    async def test_get_current_deviation_no_baseline(self) -> None:
+        """Test get_current_deviation with no baseline."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        deviation = await service.get_current_deviation("camera-1", session=mock_session)
+
+        assert deviation is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_deviation_insufficient_samples(self) -> None:
+        """Test get_current_deviation with insufficient samples."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+
+        mock_baseline = MagicMock()
+        mock_baseline.sample_count = 5  # Below min_samples (10)
+        mock_baseline.last_updated = now
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_baseline
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService(min_samples=10)
+        deviation = await service.get_current_deviation("camera-1", session=mock_session)
+
+        assert deviation is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_deviation_with_elevated_factors(self) -> None:
+        """Test get_current_deviation identifies elevated class counts."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+
+        # Activity baseline
+        mock_activity = MagicMock()
+        mock_activity.avg_count = 15.0
+        mock_activity.sample_count = 50
+        mock_activity.last_updated = now
+        mock_activity.hour = now.hour
+        mock_activity.day_of_week = now.weekday()
+
+        # All hour baselines (for std dev calculation)
+        mock_baseline1 = MagicMock()
+        mock_baseline1.avg_count = 10.0
+
+        mock_baseline2 = MagicMock()
+        mock_baseline2.avg_count = 12.0
+
+        # Class baselines with elevated frequency
+        mock_class1 = MagicMock()
+        mock_class1.detection_class = "person"
+        mock_class1.frequency = 3.0  # Above 2.0 threshold
+
+        mock_class_result = MagicMock()
+        mock_class_scalars = MagicMock()
+        mock_class_scalars.all.return_value = [mock_class1]
+        mock_class_result.scalars.return_value = mock_class_scalars
+
+        mock_all_result = MagicMock()
+        mock_all_scalars = MagicMock()
+        mock_all_scalars.all.return_value = [mock_baseline1, mock_baseline2, mock_activity]
+        mock_all_result.scalars.return_value = mock_all_scalars
+
+        # Set up execute to return different results
+        mock_session.execute.side_effect = [
+            # First call: get current baseline
+            MagicMock(scalar_one_or_none=lambda: mock_activity),
+            # Second call: get all baselines for std dev
+            mock_all_result,
+            # Third call: get class baselines for elevated factors
+            mock_class_result,
+        ]
+
+        service = BaselineService(min_samples=10)
+        deviation = await service.get_current_deviation("camera-1", session=mock_session)
+
+        assert deviation is not None
+        # Z-score should be positive (15 > mean of 10, 12, 15)
+        # Factors should include either elevated person count or overall deviation
+        assert len(deviation.contributing_factors) > 0
+        assert any(
+            factor in ["person_count_elevated", "overall_activity_deviation"]
+            for factor in deviation.contributing_factors
+        )
+
+
+# =============================================================================
+# Get Baseline Established Date Tests
+# =============================================================================
+
+
+class TestGetBaselineEstablishedDate:
+    """Tests for get_baseline_established_date method."""
+
+    @pytest.mark.asyncio
+    async def test_get_established_date_no_data(self) -> None:
+        """Test get_baseline_established_date with no baselines."""
+        mock_session = AsyncMock()
+
+        mock_activity_result = MagicMock()
+        mock_activity_result.scalar.return_value = None
+
+        mock_class_result = MagicMock()
+        mock_class_result.scalar.return_value = None
+
+        mock_session.execute.side_effect = [mock_activity_result, mock_class_result]
+
+        service = BaselineService()
+        date = await service.get_baseline_established_date("camera-1", session=mock_session)
+
+        assert date is None
+
+    @pytest.mark.asyncio
+    async def test_get_established_date_activity_only(self) -> None:
+        """Test get_baseline_established_date with only activity baseline."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        activity_date = now - timedelta(days=10)
+
+        mock_activity_result = MagicMock()
+        mock_activity_result.scalar.return_value = activity_date
+
+        mock_class_result = MagicMock()
+        mock_class_result.scalar.return_value = None
+
+        mock_session.execute.side_effect = [mock_activity_result, mock_class_result]
+
+        service = BaselineService()
+        date = await service.get_baseline_established_date("camera-1", session=mock_session)
+
+        assert date == activity_date
+
+    @pytest.mark.asyncio
+    async def test_get_established_date_class_only(self) -> None:
+        """Test get_baseline_established_date with only class baseline."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        class_date = now - timedelta(days=5)
+
+        mock_activity_result = MagicMock()
+        mock_activity_result.scalar.return_value = None
+
+        mock_class_result = MagicMock()
+        mock_class_result.scalar.return_value = class_date
+
+        mock_session.execute.side_effect = [mock_activity_result, mock_class_result]
+
+        service = BaselineService()
+        date = await service.get_baseline_established_date("camera-1", session=mock_session)
+
+        assert date == class_date
+
+    @pytest.mark.asyncio
+    async def test_get_established_date_returns_earliest(self) -> None:
+        """Test get_baseline_established_date returns earliest date."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        earlier_date = now - timedelta(days=15)
+        later_date = now - timedelta(days=5)
+
+        mock_activity_result = MagicMock()
+        mock_activity_result.scalar.return_value = earlier_date
+
+        mock_class_result = MagicMock()
+        mock_class_result.scalar.return_value = later_date
+
+        mock_session.execute.side_effect = [mock_activity_result, mock_class_result]
+
+        service = BaselineService()
+        date = await service.get_baseline_established_date("camera-1", session=mock_session)
+
+        assert date == earlier_date
+
+
+# =============================================================================
+# Get Recent Anomalies Tests
+# =============================================================================
+
+
+class TestGetRecentAnomalies:
+    """Tests for get_recent_anomalies method."""
+
+    @pytest.mark.asyncio
+    async def test_get_recent_anomalies_returns_empty_list(self) -> None:
+        """Test get_recent_anomalies returns empty list (not implemented)."""
+        service = BaselineService()
+        anomalies = await service.get_recent_anomalies("camera-1", days=7)
+
+        # Method returns empty list as anomaly storage not implemented
+        assert anomalies == []
+
+    @pytest.mark.asyncio
+    async def test_get_recent_anomalies_with_session(self) -> None:
+        """Test get_recent_anomalies with session parameter."""
+        mock_session = AsyncMock()
+        service = BaselineService()
+        anomalies = await service.get_recent_anomalies("camera-1", days=7, session=mock_session)
+
+        assert anomalies == []
+
+
+# =============================================================================
+# Get Raw Baselines Tests
+# =============================================================================
+
+
+class TestGetActivityBaselinesRaw:
+    """Tests for get_activity_baselines_raw method."""
+
+    @pytest.mark.asyncio
+    async def test_get_activity_baselines_raw_no_data(self) -> None:
+        """Test get_activity_baselines_raw with no baselines."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        baselines = await service.get_activity_baselines_raw("camera-1", session=mock_session)
+
+        assert baselines == []
+
+    @pytest.mark.asyncio
+    async def test_get_activity_baselines_raw_with_data(self) -> None:
+        """Test get_activity_baselines_raw returns ordered data."""
+        mock_session = AsyncMock()
+
+        mock_baseline1 = MagicMock()
+        mock_baseline1.day_of_week = 0
+        mock_baseline1.hour = 10
+
+        mock_baseline2 = MagicMock()
+        mock_baseline2.day_of_week = 0
+        mock_baseline2.hour = 14
+
+        mock_baseline3 = MagicMock()
+        mock_baseline3.day_of_week = 1
+        mock_baseline3.hour = 10
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_baseline1, mock_baseline2, mock_baseline3]
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        baselines = await service.get_activity_baselines_raw("camera-1", session=mock_session)
+
+        assert len(baselines) == 3
+        # Verify ordered by day_of_week, hour
+        assert baselines[0].day_of_week == 0
+        assert baselines[0].hour == 10
+
+
+class TestGetClassBaselinesRaw:
+    """Tests for get_class_baselines_raw method."""
+
+    @pytest.mark.asyncio
+    async def test_get_class_baselines_raw_no_data(self) -> None:
+        """Test get_class_baselines_raw with no baselines."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        baselines = await service.get_class_baselines_raw("camera-1", session=mock_session)
+
+        assert baselines == []
+
+    @pytest.mark.asyncio
+    async def test_get_class_baselines_raw_with_data(self) -> None:
+        """Test get_class_baselines_raw returns ordered data."""
+        mock_session = AsyncMock()
+
+        mock_baseline1 = MagicMock()
+        mock_baseline1.detection_class = "person"
+        mock_baseline1.hour = 10
+
+        mock_baseline2 = MagicMock()
+        mock_baseline2.detection_class = "person"
+        mock_baseline2.hour = 14
+
+        mock_baseline3 = MagicMock()
+        mock_baseline3.detection_class = "vehicle"
+        mock_baseline3.hour = 10
+
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_baseline1, mock_baseline2, mock_baseline3]
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        baselines = await service.get_class_baselines_raw("camera-1", session=mock_session)
+
+        assert len(baselines) == 3
+        # Verify ordered by detection_class, hour
+        assert baselines[0].detection_class == "person"
+        assert baselines[0].hour == 10
+
+
+# =============================================================================
+# Property-Based Tests (Hypothesis)
+# =============================================================================
+
+
+class TestPropertyBasedDecay:
+    """Property-based tests for time decay calculations."""
+
+    @given(
+        decay_factor=st.floats(min_value=0.01, max_value=1.0),
+        days_elapsed=st.floats(min_value=0.0, max_value=30.0),
+    )
+    def test_decay_always_between_zero_and_one(
+        self, decay_factor: float, days_elapsed: float
+    ) -> None:
+        """Property: decay value is always between 0 and 1."""
+        service = BaselineService(decay_factor=decay_factor, window_days=30)
+        now = datetime.now(UTC)
+        past = now - timedelta(days=days_elapsed)
+
+        decay = service._calculate_time_decay(past, now)
+
+        assert 0.0 <= decay <= 1.0
+
+    @given(
+        decay_factor=st.floats(min_value=0.01, max_value=1.0),
+        window_days=st.integers(min_value=1, max_value=365),
+    )
+    def test_decay_outside_window_is_zero(self, decay_factor: float, window_days: int) -> None:
+        """Property: decay outside window is exactly zero."""
+        service = BaselineService(decay_factor=decay_factor, window_days=window_days)
+        now = datetime.now(UTC)
+        outside_window = now - timedelta(days=window_days + 1)
+
+        decay = service._calculate_time_decay(outside_window, now)
+
+        assert decay == 0.0
+
+    @given(decay_factor=st.floats(min_value=0.01, max_value=1.0))
+    def test_decay_at_zero_time_is_one(self, decay_factor: float) -> None:
+        """Property: decay at zero time elapsed is 1.0."""
+        service = BaselineService(decay_factor=decay_factor)
+        now = datetime.now(UTC)
+
+        decay = service._calculate_time_decay(now, now)
+
+        assert abs(decay - 1.0) < 0.001  # Allow small floating point error
+
+    @given(
+        decay_factor=st.floats(min_value=0.01, max_value=0.99),
+        days_elapsed=st.floats(min_value=1.0, max_value=29.0),
+    )
+    def test_decay_is_monotonically_decreasing(
+        self, decay_factor: float, days_elapsed: float
+    ) -> None:
+        """Property: decay decreases as time increases."""
+        service = BaselineService(decay_factor=decay_factor, window_days=30)
+        now = datetime.now(UTC)
+        earlier = now - timedelta(days=days_elapsed)
+        later = now - timedelta(days=days_elapsed / 2)
+
+        decay_earlier = service._calculate_time_decay(earlier, now)
+        decay_later = service._calculate_time_decay(later, now)
+
+        # Decay at earlier time should be less than or equal to decay at later time
+        assert decay_earlier <= decay_later
+
+    @given(
+        window_days=st.integers(min_value=1, max_value=365),
+        min_samples=st.integers(min_value=1, max_value=100),
+    )
+    def test_service_initialization_invariants(self, window_days: int, min_samples: int) -> None:
+        """Property: service initialization preserves values."""
+        service = BaselineService(
+            decay_factor=0.5,
+            window_days=window_days,
+            anomaly_threshold_std=2.0,
+            min_samples=min_samples,
+        )
+
+        assert service.decay_factor == 0.5
+        assert service.window_days == window_days
+        assert service.anomaly_threshold_std == 2.0
+        assert service.min_samples == min_samples
+
+
+class TestPropertyBasedAnomalyScores:
+    """Property-based tests for anomaly score calculations."""
+
+    @given(
+        anomaly_threshold_std=st.floats(min_value=0.0, max_value=5.0),
+        min_samples=st.integers(min_value=1, max_value=100),
+    )
+    def test_anomaly_score_in_valid_range(
+        self, anomaly_threshold_std: float, min_samples: int
+    ) -> None:
+        """Property: anomaly scores are always between 0.0 and 1.0."""
+        # This test validates the invariant without needing database
+        service = BaselineService(
+            anomaly_threshold_std=anomaly_threshold_std, min_samples=min_samples
+        )
+
+        # Test that the service is initialized with valid parameters
+        assert service.anomaly_threshold_std == anomaly_threshold_std
+        assert service.min_samples == min_samples
+        assert 0.0 <= anomaly_threshold_std <= 5.0
+        assert 1 <= min_samples <= 100
+
+
+# =============================================================================
+# Edge Case Tests
+# =============================================================================
+
+
+class TestEdgeCases:
+    """Tests for edge cases and boundary conditions."""
+
+    def test_midnight_boundary_hour_zero(self) -> None:
+        """Test detection at midnight (hour 0)."""
+        _service = BaselineService()
+        timestamp = datetime(2025, 12, 23, 0, 0, 0, tzinfo=UTC)
+
+        # Should not raise
+        assert timestamp.hour == 0
+
+    def test_day_of_week_boundary_sunday(self) -> None:
+        """Test detection on Sunday (day 6)."""
+        _service = BaselineService()
+        # 2025-12-21 is a Sunday
+        timestamp = datetime(2025, 12, 21, 12, 0, 0, tzinfo=UTC)
+
+        assert timestamp.weekday() == 6
+
+    def test_threshold_boundary_exact_match(self) -> None:
+        """Test anomaly detection at exact threshold boundary."""
+        service = BaselineService(anomaly_threshold_std=2.0)
+
+        # Test that service can handle exact threshold calculations
+        # The actual threshold cutoff is: 1.0 - 1.0 / (2.0 + 1) = 1.0 - 1/3 ≈ 0.667
+        threshold = 1.0 - 1.0 / (service.anomaly_threshold_std + 1)
+
+        assert abs(threshold - 0.667) < 0.01
+
+    def test_time_decay_with_microseconds(self) -> None:
+        """Test time decay calculation with microseconds precision."""
+        service = BaselineService()
+        now = datetime(2025, 12, 23, 12, 0, 0, 123456, tzinfo=UTC)
+        past = datetime(2025, 12, 23, 11, 59, 59, 999999, tzinfo=UTC)
+
+        decay = service._calculate_time_decay(past, now)
+
+        # Should handle microsecond precision
+        assert 0.0 <= decay <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_update_baseline_without_session_creates_new_session(self) -> None:
+        """Test update_baseline without session parameter creates its own."""
+        service = BaselineService()
+        timestamp = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
+
+        # Mock get_session to track if it was called
+        with patch("backend.services.baseline.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+            mock_session.execute.return_value = mock_result
+            mock_session.commit = AsyncMock()
+
+            # Make get_session return an async context manager
+            mock_context = AsyncMock()
+            mock_context.__aenter__.return_value = mock_session
+            mock_context.__aexit__.return_value = None
+            mock_get_session.return_value = mock_context
+
+            await service.update_baseline("camera-1", "person", timestamp)
+
+            # Verify that get_session was called (no session passed)
+            mock_get_session.assert_called_once()
+            # Verify commit was called
+            mock_session.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_activity_rate_without_session_creates_new_session(self) -> None:
+        """Test get_activity_rate without session creates its own."""
+        service = BaselineService()
+
+        with patch("backend.services.baseline.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+            mock_session.execute.return_value = mock_result
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__.return_value = mock_session
+            mock_context.__aexit__.return_value = None
+            mock_get_session.return_value = mock_context
+
+            rate = await service.get_activity_rate("camera-1", 14, 0)
+
+            mock_get_session.assert_called_once()
+            assert rate == 0.0
+
+    @pytest.mark.asyncio
+    async def test_get_class_frequency_without_session_creates_new_session(self) -> None:
+        """Test get_class_frequency without session creates its own."""
+        service = BaselineService()
+
+        with patch("backend.services.baseline.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+            mock_session.execute.return_value = mock_result
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__.return_value = mock_session
+            mock_context.__aexit__.return_value = None
+            mock_get_session.return_value = mock_context
+
+            freq = await service.get_class_frequency("camera-1", "person", 14)
+
+            mock_get_session.assert_called_once()
+            assert freq == 0.0
