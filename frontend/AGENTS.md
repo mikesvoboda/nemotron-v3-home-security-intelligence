@@ -45,7 +45,6 @@ frontend/
 | File                | Purpose                                             |
 | ------------------- | --------------------------------------------------- |
 | `eslint.config.mjs` | ESLint flat config (TypeScript, React, a11y)        |
-| `.eslintrc.cjs`     | Legacy ESLint config (deprecated)                   |
 | `.prettierrc`       | Prettier formatting (single quotes, 100 char width) |
 | `.prettierignore`   | Files excluded from Prettier                        |
 
@@ -78,7 +77,6 @@ frontend/
 | `TESTING.md`         | Comprehensive testing documentation      |
 | `TEST_QUICKSTART.md` | Quick reference for running tests        |
 | `verify-eslint.sh`   | ESLint configuration verification script |
-| `lighthouserc.js`    | Lighthouse CI configuration              |
 
 ## NPM Scripts
 
@@ -127,7 +125,6 @@ npm run validate         # typecheck + lint + test with coverage
 | `@headlessui/react` | ^2.2.9   | Accessible UI components      |
 | `lucide-react`      | ^0.562.0 | Icon library                  |
 | `clsx`              | ^2.1.0   | Conditional class names       |
-| `tailwind-merge`    | ^3.4.0   | Merge Tailwind classes        |
 
 ### Development
 
@@ -141,7 +138,7 @@ npm run validate         # typecheck + lint + test with coverage
 | `eslint`                      | ^8.56.0 | Linting                        |
 | `prettier`                    | ^3.2.4  | Code formatting                |
 | `@playwright/test`            | ^1.57.0 | E2E testing                    |
-| `openapi-typescript`          | ^7.10.1 | OpenAPI to TypeScript types    |
+| `msw`                         | ^2.12.7 | Mock Service Worker for tests  |
 | `@testing-library/react`      | ^16.3.1 | React testing utilities        |
 | `@testing-library/jest-dom`   | ^6.2.0  | DOM matchers                   |
 | `@testing-library/user-event` | ^14.5.2 | User interaction simulation    |
