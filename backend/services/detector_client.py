@@ -115,7 +115,7 @@ class DetectorClient:
 
     # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
     # This prevents overwhelming the GPU service with too many parallel requests
-    # Default: 4 concurrent requests (configurable via ai_max_concurrent_requests)
+    # Default: 4 concurrent requests (configurable via ai_max_concurrent_inferences)
     _request_semaphore: asyncio.Semaphore | None = None
     _semaphore_limit: int = 0
 
@@ -131,7 +131,7 @@ class DetectorClient:
             asyncio.Semaphore for rate limiting concurrent requests
         """
         settings = get_settings()
-        limit = settings.ai_max_concurrent_requests
+        limit = settings.ai_max_concurrent_inferences
 
         # Create or recreate semaphore if limit changed
         if cls._request_semaphore is None or cls._semaphore_limit != limit:
@@ -172,7 +172,7 @@ class DetectorClient:
             max_retries if max_retries is not None else settings.detector_max_retries
         )
         # Concurrency limit (NEM-1500)
-        self._max_concurrent = settings.ai_max_concurrent_requests
+        self._max_concurrent = settings.ai_max_concurrent_inferences
         logger.debug(
             f"DetectorClient initialized with max_retries={self._max_retries}, "
             f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}"

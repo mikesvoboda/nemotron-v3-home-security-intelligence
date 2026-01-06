@@ -43,6 +43,28 @@ export type {
   UseCameraMutationReturn,
 } from './useCamerasQuery';
 
+export { useGpuStatsQuery, useGpuHistoryQuery } from './useGpuStatsQuery';
+export type {
+  UseGpuStatsQueryOptions,
+  UseGpuStatsQueryReturn,
+  UseGpuHistoryQueryOptions,
+  UseGpuHistoryQueryReturn,
+} from './useGpuStatsQuery';
+
+export { useModelZooStatusQuery } from './useModelZooStatusQuery';
+export type {
+  VRAMStats as VRAMStatsQuery,
+  UseModelZooStatusQueryOptions,
+  UseModelZooStatusQueryReturn,
+} from './useModelZooStatusQuery';
+
+export { useStorageStatsQuery, useCleanupPreviewMutation } from './useStorageStatsQuery';
+export type {
+  UseStorageStatsQueryOptions,
+  UseStorageStatsQueryReturn,
+  UseCleanupPreviewMutationReturn,
+} from './useStorageStatsQuery';
+
 export { usePerformanceMetrics } from './usePerformanceMetrics';
 export type {
   TimeRange,
