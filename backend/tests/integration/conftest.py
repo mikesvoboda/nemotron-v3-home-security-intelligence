@@ -189,6 +189,7 @@ def get_table_deletion_order(engine) -> list[str]:
         logger.warning("Falling back to hardcoded table order")
         return HARDCODED_TABLE_DELETION_ORDER
 
+
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
