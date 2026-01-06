@@ -299,3 +299,52 @@ jobs:
         run: |
           cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
           cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.sha }}
+
+      - name: Attach SBOM to image
+        run: |
+          # Attach SBOM as attestation to the container image
+          cosign attest --yes --predicate sbom-${{ matrix.image }}.spdx.json \
+            --type spdxjson \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+
+  # Generate SLSA provenance attestations for supply chain security
+  # SLSA Level 3: Provides cryptographic proof of build provenance
+  slsa-provenance:
+    name: SLSA Provenance (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    needs: merge
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # Required for SLSA provenance generation
+      attestations: write # Required for GitHub attestation API
+
+    strategy:
+      matrix:
+        image: [backend, frontend]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@263435318d21b8e681c14492fe198d362a7d2c83 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get image digest
+        id: digest
+        run: |
+          # Get the digest of the pushed image
+          DIGEST=$(docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest --format '{{json .Manifest}}' | jq -r '.digest')
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Image digest: $DIGEST"
+
+      - name: Generate SLSA provenance attestation
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true

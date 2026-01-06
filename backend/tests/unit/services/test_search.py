@@ -1160,7 +1160,10 @@ class TestSearchQueryParsingProperties:
         """Property: OR between terms produces | in tsquery."""
         query = f"{term1} OR {term2}"
         result = _convert_query_to_tsquery(query)
-        if term1.strip() and term2.strip():
+        # Clean the terms to check if they would actually produce valid tsquery terms
+        clean1 = "".join(c for c in term1 if c.isalnum())
+        clean2 = "".join(c for c in term2 if c.isalnum())
+        if clean1 and clean2:
             assert "|" in result
 
     @given(

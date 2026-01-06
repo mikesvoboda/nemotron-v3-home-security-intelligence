@@ -1,4 +1,7 @@
 rules:
+  # =============================================================================
+  # CREDENTIAL DETECTION
+  # =============================================================================
   - id: hardcoded-password
     patterns:
       - pattern-either:
@@ -8,26 +11,360 @@ rules:
           - pattern: API_KEY = "..."
           - pattern: secret = "..."
           - pattern: SECRET = "..."
-    message: 'Potential hardcoded credential detected'
+          - pattern: token = "..."
+          - pattern: TOKEN = "..."
+          - pattern: private_key = "..."
+          - pattern: PRIVATE_KEY = "..."
+    message: 'Potential hardcoded credential detected. Use environment variables or secret management instead.'
     languages: [python, typescript, javascript]
     severity: ERROR
 
+  # =============================================================================
+  # SQL INJECTION
+  # =============================================================================
   - id: sql-injection-risk
     patterns:
       - pattern: |
           $QUERY = f"... {$VAR} ..."
           ...
           $DB.execute($QUERY)
-    message: 'Potential SQL injection via f-string'
+    message: 'Potential SQL injection via f-string. Use parameterized queries instead.'
     languages: [python]
     severity: ERROR
 
+  - id: sql-injection-format-string
+    patterns:
+      - pattern-either:
+          - pattern: $DB.execute($QUERY.format(...))
+          - pattern: $DB.execute("..." % ...)
+          - pattern: $DB.executemany($QUERY.format(...), ...)
+          - pattern: $CURSOR.execute($QUERY.format(...))
+          - pattern: $CURSOR.execute("..." % ...)
+    message: 'Potential SQL injection via string formatting. Use parameterized queries with placeholders.'
+    languages: [python]
+    severity: ERROR
+
+  - id: sqlalchemy-raw-text-injection
+    patterns:
+      - pattern-either:
+          - pattern: text(f"...")
+          - pattern: text("..." % ...)
+          - pattern: text("...".format(...))
+    message: 'Potential SQL injection in SQLAlchemy text(). Use bound parameters: text("SELECT * FROM t WHERE id = :id").bindparams(id=user_id)'
+    languages: [python]
+    severity: ERROR
+
+  # =============================================================================
+  # COMMAND INJECTION
+  # =============================================================================
   - id: shell-injection
     patterns:
       - pattern-either:
           - pattern: subprocess.call($CMD, shell=True, ...)
           - pattern: subprocess.run($CMD, shell=True, ...)
+          - pattern: subprocess.Popen($CMD, shell=True, ...)
           - pattern: os.system($CMD)
-    message: 'Potential shell injection vulnerability'
+          - pattern: os.popen($CMD)
+    message: 'Potential shell injection vulnerability. Avoid shell=True and use list arguments instead.'
     languages: [python]
     severity: ERROR
+
+  # =============================================================================
+  # PATH TRAVERSAL
+  # =============================================================================
+  - id: path-traversal-open
+    patterns:
+      - pattern-either:
+          - pattern: open($PATH, ...)
+          - pattern: open(f"...{$VAR}...", ...)
+          - pattern: Path($PATH).read_text(...)
+          - pattern: Path($PATH).read_bytes(...)
+          - pattern: Path($PATH).open(...)
+      - pattern-not: open("...", ...)
+      - pattern-not: Path("...").read_text(...)
+      - pattern-not: Path("...").read_bytes(...)
+      - pattern-not: Path("...").open(...)
+    message: 'Potential path traversal vulnerability. Validate and sanitize file paths before use. Use Path.resolve() and verify the path is within expected directories.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-22: Path Traversal'
+
+  - id: path-traversal-send-file
+    patterns:
+      - pattern-either:
+          - pattern: send_file($PATH, ...)
+          - pattern: FileResponse($PATH, ...)
+          - pattern: StaticFiles(directory=$DIR, ...)
+    message: 'File serving endpoint detected. Ensure path traversal protection is in place. Validate paths do not contain ".." and resolve to expected directory.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-22: Path Traversal'
+
+  # =============================================================================
+  # SERVER-SIDE REQUEST FORGERY (SSRF)
+  # =============================================================================
+  - id: ssrf-requests
+    patterns:
+      - pattern-either:
+          - pattern: requests.get($URL, ...)
+          - pattern: requests.post($URL, ...)
+          - pattern: requests.put($URL, ...)
+          - pattern: requests.delete($URL, ...)
+          - pattern: httpx.get($URL, ...)
+          - pattern: httpx.post($URL, ...)
+          - pattern: httpx.put($URL, ...)
+          - pattern: httpx.delete($URL, ...)
+          - pattern: httpx.AsyncClient().get($URL, ...)
+          - pattern: httpx.AsyncClient().post($URL, ...)
+          - pattern: aiohttp.ClientSession().get($URL, ...)
+          - pattern: aiohttp.ClientSession().post($URL, ...)
+          - pattern: urllib.request.urlopen($URL, ...)
+      - pattern-not: requests.get("...", ...)
+      - pattern-not: requests.post("...", ...)
+      - pattern-not: httpx.get("...", ...)
+      - pattern-not: httpx.post("...", ...)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: '^(?!https?://localhost|https?://127\.0\.0\.1).*$'
+    message: 'Potential SSRF vulnerability. Validate URLs against an allowlist and block internal IP ranges, cloud metadata endpoints (169.254.169.254), and localhost unless explicitly needed.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-918: Server-Side Request Forgery'
+
+  # =============================================================================
+  # DESERIALIZATION VULNERABILITIES
+  # =============================================================================
+  - id: unsafe-pickle-load
+    patterns:
+      - pattern-either:
+          - pattern: pickle.load(...)
+          - pattern: pickle.loads(...)
+          - pattern: cPickle.load(...)
+          - pattern: cPickle.loads(...)
+          - pattern: _pickle.load(...)
+          - pattern: _pickle.loads(...)
+    message: 'Unsafe pickle deserialization detected. Pickle can execute arbitrary code during deserialization. Use JSON, MessagePack, or other safe formats for untrusted data.'
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: 'CWE-502: Deserialization of Untrusted Data'
+
+  - id: unsafe-yaml-load
+    patterns:
+      - pattern: yaml.load($DATA, ...)
+      - pattern-not: yaml.load($DATA, Loader=yaml.SafeLoader)
+      - pattern-not: yaml.load($DATA, Loader=yaml.CSafeLoader)
+    message: 'Unsafe YAML loading detected. Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader) to prevent arbitrary code execution.'
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: 'CWE-502: Deserialization of Untrusted Data'
+
+  - id: unsafe-yaml-full-load
+    patterns:
+      - pattern-either:
+          - pattern: yaml.full_load(...)
+          - pattern: yaml.unsafe_load(...)
+    message: 'Unsafe YAML loading detected. Use yaml.safe_load() instead to prevent arbitrary code execution.'
+    languages: [python]
+    severity: ERROR
+
+  # =============================================================================
+  # JWT SECURITY
+  # =============================================================================
+  - id: jwt-no-verify
+    patterns:
+      - pattern-either:
+          - pattern: 'jwt.decode($TOKEN, options={"verify_signature": False}, ...)'
+          - pattern: 'jwt.decode($TOKEN, ..., options={"verify_signature": False})'
+          - pattern: jwt.decode($TOKEN, verify=False, ...)
+          - pattern: 'jwt.decode($TOKEN, ..., algorithms=["none"], ...)'
+    message: 'JWT decoded without signature verification. Always verify JWT signatures to prevent token forgery.'
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: 'CWE-347: Improper Verification of Cryptographic Signature'
+
+  - id: jwt-weak-algorithm
+    patterns:
+      - pattern-either:
+          - pattern: 'jwt.encode($PAYLOAD, $KEY, algorithm="HS256", ...)'
+          - pattern: 'jwt.decode($TOKEN, $KEY, algorithms=["HS256"], ...)'
+    message: 'Consider using RS256 or ES256 instead of HS256 for JWT. Asymmetric algorithms provide better security for distributed systems.'
+    languages: [python]
+    severity: INFO
+    metadata:
+      cwe: 'CWE-327: Use of Broken or Risky Cryptographic Algorithm'
+
+  # =============================================================================
+  # XML EXTERNAL ENTITY (XXE)
+  # =============================================================================
+  - id: xxe-vulnerable-parser
+    patterns:
+      - pattern-either:
+          - pattern: etree.parse($FILE, ...)
+          - pattern: etree.fromstring($DATA, ...)
+          - pattern: ElementTree.parse($FILE, ...)
+          - pattern: ElementTree.fromstring($DATA, ...)
+          - pattern: xml.dom.minidom.parse($FILE, ...)
+          - pattern: xml.dom.minidom.parseString($DATA, ...)
+          - pattern: xml.sax.parse($FILE, ...)
+      - pattern-not: etree.parse($FILE, parser=$PARSER)
+      - pattern-not: etree.fromstring($DATA, parser=$PARSER)
+    message: 'XML parser may be vulnerable to XXE attacks. Use defusedxml library or configure parser to disable external entities: parser = etree.XMLParser(resolve_entities=False, no_network=True)'
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: 'CWE-611: Improper Restriction of XML External Entity Reference'
+
+  # =============================================================================
+  # REGEX DENIAL OF SERVICE (ReDoS)
+  # =============================================================================
+  - id: regex-dos-pattern
+    patterns:
+      - pattern-either:
+          - pattern: re.compile("...(.+)+...")
+          - pattern: re.compile("...(.*)*...")
+          - pattern: re.compile("...(.+)*...")
+          - pattern: re.compile("...(.*)+...")
+          - pattern: re.match("...(.+)+...", ...)
+          - pattern: re.search("...(.+)+...", ...)
+    message: 'Potential ReDoS vulnerability from nested quantifiers in regex. Avoid patterns like (a+)+ or (.*)*. Use atomic groups or possessive quantifiers if available.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-1333: Inefficient Regular Expression Complexity'
+
+  # =============================================================================
+  # CRYPTOGRAPHY
+  # =============================================================================
+  - id: weak-hash-md5
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: MD5.new(...)
+    message: 'MD5 is cryptographically weak. Use SHA-256 or SHA-3 for security-sensitive hashing, or blake2b for performance.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-328: Use of Weak Hash'
+
+  - id: weak-hash-sha1
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.sha1(...)
+          - pattern: SHA.new(...)
+          - pattern: SHA1.new(...)
+    message: 'SHA-1 is cryptographically weak. Use SHA-256 or SHA-3 for security-sensitive hashing.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-328: Use of Weak Hash'
+
+  - id: insecure-random
+    patterns:
+      - pattern-either:
+          - pattern: random.random()
+          - pattern: random.randint(...)
+          - pattern: random.choice(...)
+          - pattern: random.randrange(...)
+    message: 'Standard random module is not cryptographically secure. Use secrets module for security-sensitive randomness: secrets.token_hex(), secrets.randbelow(), secrets.choice()'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-330: Use of Insufficiently Random Values'
+
+  # =============================================================================
+  # HARDCODED SECRETS
+  # =============================================================================
+  - id: hardcoded-aws-credentials
+    patterns:
+      - pattern-either:
+          - pattern: AWS_ACCESS_KEY_ID = "AKIA..."
+          - pattern: aws_access_key_id = "AKIA..."
+          - pattern: AWS_SECRET_ACCESS_KEY = "..."
+          - pattern: aws_secret_access_key = "..."
+    message: 'Hardcoded AWS credentials detected. Use environment variables, AWS IAM roles, or AWS Secrets Manager instead.'
+    languages: [python, typescript, javascript]
+    severity: ERROR
+
+  # =============================================================================
+  # LOGGING SENSITIVE DATA
+  # =============================================================================
+  - id: log-sensitive-data
+    patterns:
+      - pattern-either:
+          - pattern: logger.info(..., password=..., ...)
+          - pattern: logger.debug(..., password=..., ...)
+          - pattern: logger.warning(..., password=..., ...)
+          - pattern: logger.error(..., password=..., ...)
+          - pattern: logging.info(..., password=..., ...)
+          - pattern: logging.debug(..., password=..., ...)
+          - pattern: print(..., password=..., ...)
+          - pattern: print(f"...password...")
+          - pattern: print(f"...api_key...")
+          - pattern: print(f"...secret...")
+          - pattern: print(f"...token...")
+    message: 'Potential logging of sensitive data. Ensure passwords, tokens, and secrets are not written to logs.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-532: Insertion of Sensitive Information into Log File'
+
+  # =============================================================================
+  # FASTAPI/STARLETTE SPECIFIC
+  # =============================================================================
+  - id: fastapi-missing-rate-limit
+    patterns:
+      - pattern: |
+          @$APP.post("/api/...")
+          async def $FUNC(...):
+              ...
+      - pattern-not-inside: |
+          @$LIMITER.limit(...)
+          @$APP.post(...)
+          async def $FUNC(...):
+              ...
+    message: 'POST endpoint may be missing rate limiting. Consider adding rate limiting to prevent abuse.'
+    languages: [python]
+    severity: INFO
+
+  - id: fastapi-debug-mode
+    patterns:
+      - pattern: FastAPI(..., debug=True, ...)
+    message: 'FastAPI debug mode enabled. Ensure this is disabled in production as it exposes detailed error information.'
+    languages: [python]
+    severity: WARNING
+
+  # =============================================================================
+  # EVAL AND CODE EXECUTION
+  # =============================================================================
+  - id: dangerous-eval
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+          - pattern: compile($CODE, $FILE, "exec")
+    message: 'Dangerous use of eval/exec. These can execute arbitrary code. Use ast.literal_eval() for safe evaluation of literals, or avoid dynamic code execution entirely.'
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: 'CWE-94: Code Injection'
+
+  # =============================================================================
+  # TEMPORARY FILE SECURITY
+  # =============================================================================
+  - id: insecure-temp-file
+    patterns:
+      - pattern-either:
+          - pattern: tempfile.mktemp(...)
+          - pattern: os.tempnam(...)
+          - pattern: os.tmpnam(...)
+    message: 'Insecure temporary file creation. Use tempfile.mkstemp() or tempfile.NamedTemporaryFile() to prevent race conditions.'
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: 'CWE-377: Insecure Temporary File'

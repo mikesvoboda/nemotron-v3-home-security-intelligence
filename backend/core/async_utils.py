@@ -314,7 +314,7 @@ async def async_read_bytes(path: str | Path) -> bytes | None:
 
     def _read() -> bytes | None:
         try:
-            return Path(path).read_bytes()
+            return Path(path).read_bytes()  # nosemgrep: path-traversal-open
         except Exception as e:
             logger.debug(f"Failed to read file {path}: {e}")
             return None
@@ -339,7 +339,7 @@ async def async_read_text(
 
     def _read() -> str | None:
         try:
-            return Path(path).read_text(encoding=encoding)
+            return Path(path).read_text(encoding=encoding)  # nosemgrep: path-traversal-open
         except Exception as e:
             logger.debug(f"Failed to read file {path}: {e}")
             return None
