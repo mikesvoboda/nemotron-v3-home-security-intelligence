@@ -7119,7 +7119,7 @@ export interface components {
              * @description Status of individual services (database, redis, ai)
              */
             services: {
-                [key: string]: components["schemas"]["backend__api__schemas__system__ServiceStatus"];
+                [key: string]: components["schemas"]["ServiceStatus"];
             };
             /**
              * Timestamp
@@ -8804,7 +8804,7 @@ export interface components {
              * @description Status of infrastructure services (database, redis, ai)
              */
             services: {
-                [key: string]: components["schemas"]["backend__api__schemas__system__ServiceStatus"];
+                [key: string]: components["schemas"]["ServiceStatus"];
             };
             /**
              * Workers
@@ -9463,7 +9463,7 @@ export interface components {
             /** @description Service category: infrastructure, ai, or monitoring */
             category: components["schemas"]["ServiceCategory"];
             /** @description Current service status: running, starting, unhealthy, stopped, disabled, not_found */
-            status: components["schemas"]["ServiceStatus"];
+            status: components["schemas"]["backend__api__schemas__services__ServiceStatus"];
             /**
              * Enabled
              * @description Whether auto-restart is enabled for this service
@@ -9510,18 +9510,27 @@ export interface components {
         };
         /**
          * ServiceStatus
-         * @description Current status of a managed service.
-         *
-         *     Status values:
-         *     - RUNNING: Container is up and passing health checks
-         *     - STARTING: Container is starting, not yet healthy
-         *     - UNHEALTHY: Running but failing health checks
-         *     - STOPPED: Container is not running
-         *     - DISABLED: Exceeded failure limit, requires manual reset
-         *     - NOT_FOUND: Container doesn't exist yet
-         * @enum {string}
+         * @description Status information for a service component.
          */
-        ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
+        ServiceStatus: {
+            /**
+             * Status
+             * @description Service status: healthy, unhealthy, or not_initialized
+             */
+            status: string;
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
+            /**
+             * Details
+             * @description Additional service-specific details
+             */
+            details?: {
+                [key: string]: string;
+            } | null;
+        };
         /**
          * ServicesResponse
          * @description Response for GET /api/system/services.
@@ -10498,27 +10507,18 @@ export interface components {
         };
         /**
          * ServiceStatus
-         * @description Status information for a service component.
+         * @description Current status of a managed service.
+         *
+         *     Status values:
+         *     - RUNNING: Container is up and passing health checks
+         *     - STARTING: Container is starting, not yet healthy
+         *     - UNHEALTHY: Running but failing health checks
+         *     - STOPPED: Container is not running
+         *     - DISABLED: Exceeded failure limit, requires manual reset
+         *     - NOT_FOUND: Container doesn't exist yet
+         * @enum {string}
          */
-        backend__api__schemas__system__ServiceStatus: {
-            /**
-             * Status
-             * @description Service status: healthy, unhealthy, or not_initialized
-             */
-            status: string;
-            /**
-             * Message
-             * @description Optional status message or error details
-             */
-            message?: string | null;
-            /**
-             * Details
-             * @description Additional service-specific details
-             */
-            details?: {
-                [key: string]: string;
-            } | null;
-        };
+        backend__api__schemas__services__ServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
     };
     responses: never;
     parameters: never;
