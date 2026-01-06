@@ -86,16 +86,22 @@ TEST_COMMAND = "sleep infinity"
 
 @pytest.fixture
 def test_settings() -> OrchestratorSettings:
-    """Create test settings with fast health check intervals."""
+    """Create test settings with fast health check intervals.
+
+    Note: Values must meet minimum constraints defined in OrchestratorSettings:
+    - health_check_interval: ge=5
+    - startup_grace_period: ge=10
+    - restart_backoff_max: ge=30.0
+    """
     return OrchestratorSettings(
         enabled=True,
         docker_host=None,  # Use default Docker socket
-        health_check_interval=2,  # Fast for testing
+        health_check_interval=5,  # Minimum allowed for testing
         health_check_timeout=1,
-        startup_grace_period=1,  # Short grace period for testing
+        startup_grace_period=10,  # Minimum allowed for testing
         max_consecutive_failures=3,
         restart_backoff_base=1.0,
-        restart_backoff_max=5.0,
+        restart_backoff_max=30.0,  # Minimum allowed for testing
     )
 
 
