@@ -1148,7 +1148,7 @@ class TestAIInferenceTier:
             {
                 "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "15",
                 "RATE_LIMIT_AI_INFERENCE_BURST": "5",
-                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
             },
         ):
             from backend.core.config import get_settings
@@ -1262,7 +1262,7 @@ class TestEdgeCases:
                 "RATE_LIMIT_ENABLED": "true",
                 "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
                 "RATE_LIMIT_BURST": "1",
-                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
             },
         ):
             from backend.core.config import get_settings
@@ -1303,7 +1303,9 @@ class TestEdgeCases:
         """Test that limiter properties fall back to tier defaults."""
         with patch.dict(
             os.environ,
-            {"DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test"},
+            {
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test"  # pragma: allowlist secret
+            },
         ):
             from backend.core.config import get_settings
 

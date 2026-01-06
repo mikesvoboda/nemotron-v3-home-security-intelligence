@@ -1237,8 +1237,6 @@ export interface paths {
          * @description Acknowledge a scene change alert.
          *
          *     Marks a scene change as acknowledged to indicate it has been reviewed.
-         *     This operation is idempotent - re-acknowledging an already-acknowledged
-         *     scene change will return 200 OK with the existing acknowledgement data.
          *
          *     Args:
          *         camera_id: ID of the camera
@@ -1247,17 +1245,10 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         SceneChangeAcknowledgeResponse confirming acknowledgement.
-         *         For already-acknowledged changes, returns the existing acknowledgement data.
+         *         SceneChangeAcknowledgeResponse confirming acknowledgement
          *
          *     Raises:
          *         HTTPException: 404 if camera or scene change not found
-         *
-         *     Note:
-         *         NEM-1354: This endpoint is idempotent. If the scene change is already
-         *         acknowledged, it returns 200 OK with the existing acknowledgement data
-         *         rather than modifying the database or returning an error. This allows
-         *         clients to safely retry acknowledgement requests without side effects.
          */
         post: operations["acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post"];
         delete?: never;
@@ -1696,8 +1687,7 @@ export interface paths {
          *     re-identification. Entities are grouped by their embedding clusters.
          *
          *     Args:
-         *         entity_type: Filter by entity type ('person' or 'vehicle').
-         *             Returns 400 Bad Request if an invalid type is provided.
+         *         entity_type: Filter by entity type ('person' or 'vehicle')
          *         camera_id: Filter by camera ID
          *         since: Filter entities seen since this timestamp
          *         limit: Maximum number of results (1-1000, default 50)
@@ -1706,9 +1696,6 @@ export interface paths {
          *
          *     Returns:
          *         EntityListResponse with filtered entities and pagination info
-         *
-         *     Raises:
-         *         HTTPException: 400 Bad Request if entity_type is invalid
          */
         get: operations["list_entities_api_entities_get"];
         put?: never;
@@ -11959,7 +11946,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Scene change acknowledged successfully (or already acknowledged) */
+            /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -11967,13 +11954,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SceneChangeAcknowledgeResponse"];
                 };
-            };
-            /** @description Camera or scene change not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
