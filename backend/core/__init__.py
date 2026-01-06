@@ -7,6 +7,7 @@ from backend.core.database import (
     escape_ilike_pattern,
     get_db,
     get_engine,
+    get_pool_status,
     get_session,
     get_session_factory,
     init_db,
@@ -45,6 +46,10 @@ from backend.core.mime_types import (
     is_video_mime_type,
     normalize_file_type,
 )
+from backend.core.query_explain import (
+    QueryExplainLogger,
+    setup_explain_logging,
+)
 from backend.core.redis import (
     QueueAddResult,
     RedisClient,
@@ -80,6 +85,7 @@ __all__ = [
     "Base",
     "CertificateNotFoundError",
     "CertificateValidationError",
+    "QueryExplainLogger",
     "QueueAddResult",
     "RedisClient",
     "Settings",
@@ -102,6 +108,7 @@ __all__ = [
     "get_metrics_response",
     "get_mime_type",
     "get_mime_type_with_default",
+    "get_pool_status",
     "get_redis",
     "get_redis_client_sync",
     "get_redis_optional",
@@ -128,6 +135,7 @@ __all__ = [
     "sanitize_error",
     "set_queue_depth",
     "set_request_id",
+    "setup_explain_logging",
     "setup_logging",
     "validate_certificate",
     "validate_certificate_files",

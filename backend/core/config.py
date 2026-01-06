@@ -626,6 +626,22 @@ class Settings(BaseSettings):
         "method, path, status code, and duration for performance monitoring.",
     )
 
+    # Slow query EXPLAIN logging settings
+    slow_query_threshold_ms: float = Field(
+        default=100.0,
+        ge=10.0,
+        le=10000.0,
+        description="Threshold in milliseconds for slow query detection. "
+        "Queries exceeding this threshold will have EXPLAIN ANALYZE logged. "
+        "Set via SLOW_QUERY_THRESHOLD_MS environment variable.",
+    )
+    slow_query_explain_enabled: bool = Field(
+        default=True,
+        description="Enable EXPLAIN ANALYZE logging for slow queries. "
+        "Set to False in production to disable performance overhead. "
+        "Set via SLOW_QUERY_EXPLAIN_ENABLED environment variable.",
+    )
+
     # DLQ settings
     max_requeue_iterations: int = Field(
         default=10000,

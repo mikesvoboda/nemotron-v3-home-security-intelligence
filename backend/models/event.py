@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .alert import Alert
     from .camera import Camera
     from .event_audit import EventAudit
+    from .event_detection import EventDetection
 
 
 class Event(Base):
@@ -69,6 +70,11 @@ class Event(Base):
     audit: Mapped[EventAudit | None] = relationship(
         "EventAudit", back_populates="event", uselist=False, cascade="all, delete-orphan"
     )
+    # Junction table relationship for normalized detection associations
+    # This provides access to EventDetection records for this event
+    detection_records: Mapped[list[EventDetection]] = relationship(
+        "EventDetection", back_populates="event", cascade="all, delete-orphan"
+    )
 
     # Indexes for common queries
     # Note: idx_events_object_types_trgm (GIN trigram index on object_types) is created
@@ -81,6 +87,50 @@ class Event(Base):
         Index("idx_events_batch_id", "batch_id"),
         # GIN index for full-text search
         Index("idx_events_search_vector", "search_vector", postgresql_using="gin"),
+        # NEM-1529: Composite index for combined risk_level and started_at filtering
+        # Enables efficient queries like "show all high-risk events from today"
+        Index("idx_events_risk_level_started_at", "risk_level", "started_at"),
+        # NEM-1535: Covering index for export queries to avoid table lookups
+        # Includes all columns needed for export: id, started_at, ended_at, risk_level,
+        # risk_score, camera_id, object_types, summary
+        Index(
+            "idx_events_export_covering",
+            "started_at",
+            "id",
+            "ended_at",
+            "risk_level",
+            "risk_score",
+            "camera_id",
+            "object_types",
+            "summary",
+        ),
+        # NEM-1536: Partial index for unreviewed events dashboard query
+        # Only indexes rows WHERE reviewed = false for efficient unreviewed count
+        Index(
+            "idx_events_unreviewed",
+            "id",
+            postgresql_where="reviewed = false",
+        ),
+        # CHECK constraints for enum-like columns and business rules
+        CheckConstraint(
+            "risk_level IS NULL OR risk_level IN ('low', 'medium', 'high', 'critical')",
+            name="ck_events_risk_level",
+        ),
+        CheckConstraint(
+            "risk_score IS NULL OR (risk_score >= 0 AND risk_score <= 100)",
+            name="ck_events_risk_score_range",
+        ),
+        CheckConstraint(
+            "ended_at IS NULL OR ended_at >= started_at",
+            name="ck_events_time_order",
+        ),
+        # BRIN index for time-series queries on started_at (append-only chronological data)
+        # Much smaller than B-tree (~1000x) and ideal for range queries on ordered timestamps
+        Index(
+            "ix_events_started_at_brin",
+            "started_at",
+            postgresql_using="brin",
+        ),
     )
 
     def __repr__(self) -> str:

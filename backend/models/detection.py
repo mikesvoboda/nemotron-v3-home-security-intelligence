@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +13,7 @@ from .camera import Base
 
 if TYPE_CHECKING:
     from .camera import Camera
+    from .event_detection import EventDetection
 
 
 class Detection(Base):
@@ -62,12 +63,42 @@ class Detection(Base):
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")
+    # Junction table relationship for normalized event associations
+    # This provides access to EventDetection records for this detection
+    event_records: Mapped[list[EventDetection]] = relationship(
+        "EventDetection", back_populates="detection", cascade="all, delete-orphan"
+    )
 
     # Indexes for common queries
     __table_args__ = (
         Index("idx_detections_camera_id", "camera_id"),
         Index("idx_detections_detected_at", "detected_at"),
         Index("idx_detections_camera_time", "camera_id", "detected_at"),
+        Index("idx_detections_camera_object_type", "camera_id", "object_type"),
+        # GIN index with jsonb_path_ops for containment queries (@>) on enrichment_data
+        # Enables fast queries like: enrichment_data @> '{"license_plates": [{}]}'
+        Index(
+            "ix_detections_enrichment_data_gin",
+            "enrichment_data",
+            postgresql_using="gin",
+            postgresql_ops={"enrichment_data": "jsonb_path_ops"},
+        ),
+        # BRIN index for time-series queries on detected_at (append-only chronological data)
+        # Much smaller than B-tree (~1000x) and ideal for range queries on ordered timestamps
+        Index(
+            "ix_detections_detected_at_brin",
+            "detected_at",
+            postgresql_using="brin",
+        ),
+        # CHECK constraints for enum-like columns and business rules
+        CheckConstraint(
+            "media_type IS NULL OR media_type IN ('image', 'video')",
+            name="ck_detections_media_type",
+        ),
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)",
+            name="ck_detections_confidence_range",
+        ),
     )
 
     def __repr__(self) -> str:

@@ -26,6 +26,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.zone import Zone, ZoneType
 from backend.services.baseline import get_baseline_service
+from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.zone_service import bbox_center, point_in_zone
 
 logger = get_logger(__name__)
@@ -226,12 +227,9 @@ class ContextEnricher:
             camera = camera_result.scalar_one_or_none()
             camera_name = camera.name if camera else camera_id
 
-            # Get detections
+            # Get detections using batch fetching to handle large detection lists
             if detection_ids:
-                detections_result = await sess.execute(
-                    select(Detection).where(Detection.id.in_(detection_ids))
-                )
-                detections = list(detections_result.scalars().all())
+                detections = await batch_fetch_detections(sess, detection_ids)
             else:
                 detections = []
 

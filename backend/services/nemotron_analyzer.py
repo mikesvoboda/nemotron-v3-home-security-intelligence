@@ -55,6 +55,7 @@ from backend.core.redis import RedisClient
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.context_enricher import ContextEnricher, EnrichedContext, get_context_enricher
 from backend.services.enrichment_pipeline import (
     BoundingBox,
@@ -357,10 +358,8 @@ class NemotronAnalyzer:
                     f"Invalid detection_id in batch {batch_id}: {e}. "
                     f"Detection IDs must be numeric (got: {detection_ids})"
                 ) from None
-            detections_result = await session.execute(
-                select(Detection).where(Detection.id.in_(int_detection_ids))
-            )
-            detections = list(detections_result.scalars().all())
+            # Use batch fetching to handle large detection lists efficiently
+            detections = await batch_fetch_detections(session, int_detection_ids)
 
             if not detections:
                 logger.warning(
