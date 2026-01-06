@@ -11,7 +11,7 @@ Redis key pattern: orchestrator:service:{name}:state
 
 Example usage:
     from backend.services.service_registry import get_service_registry, ManagedService
-    from backend.api.schemas.services import ServiceCategory, ServiceStatus
+    from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 
     registry = get_service_registry()
 
@@ -25,12 +25,12 @@ Example usage:
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
     )
     registry.register(service)
 
     # Update status
-    registry.update_status("ai-detector", ServiceStatus.UNHEALTHY)
+    registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
 
     # Persist to Redis
     await registry.persist_state("ai-detector")
@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
@@ -96,7 +96,7 @@ class ManagedService:
     health_cmd: str | None
 
     category: ServiceCategory
-    status: ServiceStatus
+    status: ContainerServiceStatus
     enabled: bool = True
 
     # Self-healing tracking
@@ -160,7 +160,7 @@ class ManagedService:
 
         # Parse enum fields
         category = ServiceCategory(data["category"])
-        status = ServiceStatus(data["status"])
+        status = ContainerServiceStatus(data["status"])
 
         return cls(
             name=data["name"],
@@ -204,7 +204,7 @@ class ServiceRegistry:
         ai_services = registry.get_by_category(ServiceCategory.AI)
 
         # Update state
-        registry.update_status("ai-detector", ServiceStatus.UNHEALTHY)
+        registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
         registry.increment_failure("ai-detector")
 
         # Persist to Redis
@@ -299,7 +299,7 @@ class ServiceRegistry:
     # State Update Methods
     # =========================================================================
 
-    def update_status(self, name: str, status: ServiceStatus) -> None:
+    def update_status(self, name: str, status: ContainerServiceStatus) -> None:
         """Update the status of a service.
 
         Does nothing if the service doesn't exist.
@@ -485,7 +485,7 @@ class ServiceRegistry:
 
                 if state.get("status"):
                     try:
-                        service.status = ServiceStatus(state["status"])
+                        service.status = ContainerServiceStatus(state["status"])
                     except ValueError:
                         logger.warning(
                             "Invalid status in Redis state",

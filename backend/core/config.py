@@ -767,6 +767,21 @@ class Settings(BaseSettings):
         "Lower limit to prevent abuse of CSV export functionality which "
         "could overload the server or be used for data exfiltration.",
     )
+    rate_limit_ai_inference_requests_per_minute: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Maximum AI inference requests per minute per client IP. "
+        "Strict limit to prevent abuse of computationally expensive AI endpoints "
+        "like prompt testing which runs LLM inference.",
+    )
+    rate_limit_ai_inference_burst: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description="Burst allowance for AI inference rate limiting. "
+        "Allows short bursts of requests while maintaining overall rate limit.",
+    )
     trusted_proxy_ips: list[str] = Field(
         default=["127.0.0.1", "::1"],
         description="List of trusted proxy IP addresses. X-Forwarded-For headers are only "

@@ -65,6 +65,9 @@ scripts/
   check-api-coverage.sh              # API endpoint coverage check
   pre-push-rebase.sh                 # Auto-rebase before push
 
+  # Security Scripts
+  check-trivyignore-expiry.sh        # Check for expired CVE review dates
+
   # Utilities
   github-models-examples.py          # GitHub Models API examples
   migrate_beads_to_linear.py         # Migrate beads to Linear (one-time)
@@ -510,6 +513,44 @@ python scripts/generate_certs.py --days 365         # Custom validity period
 - Sleep inside `mock_*`, `slow_*`, `fake_*` functions
 - Sleep wrapped in `asyncio.wait_for()`
 - Comments: `# cancelled`, `# timeout`, `# mocked`, `# patched`
+
+### Security Scripts
+
+#### check-trivyignore-expiry.sh
+
+**Purpose:** Check for expired CVE review dates in `.trivyignore`.
+
+**What it does:**
+
+1. Parses `.trivyignore` for CVE entries with `REVIEW BY` dates
+2. Reports expired CVEs that need immediate review
+3. Warns about CVEs expiring within a configurable window
+4. Reports CVEs missing review dates
+
+**Usage:**
+
+```bash
+./scripts/check-trivyignore-expiry.sh                 # Check with defaults
+./scripts/check-trivyignore-expiry.sh --warn-days 30  # Warn 30 days before expiry
+./scripts/check-trivyignore-expiry.sh --file path     # Custom trivyignore path
+./scripts/check-trivyignore-expiry.sh --help          # Show help
+```
+
+**Exit codes:**
+
+| Code | Meaning                                |
+| ---- | -------------------------------------- |
+| 0    | All CVEs have valid, non-expired dates |
+| 1    | Expired CVEs found or missing dates    |
+| 2    | CVEs expiring soon (warning only)      |
+
+**CI Integration:**
+
+This script runs in the Trivy workflow (`.github/workflows/trivy.yml`):
+
+- Weekly on Monday at 9am UTC
+- On push to main when `.trivyignore` changes
+- Creates Linear issues when CVEs expire
 
 ### Infrastructure
 

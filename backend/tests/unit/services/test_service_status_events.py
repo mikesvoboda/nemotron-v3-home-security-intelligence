@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.container_orchestrator import (
     ContainerOrchestrator,
     create_service_status_event,
@@ -52,7 +52,7 @@ def running_service() -> ManagedService:
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=2,
@@ -72,7 +72,7 @@ def stopped_service() -> ManagedService:
         health_endpoint=None,
         health_cmd="pg_isready -U security",
         category=ServiceCategory.INFRASTRUCTURE,
-        status=ServiceStatus.STOPPED,
+        status=ContainerServiceStatus.STOPPED,
         enabled=True,
         failure_count=2,
         restart_count=0,
@@ -92,7 +92,7 @@ def service_without_container() -> ManagedService:
         health_endpoint="/api/health",
         health_cmd=None,
         category=ServiceCategory.MONITORING,
-        status=ServiceStatus.NOT_FOUND,
+        status=ContainerServiceStatus.NOT_FOUND,
         enabled=True,
         failure_count=0,
         restart_count=0,
@@ -110,7 +110,7 @@ def hm_running_service() -> HealthMonitorService:
         port=8090,
         category=ServiceCategory.AI,
         health_endpoint="/health",
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=2,
@@ -129,7 +129,7 @@ def lm_running_service() -> LifecycleService:
         port=8090,
         health_endpoint="/health",
         category=ServiceCategory.AI,
-        status=ServiceStatus.RUNNING,
+        status=ContainerServiceStatus.RUNNING,
         enabled=True,
         failure_count=0,
         restart_count=2,

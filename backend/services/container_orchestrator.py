@@ -39,7 +39,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from backend.api.schemas.services import ServiceInfo, ServiceStatus, ServiceStatusEvent
+from backend.api.schemas.services import ContainerServiceStatus, ServiceInfo, ServiceStatusEvent
 from backend.core.logging import get_logger
 from backend.services.container_discovery import ContainerDiscoveryService
 from backend.services.container_discovery import ManagedService as DiscoveredService
@@ -79,7 +79,7 @@ def create_service_status_event(
     """
     # Calculate uptime if running
     uptime_seconds = None
-    if service.status == ServiceStatus.RUNNING and service.last_restart_at:
+    if service.status == ContainerServiceStatus.RUNNING and service.last_restart_at:
         uptime_seconds = int((datetime.now(UTC) - service.last_restart_at).total_seconds())
 
     service_info = ServiceInfo(
@@ -258,7 +258,7 @@ class ContainerOrchestrator:
             if self._lifecycle_manager and self._lm_registry:
                 lm_service = self._lm_registry.get(service.name)
                 if lm_service:
-                    if service.status == ServiceStatus.STOPPED:
+                    if service.status == ContainerServiceStatus.STOPPED:
                         await self._lifecycle_manager.handle_stopped(lm_service)
                     else:
                         await self._lifecycle_manager.handle_unhealthy(lm_service)
@@ -324,7 +324,7 @@ class ContainerOrchestrator:
         # Update main registry
         self._registry.reset_failures(name)
         self._registry.set_enabled(name, True)
-        self._registry.update_status(name, ServiceStatus.STOPPED)
+        self._registry.update_status(name, ContainerServiceStatus.STOPPED)
         await self._registry.persist_state(name)
 
         # Update lifecycle registry if available
@@ -357,7 +357,7 @@ class ContainerOrchestrator:
 
         # Update main registry
         self._registry.set_enabled(name, False)
-        self._registry.update_status(name, ServiceStatus.DISABLED)
+        self._registry.update_status(name, ContainerServiceStatus.DISABLED)
         await self._registry.persist_state(name)
 
         # Update lifecycle registry if available
@@ -419,7 +419,7 @@ class ContainerOrchestrator:
         success = await self._docker_client.restart_container(service.container_id)
         if success:
             self._registry.record_restart(name)
-            self._registry.update_status(name, ServiceStatus.STARTING)
+            self._registry.update_status(name, ContainerServiceStatus.STARTING)
             await self._registry.persist_state(name)
             updated_service = self._registry.get(name)
             if updated_service:
@@ -462,7 +462,7 @@ class ContainerOrchestrator:
         # Fallback: direct start via docker client
         success = await self._docker_client.start_container(service.container_id)
         if success:
-            self._registry.update_status(name, ServiceStatus.STARTING)
+            self._registry.update_status(name, ContainerServiceStatus.STARTING)
             await self._registry.persist_state(name)
             updated_service = self._registry.get(name)
             if updated_service:
@@ -608,7 +608,7 @@ class ContainerOrchestrator:
             health_endpoint=discovered.health_endpoint,
             health_cmd=discovered.health_cmd,
             category=discovered.category,
-            status=ServiceStatus.RUNNING,  # Assume running since we discovered it
+            status=ContainerServiceStatus.RUNNING,  # Assume running since we discovered it
             enabled=True,
             max_failures=discovered.max_failures,
             restart_backoff_base=discovered.restart_backoff_base,

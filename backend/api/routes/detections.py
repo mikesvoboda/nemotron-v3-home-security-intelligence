@@ -288,7 +288,12 @@ def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[s
             cc = clothing_classifications[first_key]
             # Parse raw description to extract upper/lower
             raw_desc = cc.get("raw_description", "")
-            parts = raw_desc.split(", ") if ", " in raw_desc else [cc.get("top_category")]
+            # When raw_description has no comma, use it directly; fall back to top_category only if empty
+            parts = (
+                raw_desc.split(", ")
+                if ", " in raw_desc
+                else [raw_desc if raw_desc else cc.get("top_category")]
+            )
             clothing_response["upper"] = parts[0] if parts else None
             clothing_response["lower"] = parts[1] if len(parts) > 1 else None
             clothing_response["is_suspicious"] = cc.get("is_suspicious")

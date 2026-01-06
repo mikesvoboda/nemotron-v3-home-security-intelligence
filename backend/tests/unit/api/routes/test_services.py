@@ -17,7 +17,7 @@ from backend.api.routes.services import (
     _to_service_info,
     router,
 )
-from backend.api.schemas.services import ServiceCategory, ServiceStatus
+from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 
 
 class MockManagedService:
@@ -28,7 +28,7 @@ class MockManagedService:
         name: str = "test-service",
         display_name: str = "Test Service",
         category: ServiceCategory = ServiceCategory.AI,
-        status: ServiceStatus = ServiceStatus.RUNNING,
+        status: ContainerServiceStatus = ContainerServiceStatus.RUNNING,
         enabled: bool = True,
         container_id: str | None = "abc123def456789",
         image: str | None = "test/image:latest",
@@ -71,13 +71,13 @@ class TestCalculateUptime:
 
     def test_returns_none_when_not_running(self) -> None:
         """Test that uptime is None when service is not running."""
-        service = MockManagedService(status=ServiceStatus.STOPPED)
+        service = MockManagedService(status=ContainerServiceStatus.STOPPED)
         assert _calculate_uptime(service) is None
 
     def test_returns_none_when_no_last_restart(self) -> None:
         """Test that uptime is None when service has no last_restart_at."""
         service = MockManagedService(
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             last_restart_at=None,
         )
         assert _calculate_uptime(service) is None
@@ -87,7 +87,7 @@ class TestCalculateUptime:
         # Set last restart to 60 seconds ago
         last_restart = datetime.now(UTC).replace(microsecond=0)
         service = MockManagedService(
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             last_restart_at=last_restart,
         )
         uptime = _calculate_uptime(service)
@@ -106,7 +106,7 @@ class TestToServiceInfo:
             name="ai-detector",
             display_name="RT-DETRv2",
             category=ServiceCategory.AI,
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             enabled=True,
             container_id="abc123def456789",
             image="ghcr.io/test/rtdetr:latest",
@@ -121,7 +121,7 @@ class TestToServiceInfo:
         assert info.name == "ai-detector"
         assert info.display_name == "RT-DETRv2"
         assert info.category == ServiceCategory.AI
-        assert info.status == ServiceStatus.RUNNING
+        assert info.status == ContainerServiceStatus.RUNNING
         assert info.enabled is True
         assert info.container_id == "abc123def456"  # Truncated to 12 chars
         assert info.image == "ghcr.io/test/rtdetr:latest"
@@ -156,32 +156,32 @@ class TestBuildCategorySummaries:
             MockManagedService(
                 name="postgres",
                 category=ServiceCategory.INFRASTRUCTURE,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
             ),
             MockManagedService(
                 name="redis",
                 category=ServiceCategory.INFRASTRUCTURE,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
             ),
             MockManagedService(
                 name="ai-detector",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
             ),
             MockManagedService(
                 name="ai-nemotron",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.UNHEALTHY,
+                status=ContainerServiceStatus.UNHEALTHY,
             ),
             MockManagedService(
                 name="ai-florence",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.STOPPED,
+                status=ContainerServiceStatus.STOPPED,
             ),
             MockManagedService(
                 name="grafana",
                 category=ServiceCategory.MONITORING,
-                status=ServiceStatus.DISABLED,
+                status=ContainerServiceStatus.DISABLED,
             ),
         ]
 
@@ -214,14 +214,14 @@ class TestListServicesEndpoint:
                 name="postgres",
                 display_name="PostgreSQL",
                 category=ServiceCategory.INFRASTRUCTURE,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=5432,
             ),
             MockManagedService(
                 name="ai-detector",
                 display_name="RT-DETRv2",
                 category=ServiceCategory.AI,
-                status=ServiceStatus.RUNNING,
+                status=ContainerServiceStatus.RUNNING,
                 port=8090,
             ),
         ]
@@ -304,7 +304,7 @@ class TestRestartServiceEndpoint:
         """Test successful service restart."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
 
         mock_orchestrator = MagicMock()
@@ -349,7 +349,7 @@ class TestRestartServiceEndpoint:
         """Test restart returns 400 for disabled service."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.DISABLED,
+            status=ContainerServiceStatus.DISABLED,
         )
 
         mock_orchestrator = MagicMock()
@@ -388,7 +388,7 @@ class TestEnableServiceEndpoint:
         """Test successful service enable."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.DISABLED,
+            status=ContainerServiceStatus.DISABLED,
             enabled=False,
         )
 
@@ -436,7 +436,7 @@ class TestDisableServiceEndpoint:
         """Test successful service disable."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
             enabled=True,
         )
 
@@ -484,7 +484,7 @@ class TestStartServiceEndpoint:
         """Test successful service start."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.STOPPED,
+            status=ContainerServiceStatus.STOPPED,
         )
 
         mock_orchestrator = MagicMock()
@@ -527,7 +527,7 @@ class TestStartServiceEndpoint:
         """Test start returns 400 if service is already running."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.RUNNING,
+            status=ContainerServiceStatus.RUNNING,
         )
 
         mock_orchestrator = MagicMock()
@@ -549,7 +549,7 @@ class TestStartServiceEndpoint:
         """Test start returns 400 for disabled service."""
         service = MockManagedService(
             name="ai-detector",
-            status=ServiceStatus.DISABLED,
+            status=ContainerServiceStatus.DISABLED,
         )
 
         mock_orchestrator = MagicMock()

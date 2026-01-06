@@ -26,7 +26,7 @@ from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from backend.services.degradation_manager import (
     DegradationManager,
     DegradationMode,
-    ServiceStatus,
+    DegradationServiceStatus,
     reset_degradation_manager,
 )
 
@@ -55,7 +55,7 @@ class TestDatabaseConnectionFailure:
         await manager.run_health_checks()
 
         health = manager.get_service_health("database")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
         assert health.consecutive_failures >= 1
 
     @pytest.mark.chaos
@@ -101,7 +101,7 @@ class TestDatabaseSlowQueries:
         await manager.run_health_checks()
 
         health = manager.get_service_health("database")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
         # Error message contains "timed out" (case insensitive check)
         assert "timed out" in (health.error_message or "").lower()
 
@@ -120,7 +120,7 @@ class TestDatabaseSlowQueries:
         await manager.run_health_checks()
 
         health = manager.get_service_health("database")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
 
 
 class TestDatabaseModeTransitions:
@@ -273,7 +273,7 @@ class TestDatabaseConnectionPoolExhaustion:
         await manager.run_health_checks()
 
         health = manager.get_service_health("database")
-        assert health.status == ServiceStatus.UNHEALTHY
+        assert health.status == DegradationServiceStatus.UNHEALTHY
 
 
 class TestDatabaseFailoverScenarios:
