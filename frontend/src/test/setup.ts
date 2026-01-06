@@ -35,16 +35,17 @@ beforeAll(() => {
    * Some Headless UI components use IntersectionObserver for visibility detection.
    * jsdom doesn't provide this API, so we mock it for testing.
    */
-  (globalThis as any).IntersectionObserver = class IntersectionObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-    takeRecords() {
+  globalThis.IntersectionObserver = class MockIntersectionObserver implements IntersectionObserver {
+    readonly root: Element | Document | null = null;
+    readonly rootMargin: string = '';
+    readonly thresholds: ReadonlyArray<number> = [];
+
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+    takeRecords(): IntersectionObserverEntry[] {
       return [];
     }
-    root = null;
-    rootMargin = '';
-    thresholds: number[] = [];
   };
 
   /**

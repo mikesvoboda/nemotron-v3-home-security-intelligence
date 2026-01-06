@@ -9,6 +9,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import InsightsCharts from './InsightsCharts';
 import * as api from '../../services/api';
 
+import type { EventsByRiskLevel } from '../../types/generated';
+
 // Mock react-router-dom useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
@@ -433,9 +435,10 @@ describe('InsightsCharts', () => {
     it('handles missing risk level fields gracefully', async () => {
       vi.mocked(api.fetchEventStats).mockResolvedValueOnce({
         total_events: 10,
+        // Test: API returns incomplete data with missing critical, high, medium fields
         events_by_risk_level: {
           low: 10,
-        } as any, // Missing critical, high, medium
+        } as Partial<EventsByRiskLevel> as EventsByRiskLevel,
         events_by_camera: [],
       });
 
@@ -717,7 +720,8 @@ describe('InsightsCharts', () => {
     it('handles event stats with null risk level', async () => {
       vi.mocked(api.fetchEventStats).mockResolvedValueOnce({
         total_events: 50,
-        events_by_risk_level: null as any,
+        // Test: API returns null instead of expected object (malformed response)
+        events_by_risk_level: null as unknown as EventsByRiskLevel,
         events_by_camera: [],
       });
 
