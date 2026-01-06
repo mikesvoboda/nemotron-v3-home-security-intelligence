@@ -4,8 +4,13 @@
 
 FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
 
+# OCI labels for security and metadata
+LABEL org.opencontainers.image.title="RT-DETRv2 Object Detection Server"
+LABEL org.opencontainers.image.description="RT-DETRv2 object detection server for home security monitoring"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL maintainer="home-security-intelligence"
-LABEL description="RT-DETRv2 object detection server for home security monitoring"
 
 # System dependencies for OpenCV and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \

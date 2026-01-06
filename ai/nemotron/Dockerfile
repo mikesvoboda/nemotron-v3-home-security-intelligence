@@ -6,6 +6,13 @@
 # =============================================================================
 FROM docker.io/nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
 
+# OCI labels for security and metadata
+LABEL org.opencontainers.image.title="Nemotron LLM Service"
+LABEL org.opencontainers.image.description="Nemotron-3-Nano-30B LLM server via llama.cpp for risk reasoning"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -37,6 +44,13 @@ RUN cmake -B build \
 # Stage 2: Runtime - Minimal image with just the server binary
 # =============================================================================
 FROM docker.io/nvidia/cuda:12.4.1-runtime-ubuntu22.04
+
+# OCI labels for security and metadata (repeated for runtime stage)
+LABEL org.opencontainers.image.title="Nemotron LLM Service"
+LABEL org.opencontainers.image.description="Nemotron-3-Nano-30B LLM server via llama.cpp for risk reasoning"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

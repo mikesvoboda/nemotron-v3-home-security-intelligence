@@ -4,8 +4,13 @@
 
 FROM docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
+# OCI labels for security and metadata
+LABEL org.opencontainers.image.title="Florence-2 Vision-Language Server"
+LABEL org.opencontainers.image.description="Florence-2 vision-language server for attribute extraction"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL maintainer="home-security-intelligence"
-LABEL description="Florence-2 vision-language server for attribute extraction"
 
 # System dependencies for image processing and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \

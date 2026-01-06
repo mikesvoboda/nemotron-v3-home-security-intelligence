@@ -10,6 +10,13 @@
 # =============================================================================
 FROM python:3.14-slim-bookworm AS base
 
+# OCI labels for security and metadata
+LABEL org.opencontainers.image.title="Home Security Backend"
+LABEL org.opencontainers.image.description="FastAPI backend for AI-powered home security monitoring"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install build dependencies for Python packages with C extensions
@@ -25,8 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install uv for fast dependency management (pinned version for reproducibility)
+COPY --from=ghcr.io/astral-sh/uv:0.7.16 /uv /usr/local/bin/uv
 
 # Copy dependency files from project root (context is project root in CI)
 COPY pyproject.toml uv.lock ./

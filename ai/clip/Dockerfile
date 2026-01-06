@@ -4,8 +4,13 @@
 
 FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
 
+# OCI labels for security and metadata
+LABEL org.opencontainers.image.title="CLIP Embedding Server"
+LABEL org.opencontainers.image.description="CLIP ViT-L embedding server for entity re-identification"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL maintainer="home-security-intelligence"
-LABEL description="CLIP ViT-L embedding server for entity re-identification"
 
 # System dependencies for image processing and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \

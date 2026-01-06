@@ -8,6 +8,13 @@
 # =============================================================================
 FROM node:20.19.6-alpine3.23 AS base
 
+# OCI labels for security and metadata
+LABEL org.opencontainers.image.title="Home Security Frontend"
+LABEL org.opencontainers.image.description="React dashboard for AI-powered home security monitoring"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install wget for healthcheck (needed in both dev and prod)
@@ -62,6 +69,13 @@ RUN npm run build
 # =============================================================================
 # nginx 1.29.4 with Alpine 3.23 (latest stable with security patches)
 FROM nginx:1.29.4-alpine3.23 AS prod
+
+# OCI labels for security and metadata (repeated for production stage)
+LABEL org.opencontainers.image.title="Home Security Frontend"
+LABEL org.opencontainers.image.description="React dashboard for AI-powered home security monitoring"
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.licenses="MIT"
 
 # Install wget for healthcheck
 RUN apk add --no-cache wget
