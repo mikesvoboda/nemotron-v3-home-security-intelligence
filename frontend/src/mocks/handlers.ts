@@ -39,7 +39,7 @@
  * @see https://mswjs.io/docs/
  */
 
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, type StrictRequest, type DefaultBodyType } from 'msw';
 
 import type {
   Camera,
@@ -53,6 +53,11 @@ import type {
   DetectionListResponse,
   ReadinessResponse,
 } from '../services/api';
+
+// Type for handlers with path parameters
+interface IdParams {
+  id: string;
+}
 
 // ============================================================================
 // Mock Data Factories
@@ -205,7 +210,7 @@ export const handlers = [
   /**
    * GET /api/cameras/:id - Get a specific camera
    */
-  http.get('/api/cameras/:id', ({ params }) => {
+  http.get<IdParams>('/api/cameras/:id', ({ params }: { params: IdParams }) => {
     const camera = mockCameras.find((c) => c.id === params.id);
     if (!camera) {
       return HttpResponse.json({ detail: 'Camera not found' }, { status: 404 });
@@ -238,7 +243,7 @@ export const handlers = [
   /**
    * GET /api/events - List events with filtering and pagination
    */
-  http.get('/api/events', ({ request }) => {
+  http.get('/api/events', ({ request }: { request: StrictRequest<DefaultBodyType> }) => {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '50', 10);
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
@@ -271,8 +276,8 @@ export const handlers = [
   /**
    * GET /api/events/:id - Get a specific event
    */
-  http.get('/api/events/:id', ({ params }) => {
-    const eventId = parseInt(params.id as string, 10);
+  http.get<IdParams>('/api/events/:id', ({ params }: { params: IdParams }) => {
+    const eventId = parseInt(params.id, 10);
     const event = mockEvents.find((e) => e.id === eventId);
     if (!event) {
       return HttpResponse.json({ detail: 'Event not found' }, { status: 404 });
@@ -283,8 +288,8 @@ export const handlers = [
   /**
    * PATCH /api/events/:id - Update an event
    */
-  http.patch('/api/events/:id', async ({ params, request }) => {
-    const eventId = parseInt(params.id as string, 10);
+  http.patch<IdParams>('/api/events/:id', async ({ params, request }: { params: IdParams; request: StrictRequest<DefaultBodyType> }) => {
+    const eventId = parseInt(params.id, 10);
     const event = mockEvents.find((e) => e.id === eventId);
     if (!event) {
       return HttpResponse.json({ detail: 'Event not found' }, { status: 404 });
@@ -304,7 +309,7 @@ export const handlers = [
   /**
    * GET /api/events/:id/detections - Get detections for an event
    */
-  http.get('/api/events/:id/detections', ({ request }) => {
+  http.get<IdParams>('/api/events/:id/detections', ({ request }: { request: StrictRequest<DefaultBodyType> }) => {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '100', 10);
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
@@ -419,7 +424,7 @@ export const handlers = [
   /**
    * GET /api/audit - List audit logs
    */
-  http.get('/api/audit', ({ request }) => {
+  http.get('/api/audit', ({ request }: { request: StrictRequest<DefaultBodyType> }) => {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '100', 10);
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
