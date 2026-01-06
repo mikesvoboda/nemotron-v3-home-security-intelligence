@@ -227,7 +227,7 @@ class TestListServicesEndpoint:
         ]
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_all_services = AsyncMock(return_value=services)
+        mock_orchestrator.get_all_services = MagicMock(return_value=services)
 
         app = create_test_app(mock_orchestrator)
 
@@ -264,7 +264,7 @@ class TestListServicesEndpoint:
         ]
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_all_services = AsyncMock(return_value=services)
+        mock_orchestrator.get_all_services = MagicMock(return_value=services)
 
         app = create_test_app(mock_orchestrator)
 
@@ -308,7 +308,7 @@ class TestRestartServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
         mock_orchestrator.restart_service = AsyncMock(return_value=True)
 
         app = create_test_app(mock_orchestrator)
@@ -331,7 +331,7 @@ class TestRestartServiceEndpoint:
     async def test_restart_service_not_found(self) -> None:
         """Test restart returns 404 for unknown service."""
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=None)
+        mock_orchestrator.get_service = MagicMock(return_value=None)
 
         app = create_test_app(mock_orchestrator)
 
@@ -353,7 +353,7 @@ class TestRestartServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
 
         app = create_test_app(mock_orchestrator)
 
@@ -393,7 +393,7 @@ class TestEnableServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
         mock_orchestrator.enable_service = AsyncMock(return_value=True)
 
         app = create_test_app(mock_orchestrator)
@@ -414,7 +414,7 @@ class TestEnableServiceEndpoint:
     async def test_enable_service_not_found(self) -> None:
         """Test enable returns 404 for unknown service."""
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=None)
+        mock_orchestrator.get_service = MagicMock(return_value=None)
 
         app = create_test_app(mock_orchestrator)
 
@@ -441,7 +441,7 @@ class TestDisableServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
         mock_orchestrator.disable_service = AsyncMock(return_value=True)
 
         app = create_test_app(mock_orchestrator)
@@ -462,7 +462,7 @@ class TestDisableServiceEndpoint:
     async def test_disable_service_not_found(self) -> None:
         """Test disable returns 404 for unknown service."""
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=None)
+        mock_orchestrator.get_service = MagicMock(return_value=None)
 
         app = create_test_app(mock_orchestrator)
 
@@ -488,7 +488,7 @@ class TestStartServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
         mock_orchestrator.start_service = AsyncMock(return_value=True)
 
         app = create_test_app(mock_orchestrator)
@@ -509,7 +509,7 @@ class TestStartServiceEndpoint:
     async def test_start_service_not_found(self) -> None:
         """Test start returns 404 for unknown service."""
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=None)
+        mock_orchestrator.get_service = MagicMock(return_value=None)
 
         app = create_test_app(mock_orchestrator)
 
@@ -531,7 +531,7 @@ class TestStartServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
 
         app = create_test_app(mock_orchestrator)
 
@@ -553,7 +553,7 @@ class TestStartServiceEndpoint:
         )
 
         mock_orchestrator = MagicMock()
-        mock_orchestrator.get_service = AsyncMock(return_value=service)
+        mock_orchestrator.get_service = MagicMock(return_value=service)
 
         app = create_test_app(mock_orchestrator)
 
