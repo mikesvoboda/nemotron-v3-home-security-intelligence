@@ -22,6 +22,7 @@ backend/core/
 ├── config.py                     # Pydantic Settings configuration
 ├── constants.py                  # Application-wide constants (queue names, DLQ names)
 ├── database.py                   # SQLAlchemy async database layer
+├── docker_client.py              # Async Docker/Podman client wrapper
 ├── json_utils.py                 # LLM JSON response parsing utilities
 ├── logging.py                    # Centralized logging configuration
 ├── metrics.py                    # Prometheus metrics definitions
@@ -175,7 +176,7 @@ Manages all application configuration using Pydantic Settings with environment v
 
 - `database_url: str` - SQLAlchemy URL (required, no default - must be set)
 - Must use `postgresql+asyncpg://` scheme for async PostgreSQL driver
-- Example: `DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security`
+- Example: `DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security` <!-- pragma: allowlist secret -->
 
 **Redis Configuration:**
 
@@ -422,15 +423,46 @@ async def list_cameras(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 ```
 
+**`get_pool_status() -> dict[str, Any]`** - Get connection pool status metrics:
+
+```python
+from backend.core import get_pool_status
+
+status = await get_pool_status()
+# Returns: {
+#   "pool_size": 20,       # Base connections maintained
+#   "overflow": 5,         # Overflow connections in use
+#   "checkedin": 15,       # Available connections
+#   "checkedout": 10,      # Connections currently in use
+#   "total_connections": 25
+# }
+```
+
 ### PostgreSQL Connection Pooling
 
-The database module is configured for PostgreSQL with asyncpg:
+The database module is configured for PostgreSQL with asyncpg. Pool settings are
+fully configurable via environment variables:
 
-- Pool size: 10 base connections
-- Max overflow: 20 additional connections
-- Pool timeout: 30 seconds
-- Connection recycling: 1800 seconds (30 minutes)
-- Pre-ping: Enabled for connection validation
+| Setting      | Env Variable             | Default | Range    | Description                         |
+| ------------ | ------------------------ | ------- | -------- | ----------------------------------- |
+| Pool Size    | `DATABASE_POOL_SIZE`     | 20      | 5-100    | Base connections maintained in pool |
+| Max Overflow | `DATABASE_POOL_OVERFLOW` | 30      | 0-100    | Additional connections under load   |
+| Pool Timeout | `DATABASE_POOL_TIMEOUT`  | 30s     | 5-120    | Seconds to wait for connection      |
+| Pool Recycle | `DATABASE_POOL_RECYCLE`  | 1800s   | 300-7200 | Connection recycling interval       |
+| Pre-ping     | Always enabled           | -       | -        | Validates connections before use    |
+
+**Example configuration for high-traffic deployments:**
+
+```bash
+# .env file
+DATABASE_POOL_SIZE=30
+DATABASE_POOL_OVERFLOW=50
+DATABASE_POOL_TIMEOUT=45
+DATABASE_POOL_RECYCLE=1200
+```
+
+**Pool status is exposed in the health check endpoint** (`/api/system/health`)
+for monitoring and alerting on connection pool exhaustion
 
 ## `redis.py` - Redis Async Client
 
@@ -891,6 +923,139 @@ else:
     pass
 ```
 
+## `docker_client.py` - Docker/Podman Container Management
+
+### Purpose
+
+Provides an async wrapper around docker-py for managing Docker/Podman containers. All blocking docker-py calls are run in a thread pool using `asyncio.to_thread()` to make them non-blocking for async web frameworks.
+
+### Features
+
+- Async wrapper around docker-py for non-blocking container operations
+- Support for both Docker and Podman (they use the same API)
+- Graceful error handling for DockerException and NotFound errors
+- Proper logging for all operations
+- Context manager support for automatic cleanup
+
+### Key Class: `DockerClient`
+
+**Initialization:**
+
+```python
+from backend.core.docker_client import DockerClient
+
+# Using default Docker socket (from environment or standard location)
+client = DockerClient()
+
+# Using custom Docker host
+client = DockerClient(docker_host="unix:///var/run/docker.sock")
+
+# Using Podman socket
+client = DockerClient(docker_host="unix:///run/user/1000/podman/podman.sock")
+
+# Using TCP connection
+client = DockerClient(docker_host="tcp://192.168.1.100:2375")
+```
+
+### Methods
+
+**Connection Management:**
+
+- `connect() -> bool` - Test connection to Docker daemon, returns True if successful
+- `close()` - Close the Docker client connection
+
+**Container Discovery:**
+
+- `list_containers(all=True) -> list[Container]` - List containers (all or running only)
+- `get_container(container_id) -> Container | None` - Get container by ID
+- `get_container_by_name(name) -> Container | None` - Get container by name pattern
+
+**Container Lifecycle:**
+
+- `start_container(container_id) -> bool` - Start a stopped container
+- `stop_container(container_id, timeout=10) -> bool` - Stop a running container
+- `restart_container(container_id, timeout=10) -> bool` - Restart a container
+
+**Container Operations:**
+
+- `exec_run(container_id, cmd, timeout=5) -> int` - Execute command, return exit code
+- `get_container_status(container_id) -> str | None` - Get status (running, exited, etc.)
+
+### Usage Examples
+
+**Context Manager (Recommended):**
+
+```python
+from backend.core.docker_client import DockerClient
+
+async with DockerClient() as client:
+    # List all containers
+    containers = await client.list_containers()
+    for container in containers:
+        print(f"{container.name}: {container.status}")
+
+    # Get specific container status
+    status = await client.get_container_status("my-container")
+    if status == "running":
+        # Execute health check
+        exit_code = await client.exec_run("my-container", "curl localhost:8080/health")
+        print(f"Health check exit code: {exit_code}")
+```
+
+**Manual Connection Management:**
+
+```python
+from backend.core.docker_client import DockerClient
+
+client = DockerClient()
+connected = await client.connect()
+
+if connected:
+    try:
+        # Restart a container
+        success = await client.restart_container("my-app", timeout=30)
+        if success:
+            print("Container restarted successfully")
+    finally:
+        await client.close()
+```
+
+**Container Health Monitoring:**
+
+```python
+from backend.core.docker_client import DockerClient
+
+async def check_container_health(container_name: str) -> bool:
+    """Check if a container is running and healthy."""
+    async with DockerClient() as client:
+        container = await client.get_container_by_name(container_name)
+        if container is None:
+            return False
+
+        status = await client.get_container_status(container.id)
+        return status == "running"
+```
+
+### Error Handling
+
+All methods handle Docker errors gracefully:
+
+- `NotFound` exceptions return None or False (expected case, logged at DEBUG)
+- `DockerException` and `APIError` are logged at WARNING/ERROR level and return None/False/[]
+- The client never raises exceptions for container operations (fail-safe)
+
+### Podman Compatibility
+
+The client works with Podman since it implements the Docker API:
+
+```python
+# For rootless Podman
+client = DockerClient(docker_host="unix:///run/user/1000/podman/podman.sock")
+
+# For rootful Podman
+client = DockerClient(docker_host="unix:///var/run/podman/podman.sock")
+```
+
 ## Dependency Injection Patterns
 
 ### FastAPI Route Dependencies
@@ -942,6 +1107,7 @@ Core modules have comprehensive unit tests in `backend/tests/unit/`:
 
 - `test_config.py` - Settings loading and validation
 - `test_database.py` - Database initialization, sessions, transactions
+- `test_docker_client.py` - Docker/Podman client operations, async behavior
 - `test_redis.py` - Redis operations, serialization, error handling
 - `test_logging.py` - Logging setup, handlers, context propagation
 

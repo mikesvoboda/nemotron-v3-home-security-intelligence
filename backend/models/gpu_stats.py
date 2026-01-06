@@ -30,7 +30,14 @@ class GPUStats(Base):
     inference_fps: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Indexes for time-series queries
-    __table_args__ = (Index("idx_gpu_stats_recorded_at", "recorded_at"),)
+    # BRIN index is more efficient for time-series data (monotonically increasing timestamps)
+    __table_args__ = (
+        Index(
+            "ix_gpu_stats_recorded_at_brin",
+            "recorded_at",
+            postgresql_using="brin",
+        ),
+    )
 
     def __repr__(self) -> str:
         return (

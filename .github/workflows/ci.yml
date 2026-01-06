@@ -20,20 +20,24 @@ jobs:
   # ============================================================================
 
   lint:
-    name: Backend Lint (Ruff)
+    name: Backend Lint (Ruff) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -50,20 +54,24 @@ jobs:
           uv run radon mi backend/ -nc
 
   typecheck:
-    name: Backend Type Check (Mypy)
+    name: Backend Type Check (Mypy) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -72,8 +80,12 @@ jobs:
         run: uv run mypy backend/ --ignore-missing-imports
 
   unit-tests:
-    name: Backend Unit Tests
+    name: Backend Unit Tests - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
     needs: [lint]
@@ -82,7 +94,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -92,20 +104,20 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -130,25 +142,29 @@ jobs:
 
       - name: Upload unit test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-unit
+          name: test-results-unit-py${{ matrix.python-version }}
           path: test-results-unit.xml
           retention-days: 7
 
       - name: Upload unit test coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
           files: coverage-unit.xml
-          flags: backend-unit
+          flags: backend-unit-py${{ matrix.python-version }}
           fail_ci_if_error: false
 
   # Integration tests split into 4 domain-based parallel jobs for faster execution
   # Each job runs tests for a specific domain with within-shard parallelization
   integration-tests-api:
-    name: Integration Tests (API)
+    name: Integration Tests (API) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -156,7 +172,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -175,23 +191,23 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -214,24 +230,28 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-api
+          name: test-results-integration-api-py${{ matrix.python-version }}
           path: test-results-integration-api.xml
           retention-days: 7
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-api
+          name: coverage-integration-api-py${{ matrix.python-version }}
           path: coverage-integration-api.xml
           retention-days: 7
 
   integration-tests-websocket:
-    name: Integration Tests (WebSocket)
+    name: Integration Tests (WebSocket) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -239,7 +259,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -258,23 +278,23 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -297,24 +317,28 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-websocket
+          name: test-results-integration-websocket-py${{ matrix.python-version }}
           path: test-results-integration-websocket.xml
           retention-days: 7
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-websocket
+          name: coverage-integration-websocket-py${{ matrix.python-version }}
           path: coverage-integration-websocket.xml
           retention-days: 7
 
   integration-tests-services:
-    name: Integration Tests (Services)
+    name: Integration Tests (Services) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -322,7 +346,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -341,23 +365,23 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -380,24 +404,28 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-services
+          name: test-results-integration-services-py${{ matrix.python-version }}
           path: test-results-integration-services.xml
           retention-days: 7
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-services
+          name: coverage-integration-services-py${{ matrix.python-version }}
           path: coverage-integration-services.xml
           retention-days: 7
 
   integration-tests-models:
-    name: Integration Tests (Models)
+    name: Integration Tests (Models) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [lint]
     services:
@@ -405,7 +433,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -424,23 +452,23 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
@@ -463,17 +491,17 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-models
+          name: test-results-integration-models-py${{ matrix.python-version }}
           path: test-results-integration-models.xml
           retention-days: 7
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-models
+          name: coverage-integration-models-py${{ matrix.python-version }}
           path: coverage-integration-models.xml
           retention-days: 7
 
@@ -491,10 +519,10 @@ jobs:
     if: always()
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: coverage-integration-*
           path: coverage-reports/
@@ -504,7 +532,7 @@ jobs:
         run: find coverage-reports/ -name "*.xml" | head -20
 
       - name: Upload merged coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
           directory: coverage-reports/
           flags: backend-integration
@@ -544,7 +572,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -564,13 +592,13 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -580,7 +608,7 @@ jobs:
 
       - name: Run contract tests
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/15
           REDIS_HOST: localhost
           REDIS_PORT: 6379
@@ -594,7 +622,7 @@ jobs:
 
       - name: Upload contract test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: test-results-contracts
           path: test-results-contracts.xml
@@ -607,13 +635,13 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -632,16 +660,16 @@ jobs:
     name: API Types Contract Check
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql://user:pass@localhost/db
+      DATABASE_URL: postgresql://user:pass@localhost/db # pragma: allowlist secret
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -650,7 +678,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -663,16 +691,20 @@ jobs:
         run: ./scripts/generate-types.sh --check
 
   frontend-lint:
-    name: Frontend Lint (ESLint)
+    name: Frontend Lint (ESLint) [Node ${{ matrix.node-version }}]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -688,16 +720,20 @@ jobs:
         run: cd frontend && npx knip
 
   frontend-typecheck:
-    name: Frontend Type Check (TypeScript)
+    name: Frontend Type Check (TypeScript) [Node ${{ matrix.node-version }}]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -708,25 +744,24 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/8) [Node ${{ matrix.node-version }}]
     runs-on: ubuntu-latest
     timeout-minutes: 3
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
-    # Allow shard 5 to fail - it has a hanging test that needs investigation
-    continue-on-error: ${{ matrix.shard == 5 }}
     strategy:
       fail-fast: false
       matrix:
+        node-version: ['20', '22']
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -738,14 +773,15 @@ jobs:
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~12% of total coverage
-        # --teardownTimeout ensures vitest exits even if cleanup hangs
-        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --teardownTimeout=5000
+        # --teardownTimeout is now configured in vite.config.ts (5000ms)
+        # --reporter=verbose provides detailed output for debugging
+        run: cd frontend && npx vitest run --shard=${{ matrix.shard }}/8 --reporter=verbose
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: frontend-coverage-shard-${{ matrix.shard }}
+          name: frontend-coverage-shard-${{ matrix.shard }}-node-${{ matrix.node-version }}
           path: frontend/coverage/
           retention-days: 7
 
@@ -757,12 +793,13 @@ jobs:
     if: always()
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@v4
+        # Downloads artifacts from all Node version + shard combinations
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          pattern: frontend-coverage-shard-*
+          pattern: frontend-coverage-shard-*-node-*
           path: coverage-reports/
           merge-multiple: true
 
@@ -770,7 +807,7 @@ jobs:
         run: find coverage-reports/ -name "*.json" -o -name "*.xml" | head -20
 
       - name: Upload frontend coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
           directory: coverage-reports/
           flags: frontend
@@ -796,15 +833,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Check API coverage
         run: ./scripts/check-api-coverage.sh
 
   # Primary E2E tests (Chromium) - non-blocking while stabilizing error state tests
   # Uses sharding to split tests across 4 parallel runners for 4x speed
+  # Tests both Node.js 20 and 22 LTS versions
   frontend-e2e:
-    name: E2E Tests (chromium ${{ matrix.shard }})
+    name: E2E Tests (chromium ${{ matrix.shard }}) [Node ${{ matrix.node-version }}]
     runs-on: ubuntu-latest
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
@@ -812,15 +850,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        node-version: ['20', '22']
         shard: [1/4, 2/4, 3/4, 4/4]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -828,11 +867,11 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          key: playwright-chromium-${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -847,38 +886,39 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-report-chromium-${{ strategy.job-index }}
+          name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ matrix.node-version }}
           path: frontend/playwright-report/
           retention-days: 7
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-test-results-chromium-${{ strategy.job-index }}
+          name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ matrix.node-version }}
           path: frontend/test-results/
           retention-days: 7
 
-  # Secondary E2E tests (Firefox/WebKit) - non-blocking, informational only
+  # Secondary E2E tests (Firefox/WebKit) - now stable and blocking
+  # Intentionally kept on Node 20 only (no matrix) to avoid excessive CI time
+  # After NEM-1403 stabilization, these tests are now reliable and block merges
   frontend-e2e-secondary:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
-    # Non-blocking: These browsers are slower and flakier, failures are informational
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         browser: [firefox, webkit]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -888,7 +928,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -907,7 +947,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: playwright-report-${{ matrix.browser }}
           path: frontend/playwright-report/
@@ -915,7 +955,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: playwright-test-results-${{ matrix.browser }}
           path: frontend/test-results/
@@ -936,7 +976,7 @@ jobs:
       - typecheck
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Free up disk space
         # Backend image includes heavy ML dependencies (PyTorch, transformers)
@@ -952,10 +992,10 @@ jobs:
           swap-storage: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           file: ./backend/Dockerfile
@@ -977,13 +1017,13 @@ jobs:
       - frontend-typecheck
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build frontend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
@@ -1005,7 +1045,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -1024,21 +1064,21 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       DEBUG: 'false'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1090,13 +1130,13 @@ jobs:
     if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests-api.result == 'success' || needs.integration-tests-websocket.result == 'success' || needs.integration-tests-services.result == 'success' || needs.integration-tests-models.result == 'success' || needs.frontend-e2e.result == 'success')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1105,14 +1145,14 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all test results
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: test-results-*
           path: test-results/
           merge-multiple: true
 
       - name: Download E2E test results
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: playwright-test-results-*
           path: test-results/
@@ -1150,13 +1190,13 @@ jobs:
     if: always() && (needs.unit-tests.result == 'success' || needs.frontend-tests.result == 'success')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1165,7 +1205,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1264,11 +1304,11 @@ jobs:
             is-dockerfile: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Run Trivy vulnerability scanner
         if: ${{ !matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # 0.32.0
         with:
           scan-type: ${{ matrix.target.scan-type }}
           scan-ref: ${{ matrix.target.scan-ref }}
@@ -1281,7 +1321,7 @@ jobs:
 
       - name: Run Trivy config scanner
         if: ${{ matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # 0.32.0
         with:
           scan-type: ${{ matrix.target.scan-type }}
           scan-ref: ${{ matrix.target.scan-ref }}
@@ -1294,10 +1334,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1318,7 +1358,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
           POSTGRES_DB: security_test
         ports:
           - 5432:5432
@@ -1337,20 +1377,20 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: '0.9.18'
-          cache: true
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -1365,3 +1405,60 @@ jobs:
             --timeout=30 \
             -v \
             --tb=short
+
+  # ============================================================================
+  # CI Gate - Aggregates all required checks for branch protection
+  # ============================================================================
+  # This job provides a single status check that depends on all required jobs.
+  # Use this as the required check in branch protection to simplify configuration.
+  # Non-blocking workflows can use workflow_run trigger on CI completion.
+  ci-gate:
+    name: CI Gate (Required Checks)
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests-summary
+      - frontend-lint
+      - frontend-typecheck
+      - frontend-tests-summary
+      - api-types-check
+    if: always()
+    steps:
+      - name: Check required job results
+        run: |
+          echo "## Required CI Checks Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check each required job
+          FAILED=false
+
+          check_job() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" == "success" ] || [ "$result" == "skipped" ]; then
+              echo "✅ $name: $result" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ $name: $result" >> $GITHUB_STEP_SUMMARY
+              FAILED=true
+            fi
+          }
+
+          check_job "Backend Lint (Ruff)" "${{ needs.lint.result }}"
+          check_job "Backend Type Check (Mypy)" "${{ needs.typecheck.result }}"
+          check_job "Backend Unit Tests" "${{ needs.unit-tests.result }}"
+          check_job "Backend Integration Tests" "${{ needs.integration-tests-summary.result }}"
+          check_job "Frontend Lint (ESLint)" "${{ needs.frontend-lint.result }}"
+          check_job "Frontend Type Check (TypeScript)" "${{ needs.frontend-typecheck.result }}"
+          check_job "Frontend Tests (Vitest)" "${{ needs.frontend-tests-summary.result }}"
+          check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAILED" == "true" ]; then
+            echo "**Status: ❌ FAILED** - One or more required checks failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "**Status: ✅ PASSED** - All required checks passed" >> $GITHUB_STEP_SUMMARY
+          fi

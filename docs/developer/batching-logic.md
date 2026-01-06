@@ -7,7 +7,7 @@
 
 ---
 
-![How Batch Aggregation Works](../images/flow-batch-aggregator.png)
+![Batch aggregator flow diagram showing the detection batching lifecycle: new detections arriving trigger batch creation or addition, the 90-second window timeout and 30-second idle timeout conditions, fast-path bypass for high-confidence person detections, and the final batch closure pushing jobs to the analysis queue](../images/flow-batch-aggregator.png)
 
 ---
 

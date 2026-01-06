@@ -1,4 +1,5 @@
-import { Clock } from 'lucide-react';
+import { ChevronDown, Clock } from 'lucide-react';
+import { useState } from 'react';
 
 export interface DetectionThumbnail {
   id: number;
@@ -15,6 +16,10 @@ export interface ThumbnailStripProps {
   /** Callback when a thumbnail is double-clicked (for lightbox) */
   onThumbnailDoubleClick?: (detectionId: number) => void;
   loading?: boolean;
+  /** Initial number of thumbnails to display before "Show more" (default: 20) */
+  initialDisplayCount?: number;
+  /** Number of additional thumbnails to show per "Show more" click (default: 20) */
+  loadMoreCount?: number;
 }
 
 /**
@@ -27,7 +32,21 @@ export default function ThumbnailStrip({
   onThumbnailClick,
   onThumbnailDoubleClick,
   loading = false,
+  initialDisplayCount = 20,
+  loadMoreCount = 20,
 }: ThumbnailStripProps) {
+  const [displayCount, setDisplayCount] = useState(initialDisplayCount);
+
+  // Get the detections to display based on current display count
+  const displayedDetections = detections.slice(0, displayCount);
+  const hasMore = detections.length > displayCount;
+  const remainingCount = detections.length - displayCount;
+
+  // Handle "Show more" click
+  const handleShowMore = () => {
+    setDisplayCount((prev) => Math.min(prev + loadMoreCount, detections.length));
+  };
+
   if (loading) {
     return (
       <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
@@ -88,7 +107,7 @@ export default function ThumbnailStrip({
         Detection Sequence ({detections.length})
       </h3>
       <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
-        {detections.map((detection, index) => {
+        {displayedDetections.map((detection, index) => {
           const isSelected = selectedDetectionId === detection.id;
           const relativeTime = getRelativeTime(detection.detected_at);
           const timestamp = formatTimestamp(detection.detected_at);
@@ -145,6 +164,26 @@ export default function ThumbnailStrip({
             </button>
           );
         })}
+
+        {/* Show more button */}
+        {hasMore && (
+          <button
+            onClick={handleShowMore}
+            className="flex flex-shrink-0 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-600 p-2 text-gray-400 transition-all hover:border-[#76B900]/50 hover:bg-gray-800/30 hover:text-gray-200"
+            style={{ minWidth: '120px' }}
+            aria-label={`Show ${Math.min(loadMoreCount, remainingCount)} more detections`}
+            type="button"
+            data-testid="show-more-thumbnails"
+          >
+            <div className="flex h-20 w-full items-center justify-center">
+              <div className="flex flex-col items-center gap-1">
+                <ChevronDown className="h-6 w-6" />
+                <span className="text-sm font-medium">+{remainingCount}</span>
+              </div>
+            </div>
+            <span className="text-xs">Show more</span>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,10 @@ This module provides utilities to parse system prompts and identify optimal
 insertion points for suggestions based on section headers and variable patterns.
 """
 
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 def find_insertion_point(
@@ -40,6 +43,11 @@ def find_insertion_point(
             return section_match.end(1), "section_end"
 
     # Fallback: append to end
+    logger.warning(
+        "Section '%s' not found in prompt, falling back to end insertion",
+        target_section,
+        extra={"target_section": target_section, "prompt_length": len(prompt)},
+    )
     return len(prompt), "fallback"
 
 

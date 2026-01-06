@@ -1,11 +1,8 @@
 name: Accessibility Tests
 
+# Runs on merge to main only (not PRs) to save runner capacity.
+
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/accessibility-tests.yml'
   push:
     branches: [main]
     paths:
@@ -27,10 +24,10 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -40,7 +37,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -62,7 +59,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: accessibility-test-report
           path: frontend/playwright-report/
@@ -70,7 +67,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: accessibility-test-results
           path: frontend/test-results/
@@ -127,7 +124,7 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -X POST https://api.linear.app/graphql \
+          response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
@@ -141,4 +138,15 @@ jobs:
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
               }
-            }'
+            }')
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::warning::Failed to create Linear issue (HTTP $http_code)"
+            echo "Response: $body"
+          else
+            echo "Linear issue created successfully"
+            echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+          fi

@@ -386,3 +386,292 @@ class TestGetDb:
             mock_session.close.assert_called_once()
         finally:
             db_module._async_session_factory = original_factory
+
+
+# =============================================================================
+# Connection Pool Settings Tests
+# =============================================================================
+
+
+class TestConnectionPoolSettings:
+    """Tests for database connection pool configuration.
+
+    These tests verify that pool settings from config are correctly applied
+    to the SQLAlchemy engine and that pool status information is available.
+    """
+
+    @pytest.mark.asyncio
+    async def test_init_db_applies_pool_settings(self) -> None:
+        """Test that init_db applies pool settings from config to the engine."""
+        import backend.core.database as db_module
+        from backend.core.database import init_db
+
+        # Save original state
+        original_engine = db_module._engine
+        original_factory = db_module._async_session_factory
+
+        try:
+            # Reset globals so init_db runs fresh
+            db_module._engine = None
+            db_module._async_session_factory = None
+
+            # Create mock settings with specific pool settings
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    debug=False,
+                    database_pool_size=15,
+                    database_pool_overflow=25,
+                    database_pool_timeout=45,
+                    database_pool_recycle=2400,
+                )
+
+                # Mock create_async_engine to capture arguments
+                with patch("backend.core.database.create_async_engine") as mock_create_engine:
+                    mock_engine = AsyncMock()
+                    mock_create_engine.return_value = mock_engine
+
+                    # Mock the async engine's begin context manager
+                    mock_conn = AsyncMock()
+                    mock_conn.execute = AsyncMock(
+                        return_value=MagicMock(scalar=MagicMock(return_value=True))
+                    )
+                    mock_conn.run_sync = AsyncMock()
+
+                    mock_ctx = AsyncMock()
+                    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+                    mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                    mock_engine.begin = MagicMock(return_value=mock_ctx)
+
+                    await init_db()
+
+                    # Verify pool settings were passed to create_async_engine
+                    mock_create_engine.assert_called_once()
+                    call_kwargs = mock_create_engine.call_args.kwargs
+
+                    assert call_kwargs["pool_size"] == 15
+                    assert call_kwargs["max_overflow"] == 25
+                    assert call_kwargs["pool_timeout"] == 45
+                    assert call_kwargs["pool_recycle"] == 2400
+                    assert call_kwargs["pool_pre_ping"] is True
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+            db_module._async_session_factory = original_factory
+
+    def test_pool_size_setting_validation(self) -> None:
+        """Test that pool_size setting has proper validation bounds."""
+        from pydantic import ValidationError
+
+        from backend.core.config import Settings
+
+        # Test valid pool sizes
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_size=5,
+        )
+        assert settings.database_pool_size == 5
+
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_size=100,
+        )
+        assert settings.database_pool_size == 100
+
+        # Test invalid pool sizes (should raise validation error)
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_size=2,  # Below minimum of 5
+            )
+
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_size=150,  # Above maximum of 100
+            )
+
+    def test_pool_overflow_setting_validation(self) -> None:
+        """Test that pool_overflow setting has proper validation bounds."""
+        from pydantic import ValidationError
+
+        from backend.core.config import Settings
+
+        # Test valid overflow values
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_overflow=0,
+        )
+        assert settings.database_pool_overflow == 0
+
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_overflow=100,
+        )
+        assert settings.database_pool_overflow == 100
+
+        # Test invalid overflow values
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_overflow=-1,  # Below minimum of 0
+            )
+
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_overflow=150,  # Above maximum of 100
+            )
+
+    def test_pool_timeout_setting_validation(self) -> None:
+        """Test that pool_timeout setting has proper validation bounds."""
+        from pydantic import ValidationError
+
+        from backend.core.config import Settings
+
+        # Test valid timeout values
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_timeout=5,
+        )
+        assert settings.database_pool_timeout == 5
+
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_timeout=120,
+        )
+        assert settings.database_pool_timeout == 120
+
+        # Test invalid timeout values
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_timeout=2,  # Below minimum of 5
+            )
+
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_timeout=200,  # Above maximum of 120
+            )
+
+    def test_pool_recycle_setting_validation(self) -> None:
+        """Test that pool_recycle setting has proper validation bounds."""
+        from pydantic import ValidationError
+
+        from backend.core.config import Settings
+
+        # Test valid recycle values
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_recycle=300,  # 5 minutes
+        )
+        assert settings.database_pool_recycle == 300
+
+        settings = Settings(
+            database_url="postgresql+asyncpg://user:pass@localhost/db",
+            database_pool_recycle=7200,  # 2 hours
+        )
+        assert settings.database_pool_recycle == 7200
+
+        # Test invalid recycle values
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_recycle=100,  # Below minimum of 300
+            )
+
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_recycle=10000,  # Above maximum of 7200
+            )
+
+
+class TestGetPoolStatus:
+    """Tests for get_pool_status function."""
+
+    @pytest.mark.asyncio
+    async def test_get_pool_status_returns_pool_metrics(self) -> None:
+        """Test that get_pool_status returns connection pool metrics."""
+        import backend.core.database as db_module
+        from backend.core.database import get_pool_status
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Create a mock engine with a mock pool
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 20
+            mock_pool.overflow.return_value = 5
+            mock_pool.checkedin.return_value = 15
+            mock_pool.checkedout.return_value = 10
+
+            mock_engine = MagicMock()
+            mock_engine.pool = mock_pool
+
+            db_module._engine = mock_engine
+
+            status = await get_pool_status()
+
+            assert status["pool_size"] == 20
+            assert status["overflow"] == 5
+            assert status["checkedin"] == 15
+            assert status["checkedout"] == 10
+            assert status["total_connections"] == 25  # pool_size + overflow
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_get_pool_status_handles_uninitialized_engine(self) -> None:
+        """Test that get_pool_status handles uninitialized database gracefully."""
+        import backend.core.database as db_module
+        from backend.core.database import get_pool_status
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            db_module._engine = None
+
+            status = await get_pool_status()
+
+            assert status["pool_size"] == 0
+            assert status["overflow"] == 0
+            assert status["checkedin"] == 0
+            assert status["checkedout"] == 0
+            assert status["error"] == "Database not initialized"
+        finally:
+            # Restore original state
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_get_pool_status_handles_nullpool(self) -> None:
+        """Test that get_pool_status handles NullPool (no pooling) gracefully."""
+        import backend.core.database as db_module
+        from backend.core.database import get_pool_status
+
+        # Save original state
+        original_engine = db_module._engine
+
+        try:
+            # Create a mock engine with NullPool (no size/overflow methods)
+            mock_pool = MagicMock()
+            # NullPool doesn't have these methods
+            mock_pool.size.side_effect = AttributeError("NullPool has no size")
+
+            mock_engine = MagicMock()
+            mock_engine.pool = mock_pool
+
+            db_module._engine = mock_engine
+
+            status = await get_pool_status()
+
+            # Should handle gracefully with default values
+            assert "pool_size" in status
+            assert status.get("pooling_disabled") is True or "error" in status
+        finally:
+            # Restore original state
+            db_module._engine = original_engine

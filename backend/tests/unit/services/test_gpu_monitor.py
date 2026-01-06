@@ -373,6 +373,92 @@ def test_nvidia_smi_timeout_handling():
         monitor._get_gpu_stats_nvidia_smi()
 
 
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_stats_parsing():
+    """Test async nvidia-smi subprocess wrapper returns correct stats."""
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    # Mock the async_subprocess_run function
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "42, 32.5, 45, 2048, 24576, NVIDIA RTX A5500"
+    mock_result.stderr = ""
+
+    with patch(
+        "backend.core.async_utils.async_subprocess_run",
+        new_callable=AsyncMock,
+        return_value=mock_result,
+    ):
+        stats = await monitor._get_gpu_stats_nvidia_smi_async()
+
+        assert stats["temperature"] == 42.0
+        assert stats["power_usage"] == 32.5
+        assert stats["gpu_utilization"] == 45.0
+        assert stats["memory_used"] == 2048
+        assert stats["memory_total"] == 24576
+        assert stats["gpu_name"] == "NVIDIA RTX A5500"
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_handles_errors():
+    """Test async nvidia-smi handles subprocess errors properly."""
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+
+    # Mock subprocess to return error
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+    mock_result.stderr = "NVIDIA-SMI has failed"
+
+    with (
+        patch(
+            "backend.core.async_utils.async_subprocess_run",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ),
+        pytest.raises(RuntimeError, match="nvidia-smi returned error"),
+    ):
+        await monitor._get_gpu_stats_nvidia_smi_async()
+
+
+@pytest.mark.asyncio
+async def test_nvidia_smi_async_used_in_get_current_stats_async():
+    """Test that get_current_stats_async uses the async nvidia-smi method."""
+    monitor = GPUMonitor.__new__(GPUMonitor)
+    monitor._gpu_available = False
+    monitor._nvidia_smi_available = True
+    monitor._nvidia_smi_path = "/usr/bin/nvidia-smi"
+    monitor._gpu_name = "Test GPU"
+    monitor._nvml_initialized = False
+
+    expected_stats = {
+        "gpu_name": "NVIDIA RTX A5500",
+        "gpu_utilization": 50.0,
+        "memory_used": 4096,
+        "memory_total": 24576,
+        "temperature": 55.0,
+        "power_usage": 75.0,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(
+        monitor,
+        "_get_gpu_stats_nvidia_smi_async",
+        new_callable=AsyncMock,
+        return_value=expected_stats,
+    ) as mock_method:
+        stats = await monitor.get_current_stats_async()
+
+        mock_method.assert_called_once()
+        assert stats == expected_stats
+
+
 # Test Stats History
 
 

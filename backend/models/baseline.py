@@ -20,7 +20,16 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
@@ -68,6 +77,11 @@ class ActivityBaseline(Base):
         UniqueConstraint("camera_id", "hour", "day_of_week", name="uq_activity_baseline_slot"),
         Index("idx_activity_baseline_camera", "camera_id"),
         Index("idx_activity_baseline_slot", "camera_id", "hour", "day_of_week"),
+        # CHECK constraints for business rules
+        CheckConstraint("hour >= 0 AND hour <= 23", name="ck_activity_baselines_hour_range"),
+        CheckConstraint(
+            "day_of_week >= 0 AND day_of_week <= 6", name="ck_activity_baselines_dow_range"
+        ),
     )
 
     def __repr__(self) -> str:
@@ -117,6 +131,8 @@ class ClassBaseline(Base):
         Index("idx_class_baseline_camera", "camera_id"),
         Index("idx_class_baseline_class", "camera_id", "detection_class"),
         Index("idx_class_baseline_slot", "camera_id", "detection_class", "hour"),
+        # CHECK constraint for business rules
+        CheckConstraint("hour >= 0 AND hour <= 23", name="ck_class_baselines_hour_range"),
     )
 
     def __repr__(self) -> str:

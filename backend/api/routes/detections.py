@@ -1,7 +1,6 @@
 """API routes for detections management."""
 
 import os
-import re
 from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_detection_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.detections import (
     DetectionListResponse,
@@ -54,36 +54,6 @@ _ERROR_CATEGORIES = [
     "re-identification",
     "scene change detection",
     "processing",
-]
-
-# Regex patterns for sensitive data that should be redacted
-_SENSITIVE_PATTERNS = [
-    # File paths (Unix and Windows)
-    re.compile(r"(?:/[a-zA-Z0-9._-]+)+(?:\.[a-zA-Z0-9]+)?"),
-    re.compile(r"[A-Za-z]:\\(?:[^\\/:*?\"<>|\r\n]+\\)*[^\\/:*?\"<>|\r\n]*"),
-    # IP addresses (IPv4)
-    re.compile(r"\b(?:10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b"),
-    re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
-    # Port numbers (standalone like :8080)
-    re.compile(r":\d{2,5}\b"),
-    # URLs with internal hostnames
-    re.compile(r"https?://[^\s]+"),
-    # Internal hostnames (*.internal, *.local, *.svc.cluster.local, etc.)
-    re.compile(r"\b[a-zA-Z0-9.-]+\.(?:internal|local|svc\.cluster\.local|company\.com)\b"),
-    # Stack trace elements
-    re.compile(r"Traceback \(most recent call last\):", re.IGNORECASE),
-    re.compile(r'File "[^"]+", line \d+'),
-    re.compile(r"line \d+", re.IGNORECASE),
-    # Python module paths
-    re.compile(r"\bbackend\.[a-zA-Z0-9_.]+"),
-    # Environment variable patterns
-    re.compile(r"[A-Z_]+=[^\s]+"),
-    # Database URLs
-    re.compile(r"postgresql://[^\s]+"),
-    re.compile(r"redis://[^\s]+"),
-    # API keys and secrets
-    re.compile(r"sk-[a-zA-Z0-9]+"),
-    re.compile(r"password[=:][^\s]+", re.IGNORECASE),
 ]
 
 
@@ -217,37 +187,64 @@ async def get_detection_stats(
 
     Used by the AI Performance page to display detection class distribution charts.
 
+    Optimized to use a single query with window functions instead of 3 separate queries
+    (NEM-1321). The query combines:
+    - Per-class counts via GROUP BY
+    - Total count via SUM(COUNT(*)) OVER() window function
+    - Per-class avg confidence, then combined using weighted average formula
+
     Args:
         db: Database session
 
     Returns:
         DetectionStatsResponse with aggregate detection statistics
     """
-    # Get total count
-    total_query = select(func.count()).select_from(Detection)
-    total_result = await db.execute(total_query)
-    total_detections = total_result.scalar() or 0
-
-    # Get counts by object class using GROUP BY
-    class_query = (
-        select(Detection.object_type, func.count().label("count"))
+    # Use a single query with window functions to get all stats at once
+    # This replaces 3 separate queries with 1 optimized query
+    #
+    # Strategy: First compute per-class stats including count and avg confidence,
+    # then use window functions to compute totals across all groups.
+    #
+    # For weighted average: sum(class_count * class_avg) / sum(class_count)
+    combined_query = (
+        select(
+            Detection.object_type,
+            func.count().label("class_count"),
+            func.avg(Detection.confidence).label("class_avg_confidence"),
+            func.sum(func.count()).over().label("total_count"),
+            # Weighted average using window functions:
+            # sum(count * avg) over all groups / sum(count) over all groups
+            (
+                func.sum(func.count() * func.avg(Detection.confidence)).over()
+                / func.sum(func.count()).over()
+            ).label("avg_confidence"),
+        )
         .where(Detection.object_type.isnot(None))
         .group_by(Detection.object_type)
         .order_by(func.count().desc())
     )
-    class_result = await db.execute(class_query)
-    class_rows = class_result.all()
+    result = await db.execute(combined_query)
+    rows = result.all()
+
+    # If no rows, there are no typed detections
+    if not rows:
+        return {
+            "total_detections": 0,
+            "detections_by_class": {},
+            "average_confidence": None,
+        }
+
+    # Extract total count and average confidence from first row
+    # (window function values are same across all grouped rows)
+    first_row = rows[0]
+    total_detections = int(first_row.total_count)
+    avg_confidence = first_row.avg_confidence
 
     # Build detections_by_class dict
     detections_by_class: dict[str, int] = {}
-    for object_type, count in class_rows:
-        if object_type:
-            detections_by_class[object_type] = count
-
-    # Get average confidence
-    avg_query = select(func.avg(Detection.confidence)).where(Detection.confidence.isnot(None))
-    avg_result = await db.execute(avg_query)
-    avg_confidence = avg_result.scalar()
+    for row in rows:
+        if row.object_type:
+            detections_by_class[row.object_type] = row.class_count
 
     return {
         "total_detections": total_detections,
@@ -273,17 +270,7 @@ async def get_detection(
     Raises:
         HTTPException: 404 if detection not found
     """
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
-
-    # Type is already narrowed by the None check above
-    return detection
+    return await get_detection_or_404(detection_id, db)
 
 
 def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
@@ -301,7 +288,12 @@ def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[s
             cc = clothing_classifications[first_key]
             # Parse raw description to extract upper/lower
             raw_desc = cc.get("raw_description", "")
-            parts = raw_desc.split(", ") if ", " in raw_desc else [cc.get("top_category")]
+            # When raw_description has no comma, use it directly; fall back to top_category only if empty
+            parts = (
+                raw_desc.split(", ")
+                if ", " in raw_desc
+                else [raw_desc if raw_desc else cc.get("top_category")]
+            )
             clothing_response["upper"] = parts[0] if parts else None
             clothing_response["lower"] = parts[1] if len(parts) > 1 else None
             clothing_response["is_suspicious"] = cc.get("is_suspicious")
@@ -563,15 +555,7 @@ async def get_detection_enrichment(
     Raises:
         HTTPException: 404 if detection not found
     """
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
-
+    detection = await get_detection_or_404(detection_id, db)
     return _transform_enrichment_data(
         detection_id=detection.id,
         enrichment_data=detection.enrichment_data,
@@ -621,15 +605,7 @@ async def get_detection_image(
         HTTPException: 404 if detection not found or image file doesn't exist
         HTTPException: 500 if image generation fails
     """
-    # Get detection from database
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
+    detection = await get_detection_or_404(detection_id, db)
 
     # If full=true, return the original source image
     if full:
@@ -802,21 +778,13 @@ async def stream_detection_video(
         HTTPException: 404 if detection not found or not a video
         HTTPException: 416 if range is not satisfiable
     """
-    # Get detection from database
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
+    detection = await get_detection_or_404(detection_id, db)
 
     # Verify this is a video detection
     if detection.media_type != "video":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Detection {detection_id} is not a video (media_type: {detection.media_type})",
+            detail=f"Detection {detection.id} is not a video (media_type: {detection.media_type})",
         )
 
     # Check video file exists
@@ -929,21 +897,13 @@ async def get_video_thumbnail(
         HTTPException: 404 if detection not found or not a video
         HTTPException: 500 if thumbnail generation fails
     """
-    # Get detection from database
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
-    detection = result.scalar_one_or_none()
-
-    if not detection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Detection with id {detection_id} not found",
-        )
+    detection = await get_detection_or_404(detection_id, db)
 
     # Verify this is a video detection
     if detection.media_type != "video":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Detection {detection_id} is not a video (media_type: {detection.media_type})",
+            detail=f"Detection {detection.id} is not a video (media_type: {detection.media_type})",
         )
 
     # Check if thumbnail already exists

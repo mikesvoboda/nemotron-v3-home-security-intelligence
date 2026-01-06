@@ -11,7 +11,17 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.time_utils import utc_now
@@ -77,6 +87,18 @@ class SceneChange(Base):
         Index("idx_scene_changes_detected_at", "detected_at"),
         Index("idx_scene_changes_acknowledged", "acknowledged"),
         Index("idx_scene_changes_camera_acknowledged", "camera_id", "acknowledged"),
+        # BRIN index for time-series queries on detected_at (append-only chronological data)
+        # Much smaller than B-tree (~1000x) and ideal for range queries on ordered timestamps
+        Index(
+            "ix_scene_changes_detected_at_brin",
+            "detected_at",
+            postgresql_using="brin",
+        ),
+        # CHECK constraint for business rules
+        CheckConstraint(
+            "similarity_score >= 0.0 AND similarity_score <= 1.0",
+            name="ck_scene_changes_similarity_range",
+        ),
     )
 
     def __repr__(self) -> str:

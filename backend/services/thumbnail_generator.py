@@ -33,6 +33,7 @@ Font Configuration:
     Falls back to PIL's default bitmap font if no TrueType font is found.
 """
 
+import asyncio
 import os
 import platform
 from pathlib import Path
@@ -384,3 +385,41 @@ class ThumbnailGenerator:
         except Exception as e:
             logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=True)
             return False
+
+    async def async_generate_thumbnail(
+        self,
+        image_path: str,
+        detections: list[dict[str, Any]],
+        output_size: tuple[int, int] = (320, 240),
+        detection_id: int | str | None = None,
+    ) -> str | None:
+        """Generate thumbnail asynchronously without blocking the event loop.
+
+        This is an async wrapper around generate_thumbnail that runs the
+        blocking PIL image operations in a thread pool executor to avoid
+        blocking the async event loop.
+
+        Args:
+            image_path: Path to original detection image
+            detections: List of detection dicts with bbox coordinates and metadata
+            output_size: Thumbnail size as (width, height). Defaults to 320x240
+            detection_id: Detection ID for output filename. If None, uses image filename
+
+        Returns:
+            Path to saved thumbnail file, or None if generation failed
+
+        Example:
+            generator = ThumbnailGenerator()
+            thumbnail_path = await generator.async_generate_thumbnail(
+                image_path="/path/to/image.jpg",
+                detections=[{"object_type": "person", "confidence": 0.95, ...}],
+                detection_id="det_001",
+            )
+        """
+        return await asyncio.to_thread(
+            self.generate_thumbnail,
+            image_path,
+            detections,
+            output_size,
+            detection_id,
+        )

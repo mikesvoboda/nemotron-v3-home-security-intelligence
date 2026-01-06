@@ -61,16 +61,16 @@ def redact_url(url: str) -> str:
     general HTTP URLs with authentication.
 
     Args:
-        url: The URL to redact (e.g., postgresql://user:password@host:port/db)
+        url: The URL to redact (e.g., postgresql://user:***@host:port/db)
 
     Returns:
         The URL with password replaced by [REDACTED], or the original URL
         if parsing fails or no password is present.
 
     Examples:
-        >>> redact_url("postgresql+asyncpg://user:secret123@localhost:5432/db")
+        >>> redact_url("postgresql+asyncpg://user:pass123@localhost:5432/db")  # pragma: allowlist secret
         'postgresql+asyncpg://user:[REDACTED]@localhost:5432/db'
-        >>> redact_url("redis://default:mypassword@redis-host:6379/0")
+        >>> redact_url("redis://default:redispass@redis-host:6379/0")  # pragma: allowlist secret
         'redis://default:[REDACTED]@redis-host:6379/0'
         >>> redact_url("http://localhost:8000")
         'http://localhost:8000'
@@ -478,10 +478,75 @@ def sanitize_log_value(value: Any) -> str:
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name.
 
+    The returned logger will have the ContextFilter attached to ensure
+    request_id and other context variables are included in log records.
+
     Args:
         name: Logger name, typically __name__ of the calling module
 
     Returns:
-        Configured logger instance
+        Configured logger instance with context filter
     """
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+
+    # Ensure ContextFilter is added to this logger if not already present
+    # This handles loggers created before setup_logging() is called
+    has_context_filter = any(isinstance(f, ContextFilter) for f in logger.filters)
+    if not has_context_filter:
+        logger.addFilter(ContextFilter())
+
+    return logger
+
+
+def log_exception_with_context(
+    logger: logging.Logger,
+    exception: Exception,
+    message: str,
+    *,
+    include_traceback: bool = True,
+    level: int = logging.ERROR,
+    **extra_context: Any,
+) -> None:
+    """Log an exception with structured context for debugging.
+
+    This helper function logs exceptions with rich contextual information
+    including error type, sanitized message, and any additional context
+    provided by the caller. It automatically includes the request_id from
+    context if available.
+
+    Args:
+        logger: The logger instance to use
+        exception: The exception to log
+        message: Human-readable description of what failed
+        include_traceback: Whether to include the full stack trace (default: True)
+        level: Log level to use (default: logging.ERROR)
+        **extra_context: Additional context fields to include in the log record
+            (e.g., camera_id="front_door", operation="detection")
+
+    Example:
+        try:
+            result = await detect_objects(image_path)
+        except TimeoutError as e:
+            log_exception_with_context(
+                logger,
+                e,
+                "Detection request timed out",
+                camera_id=camera_id,
+                service="rtdetr",
+                timeout_seconds=30,
+            )
+    """
+    # Build structured extra dict with error context
+    extra: dict[str, Any] = {
+        "error_type": type(exception).__name__,
+        "error_message_sanitized": sanitize_error(exception),
+        **extra_context,
+    }
+
+    # Log with or without traceback
+    logger.log(
+        level,
+        message,
+        extra=extra,
+        exc_info=include_traceback,
+    )

@@ -6,22 +6,35 @@ sending images for object detection and storing results in the database.
 Detection Flow:
     1. Read image file from filesystem
     2. Validate image integrity (catch truncated/corrupt images)
-    3. POST to detector server with image data
-    4. Parse JSON response with detections
-    5. Filter by confidence threshold
-    6. Store detections in database
-    7. Return Detection model instances
+    3. Acquire shared AI inference semaphore (NEM-1463)
+    4. POST to detector server with image data (with retry on transient failures)
+    5. Release semaphore
+    6. Parse JSON response with detections
+    7. Filter by confidence threshold
+    8. Store detections in database
+    9. Return Detection model instances
+
+Concurrency Control (NEM-1463):
+    Uses a shared asyncio.Semaphore to limit concurrent AI inference operations.
+    This prevents GPU/AI service overload under high traffic. The limit is
+    configurable via AI_MAX_CONCURRENT_INFERENCES setting (default: 4).
 
 Error Handling:
-    - Connection errors: Raise DetectorUnavailableError (allows retry)
-    - Timeouts: Raise DetectorUnavailableError (allows retry)
-    - HTTP 5xx errors: Raise DetectorUnavailableError (allows retry)
+    - Connection errors: Retry with exponential backoff, then raise DetectorUnavailableError
+    - Timeouts: Retry with exponential backoff, then raise DetectorUnavailableError
+    - HTTP 5xx errors: Retry with exponential backoff, then raise DetectorUnavailableError
     - HTTP 4xx errors: Log and return empty list (client error, no retry)
     - Invalid JSON: Log and return empty list (malformed response)
     - Missing files: Log and return empty list (local file issue)
     - Truncated/corrupt images: Log and return empty list (skip bad images)
+
+Retry Logic (NEM-1343):
+    - Configurable max retries via DETECTOR_MAX_RETRIES setting (default: 3)
+    - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
+    - Only retries transient failures (connection, timeout, HTTP 5xx)
 """
 
+import asyncio
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,6 +57,8 @@ from backend.core.metrics import (
 from backend.core.mime_types import get_mime_type_with_default
 from backend.models.camera import Camera
 from backend.models.detection import Detection
+from backend.services.baseline import get_baseline_service
+from backend.services.inference_semaphore import get_inference_semaphore
 
 logger = get_logger(__name__)
 
@@ -88,12 +103,51 @@ class DetectorClient:
     This client handles communication with the external detector service,
     including health checks, image submission, and response parsing.
 
+    Features:
+        - Retry logic with exponential backoff for transient failures (NEM-1343)
+        - Configurable timeouts and retry attempts via settings
+        - API key authentication via X-API-Key header when configured
+        - Concurrency limiting via semaphore to prevent GPU overload (NEM-1500)
+
     Security: Supports API key authentication via X-API-Key header when
     configured in settings (RTDETR_API_KEY environment variable).
     """
 
-    def __init__(self) -> None:
-        """Initialize detector client with configuration."""
+    # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
+    # This prevents overwhelming the GPU service with too many parallel requests
+    # Default: 4 concurrent requests (configurable via ai_max_concurrent_inferences)
+    _request_semaphore: asyncio.Semaphore | None = None
+    _semaphore_limit: int = 0
+
+    @classmethod
+    def _get_semaphore(cls) -> asyncio.Semaphore:
+        """Get or create the shared semaphore for concurrency limiting.
+
+        Uses a class-level semaphore to limit concurrent requests across
+        all DetectorClient instances. The limit is configurable via
+        AI_MAX_CONCURRENT_REQUESTS setting.
+
+        Returns:
+            asyncio.Semaphore for rate limiting concurrent requests
+        """
+        settings = get_settings()
+        limit = settings.ai_max_concurrent_inferences
+
+        # Create or recreate semaphore if limit changed
+        if cls._request_semaphore is None or cls._semaphore_limit != limit:
+            cls._request_semaphore = asyncio.Semaphore(limit)
+            cls._semaphore_limit = limit
+            logger.debug(f"Created DetectorClient semaphore with limit={limit}")
+
+        return cls._request_semaphore
+
+    def __init__(self, max_retries: int | None = None) -> None:
+        """Initialize detector client with configuration.
+
+        Args:
+            max_retries: Maximum retry attempts for transient failures.
+                If not provided, uses DETECTOR_MAX_RETRIES from settings (default: 3).
+        """
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
         self._confidence_threshold = settings.detection_confidence_threshold
@@ -112,6 +166,16 @@ class DetectorClient:
             read=settings.ai_health_timeout,
             write=settings.ai_health_timeout,
             pool=settings.ai_health_timeout,
+        )
+        # Retry configuration (NEM-1343)
+        self._max_retries = (
+            max_retries if max_retries is not None else settings.detector_max_retries
+        )
+        # Concurrency limit (NEM-1500)
+        self._max_concurrent = settings.ai_max_concurrent_inferences
+        logger.debug(
+            f"DetectorClient initialized with max_retries={self._max_retries}, "
+            f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}"
         )
 
     def _get_auth_headers(self) -> dict[str, str]:
@@ -152,6 +216,205 @@ class DetectorClient:
                 f"Unexpected error during detector health check: {sanitize_error(e)}", exc_info=True
             )
             return False
+
+    async def _send_detection_request(  # noqa: PLR0912
+        self,
+        image_data: bytes,
+        image_name: str,
+        camera_id: str,
+        image_path: str,
+    ) -> dict[str, Any]:
+        """Send detection request to RT-DETR service with retry logic and concurrency limiting.
+
+        Implements exponential backoff for transient failures (NEM-1343):
+        - Connection errors
+        - Timeout errors
+        - HTTP 5xx server errors
+
+        Also implements concurrency limiting via semaphore (NEM-1500) to prevent
+        overwhelming the GPU service with too many parallel requests.
+
+        Args:
+            image_data: Raw image bytes to send
+            image_name: Filename for the multipart upload
+            camera_id: Camera identifier (for logging)
+            image_path: Full path to image file (for logging)
+
+        Returns:
+            Parsed JSON response from the detector service
+
+        Raises:
+            DetectorUnavailableError: If all retries are exhausted for transient failures
+            ValueError: For HTTP 4xx client errors (not retried)
+        """
+        last_exception: Exception | None = None
+        semaphore = self._get_semaphore()
+
+        for attempt in range(self._max_retries):
+            try:
+                # Use semaphore to limit concurrent GPU requests (NEM-1500)
+                async with semaphore, httpx.AsyncClient(timeout=self._timeout) as client:
+                    files = {"file": (image_name, image_data, "image/jpeg")}
+                    response = await client.post(
+                        f"{self._detector_url}/detect",
+                        files=files,
+                        headers=self._get_auth_headers(),
+                    )
+                    response.raise_for_status()
+                    result: dict[str, Any] = response.json()
+                    return result
+
+            except httpx.ConnectError as e:
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Detector connection error (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {e}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("rtdetr_connection_error")
+                    logger.error(
+                        f"Detector connection error after {self._max_retries} attempts: {e}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempts": self._max_retries,
+                        },
+                        exc_info=True,
+                    )
+
+            except httpx.TimeoutException as e:
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Detector timeout (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {e}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("rtdetr_timeout")
+                    logger.error(
+                        f"Detector timeout after {self._max_retries} attempts: {e}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempts": self._max_retries,
+                        },
+                        exc_info=True,
+                    )
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+
+                # 5xx errors are server-side failures that should be retried
+                if status_code >= 500:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)  # Cap at 30 seconds
+                        logger.warning(
+                            f"Detector server error {status_code} "
+                            f"(attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s",
+                            extra={
+                                "camera_id": camera_id,
+                                "file_path": image_path,
+                                "status_code": status_code,
+                                "attempt": attempt + 1,
+                                "max_retries": self._max_retries,
+                                "retry_delay": delay,
+                            },
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error("rtdetr_server_error")
+                        logger.error(
+                            f"Detector server error {status_code} after {self._max_retries} attempts",
+                            extra={
+                                "camera_id": camera_id,
+                                "file_path": image_path,
+                                "status_code": status_code,
+                                "attempts": self._max_retries,
+                            },
+                            exc_info=True,
+                        )
+                else:
+                    # 4xx errors are client errors - don't retry, raise immediately
+                    error_detail = None
+                    if status_code == 400:
+                        try:
+                            error_response = e.response.json()
+                            error_detail = error_response.get("detail", str(e))
+                        except Exception:
+                            error_detail = e.response.text[:500] if e.response.text else str(e)
+
+                    record_pipeline_error("rtdetr_client_error")
+                    logger.error(
+                        f"Detector client error {status_code}: {error_detail or e}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "status_code": status_code,
+                            "error_detail": error_detail,
+                        },
+                    )
+                    # Raise ValueError for client errors (not retried)
+                    raise ValueError(
+                        f"Detector client error {status_code}: {error_detail or e}"
+                    ) from e
+
+            except Exception as e:
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Unexpected detector error (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {sanitize_error(e)}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("rtdetr_unexpected_error")
+                    logger.error(
+                        f"Unexpected detector error after {self._max_retries} attempts: "
+                        f"{sanitize_error(e)}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempts": self._max_retries,
+                        },
+                        exc_info=True,
+                    )
+
+        # All retries exhausted
+        error_msg = f"Detection failed after {self._max_retries} attempts"
+        if last_exception:
+            raise DetectorUnavailableError(
+                error_msg, original_error=last_exception
+            ) from last_exception
+        raise DetectorUnavailableError(error_msg)
 
     def _validate_image_for_detection(self, image_path: str, camera_id: str) -> bool:
         """Validate that an image file is suitable for object detection.
@@ -210,6 +473,21 @@ class DetectorClient:
             )
             return False
 
+    async def _validate_image_for_detection_async(self, image_path: str, camera_id: str) -> bool:
+        """Validate image file asynchronously without blocking the event loop.
+
+        This is the non-blocking version that runs the validation in a thread pool
+        executor. Use this in async code instead of _validate_image_for_detection.
+
+        Args:
+            image_path: Path to the image file
+            camera_id: Camera ID for logging context
+
+        Returns:
+            True if image is valid and suitable for detection
+        """
+        return await asyncio.to_thread(self._validate_image_for_detection, image_path, camera_id)
+
     async def detect_objects(  # noqa: PLR0912
         self,
         image_path: str,
@@ -220,9 +498,14 @@ class DetectorClient:
     ) -> list[Detection]:
         """Send image to detector service and store detections.
 
-        Reads the image file, sends it to the RT-DETRv2 service, parses
-        the response, filters by confidence threshold, and stores detections
+        Reads the image file, sends it to the RT-DETRv2 service with retry logic,
+        parses the response, filters by confidence threshold, and stores detections
         in the database.
+
+        Retry behavior (NEM-1343):
+        - Connection errors, timeouts, and HTTP 5xx errors trigger exponential backoff retry
+        - Up to max_retries attempts (configurable via DETECTOR_MAX_RETRIES setting)
+        - Backoff delay: 2^attempt seconds, capped at 30 seconds
 
         For video frame detection, the video_path and video_metadata parameters
         allow associating the detection with the source video file instead of
@@ -237,6 +520,9 @@ class DetectorClient:
 
         Returns:
             List of Detection model instances that were stored
+
+        Raises:
+            DetectorUnavailableError: If all retries exhausted for transient failures
         """
         start_time = time.time()
 
@@ -250,9 +536,9 @@ class DetectorClient:
             record_pipeline_error("file_not_found")
             return []
 
-        # Validate image integrity before sending to detector
+        # Validate image integrity before sending to detector (async to avoid blocking)
         # This catches truncated/corrupt images from incomplete FTP uploads
-        if not self._validate_image_for_detection(image_path, camera_id):
+        if not await self._validate_image_for_detection_async(image_path, camera_id):
             record_pipeline_error("invalid_image")
             return []
 
@@ -262,28 +548,27 @@ class DetectorClient:
         )
 
         try:
-            # Read image file
-            image_data = image_file.read_bytes()
+            # Read image file asynchronously to avoid blocking the event loop
+            image_data = await asyncio.to_thread(image_file.read_bytes)
 
             # Track AI request time separately
             ai_start_time = time.time()
 
-            # Send to detector with authentication if configured
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                files = {"file": (image_file.name, image_data, "image/jpeg")}
-                response = await client.post(
-                    f"{self._detector_url}/detect",
-                    files=files,
-                    headers=self._get_auth_headers(),
+            # Acquire shared AI inference semaphore (NEM-1463)
+            # This limits concurrent AI operations to prevent GPU/service overload
+            inference_semaphore = get_inference_semaphore()
+            async with inference_semaphore:
+                # Send to detector with retry logic (NEM-1343)
+                result = await self._send_detection_request(
+                    image_data=image_data,
+                    image_name=image_file.name,
+                    camera_id=camera_id,
+                    image_path=image_path,
                 )
-                response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
             observe_ai_request_duration("rtdetr", ai_duration)
-
-            # Parse response
-            result = response.json()
 
             if "detections" not in result:
                 logger.warning(f"Malformed response from detector (missing 'detections'): {result}")
@@ -394,6 +679,28 @@ class DetectorClient:
                         extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
                     )
 
+                # Update baseline for analytics (NEM-1259)
+                # This populates ActivityBaseline and ClassBaseline tables for the Analytics page
+                # Only update once per unique object_type to avoid duplicate updates in same transaction
+                baseline_service = get_baseline_service()
+                unique_classes = {
+                    detection.object_type
+                    for detection in detections
+                    if detection.object_type is not None
+                }
+                # Use the first detection's timestamp for consistency
+                baseline_timestamp = detections[0].detected_at
+                for object_type in unique_classes:
+                    await baseline_service.update_baseline(
+                        camera_id=camera_id,
+                        detection_class=object_type,
+                        timestamp=baseline_timestamp,
+                        session=session,
+                    )
+                    # Flush after each baseline update to ensure the SELECT in the next
+                    # update_baseline call sees the previous INSERT
+                    await session.flush()
+
                 await session.commit()
                 duration_ms = int((time.time() - start_time) * 1000)
                 # Record detection metrics
@@ -420,81 +727,14 @@ class DetectorClient:
 
             return detections
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("rtdetr_connection_error")
-            logger.error(
-                f"Failed to connect to detector service: {e}",
-                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
-                exc_info=True,
-            )
-            # Raise exception to signal retry is needed
-            raise DetectorUnavailableError(
-                f"Failed to connect to detector service: {e}",
-                original_error=e,
-            ) from e
-
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("rtdetr_timeout")
-            logger.error(
-                f"Detector request timed out: {e}",
-                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
-                exc_info=True,
-            )
-            # Raise exception to signal retry is needed
-            raise DetectorUnavailableError(
-                f"Detector request timed out: {e}",
-                original_error=e,
-            ) from e
-
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
-
-            # 5xx errors are server-side failures that should be retried
-            if status_code >= 500:
-                record_pipeline_error("rtdetr_server_error")
-                logger.error(
-                    f"Detector returned server error: {status_code} - {e}",
-                    extra={
-                        "camera_id": camera_id,
-                        "file_path": image_path,
-                        "duration_ms": duration_ms,
-                        "status_code": status_code,
-                    },
-                    exc_info=True,
-                )
-                raise DetectorUnavailableError(
-                    f"Detector returned server error: {status_code}",
-                    original_error=e,
-                ) from e
-
-            # 4xx errors are client errors (bad request, etc.) - don't retry
-            # For 400 errors (invalid image), extract error detail from response
-            error_detail = None
-            if status_code == 400:
-                try:
-                    error_response = e.response.json()
-                    error_detail = error_response.get("detail", str(e))
-                except Exception:
-                    error_detail = e.response.text[:500] if e.response.text else str(e)
-
-            record_pipeline_error("rtdetr_client_error")
-            logger.error(
-                f"Detector returned client error for {image_path}: "
-                f"{status_code} - {error_detail or e}",
-                extra={
-                    "camera_id": camera_id,
-                    "file_path": image_path,
-                    "duration_ms": duration_ms,
-                    "status_code": status_code,
-                    "error_detail": error_detail,
-                },
-            )
+        except ValueError:
+            # Client errors (4xx) from _send_detection_request - already logged
             return []
-
+        except DetectorUnavailableError:
+            # Transient errors after retry exhaustion - propagate for caller to handle
+            raise
         except Exception as e:
+            # Catch any other unexpected errors (e.g., file read errors)
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("rtdetr_unexpected_error")
             logger.error(
@@ -502,8 +742,6 @@ class DetectorClient:
                 extra={"camera_id": camera_id, "duration_ms": duration_ms},
                 exc_info=True,
             )
-            # For unexpected errors, also raise to allow retry
-            # This could be network issues, DNS failures, etc.
             raise DetectorUnavailableError(
                 f"Unexpected error during object detection: {sanitize_error(e)}",
                 original_error=e,

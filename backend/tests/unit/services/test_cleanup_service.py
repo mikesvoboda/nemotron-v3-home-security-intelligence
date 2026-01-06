@@ -34,7 +34,9 @@ def mock_settings_for_cleanup_tests():
 
     # Only set DATABASE_URL if not already set (e.g., by test_db fixture)
     if not original_db_url:
-        os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost:5432/test"
+        os.environ["DATABASE_URL"] = (
+            "postgresql+asyncpg://test:test@localhost:5432/test"  # pragma: allowlist secret
+        )
         get_settings.cache_clear()
 
     yield
@@ -485,8 +487,6 @@ async def test_dry_run_cleanup_respects_retention_days():
     assert service_30_days.retention_days == 30
 
 
-@pytest.mark.asyncio
-
 # =============================================================================
 # Additional Edge Cases
 # =============================================================================
@@ -559,6 +559,37 @@ class MockDetection:
         self.file_path = file_path
 
 
+class MockAsyncIterator:
+    """Mock async iterator for stream_scalars() results."""
+
+    def __init__(self, items):
+        self.items = items
+        self.index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self.index >= len(self.items):
+            raise StopAsyncIteration
+        item = self.items[self.index]
+        self.index += 1
+        return item
+
+
+def create_stream_scalars_mock(items):
+    """Create an async mock for session.stream_scalars().
+
+    stream_scalars() returns a coroutine that yields an async iterator,
+    so we need to return an awaitable that returns an async iterator.
+    """
+
+    async def mock_stream_scalars(*args, **kwargs):
+        return MockAsyncIterator(items)
+
+    return mock_stream_scalars
+
+
 @pytest.mark.asyncio
 async def test_run_cleanup_basic():
     """Test run_cleanup deletes detections, events, GPU stats, and logs."""
@@ -567,12 +598,8 @@ async def test_run_cleanup_basic():
     # Mock session and database operations
     mock_session = AsyncMock()
 
-    # Mock detection query result (no detections to delete)
-    # Use MagicMock for result objects to properly mock the scalars().all() chain
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = []
-    mock_detections_result = MagicMock()
-    mock_detections_result.scalars.return_value = mock_scalars
+    # Mock stream_scalars for streaming detection file paths (returns empty)
+    mock_session.stream_scalars = create_stream_scalars_mock([])
 
     # Mock delete results with rowcount
     mock_delete_detections_result = MagicMock()
@@ -584,10 +611,9 @@ async def test_run_cleanup_basic():
     mock_delete_gpu_stats_result = MagicMock()
     mock_delete_gpu_stats_result.rowcount = 100
 
-    # Set up execute to return different results for different calls
+    # Set up execute for delete operations
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detections_result,  # select detections
             mock_delete_detections_result,  # delete detections
             mock_delete_events_result,  # delete events
             mock_delete_gpu_stats_result,  # delete gpu stats
@@ -630,11 +656,8 @@ async def test_run_cleanup_with_thumbnail_files(tmp_path):
 
     mock_session = AsyncMock()
 
-    # Use MagicMock to properly mock scalars().all() chain
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection1, mock_detection2]
-    mock_detections_result = MagicMock()
-    mock_detections_result.scalars.return_value = mock_scalars
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection1, mock_detection2])
 
     # Mock delete results
     mock_delete_result = MagicMock()
@@ -642,7 +665,6 @@ async def test_run_cleanup_with_thumbnail_files(tmp_path):
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detections_result,  # select detections
             mock_delete_result,  # delete detections
             mock_delete_result,  # delete events
             mock_delete_result,  # delete gpu stats
@@ -684,21 +706,17 @@ async def test_run_cleanup_with_image_files_enabled(tmp_path):
 
     mock_session = AsyncMock()
 
-    # Use MagicMock to properly mock scalars().all() chain
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection1, mock_detection2]
-    mock_detections_result = MagicMock()
-    mock_detections_result.scalars.return_value = mock_scalars
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection1, mock_detection2])
 
     mock_delete_result = MagicMock()
     mock_delete_result.rowcount = 2
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detections_result,
-            mock_delete_result,
-            mock_delete_result,
-            mock_delete_result,
+            mock_delete_result,  # delete detections
+            mock_delete_result,  # delete events
+            mock_delete_result,  # delete gpu stats
         ]
     )
     mock_session.commit = AsyncMock()
@@ -746,11 +764,8 @@ async def test_run_cleanup_with_none_rowcount():
 
     mock_session = AsyncMock()
 
-    # Use MagicMock to properly mock scalars().all() chain
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = []
-    mock_detections_result = MagicMock()
-    mock_detections_result.scalars.return_value = mock_scalars
+    # Mock stream_scalars for streaming detection file paths (returns empty)
+    mock_session.stream_scalars = create_stream_scalars_mock([])
 
     # Simulate None rowcount (can happen in some edge cases)
     mock_delete_result = MagicMock()
@@ -758,10 +773,9 @@ async def test_run_cleanup_with_none_rowcount():
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detections_result,
-            mock_delete_result,
-            mock_delete_result,
-            mock_delete_result,
+            mock_delete_result,  # delete detections
+            mock_delete_result,  # delete events
+            mock_delete_result,  # delete gpu stats
         ]
     )
     mock_session.commit = AsyncMock()
@@ -794,15 +808,12 @@ async def test_dry_run_cleanup_basic():
 
     mock_session = AsyncMock()
 
+    # Mock stream_scalars for streaming detection file paths (returns empty)
+    mock_session.stream_scalars = create_stream_scalars_mock([])
+
     # Mock count queries - use MagicMock for sync result methods
     mock_detection_count = MagicMock()
     mock_detection_count.scalar_one.return_value = 10
-
-    # Mock detection query for file counting - scalars().all() is sync
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = []
-    mock_detection_query = MagicMock()
-    mock_detection_query.scalars.return_value = mock_scalars
 
     mock_event_count = MagicMock()
     mock_event_count.scalar_one.return_value = 5
@@ -813,7 +824,6 @@ async def test_dry_run_cleanup_basic():
     mock_session.execute = AsyncMock(
         side_effect=[
             mock_detection_count,  # count detections
-            mock_detection_query,  # select detections for file counting
             mock_event_count,  # count events
             mock_gpu_stats_count,  # count gpu stats
         ]
@@ -855,15 +865,12 @@ async def test_dry_run_cleanup_with_files(tmp_path):
 
     mock_session = AsyncMock()
 
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection1, mock_detection2])
+
     # Use MagicMock for result objects
     mock_detection_count = MagicMock()
     mock_detection_count.scalar_one.return_value = 2
-
-    # Properly mock scalars().all() chain with MagicMock
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection1, mock_detection2]
-    mock_detection_query = MagicMock()
-    mock_detection_query.scalars.return_value = mock_scalars
 
     mock_event_count = MagicMock()
     mock_event_count.scalar_one.return_value = 0
@@ -873,10 +880,9 @@ async def test_dry_run_cleanup_with_files(tmp_path):
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detection_count,
-            mock_detection_query,
-            mock_event_count,
-            mock_gpu_stats_count,
+            mock_detection_count,  # count detections
+            mock_event_count,  # count events
+            mock_gpu_stats_count,  # count gpu stats
         ]
     )
 
@@ -909,15 +915,12 @@ async def test_dry_run_cleanup_file_stat_error(tmp_path):
 
     mock_session = AsyncMock()
 
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection])
+
     # Use MagicMock for result objects
     mock_detection_count = MagicMock()
     mock_detection_count.scalar_one.return_value = 1
-
-    # Properly mock scalars().all() chain with MagicMock
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection]
-    mock_detection_query = MagicMock()
-    mock_detection_query.scalars.return_value = mock_scalars
 
     mock_event_count = MagicMock()
     mock_event_count.scalar_one.return_value = 0
@@ -927,10 +930,9 @@ async def test_dry_run_cleanup_file_stat_error(tmp_path):
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detection_count,
-            mock_detection_query,
-            mock_event_count,
-            mock_gpu_stats_count,
+            mock_detection_count,  # count detections
+            mock_event_count,  # count events
+            mock_gpu_stats_count,  # count gpu stats
         ]
     )
 
@@ -964,13 +966,11 @@ async def test_dry_run_cleanup_oserror_on_stat(tmp_path):
 
     mock_session = AsyncMock()
 
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection])
+
     mock_detection_count = MagicMock()
     mock_detection_count.scalar_one.return_value = 1
-
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection]
-    mock_detection_query = MagicMock()
-    mock_detection_query.scalars.return_value = mock_scalars
 
     mock_event_count = MagicMock()
     mock_event_count.scalar_one.return_value = 0
@@ -980,10 +980,9 @@ async def test_dry_run_cleanup_oserror_on_stat(tmp_path):
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detection_count,
-            mock_detection_query,
-            mock_event_count,
-            mock_gpu_stats_count,
+            mock_detection_count,  # count detections
+            mock_event_count,  # count events
+            mock_gpu_stats_count,  # count gpu stats
         ]
     )
 
@@ -1044,15 +1043,12 @@ async def test_dry_run_cleanup_delete_images_disabled(tmp_path):
 
     mock_session = AsyncMock()
 
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection])
+
     # Use MagicMock for result objects
     mock_detection_count = MagicMock()
     mock_detection_count.scalar_one.return_value = 1
-
-    # Properly mock scalars().all() chain with MagicMock
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection]
-    mock_detection_query = MagicMock()
-    mock_detection_query.scalars.return_value = mock_scalars
 
     mock_event_count = MagicMock()
     mock_event_count.scalar_one.return_value = 0
@@ -1062,10 +1058,9 @@ async def test_dry_run_cleanup_delete_images_disabled(tmp_path):
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detection_count,
-            mock_detection_query,
-            mock_event_count,
-            mock_gpu_stats_count,
+            mock_detection_count,  # count detections
+            mock_event_count,  # count events
+            mock_gpu_stats_count,  # count gpu stats
         ]
     )
 
@@ -1310,21 +1305,17 @@ async def test_run_cleanup_missing_thumbnail_file(tmp_path):
 
     mock_session = AsyncMock()
 
-    # Use MagicMock to properly mock scalars().all() chain
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [mock_detection]
-    mock_detections_result = MagicMock()
-    mock_detections_result.scalars.return_value = mock_scalars
+    # Mock stream_scalars for streaming detection file paths
+    mock_session.stream_scalars = create_stream_scalars_mock([mock_detection])
 
     mock_delete_result = MagicMock()
     mock_delete_result.rowcount = 1
 
     mock_session.execute = AsyncMock(
         side_effect=[
-            mock_detections_result,
-            mock_delete_result,
-            mock_delete_result,
-            mock_delete_result,
+            mock_delete_result,  # delete detections
+            mock_delete_result,  # delete events
+            mock_delete_result,  # delete gpu stats
         ]
     )
     mock_session.commit = AsyncMock()

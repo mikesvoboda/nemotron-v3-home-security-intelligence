@@ -27,6 +27,7 @@ from backend.api.middleware.rate_limit import (
     clear_trusted_proxy_cache,
     get_client_ip,
     get_tier_limits,
+    rate_limit_ai_inference,
     rate_limit_default,
     rate_limit_media,
     rate_limit_search,
@@ -1034,6 +1035,13 @@ class TestConvenienceFunctions:
         assert isinstance(limiter, RateLimiter)
         assert limiter.tier == RateLimitTier.SEARCH
 
+    def test_rate_limit_ai_inference(self):
+        """Test rate_limit_ai_inference returns AI_INFERENCE tier limiter."""
+        limiter = rate_limit_ai_inference()
+
+        assert isinstance(limiter, RateLimiter)
+        assert limiter.tier == RateLimitTier.AI_INFERENCE
+
 
 # =============================================================================
 # Integration-style Tests (with FastAPI app)
@@ -1092,6 +1100,8 @@ class TestRateLimitTier:
         assert RateLimitTier.MEDIA.value == "media"
         assert RateLimitTier.WEBSOCKET.value == "websocket"
         assert RateLimitTier.SEARCH.value == "search"
+        assert RateLimitTier.EXPORT.value == "export"
+        assert RateLimitTier.AI_INFERENCE.value == "ai_inference"
 
     def test_tier_is_string_enum(self):
         """Test that tier values can be used as strings."""
@@ -1099,6 +1109,114 @@ class TestRateLimitTier:
 
         assert str(tier.value) == "default"
         assert f"rate_limit:{tier.value}" == "rate_limit:default"
+
+    def test_ai_inference_tier_key_generation(self):
+        """Test that AI_INFERENCE tier generates correct Redis keys."""
+        limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+        key = limiter._make_key("192.168.1.1")
+
+        assert key == "rate_limit:ai_inference:192.168.1.1"
+
+
+class TestAIInferenceTier:
+    """Tests for AI_INFERENCE rate limit tier."""
+
+    def test_ai_inference_tier_limits(self):
+        """Test AI inference tier returns configured limits."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
+                "RATE_LIMIT_AI_INFERENCE_BURST": "3",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            limits = get_tier_limits(RateLimitTier.AI_INFERENCE)
+
+            assert limits[0] == 10  # requests_per_minute
+            assert limits[1] == 3  # burst
+
+            get_settings.cache_clear()
+
+    def test_ai_inference_limiter_uses_tier_settings(self):
+        """Test that AI inference limiter uses tier-specific settings."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "15",
+                "RATE_LIMIT_AI_INFERENCE_BURST": "5",
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+
+            assert limiter.requests_per_minute == 15
+            assert limiter.burst == 5
+
+            get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_ai_inference_rate_limit_enforced(self, mock_redis):
+        """Test that AI inference rate limit is properly enforced."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
+                "RATE_LIMIT_AI_INFERENCE_BURST": "3",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # Mock Redis returning count over limit (15 > 13 = 10 + 3)
+            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
+
+            limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+            is_allowed, count, limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
+
+            assert is_allowed is False
+            assert count == 15
+            assert limit == 13  # 10 + 3 burst
+
+            get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_ai_inference_allows_burst(self, mock_redis):
+        """Test that AI inference tier allows burst requests."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
+                "RATE_LIMIT_AI_INFERENCE_BURST": "3",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # Mock Redis returning count at 11 (within burst: 10 + 3 = 13)
+            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+            mock_pipe.execute = AsyncMock(return_value=[0, 11, 1, True])
+
+            limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
+            is_allowed, count, _limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
+
+            # Should be allowed because 11 < 13
+            assert is_allowed is True
+            assert count == 11
+
+            get_settings.cache_clear()
 
 
 # =============================================================================
@@ -1144,7 +1262,7 @@ class TestEdgeCases:
                 "RATE_LIMIT_ENABLED": "true",
                 "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
                 "RATE_LIMIT_BURST": "1",
-                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
             },
         ):
             from backend.core.config import get_settings
@@ -1185,7 +1303,9 @@ class TestEdgeCases:
         """Test that limiter properties fall back to tier defaults."""
         with patch.dict(
             os.environ,
-            {"DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test"},
+            {
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test"  # pragma: allowlist secret
+            },
         ):
             from backend.core.config import get_settings
 

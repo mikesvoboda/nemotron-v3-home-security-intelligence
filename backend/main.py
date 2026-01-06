@@ -7,7 +7,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.middleware import AuthMiddleware, SecurityHeadersMiddleware
+from backend.api.exception_handlers import register_exception_handlers
+from backend.api.middleware import (
+    AuthMiddleware,
+    RequestTimingMiddleware,
+    SecurityHeadersMiddleware,
+)
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
@@ -15,6 +20,7 @@ from backend.api.routes import (
     alerts,
     audit,
     cameras,
+    debug,
     detections,
     dlq,
     entities,
@@ -22,6 +28,7 @@ from backend.api.routes import (
     media,
     metrics,
     notification,
+    services,
     system,
     websocket,
     zones,
@@ -29,6 +36,7 @@ from backend.api.routes import (
 from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_settings, init_db
+from backend.core.docker_client import DockerClient
 from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.models.camera import Camera
@@ -36,6 +44,7 @@ from backend.services.audit_service import get_audit_service
 from backend.services.background_evaluator import BackgroundEvaluator
 from backend.services.circuit_breaker import CircuitBreakerConfig, get_circuit_breaker
 from backend.services.cleanup_service import CleanupService
+from backend.services.container_orchestrator import ContainerOrchestrator
 from backend.services.evaluation_queue import get_evaluation_queue
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
@@ -426,6 +435,34 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             f"Service health monitor initialized (RT-DETRv2, Nemotron) - restart: {restart_status}"
         )
 
+    # Initialize container orchestrator (if enabled)
+    # This provides health monitoring and self-healing for Docker/Podman containers
+    container_orchestrator: ContainerOrchestrator | None = None
+    docker_client: DockerClient | None = None
+
+    if settings.orchestrator.enabled and redis_client:
+        try:
+            docker_client = DockerClient(settings.orchestrator.docker_host)
+
+            # Get event broadcaster for WebSocket updates
+            event_broadcaster = await get_broadcaster(redis_client)
+
+            container_orchestrator = ContainerOrchestrator(
+                docker_client=docker_client,
+                redis_client=redis_client,
+                settings=settings.orchestrator,
+                broadcast_fn=event_broadcaster.broadcast_service_status,
+            )
+
+            # Store in app.state for route access
+            _app.state.orchestrator = container_orchestrator
+
+            await container_orchestrator.start()
+            print("Container orchestrator started")
+        except Exception as e:
+            print(f"Container orchestrator initialization failed: {e}")
+            print("Continuing without orchestrator")
+
     # Register workers with system routes for readiness checks
     register_workers(
         gpu_monitor=gpu_monitor,
@@ -439,7 +476,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     yield
 
     # Shutdown
-    # Stop service health monitor first (before stopping services it monitors)
+    # Stop container orchestrator first (before stopping docker client)
+    if container_orchestrator is not None:
+        await container_orchestrator.stop()
+        print("Container orchestrator stopped")
+    if docker_client is not None:
+        await docker_client.close()
+        print("Docker client closed")
+
+    # Stop service health monitor (before stopping services it monitors)
     if service_health_monitor is not None:
         await service_health_monitor.stop()
         print("Service health monitor stopped")
@@ -476,15 +521,32 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     print("Redis connection closed")
 
 
+def _get_openapi_servers() -> list[dict[str, str]]:
+    """Get OpenAPI server URLs from environment variable.
+
+    The OPENAPI_SERVER_URL environment variable allows configuring the server URL
+    for OpenAPI spec generation. This is required for ZAP security scanning in
+    different environments (CI, staging, production).
+
+    If not set, defaults to http://localhost:8000 for local development.
+
+    Returns:
+        List of server dictionaries for FastAPI's servers parameter.
+    """
+    import os
+
+    server_url = os.environ.get("OPENAPI_SERVER_URL", "http://localhost:8000")
+    return [{"url": server_url, "description": "API server"}]
+
+
 app = FastAPI(
     title="Home Security Intelligence API",
     description="AI-powered home security monitoring system",
     version="0.1.0",
     lifespan=lifespan,
     # Server URLs for OpenAPI spec - required for ZAP security scanning
-    servers=[
-        {"url": "http://localhost:8000", "description": "Local development server"},
-    ],
+    # Configurable via OPENAPI_SERVER_URL environment variable
+    servers=_get_openapi_servers(),
 )
 
 # Add authentication middleware (if enabled in settings)
@@ -492,6 +554,10 @@ app.add_middleware(AuthMiddleware)
 
 # Add request ID middleware for log correlation
 app.add_middleware(RequestIDMiddleware)
+
+# Add request timing middleware for API latency tracking (NEM-1469)
+# Added early so it measures the full request lifecycle including other middleware
+app.add_middleware(RequestTimingMiddleware)
 
 # Security: Restrict CORS methods to only what's needed
 # Using explicit methods instead of wildcard "*" to follow least-privilege principle
@@ -510,12 +576,16 @@ app.add_middleware(
 # Add security headers middleware for defense-in-depth
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Register global exception handlers for consistent error responses
+register_exception_handlers(app)
+
 # Register routers
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
 app.include_router(alerts.router)
 app.include_router(audit.router)
 app.include_router(cameras.router)
+app.include_router(debug.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
 app.include_router(entities.router)
@@ -524,6 +594,7 @@ app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
+app.include_router(services.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
 app.include_router(zones.router)

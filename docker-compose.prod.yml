@@ -242,7 +242,7 @@ services:
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
-      - FRONTEND_URL=http://frontend:80
+      - FRONTEND_URL=http://frontend:8080
       - FOSCAM_BASE_PATH=${FOSCAM_BASE_PATH:-/cameras}
       - DEBUG=${DEBUG:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
@@ -327,7 +327,8 @@ services:
       dockerfile: Dockerfile
       target: prod
     ports:
-      - '${FRONTEND_PORT:-5173}:80'
+      # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
+      - '${FRONTEND_PORT:-5173}:8080'
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -336,7 +337,8 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80']
+      # nginx-unprivileged listens on port 8080
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -369,7 +371,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}'
       - '--web.enable-lifecycle'
     healthcheck:
       test:
@@ -380,6 +382,11 @@ services:
     restart: unless-stopped
     networks:
       - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
 
   grafana:
     image: grafana/grafana:10.2.3
@@ -417,6 +424,11 @@ services:
     restart: unless-stopped
     networks:
       - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
 
   redis-exporter:
     image: oliver006/redis_exporter:v1.55.0
@@ -440,6 +452,11 @@ services:
     restart: unless-stopped
     networks:
       - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 64M
 
   json-exporter:
     image: prometheuscommunity/json-exporter:v0.6.0
@@ -454,6 +471,11 @@ services:
     restart: unless-stopped
     networks:
       - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 64M
 
 volumes:
   postgres_data:

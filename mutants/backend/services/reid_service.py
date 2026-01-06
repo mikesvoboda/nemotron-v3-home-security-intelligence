@@ -1,0 +1,824 @@
+"""Re-identification service for entity matching across cameras.
+
+This module provides functionality for generating embeddings from detected
+entities and matching them across different camera views using CLIP ViT-L.
+
+Re-identification enables tracking the same person or vehicle as they move
+between different cameras, providing valuable context for risk analysis.
+
+The service now uses the ai-clip HTTP service for embedding generation,
+keeping the CLIP model in a dedicated container for better VRAM management.
+
+Rate Limiting:
+    The service implements concurrency-based rate limiting using asyncio.Semaphore
+    to prevent resource exhaustion from too many concurrent requests. This is
+    configurable via REID_MAX_CONCURRENT_REQUESTS setting (default: 10).
+
+Redis Storage Pattern:
+    Key: entity_embeddings:{date}
+    TTL: 24 hours (86400 seconds)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+
+from backend.core.config import get_settings
+from backend.core.logging import get_logger
+from backend.services.bbox_validation import (
+    InvalidBoundingBoxError,
+    clamp_bbox_to_image,
+    is_valid_bbox,
+)
+from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_clip_client
+
+if TYPE_CHECKING:
+    from PIL import Image
+    from redis.asyncio import Redis
+
+logger = get_logger(__name__)
+
+# TTL for entity embeddings (24 hours)
+EMBEDDING_TTL_SECONDS = 86400
+
+# Default similarity threshold for matching
+DEFAULT_SIMILARITY_THRESHOLD = 0.85
+
+# CLIP ViT-L embedding dimension
+EMBEDDING_DIMENSION = 768
+
+
+@dataclass
+class EntityEmbedding:
+    """Embedding data for a detected entity.
+
+    Attributes:
+        entity_type: Type of entity ("person" or "vehicle")
+        embedding: 768-dimensional vector from CLIP ViT-L
+        camera_id: ID of the camera that captured the entity
+        timestamp: When the entity was detected
+        detection_id: Unique ID of the detection
+        attributes: Additional attributes from vision extraction (e.g., clothing, color)
+    """
+
+    entity_type: str
+    embedding: list[float]
+    camera_id: str
+    timestamp: datetime
+    detection_id: str
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary representation of the embedding
+        """
+        return {
+            "entity_type": self.entity_type,
+            "embedding": self.embedding,
+            "camera_id": self.camera_id,
+            "timestamp": self.timestamp.isoformat(),
+            "detection_id": self.detection_id,
+            "attributes": self.attributes,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> EntityEmbedding:
+        """Create from dictionary.
+
+        Args:
+            data: Dictionary with embedding data
+
+        Returns:
+            EntityEmbedding instance
+        """
+        timestamp = data["timestamp"]
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp)
+
+        return cls(
+            entity_type=data["entity_type"],
+            embedding=data["embedding"],
+            camera_id=data["camera_id"],
+            timestamp=timestamp,
+            detection_id=data["detection_id"],
+            attributes=data.get("attributes", {}),
+        )
+
+
+@dataclass
+class EntityMatch:
+    """A match result between two entities.
+
+    Attributes:
+        entity: The matched entity embedding
+        similarity: Cosine similarity score (0-1)
+        time_gap_seconds: Time difference in seconds
+    """
+
+    entity: EntityEmbedding
+    similarity: float
+    time_gap_seconds: float
+
+
+def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+    """Calculate cosine similarity between two vectors.
+
+    Args:
+        vec1: First embedding vector
+        vec2: Second embedding vector
+
+    Returns:
+        Cosine similarity score between -1 and 1
+    """
+    if len(vec1) != len(vec2):
+        raise ValueError(f"Vectors must have same dimension: {len(vec1)} vs {len(vec2)}")
+
+    # Convert to numpy for efficient computation
+    a = np.array(vec1, dtype=np.float32)
+    b = np.array(vec2, dtype=np.float32)
+
+    # Calculate cosine similarity
+    dot_product = np.dot(a, b)
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+
+    # Avoid division by zero
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+
+    return float(dot_product / (norm_a * norm_b))
+
+
+def batch_cosine_similarity(query: list[float], candidates: list[list[float]]) -> list[float]:
+    """Calculate cosine similarities between a query vector and multiple candidates.
+
+    This function uses vectorized numpy operations for efficient batch computation,
+    avoiding the overhead of computing similarities one-by-one in a loop.
+
+    NEM-1071: Optimization using batch matrix operations.
+
+    Args:
+        query: Query embedding vector (1D list of floats)
+        candidates: List of candidate embedding vectors to compare against
+
+    Returns:
+        List of cosine similarity scores (one per candidate), values between -1 and 1.
+        Returns empty list if candidates is empty.
+    """
+    if not candidates:
+        return []
+
+    # Convert to numpy arrays for vectorized computation
+    query_vec = np.array(query, dtype=np.float32)
+    candidates_matrix = np.array(candidates, dtype=np.float32)
+
+    # Handle zero query vector
+    query_norm = np.linalg.norm(query_vec)
+    if query_norm == 0:
+        return [0.0] * len(candidates)
+
+    # Normalize query vector
+    query_normalized = query_vec / query_norm
+
+    # Compute norms of all candidates at once (vectorized)
+    candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
+
+    # Handle zero candidate vectors by setting their norm to 1 (result will be 0)
+    # Use np.where to avoid division by zero
+    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
+
+    # Normalize all candidates at once (broadcasting)
+    candidates_normalized = candidates_matrix / safe_norms[:, np.newaxis]
+
+    # Compute all dot products at once using matrix-vector multiplication
+    similarities = np.dot(candidates_normalized, query_normalized)
+
+    # Zero out similarities for candidates that had zero norm
+    similarities = np.where(candidate_norms == 0, 0.0, similarities)
+
+    # Convert to Python list of floats
+    return [float(s) for s in similarities]
+
+
+class ReIdentificationService:
+    """Service for entity re-identification across cameras.
+
+    This service generates embeddings from detected entities using the ai-clip
+    HTTP service, stores them in Redis with 24-hour TTL, and provides matching
+    functionality to identify the same entity across different camera views.
+
+    The service uses an HTTP client to communicate with the ai-clip service,
+    which runs the CLIP ViT-L model in a dedicated container for better VRAM
+    management.
+
+    Rate Limiting:
+        All async operations (generate_embedding, store_embedding,
+        find_matching_entities, get_entity_history) are rate-limited using
+        an asyncio.Semaphore to prevent resource exhaustion. The limit is
+        configurable via `max_concurrent_requests` parameter or the
+        REID_MAX_CONCURRENT_REQUESTS setting.
+
+    Usage:
+        service = ReIdentificationService()
+
+        # Generate embedding from detected entity (using HTTP client)
+        embedding = await service.generate_embedding(image, bbox=(100, 100, 200, 200))
+
+        # Store embedding
+        entity = EntityEmbedding(
+            entity_type="person",
+            embedding=embedding,
+            camera_id="front_door",
+            timestamp=datetime.now(timezone.utc),
+            detection_id="det_123",
+            attributes={"clothing": "blue jacket"},
+        )
+        await service.store_embedding(redis_client, entity)
+
+        # Find matches
+        matches = await service.find_matching_entities(
+            redis_client, embedding, entity_type="person", threshold=0.85
+        )
+    """
+
+    def __init__(
+        self,
+        clip_client: CLIPClient | None = None,
+        max_concurrent_requests: int | None = None,
+        embedding_timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> None:
+        """Initialize the ReIdentificationService.
+
+        Args:
+            clip_client: Optional CLIPClient instance. If not provided,
+                        the global client will be used.
+            max_concurrent_requests: Maximum concurrent re-identification
+                        operations. If not provided, uses the value from
+                        settings (REID_MAX_CONCURRENT_REQUESTS, default: 10).
+            embedding_timeout: Timeout in seconds for embedding generation
+                        operations. If not provided, uses the value from
+                        settings (REID_EMBEDDING_TIMEOUT, default: 30.0).
+            max_retries: Maximum retry attempts for transient failures.
+                        If not provided, uses the value from settings
+                        (REID_MAX_RETRIES, default: 3).
+        """
+        self._clip_client = clip_client
+
+        # Get settings for defaults
+        settings = get_settings()
+
+        # Set up rate limiting
+        if max_concurrent_requests is not None:
+            self._max_concurrent_requests = max_concurrent_requests
+        else:
+            self._max_concurrent_requests = settings.reid_max_concurrent_requests
+
+        self._rate_limit_semaphore = asyncio.Semaphore(self._max_concurrent_requests)
+
+        # Set up timeout (NEM-1085)
+        if embedding_timeout is not None:
+            self._embedding_timeout = embedding_timeout
+        else:
+            self._embedding_timeout = settings.reid_embedding_timeout
+
+        # Set up retry configuration (NEM-1085)
+        if max_retries is not None:
+            self._max_retries = max_retries
+        else:
+            self._max_retries = settings.reid_max_retries
+
+        logger.info(
+            "ReIdentificationService initialized with max_concurrent_requests=%d, "
+            "embedding_timeout=%.1fs, max_retries=%d",
+            self._max_concurrent_requests,
+            self._embedding_timeout,
+            self._max_retries,
+        )
+
+    @property
+    def max_concurrent_requests(self) -> int:
+        """Get the maximum concurrent requests limit.
+
+        Returns:
+            Maximum number of concurrent re-identification operations allowed.
+        """
+        return self._max_concurrent_requests
+
+    @property
+    def clip_client(self) -> CLIPClient:
+        """Get the CLIP client instance.
+
+        Returns:
+            CLIPClient instance (uses global client if not provided in constructor)
+        """
+        if self._clip_client is None:
+            return get_clip_client()
+        return self._clip_client
+
+    async def generate_embedding(  # noqa: PLR0912
+        self,
+        image: Image.Image,
+        bbox: tuple[int, int, int, int] | None = None,
+        model: dict[str, Any] | None = None,  # Deprecated, kept for backward compatibility
+    ) -> list[float]:
+        """Generate a 768-dimensional embedding from an image.
+
+        Uses the ai-clip HTTP service to generate embeddings, keeping the
+        CLIP model in a dedicated container for better VRAM management.
+
+        This method is rate-limited to prevent resource exhaustion.
+        It also implements timeout and retry logic with exponential backoff (NEM-1085).
+
+        Bounding box validation (NEM-1073):
+        - Invalid bboxes (zero width/height, NaN, inverted) raise InvalidBoundingBoxError
+        - Bboxes exceeding image bounds are clamped automatically
+        - Bboxes completely outside the image raise InvalidBoundingBoxError
+
+        Timeout and Retry (NEM-1085):
+        - Operations timeout after `embedding_timeout` seconds (default: 30s)
+        - Transient failures (connection errors, timeouts) are retried up to `max_retries` times
+        - Uses exponential backoff: 2^attempt seconds between retries
+        - CLIPUnavailableError is NOT retried (permanent service unavailability)
+
+        Args:
+            image: PIL Image to generate embedding from
+            bbox: Optional bounding box (x1, y1, x2, y2) to crop before embedding
+            model: DEPRECATED - no longer used, kept for backward compatibility
+
+        Returns:
+            768-dimensional embedding vector
+
+        Raises:
+            InvalidBoundingBoxError: If bbox has invalid dimensions or is outside image
+            RuntimeError: If embedding generation fails after all retries or times out
+            CLIPUnavailableError: If the CLIP service is unavailable
+        """
+        if model is not None:
+            logger.warning(
+                "The 'model' parameter is deprecated and ignored. "
+                "ReIdentificationService now uses the ai-clip HTTP service."
+            )
+
+        async with self._rate_limit_semaphore:
+            # Validate and process bounding box if provided (NEM-1073)
+            processed_image = image
+            if bbox is not None:
+                # Convert to float for validation
+                bbox_float = (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+
+                # Check for fundamentally invalid bbox (NaN, zero dimensions, inverted)
+                if not is_valid_bbox(bbox_float, allow_negative=True):
+                    raise InvalidBoundingBoxError(
+                        f"Invalid bounding box dimensions: {bbox}. "
+                        "Bounding box has zero width/height, NaN values, or inverted coordinates.",
+                        bbox=bbox_float,
+                    )
+
+                # Clamp bbox to image boundaries
+                image_width, image_height = image.size
+                clamped_bbox = clamp_bbox_to_image(
+                    bbox,
+                    image_width,
+                    image_height,
+                    min_size=1,
+                    return_none_if_empty=True,
+                )
+
+                if clamped_bbox is None:
+                    raise InvalidBoundingBoxError(
+                        f"Bounding box {bbox} is completely outside image boundaries "
+                        f"({image_width}x{image_height}) or became too small after clamping.",
+                        bbox=bbox_float,
+                    )
+
+                # Log if clamping occurred
+                if clamped_bbox != bbox:
+                    logger.debug(
+                        f"Bounding box clamped from {bbox} to {clamped_bbox} "
+                        f"for image size {image_width}x{image_height}"
+                    )
+
+                # Crop using the validated/clamped bbox
+                x1, y1, x2, y2 = clamped_bbox
+                processed_image = image.crop((x1, y1, x2, y2))
+
+            # Implement retry logic with exponential backoff (NEM-1085)
+            last_exception: Exception | None = None
+            for attempt in range(self._max_retries):
+                try:
+                    # Apply timeout to the embedding operation (NEM-1085)
+                    async with asyncio.timeout(self._embedding_timeout):
+                        embedding = await self.clip_client.embed(processed_image)
+
+                    logger.debug(f"Generated embedding with dimension {len(embedding)}")
+                    return embedding
+
+                except InvalidBoundingBoxError:
+                    # Re-raise bbox validation errors as-is (should not happen here)
+                    raise
+                except CLIPUnavailableError:
+                    # Re-raise CLIP unavailable errors as-is - do not retry
+                    raise
+                except TimeoutError:
+                    last_exception = TimeoutError(
+                        f"Embedding generation timed out after {self._embedding_timeout}s"
+                    )
+                    if attempt < self._max_retries - 1:
+                        delay = 2**attempt  # Exponential backoff: 1s, 2s, 4s, ...
+                        logger.warning(
+                            f"Embedding generation timed out (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        logger.error(
+                            f"Embedding generation timed out after {self._max_retries} attempts"
+                        )
+                except Exception as e:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = 2**attempt  # Exponential backoff: 1s, 2s, 4s, ...
+                        logger.warning(
+                            f"Embedding generation failed (attempt {attempt + 1}/{self._max_retries}): {e}, "
+                            f"retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        logger.error(
+                            f"Embedding generation failed after {self._max_retries} attempts: {e}"
+                        )
+
+            # All retries exhausted
+            error_msg = f"Embedding generation failed after {self._max_retries} attempts"
+            if last_exception:
+                if isinstance(last_exception, TimeoutError):
+                    error_msg = f"Embedding generation timed out after {self._max_retries} attempts"
+                raise RuntimeError(error_msg) from last_exception
+            raise RuntimeError(error_msg)
+
+    async def store_embedding(
+        self,
+        redis_client: Redis,
+        embedding: EntityEmbedding,
+    ) -> None:
+        """Store an entity embedding in Redis.
+
+        Embeddings are stored with 24-hour TTL for session-based tracking.
+
+        This method is rate-limited to prevent resource exhaustion.
+
+        Args:
+            redis_client: Redis client instance
+            embedding: EntityEmbedding to store
+        """
+        async with self._rate_limit_semaphore:
+            date_key = embedding.timestamp.strftime("%Y-%m-%d")
+            key = f"entity_embeddings:{date_key}"
+
+            try:
+                # Get existing embeddings
+                existing = await redis_client.get(key)
+                data = json.loads(existing) if existing else {"persons": [], "vehicles": []}
+
+                # Add new embedding
+                list_key = "persons" if embedding.entity_type == "person" else "vehicles"
+                data[list_key].append(embedding.to_dict())
+
+                # Store with TTL
+                await redis_client.setex(
+                    key,
+                    EMBEDDING_TTL_SECONDS,
+                    json.dumps(data),
+                )
+
+                logger.debug(
+                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id}"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to store embedding: {e}")
+                raise
+
+    async def find_matching_entities(
+        self,
+        redis_client: Redis,
+        embedding: list[float],
+        entity_type: str = "person",
+        threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
+        exclude_detection_id: str | None = None,
+    ) -> list[EntityMatch]:
+        """Find entities matching the given embedding.
+
+        This method is rate-limited to prevent resource exhaustion.
+
+        NEM-1071: Optimized with batch matrix operations for similarity computation.
+        Instead of computing similarities one-by-one, we collect all candidate
+        embeddings and compute similarities in a single vectorized operation.
+
+        Args:
+            redis_client: Redis client instance
+            embedding: 768-dimensional embedding to match
+            entity_type: Type of entity to search ("person" or "vehicle")
+            threshold: Minimum cosine similarity threshold (default 0.85)
+            exclude_detection_id: Optional detection ID to exclude from results
+
+        Returns:
+            List of EntityMatch objects sorted by similarity (highest first)
+        """
+        async with self._rate_limit_semaphore:
+            matches: list[EntityMatch] = []
+            now = datetime.now(UTC)
+
+            try:
+                # Check today's and yesterday's embeddings
+                today = now.strftime("%Y-%m-%d")
+                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+
+                # Use a set to avoid duplicates if today and yesterday are the same key
+                dates_to_check = list({today, yesterday})
+
+                # Collect all candidate entities and their embeddings for batch processing
+                candidate_entities: list[EntityEmbedding] = []
+                candidate_embeddings: list[list[float]] = []
+
+                for date_str in dates_to_check:
+                    key = f"entity_embeddings:{date_str}"
+                    data_raw = await redis_client.get(key)
+
+                    if not data_raw:
+                        continue
+
+                    data = json.loads(data_raw)
+                    list_key = "persons" if entity_type == "person" else "vehicles"
+
+                    for stored_data in data.get(list_key, []):
+                        # Skip if this is the same detection
+                        if (
+                            exclude_detection_id
+                            and stored_data.get("detection_id") == exclude_detection_id
+                        ):
+                            continue
+
+                        stored = EntityEmbedding.from_dict(stored_data)
+                        candidate_entities.append(stored)
+                        candidate_embeddings.append(stored.embedding)
+
+                # Compute all similarities at once using batch operation (NEM-1071)
+                if candidate_embeddings:
+                    similarities = batch_cosine_similarity(embedding, candidate_embeddings)
+
+                    # Filter by threshold and create matches
+                    for entity, similarity in zip(candidate_entities, similarities, strict=True):
+                        if similarity >= threshold:
+                            time_gap = (now - entity.timestamp).total_seconds()
+                            matches.append(
+                                EntityMatch(
+                                    entity=entity,
+                                    similarity=similarity,
+                                    time_gap_seconds=time_gap,
+                                )
+                            )
+
+                # Sort by similarity (highest first)
+                matches.sort(key=lambda m: m.similarity, reverse=True)
+
+                logger.debug(
+                    f"Found {len(matches)} matching {entity_type}(s) with threshold {threshold}"
+                )
+                return matches
+
+            except Exception as e:
+                logger.error(f"Failed to find matching entities: {e}")
+                return []
+
+    async def get_entity_history(
+        self,
+        redis_client: Redis,
+        entity_type: str,
+        camera_id: str | None = None,
+    ) -> list[EntityEmbedding]:
+        """Get all stored embeddings for an entity type.
+
+        This method is rate-limited to prevent resource exhaustion.
+
+        Args:
+            redis_client: Redis client instance
+            entity_type: Type of entity ("person" or "vehicle")
+            camera_id: Optional camera ID to filter by
+
+        Returns:
+            List of EntityEmbedding objects
+        """
+        async with self._rate_limit_semaphore:
+            embeddings: list[EntityEmbedding] = []
+            now = datetime.now(UTC)
+
+            try:
+                # Check today's and yesterday's embeddings
+                today = now.strftime("%Y-%m-%d")
+                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+
+                # Use a set to avoid duplicates if today and yesterday are the same key
+                dates_to_check = list({today, yesterday})
+
+                for date_str in dates_to_check:
+                    key = f"entity_embeddings:{date_str}"
+                    data_raw = await redis_client.get(key)
+
+                    if not data_raw:
+                        continue
+
+                    data = json.loads(data_raw)
+                    list_key = "persons" if entity_type == "person" else "vehicles"
+
+                    for stored_data in data.get(list_key, []):
+                        entity = EntityEmbedding.from_dict(stored_data)
+
+                        # Filter by camera if specified
+                        if camera_id is None or entity.camera_id == camera_id:
+                            embeddings.append(entity)
+
+                # Sort by timestamp (newest first)
+                embeddings.sort(key=lambda e: e.timestamp, reverse=True)
+                return embeddings
+
+            except Exception as e:
+                logger.error(f"Failed to get entity history: {e}")
+                return []
+
+
+# Global service instance
+_reid_service: ReIdentificationService | None = None
+
+
+def get_reid_service() -> ReIdentificationService:
+    """Get or create the global ReIdentificationService instance.
+
+    Returns:
+        Global ReIdentificationService instance
+    """
+    global _reid_service  # noqa: PLW0603
+    if _reid_service is None:
+        _reid_service = ReIdentificationService()
+    return _reid_service
+
+
+def reset_reid_service() -> None:
+    """Reset the global ReIdentificationService instance (for testing)."""
+    global _reid_service  # noqa: PLW0603
+    _reid_service = None
+
+
+# ============================================================================
+# Prompt Formatting Functions
+# ============================================================================
+
+
+def format_entity_match(match: EntityMatch) -> str:
+    """Format a single entity match for prompt inclusion.
+
+    Args:
+        match: EntityMatch to format
+
+    Returns:
+        Formatted string describing the match
+    """
+    entity = match.entity
+
+    # Format time gap
+    minutes = abs(match.time_gap_seconds) / 60
+    if minutes < 1:
+        time_str = f"{int(abs(match.time_gap_seconds))} seconds ago"
+    elif minutes < 60:
+        time_str = f"{int(minutes)} minutes ago"
+    else:
+        hours = minutes / 60
+        time_str = f"{hours:.1f} hours ago"
+
+    # Format similarity
+    similarity_pct = match.similarity * 100
+
+    # Build description
+    lines = [
+        f"  - Camera: {entity.camera_id}, Time: {time_str} (similarity: {similarity_pct:.0f}%)"
+    ]
+
+    # Add attributes if available
+    attrs = entity.attributes
+    if attrs:
+        attr_parts = []
+        if attrs.get("clothing"):
+            attr_parts.append(f"wearing {attrs['clothing']}")
+        if attrs.get("carrying"):
+            attr_parts.append(f"carrying {attrs['carrying']}")
+        if attrs.get("color"):
+            attr_parts.append(f"{attrs['color']}")
+        if attrs.get("vehicle_type"):
+            attr_parts.append(attrs["vehicle_type"])
+        if attr_parts:
+            lines.append(f"    Attributes: {', '.join(attr_parts)}")
+
+    return "\n".join(lines)
+
+
+def format_reid_context(
+    matches_by_entity: dict[str, list[EntityMatch]],
+    entity_type: str = "person",
+) -> str:
+    """Format re-identification matches for prompt inclusion.
+
+    Args:
+        matches_by_entity: Dict mapping detection_id to list of matches
+        entity_type: Type of entity ("person" or "vehicle")
+
+    Returns:
+        Formatted string for prompt
+    """
+    if not matches_by_entity:
+        return f"No {entity_type} re-identification matches found."
+
+    lines = []
+    for det_id, matches in matches_by_entity.items():
+        if not matches:
+            continue
+
+        match_count = len(matches)
+        lines.append(f"- [{det_id}] Seen {match_count} time(s) before:")
+        for match in matches[:3]:  # Limit to top 3 matches
+            lines.append(format_entity_match(match))
+
+    if not lines:
+        return f"No {entity_type} re-identification matches found."
+
+    return "\n".join(lines)
+
+
+def format_full_reid_context(
+    person_matches: dict[str, list[EntityMatch]] | None = None,
+    vehicle_matches: dict[str, list[EntityMatch]] | None = None,
+) -> str:
+    """Format complete re-identification context for all entity types.
+
+    Args:
+        person_matches: Dict mapping person detection_id to matches
+        vehicle_matches: Dict mapping vehicle detection_id to matches
+
+    Returns:
+        Formatted string for prompt
+    """
+    sections = []
+
+    if person_matches:
+        person_section = format_reid_context(person_matches, "person")
+        if not person_section.startswith("No "):
+            sections.append(f"## Person Re-Identification\n{person_section}")
+
+    if vehicle_matches:
+        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
+        if not vehicle_section.startswith("No "):
+            sections.append(f"## Vehicle Re-Identification\n{vehicle_section}")
+
+    if not sections:
+        return "No entities matched with previous sightings."
+
+    return "\n\n".join(sections)
+
+
+def format_reid_summary(
+    person_matches: dict[str, list[EntityMatch]] | None = None,
+    vehicle_matches: dict[str, list[EntityMatch]] | None = None,
+) -> str:
+    """Format a brief summary of re-identification matches.
+
+    Args:
+        person_matches: Dict mapping person detection_id to matches
+        vehicle_matches: Dict mapping vehicle detection_id to matches
+
+    Returns:
+        Brief summary string for prompt
+    """
+    parts = []
+
+    if person_matches:
+        matched_persons = sum(1 for m in person_matches.values() if m)
+        if matched_persons > 0:
+            parts.append(f"{matched_persons} person(s) seen before")
+
+    if vehicle_matches:
+        matched_vehicles = sum(1 for m in vehicle_matches.values() if m)
+        if matched_vehicles > 0:
+            parts.append(f"{matched_vehicles} vehicle(s) seen before")
+
+    if not parts:
+        return "All entities appear to be new (not seen in last 24h)."
+
+    return ", ".join(parts) + "."

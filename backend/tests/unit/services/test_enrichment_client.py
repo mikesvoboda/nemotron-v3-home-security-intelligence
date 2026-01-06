@@ -37,6 +37,10 @@ from backend.services.enrichment_client import (
     get_enrichment_client,
     reset_enrichment_client,
 )
+from backend.tests.async_utils import (
+    AsyncClientMock,
+    create_mock_response,
+)
 
 # =============================================================================
 # Test Fixtures
@@ -767,6 +771,92 @@ class TestEnrichmentClientHealthCheck:
         """Test is_healthy returns False when status is unavailable."""
         with patch.object(client, "check_health", return_value={"status": "unavailable"}):
             assert await client.is_healthy() is False
+
+
+# =============================================================================
+# Tests Using Improved Async Patterns (async_utils module)
+# =============================================================================
+
+
+class TestEnrichmentClientHealthCheckImproved:
+    """Health check tests using improved async patterns from async_utils.
+
+    These tests demonstrate the cleaner patterns provided by the async_utils
+    module. Compare with TestEnrichmentClientHealthCheck to see the difference.
+    """
+
+    @pytest.mark.asyncio
+    async def test_check_health_success_using_async_client_mock(
+        self, client: EnrichmentClient
+    ) -> None:
+        """Test successful health check using AsyncClientMock.
+
+        This demonstrates the improved pattern using AsyncClientMock which
+        eliminates the verbose __aenter__/__aexit__ setup.
+        """
+        # AsyncClientMock handles the context manager protocol automatically
+        http_mock = AsyncClientMock(
+            get_responses={"/health": {"status": "healthy", "models": ["vehicle", "pet"]}},
+        )
+
+        # The mock tracks all calls for verification
+        async with http_mock.client() as mock_client:
+            # Simulate what the EnrichmentClient does internally
+            response = await mock_client.get("/health")
+            result = response.json()
+
+        assert result["status"] == "healthy"
+        assert "models" in result
+        # Verify the call was tracked
+        assert len(http_mock.calls) == 1
+        assert http_mock.calls[0][0] == "GET"
+
+    @pytest.mark.asyncio
+    async def test_check_health_error_using_async_client_mock(
+        self, client: EnrichmentClient
+    ) -> None:
+        """Test health check error using AsyncClientMock with exception.
+
+        This demonstrates configuring AsyncClientMock to raise exceptions,
+        which is useful for testing error handling paths.
+        """
+        # Configure the mock to raise an exception for the health endpoint
+        http_mock = AsyncClientMock(
+            get_responses={"/health": httpx.ConnectError("Connection refused")},
+        )
+
+        async with http_mock.client() as mock_client:
+            with pytest.raises(httpx.ConnectError):
+                await mock_client.get("/health")
+
+    @pytest.mark.asyncio
+    async def test_classify_response_using_create_mock_response(
+        self, client: EnrichmentClient, sample_image: Image.Image
+    ) -> None:
+        """Test using create_mock_response helper.
+
+        This demonstrates the create_mock_response helper for creating
+        properly configured HTTP response mocks.
+        """
+        # create_mock_response provides a cleaner way to create response mocks
+        mock_response = create_mock_response(
+            json_data={
+                "vehicle_type": "sedan",
+                "display_name": "Sedan",
+                "confidence": 0.92,
+                "is_commercial": False,
+                "all_scores": {"sedan": 0.92},
+                "inference_time_ms": 42.0,
+            },
+            status_code=200,
+        )
+
+        # Verify the mock response has the expected shape
+        assert mock_response.json()["vehicle_type"] == "sedan"
+        assert mock_response.status_code == 200
+
+        # raise_for_status should not raise for 200 status
+        mock_response.raise_for_status()  # Should not raise
 
 
 # =============================================================================

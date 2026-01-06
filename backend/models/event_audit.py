@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.time_utils import utc_now
@@ -78,11 +78,40 @@ class EventAudit(Base):
     # Relationship
     event: Mapped[Event] = relationship("Event", back_populates="audit")
 
-    # Indexes
+    # Indexes and constraints
     __table_args__ = (
         Index("idx_event_audits_event_id", "event_id"),
         Index("idx_event_audits_audited_at", "audited_at"),
         Index("idx_event_audits_overall_score", "overall_quality_score"),
+        # CHECK constraints for business rules (quality scores 1-5, enrichment 0-1)
+        CheckConstraint(
+            "context_usage_score IS NULL OR "
+            "(context_usage_score >= 1.0 AND context_usage_score <= 5.0)",
+            name="ck_event_audits_context_score_range",
+        ),
+        CheckConstraint(
+            "reasoning_coherence_score IS NULL OR "
+            "(reasoning_coherence_score >= 1.0 AND reasoning_coherence_score <= 5.0)",
+            name="ck_event_audits_reasoning_score_range",
+        ),
+        CheckConstraint(
+            "risk_justification_score IS NULL OR "
+            "(risk_justification_score >= 1.0 AND risk_justification_score <= 5.0)",
+            name="ck_event_audits_risk_justification_range",
+        ),
+        CheckConstraint(
+            "consistency_score IS NULL OR (consistency_score >= 1.0 AND consistency_score <= 5.0)",
+            name="ck_event_audits_consistency_score_range",
+        ),
+        CheckConstraint(
+            "overall_quality_score IS NULL OR "
+            "(overall_quality_score >= 1.0 AND overall_quality_score <= 5.0)",
+            name="ck_event_audits_overall_score_range",
+        ),
+        CheckConstraint(
+            "enrichment_utilization >= 0.0 AND enrichment_utilization <= 1.0",
+            name="ck_event_audits_enrichment_range",
+        ),
     )
 
     @property

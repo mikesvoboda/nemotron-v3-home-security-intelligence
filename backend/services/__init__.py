@@ -52,9 +52,9 @@ from .dedupe import DedupeService, compute_file_hash, get_dedupe_service, reset_
 from .degradation_manager import (
     DegradationManager,
     DegradationMode,
+    DegradationServiceStatus,
     QueuedJob,
     ServiceHealth,
-    ServiceStatus,
     get_degradation_manager,
     reset_degradation_manager,
 )
@@ -127,6 +127,11 @@ from .ocr_service import (
     clean_plate_text,
     read_plates,
     read_single_plate,
+)
+from .partition_manager import (
+    PartitionConfig,
+    PartitionInfo,
+    PartitionManager,
 )
 from .plate_detector import (
     PlateDetection,
@@ -261,6 +266,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "NotificationChannel",
     "NotificationDelivery",
     "NotificationService",
+    "PartitionConfig",
+    "PartitionInfo",
+    "PartitionManager",
     "PersonAttributes",
     "PersonDetection",
     "PlateDetection",
@@ -278,7 +286,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SearchResponse",
     "SearchResult",
     "ServiceHealth",
-    "ServiceStatus",
+    "DegradationServiceStatus",
     "SeverityDefinition",
     "SeverityService",
     "ThumbnailGenerator",

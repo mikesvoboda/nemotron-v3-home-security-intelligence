@@ -9,6 +9,7 @@ from .detection import Detection
 from .enums import CameraStatus, Severity
 from .event import Event
 from .event_audit import EventAudit
+from .event_detection import EventDetection, event_detections
 from .gpu_stats import GPUStats
 from .log import Log
 from .prompt_config import PromptConfig
@@ -32,6 +33,7 @@ __all__ = [
     "Detection",
     "Event",
     "EventAudit",
+    "EventDetection",
     "GPUStats",
     "Log",
     "PromptConfig",
@@ -41,4 +43,5 @@ __all__ = [
     "Zone",
     "ZoneShape",
     "ZoneType",
+    "event_detections",
 ]
