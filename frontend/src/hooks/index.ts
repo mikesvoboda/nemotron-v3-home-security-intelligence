@@ -73,3 +73,10 @@ export { useLocalStorage } from './useLocalStorage';
 
 export { useThrottledValue } from './useThrottledValue';
 export type { UseThrottledValueOptions } from './useThrottledValue';
+
+export { useDataFetcher } from './useDataFetcher';
+export type {
+  FetchStatus,
+  UseDataFetcherOptions,
+  UseDataFetcherReturn,
+} from './useDataFetcher';
