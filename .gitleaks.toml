@@ -21,12 +21,14 @@ keywords = ["api_key", "apikey", "api-key"]
 tags = ["key", "api"]
 
 # Database connection strings with passwords
+# Entropy threshold filters out low-entropy examples like "pass123" or "redispass"
 [[rules]]
 id = "database-connection-string"
 description = "Database Connection String with Password"
 regex = '''(?i)(postgres|mysql|mongodb|redis)(?:ql)?:\/\/[^:]+:([^@\s'"]+)@'''
 keywords = ["postgres", "mysql", "mongodb", "redis"]
 tags = ["database", "connection"]
+entropy = 3.5
 
 # JWT secrets
 [[rules]]
