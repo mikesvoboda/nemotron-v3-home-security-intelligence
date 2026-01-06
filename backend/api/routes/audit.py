@@ -1,10 +1,10 @@
 """API routes for audit log management."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.audit import (
@@ -95,6 +95,10 @@ async def get_audit_stats(
     - Breakdown by status
     - Recently active actors
 
+    This endpoint is optimized to use a single aggregation query for counts
+    (total, today, by_action, by_resource_type, by_status) plus one query
+    for recent actors, reducing database round-trips from 6 to 2.
+
     Args:
         db: Database session
 
@@ -102,43 +106,88 @@ async def get_audit_stats(
         AuditLogStats with aggregated statistics
     """
     today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    seven_days_ago = datetime.now(UTC) - timedelta(days=7)
 
-    # Total logs
-    total_query = select(func.count()).select_from(AuditLog)
-    total_result = await db.execute(total_query)
-    total_logs = total_result.scalar() or 0
+    # Single aggregation query using UNION ALL to get all stats in one round-trip
+    # This combines: total count, today count, by_action, by_resource_type, by_status
+    #
+    # Query structure:
+    # - category='total': total count
+    # - category='today': logs today count
+    # - category='action': breakdown by action
+    # - category='resource_type': breakdown by resource_type
+    # - category='status': breakdown by status
 
-    # Logs today
-    today_query = select(func.count()).where(AuditLog.timestamp >= today_start)
-    today_result = await db.execute(today_query)
-    logs_today = today_result.scalar() or 0
+    # Total count
+    total_subq = select(
+        literal("total").label("category"),
+        literal("all").label("key"),
+        func.count().label("count"),
+    ).select_from(AuditLog)
+
+    # Today count
+    today_subq = select(
+        literal("today").label("category"),
+        literal("all").label("key"),
+        func.count().label("count"),
+    ).where(AuditLog.timestamp >= today_start)
 
     # By action
-    action_query = (
-        select(AuditLog.action, func.count().label("count"))
-        .group_by(AuditLog.action)
-        .order_by(func.count().desc())
-    )
-    action_result = await db.execute(action_query)
-    by_action = {row.action: row.count for row in action_result}
+    action_subq = select(
+        literal("action").label("category"),
+        AuditLog.action.label("key"),
+        func.count().label("count"),
+    ).group_by(AuditLog.action)
 
     # By resource type
-    resource_query = (
-        select(AuditLog.resource_type, func.count().label("count"))
-        .group_by(AuditLog.resource_type)
-        .order_by(func.count().desc())
-    )
-    resource_result = await db.execute(resource_query)
-    by_resource_type = {row.resource_type: row.count for row in resource_result}
+    resource_subq = select(
+        literal("resource_type").label("category"),
+        AuditLog.resource_type.label("key"),
+        func.count().label("count"),
+    ).group_by(AuditLog.resource_type)
 
     # By status
-    status_query = select(AuditLog.status, func.count().label("count")).group_by(AuditLog.status)
-    status_result = await db.execute(status_query)
-    by_status = {row.status: row.count for row in status_result}
+    status_subq = select(
+        literal("status").label("category"),
+        AuditLog.status.label("key"),
+        func.count().label("count"),
+    ).group_by(AuditLog.status)
 
-    # Recent actors (last 7 days, top 10)
-    seven_days_ago = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-    seven_days_ago = seven_days_ago.replace(day=max(1, seven_days_ago.day - 7))
+    # Combine all queries with UNION ALL
+    combined_query = union_all(
+        total_subq,
+        today_subq,
+        action_subq,
+        resource_subq,
+        status_subq,
+    )
+
+    result = await db.execute(combined_query)
+    rows = result.fetchall()
+
+    # Parse the combined results
+    total_logs = 0
+    logs_today = 0
+    by_action: dict[str, int] = {}
+    by_resource_type: dict[str, int] = {}
+    by_status: dict[str, int] = {}
+
+    for row in rows:
+        category: str = row[0]
+        key: str = row[1]
+        count: int = int(row[2])
+        if category == "total":
+            total_logs = count
+        elif category == "today":
+            logs_today = count
+        elif category == "action":
+            by_action[key] = count
+        elif category == "resource_type":
+            by_resource_type[key] = count
+        elif category == "status":
+            by_status[key] = count
+
+    # Recent actors query (separate because it needs different filtering and LIMIT)
     actors_query = (
         select(AuditLog.actor)
         .where(AuditLog.timestamp >= seven_days_ago)
