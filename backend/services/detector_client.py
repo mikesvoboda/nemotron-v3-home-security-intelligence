@@ -99,10 +99,39 @@ class DetectorClient:
         - Retry logic with exponential backoff for transient failures (NEM-1343)
         - Configurable timeouts and retry attempts via settings
         - API key authentication via X-API-Key header when configured
+        - Concurrency limiting via semaphore to prevent GPU overload (NEM-1500)
 
     Security: Supports API key authentication via X-API-Key header when
     configured in settings (RTDETR_API_KEY environment variable).
     """
+
+    # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
+    # This prevents overwhelming the GPU service with too many parallel requests
+    # Default: 4 concurrent requests (configurable via ai_max_concurrent_requests)
+    _request_semaphore: asyncio.Semaphore | None = None
+    _semaphore_limit: int = 0
+
+    @classmethod
+    def _get_semaphore(cls) -> asyncio.Semaphore:
+        """Get or create the shared semaphore for concurrency limiting.
+
+        Uses a class-level semaphore to limit concurrent requests across
+        all DetectorClient instances. The limit is configurable via
+        AI_MAX_CONCURRENT_REQUESTS setting.
+
+        Returns:
+            asyncio.Semaphore for rate limiting concurrent requests
+        """
+        settings = get_settings()
+        limit = settings.ai_max_concurrent_requests
+
+        # Create or recreate semaphore if limit changed
+        if cls._request_semaphore is None or cls._semaphore_limit != limit:
+            cls._request_semaphore = asyncio.Semaphore(limit)
+            cls._semaphore_limit = limit
+            logger.debug(f"Created DetectorClient semaphore with limit={limit}")
+
+        return cls._request_semaphore
 
     def __init__(self, max_retries: int | None = None) -> None:
         """Initialize detector client with configuration.
@@ -134,9 +163,11 @@ class DetectorClient:
         self._max_retries = (
             max_retries if max_retries is not None else settings.detector_max_retries
         )
+        # Concurrency limit (NEM-1500)
+        self._max_concurrent = settings.ai_max_concurrent_requests
         logger.debug(
             f"DetectorClient initialized with max_retries={self._max_retries}, "
-            f"timeout={settings.rtdetr_read_timeout}s"
+            f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}"
         )
 
     def _get_auth_headers(self) -> dict[str, str]:
@@ -185,12 +216,15 @@ class DetectorClient:
         camera_id: str,
         image_path: str,
     ) -> dict[str, Any]:
-        """Send detection request to RT-DETR service with retry logic.
+        """Send detection request to RT-DETR service with retry logic and concurrency limiting.
 
         Implements exponential backoff for transient failures (NEM-1343):
         - Connection errors
         - Timeout errors
         - HTTP 5xx server errors
+
+        Also implements concurrency limiting via semaphore (NEM-1500) to prevent
+        overwhelming the GPU service with too many parallel requests.
 
         Args:
             image_data: Raw image bytes to send
@@ -206,10 +240,12 @@ class DetectorClient:
             ValueError: For HTTP 4xx client errors (not retried)
         """
         last_exception: Exception | None = None
+        semaphore = self._get_semaphore()
 
         for attempt in range(self._max_retries):
             try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                # Use semaphore to limit concurrent GPU requests (NEM-1500)
+                async with semaphore, httpx.AsyncClient(timeout=self._timeout) as client:
                     files = {"file": (image_name, image_data, "image/jpeg")}
                     response = await client.post(
                         f"{self._detector_url}/detect",
