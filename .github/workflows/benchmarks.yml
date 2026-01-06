@@ -7,6 +7,17 @@ name: Benchmarks
 # Creates Linear issue on failure for main branch pushes to ensure follow-up.
 
 on:
+  # Run after required CI checks complete (non-blocking optimization)
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Also run on PR for visibility, but only after CI jobs are queued
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/benchmarks.yml'
   push:
     branches: [main]
     paths:
@@ -253,10 +264,22 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: needs.benchmarks.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # Create Linear issue for any failure (PRs and main pushes)
+        if: needs.benchmarks.result == 'failure'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Determine context (PR or push)
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CONTEXT="PR #${{ github.event.pull_request.number }}"
+            REF="${{ github.head_ref }}"
+          else
+            CONTEXT="main branch push"
+            REF="${{ github.ref_name }}"
+          fi
+
+          # Create issue via Linear API
           curl -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
@@ -265,8 +288,8 @@ jobs:
               "variables": {
                 "input": {
                   "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "Performance benchmark regression on main",
-                  "description": "## Performance Benchmark Regression\n\nThe pytest-benchmark tests detected a >20% performance regression after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Review the benchmark results in the workflow artifacts\n2. Identify which benchmarks regressed\n3. Run benchmarks locally to investigate:\n   ```bash\n   uv run pytest backend/tests/benchmarks/ --benchmark-only -v\n   uv run pytest backend/tests/benchmarks/ --benchmark-only --benchmark-compare\n   ```\n4. Common causes of regressions:\n   - New database queries in hot paths\n   - Inefficient serialization\n   - Increased object allocations\n   - Missing caching\n\n### Benchmark Files\n\n- `backend/tests/benchmarks/test_api_benchmarks.py` - API endpoint response times\n- `backend/tests/benchmarks/test_performance.py` - Core operations (JSON, DB, services)\n- `backend/tests/benchmarks/test_bigo.py` - Algorithmic complexity\n- `backend/tests/benchmarks/test_memory.py` - Memory profiling",
+                  "title": "[CI] Performance benchmark regression ('"$CONTEXT"')",
+                  "description": "## Performance Benchmark Regression\n\nThe pytest-benchmark tests detected a >20% performance regression.\n\n**Context:** '"$CONTEXT"'\n**Branch:** '"$REF"'\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Review the benchmark results in the workflow artifacts\n2. Identify which benchmarks regressed\n3. Run benchmarks locally to investigate:\n   ```bash\n   uv run pytest backend/tests/benchmarks/ --benchmark-only -v\n   uv run pytest backend/tests/benchmarks/ --benchmark-only --benchmark-compare\n   ```\n4. Common causes of regressions:\n   - New database queries in hot paths\n   - Inefficient serialization\n   - Increased object allocations\n   - Missing caching\n\n### Benchmark Files\n\n- `backend/tests/benchmarks/test_api_benchmarks.py` - API endpoint response times\n- `backend/tests/benchmarks/test_performance.py` - Core operations (JSON, DB, services)\n- `backend/tests/benchmarks/test_bigo.py` - Algorithmic complexity\n- `backend/tests/benchmarks/test_memory.py` - Memory profiling",
                   "priority": 3,
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
