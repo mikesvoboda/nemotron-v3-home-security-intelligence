@@ -60,7 +60,7 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 
 
-@dataclass
+@dataclass(slots=True)
 class RetryConfig:
     """Configuration for retry behavior."""
 
@@ -95,7 +95,7 @@ class RetryConfig:
         return delay
 
 
-@dataclass
+@dataclass(slots=True)
 class JobFailure:
     """Record of a failed job."""
 
@@ -130,7 +130,7 @@ class JobFailure:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class RetryResult:
     """Result of a retry operation."""
 
@@ -141,7 +141,7 @@ class RetryResult:
     moved_to_dlq: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class DLQStats:
     """Statistics about dead-letter queues."""
 

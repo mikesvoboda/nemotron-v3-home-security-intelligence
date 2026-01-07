@@ -151,7 +151,7 @@ DEFAULT_CONFIGS: dict[str, dict[str, Any]] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class PromptVersion:
     """A versioned prompt configuration."""
 

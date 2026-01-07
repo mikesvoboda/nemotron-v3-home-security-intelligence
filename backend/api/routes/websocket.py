@@ -295,18 +295,18 @@ async def websocket_events_endpoint(  # noqa: PLR0912
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected normally")
                 break
-            except Exception as e:
+            except Exception:
                 # Check if the connection is still open
                 if websocket.client_state == WebSocketState.DISCONNECTED:
                     logger.info("WebSocket client disconnected")
                     break
-                logger.error(f"Error receiving WebSocket message: {e}")
+                logger.error("Error receiving WebSocket message", exc_info=True)
                 break
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected during handshake")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+    except Exception:
+        logger.error("WebSocket error", exc_info=True)
     finally:
         # Stop heartbeat task
         heartbeat_stop.set()
@@ -443,18 +443,18 @@ async def websocket_system_status(  # noqa: PLR0912
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected normally")
                 break
-            except Exception as e:
+            except Exception:
                 # Check if the connection is still open
                 if websocket.client_state == WebSocketState.DISCONNECTED:
                     logger.info("WebSocket client disconnected")
                     break
-                logger.error(f"Error receiving WebSocket message: {e}")
+                logger.error("Error receiving WebSocket message", exc_info=True)
                 break
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected during handshake")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+    except Exception:
+        logger.error("WebSocket error", exc_info=True)
     finally:
         # Stop heartbeat task
         heartbeat_stop.set()

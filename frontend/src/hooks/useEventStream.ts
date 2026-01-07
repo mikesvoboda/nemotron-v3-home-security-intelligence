@@ -2,25 +2,18 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
+import {
+  type SecurityEventData,
+  isEventMessage,
+  isHeartbeatMessage,
+  isErrorMessage,
+} from '../types/websocket';
 
-export interface SecurityEvent {
-  id: string | number;
-  event_id?: number;
-  batch_id?: string;
-  camera_id: string;
-  camera_name?: string;
-  risk_score: number;
-  risk_level: 'low' | 'medium' | 'high' | 'critical';
-  summary: string;
-  timestamp?: string;
-  started_at?: string;
-}
-
-// Backend WebSocket message envelope structure
-interface BackendEventMessage {
-  type: 'event';
-  data: SecurityEvent;
-}
+/**
+ * Re-export SecurityEventData as SecurityEvent for backward compatibility.
+ * New code should use SecurityEventData from types/websocket.ts directly.
+ */
+export type SecurityEvent = SecurityEventData;
 
 export interface UseEventStreamReturn {
   events: SecurityEvent[];
@@ -38,34 +31,6 @@ const MAX_EVENTS = 100;
 function getEventKey(event: SecurityEvent): string {
   const id = event.event_id ?? event.id;
   return String(id);
-}
-
-/**
- * Type guard to check if data is a valid SecurityEvent
- */
-function isSecurityEvent(data: unknown): data is SecurityEvent {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-  const obj = data as Record<string, unknown>;
-  return (
-    ('id' in obj || 'event_id' in obj) &&
-    'camera_id' in obj &&
-    'risk_score' in obj &&
-    'risk_level' in obj &&
-    'summary' in obj
-  );
-}
-
-/**
- * Type guard to check if message is a backend event message envelope
- */
-function isBackendEventMessage(data: unknown): data is BackendEventMessage {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-  const msg = data as Record<string, unknown>;
-  return msg.type === 'event' && isSecurityEvent(msg.data);
 }
 
 export function useEventStream(): UseEventStreamReturn {
@@ -92,8 +57,9 @@ export function useEventStream(): UseEventStreamReturn {
       return;
     }
 
-    // Check if message matches backend envelope structure: {type: "event", data: {...}}
-    if (isBackendEventMessage(data)) {
+    // Use type guards to validate and narrow the message type
+    // First, check for event messages (most common case)
+    if (isEventMessage(data)) {
       const event = data.data;
       const eventKey = getEventKey(event);
 
@@ -112,8 +78,24 @@ export function useEventStream(): UseEventStreamReturn {
         // Keep only the most recent MAX_EVENTS
         return newEvents.slice(0, MAX_EVENTS);
       });
+      return;
     }
-    // Ignore non-event messages (e.g., service_status, ping, etc.)
+
+    // Handle other valid EventsChannelMessage types with exhaustive checking pattern
+    if (isHeartbeatMessage(data)) {
+      // Heartbeat messages are handled by useWebSocket internally
+      return;
+    }
+
+    if (isErrorMessage(data)) {
+      // Error messages could be logged or handled here
+      // For now, we just acknowledge them
+      console.warn('WebSocket error:', data.message);
+      return;
+    }
+
+    // Unknown message types are silently ignored
+    // This is intentional - the backend may send messages we don't care about
   }, []);
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)

@@ -646,8 +646,10 @@ async def export_events(
             request=request,
         )
         await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to commit audit log: {e}")
+    except Exception:
+        logger.error(
+            "Failed to commit audit log", exc_info=True, extra={"action": "events_exported"}
+        )
         await db.rollback()
         # Don't fail the main operation - audit is non-critical
 
@@ -774,8 +776,12 @@ async def update_event(
             request=request,
         )
         await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to commit audit log: {e}")
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "event_updated", "event_id": event_id},
+        )
         await db.rollback()
         # Re-apply the event changes since we rolled back
         update_data_dict = update_data.model_dump(exclude_unset=True)

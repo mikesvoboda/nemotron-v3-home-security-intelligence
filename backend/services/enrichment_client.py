@@ -76,7 +76,7 @@ class EnrichmentUnavailableError(Exception):
         self.original_error = original_error
 
 
-@dataclass
+@dataclass(slots=True)
 class VehicleClassificationResult:
     """Result from vehicle segment classification.
 
@@ -120,7 +120,7 @@ class VehicleClassificationResult:
         return base
 
 
-@dataclass
+@dataclass(slots=True)
 class PetClassificationResult:
     """Result from pet classification.
 
@@ -158,7 +158,7 @@ class PetClassificationResult:
         return f"Household pet detected: {self.pet_type} ({conf_str} confidence)"
 
 
-@dataclass
+@dataclass(slots=True)
 class ClothingClassificationResult:
     """Result from clothing classification.
 
@@ -215,7 +215,7 @@ class ClothingClassificationResult:
         return "\n".join(lines)
 
 
-@dataclass
+@dataclass(slots=True)
 class DepthEstimationResult:
     """Result from depth estimation.
 
@@ -252,7 +252,7 @@ class DepthEstimationResult:
         return f"Scene depth: avg={self.mean_depth:.2f} (min={self.min_depth:.2f}, max={self.max_depth:.2f})"
 
 
-@dataclass
+@dataclass(slots=True)
 class ObjectDistanceResult:
     """Result from object distance estimation.
 
@@ -294,7 +294,7 @@ class ObjectDistanceResult:
         return self.proximity_label in ("very close", "close")
 
 
-@dataclass
+@dataclass(slots=True)
 class ActionClassificationResult:
     """Result from X-CLIP action classification.
 
@@ -352,7 +352,7 @@ class ActionClassificationResult:
         return self.is_suspicious or self.risk_weight >= 0.7
 
 
-@dataclass
+@dataclass(slots=True)
 class KeypointData:
     """A single pose keypoint with normalized coordinates.
 
@@ -378,7 +378,7 @@ class KeypointData:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class PoseAnalysisResult:
     """Result from ViTPose pose analysis.
 

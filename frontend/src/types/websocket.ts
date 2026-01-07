@@ -469,3 +469,66 @@ export function createMessageDispatcher(handlers: MessageHandlerMap) {
     }
   };
 }
+
+// ============================================================================
+// Exhaustive Check Utilities
+// ============================================================================
+
+/**
+ * Utility function for exhaustive checking in switch statements.
+ * When used in the default case, TypeScript will error if any case is missed.
+ *
+ * @example
+ * ```ts
+ * function handleMessage(message: WebSocketMessage) {
+ *   switch (message.type) {
+ *     case 'event':
+ *       // handle event
+ *       break;
+ *     case 'system_status':
+ *       // handle system_status
+ *       break;
+ *     case 'service_status':
+ *       // handle service_status
+ *       break;
+ *     case 'ping':
+ *       // handle ping
+ *       break;
+ *     case 'pong':
+ *       // handle pong
+ *       break;
+ *     case 'error':
+ *       // handle error
+ *       break;
+ *     default:
+ *       // TypeScript will error here if any case is missed
+ *       assertNever(message);
+ *   }
+ * }
+ * ```
+ */
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
+}
+
+/**
+ * Non-throwing variant for cases where you want to log unhandled messages
+ * but not crash the application.
+ *
+ * @example
+ * ```ts
+ * function handleMessage(message: WebSocketMessage) {
+ *   switch (message.type) {
+ *     // ... cases ...
+ *     default:
+ *       // Logs warning but doesn't throw
+ *       assertNeverSoft(message, 'WebSocket message');
+ *   }
+ * }
+ * ```
+ */
+export function assertNeverSoft(value: never, context?: string): void {
+  console.warn(
+    `Unhandled ${context ?? 'value'}: ${JSON.stringify(value)}`
+  );
+}

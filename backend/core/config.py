@@ -342,6 +342,41 @@ class Settings(BaseSettings):
         "higher for distributed AI services. Default: 4 concurrent operations.",
     )
 
+    # LLM context window settings (NEM-1666)
+    nemotron_context_window: int = Field(
+        default=4096,
+        ge=512,
+        le=131072,
+        description="Maximum context window size in tokens for Nemotron LLM. "
+        "Default 4096 for Nemotron-3-Nano. Adjust based on your model's capacity. "
+        "Prompts exceeding this limit will be truncated with a warning.",
+    )
+    nemotron_max_output_tokens: int = Field(
+        default=1536,
+        ge=128,
+        le=8192,
+        description="Maximum tokens reserved for LLM output. Must be less than context_window. "
+        "Default 1536 provides room for detailed risk explanations.",
+    )
+    context_utilization_warning_threshold: float = Field(
+        default=0.80,
+        ge=0.5,
+        le=0.95,
+        description="Log warning when context utilization exceeds this threshold (0.5-0.95). "
+        "Helps identify prompts approaching context limits before truncation occurs.",
+    )
+    context_truncation_enabled: bool = Field(
+        default=True,
+        description="Enable intelligent truncation of enrichment data when approaching context limits. "
+        "When enabled, less critical enrichment data is removed to fit within context window. "
+        "When disabled, prompts exceeding limits will fail with an error.",
+    )
+    llm_tokenizer_encoding: str = Field(
+        default="cl100k_base",
+        description="Tiktoken encoding to use for token counting. Options: 'cl100k_base' (GPT-4/ChatGPT), "
+        "'p50k_base' (Codex), 'r50k_base' (GPT-2). cl100k_base is a reasonable default for most LLMs.",
+    )
+
     @field_validator("rtdetr_url", "nemotron_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:

@@ -156,6 +156,65 @@ The `vite.config.ts` configures:
 - **Coverage Thresholds**: 83% statements, 77% branches, 81% functions, 84% lines
 - **Memory Optimization**: Uses forks pool with single fork
 
+## Source Map Strategy
+
+The production build generates **hidden source maps** for debugging without exposing them publicly:
+
+### Configuration
+
+```typescript
+// vite.config.ts
+build: {
+  sourcemap: 'hidden',  // Generates .map files without //# sourceMappingURL= comment
+}
+```
+
+### How It Works
+
+1. **Build Output**: Running `npm run build` generates `.map` files in `dist/assets/`
+2. **No URL Reference**: The bundles do NOT contain `//# sourceMappingURL=` comments
+3. **Private Maps**: Source maps are not served by nginx (only `.js` and `.css` are public)
+4. **Debug Access**: Developers can manually load `.map` files in DevTools or use error tracking services
+
+### Using Source Maps for Debugging
+
+**Option 1: Browser DevTools Manual Upload**
+1. Open Chrome/Firefox DevTools > Sources panel
+2. Right-click on a minified file > "Add source map..."
+3. Provide the URL or local path to the `.map` file
+
+**Option 2: Error Tracking Services**
+Upload source maps to services like Sentry, Datadog, or Rollbar during CI/CD:
+```bash
+# Example: Upload to Sentry
+sentry-cli releases files <release> upload-sourcemaps ./dist/assets/
+```
+
+**Option 3: Local Debugging**
+Copy `.map` files to the server temporarily for debugging, then remove them.
+
+### Error Boundary Integration
+
+The `ErrorBoundary` component logs errors with full stack traces to the centralized logger:
+
+```typescript
+logger.error('React component error', {
+  error: error.message,
+  stack: error.stack,  // Full stack trace for source map lookup
+  componentStack: errorInfo.componentStack,
+  name: error.name,
+});
+```
+
+Stack traces in production logs can be decoded using source maps via `source-map` CLI or browser tools.
+
+### Security Considerations
+
+- Source maps reveal original source code structure
+- **Hidden** mode keeps maps private (not auto-loaded by browsers)
+- Do NOT deploy `.map` files to public-facing servers
+- Use error tracking service integrations instead of exposing maps publicly
+
 ## TypeScript Configuration
 
 Strict mode enabled with:
