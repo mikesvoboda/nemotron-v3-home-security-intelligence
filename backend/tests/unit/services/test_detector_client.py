@@ -1288,8 +1288,12 @@ async def test_semaphore_limits_concurrent_requests(mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=mock_request),
         patch.object(client, "_validate_image_for_detection_async", return_value=True),
-        # Mock _get_semaphore to return our test semaphore with limit 2
-        patch.object(DetectorClient, "_get_semaphore", return_value=test_semaphore),
+        # Mock get_inference_semaphore to return our test semaphore with limit 2
+        # This is the semaphore used in detect_objects, not _get_semaphore
+        patch(
+            "backend.services.detector_client.get_inference_semaphore",
+            return_value=test_semaphore,
+        ),
     ):
         # Launch 4 concurrent detection requests
         tasks = [
