@@ -51,7 +51,7 @@ export class EntitiesPage extends BasePage {
 
     // Empty state
     this.emptyStateMessage = page.getByText(/No tracked entities have been detected/i);
-    this.emptyStateHeading = page.getByRole('heading', { name: /No Entities Found/i });
+    this.emptyStateHeading = page.getByRole('heading', { name: /No Entities (Found|Tracked Yet)/i });
 
     // Entity grid
     this.entityGrid = page.locator('.grid');

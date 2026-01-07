@@ -52,7 +52,12 @@ export default function CollapsibleSection({
   const isControlled = controlledIsOpen !== undefined;
 
   return (
-    <Disclosure defaultOpen={!isControlled ? defaultOpen : undefined} as="div" className={className}>
+    <Disclosure
+      defaultOpen={!isControlled ? defaultOpen : undefined}
+      as="div"
+      className={className}
+      data-testid={testId}
+    >
       {({ open }) => {
         // In controlled mode, use the controlled isOpen value
         const isExpanded = isControlled ? controlledIsOpen : open;

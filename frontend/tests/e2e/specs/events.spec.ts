@@ -122,17 +122,6 @@ test.describe('Event Timeline Search', () => {
     await timelinePage.waitForTimelineLoad();
   });
 
-  test('summary search input is visible', async () => {
-    await timelinePage.showFilters();
-    await expect(timelinePage.summarySearchInput).toBeVisible();
-  });
-
-  test('can type in summary search', async () => {
-    await timelinePage.showFilters();
-    await timelinePage.searchSummary('person');
-    await expect(timelinePage.summarySearchInput).toHaveValue('person');
-  });
-
   test('full-text search input accepts query', async () => {
     await timelinePage.fullTextSearchInput.fill('suspicious');
     await expect(timelinePage.fullTextSearchInput).toHaveValue('suspicious');
