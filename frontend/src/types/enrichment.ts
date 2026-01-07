@@ -344,3 +344,249 @@ export function countEnrichments(data: EnrichmentData | null | undefined): numbe
   if (!data) return 0;
   return Object.values(data).filter((v) => v !== null && v !== undefined).length;
 }
+
+// ============================================================================
+// Enrichment Result Types with Strict Null Handling
+// ============================================================================
+
+/**
+ * Result type for operations that may fail or return no data.
+ * Provides a unified way to handle success, error, and empty states.
+ */
+export interface EnrichmentResult<T> {
+  /** The data payload, null if error or not available */
+  data: T | null;
+  /** Error message if the operation failed, null otherwise */
+  error: string | null;
+  /** Whether the enrichment data is available */
+  isAvailable: boolean;
+}
+
+/**
+ * Type guard to check if an EnrichmentResult contains valid data.
+ * Use this to narrow the type from EnrichmentResult<T> to { data: T }.
+ *
+ * @example
+ * ```ts
+ * const result: EnrichmentResult<VehicleEnrichment> = getVehicleEnrichment(data);
+ * if (hasEnrichmentData(result)) {
+ *   // result.data is now VehicleEnrichment, not VehicleEnrichment | null
+ *   console.log(result.data.type);
+ * }
+ * ```
+ */
+export function hasEnrichmentData<T>(
+  result: EnrichmentResult<T>
+): result is EnrichmentResult<T> & { data: T; isAvailable: true; error: null } {
+  return result.data !== null && result.isAvailable && result.error === null;
+}
+
+/**
+ * Type guard to check if an EnrichmentResult contains an error.
+ */
+export function hasEnrichmentError<T>(
+  result: EnrichmentResult<T>
+): result is EnrichmentResult<T> & { data: null; error: string } {
+  return result.error !== null;
+}
+
+/**
+ * Create a successful EnrichmentResult with data.
+ */
+export function enrichmentSuccess<T>(data: T): EnrichmentResult<T> {
+  return { data, error: null, isAvailable: true };
+}
+
+/**
+ * Create a failed EnrichmentResult with an error message.
+ */
+export function enrichmentError<T>(error: string): EnrichmentResult<T> {
+  return { data: null, error, isAvailable: false };
+}
+
+/**
+ * Create an empty EnrichmentResult (no data, no error).
+ */
+export function enrichmentEmpty<T>(): EnrichmentResult<T> {
+  return { data: null, error: null, isAvailable: false };
+}
+
+// ============================================================================
+// Safe Accessor Functions with Default Values
+// ============================================================================
+
+/**
+ * Safely get a string value from an enrichment field with a default.
+ *
+ * @param value - The value to extract, may be null/undefined
+ * @param defaultValue - Default value if null/undefined (default: 'N/A')
+ * @returns The string value or the default
+ *
+ * @example
+ * ```ts
+ * const description = getEnrichmentString(enrichment?.vehicle?.type, 'Unknown vehicle');
+ * ```
+ */
+export function getEnrichmentString(
+  value: string | null | undefined,
+  defaultValue: string = 'N/A'
+): string {
+  return value ?? defaultValue;
+}
+
+/**
+ * Safely get a number value from an enrichment field with a default.
+ *
+ * @param value - The value to extract, may be null/undefined
+ * @param defaultValue - Default value if null/undefined (default: 0)
+ * @returns The number value or the default
+ *
+ * @example
+ * ```ts
+ * const confidence = getEnrichmentNumber(enrichment?.vehicle?.confidence, 0);
+ * ```
+ */
+export function getEnrichmentNumber(
+  value: number | null | undefined,
+  defaultValue: number = 0
+): number {
+  return value ?? defaultValue;
+}
+
+/**
+ * Safely get an array value from an enrichment field with a default.
+ *
+ * @param value - The value to extract, may be null/undefined
+ * @param defaultValue - Default value if null/undefined (default: [])
+ * @returns The array value or the default
+ *
+ * @example
+ * ```ts
+ * const damageTypes = getEnrichmentArray(enrichment?.vehicle?.damage, []);
+ * ```
+ */
+export function getEnrichmentArray<T>(
+  value: T[] | null | undefined,
+  defaultValue: T[] = []
+): T[] {
+  return value ?? defaultValue;
+}
+
+/**
+ * Safely get a boolean value from an enrichment field with a default.
+ *
+ * @param value - The value to extract, may be null/undefined
+ * @param defaultValue - Default value if null/undefined (default: false)
+ * @returns The boolean value or the default
+ *
+ * @example
+ * ```ts
+ * const isCommercial = getEnrichmentBoolean(enrichment?.vehicle?.commercial, false);
+ * ```
+ */
+export function getEnrichmentBoolean(
+  value: boolean | null | undefined,
+  defaultValue: boolean = false
+): boolean {
+  return value ?? defaultValue;
+}
+
+// ============================================================================
+// Wrapped Enrichment Accessors
+// ============================================================================
+
+/**
+ * Safely extract vehicle enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getVehicleEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<VehicleEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const vehicle = data.vehicle;
+  if (vehicle === null || vehicle === undefined) return enrichmentEmpty();
+  if (!isVehicleEnrichment(vehicle)) {
+    return enrichmentError('Invalid vehicle enrichment data');
+  }
+  return enrichmentSuccess(vehicle);
+}
+
+/**
+ * Safely extract pet enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getPetEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<PetEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const pet = data.pet;
+  if (pet === null || pet === undefined) return enrichmentEmpty();
+  if (!isPetEnrichment(pet)) {
+    return enrichmentError('Invalid pet enrichment data');
+  }
+  return enrichmentSuccess(pet);
+}
+
+/**
+ * Safely extract person enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getPersonEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<PersonEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const person = data.person;
+  if (person === null || person === undefined) return enrichmentEmpty();
+  if (!isPersonEnrichment(person)) {
+    return enrichmentError('Invalid person enrichment data');
+  }
+  return enrichmentSuccess(person);
+}
+
+/**
+ * Safely extract license plate enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getLicensePlateEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<LicensePlateEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const plate = data.license_plate;
+  if (plate === null || plate === undefined) return enrichmentEmpty();
+  if (!isLicensePlateEnrichment(plate)) {
+    return enrichmentError('Invalid license plate enrichment data');
+  }
+  return enrichmentSuccess(plate);
+}
+
+/**
+ * Safely extract weather enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getWeatherEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<WeatherEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const weather = data.weather;
+  if (weather === null || weather === undefined) return enrichmentEmpty();
+  if (!isWeatherEnrichment(weather)) {
+    return enrichmentError('Invalid weather enrichment data');
+  }
+  return enrichmentSuccess(weather);
+}
+
+/**
+ * Safely extract image quality enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getImageQualityEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<ImageQualityEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const quality = data.image_quality;
+  if (quality === null || quality === undefined) return enrichmentEmpty();
+  if (!isImageQualityEnrichment(quality)) {
+    return enrichmentError('Invalid image quality enrichment data');
+  }
+  return enrichmentSuccess(quality);
+}
