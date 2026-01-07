@@ -334,6 +334,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedPercent = duration > 0 ? (buffered / duration) * 100 : 0;
 
+  /*
+   * Video player container uses role="application" because it's a custom widget
+   * that handles its own keyboard interactions (space=play, arrows=seek, f=fullscreen).
+   * eslint rules for non-interactive elements don't recognize role="application".
+   * Disabling no-noninteractive-element-interactions and no-noninteractive-tabindex
+   * because role="application" makes this an interactive widget.
+   */
   /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   return (
     <div
@@ -357,8 +364,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       role="application"
       aria-label="Video player"
     >
-      {/* Video Element - Security camera footage does not require captions */}
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
+      {/*
+        Video Element - Security camera footage does not require captions.
+        This is a valid accessibility exception because:
+        1. Security camera recordings are visual-only surveillance footage
+        2. There is no meaningful audio content to transcribe
+        3. The AI-generated event summaries provide textual descriptions of detected activity
+      */}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- Security camera footage has no audio to caption */}
       <video
         ref={videoRef}
         src={src}

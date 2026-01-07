@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from services.model_zoo import ModelConfig
 
 
-@dataclass
+@dataclass(slots=True)
 class BenchmarkResult:
     """Result of benchmarking a single model."""
 
@@ -57,7 +57,7 @@ class BenchmarkResult:
     error: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class BenchmarkReport:
     """Complete benchmark report for all models."""
 

@@ -26,7 +26,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum, auto
 from typing import Any, TypeVar
 
 from backend.core.logging import get_logger
@@ -36,15 +36,15 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 
 
-class CircuitState(Enum):
+class CircuitState(StrEnum):
     """Circuit breaker states."""
 
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half_open"
+    CLOSED = auto()
+    OPEN = auto()
+    HALF_OPEN = auto()
 
 
-@dataclass
+@dataclass(slots=True)
 class CircuitBreakerConfig:
     """Configuration for circuit breaker behavior.
 
@@ -63,7 +63,7 @@ class CircuitBreakerConfig:
     excluded_exceptions: tuple[type[Exception], ...] = ()
 
 
-@dataclass
+@dataclass(slots=True)
 class CircuitBreakerMetrics:
     """Metrics for circuit breaker monitoring.
 

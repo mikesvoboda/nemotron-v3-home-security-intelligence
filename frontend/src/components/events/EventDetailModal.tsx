@@ -193,7 +193,7 @@ export default function EventDetailModal({
     };
 
     void loadDetections();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedDetectionId intentionally excluded to avoid refetching
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedDetectionId excluded: changing selection should not refetch detections
   }, [event]);
 
   // Handle notes save

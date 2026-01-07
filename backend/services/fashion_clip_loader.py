@@ -80,7 +80,7 @@ SERVICE_CATEGORIES: frozenset[str] = frozenset(
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class ClothingClassification:
     """Result from clothing classification.
 
@@ -194,7 +194,9 @@ async def load_fashion_clip_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load FashionCLIP model from {model_path}: {e}")
+        logger.error(
+            "Failed to load FashionCLIP model", exc_info=True, extra={"model_path": model_path}
+        )
         raise RuntimeError(f"Failed to load FashionCLIP model: {e}") from e
 
 
@@ -295,7 +297,7 @@ async def classify_clothing(
         return await loop.run_in_executor(None, _classify)
 
     except Exception as e:
-        logger.error(f"Clothing classification failed: {e}")
+        logger.error("Clothing classification failed", exc_info=True)
         raise RuntimeError(f"Clothing classification failed: {e}") from e
 
 
@@ -401,7 +403,7 @@ async def classify_clothing_batch(
         return await loop.run_in_executor(None, _classify_batch)
 
     except Exception as e:
-        logger.error(f"Batch clothing classification failed: {e}")
+        logger.error("Batch clothing classification failed", exc_info=True)
         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
 
 

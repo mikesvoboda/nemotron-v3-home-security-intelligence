@@ -40,7 +40,7 @@ SEVERITY_PRIORITY: dict[Severity, int] = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SeverityDefinition:
     """Definition of a severity level with its metadata.
 

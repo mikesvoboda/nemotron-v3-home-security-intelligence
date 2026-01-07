@@ -74,19 +74,22 @@ describe('ErrorBoundary', () => {
       expect(screen.getByText('Test error message')).toBeInTheDocument();
     });
 
-    it('logs error to console', () => {
+    it('logs error to centralized logger', () => {
       render(
         <ErrorBoundary>
           <ThrowingComponent />
         </ErrorBoundary>
       );
+      // The logger.error call results in a formatted console output
+      // The format is "[ERROR] <component>: <message>" followed by the extra data
       expect(console.error).toHaveBeenCalledWith(
-        'ErrorBoundary caught an error:',
-        expect.any(Error)
-      );
-      expect(console.error).toHaveBeenCalledWith(
-        'Component stack:',
-        expect.any(String)
+        '[ERROR] frontend: React component error',
+        expect.objectContaining({
+          error: 'Test error message',
+          stack: expect.any(String),
+          componentStack: expect.any(String),
+          name: 'Error',
+        })
       );
     });
 

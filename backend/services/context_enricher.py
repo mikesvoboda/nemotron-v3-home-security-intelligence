@@ -42,7 +42,7 @@ DEFAULT_IMAGE_HEIGHT = 1080
 CROSS_CAMERA_WINDOW_SECONDS = 300
 
 
-@dataclass
+@dataclass(slots=True)
 class ZoneContext:
     """Zone information for a detection.
 
@@ -61,7 +61,7 @@ class ZoneContext:
     detection_count: int = 1
 
 
-@dataclass
+@dataclass(slots=True)
 class BaselineContext:
     """Baseline deviation information for current activity.
 
@@ -82,7 +82,7 @@ class BaselineContext:
     is_anomalous: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class RecentEvent:
     """Recent event for context.
 
@@ -101,7 +101,7 @@ class RecentEvent:
     occurred_at: datetime
 
 
-@dataclass
+@dataclass(slots=True)
 class CrossCameraActivity:
     """Activity from other cameras within the time window.
 
@@ -120,7 +120,7 @@ class CrossCameraActivity:
     time_offset_seconds: float = 0.0
 
 
-@dataclass
+@dataclass(slots=True)
 class EnrichedContext:
     """Complete enriched context for a detection batch.
 

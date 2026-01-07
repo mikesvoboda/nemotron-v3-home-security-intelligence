@@ -55,7 +55,7 @@ HIGH_SECURITY_DAMAGE: frozenset[str] = frozenset(
 ALL_DAMAGE_TYPES: frozenset[str] = frozenset(DAMAGE_CLASSES)
 
 
-@dataclass
+@dataclass(slots=True)
 class DamageDetection:
     """Single damage detection result.
 
@@ -89,7 +89,7 @@ class DamageDetection:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class VehicleDamageResult:
     """Result from vehicle damage detection.
 
@@ -223,7 +223,11 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load vehicle damage detection model from {model_path}: {e}")
+        logger.error(
+            "Failed to load vehicle damage detection model",
+            exc_info=True,
+            extra={"model_path": model_path},
+        )
         raise RuntimeError(f"Failed to load vehicle damage detection model: {e}") from e
 
 
@@ -318,7 +322,7 @@ async def detect_vehicle_damage(
         return result
 
     except Exception as e:
-        logger.error(f"Vehicle damage detection failed: {e}")
+        logger.error("Vehicle damage detection failed", exc_info=True)
         raise RuntimeError(f"Vehicle damage detection failed: {e}") from e
 
 
