@@ -139,8 +139,11 @@ from .partition_manager import (
     PartitionInfo,
     PartitionManager,
 )
-from .pipeline_quality_audit_service import AuditService as AIAuditService
-from .pipeline_quality_audit_service import get_audit_service, reset_audit_service
+from .pipeline_quality_audit_service import (
+    PipelineQualityAuditService,
+    get_audit_service,
+    reset_audit_service,
+)
 from .plate_detector import (
     PlateDetection,
     VehicleDetection,
@@ -221,7 +224,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SHORT_TTL",
     "VEHICLE_CLASSES",
     # Classes
-    "AIAuditService",
+    "PipelineQualityAuditService",
     "AlertDeduplicationService",
     "AlertRuleEngine",
     "AuditService",

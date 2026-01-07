@@ -36,7 +36,7 @@ from backend.models.event_audit import EventAudit
 if TYPE_CHECKING:
     from backend.services.evaluation_queue import EvaluationQueue
     from backend.services.gpu_monitor import GPUMonitor
-    from backend.services.pipeline_quality_audit_service import AuditService
+    from backend.services.pipeline_quality_audit_service import PipelineQualityAuditService
 
 logger = get_logger(__name__)
 
@@ -64,7 +64,7 @@ class BackgroundEvaluator:
         redis_client: RedisClient,
         gpu_monitor: GPUMonitor,
         evaluation_queue: EvaluationQueue,
-        audit_service: AuditService,
+        audit_service: PipelineQualityAuditService,
         gpu_idle_threshold: int = 20,
         idle_duration_required: int = 5,
         poll_interval: float = 5.0,
@@ -322,7 +322,7 @@ def get_background_evaluator(
     redis_client: RedisClient,
     gpu_monitor: GPUMonitor,
     evaluation_queue: EvaluationQueue,
-    audit_service: AuditService,
+    audit_service: PipelineQualityAuditService,
     gpu_idle_threshold: int = 20,
     idle_duration_required: int = 5,
     poll_interval: float = 5.0,

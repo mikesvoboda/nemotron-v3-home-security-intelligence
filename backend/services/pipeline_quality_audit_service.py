@@ -125,7 +125,7 @@ Output JSON: {{
 """
 
 
-class AuditService:
+class PipelineQualityAuditService:
     """Service for AI pipeline auditing and self-evaluation."""
 
     def __init__(self) -> None:
@@ -597,14 +597,14 @@ class AuditService:
 
 
 # Singleton
-_audit_service: AuditService | None = None
+_audit_service: PipelineQualityAuditService | None = None
 
 
-def get_audit_service() -> AuditService:
+def get_audit_service() -> PipelineQualityAuditService:
     """Get or create audit service singleton."""
     global _audit_service  # noqa: PLW0603
     if _audit_service is None:
-        _audit_service = AuditService()
+        _audit_service = PipelineQualityAuditService()
     return _audit_service
 
 

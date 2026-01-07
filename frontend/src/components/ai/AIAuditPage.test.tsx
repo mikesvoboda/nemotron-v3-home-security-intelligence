@@ -344,3 +344,57 @@ describe('AIAuditPage Prompt Playground', () => {
     });
   });
 });
+
+describe('AIAuditPage new features', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders model contribution chart section', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByTestId('model-contribution-chart')).toBeInTheDocument();
+    });
+  });
+
+  it('displays empty state when no data available', async () => {
+    // Mock empty stats response
+    const { fetchAiAuditStats } = await import('../../services/api');
+    vi.mocked(fetchAiAuditStats).mockResolvedValueOnce({
+      total_events: 0,
+      audited_events: 0,
+      fully_evaluated_events: 0,
+      avg_quality_score: null,
+      avg_consistency_rate: null,
+      avg_enrichment_utilization: null,
+      model_contribution_rates: {},
+      audits_by_day: [],
+    });
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByText(/no events have been audited yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows trigger batch audit CTA in empty state', async () => {
+    const { fetchAiAuditStats } = await import('../../services/api');
+    vi.mocked(fetchAiAuditStats).mockResolvedValueOnce({
+      total_events: 0,
+      audited_events: 0,
+      fully_evaluated_events: 0,
+      avg_quality_score: null,
+      avg_consistency_rate: null,
+      avg_enrichment_utilization: null,
+      model_contribution_rates: {},
+      audits_by_day: [],
+    });
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /trigger batch audit/i })).toBeInTheDocument();
+    });
+  });
+});

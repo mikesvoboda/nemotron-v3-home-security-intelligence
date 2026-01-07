@@ -1,6 +1,6 @@
-"""Unit tests for AI audit service (audit_service.py).
+"""Unit tests for AI audit service (pipeline_quality_audit_service.py).
 
-These tests cover the AuditService class which handles AI audit evaluations
+These tests cover the PipelineQualityAuditService class which handles AI audit evaluations
 with LLM integration (Nemotron). Tests use mocked database sessions and
 LLM responses - no real database or LLM connection required.
 
@@ -22,7 +22,7 @@ from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 from backend.services.pipeline_quality_audit_service import (
     MODEL_NAMES,
-    AuditService,
+    PipelineQualityAuditService,
     get_audit_service,
     reset_audit_service,
 )
@@ -37,10 +37,10 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
-def audit_service() -> AuditService:
-    """Create a fresh AuditService instance for testing."""
+def audit_service() -> PipelineQualityAuditService:
+    """Create a fresh PipelineQualityAuditService instance for testing."""
     reset_audit_service()
-    return AuditService()
+    return PipelineQualityAuditService()
 
 
 @pytest.fixture(autouse=True)
@@ -136,9 +136,9 @@ class TestSingletonPattern:
     """Tests for the singleton pattern."""
 
     def test_get_audit_service_returns_instance(self):
-        """Test get_audit_service returns an AuditService instance."""
+        """Test get_audit_service returns a PipelineQualityAuditService instance."""
         service = get_audit_service()
-        assert isinstance(service, AuditService)
+        assert isinstance(service, PipelineQualityAuditService)
 
     def test_get_audit_service_returns_same_instance(self):
         """Test get_audit_service returns the same instance on repeated calls."""

@@ -96,6 +96,9 @@ class Camera(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     # Relationships
     detections: Mapped[list[Detection]] = relationship(
@@ -119,6 +122,35 @@ class Camera(Base):
     scene_changes: Mapped[list[SceneChange]] = relationship(
         "SceneChange", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if this camera is soft-deleted.
+
+        Returns:
+            True if deleted_at is set, False otherwise
+        """
+        return self.deleted_at is not None
+
+    def soft_delete(self) -> None:
+        """Soft delete this camera by setting deleted_at timestamp.
+
+        This marks the camera as deleted without removing it from the database,
+        preserving referential integrity with related records.
+        """
+        self.deleted_at = datetime.now(UTC)
+
+    def restore(self) -> None:
+        """Restore a soft-deleted camera by clearing deleted_at timestamp."""
+        self.deleted_at = None
+
+    def hard_delete(self, session: object) -> None:
+        """Hard delete this camera, permanently removing it from the database.
+
+        Args:
+            session: SQLAlchemy session to use for deletion
+        """
+        session.delete(self)  # type: ignore[attr-defined]
 
     @classmethod
     def from_folder_name(cls, folder_name: str, folder_path: str) -> Camera:

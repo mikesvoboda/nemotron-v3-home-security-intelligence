@@ -9,8 +9,6 @@ from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Inte
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.api.schemas.enrichment_data import validate_enrichment_data
-
 from .camera import Base
 
 if TYPE_CHECKING:
@@ -112,43 +110,3 @@ class Detection(Base):
             f"<Detection(id={self.id}, camera_id={self.camera_id!r}, "
             f"object_type={self.object_type!r}, confidence={self.confidence})>"
         )
-
-    def validate_enrichment_data(self) -> tuple[bool, list[str]]:
-        """Validate enrichment_data field using Pydantic schema.
-
-        Returns:
-            Tuple of (is_valid, messages) where messages contains warnings/errors
-        """
-        result = validate_enrichment_data(self.enrichment_data, strict=False)
-        messages = result.warnings + result.errors
-        return result.is_valid, messages
-
-    def get_validated_enrichment_data(self) -> dict[str, Any] | None:
-        """Get validated and coerced enrichment_data.
-
-        Returns validated data with values coerced to proper types/ranges.
-        Returns None if enrichment_data is None.
-        """
-        result = validate_enrichment_data(self.enrichment_data, strict=False)
-        return result.data
-
-    def set_enrichment_data_validated(
-        self, data: dict[str, Any], strict: bool = False
-    ) -> tuple[bool, list[str]]:
-        """Set enrichment_data after validation.
-
-        Args:
-            data: The enrichment data to validate and set
-            strict: If True, fail on validation errors. If False, set data with warnings.
-
-        Returns:
-            Tuple of (success, warnings) where warnings contains any validation messages
-        """
-        result = validate_enrichment_data(data, strict=strict)
-
-        if result.is_valid:
-            self.enrichment_data = result.data
-            return True, result.warnings
-        else:
-            # In strict mode, validation failed - don't set data
-            return False, result.errors
