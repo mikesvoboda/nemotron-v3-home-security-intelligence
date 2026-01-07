@@ -167,6 +167,19 @@ CVE-2025-5987
 CVE-2025-6020
 
 # =============================================================================
+# Dockerfile Misconfigurations - Accepted Risks
+# =============================================================================
+# These are Trivy misconfiguration checks that are intentionally accepted.
+
+# AVD-DS-0002 - vsftpd requires root to bind to privileged port 21 (REVIEW BY: 2026-07-05)
+# vsftpd is an FTP server that needs root privileges to:
+# 1. Bind to port 21 (privileged port)
+# 2. Create system users via useradd/chpasswd in entrypoint
+# 3. Manage FTP user sessions
+# The service is isolated in its own container with limited network exposure.
+AVD-DS-0002
+
+# =============================================================================
 # Notes
 # =============================================================================
 # Before adding a CVE here, verify:

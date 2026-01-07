@@ -274,6 +274,14 @@ export const handlers = [
   }),
 
   /**
+   * GET /api/events/stats - Get event statistics
+   * NOTE: Must be registered BEFORE /api/events/:id to avoid route matching conflicts
+   */
+  http.get('/api/events/stats', () => {
+    return HttpResponse.json(mockEventStats);
+  }),
+
+  /**
    * GET /api/events/:id - Get a specific event
    */
   http.get<IdParams>('/api/events/:id', ({ params }: { params: IdParams }) => {
@@ -297,13 +305,6 @@ export const handlers = [
     const updates = await request.json() as Partial<Event>;
     const updatedEvent = { ...event, ...updates };
     return HttpResponse.json(updatedEvent);
-  }),
-
-  /**
-   * GET /api/events/stats - Get event statistics
-   */
-  http.get('/api/events/stats', () => {
-    return HttpResponse.json(mockEventStats);
   }),
 
   /**

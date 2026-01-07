@@ -214,7 +214,7 @@ export default function AIAuditPage() {
               onClick={() => void handleRefresh()}
               disabled={isRefreshing}
               className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
-              data-testid="refresh-button"
+              data-testid="ai-audit-refresh-button"
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh

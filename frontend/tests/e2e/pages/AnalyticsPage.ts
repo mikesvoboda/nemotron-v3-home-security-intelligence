@@ -54,7 +54,7 @@ export class AnalyticsPage extends BasePage {
 
     // Controls
     this.cameraSelector = page.getByTestId('camera-selector');
-    this.refreshButton = page.getByTestId('refresh-button');
+    this.refreshButton = page.getByTestId('analytics-refresh-button');
 
     // Baseline Status
     this.totalSamplesText = page.getByText(/Total samples:/i);

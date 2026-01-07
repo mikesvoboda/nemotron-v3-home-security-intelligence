@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install vsftpd and required packages
 RUN apt-get update && \
-    apt-get install -y vsftpd openssl && \
+    apt-get install -y --no-install-recommends vsftpd openssl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
