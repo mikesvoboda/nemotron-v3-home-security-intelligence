@@ -123,7 +123,7 @@ class LogLevelResponse(BaseModel):
     timestamp: str = Field(description="ISO timestamp of response")
 
 
-class DebugConfigResponse(BaseModel):
+class ConfigResponse(BaseModel):
     """Response for configuration inspection."""
 
     config: dict[str, Any] = Field(
@@ -141,7 +141,7 @@ class RedisInfoResponse(BaseModel):
     timestamp: str = Field(description="ISO timestamp of response")
 
 
-class DebugWebSocketBroadcasterStatus(BaseModel):
+class WebSocketBroadcasterStatus(BaseModel):
     """Status of a WebSocket broadcaster."""
 
     connection_count: int = Field(description="Number of active connections")
@@ -154,16 +154,12 @@ class DebugWebSocketBroadcasterStatus(BaseModel):
 class WebSocketConnectionsResponse(BaseModel):
     """Response for WebSocket connection states."""
 
-    event_broadcaster: DebugWebSocketBroadcasterStatus = Field(
-        description="Event broadcaster status"
-    )
-    system_broadcaster: DebugWebSocketBroadcasterStatus = Field(
-        description="System broadcaster status"
-    )
+    event_broadcaster: WebSocketBroadcasterStatus = Field(description="Event broadcaster status")
+    system_broadcaster: WebSocketBroadcasterStatus = Field(description="System broadcaster status")
     timestamp: str = Field(description="ISO timestamp of response")
 
 
-class DebugCircuitBreakersResponse(BaseModel):
+class CircuitBreakersResponse(BaseModel):
     """Response for circuit breaker states."""
 
     circuit_breakers: dict[str, dict[str, Any]] = Field(
@@ -359,7 +355,7 @@ async def _get_redis_info(
 
 
 def _get_websocket_broadcaster_status() -> tuple[
-    DebugWebSocketBroadcasterStatus, DebugWebSocketBroadcasterStatus
+    WebSocketBroadcasterStatus, WebSocketBroadcasterStatus
 ]:
     """Get status of WebSocket broadcasters.
 
@@ -371,7 +367,7 @@ def _get_websocket_broadcaster_status() -> tuple[
 
     # Event broadcaster status
     if event_broadcaster is not None:
-        event_status = DebugWebSocketBroadcasterStatus(
+        event_status = WebSocketBroadcasterStatus(
             connection_count=len(event_broadcaster._connections),
             is_listening=event_broadcaster._is_listening,
             is_degraded=event_broadcaster.is_degraded(),
@@ -379,7 +375,7 @@ def _get_websocket_broadcaster_status() -> tuple[
             channel_name=event_broadcaster.channel_name,
         )
     else:
-        event_status = DebugWebSocketBroadcasterStatus(
+        event_status = WebSocketBroadcasterStatus(
             connection_count=0,
             is_listening=False,
             is_degraded=False,
@@ -389,7 +385,7 @@ def _get_websocket_broadcaster_status() -> tuple[
 
     # System broadcaster status
     if system_broadcaster is not None:
-        system_status = DebugWebSocketBroadcasterStatus(
+        system_status = WebSocketBroadcasterStatus(
             connection_count=len(system_broadcaster.connections),
             is_listening=system_broadcaster._running,
             is_degraded=system_broadcaster._is_degraded,
@@ -397,7 +393,7 @@ def _get_websocket_broadcaster_status() -> tuple[
             channel_name=None,  # System broadcaster uses multiple channels
         )
     else:
-        system_status = DebugWebSocketBroadcasterStatus(
+        system_status = WebSocketBroadcasterStatus(
             connection_count=0,
             is_listening=False,
             is_degraded=False,
@@ -425,10 +421,10 @@ def _get_all_circuit_breakers() -> dict[str, dict[str, Any]]:
 # =============================================================================
 
 
-@router.get("/config", response_model=DebugConfigResponse)
+@router.get("/config", response_model=ConfigResponse)
 async def get_config(
     _debug: None = Depends(require_debug_mode),
-) -> DebugConfigResponse:
+) -> ConfigResponse:
     """Get current configuration with sensitive values redacted.
 
     Returns all configuration settings with passwords, API keys, and other
@@ -439,7 +435,7 @@ async def get_config(
     """
     config = _get_redacted_config()
 
-    return DebugConfigResponse(
+    return ConfigResponse(
         config=config,
         timestamp=datetime.now(UTC).isoformat(),
     )
@@ -487,10 +483,10 @@ async def get_websocket_connections(
     )
 
 
-@router.get("/circuit-breakers", response_model=DebugCircuitBreakersResponse)
+@router.get("/circuit-breakers", response_model=CircuitBreakersResponse)
 async def get_circuit_breakers(
     _debug: None = Depends(require_debug_mode),
-) -> DebugCircuitBreakersResponse:
+) -> CircuitBreakersResponse:
     """Get all circuit breaker states.
 
     Returns the current state and metrics for all registered circuit breakers,
@@ -500,7 +496,7 @@ async def get_circuit_breakers(
     """
     breakers = _get_all_circuit_breakers()
 
-    return DebugCircuitBreakersResponse(
+    return CircuitBreakersResponse(
         circuit_breakers=breakers,
         timestamp=datetime.now(UTC).isoformat(),
     )
