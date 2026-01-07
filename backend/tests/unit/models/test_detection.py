@@ -444,6 +444,24 @@ class TestDetectionTableArgs:
         index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
         assert "ix_detections_detected_at_brin" in index_names
 
+    def test_detection_has_object_type_detected_at_composite_index(self):
+        """Test Detection has object_type + detected_at composite index defined (NEM-1591)."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "ix_detections_object_type_detected_at" in index_names
+
+    def test_detection_object_type_detected_at_index_columns(self):
+        """Test object_type + detected_at index has correct columns (NEM-1591)."""
+        indexes = Detection.__table_args__
+        obj_time_idx = None
+        for idx in indexes:
+            if hasattr(idx, "name") and idx.name == "ix_detections_object_type_detected_at":
+                obj_time_idx = idx
+                break
+        assert obj_time_idx is not None
+        column_names = [col.name for col in obj_time_idx.columns]
+        assert column_names == ["object_type", "detected_at"]
+
 
 # =============================================================================
 # Property-based Tests

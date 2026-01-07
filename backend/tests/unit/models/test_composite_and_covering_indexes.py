@@ -399,3 +399,113 @@ class TestTableReferences:
     def test_covering_logs_table_referenced(self, covering_indexes_migration_content):
         """Test logs table is correctly referenced in covering indexes."""
         assert '"logs"' in covering_indexes_migration_content
+
+
+# =============================================================================
+# NEM-1591: Detections Object Type + Detected At Index Tests
+# =============================================================================
+
+
+@pytest.fixture
+def object_type_detected_at_migration_module():
+    """Load the object_type + detected_at index migration module."""
+    migration_path = (
+        Path(__file__).parents[3]
+        / "alembic"
+        / "versions"
+        / "add_detections_object_type_detected_at_index.py"
+    )
+
+    if not migration_path.exists():
+        pytest.skip(f"Migration file not found at {migration_path}")
+
+    spec = importlib.util.spec_from_file_location("migration", migration_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def object_type_detected_at_migration_content():
+    """Read the object_type + detected_at index migration file content."""
+    migration_path = (
+        Path(__file__).parents[3]
+        / "alembic"
+        / "versions"
+        / "add_detections_object_type_detected_at_index.py"
+    )
+
+    if not migration_path.exists():
+        pytest.skip(f"Migration file not found at {migration_path}")
+
+    return migration_path.read_text()
+
+
+class TestObjectTypeDetectedAtMigrationStructure:
+    """Tests for NEM-1591 object_type + detected_at index migration structure."""
+
+    def test_migration_has_revision_identifier(self, object_type_detected_at_migration_module):
+        """Test migration has revision identifier."""
+        assert hasattr(object_type_detected_at_migration_module, "revision")
+        assert (
+            object_type_detected_at_migration_module.revision == "add_detections_obj_type_time_idx"
+        )
+
+    def test_migration_has_down_revision(self, object_type_detected_at_migration_module):
+        """Test migration has down_revision linking to previous migration."""
+        assert hasattr(object_type_detected_at_migration_module, "down_revision")
+        assert object_type_detected_at_migration_module.down_revision == "00c8a000b44f"
+
+    def test_migration_has_upgrade_function(self, object_type_detected_at_migration_module):
+        """Test migration has upgrade function."""
+        assert hasattr(object_type_detected_at_migration_module, "upgrade")
+        assert callable(object_type_detected_at_migration_module.upgrade)
+
+    def test_migration_has_downgrade_function(self, object_type_detected_at_migration_module):
+        """Test migration has downgrade function."""
+        assert hasattr(object_type_detected_at_migration_module, "downgrade")
+        assert callable(object_type_detected_at_migration_module.downgrade)
+
+
+class TestObjectTypeDetectedAtIndexDefinition:
+    """Tests for NEM-1591 index definition."""
+
+    def test_index_name_defined(self, object_type_detected_at_migration_content):
+        """Test the index name is correctly defined."""
+        assert "ix_detections_object_type_detected_at" in object_type_detected_at_migration_content
+
+    def test_index_columns_defined(self, object_type_detected_at_migration_content):
+        """Test the index includes correct columns."""
+        assert '"object_type"' in object_type_detected_at_migration_content
+        assert '"detected_at"' in object_type_detected_at_migration_content
+
+    def test_detections_table_referenced(self, object_type_detected_at_migration_content):
+        """Test detections table is correctly referenced."""
+        assert '"detections"' in object_type_detected_at_migration_content
+
+    def test_create_index_operation(self, object_type_detected_at_migration_content):
+        """Test migration uses op.create_index."""
+        assert "op.create_index" in object_type_detected_at_migration_content
+
+    def test_drop_index_in_downgrade(self, object_type_detected_at_migration_content):
+        """Test downgrade uses op.drop_index."""
+        assert "op.drop_index" in object_type_detected_at_migration_content
+
+
+class TestObjectTypeDetectedAtMigrationDocumentation:
+    """Tests for NEM-1591 migration documentation."""
+
+    def test_migration_has_docstring(self, object_type_detected_at_migration_content):
+        """Test migration has descriptive docstring."""
+        assert '"""' in object_type_detected_at_migration_content
+
+    def test_docstring_mentions_nem_1591(self, object_type_detected_at_migration_content):
+        """Test docstring references the Linear issue."""
+        assert "NEM-1591" in object_type_detected_at_migration_content
+
+    def test_docstring_mentions_class_based_analytics(
+        self, object_type_detected_at_migration_content
+    ):
+        """Test docstring mentions the use case."""
+        content_lower = object_type_detected_at_migration_content.lower()
+        assert "class-based" in content_lower or "analytics" in content_lower
