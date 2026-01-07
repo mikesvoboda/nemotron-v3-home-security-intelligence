@@ -174,7 +174,7 @@ class SecurityAuditLogger:
             details={
                 "claimed_type": claimed_type,
                 "detected_type": detected_type,
-                "filename": filename,
+                "upload_filename": filename,
             },
             request=request,
             status=AuditStatus.FAILURE,
@@ -186,7 +186,7 @@ class SecurityAuditLogger:
                 "audit_action": AuditAction.FILE_MAGIC_REJECTED.value,
                 "claimed_type": claimed_type,
                 "detected_type": detected_type,
-                "filename": filename,
+                "upload_filename": filename,
             },
         )
 
