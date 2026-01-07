@@ -213,23 +213,19 @@ class TestFlorenceClientInstrumentation:
 
         client = FlorenceClient()
 
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"result": "A gray square image"}
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
 
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"result": "A gray square image"}
+            mock_client.post.return_value = mock_response
 
-        try:
             with patch("backend.services.florence_client.record_florence_task") as mock_record:
                 await client.extract(sample_image, "<CAPTION>")
                 mock_record.assert_called_once_with("caption")
-        finally:
-            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_ocr_records_florence_task_ocr(self, mock_settings, sample_image) -> None:
@@ -238,23 +234,19 @@ class TestFlorenceClientInstrumentation:
 
         client = FlorenceClient()
 
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"text": "Hello World"}
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
 
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"text": "Hello World"}
+            mock_client.post.return_value = mock_response
 
-        try:
             with patch("backend.services.florence_client.record_florence_task") as mock_record:
                 await client.ocr(sample_image)
                 mock_record.assert_called_once_with("ocr")
-        finally:
-            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_detect_records_florence_task_detect(self, mock_settings, sample_image) -> None:
@@ -263,23 +255,19 @@ class TestFlorenceClientInstrumentation:
 
         client = FlorenceClient()
 
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"detections": []}
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
 
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"detections": []}
+            mock_client.post.return_value = mock_response
 
-        try:
             with patch("backend.services.florence_client.record_florence_task") as mock_record:
                 await client.detect(sample_image)
                 mock_record.assert_called_once_with("detect")
-        finally:
-            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_dense_caption_records_florence_task_dense_caption(
@@ -290,23 +278,19 @@ class TestFlorenceClientInstrumentation:
 
         client = FlorenceClient()
 
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"regions": []}
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
 
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"regions": []}
+            mock_client.post.return_value = mock_response
 
-        try:
             with patch("backend.services.florence_client.record_florence_task") as mock_record:
                 await client.dense_caption(sample_image)
                 mock_record.assert_called_once_with("dense_caption")
-        finally:
-            client._http_client = original_client
 
 
 # =============================================================================
