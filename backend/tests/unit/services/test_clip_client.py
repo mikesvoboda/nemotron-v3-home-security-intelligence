@@ -818,21 +818,21 @@ class TestClassify:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"scores": {"cat": 0.5, "dog": 0.5}})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.classify(sample_image, ["cat", "dog"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.classify(sample_image, ["cat", "dog"])
 
-            assert "missing 'scores' or 'top_label'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_malformed_response")
+                assert "missing 'scores' or 'top_label'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_connect_error(
@@ -1622,29 +1622,29 @@ class TestCircuitBreakerIntegration:
         self, client_with_cb: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test that circuit breaker opens after reaching failure threshold."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client_with_cb._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client_with_cb._http_client = mock_http
 
-            # Trigger failures up to threshold (3 failures)
-            for _ in range(3):
-                with pytest.raises(CLIPUnavailableError):
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error"):
+                # Trigger failures up to threshold (3 failures)
+                for _ in range(3):
+                    with pytest.raises(CLIPUnavailableError):
+                        await client_with_cb.embed(sample_image)
+
+                # Next call should fail immediately due to open circuit
+                with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client_with_cb.embed(sample_image)
 
-            # Next call should fail immediately due to open circuit
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client_with_cb.embed(sample_image)
-
-            assert (
-                "circuit" in str(exc_info.value).lower()
-                or "unavailable" in str(exc_info.value).lower()
-            )
+                assert (
+                    "circuit" in str(exc_info.value).lower()
+                    or "unavailable" in str(exc_info.value).lower()
+                )
+        finally:
+            client_with_cb._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_graceful_degradation(
@@ -1658,37 +1658,39 @@ class TestCircuitBreakerIntegration:
             call_count += 1
             raise httpx.ConnectError("Connection refused")
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = mock_post
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client_with_cb._http_client
+        mock_http = AsyncMock()
+        mock_http.post = mock_post
+        client_with_cb._http_client = mock_http
 
-            # Trigger failures to open circuit (3 failures)
-            for _ in range(3):
-                with pytest.raises(CLIPUnavailableError):
-                    await client_with_cb.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error"):
+                # Trigger failures to open circuit (3 failures)
+                for _ in range(3):
+                    with pytest.raises(CLIPUnavailableError):
+                        await client_with_cb.embed(sample_image)
 
-            # Record call count after circuit opens
-            calls_at_open = call_count
+                # Record call count after circuit opens
+                calls_at_open = call_count
 
-            # Additional calls should not hit the service (circuit is open)
-            for _ in range(3):
-                with pytest.raises(CLIPUnavailableError):
-                    await client_with_cb.embed(sample_image)
+                # Additional calls should not hit the service (circuit is open)
+                for _ in range(3):
+                    with pytest.raises(CLIPUnavailableError):
+                        await client_with_cb.embed(sample_image)
 
-            # Call count should not have increased (circuit blocks requests)
-            assert call_count == calls_at_open
+                # Call count should not have increased (circuit blocks requests)
+                assert call_count == calls_at_open
+        finally:
+            client_with_cb._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_recovery(
         self, mock_settings_with_cb: MagicMock, sample_image: Image.Image
     ) -> None:
         """Test that circuit breaker recovers after timeout and successful calls."""
+        import asyncio
+
         # Set very short recovery timeout for testing
         mock_settings_with_cb.clip_cb_recovery_timeout = 0.1
 
@@ -1709,51 +1711,51 @@ class TestCircuitBreakerIntegration:
                     return response
                 raise httpx.ConnectError("Connection refused")
 
-            with (
-                patch("httpx.AsyncClient") as mock_client_class,
-                patch("backend.services.clip_client.record_pipeline_error"),
-                patch("backend.services.clip_client.observe_ai_request_duration"),
-            ):
-                mock_http_client = AsyncMock()
-                mock_http_client.__aenter__.return_value = mock_http_client
-                mock_http_client.__aexit__.return_value = None
-                mock_http_client.post = mock_post
-                mock_client_class.return_value = mock_http_client
+            # Mock the persistent HTTP client directly (NEM-1721)
+            original_client = client._http_client
+            mock_http = AsyncMock()
+            mock_http.post = mock_post
+            client._http_client = mock_http
 
-                # Trigger failures to open circuit (3 failures)
-                for _ in range(3):
-                    with pytest.raises(CLIPUnavailableError):
-                        await client.embed(sample_image)
+            try:
+                with (
+                    patch("backend.services.clip_client.record_pipeline_error"),
+                    patch("backend.services.clip_client.observe_ai_request_duration"),
+                ):
+                    # Trigger failures to open circuit (3 failures)
+                    for _ in range(3):
+                        with pytest.raises(CLIPUnavailableError):
+                            await client.embed(sample_image)
 
-                # Wait for recovery timeout
-                import asyncio
+                    # Wait for recovery timeout
+                    await asyncio.sleep(0.2)
 
-                await asyncio.sleep(0.2)
+                    # Now make the service succeed
+                    should_succeed = True
 
-                # Now make the service succeed
-                should_succeed = True
-
-                # Circuit should be half-open, allowing a test call
-                result = await client.embed(sample_image)
-                assert len(result) == 768
+                    # Circuit should be half-open, allowing a test call
+                    result = await client.embed(sample_image)
+                    assert len(result) == 768
+            finally:
+                client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_state_in_health_check(self, client_with_cb: CLIPClient) -> None:
         """Test that check_health reflects circuit breaker state."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client_with_cb._http_client
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client_with_cb._http_client = mock_http
 
-            # Health check should return False when service is down
-            result = await client_with_cb.check_health()
-            assert result is False
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error"):
+                # Health check should return False when service is down
+                result = await client_with_cb.check_health()
+                assert result is False
+        finally:
+            client_with_cb._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_affects_all_methods(
@@ -1762,33 +1764,33 @@ class TestCircuitBreakerIntegration:
         """Test that circuit breaker affects all CLIP client methods."""
         valid_embedding = [0.1] * 768
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client_with_cb._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client_with_cb._http_client = mock_http
 
-            # Open the circuit with failures
-            for _ in range(3):
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error"):
+                # Open the circuit with failures
+                for _ in range(3):
+                    with pytest.raises(CLIPUnavailableError):
+                        await client_with_cb.embed(sample_image)
+
+                # All methods should be affected by the open circuit
                 with pytest.raises(CLIPUnavailableError):
-                    await client_with_cb.embed(sample_image)
+                    await client_with_cb.classify(sample_image, ["cat", "dog"])
 
-            # All methods should be affected by the open circuit
-            with pytest.raises(CLIPUnavailableError):
-                await client_with_cb.classify(sample_image, ["cat", "dog"])
+                with pytest.raises(CLIPUnavailableError):
+                    await client_with_cb.similarity(sample_image, "a photo of a cat")
 
-            with pytest.raises(CLIPUnavailableError):
-                await client_with_cb.similarity(sample_image, "a photo of a cat")
+                with pytest.raises(CLIPUnavailableError):
+                    await client_with_cb.batch_similarity(sample_image, ["cat", "dog"])
 
-            with pytest.raises(CLIPUnavailableError):
-                await client_with_cb.batch_similarity(sample_image, ["cat", "dog"])
-
-            with pytest.raises(CLIPUnavailableError):
-                await client_with_cb.anomaly_score(sample_image, valid_embedding)
+                with pytest.raises(CLIPUnavailableError):
+                    await client_with_cb.anomaly_score(sample_image, valid_embedding)
+        finally:
+            client_with_cb._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_reset(
@@ -1796,38 +1798,44 @@ class TestCircuitBreakerIntegration:
     ) -> None:
         """Test that circuit breaker can be manually reset."""
         valid_embedding = [0.1] * 768
+        should_succeed = False
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error"),
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
+        async def mock_post(*args, **kwargs):
+            if should_succeed:
+                response = MagicMock()
+                response.raise_for_status = MagicMock()
+                response.json = MagicMock(return_value={"embedding": valid_embedding})
+                return response
+            raise httpx.ConnectError("Connection refused")
 
-            # Start with failures
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client_with_cb._http_client
+        mock_http = AsyncMock()
+        mock_http.post = mock_post
+        client_with_cb._http_client = mock_http
 
-            # Open the circuit with failures
-            for _ in range(3):
-                with pytest.raises(CLIPUnavailableError):
-                    await client_with_cb.embed(sample_image)
+        try:
+            with (
+                patch("backend.services.clip_client.record_pipeline_error"),
+                patch("backend.services.clip_client.observe_ai_request_duration"),
+            ):
+                # Open the circuit with failures
+                for _ in range(3):
+                    with pytest.raises(CLIPUnavailableError):
+                        await client_with_cb.embed(sample_image)
 
-            # Reset the circuit breaker
-            if hasattr(client_with_cb, "_circuit_breaker"):
-                client_with_cb._circuit_breaker.reset()
+                # Reset the circuit breaker
+                if hasattr(client_with_cb, "_circuit_breaker"):
+                    client_with_cb._circuit_breaker.reset()
 
-                # Now make it succeed
-                mock_response = MagicMock()
-                mock_response.raise_for_status = MagicMock()
-                mock_response.json = MagicMock(return_value={"embedding": valid_embedding})
-                mock_client.post = AsyncMock(return_value=mock_response)
+                    # Now make it succeed
+                    should_succeed = True
 
-                # Should work now after reset
-                result = await client_with_cb.embed(sample_image)
-                assert len(result) == 768
+                    # Should work now after reset
+                    result = await client_with_cb.embed(sample_image)
+                    assert len(result) == 768
+        finally:
+            client_with_cb._http_client = original_client
 
     def test_circuit_breaker_initialization(self, mock_settings_with_cb: MagicMock) -> None:
         """Test that circuit breaker is initialized with correct settings."""
@@ -1849,33 +1857,40 @@ class TestCircuitBreakerIntegration:
     ) -> None:
         """Test that successful calls reset the failure count."""
         valid_embedding = [0.1] * 768
+        should_succeed = False
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error"),
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
+        async def mock_post(*args, **kwargs):
+            if should_succeed:
+                response = MagicMock()
+                response.raise_for_status = MagicMock()
+                response.json = MagicMock(return_value={"embedding": valid_embedding})
+                return response
+            raise httpx.ConnectError("Connection refused")
 
-            # Cause some failures (but not enough to open circuit)
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client_with_cb._http_client
+        mock_http = AsyncMock()
+        mock_http.post = mock_post
+        client_with_cb._http_client = mock_http
 
-            for _ in range(2):  # 2 failures, threshold is 3
-                with pytest.raises(CLIPUnavailableError):
-                    await client_with_cb.embed(sample_image)
+        try:
+            with (
+                patch("backend.services.clip_client.record_pipeline_error"),
+                patch("backend.services.clip_client.observe_ai_request_duration"),
+            ):
+                # Cause some failures (but not enough to open circuit)
+                for _ in range(2):  # 2 failures, threshold is 3
+                    with pytest.raises(CLIPUnavailableError):
+                        await client_with_cb.embed(sample_image)
 
-            # Now succeed
-            mock_response = MagicMock()
-            mock_response.raise_for_status = MagicMock()
-            mock_response.json = MagicMock(return_value={"embedding": valid_embedding})
-            mock_client.post = AsyncMock(return_value=mock_response)
+                # Now succeed
+                should_succeed = True
 
-            result = await client_with_cb.embed(sample_image)
-            assert len(result) == 768
+                result = await client_with_cb.embed(sample_image)
+                assert len(result) == 768
 
-            # Verify failure count was reset
-            if hasattr(client_with_cb, "_circuit_breaker"):
-                assert client_with_cb._circuit_breaker._failure_count == 0
+                # Verify failure count was reset
+                if hasattr(client_with_cb, "_circuit_breaker"):
+                    assert client_with_cb._circuit_breaker._failure_count == 0
+        finally:
+            client_with_cb._http_client = original_client
