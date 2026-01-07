@@ -17,6 +17,8 @@ Utility functions for common operations across the frontend application, includi
 | `time.test.ts`        | Tests for time utilities                             |
 | `webcodecs.ts`        | WebCodecs API feature detection and fallback helpers |
 | `webcodecs.test.ts`   | Tests for WebCodecs utilities                        |
+| `promptDiff.ts`       | Prompt diff generation and suggestion application    |
+| `promptDiff.test.ts`  | Tests for prompt diff utilities                      |
 
 ## Risk Utilities (`risk.ts`)
 
@@ -389,6 +391,105 @@ interface WebCodecsCapabilities {
 - Feature detection before using WebCodecs for video processing
 - Fallback to alternative video handling methods in non-secure contexts
 
+## Prompt Diff Utilities (`promptDiff.ts`)
+
+Functions for generating diffs and applying suggestions to prompts. Used by the Prompt Playground to preview changes before applying.
+
+### Types
+
+```typescript
+interface DiffLine {
+  type: 'unchanged' | 'added' | 'removed' | 'context';
+  content: string;
+  lineNumber?: number;
+}
+
+interface ApplySuggestionResult {
+  success: boolean;
+  modifiedPrompt?: string;
+  error?: string;
+}
+```
+
+### Functions
+
+#### `generateDiff(original: string, modified: string, contextLines?: number): DiffLine[]`
+
+Generates a line-by-line diff between two prompts with context lines.
+
+**Parameters:**
+
+- `original` - Original prompt text
+- `modified` - Modified prompt text
+- `contextLines` - Number of unchanged lines to show around changes (default: 3)
+
+**Returns:** Array of `DiffLine` objects
+
+**Example:**
+
+```typescript
+const diff = generateDiff(originalPrompt, modifiedPrompt, 2);
+
+diff.forEach((line) => {
+  console.log(`${line.type}: ${line.content}`);
+});
+```
+
+#### `applySuggestion(prompt: string, suggestion: EnrichedSuggestion): ApplySuggestionResult`
+
+Applies an AI-generated suggestion to a prompt. Supports three suggestion types:
+
+1. **Replace**: Find and replace text
+2. **Insert**: Insert text at a specific position
+3. **Delete**: Remove specific text
+
+**Parameters:**
+
+- `prompt` - Original prompt text
+- `suggestion` - Enriched suggestion with type, target, and replacement/insertion text
+
+**Returns:** `ApplySuggestionResult` with success flag, modified prompt, or error message
+
+**Example:**
+
+```typescript
+const result = applySuggestion(prompt, {
+  type: 'replace',
+  target: 'old text',
+  replacement: 'new text',
+  reasoning: 'Improved clarity',
+});
+
+if (result.success) {
+  console.log('Updated prompt:', result.modifiedPrompt);
+} else {
+  console.error('Failed to apply:', result.error);
+}
+```
+
+**Suggestion Types:**
+
+- `replace` - Requires `target` and `replacement`
+- `insert` - Requires `target` (position marker) and `insertion`
+- `delete` - Requires `target` (text to remove)
+
+**Error Handling:**
+
+- Returns `{ success: false, error: string }` if target text not found
+- Returns `{ success: false, error: string }` if suggestion format is invalid
+- Returns `{ success: true, modifiedPrompt: string }` on successful application
+
+### Testing (`promptDiff.test.ts`)
+
+Tests cover:
+
+- Diff generation with various change types (add, remove, modify)
+- Context line inclusion around changes
+- Multi-line diff generation
+- Suggestion application for all three types (replace, insert, delete)
+- Error handling for invalid targets
+- Edge cases (empty strings, no changes, multiple occurrences)
+
 ## Entry Points
 
 For AI agents exploring this codebase:
@@ -397,4 +498,5 @@ For AI agents exploring this codebase:
 2. **Confidence utilities**: `confidence.ts` - Detection confidence levels, colors, Tailwind classes, array helpers
 3. **Time utilities**: `time.ts` - Duration formatting, ongoing event detection
 4. **WebCodecs utilities**: `webcodecs.ts` - Browser API feature detection for secure context requirements
-5. **Tests**: Each utility has a `.test.ts` file with comprehensive examples
+5. **Prompt diff utilities**: `promptDiff.ts` - Diff generation and suggestion application for Prompt Playground
+6. **Tests**: Each utility has a `.test.ts` file with comprehensive examples

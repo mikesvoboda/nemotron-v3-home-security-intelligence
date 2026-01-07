@@ -10,16 +10,24 @@ This directory contains all automated tests for the backend Python application. 
 backend/tests/
 ├── conftest.py              # Shared pytest fixtures and configuration
 ├── factories.py             # factory_boy factories for test data generation
+├── strategies.py            # Hypothesis strategies for property-based testing
+├── async_utils.py           # Async testing utilities and helpers
+├── mock_utils.py            # Mock object creation utilities
+├── matchers.py              # Custom test matchers (empty placeholder)
 ├── __init__.py              # Package initialization
-├── unit/                    # Unit tests for isolated components (150 test files)
-├── integration/             # Integration tests for API and multi-component workflows (55 test files)
+├── unit/                    # Unit tests for isolated components (200 test files)
+├── integration/             # Integration tests for API and multi-component workflows (60 test files)
 ├── e2e/                     # End-to-end pipeline integration tests (2 test files)
 ├── gpu/                     # GPU-specific AI service tests (1 test file)
-├── benchmarks/              # Performance and complexity benchmarks (3 test files)
+├── benchmarks/              # Performance and complexity benchmarks (4 test files)
+├── chaos/                   # Chaos engineering failure tests (5 test files)
+├── contracts/               # API contract tests (1 test file)
+├── security/                # Security vulnerability tests (3 test files)
 ├── fixtures/                # Test fixtures including sample images
 ├── check_syntax.py          # Syntax validation script
 ├── run_db_tests.sh          # Database test runner script
 ├── verify_database.py       # Database verification script
+├── MATCHERS.md              # Custom matcher documentation (empty placeholder)
 ├── DATABASE_TEST_FIXES.md   # Documentation for database test fixes
 └── WEBSOCKET_TEST_SUMMARY.md # WebSocket testing documentation
 ```
@@ -264,34 +272,41 @@ Timeouts are applied automatically based on test location:
 
 ## Test Categories
 
-### Unit Tests (`unit/`) - 150 test files
+### Unit Tests (`unit/`) - 200 test files
 
 Tests for individual components in isolation with all external dependencies mocked.
 Includes property-based tests using **Hypothesis** for model invariants.
 
 Subdirectories:
 
-- **api/routes/**: API route unit tests (17 files) - AI audit, cameras, DLQ, enrichment, events, etc.
-- **api/schemas/**: Pydantic schema validation tests (5 files)
-- **core/**: Infrastructure tests (28 files) - config, database, redis, logging, middleware, TLS
-- **models/**: ORM model tests (16 files) - Camera, Detection, Event, Alert, Zone, GPUStats
-- **routes/**: Additional route tests (13 files) - admin, alerts, audit, cameras, events, etc.
-- **services/**: Business logic tests (71 files) - AI pipeline, broadcasters, enrichment, loaders
+- **api/routes/**: API route unit tests (21 files) - AI audit, cameras, DLQ, enrichment, events, etc.
+- **api/schemas/**: Pydantic schema validation tests (8 files)
+- **api/helpers/**: API helper function tests (1 file) - enrichment transformers
+- **api/middleware/**: API middleware tests (1 file) - request timing
+- **core/**: Infrastructure tests (36 files) - config, database, redis, logging, middleware, TLS
+- **models/**: ORM model tests (20 files) - Camera, Detection, Event, Alert, Zone, GPUStats
+- **routes/**: Additional route tests (14 files) - admin, alerts, audit, cameras, events, etc.
+- **services/**: Business logic tests (87 files) - AI pipeline, broadcasters, enrichment, loaders
+- **middleware/**: Core middleware tests (1 file) - correlation ID
+- **integration/**: Integration helper tests (1 file) - test helpers
 - **scripts/**: Migration script tests (1 file)
+- **Root level**: Utility tests (10 files) - async_utils, mock_utils, benchmarks, main, etc.
 
-### Integration Tests (`integration/`) - 55 test files
+### Integration Tests (`integration/`) - 60 test files
 
 Tests for multi-component workflows with real database and mocked Redis.
-**Must run serially** (`-n0`) due to shared database state.
+**Now support parallel execution** with pytest-xdist (5x speedup with 8 workers).
 
 Categories:
 
-- **API endpoints**: admin, alerts, AI audit, cameras, detections, events, logs, media, metrics, zones
-- **WebSocket**: Connection handling, broadcasting, authentication, cleanup
-- **Services**: Batch aggregation, detector client, file watcher, health monitor, cache, cleanup
-- **Full stack**: Camera -> Detection -> Event workflows, pipeline E2E
-- **Security**: Path traversal prevention, file type validation, error handling
-- **Database**: Migrations, model cascades, transaction rollback, Redis pub/sub
+- **API endpoints**: admin, alerts, AI audit, cameras, detections, events, logs, media, metrics, zones (21 files)
+- **WebSocket**: Connection handling, broadcasting, authentication, cleanup (3 files)
+- **Services**: Batch aggregation, detector client, file watcher, health monitor, cache, cleanup (12 files)
+- **Models and Database**: Alert models, baseline, database operations, model cascades (8 files)
+- **Error Handling**: API errors, database isolation, transaction rollback, HTTP error codes (5 files)
+- **Pipeline and Full Stack**: Circuit breaker, enrichment, event search, full stack, pipeline E2E (7 files)
+- **Infrastructure**: Alembic migrations, GitHub workflows, trigram indexes (3 files)
+- **Security**: Media file serving security (1 file)
 
 ### End-to-End Tests (`e2e/`) - 2 test files
 
@@ -306,13 +321,38 @@ Tests for RT-DETRv2 and Nemotron service integration.
 
 - `test_detector_integration.py`: GPU service health, inference, performance
 
-### Benchmarks (`benchmarks/`) - 3 test files
+### Benchmarks (`benchmarks/`) - 4 test files
 
 Performance and complexity regression detection.
 
 - `test_api_benchmarks.py`: Response time measurements
 - `test_bigo.py`: O(n) complexity verification
 - `test_memory.py`: Memory usage limits (Linux only)
+- `test_performance.py`: Core performance regression benchmarks
+
+### Chaos Tests (`chaos/`) - 5 test files
+
+Chaos engineering tests that inject faults into services to ensure graceful degradation.
+
+- `test_rtdetr_failures.py`: RT-DETR object detection service failures
+- `test_redis_failures.py`: Redis cache/queue service failures
+- `test_database_failures.py`: PostgreSQL database failures
+- `test_nemotron_failures.py`: Nemotron LLM service failures
+- `test_network_conditions.py`: Network latency and reliability issues
+
+### Contract Tests (`contracts/`) - 1 test file
+
+API contract tests for response schema validation.
+
+- `test_api_contracts.py`: API response schema validation (21+ tests)
+
+### Security Tests (`security/`) - 3 test files
+
+Security vulnerability tests for common web attacks.
+
+- `test_api_security.py`: SQL injection, XSS, path traversal, rate limiting, CORS
+- `test_auth_security.py`: API key authentication, hashing, exempt paths
+- `test_input_validation.py`: Schema validation, query parameters, encoding
 
 ### Fixtures (`fixtures/`)
 
@@ -526,5 +566,10 @@ async def test_background_task():
 - `integration/AGENTS.md` - Integration test architecture
 - `e2e/AGENTS.md` - End-to-end pipeline testing
 - `benchmarks/AGENTS.md` - Performance benchmarks
+- `chaos/AGENTS.md` - Chaos engineering tests
+- `contracts/AGENTS.md` - API contract tests
+- `security/AGENTS.md` - Security vulnerability tests
+- `fixtures/AGENTS.md` - Test fixtures
+- `gpu/AGENTS.md` - GPU service tests
 - `/backend/AGENTS.md` - Backend architecture
 - `/CLAUDE.md` - Project instructions

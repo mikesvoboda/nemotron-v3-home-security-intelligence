@@ -8,13 +8,15 @@ The `backend/api/` package contains the FastAPI REST API layer for the home secu
 
 ```
 backend/api/
-├── __init__.py          # Package initialization
-├── AGENTS.md            # This file
-├── dependencies.py      # Reusable utility functions for entity existence checks
-├── validators.py        # Shared validation utilities for routes
-├── routes/              # API route handlers (endpoints)
-├── schemas/             # Pydantic schemas for request/response validation
-└── middleware/          # HTTP middleware components (auth, request ID, rate limit, security headers)
+├── __init__.py              # Package initialization
+├── AGENTS.md                # This file
+├── dependencies.py          # Reusable utility functions for entity existence checks
+├── deps.py                  # FastAPI dependency injection helpers
+├── exception_handlers.py    # Global exception handlers for standardized error responses
+├── helpers/                 # Helper modules for API transformations
+├── routes/                  # API route handlers (endpoints)
+├── schemas/                 # Pydantic schemas for request/response validation
+└── middleware/              # HTTP middleware components (auth, request ID, rate limit, security headers)
 ```
 
 ## Key Files
@@ -44,15 +46,132 @@ async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Came
     return await get_camera_or_404(camera_id, db)
 ```
 
-### `validators.py`
+### `deps.py`
 
-Shared validation utilities for API routes. Provides reusable validators:
+FastAPI dependency injection helpers for services. Provides dependency functions that can be
+used with FastAPI's `Depends()` mechanism:
 
-| Function              | Purpose                                                     |
-| --------------------- | ----------------------------------------------------------- |
-| `validate_date_range` | Validates that start_date is not after end_date (400 error) |
+| Function           | Purpose                                  |
+| ------------------ | ---------------------------------------- |
+| `get_orchestrator` | Get ContainerOrchestrator from app state |
+
+Usage pattern:
+
+```python
+from backend.api.deps import get_orchestrator
+
+@router.get("/services")
+async def list_services(
+    orchestrator: ContainerOrchestrator = Depends(get_orchestrator),
+):
+    return orchestrator.get_all_services()
+```
+
+### `exception_handlers.py`
+
+Global exception handlers for standardized error responses across the API. Converts all
+exceptions to a consistent JSON format with proper logging, request tracing, and error
+sanitization.
+
+**Key Features:**
+
+- Standardized error response format with error codes, messages, and request IDs
+- Automatic error logging with appropriate severity levels
+- Error message sanitization to prevent information leakage
+- Integration with request tracing (X-Request-ID headers)
+- Support for custom exception types (SecurityIntelligenceError, CircuitBreakerOpenError, etc.)
+
+**Exception Handlers:**
+
+| Handler                                   | Exception Type            | Purpose                            |
+| ----------------------------------------- | ------------------------- | ---------------------------------- |
+| `security_intelligence_exception_handler` | SecurityIntelligenceError | Application-specific errors        |
+| `http_exception_handler`                  | HTTPException             | Standard HTTP exceptions           |
+| `validation_exception_handler`            | RequestValidationError    | Request validation errors          |
+| `pydantic_validation_handler`             | PydanticValidationError   | Response serialization errors      |
+| `circuit_breaker_exception_handler`       | CircuitBreakerOpenError   | Circuit breaker open errors        |
+| `rate_limit_exception_handler`            | RateLimitError            | Rate limit exceeded errors         |
+| `external_service_exception_handler`      | ExternalServiceError      | External service failures          |
+| `generic_exception_handler`               | Exception                 | Catch-all for unhandled exceptions |
+
+**Error Response Format:**
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message",
+    "request_id": "a1b2c3d4",
+    "timestamp": "2025-01-07T10:30:00Z",
+    "details": {}
+  }
+}
+```
+
+Registration in main.py:
+
+```python
+from backend.api.exception_handlers import register_exception_handlers
+
+app = FastAPI()
+register_exception_handlers(app)
+```
 
 ## Key Components
+
+### Helpers (`helpers/`)
+
+Helper modules for API data transformations and processing:
+
+| File                         | Purpose                                                     |
+| ---------------------------- | ----------------------------------------------------------- |
+| `enrichment_transformers.py` | Transform enrichment JSONB data to structured API responses |
+
+**`enrichment_transformers.py`:**
+
+Provides helper classes for transforming raw enrichment data from the database (JSONB format)
+into structured API response format using an extractor pattern.
+
+**Key Classes:**
+
+| Class                     | Purpose                                          |
+| ------------------------- | ------------------------------------------------ |
+| `EnrichmentTransformer`   | Main transformer orchestrating all extractors    |
+| `BaseEnrichmentExtractor` | Abstract base class for enrichment extractors    |
+| `LicensePlateExtractor`   | Extract license plate data                       |
+| `FaceExtractor`           | Extract face detection data                      |
+| `ViolenceExtractor`       | Extract violence detection data                  |
+| `VehicleExtractor`        | Extract vehicle classification and damage data   |
+| `ClothingExtractor`       | Extract clothing classification and segmentation |
+| `ImageQualityExtractor`   | Extract image quality assessment data            |
+| `PetExtractor`            | Extract pet classification data                  |
+
+**Key Functions:**
+
+| Function                     | Purpose                                          |
+| ---------------------------- | ------------------------------------------------ |
+| `transform_enrichment_data`  | Main entry point for enrichment transformation   |
+| `get_enrichment_transformer` | Get the default transformer singleton            |
+| `sanitize_errors`            | Sanitize error messages to remove sensitive data |
+
+Usage pattern:
+
+```python
+from backend.api.helpers.enrichment_transformers import transform_enrichment_data
+
+enrichment_response = transform_enrichment_data(
+    detection_id=detection.id,
+    enrichment_data=detection.enrichment_data,
+    detected_at=detection.detected_at,
+)
+```
+
+**Design Highlights:**
+
+- Validates enrichment data schema before transformation (NEM-1351)
+- Uses extractor pattern to reduce code duplication (NEM-1349)
+- Breaks down transformation into smaller, focused helper classes (NEM-1307)
+- Sanitizes error messages to prevent information leakage in API responses
 
 ### Routes (`routes/`)
 

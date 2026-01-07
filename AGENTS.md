@@ -27,13 +27,16 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | ------------------------- | ---------------------------------------------------------------------- |
 | `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings   |
 | `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)      |
-| `.coveragerc`             | Coverage.py configuration                                              |
 | `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits |
 | `docker-compose.ghcr.yml` | GitHub Container Registry Docker configuration                         |
+| `docker-compose.ci.yml`   | CI-specific Docker configuration for GitHub Actions                    |
 | `docker-compose.test.yml` | Test containers (postgres-test, redis-test) for CI                     |
 | `.env.example`            | Environment variable template                                          |
 | `semgrep.yml`             | Semgrep security scanning configuration                                |
 | `vulture_whitelist.py`    | False positive suppressions for Vulture dead code detection            |
+| `.prettierrc`             | Prettier code formatting configuration                                 |
+| `codecov.yml`             | Codecov coverage reporting configuration                               |
+| `commitlint.config.js`    | Commit message linting configuration                                   |
 
 ### Documentation
 
@@ -59,15 +62,20 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `setup.bat`         | Environment setup launcher (Windows)          |
 | `setup.py`          | Python setup script with interactive prompts  |
 
-### Git Configuration
+### Git and Security Configuration
 
-| File             | Purpose                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| `.gitignore`     | Git ignore rules (node_modules, .venv, .env, .db files, AI model weights, coverage) |
-| `.gitattributes` | Git attributes                                                                      |
-| `.gitleaks.toml` | Gitleaks secret scanning configuration                                              |
-| `.semgrepignore` | Semgrep ignore patterns                                                             |
-| `.trivyignore`   | Trivy security scanner ignore patterns                                              |
+| File                | Purpose                                                                             |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| `.gitignore`        | Git ignore rules (node_modules, .venv, .env, .db files, AI model weights, coverage) |
+| `.gitattributes`    | Git attributes                                                                      |
+| `.gitleaks.toml`    | Gitleaks secret scanning configuration                                              |
+| `.semgrepignore`    | Semgrep ignore patterns                                                             |
+| `.trivyignore`      | Trivy security scanner ignore patterns (with CVE review dates)                      |
+| `.bandit.yml`       | Bandit Python security linter configuration                                         |
+| `.bandit.baseline`  | Bandit baseline for known issues                                                    |
+| `.secrets.baseline` | detect-secrets baseline file                                                        |
+| `zap-rules.tsv`     | ZAP (OWASP) security scanning rules                                                 |
+| `flaky_tests.txt`   | Known flaky tests list for CI retry logic                                           |
 
 ## Directory Structure
 
@@ -75,7 +83,10 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 /
 ├── ai/                   # AI model scripts and configs
 │   ├── rtdetr/           # RT-DETRv2 detection server
-│   └── nemotron/         # Nemotron model files
+│   ├── nemotron/         # Nemotron model files
+│   ├── florence/         # Florence-2 dense captioning
+│   ├── clip/             # CLIP embedding service
+│   └── enrichment/       # On-demand enrichment pipeline
 ├── backend/              # FastAPI backend (Python)
 │   ├── alembic/          # Database migrations (PostgreSQL)
 │   ├── api/              # REST endpoints and WebSocket routes
@@ -85,15 +96,18 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── models/           # SQLAlchemy ORM models
 │   ├── services/         # Business logic (file watcher, detector, batch aggregator)
 │   └── tests/            # Unit and integration tests
-├── custom/               # Custom FTP server configuration
-│   └── vsftpd/           # Project-specific vsftpd overrides
-├── data/                 # Runtime data directory (gitignored)
-│   └── .gitkeep          # Ensures directory exists
+├── custom/               # Custom resources (test clips, configurations)
+│   └── clips/            # Video clips for testing
+├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
 ├── docs/                 # Documentation
 │   ├── architecture/     # Technical architecture documentation
 │   ├── user-guide/       # End-user documentation
+│   ├── user/             # Hub-and-spoke user docs
+│   ├── developer/        # Developer-focused documentation
+│   ├── operator/         # Operator-focused documentation
 │   ├── plans/            # Design and implementation plans
 │   ├── decisions/        # Architecture Decision Records (ADRs)
+│   ├── testing/          # Testing guides (TDD, Hypothesis, patterns)
 │   └── images/           # Visual assets (mockups, diagrams)
 ├── frontend/             # React dashboard (TypeScript)
 │   ├── src/
@@ -101,19 +115,21 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   │   ├── hooks/        # Custom hooks (WebSocket, event streams)
 │   │   ├── services/     # API client
 │   │   └── styles/       # CSS/Tailwind
-│   └── tests/            # Component and E2E tests
+│   ├── tests/            # E2E and integration tests (Playwright)
+│   └── public/           # Static assets (favicon, images)
 ├── monitoring/           # Prometheus + Grafana configuration
 │   └── grafana/          # Grafana dashboards
+├── mutants/              # Mutation testing results (mutmut)
 ├── scripts/              # Development and deployment scripts
-├── secrets/              # Docker secrets directory (gitignored except .gitkeep)
 ├── setup_lib/            # Python utilities for setup.py
-├── tests/                # Root-level test fixtures
+├── tests/                # Root-level setup script tests
 ├── vsftpd/               # vsftpd FTP server container configuration
-├── .beads/               # Legacy issue tracking data (deprecated)
+├── .beads/               # Legacy issue tracking data (deprecated, migrated to Linear)
+├── .pids/                # PID files for dev services (backend.pid, frontend.pid)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
     ├── codeql/           # CodeQL security analysis
-    └── prompts/          # GitHub Copilot prompts
+    └── prompts/          # AI-powered code review prompts
 ```
 
 ## Issue Tracking

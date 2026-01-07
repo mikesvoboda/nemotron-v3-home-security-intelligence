@@ -19,6 +19,12 @@ Package initialization with public exports:
 - `get_client_ip` - Extract client IP from request
 - `rate_limit_default`, `rate_limit_media`, `rate_limit_search` - Convenience dependencies
 - `SecurityHeadersMiddleware` - Security headers middleware (CSP, X-Frame-Options, etc.)
+- `RequestIDMiddleware` - Request ID generation and propagation middleware
+- `RequestTimingMiddleware` - Request timing and slow request logging middleware
+- `get_correlation_headers` - Get correlation headers for outgoing requests
+- `merge_headers_with_correlation` - Merge headers with correlation IDs
+- `get_correlation_id` - Get current correlation ID from context
+- `set_correlation_id` - Set correlation ID in context
 
 ### `auth.py`
 
@@ -70,6 +76,84 @@ Redis-based sliding window rate limiting for API endpoints.
 | `rate_limit_default()`       | Get default rate limiter dependency        |
 | `rate_limit_media()`         | Get media rate limiter dependency          |
 | `rate_limit_search()`        | Get search rate limiter dependency         |
+
+### `correlation.py`
+
+Correlation ID helpers for propagating correlation IDs to outgoing HTTP requests to external services.
+
+**Purpose:**
+
+Provides utilities for propagating correlation IDs from incoming requests to outgoing HTTP requests when calling external services (RT-DETR, Nemotron, etc.). Implements NEM-1472 (Correlation ID propagation to AI service HTTP clients).
+
+**Functions:**
+
+| Function                         | Purpose                                         |
+| -------------------------------- | ----------------------------------------------- |
+| `get_correlation_headers()`      | Get headers for propagating correlation ID      |
+| `merge_headers_with_correlation` | Merge existing headers with correlation headers |
+
+**Usage:**
+
+```python
+from backend.api.middleware.correlation import get_correlation_headers
+
+headers = {"Content-Type": "application/json"}
+headers.update(get_correlation_headers())
+
+async with httpx.AsyncClient() as client:
+    response = await client.post(url, headers=headers, json=data)
+```
+
+**Headers Propagated:**
+
+- `X-Correlation-ID` - Correlation ID from current request context
+- `X-Request-ID` - Request ID from current request (fallback for some services)
+
+### `request_timing.py`
+
+Request timing middleware for measuring API latency and logging slow requests.
+
+**Purpose:**
+
+Measures request/response duration, adds timing headers to responses, and logs requests that exceed a configurable threshold. Implements NEM-1469 (Request timing middleware).
+
+**Classes:**
+
+| Class                     | Purpose                                     |
+| ------------------------- | ------------------------------------------- |
+| `RequestTimingMiddleware` | Middleware for request duration measurement |
+
+**Features:**
+
+- High-precision timing using `time.perf_counter()`
+- Adds `X-Response-Time` header to all responses (format: "123.45ms")
+- Logs slow requests above configurable threshold (default: 500ms)
+- Structured logging with method, path, status code, duration, client IP
+- Handles exceptions gracefully (still logs timing even on error)
+
+**Configuration:**
+
+```python
+app.add_middleware(
+    RequestTimingMiddleware,
+    slow_request_threshold_ms=500,  # Log requests slower than 500ms
+)
+```
+
+**Log Format:**
+
+```json
+{
+  "level": "WARNING",
+  "message": "Slow request: GET /api/events - 200 - 523.45ms (threshold: 500ms)",
+  "method": "GET",
+  "path": "/api/events",
+  "status_code": 200,
+  "duration_ms": 523.45,
+  "threshold_ms": 500,
+  "client_ip": "127.0.0.1"
+}
+```
 
 ### `security_headers.py`
 

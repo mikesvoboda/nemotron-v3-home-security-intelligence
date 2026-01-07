@@ -6,20 +6,27 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 
 ## Key Files
 
-| File                     | Purpose                                                       |
-| ------------------------ | ------------------------------------------------------------- |
-| `api.ts`                 | Complete API client with typed methods for all REST endpoints |
-| `api.test.ts`            | Comprehensive test coverage for API client                    |
-| `api.abort.test.ts`      | Tests for request cancellation and AbortController usage      |
-| `auditApi.ts`            | AI pipeline audit API client (model contributions, stats)     |
-| `auditApi.test.ts`       | Tests for audit API client                                    |
-| `logger.ts`              | Frontend logging service with batched backend sync            |
-| `logger.test.ts`         | Tests for logger functionality                                |
-| `metricsParser.ts`       | Prometheus text format parser for AI performance metrics      |
-| `metricsParser.test.ts`  | Tests for Prometheus metrics parsing                          |
-| `queryClient.ts`         | TanStack Query configuration and query key factories          |
-| `queryClient.test.ts`    | Tests for QueryClient configuration                           |
-| `.gitkeep`               | Placeholder file                                              |
+| File                          | Purpose                                                       |
+| ----------------------------- | ------------------------------------------------------------- |
+| `api.ts`                      | Complete API client with typed methods for all REST endpoints |
+| `api.test.ts`                 | Comprehensive test coverage for API client                    |
+| `api.abort.test.ts`           | Tests for request cancellation and AbortController usage      |
+| `api.missing-coverage.test.ts`| Tests for missing coverage scenarios                          |
+| `auditApi.ts`                 | AI pipeline audit API client (model contributions, stats)     |
+| `auditApi.test.ts`            | Tests for audit API client                                    |
+| `abTestService.ts`            | A/B testing service for prompt playground                     |
+| `abTestService.test.ts`       | Tests for A/B testing service                                 |
+| `promptManagementApi.ts`      | Prompt management API client (CRUD, history, import/export)   |
+| `promptManagementApi.test.ts` | Tests for prompt management API                               |
+| `logger.ts`                   | Frontend logging service with batched backend sync            |
+| `logger.test.ts`              | Tests for logger functionality                                |
+| `metricsParser.ts`            | Prometheus text format parser for AI performance metrics      |
+| `metricsParser.test.ts`       | Tests for Prometheus metrics parsing                          |
+| `interceptors.ts`             | HTTP request/response interceptors for api client             |
+| `interceptors.test.ts`        | Tests for interceptors                                        |
+| `queryClient.ts`              | TanStack Query configuration and query key factories          |
+| `queryClient.test.ts`         | Tests for QueryClient configuration                           |
+| `.gitkeep`                    | Placeholder file                                              |
 
 ## API Client Structure (`api.ts`)
 
@@ -546,6 +553,182 @@ function App() {
 }
 ```
 
+## A/B Test Service (`abTestService.ts`)
+
+Service for running A/B tests comparing original and modified prompts against events. Used by the Prompt Playground feature.
+
+**Features:**
+
+- Fetch random events for A/B testing
+- Test prompts against single events
+- Batch A/B testing with configurable sample sizes
+- Model configuration support (model name, temperature, maxTokens)
+- Detailed comparison results with statistical metrics
+
+**Key Types:**
+
+```typescript
+interface ModelConfig {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+}
+
+interface EventSummary {
+  id: number;
+  timestamp: string;
+  cameraName: string;
+  detectionCount: number;
+}
+
+interface TestPromptResponse {
+  riskScore: number;
+  riskLevel: string;
+  reasoning: string;
+  responseTime: number;
+}
+
+interface ABTestComparison {
+  eventId: number;
+  original: TestPromptResponse;
+  modified: TestPromptResponse;
+  scoreDelta: number;
+  levelChanged: boolean;
+}
+
+interface ABTestResult {
+  comparisons: ABTestComparison[];
+  summary: ABTestSummary;
+}
+```
+
+**Key Functions:**
+
+```typescript
+// Fetch random events for testing
+fetchRandomEvents(limit?: number): Promise<EventSummary[]>
+
+// Test prompt against single event
+testPrompt(eventId: number, prompt: string, modelConfig: ModelConfig): Promise<TestPromptResponse>
+
+// Run A/B test comparing two prompts
+runABTest(params: ABTestParams): Promise<ABTestResult>
+```
+
+## Prompt Management API (`promptManagementApi.ts`)
+
+Specialized API client for prompt management endpoints including version history, CRUD operations, testing, and import/export.
+
+**Features:**
+
+- Fetch all prompts for all AI models
+- View prompt version history with pagination
+- Restore previous prompt versions
+- Update prompts with validation
+- Test prompt changes without saving
+- Export prompts to JSON
+- Import prompts with preview and validation
+
+**Key Types:**
+
+```typescript
+type AIModelEnum = 'nemotron' | 'rt-detr' | 'florence' | 'clip';
+
+interface ModelPromptConfig {
+  model: AIModelEnum;
+  prompt: string;
+  version: number;
+  updated_at: string;
+}
+
+interface PromptHistoryEntry {
+  version: number;
+  prompt: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+interface PromptsExportResponse {
+  version: string;
+  exported_at: string;
+  prompts: Record<AIModelEnum, string>;
+}
+
+interface PromptsImportPreviewResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  models_to_update: AIModelEnum[];
+  current_versions: Record<AIModelEnum, number>;
+}
+```
+
+**Key Functions:**
+
+```typescript
+// Fetch all prompts
+fetchAllPrompts(): Promise<AllPromptsResponse>
+
+// Get prompt history
+fetchPromptHistory(model: AIModelEnum, limit?: number, offset?: number): Promise<PromptHistoryResponse>
+
+// Update prompt
+updatePrompt(model: AIModelEnum, prompt: string): Promise<ModelPromptConfig>
+
+// Restore previous version
+restorePromptVersion(model: AIModelEnum, version: number): Promise<PromptRestoreResponse>
+
+// Test prompt without saving
+testPrompt(request: PromptTestRequest): Promise<PromptTestResult>
+
+// Export all prompts
+exportPrompts(): Promise<PromptsExportResponse>
+
+// Preview import
+previewImport(data: PromptsImportPreviewRequest): Promise<PromptsImportPreviewResponse>
+
+// Import prompts
+importPrompts(data: PromptsImportRequest): Promise<PromptsImportResponse>
+```
+
+**Custom Error Class:**
+
+```typescript
+class PromptApiError extends Error {
+  status: number;
+  data?: unknown;
+}
+```
+
+## HTTP Interceptors (`interceptors.ts`)
+
+Request and response interceptors for the API client. Provides hooks for logging, authentication, error handling, and request/response transformation.
+
+**Features:**
+
+- Pre-request hooks (add headers, log requests, modify config)
+- Post-response hooks (transform data, log responses)
+- Error handling hooks (retry logic, toast notifications)
+- Request/response logging
+- Authentication token injection
+- Rate limiting detection
+
+**Key Types:**
+
+```typescript
+interface RequestInterceptor {
+  (config: RequestInit, url: string): RequestInit | Promise<RequestInit>;
+}
+
+interface ResponseInterceptor {
+  <T>(response: Response, data: T): T | Promise<T>;
+}
+
+interface ErrorInterceptor {
+  (error: ApiError): void | Promise<void>;
+}
+```
+
 ## Notes
 
 - All functions are async and return Promises
@@ -555,6 +738,9 @@ function App() {
 - Logger automatically logs to console in all environments
 - Logger queue is preserved on flush failures (up to 100 entries)
 - TanStack Query DevTools available in development mode (bottom-right corner)
+- A/B testing service supports batch testing with configurable sample sizes
+- Prompt management API includes version control with rollback capability
+- All new services use custom error classes for type-safe error handling
 
 ## Entry Points
 
@@ -565,3 +751,6 @@ For AI agents exploring this codebase:
 3. **WebSocket URLs**: Use `buildWebSocketUrl()` for WebSocket connections
 4. **Error handling**: All API calls can throw `ApiError` with status and data
 5. **Logging**: Import `logger` singleton for frontend logging to backend
+6. **A/B testing**: Use `abTestService.ts` for prompt playground A/B tests
+7. **Prompt management**: Use `promptManagementApi.ts` for prompt CRUD and versioning
+8. **Audit data**: Use `auditApi.ts` for AI pipeline audit and model contribution data

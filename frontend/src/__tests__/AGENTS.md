@@ -9,10 +9,57 @@ Specialized test directory for configuration file validation and infrastructure 
 ```
 frontend/src/__tests__/
 ├── AGENTS.md              # This documentation file
-└── lighthouserc.test.ts   # Lighthouse CI configuration validation tests
+├── lighthouserc.test.ts   # Lighthouse CI configuration validation tests
+├── matchers.ts            # Custom Vitest matchers for domain objects
+└── matchers.test.ts       # Tests for custom matchers
 ```
 
 ## Key Files
+
+### matchers.ts
+
+Domain-specific custom Vitest matchers for validating common objects. Extends `expect` API with matchers for:
+
+- **Cameras**: `toBeValidCamera()` - Validates Camera object structure
+- **Events**: `toBeValidEvent()` - Validates Event object structure
+- **Detections**: `toBeValidDetection()` - Validates Detection object structure
+- **Risk Levels**: `toHaveRiskLevel(level)` - Validates risk_level field
+- **Risk Scores**: `toHaveRiskScoreInRange(min, max)` - Validates risk_score range
+- **Timestamps**: `toHaveValidTimestamp()` - Validates ISO timestamp format
+
+**Usage:**
+
+```typescript
+import { expect } from 'vitest';
+import '../__tests__/matchers'; // Register custom matchers
+
+test('validates camera', () => {
+  const camera = { id: 'cam1', name: 'Front', folder_path: '/path', status: 'active', created_at: '2024-01-01T00:00:00Z' };
+  expect(camera).toBeValidCamera();
+});
+
+test('validates event risk', () => {
+  const event = { id: 1, camera_id: 'cam1', started_at: '2024-01-01T00:00:00Z', risk_score: 85, risk_level: 'critical' };
+  expect(event).toBeValidEvent();
+  expect(event).toHaveRiskLevel('critical');
+  expect(event).toHaveRiskScoreInRange(80, 100);
+});
+```
+
+**Type Safety:**
+
+Matchers include TypeScript interfaces for Camera, Event, and Detection to ensure type-safe validation.
+
+### matchers.test.ts
+
+Comprehensive tests for all custom matchers covering:
+
+- Valid object structures (pass cases)
+- Invalid object structures (fail cases with proper error messages)
+- Edge cases (null values, optional fields, boundary conditions)
+- Risk level validation (low, medium, high, critical)
+- Risk score range validation
+- Timestamp format validation
 
 ### lighthouserc.test.ts
 
