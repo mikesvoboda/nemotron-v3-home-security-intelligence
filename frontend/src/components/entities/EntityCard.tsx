@@ -1,4 +1,5 @@
 import { Camera, Car, Clock, Eye, User } from 'lucide-react';
+import { memo } from 'react';
 
 export interface EntityCardProps {
   id: string;
@@ -16,7 +17,7 @@ export interface EntityCardProps {
  * EntityCard component displays a tracked entity (person or vehicle) with
  * summary information including appearance count, cameras seen, and timestamps.
  */
-export default function EntityCard({
+const EntityCard = memo(function EntityCard({
   id,
   entity_type,
   first_seen,
@@ -179,4 +180,6 @@ export default function EntityCard({
       </div>
     </div>
   );
-}
+});
+
+export default EntityCard;

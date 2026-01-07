@@ -312,30 +312,30 @@ export default function CamerasSettings() {
                     {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : 'Never'}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => setZoneEditorCamera(camera)}
-                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                         aria-label={`Configure zones for ${camera.name}`}
                         title="Configure Zones"
                       >
-                        <MapPin className="h-4 w-4" />
+                        <MapPin className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => handleOpenEditModal(camera)}
-                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                         aria-label={`Edit ${camera.name}`}
                         title="Edit Camera"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => handleOpenDeleteModal(camera)}
-                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                         aria-label={`Delete ${camera.name}`}
                         title="Delete Camera"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
                   </td>

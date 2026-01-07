@@ -18,6 +18,19 @@ and clothing classification instead of loading models locally.
 
 from __future__ import annotations
 
+__all__ = [
+    # Classes
+    "BoundingBox",
+    "DetectionInput",
+    "EnrichmentPipeline",
+    "EnrichmentResult",
+    "FaceResult",
+    "LicensePlateResult",
+    # Functions
+    "get_enrichment_pipeline",
+    "reset_enrichment_pipeline",
+]
+
 import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC

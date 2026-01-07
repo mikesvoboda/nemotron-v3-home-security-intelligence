@@ -743,22 +743,24 @@ describe('EventCard', () => {
       expect(progressFill).toHaveStyle({ width: '45%' });
     });
 
-    it('applies NVIDIA green color for low risk scores', () => {
+    // Progress bar colors use Tailwind CSS standard severity colors:
+    // Low: green-500 (#22c55e), Medium: yellow-500 (#eab308), High: orange-500 (#f97316), Critical: red-500 (#ef4444)
+    it('applies green color for low risk scores', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={15} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(118,\s*185,\s*0\)|#76B900/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(34,\s*197,\s*94\)|#22c55e/i);
     });
 
-    it('applies NVIDIA yellow color for medium risk scores', () => {
+    it('applies yellow color for medium risk scores', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={45} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(234,\s*179,\s*8\)|#eab308/i);
     });
 
-    it('applies NVIDIA red color for high risk scores', () => {
+    it('applies orange color for high risk scores', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={72} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(249,\s*115,\s*22\)|#f97316/i);
     });
 
     it('applies red color for critical risk scores', () => {
@@ -782,39 +784,40 @@ describe('EventCard', () => {
     });
 
     // Thresholds match backend defaults: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    // Colors use Tailwind CSS severity colors: green-500, yellow-500, orange-500, red-500
     it('handles boundary risk score at 29 (last low)', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={29} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
       expect(progressFill).toHaveStyle({ width: '29%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(118,\s*185,\s*0\)|#76B900/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(34,\s*197,\s*94\)|#22c55e/i);
     });
 
     it('handles boundary risk score at 30 (first medium)', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={30} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
       expect(progressFill).toHaveStyle({ width: '30%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(234,\s*179,\s*8\)|#eab308/i);
     });
 
     it('handles boundary risk score at 59 (last medium)', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={59} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
       expect(progressFill).toHaveStyle({ width: '59%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(234,\s*179,\s*8\)|#eab308/i);
     });
 
     it('handles boundary risk score at 60 (first high)', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={60} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
       expect(progressFill).toHaveStyle({ width: '60%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(249,\s*115,\s*22\)|#f97316/i);
     });
 
     it('handles boundary risk score at 84 (last high)', () => {
       const { container } = render(<EventCard {...mockProps} risk_score={84} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
       expect(progressFill).toHaveStyle({ width: '84%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(249,\s*115,\s*22\)|#f97316/i);
     });
 
     it('handles boundary risk score at 85 (first critical)', () => {

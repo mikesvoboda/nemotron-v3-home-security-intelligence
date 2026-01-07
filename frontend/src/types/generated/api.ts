@@ -8481,7 +8481,7 @@ export interface components {
              */
             timestamp: string;
             /** @description Worker status */
-            workers: components["schemas"]["WorkersStatus"];
+            workers: components["schemas"]["PipelineWorkersStatus"];
         };
         /**
          * PipelineStatusResponse
@@ -8534,6 +8534,45 @@ export interface components {
              * @description Timestamp of status snapshot
              */
             timestamp: string;
+        };
+        /**
+         * PipelineWorkerStatus
+         * @description Status of a pipeline worker.
+         */
+        PipelineWorkerStatus: {
+            /**
+             * Error Count
+             * @description Number of recent errors
+             * @default 0
+             */
+            error_count: number;
+            /**
+             * Last Activity
+             * @description ISO timestamp of last activity
+             */
+            last_activity?: string | null;
+            /**
+             * Name
+             * @description Worker name
+             */
+            name: string;
+            /**
+             * Running
+             * @description Whether worker is currently running
+             */
+            running: boolean;
+        };
+        /**
+         * PipelineWorkersStatus
+         * @description Status of all pipeline workers.
+         */
+        PipelineWorkersStatus: {
+            /** @description Analyzer worker status */
+            analyzer: components["schemas"]["PipelineWorkerStatus"];
+            /** @description Detector worker status */
+            detector: components["schemas"]["PipelineWorkerStatus"];
+            /** @description File watcher status */
+            file_watcher: components["schemas"]["PipelineWorkerStatus"];
         };
         /**
          * PoseEnrichment
@@ -8933,17 +8972,21 @@ export interface components {
         };
         /**
          * QueueDepths
-         * @description Queue depth information for AI pipeline.
+         * @description Queue depth information for pipeline queues.
+         * @example {
+         *       "analysis_queue": 2,
+         *       "detection_queue": 5
+         *     }
          */
         QueueDepths: {
             /**
              * Analysis Queue
-             * @description Number of items in analysis queue
+             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
              */
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue
+             * @description Number of items in detection queue waiting for RT-DETRv2 processing
              */
             detection_queue: number;
         };
@@ -10219,7 +10262,7 @@ export interface components {
             /** @description Latency statistics for each pipeline stage */
             latencies?: components["schemas"]["PipelineLatencies"] | null;
             /** @description Current queue depths for detection and analysis queues */
-            queues: components["schemas"]["backend__api__schemas__system__QueueDepths"];
+            queues: components["schemas"]["QueueDepths"];
             /**
              * Timestamp
              * Format: date-time
@@ -10450,18 +10493,6 @@ export interface components {
              * @description Whether the worker is currently running
              */
             running: boolean;
-        };
-        /**
-         * WorkersStatus
-         * @description Status of all pipeline workers.
-         */
-        WorkersStatus: {
-            /** @description Analyzer worker status */
-            analyzer: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
-            /** @description Detector worker status */
-            detector: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
-            /** @description File watcher status */
-            file_watcher: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
         };
         /**
          * ZoneCreate
@@ -10721,53 +10752,6 @@ export interface components {
             shape?: components["schemas"]["ZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
-        };
-        /**
-         * WorkerStatus
-         * @description Status of a pipeline worker.
-         */
-        backend__api__routes__debug__WorkerStatus: {
-            /**
-             * Error Count
-             * @description Number of recent errors
-             * @default 0
-             */
-            error_count: number;
-            /**
-             * Last Activity
-             * @description ISO timestamp of last activity
-             */
-            last_activity?: string | null;
-            /**
-             * Name
-             * @description Worker name
-             */
-            name: string;
-            /**
-             * Running
-             * @description Whether worker is currently running
-             */
-            running: boolean;
-        };
-        /**
-         * QueueDepths
-         * @description Queue depth information for pipeline queues.
-         * @example {
-         *       "analysis_queue": 2,
-         *       "detection_queue": 5
-         *     }
-         */
-        backend__api__schemas__system__QueueDepths: {
-            /**
-             * Analysis Queue
-             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
-             */
-            analysis_queue: number;
-            /**
-             * Detection Queue
-             * @description Number of items in detection queue waiting for RT-DETRv2 processing
-             */
-            detection_queue: number;
         };
     };
     responses: never;

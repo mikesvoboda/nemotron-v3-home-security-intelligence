@@ -1932,3 +1932,107 @@ async def test_redis_connect_with_password_and_ssl(mock_redis_pool, mock_redis_c
         assert isinstance(call_kwargs["ssl"], ssl.SSLContext)
 
         await client.disconnect()
+
+
+# ==============================================================================
+# SETEX Operation Tests (NEM-1746)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_setex_sets_key_with_expiration(redis_client, mock_redis_client):
+    """Test setex sets a key with expiration time."""
+    mock_redis_client.setex = AsyncMock(return_value=True)
+
+    result = await redis_client.setex("test_key", 3600, '{"data": "value"}')
+
+    assert result is True
+    mock_redis_client.setex.assert_awaited_once_with("test_key", 3600, '{"data": "value"}')
+
+
+@pytest.mark.asyncio
+async def test_setex_with_short_ttl(redis_client, mock_redis_client):
+    """Test setex works with short TTL values."""
+    mock_redis_client.setex = AsyncMock(return_value=True)
+
+    result = await redis_client.setex("temp_key", 60, "temporary")
+
+    assert result is True
+    mock_redis_client.setex.assert_awaited_once_with("temp_key", 60, "temporary")
+
+
+@pytest.mark.asyncio
+async def test_setex_with_long_ttl(redis_client, mock_redis_client):
+    """Test setex works with long TTL values (e.g., 24 hours)."""
+    mock_redis_client.setex = AsyncMock(return_value=True)
+
+    # 24 hours in seconds = 86400
+    result = await redis_client.setex("entity_key", 86400, '{"entity": "data"}')
+
+    assert result is True
+    mock_redis_client.setex.assert_awaited_once_with("entity_key", 86400, '{"entity": "data"}')
+
+
+@pytest.mark.asyncio
+async def test_setex_overwrites_existing_key(redis_client, mock_redis_client):
+    """Test setex overwrites existing key value and TTL."""
+    mock_redis_client.setex = AsyncMock(return_value=True)
+
+    # First set
+    await redis_client.setex("key", 100, "value1")
+    # Overwrite with new value and TTL
+    result = await redis_client.setex("key", 200, "value2")
+
+    assert result is True
+    assert mock_redis_client.setex.await_count == 2
+    # Verify last call was with new values
+    mock_redis_client.setex.assert_awaited_with("key", 200, "value2")
+
+
+@pytest.mark.asyncio
+async def test_setex_returns_false_on_failure(redis_client, mock_redis_client):
+    """Test setex returns False when operation fails."""
+    mock_redis_client.setex = AsyncMock(return_value=False)
+
+    result = await redis_client.setex("test_key", 3600, "value")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_setex_raises_when_not_connected():
+    """Test setex raises RuntimeError when client not connected."""
+    client = RedisClient()
+
+    with pytest.raises(RuntimeError, match="Redis client not connected"):
+        await client.setex("key", 3600, "value")
+
+
+@pytest.mark.skipif(not FAKEREDIS_AVAILABLE, reason="fakeredis not installed")
+@pytest.mark.asyncio
+async def test_setex_integration():
+    """Integration-style test for setex using fakeredis."""
+    fake_server = fakeredis.FakeRedis(decode_responses=True)
+
+    client = RedisClient(redis_url="redis://localhost:6379/15")
+    client._client = fake_server
+    client._pool = MagicMock(spec=ConnectionPool)
+
+    # Use unique key to prevent parallel test conflicts
+    key = unique_id("test_setex_key")
+
+    # Set with expiration
+    result = await client.setex(key, 3600, '{"test": "data"}')
+    assert result is True
+
+    # Verify value was stored
+    stored_value = await fake_server.get(key)
+    assert stored_value == '{"test": "data"}'
+
+    # Verify TTL was set (should be less than or equal to 3600)
+    ttl = await fake_server.ttl(key)
+    assert 0 < ttl <= 3600
+
+    # Cleanup
+    await fake_server.delete(key)
+    await fake_server.aclose()
