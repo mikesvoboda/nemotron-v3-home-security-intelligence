@@ -14,6 +14,7 @@ import { useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
 import PromptPlayground from './PromptPlayground';
+import { ChartSkeleton, StatsCardSkeleton, Skeleton } from '../common';
 import QualityScoreTrends from './QualityScoreTrends';
 import RecommendationsPanel from './RecommendationsPanel';
 import {
@@ -113,29 +114,49 @@ export default function AIAuditPage() {
     setSelectedRecommendation(null);
   };
 
-  // Loading state
+  // Loading state with skeleton loaders
   if (isLoading && !stats) {
     return (
       <div className="min-h-screen bg-[#121212] p-8" data-testid="ai-audit-loading">
         <div className="mx-auto max-w-[1920px]">
           {/* Header skeleton */}
           <div className="mb-8">
-            <div className="h-10 w-72 animate-pulse rounded-lg bg-gray-800"></div>
-            <div className="mt-2 h-5 w-96 animate-pulse rounded-lg bg-gray-800"></div>
+            <div className="flex items-center gap-3 mb-2">
+              <Skeleton variant="circular" width={32} height={32} />
+              <Skeleton variant="text" width={288} height={40} />
+            </div>
+            <Skeleton variant="text" width={384} height={20} />
           </div>
 
-          {/* Grid skeleton */}
+          {/* Quality Score Metrics skeleton */}
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-32 animate-pulse rounded-lg bg-gray-800"></div>
+                <StatsCardSkeleton key={i} />
               ))}
             </div>
+
+            {/* Charts skeleton */}
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="h-80 animate-pulse rounded-lg bg-gray-800"></div>
-              <div className="h-80 animate-pulse rounded-lg bg-gray-800"></div>
+              <ChartSkeleton height={320} />
+              <ChartSkeleton height={320} />
             </div>
-            <div className="h-64 animate-pulse rounded-lg bg-gray-800"></div>
+
+            {/* Recommendations Panel skeleton */}
+            <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-6">
+              <Skeleton variant="text" width={200} height={24} className="mb-4" />
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-4 p-4 rounded-lg bg-gray-800/30">
+                    <Skeleton variant="circular" width={40} height={40} />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton variant="text" width="80%" height={20} />
+                      <Skeleton variant="text" width="60%" height={16} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

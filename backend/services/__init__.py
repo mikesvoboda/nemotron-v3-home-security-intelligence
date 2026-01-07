@@ -25,6 +25,7 @@ from .circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerError,
+    CircuitBreakerOpenError,
     CircuitBreakerRegistry,
     CircuitState,
     get_circuit_breaker,
@@ -98,6 +99,13 @@ from .florence_extractor import (
 )
 from .florence_loader import load_florence_model
 from .gpu_monitor import GPUMonitor
+from .managed_service import (
+    ManagedService,
+    ServiceConfig,
+    ServiceRegistry,
+    get_service_registry,
+    reset_service_registry,
+)
 from .model_zoo import (
     MODEL_ZOO,
     PERSON_CLASS,
@@ -227,8 +235,12 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "CircuitBreaker",
     "CircuitBreakerConfig",
     "CircuitBreakerError",
+    "CircuitBreakerOpenError",
     "CircuitBreakerRegistry",
     "CircuitState",
+    "ManagedService",
+    "ServiceConfig",
+    "ServiceRegistry",
     "CleanupService",
     "CleanupStats",
     "ClipGenerationError",
@@ -347,6 +359,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_baseline_service",
     "reset_cache_service",
     "reset_circuit_breaker_registry",
+    "get_service_registry",
+    "reset_service_registry",
     "reset_clip_generator",
     "reset_context_enricher",
     "reset_dedupe_service",

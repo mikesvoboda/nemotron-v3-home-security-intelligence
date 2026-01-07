@@ -18,6 +18,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from backend.api.dependencies import get_cache_service_dep
 from backend.api.routes.cameras import router, snapshot_rate_limiter
 from backend.api.schemas.camera import (
     CameraCreate,
@@ -51,17 +52,23 @@ def mock_cache_service() -> MagicMock:
     """Create a mock cache service that returns None for all cache operations.
 
     This ensures unit tests don't try to connect to Redis for caching.
+    This mock implements the CacheService interface used by routes.
     """
     mock_cache = MagicMock()
     mock_cache.get = AsyncMock(return_value=None)  # Cache miss
     mock_cache.set = AsyncMock(return_value=True)
     mock_cache.invalidate_pattern = AsyncMock(return_value=0)
+    mock_cache.invalidate_cameras = AsyncMock(return_value=0)  # Used by CRUD operations
     return mock_cache
 
 
 @pytest.fixture
 def client(mock_db_session: AsyncMock, mock_cache_service: MagicMock) -> TestClient:
-    """Create a test client with mocked dependencies."""
+    """Create a test client with mocked dependencies.
+
+    Uses FastAPI dependency_overrides for clean dependency injection,
+    following the proper DI pattern (NEM-1659).
+    """
     app = FastAPI()
     app.include_router(router)
 
@@ -73,21 +80,16 @@ def client(mock_db_session: AsyncMock, mock_cache_service: MagicMock) -> TestCli
     async def override_rate_limiter():
         return None
 
+    # Override the cache service dependency using proper FastAPI DI pattern
+    # This replaces the previous patch-based approach (NEM-1659)
+    async def override_cache_service():
+        yield mock_cache_service
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[snapshot_rate_limiter] = override_rate_limiter
+    app.dependency_overrides[get_cache_service_dep] = override_cache_service
 
-    # Mock the cache service to avoid Redis connection attempts
-    # get_cache_service is async, so we need to return an async function
-    async def mock_get_cache_service():
-        return mock_cache_service
-
-    with (
-        patch(
-            "backend.api.routes.cameras.get_cache_service",
-            mock_get_cache_service,
-        ),
-        TestClient(app) as test_client,
-    ):
+    with TestClient(app) as test_client:
         yield test_client
 
 

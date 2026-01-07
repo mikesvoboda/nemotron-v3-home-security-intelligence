@@ -268,6 +268,7 @@ export const handlers = [
       count: filteredEvents.length,
       limit,
       offset,
+      has_more: offset + paginatedEvents.length < filteredEvents.length,
     };
 
     return HttpResponse.json(response);
@@ -320,6 +321,7 @@ export const handlers = [
       count: 0,
       limit,
       offset,
+      has_more: false,
     };
 
     return HttpResponse.json(response);

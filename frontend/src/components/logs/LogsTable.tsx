@@ -1,7 +1,7 @@
 import { clsx } from 'clsx';
 import { ChevronLeft, ChevronRight, AlertOctagon, AlertTriangle, Info, Bug, FileText } from 'lucide-react';
 
-import { EmptyState } from '../common';
+import { EmptyState, TableRowSkeleton } from '../common';
 
 export interface LogEntry {
   id: number;
@@ -166,11 +166,18 @@ export default function LogsTable({
       {/* Table Container */}
       <div className="overflow-x-auto rounded-lg border border-gray-800 bg-[#1F1F1F]">
         {loading ? (
-          <div className="flex min-h-[400px] items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#76B900]" />
-              <p className="text-gray-400">Loading logs...</p>
+          <div className="min-h-[400px]">
+            {/* Table header skeleton */}
+            <div className="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
+              <div className="flex items-center gap-4">
+                <div className="h-4 w-24 animate-pulse rounded bg-gray-800" />
+                <div className="h-4 w-16 animate-pulse rounded bg-gray-800" />
+                <div className="h-4 w-20 animate-pulse rounded bg-gray-800" />
+                <div className="h-4 w-32 flex-1 animate-pulse rounded bg-gray-800" />
+              </div>
             </div>
+            {/* Table rows skeleton */}
+            <TableRowSkeleton rows={10} columns={4} />
           </div>
         ) : error ? (
           <div className="flex min-h-[400px] items-center justify-center border-red-900/50 bg-red-950/20">

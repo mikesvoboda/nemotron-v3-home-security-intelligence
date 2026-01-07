@@ -27,6 +27,7 @@ from backend.models.detection import Detection
 from backend.models.zone import Zone, ZoneType
 from backend.services.baseline import get_baseline_service
 from backend.services.batch_fetch import batch_fetch_detections
+from backend.services.prompt_sanitizer import sanitize_camera_name, sanitize_zone_name
 from backend.services.zone_service import bbox_center, point_in_zone
 
 logger = get_logger(__name__)
@@ -560,14 +561,20 @@ class ContextEnricher:
 
         Returns:
             Formatted string for prompt
+
+        Security:
+            Sanitizes zone_name to prevent prompt injection via zone names.
+            See NEM-1722 and backend/services/prompt_sanitizer.py for details.
         """
         if not zones:
             return "No zone data available."
 
         lines = []
         for zone in zones:
+            # Sanitize zone_name to prevent prompt injection (NEM-1722)
+            safe_zone_name = sanitize_zone_name(zone.zone_name)
             lines.append(
-                f"- {zone.zone_name} ({zone.zone_type}): "
+                f"- {safe_zone_name} ({zone.zone_type}): "
                 f"{zone.detection_count} detection(s), risk weight: {zone.risk_weight}"
             )
 
@@ -614,6 +621,10 @@ class ContextEnricher:
 
         Returns:
             Formatted string for prompt
+
+        Security:
+            Sanitizes camera_name to prevent prompt injection via camera names.
+            See NEM-1722 and backend/services/prompt_sanitizer.py for details.
         """
         if not cross_camera:
             return "No activity detected on other cameras."
@@ -626,9 +637,11 @@ class ContextEnricher:
                 direction = "before" if activity.time_offset_seconds < 0 else "after"
                 offset_desc = f" ({minutes:.0f} min {direction})"
 
+            # Sanitize camera_name to prevent prompt injection (NEM-1722)
+            safe_camera_name = sanitize_camera_name(activity.camera_name)
             types_str = ", ".join(activity.object_types) if activity.object_types else "unknown"
             lines.append(
-                f"- {activity.camera_name}: {activity.detection_count} detection(s) "
+                f"- {safe_camera_name}: {activity.detection_count} detection(s) "
                 f"[{types_str}]{offset_desc}"
             )
 

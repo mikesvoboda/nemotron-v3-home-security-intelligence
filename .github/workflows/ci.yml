@@ -563,10 +563,12 @@ jobs:
           echo "All integration tests passed"
 
   # Contract tests for API schema validation
+  # Main-only: redundant with api-types-check, runs post-merge for validation
   contract-tests:
     name: Contract Tests (API Schema)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: github.ref == 'refs/heads/main'
     services:
       postgres:
         image: postgres:16-alpine
@@ -628,11 +630,31 @@ jobs:
           path: test-results-contracts.xml
           retention-days: 7
 
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Contract Tests failed on main",
+                  "description": "Contract tests failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and fix.",
+                  "priority": 2
+                }
+              }
+            }'
+
+  # Main-only: dead code detection runs post-merge for code hygiene
   dead-code:
     name: Dead Code Detection
     runs-on: ubuntu-latest
-    # Non-blocking initially - reports issues without failing CI
-    continue-on-error: true
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -651,6 +673,26 @@ jobs:
 
       - name: Run Vulture (dead code detection)
         run: uv run vulture backend/ vulture_whitelist.py --min-confidence 80
+
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Dead Code Detection failed on main",
+                  "description": "Dead code detection (Vulture) found issues after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and remove dead code.",
+                  "priority": 3
+                }
+              }
+            }'
 
   # ============================================================================
   # Frontend Jobs
@@ -900,15 +942,14 @@ jobs:
           path: frontend/test-results/
           retention-days: 7
 
-  # Secondary E2E tests (Firefox/WebKit) - now stable and blocking
+  # Secondary E2E tests (Firefox/WebKit) - main-only to improve PR merge velocity
   # Intentionally kept on Node 20 only (no matrix) to avoid excessive CI time
-  # After NEM-1403 stabilization, these tests are now reliable and block merges
+  # Main-only: Firefox/WebKit have known infrastructure flakiness (timeouts)
   frontend-e2e-secondary:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Wait for lint to pass first - fail fast on code quality issues
-    needs: [frontend-lint]
+    if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -961,19 +1002,35 @@ jobs:
           path: frontend/test-results/
           retention-days: 7
 
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] E2E Tests (${{ matrix.browser }}) failed on main",
+                  "description": "E2E tests for ${{ matrix.browser }} failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - may be infrastructure flakiness or real test failure.",
+                  "priority": 3
+                }
+              }
+            }'
+
   # ============================================================================
-  # Build Jobs (run on PRs and pushes to catch Docker issues before merge)
+  # Build Jobs (main-only - verify Docker builds after merge)
   # Separate jobs for backend/frontend to avoid disk space issues
   # ============================================================================
 
   build-backend:
     name: Build Docker (backend)
     runs-on: ubuntu-latest
-    continue-on-error: true
-    # Only needs lint/typecheck - runs in parallel with tests for CI speed
-    needs:
-      - lint
-      - typecheck
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1005,16 +1062,30 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Backend Docker build failed on main",
+                  "description": "Backend Docker build failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - Docker build must work for deployment.",
+                  "priority": 1
+                }
+              }
+            }'
+
   build-frontend:
     name: Build Docker (frontend)
     runs-on: ubuntu-latest
-    continue-on-error: true
-    # Only needs lint/typecheck to verify code quality before building
-    # Tests (frontend-tests, frontend-e2e) run in parallel for CI speed
-    # Docker build doesn't depend on test results - only code correctness
-    needs:
-      - frontend-lint
-      - frontend-typecheck
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1033,13 +1104,35 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Frontend Docker build failed on main",
+                  "description": "Frontend Docker build failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - Docker build must work for deployment.",
+                  "priority": 1
+                }
+              }
+            }'
+
   # ============================================================================
-  # Security Validation Job
+  # Security Validation Job (main-only)
   # ============================================================================
 
+  # Main-only: security tests verify DEBUG=false enforcement post-merge
   security-validation:
     name: Admin Endpoint Security Validation
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     services:
       postgres:
         image: postgres:16-alpine
@@ -1110,24 +1203,34 @@ jobs:
           print('SUCCESS: DEBUG mode is correctly set to False')
           "
 
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Security Validation failed on main",
+                  "description": "Security validation (DEBUG=false enforcement) failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n**CRITICAL:** Admin endpoints may be exposed. Investigate immediately.",
+                  "priority": 1
+                }
+              }
+            }'
+
   # ============================================================================
-  # Test Performance Audit Job
+  # Test Performance Audit Job (main-only)
   # ============================================================================
 
   test-performance-audit:
     name: Test Performance Audit
     runs-on: ubuntu-latest
-    continue-on-error: true
-    needs:
-      [
-        unit-tests,
-        integration-tests-api,
-        integration-tests-websocket,
-        integration-tests-services,
-        integration-tests-models,
-        frontend-e2e,
-      ]
-    if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests-api.result == 'success' || needs.integration-tests-websocket.result == 'success' || needs.integration-tests-services.result == 'success' || needs.integration-tests-models.result == 'success' || needs.frontend-e2e.result == 'success')
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1170,24 +1273,35 @@ jobs:
           E2E_TEST_THRESHOLD: '10.0'
           WARN_THRESHOLD_PERCENT: '80'
 
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Test Performance Audit failed on main",
+                  "description": "Test performance audit found slow tests after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease review and optimize slow tests.",
+                  "priority": 3
+                }
+              }
+            }'
+
   # ============================================================================
-  # Test Count Verification Job
+  # Test Count Verification Job (main-only)
   # Prevents accidental test deletion by comparing against baseline counts
   # ============================================================================
 
   test-count-verification:
     name: Test Count Verification
     runs-on: ubuntu-latest
-    needs:
-      [
-        unit-tests,
-        integration-tests-api,
-        integration-tests-websocket,
-        integration-tests-services,
-        integration-tests-models,
-        frontend-tests,
-      ]
-    if: always() && (needs.unit-tests.result == 'success' || needs.frontend-tests.result == 'success')
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1269,6 +1383,26 @@ jobs:
           fi
 
           echo "Frontend test count verification passed!"
+
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                  "title": "[CI] Test Count Verification failed on main",
+                  "description": "Test count verification failed after merge to main - tests may have been accidentally deleted.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and restore any missing tests.",
+                  "priority": 2
+                }
+              }
+            }'
 
   # ============================================================================
   # Security Scanning Jobs (Matrix Strategy for Parallelization)

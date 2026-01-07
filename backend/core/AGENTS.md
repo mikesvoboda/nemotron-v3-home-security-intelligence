@@ -19,6 +19,7 @@ These components are designed as singletons and provide dependency injection pat
 ```
 backend/core/
 ├── __init__.py                   # Public API exports (comprehensive re-exports)
+├── async_context.py              # Async context propagation utilities (NEM-1640)
 ├── config.py                     # Pydantic Settings configuration
 ├── constants.py                  # Application-wide constants (queue names, DLQ names)
 ├── database.py                   # SQLAlchemy async database layer
@@ -563,12 +564,19 @@ Provides unified logging infrastructure with multiple outputs:
 **Context Variables:**
 
 - `_request_id: ContextVar[str | None]` - Thread-safe request ID propagation
+- `_log_context: ContextVar[dict]` - Structured log context for enriched logging (NEM-1645)
 - `get_request_id()` - Retrieve current request ID
 - `set_request_id()` - Set request ID (used by RequestIDMiddleware)
+- `get_log_context()` - Retrieve current structured log context
+- `log_context(**kwargs)` - Context manager for enriched logging
 
 **Classes:**
 
-**`ContextFilter`** - Adds contextual information to log records (request_id).
+**`ContextFilter`** - Adds contextual information to log records:
+
+- Injects `request_id` from request context
+- Injects `connection_id` from WebSocket context
+- Injects all fields from `log_context` context manager
 
 **`CustomJsonFormatter`** - JSON formatter with ISO timestamp and structured fields.
 
@@ -577,6 +585,75 @@ Provides unified logging infrastructure with multiple outputs:
 - Uses synchronous database sessions
 - Extracts structured metadata (camera_id, event_id, detection_id, duration_ms)
 - Falls back gracefully if database is unavailable
+
+### Structured Error Context (NEM-1645)
+
+The `log_context` context manager provides a powerful way to enrich all logs within a scope with consistent context fields. This is especially useful for error handling and debugging.
+
+**Basic Usage:**
+
+```python
+from backend.core.logging import get_logger, log_context
+
+logger = get_logger(__name__)
+
+# All logs within this context automatically include camera_id and operation
+with log_context(camera_id="front_door", operation="detect"):
+    logger.info("Starting detection")  # Includes camera_id and operation
+    try:
+        result = await detect_objects(image_path)
+    except TimeoutError as e:
+        logger.error("Detection timed out")  # Also includes camera_id and operation
+        raise
+```
+
+**Nested Contexts:**
+
+```python
+with log_context(camera_id="front_door"):
+    with log_context(operation="detect", retry_count=1):
+        logger.info("Processing")
+        # Includes: camera_id, operation, and retry_count
+```
+
+**Error Context Guidelines:**
+
+When logging exceptions, always include:
+
+1. **Relevant IDs** (event_id, camera_id, detection_id)
+2. **Operation context** (what was being attempted)
+3. **Retry count** if applicable
+
+```python
+# Good: Structured error context
+with log_context(camera_id=camera.id, operation="detection"):
+    try:
+        await process_detection(image_path)
+    except TimeoutError as e:
+        logger.exception(
+            "Detection request timed out",
+            extra={
+                "file_path": image_path,
+                "timeout_seconds": 30,
+                "retry_count": attempt,
+            }
+        )
+
+# Bad: Missing context
+except Exception as e:
+    logger.error(f"Error processing image: {e}")  # No context!
+```
+
+**Combining with explicit extra:**
+
+```python
+with log_context(camera_id="front_door"):
+    logger.info(
+        "Detection completed",
+        extra={"detection_count": 5, "duration_ms": 250}
+    )
+    # Includes: camera_id (from context), detection_count, duration_ms (from extra)
+```
 
 ### Functions
 
@@ -608,6 +685,145 @@ logger.info("Detection processed", extra={
 - Removes credential patterns (password, secret, token, api_key, Bearer)
 - Simplifies file paths to just filenames
 - Truncates long messages
+
+## `async_context.py` - Async Context Propagation (NEM-1640)
+
+### Purpose
+
+Provides utilities for propagating logging context across async boundaries, ensuring `request_id` and `connection_id` are properly maintained when creating background tasks or handling WebSocket connections.
+
+### Key Components
+
+**Context Variables:**
+
+- `_connection_id: ContextVar[str | None]` - WebSocket connection ID for persistent tracing
+- `get_connection_id()` - Retrieve current WebSocket connection ID
+- `set_connection_id()` - Set WebSocket connection ID
+
+**Functions:**
+
+- `propagate_log_context()` - Async context manager for task context propagation
+- `create_task_with_context()` - Create tasks with preserved logging context
+- `copy_context_to_task` - Decorator for context-preserving coroutines
+- `logger_with_context()` - Async context manager for adding extra fields
+
+### Context Propagation Patterns
+
+#### Problem: Context Loss in Background Tasks
+
+When using `asyncio.create_task()`, the logging context (request_id, connection_id) is not automatically propagated to the new task:
+
+```python
+# BAD: Context is lost in the background task
+set_request_id("req-123")
+
+async def background_work():
+    # request_id is None here!
+    logger.info("Working")  # No request_id in log
+
+task = asyncio.create_task(background_work())  # Context not propagated
+```
+
+#### Solution 1: create_task_with_context
+
+Use `create_task_with_context()` instead of `asyncio.create_task()`:
+
+```python
+from backend.core.async_context import create_task_with_context
+
+set_request_id("req-123")
+
+async def background_work():
+    # request_id is "req-123" here!
+    logger.info("Working")  # Includes request_id
+
+# Context is automatically propagated
+task = create_task_with_context(background_work())
+```
+
+#### Solution 2: propagate_log_context
+
+Use the async context manager for explicit context propagation:
+
+```python
+from backend.core.async_context import propagate_log_context
+
+async with propagate_log_context(request_id="req-123"):
+    # All logs in this context include request_id
+    await some_operation()
+
+# Or to preserve existing context in a background task:
+async def background_work():
+    async with propagate_log_context():
+        logger.info("Working")  # Uses propagated context
+```
+
+#### Solution 3: copy_context_to_task Decorator
+
+For functions that are always called as background tasks:
+
+```python
+from backend.core.async_context import copy_context_to_task
+
+@copy_context_to_task
+async def background_processing():
+    # Automatically inherits context from caller
+    logger.info("Processing")  # Includes request_id from caller
+
+set_request_id("caller-request")
+task = asyncio.create_task(background_processing())
+await task
+```
+
+### WebSocket Connection Tracking
+
+For WebSocket connections, use `connection_id` for persistent tracing across the entire connection lifecycle:
+
+```python
+from backend.core.async_context import set_connection_id, get_connection_id
+
+# In WebSocket handler
+async def websocket_handler(websocket):
+    connection_id = f"ws-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    try:
+        # All logs in this handler include connection_id
+        logger.info("Client connected")  # Has connection_id
+
+        while True:
+            data = await websocket.receive_text()
+            logger.debug("Received message")  # Has connection_id
+    finally:
+        set_connection_id(None)
+        logger.info("Client disconnected")
+```
+
+### Best Practices
+
+1. **Use `create_task_with_context`** for all background tasks that should maintain logging context
+2. **Set `connection_id`** at the start of WebSocket handlers and clear it in `finally`
+3. **Use `propagate_log_context`** when you need explicit control over context in async operations
+4. **Combine with `log_context`** for rich structured logging:
+
+```python
+from backend.core.async_context import create_task_with_context
+from backend.core.logging import log_context
+
+with log_context(camera_id="front_door"):
+    task = create_task_with_context(process_detection(image_path))
+    # Task inherits camera_id from log_context
+```
+
+### Integration with ContextFilter
+
+The `ContextFilter` in `logging.py` automatically injects:
+
+- `request_id` from request context
+- `connection_id` from async_context module
+- All fields from `log_context` context manager
+
+This ensures all log messages include the proper context without manual intervention.
 
 ## `metrics.py` - Prometheus Metrics
 

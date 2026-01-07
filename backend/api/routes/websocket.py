@@ -30,6 +30,7 @@ Server-Initiated Heartbeat:
 
 import asyncio
 import json
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
@@ -44,6 +45,7 @@ from backend.api.schemas.websocket import (
     WebSocketMessageType,
     WebSocketPongResponse,
 )
+from backend.core.async_context import set_connection_id
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
@@ -252,6 +254,10 @@ async def websocket_events_endpoint(  # noqa: PLR0912
     idle_timeout = settings.websocket_idle_timeout_seconds
     heartbeat_interval = settings.websocket_ping_interval_seconds
 
+    # Generate a unique connection ID for tracking this WebSocket session (NEM-1640)
+    connection_id = f"ws-events-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
     # Event to signal heartbeat task to stop
     heartbeat_stop = asyncio.Event()
     heartbeat_task: asyncio.Task[None] | None = None
@@ -259,7 +265,9 @@ async def websocket_events_endpoint(  # noqa: PLR0912
     try:
         # Register the WebSocket connection
         await broadcaster.connect(websocket)
-        logger.info("WebSocket client connected to /ws/events")
+        logger.info(
+            "WebSocket client connected to /ws/events", extra={"connection_id": connection_id}
+        )
 
         # Start server-initiated heartbeat task
         heartbeat_task = asyncio.create_task(
@@ -319,6 +327,8 @@ async def websocket_events_endpoint(  # noqa: PLR0912
                 pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
+        # Clear connection_id context (NEM-1640)
+        set_connection_id(None)
         logger.info("WebSocket connection cleaned up")
 
 
@@ -400,6 +410,10 @@ async def websocket_system_status(  # noqa: PLR0912
     idle_timeout = settings.websocket_idle_timeout_seconds
     heartbeat_interval = settings.websocket_ping_interval_seconds
 
+    # Generate a unique connection ID for tracking this WebSocket session (NEM-1640)
+    connection_id = f"ws-system-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
     # Event to signal heartbeat task to stop
     heartbeat_stop = asyncio.Event()
     heartbeat_task: asyncio.Task[None] | None = None
@@ -407,7 +421,9 @@ async def websocket_system_status(  # noqa: PLR0912
     try:
         # Add connection to broadcaster
         await broadcaster.connect(websocket)
-        logger.info("WebSocket client connected to /ws/system")
+        logger.info(
+            "WebSocket client connected to /ws/system", extra={"connection_id": connection_id}
+        )
 
         # Start server-initiated heartbeat task
         heartbeat_task = asyncio.create_task(
@@ -467,4 +483,6 @@ async def websocket_system_status(  # noqa: PLR0912
                 pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
+        # Clear connection_id context (NEM-1640)
+        set_connection_id(None)
         logger.info("WebSocket connection cleaned up")

@@ -862,6 +862,307 @@ class TestGetGpuMetrics:
             assert result["power_watts"] == 100.0
 
 
+class TestCudaCacheClearing:
+    """Tests for CUDA cache clearing to prevent GPU memory fragmentation (NEM-1728)."""
+
+    def test_model_initialization_with_cache_clear_frequency(self):
+        """Test model initialization with cache_clear_frequency parameter."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            cache_clear_frequency=10,
+        )
+        assert model.cache_clear_frequency == 10
+
+    def test_model_initialization_with_default_cache_clear_frequency(self):
+        """Test model initialization defaults cache_clear_frequency to 1 (every detection)."""
+        model = RTDETRv2Model(model_path="dummy_model_path")
+        assert model.cache_clear_frequency == 1
+
+    def test_model_initialization_cache_clear_disabled(self):
+        """Test cache clearing can be disabled with frequency=0."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            cache_clear_frequency=0,
+        )
+        assert model.cache_clear_frequency == 0
+
+    def test_detect_calls_cuda_empty_cache_when_cuda_available(self):
+        """Test that detect() calls torch.cuda.empty_cache() when CUDA is available."""
+        model = RTDETRv2Model(model_path="dummy_model_path", device="cuda:0")
+
+        # Mock the model and processor
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+        mock_outputs = MagicMock()
+
+        # Mock processor post_process_object_detection to return empty results
+        mock_processor.post_process_object_detection.return_value = [
+            {"scores": [], "labels": [], "boxes": []}
+        ]
+        mock_torch_model.return_value = mock_outputs
+        mock_torch_model.config = MagicMock()
+        mock_torch_model.config.id2label = {}
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        # Create a test image
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_tensor.return_value.to.return_value = MagicMock()
+
+            model.detect(test_image)
+
+            # Verify empty_cache was called
+            mock_empty_cache.assert_called_once()
+
+    def test_detect_does_not_call_cuda_empty_cache_on_cpu(self):
+        """Test that detect() does not call torch.cuda.empty_cache() on CPU."""
+        model = RTDETRv2Model(model_path="dummy_model_path", device="cpu")
+
+        # Mock the model and processor
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+        mock_outputs = MagicMock()
+
+        mock_processor.post_process_object_detection.return_value = [
+            {"scores": [], "labels": [], "boxes": []}
+        ]
+        mock_torch_model.return_value = mock_outputs
+        mock_torch_model.config = MagicMock()
+        mock_torch_model.config.id2label = {}
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+
+            model.detect(test_image)
+
+            # Verify empty_cache was NOT called
+            mock_empty_cache.assert_not_called()
+
+    def test_detect_does_not_clear_cache_when_frequency_zero(self):
+        """Test detect() does not clear cache when cache_clear_frequency=0."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            cache_clear_frequency=0,
+        )
+
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+        mock_outputs = MagicMock()
+
+        mock_processor.post_process_object_detection.return_value = [
+            {"scores": [], "labels": [], "boxes": []}
+        ]
+        mock_torch_model.return_value = mock_outputs
+        mock_torch_model.config = MagicMock()
+        mock_torch_model.config.id2label = {}
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_tensor.return_value.to.return_value = MagicMock()
+
+            model.detect(test_image)
+
+            # Verify empty_cache was NOT called when disabled
+            mock_empty_cache.assert_not_called()
+
+    def test_detect_batch_clears_cache_at_configured_frequency(self):
+        """Test detect_batch() clears cache every N images based on cache_clear_frequency."""
+        # Clear cache every 2 images
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            cache_clear_frequency=2,
+        )
+
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+        mock_outputs = MagicMock()
+
+        mock_processor.post_process_object_detection.return_value = [
+            {"scores": [], "labels": [], "boxes": []}
+        ]
+        mock_torch_model.return_value = mock_outputs
+        mock_torch_model.config = MagicMock()
+        mock_torch_model.config.id2label = {}
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        # Create 5 test images
+        test_images = [Image.new("RGB", (640, 480), color=(128, 128, 128)) for _ in range(5)]
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_tensor.return_value.to.return_value = MagicMock()
+
+            model.detect_batch(test_images)
+
+            # With frequency=2, for 5 images:
+            # - After image 2: clear (i+1=2, 2%2=0)
+            # - After image 4: clear (i+1=4, 4%2=0)
+            # Total: 2 cache clears during batch processing
+            assert mock_empty_cache.call_count == 2
+
+    def test_detect_batch_no_cache_clear_when_disabled(self):
+        """Test detect_batch() does not clear cache when frequency=0."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            cache_clear_frequency=0,
+        )
+
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+        mock_outputs = MagicMock()
+
+        mock_processor.post_process_object_detection.return_value = [
+            {"scores": [], "labels": [], "boxes": []}
+        ]
+        mock_torch_model.return_value = mock_outputs
+        mock_torch_model.config = MagicMock()
+        mock_torch_model.config.id2label = {}
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        test_images = [Image.new("RGB", (640, 480), color=(128, 128, 128)) for _ in range(5)]
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_tensor.return_value.to.return_value = MagicMock()
+
+            model.detect_batch(test_images)
+
+            # No cache clears when disabled
+            mock_empty_cache.assert_not_called()
+
+    def test_detect_clears_cache_even_on_exception(self):
+        """Test detect() clears cache in finally block even when exception occurs."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            cache_clear_frequency=1,
+        )
+
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+
+        # Make the model raise an exception
+        mock_torch_model.side_effect = RuntimeError("Test error")
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_tensor.return_value.to.return_value = MagicMock()
+
+            # Should raise exception but still clear cache
+            with pytest.raises(RuntimeError):
+                model.detect(test_image)
+
+            # Cache should still be cleared in finally block
+            mock_empty_cache.assert_called_once()
+
+    def test_cache_clear_count_metric_incremented(self):
+        """Test that cache clearing increments a counter metric."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            cache_clear_frequency=1,
+        )
+
+        # Initially zero
+        assert model.cache_clear_count == 0
+
+        mock_torch_model = MagicMock()
+        mock_processor = MagicMock()
+        mock_outputs = MagicMock()
+
+        mock_processor.post_process_object_detection.return_value = [
+            {"scores": [], "labels": [], "boxes": []}
+        ]
+        mock_torch_model.return_value = mock_outputs
+        mock_torch_model.config = MagicMock()
+        mock_torch_model.config.id2label = {}
+
+        model.model = mock_torch_model
+        model.processor = mock_processor
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with (
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache"),
+            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
+        ):
+            mock_no_grad.return_value.__enter__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_tensor.return_value.to.return_value = MagicMock()
+
+            model.detect(test_image)
+
+            # Count should have incremented
+            assert model.cache_clear_count == 1
+
+            # Run another detection
+            model.detect(test_image)
+            assert model.cache_clear_count == 2
+
+
 class TestHealthEndpointGpuMetrics:
     """Tests for health endpoint returning GPU metrics."""
 

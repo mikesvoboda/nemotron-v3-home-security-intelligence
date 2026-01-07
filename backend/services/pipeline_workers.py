@@ -43,7 +43,7 @@ from backend.api.schemas.queue import (
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.database import get_session
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, log_context
 from backend.core.metrics import (
     observe_stage_duration,
     record_pipeline_error,
@@ -344,50 +344,46 @@ class DetectionQueueWorker:
             )
             return
 
-        logger.debug(
-            f"Processing detection item: {file_path}",
-            extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
-        )
+        # Use log_context to enrich all logs within this scope with consistent context
+        # This ensures camera_id, file_path, and media_type are included in all logs
+        with log_context(camera_id=camera_id, file_path=file_path, media_type=media_type):
+            logger.debug(f"Processing detection item: {file_path}")
 
-        try:
-            if media_type == "video":
-                await self._process_video_detection(camera_id, file_path, item, pipeline_start_time)
-            else:
-                await self._process_image_detection(camera_id, file_path, item, pipeline_start_time)
+            try:
+                if media_type == "video":
+                    await self._process_video_detection(
+                        camera_id, file_path, item, pipeline_start_time
+                    )
+                else:
+                    await self._process_image_detection(
+                        camera_id, file_path, item, pipeline_start_time
+                    )
 
-            self._stats.items_processed += 1
-            self._stats.last_processed_at = time.time()
+                self._stats.items_processed += 1
+                self._stats.last_processed_at = time.time()
 
-            # Record detect stage duration (Prometheus + in-memory tracker)
-            duration = time.time() - start_time
-            observe_stage_duration("detect", duration)
-            # Record to in-memory tracker for /api/system/pipeline-latency
-            record_pipeline_stage_latency("detect_to_batch", duration * 1000)
-            # Record to Redis for /api/system/telemetry
-            await record_stage_latency(self._redis, "detect", duration * 1000)
+                # Record detect stage duration (Prometheus + in-memory tracker)
+                duration = time.time() - start_time
+                observe_stage_duration("detect", duration)
+                # Record to in-memory tracker for /api/system/pipeline-latency
+                record_pipeline_stage_latency("detect_to_batch", duration * 1000)
+                # Record to Redis for /api/system/telemetry
+                await record_stage_latency(self._redis, "detect", duration * 1000)
 
-        except DetectorUnavailableError as e:
-            # This is expected when detector is down and retries exhausted
-            # The retry handler already moved the job to DLQ
-            self._stats.errors += 1
-            logger.warning(
-                f"Detection unavailable for {file_path}, job sent to DLQ: {e}",
-                extra={
-                    "camera_id": camera_id,
-                    "file_path": file_path,
-                    "media_type": media_type,
-                },
-            )
-            # Don't record as generic error - already recorded by retry handler
+            except DetectorUnavailableError as e:
+                # This is expected when detector is down and retries exhausted
+                # The retry handler already moved the job to DLQ
+                self._stats.errors += 1
+                logger.warning(f"Detection unavailable, job sent to DLQ: {e}")
+                # Don't record as generic error - already recorded by retry handler
 
-        except Exception as e:
-            self._stats.errors += 1
-            record_pipeline_error("detection_processing_error")
-            logger.error(
-                f"Failed to process detection item: {e}",
-                extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
-                exc_info=True,
-            )
+            except Exception as e:
+                self._stats.errors += 1
+                record_pipeline_error("detection_processing_error")
+                logger.error(
+                    f"Failed to process detection item: {e}",
+                    exc_info=True,
+                )
 
     async def _process_image_detection(
         self,
@@ -763,79 +759,74 @@ class AnalysisQueueWorker:
             )
             return
 
-        logger.info(
-            f"Processing analysis for batch {batch_id}",
-            extra={"batch_id": batch_id, "camera_id": camera_id},
-        )
+        # Use log_context to enrich all logs within this scope with batch context
+        # This ensures batch_id, camera_id are included in all logs including downstream calls
+        with log_context(batch_id=batch_id, camera_id=camera_id, operation="analysis"):
+            logger.info(f"Processing analysis for batch {batch_id}")
 
-        try:
-            # Run LLM analysis - pass camera_id and detection_ids from queue payload
-            # This avoids the need to read batch metadata from Redis (which is deleted after close_batch)
-            event = await self._analyzer.analyze_batch(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                detection_ids=detection_ids,
-            )
+            try:
+                # Run LLM analysis - pass camera_id and detection_ids from queue payload
+                # This avoids the need to read batch metadata from Redis (which is deleted after close_batch)
+                event = await self._analyzer.analyze_batch(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    detection_ids=detection_ids,
+                )
 
-            self._stats.items_processed += 1
-            self._stats.last_processed_at = time.time()
+                self._stats.items_processed += 1
+                self._stats.last_processed_at = time.time()
 
-            # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
-            duration = time.time() - start_time
-            # Record to in-memory tracker for /api/system/pipeline-latency
-            record_pipeline_stage_latency("batch_to_analyze", duration * 1000)
-            # Record to Redis for /api/system/telemetry
-            await record_stage_latency(self._redis, "analyze", duration * 1000)
+                # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
+                duration = time.time() - start_time
+                # Record to in-memory tracker for /api/system/pipeline-latency
+                record_pipeline_stage_latency("batch_to_analyze", duration * 1000)
+                # Record to Redis for /api/system/telemetry
+                await record_stage_latency(self._redis, "analyze", duration * 1000)
 
-            # Record total pipeline latency (from file detection to event creation)
-            if pipeline_start_time:
-                try:
-                    # Parse the ISO timestamp (supports both with and without timezone)
-                    start_dt = datetime.fromisoformat(pipeline_start_time.replace("Z", "+00:00"))
-                    # Make start_dt timezone-aware if it isn't already
-                    if start_dt.tzinfo is None:
-                        start_dt = start_dt.replace(tzinfo=UTC)
-                    total_duration_ms = (datetime.now(UTC) - start_dt).total_seconds() * 1000
-                    record_pipeline_stage_latency("total_pipeline", total_duration_ms)
-                    logger.debug(
-                        f"Total pipeline latency for batch {batch_id}: {total_duration_ms:.1f}ms",
-                        extra={
-                            "batch_id": batch_id,
-                            "total_pipeline_ms": total_duration_ms,
-                            "pipeline_start_time": pipeline_start_time,
-                        },
-                    )
-                except (ValueError, TypeError) as e:
-                    logger.warning(
-                        f"Failed to parse pipeline_start_time '{pipeline_start_time}': {e}",
-                        extra={"batch_id": batch_id, "pipeline_start_time": pipeline_start_time},
-                    )
+                # Record total pipeline latency (from file detection to event creation)
+                if pipeline_start_time:
+                    try:
+                        # Parse the ISO timestamp (supports both with and without timezone)
+                        start_dt = datetime.fromisoformat(
+                            pipeline_start_time.replace("Z", "+00:00")
+                        )
+                        # Make start_dt timezone-aware if it isn't already
+                        if start_dt.tzinfo is None:
+                            start_dt = start_dt.replace(tzinfo=UTC)
+                        total_duration_ms = (datetime.now(UTC) - start_dt).total_seconds() * 1000
+                        record_pipeline_stage_latency("total_pipeline", total_duration_ms)
+                        logger.debug(
+                            f"Total pipeline latency: {total_duration_ms:.1f}ms",
+                            extra={
+                                "total_pipeline_ms": total_duration_ms,
+                                "pipeline_start_time": pipeline_start_time,
+                            },
+                        )
+                    except (ValueError, TypeError) as e:
+                        logger.warning(
+                            f"Failed to parse pipeline_start_time '{pipeline_start_time}': {e}",
+                            extra={"pipeline_start_time": pipeline_start_time},
+                        )
 
-            logger.info(
-                f"Created event {event.id} for batch {batch_id}: risk_score={event.risk_score}",
-                extra={
-                    "event_id": event.id,
-                    "batch_id": batch_id,
-                    "camera_id": camera_id,
-                    "risk_score": event.risk_score,
-                    "items_processed": self._stats.items_processed,
-                },
-            )
+                logger.info(
+                    f"Created event {event.id}: risk_score={event.risk_score}",
+                    extra={
+                        "event_id": event.id,
+                        "risk_score": event.risk_score,
+                        "items_processed": self._stats.items_processed,
+                    },
+                )
 
-        except ValueError as e:
-            # Batch not found or no detections - log warning but don't count as error
-            logger.warning(
-                f"Skipping batch {batch_id}: {e}",
-                extra={"batch_id": batch_id, "camera_id": camera_id},
-            )
-        except Exception as e:
-            self._stats.errors += 1
-            record_pipeline_error("analysis_batch_error")
-            logger.error(
-                f"Failed to analyze batch {batch_id}: {e}",
-                extra={"batch_id": batch_id, "camera_id": camera_id},
-                exc_info=True,
-            )
+            except ValueError as e:
+                # Batch not found or no detections - log warning but don't count as error
+                logger.warning(f"Skipping batch: {e}")
+            except Exception as e:
+                self._stats.errors += 1
+                record_pipeline_error("analysis_batch_error")
+                logger.error(
+                    f"Failed to analyze batch: {e}",
+                    exc_info=True,
+                )
 
 
 class BatchTimeoutWorker:

@@ -371,7 +371,13 @@ class TestNotificationServiceWebhook:
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
             result = await service.send_webhook(mock_alert)
 
             assert result.success is True
@@ -396,7 +402,13 @@ class TestNotificationServiceWebhook:
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://custom.example.com/hook",
+            ),
+        ):
             result = await service.send_webhook(
                 mock_alert, webhook_url="https://custom.example.com/hook"
             )
@@ -416,7 +428,13 @@ class TestNotificationServiceWebhook:
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
             result = await service.send_webhook(mock_alert)
 
             assert result.success is False
@@ -430,7 +448,13 @@ class TestNotificationServiceWebhook:
         mock_client = AsyncMock()
         mock_client.post.side_effect = httpx.TimeoutException("Connection timed out")
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
             result = await service.send_webhook(mock_alert)
 
             assert result.success is False
@@ -608,7 +632,13 @@ class TestNotificationServiceCleanup:
         mock_client = AsyncMock()
         mock_client.post.return_value = mock_response
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
+        with (
+            patch("httpx.AsyncClient", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
             # Use the service to create HTTP client
             await service.send_webhook(mock_alert)
 
@@ -746,7 +776,13 @@ class TestNotificationServiceWebhookErrors:
         mock_client = AsyncMock()
         mock_client.post.side_effect = httpx.RequestError("Connection refused")
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
             result = await service.send_webhook(mock_alert)
 
             assert result.success is False
@@ -760,7 +796,13 @@ class TestNotificationServiceWebhookErrors:
         mock_client = AsyncMock()
         mock_client.post.side_effect = RuntimeError("Unexpected network error")
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
             result = await service.send_webhook(mock_alert)
 
             assert result.success is False

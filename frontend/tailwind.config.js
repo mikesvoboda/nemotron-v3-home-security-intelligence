@@ -102,6 +102,38 @@ export default {
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', 'monospace'],
       },
 
+      // Typography Scale - Comprehensive font sizes with optimal line heights
+      fontSize: {
+        xs: ['0.75rem', { lineHeight: '1rem' }], // 12px / 16px
+        sm: ['0.875rem', { lineHeight: '1.25rem' }], // 14px / 20px
+        base: ['1rem', { lineHeight: '1.5rem' }], // 16px / 24px
+        lg: ['1.125rem', { lineHeight: '1.75rem' }], // 18px / 28px
+        xl: ['1.25rem', { lineHeight: '1.75rem' }], // 20px / 28px
+        '2xl': ['1.5rem', { lineHeight: '2rem' }], // 24px / 32px
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }], // 30px / 36px
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }], // 36px / 40px
+        '5xl': ['3rem', { lineHeight: '1' }], // 48px
+        '6xl': ['3.75rem', { lineHeight: '1' }], // 60px
+      },
+
+      // Font Weights
+      fontWeight: {
+        normal: '400',
+        medium: '500',
+        semibold: '600',
+        bold: '700',
+      },
+
+      // Letter Spacing for headings
+      letterSpacing: {
+        tighter: '-0.05em',
+        tight: '-0.025em',
+        normal: '0',
+        wide: '0.025em',
+        wider: '0.05em',
+        widest: '0.1em',
+      },
+
       // Custom Border Radius
       borderRadius: {
         xl: '1rem',
@@ -120,8 +152,27 @@ export default {
 
       // Animation Durations
       transitionDuration: {
+        150: '150ms',
+        200: '200ms',
         250: '250ms',
+        300: '300ms',
         400: '400ms',
+      },
+
+      // Transition timing functions
+      transitionTimingFunction: {
+        'ease-in-out': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'ease-out': 'cubic-bezier(0, 0, 0.2, 1)',
+        'ease-in': 'cubic-bezier(0.4, 0, 1, 1)',
+        'bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      },
+
+      // Scale for hover/active states
+      scale: {
+        98: '.98',
+        102: '1.02',
+        103: '1.03',
+        105: '1.05',
       },
 
       // Grid Template Columns for Dashboard

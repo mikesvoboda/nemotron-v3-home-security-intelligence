@@ -1,8 +1,6 @@
 import { AlertCircle, Car, Loader2, RefreshCw, User, Users } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-import EntityCard from './EntityCard';
-import EntityDetailModal from './EntityDetailModal';
 import {
   fetchEntities,
   fetchEntity,
@@ -10,6 +8,9 @@ import {
   type EntityDetail,
   type EntitiesQueryParams,
 } from '../../services/api';
+import { EntityCardSkeleton } from '../common';
+import EntityCard from './EntityCard';
+import EntityDetailModal from './EntityDetailModal';
 
 /**
  * EntitiesPage component - Display and manage tracked entities
@@ -182,12 +183,11 @@ export default function EntitiesPage() {
 
       {/* Content */}
       {loading ? (
-        /* Loading state */
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="flex flex-col items-center gap-3 text-gray-400">
-            <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" />
-            <p>Loading entities...</p>
-          </div>
+        /* Loading state with skeletons */
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }, (_, i) => (
+            <EntityCardSkeleton key={i} />
+          ))}
         </div>
       ) : error ? (
         /* Error state */

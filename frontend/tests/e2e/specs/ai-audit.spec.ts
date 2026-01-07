@@ -205,14 +205,20 @@ test.describe('AI Audit Error State', () => {
 
   test('shows error state when API fails', async () => {
     await aiAuditPage.goto();
-    // Wait for error state to appear
-    await expect(aiAuditPage.errorState).toBeVisible({ timeout: 10000 });
+    // Wait for loading state to appear first, then disappear
+    await expect(aiAuditPage.loadingState).toBeVisible({ timeout: 5000 });
+    await expect(aiAuditPage.loadingState).not.toBeVisible({ timeout: 10000 });
+    // Now error state should be visible
+    await expect(aiAuditPage.errorState).toBeVisible({ timeout: 5000 });
   });
 
   test('error state shows retry button', async ({ page }) => {
     await aiAuditPage.goto();
-    // Wait for error state first
-    await expect(aiAuditPage.errorState).toBeVisible({ timeout: 10000 });
+    // Wait for loading state to appear first, then disappear
+    await expect(aiAuditPage.loadingState).toBeVisible({ timeout: 5000 });
+    await expect(aiAuditPage.loadingState).not.toBeVisible({ timeout: 10000 });
+    // Now error state should be visible
+    await expect(aiAuditPage.errorState).toBeVisible({ timeout: 5000 });
     const retryButton = page.getByRole('button', { name: /Try Again/i });
     await expect(retryButton).toBeVisible({ timeout: 5000 });
   });
