@@ -36,12 +36,12 @@ const mockNemotronConfig: ModelPromptConfig = {
   model: AIModelEnum.NEMOTRON,
   config: {
     system_prompt: 'You are an AI security analyst...',
-    version: 5,
+    version: 10,
   },
-  version: 5,
-  created_at: '2025-01-07T10:00:00Z',
-  created_by: 'admin',
-  change_description: 'Improved risk scoring logic',
+  version: 10,
+  created_at: '2025-01-07T12:00:00Z',
+  created_by: 'config-admin',
+  change_description: 'Current active configuration',
 };
 
 const mockHistory: PromptHistoryResponse = {
@@ -114,10 +114,6 @@ const mockAnchor = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Reset mock anchor state
-  mockAnchor.href = '';
-  mockAnchor.download = '';
-  (mockAnchor.click as ReturnType<typeof vi.fn>).mockClear();
 
   // Default successful mocks
   vi.spyOn(promptApi, 'fetchAllPrompts').mockResolvedValue(mockAllPrompts);
@@ -204,14 +200,12 @@ describe('PromptManagementPanel - Data Loading', () => {
     render(<PromptManagementPanel />);
 
     await waitFor(() => {
-      // Multiple "Version 5" elements may exist (current config + history), use getAllByText
-      expect(screen.getAllByText(/Version 5/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Version 10/i)).toBeInTheDocument();
     });
 
-    // Check for elements that should appear (may appear in both current config and history)
-    expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Improved risk scoring logic').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('admin').length).toBeGreaterThan(0);
+    // Current config tab shows its own Active badge and description
+    expect(screen.getByText('Current active configuration')).toBeInTheDocument();
+    expect(screen.getByText('config-admin')).toBeInTheDocument();
   });
 
   it('should display loading spinner while fetching data', () => {
@@ -258,7 +252,11 @@ describe('PromptManagementPanel - Model Selection', () => {
     const selectButton = screen.getByRole('button', { name: /Nemotron/i });
     await user.click(selectButton);
 
-    // Select Florence-2 from the listbox options (use role to be specific)
+    // Wait for dropdown to open and select Florence-2 option
+    await waitFor(() => {
+      const florence2Option = screen.getByRole('option', { name: /Florence-2/i });
+      expect(florence2Option).toBeInTheDocument();
+    });
     const florence2Option = screen.getByRole('option', { name: /Florence-2/i });
     await user.click(florence2Option);
 
@@ -284,9 +282,14 @@ describe('PromptManagementPanel - Model Selection', () => {
       );
     });
 
-    // Change model
+    // Change model - wait for dropdown to open then select YOLO-World option
     const selectButton = screen.getByRole('button', { name: /Nemotron/i });
     await user.click(selectButton);
+
+    await waitFor(() => {
+      const yoloOption = screen.getByRole('option', { name: /YOLO-World/i });
+      expect(yoloOption).toBeInTheDocument();
+    });
     const yoloOption = screen.getByRole('option', { name: /YOLO-World/i });
     await user.click(yoloOption);
 
@@ -314,14 +317,13 @@ describe('PromptManagementPanel - Version History', () => {
     await user.click(historyTab);
 
     await waitFor(() => {
-      // Version numbers appear in both current config and history, use getAllByText
-      expect(screen.getAllByText('Version 5').length).toBeGreaterThan(0);
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
       expect(screen.getByText('Version 4')).toBeInTheDocument();
       expect(screen.getByText('Version 3')).toBeInTheDocument();
     });
 
-    // Check for change descriptions (may appear multiple times)
-    expect(screen.getAllByText('Improved risk scoring logic').length).toBeGreaterThan(0);
+    // Check for change descriptions
+    expect(screen.getByText('Improved risk scoring logic')).toBeInTheDocument();
     expect(screen.getByText('Updated context variables')).toBeInTheDocument();
     expect(screen.getByText('Initial production version')).toBeInTheDocument();
   });
@@ -333,10 +335,16 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
+    // First wait for version data to load
     await waitFor(() => {
-      // Active badge appears in both current config and history
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
+    });
+
+    // Two Active badges exist: one in Current Config tab, one in Version History
+    // Both tabs are in DOM (Tremor uses CSS to show/hide), so we expect 2
+    await waitFor(() => {
       const badges = screen.getAllByText('Active');
-      expect(badges.length).toBeGreaterThanOrEqual(1);
+      expect(badges).toHaveLength(2);
     });
   });
 
@@ -347,6 +355,12 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
+    // First wait for version data to load
+    await waitFor(() => {
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
+    });
+
+    // Then check for Restore buttons
     await waitFor(() => {
       const restoreButtons = screen.getAllByRole('button', { name: /Restore/i });
       expect(restoreButtons).toHaveLength(2); // Two inactive versions
@@ -360,13 +374,14 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
+    // First wait for version data to load
     await waitFor(() => {
-      // Get all Active badges and find the one in version history
-      const activeBadges = screen.getAllByText('Active');
-      expect(activeBadges.length).toBeGreaterThan(0);
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
+    });
 
-      // The active version in history should not have a Restore button
-      // Check that we have exactly 2 Restore buttons (for the 2 inactive versions)
+    // Then check that Version 5 (active) has no Restore button
+    // Find all Restore buttons - should be 2 (for versions 4 and 3, not 5)
+    await waitFor(() => {
       const restoreButtons = screen.getAllByRole('button', { name: /Restore/i });
       expect(restoreButtons).toHaveLength(2);
     });
