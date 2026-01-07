@@ -211,11 +211,9 @@ describe('DashboardPage', () => {
 
       renderWithProviders(<DashboardPage />);
 
-      // Check for loading skeletons
-      const skeletons = screen
-        .getAllByRole('generic')
-        .filter((el) => el.className.includes('animate-pulse'));
-      expect(skeletons.length).toBeGreaterThan(0);
+      // Check for stats card skeletons and camera card skeletons
+      expect(screen.getAllByTestId('stats-card-skeleton').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('camera-card-skeleton').length).toBeGreaterThan(0);
     });
 
     it('loading state has correct background color', () => {

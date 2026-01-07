@@ -205,14 +205,14 @@ describe('EventTimeline', () => {
       expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
     });
 
-    it('displays loading state initially', async () => {
+    it('displays loading state initially with skeleton loaders', async () => {
       renderWithProviders(<EventTimeline />);
 
-      expect(screen.getByText('Loading events...')).toBeInTheDocument();
+      expect(screen.getAllByTestId('event-card-skeleton').length).toBeGreaterThan(0);
 
       // Wait for loading to complete to avoid act() warnings
       await waitFor(() => {
-        expect(screen.queryByText('Loading events...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('event-card-skeleton')).not.toBeInTheDocument();
       });
     });
 
@@ -1555,8 +1555,8 @@ describe('EventTimeline', () => {
 
       renderWithProviders(<EventTimeline />);
 
-      // Should show loading state
-      expect(screen.getByText('Loading events...')).toBeInTheDocument();
+      // Should show loading state with skeleton loaders
+      expect(screen.getAllByTestId('event-card-skeleton').length).toBeGreaterThan(0);
 
       // Should not show risk badges during loading
       expect(screen.queryByText('Critical')).not.toBeInTheDocument();

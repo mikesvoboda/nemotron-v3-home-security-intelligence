@@ -1,7 +1,8 @@
-import { BarChart3, AlertCircle, Loader2, Camera, RefreshCw } from 'lucide-react';
+import { BarChart3, AlertCircle, Camera, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import ActivityHeatmap from './ActivityHeatmap';
+import { ChartSkeleton, Skeleton } from '../common';
 import AnomalyConfigPanel from './AnomalyConfigPanel';
 import ClassFrequencyChart from './ClassFrequencyChart';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
@@ -120,9 +121,9 @@ export default function AnalyticsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <BarChart3 className="h-8 w-8 text-[#76B900]" />
-          <h1 className="text-3xl font-bold text-white">Analytics</h1>
+          <h1 className="text-page-title">Analytics</h1>
         </div>
-        <p className="mt-2 text-gray-400">
+        <p className="text-body-sm mt-2">
           View activity patterns and configure anomaly detection for your cameras
         </p>
       </div>
@@ -186,11 +187,39 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading State with Skeletons */}
       {isLoading && (
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" />
-          <span className="ml-3 text-gray-400">Loading baseline data...</span>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Activity Heatmap skeleton - Full Width */}
+          <div className="lg:col-span-2">
+            <ChartSkeleton height={320} />
+          </div>
+
+          {/* Class Frequency Chart skeleton */}
+          <ChartSkeleton height={280} />
+
+          {/* Anomaly Config Panel skeleton */}
+          <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
+            <Skeleton variant="text" width={160} height={24} className="mb-4" />
+            <div className="space-y-4">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <Skeleton variant="text" width={120} height={16} />
+                  <Skeleton variant="rectangular" width={80} height={32} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pipeline Latency Panel skeleton - Full Width */}
+          <div className="lg:col-span-2">
+            <ChartSkeleton height={250} />
+          </div>
+
+          {/* Scene Change Detection Panel skeleton - Full Width */}
+          <div className="lg:col-span-2">
+            <ChartSkeleton height={200} />
+          </div>
         </div>
       )}
 
