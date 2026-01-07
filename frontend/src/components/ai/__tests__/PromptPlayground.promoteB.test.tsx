@@ -87,6 +87,18 @@ vi.mock('../../../services/api', () => ({
       inference_time_ms: 150,
     })
   ),
+  fetchEvents: vi.fn(() =>
+    Promise.resolve({
+      events: [
+        { id: 101, camera_id: 'cam1', risk_score: 45, started_at: '2024-01-01T00:00:00Z' },
+        { id: 102, camera_id: 'cam2', risk_score: 55, started_at: '2024-01-01T01:00:00Z' },
+        { id: 103, camera_id: 'cam1', risk_score: 65, started_at: '2024-01-01T02:00:00Z' },
+      ],
+      count: 3,
+      limit: 5,
+      offset: 0,
+    })
+  ),
   exportPrompts: vi.fn(() =>
     Promise.resolve({
       exported_at: '2024-01-01T00:00:00Z',
@@ -165,16 +177,21 @@ describe('PromptPlayground - Promote B Functionality', () => {
       expect(screen.getByTestId('run-ab-tests-button')).toBeInTheDocument();
     });
 
-    // Run 3 tests - each test takes ~500ms in the mock
-    // Use screen.findByText which handles async automatically
+    // Run 3 tests
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('1', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('2', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('3', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+    }, { timeout: 3000 });
 
     // Click promote button should show confirmation dialog (now that we have 3 tests)
     await user.click(screen.getByTestId('promote-b-button'));
@@ -248,13 +265,19 @@ describe('PromptPlayground - Promote B Functionality', () => {
 
     // Simulate running 3 tests with wait for completion
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('1', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('2', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('3', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+    }, { timeout: 3000 });
 
     // Click promote
     await user.click(screen.getByTestId('promote-b-button'));
@@ -304,13 +327,19 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('1', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('2', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('3', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('promote-b-button'));
 
@@ -360,13 +389,19 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('1', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('2', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('3', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('promote-b-button'));
 
@@ -411,13 +446,19 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('1', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('2', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('3', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('promote-b-button'));
 
@@ -464,13 +505,19 @@ describe('PromptPlayground - Promote B Functionality', () => {
     });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('1', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/1 test completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('2', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/2 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('run-ab-tests-button'));
-    await screen.findByText('3', {}, { timeout: 2000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('ab-test-count')).toHaveTextContent(/3 tests completed/);
+    }, { timeout: 3000 });
 
     await user.click(screen.getByTestId('promote-b-button'));
 

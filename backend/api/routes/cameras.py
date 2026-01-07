@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from backend.api.dependencies import get_camera_or_404
+from backend.api.dependencies import get_cache_service_dep, get_camera_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     ActivityBaselineEntry,
@@ -42,7 +42,7 @@ from backend.services.baseline import get_baseline_service
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
-    get_cache_service,
+    CacheService,
 )
 
 logger = get_logger(__name__)
@@ -64,6 +64,7 @@ _SNAPSHOT_TYPES = {
 async def list_cameras(
     status_filter: str | None = Query(None, alias="status", description="Filter by camera status"),
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
     """List all cameras with optional status filter.
 
@@ -73,6 +74,7 @@ async def list_cameras(
     Args:
         status_filter: Optional status to filter cameras by (online, offline, error)
         db: Database session
+        cache: Cache service injected via FastAPI DI
 
     Returns:
         CameraListResponse containing list of cameras and total count
@@ -81,7 +83,6 @@ async def list_cameras(
     cache_key = CacheKeys.cameras_list_by_status(status_filter)
 
     try:
-        cache = await get_cache_service()
         cached_data = await cache.get(cache_key)
         if cached_data is not None:
             logger.debug(
@@ -123,7 +124,6 @@ async def list_cameras(
 
     # Cache the result
     try:
-        cache = await get_cache_service()
         await cache.set(cache_key, response, ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
@@ -156,6 +156,7 @@ async def create_camera(
     camera_data: CameraCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> Camera:
     """Create a new camera.
 
@@ -237,7 +238,6 @@ async def create_camera(
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
-        cache = await get_cache_service()
         await cache.invalidate_cameras(reason="camera_created")
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
@@ -251,6 +251,7 @@ async def update_camera(
     camera_data: CameraUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> Camera:
     """Update an existing camera.
 
@@ -315,7 +316,6 @@ async def update_camera(
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
-        cache = await get_cache_service()
         await cache.invalidate_cameras(reason="camera_updated")
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
@@ -329,6 +329,7 @@ async def delete_camera(
     camera_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> None:
     """Delete a camera.
 
@@ -375,7 +376,6 @@ async def delete_camera(
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
-        cache = await get_cache_service()
         await cache.invalidate_cameras(reason="camera_deleted")
     except Exception:
         logger.warning("Cache invalidation failed", exc_info=True, extra={"camera_id": camera_id})

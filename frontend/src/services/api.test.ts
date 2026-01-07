@@ -185,6 +185,7 @@ const mockEventListResponse: EventListResponse = {
   count: 1,
   limit: 50,
   offset: 0,
+  has_more: false,
 };
 
 const mockEventStatsResponse: EventStatsResponse = {
@@ -230,6 +231,7 @@ const mockDetectionListResponse: DetectionListResponse = {
   count: 1,
   limit: 50,
   offset: 0,
+  has_more: false,
 };
 
 const mockLogStats: LogStats = {

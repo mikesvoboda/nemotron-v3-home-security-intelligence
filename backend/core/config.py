@@ -275,6 +275,14 @@ class Settings(BaseSettings):
         description="Interval (seconds) between batch timeout checks. "
         "Lower values reduce latency between timeout and batch close but increase CPU usage.",
     )
+    batch_max_detections: int = Field(
+        default=500,
+        ge=1,
+        le=10000,
+        description="Maximum detections per batch before splitting (NEM-1726). "
+        "When a batch reaches this limit, it is closed and a new batch is created. "
+        "Prevents memory exhaustion and LLM timeouts with large batches.",
+    )
 
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
@@ -340,6 +348,33 @@ class Settings(BaseSettings):
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
 
+    # Nemotron context window settings (NEM-1723)
+    nemotron_context_window: int = Field(
+        default=3900,
+        ge=1000,
+        le=128000,
+        description="Nemotron-3-Nano context window size in tokens. "
+        "Prompts exceeding (context_window - max_output_tokens) will be truncated. "
+        "Default: 3900 tokens for Nemotron-3-Nano.",
+    )
+    nemotron_max_output_tokens: int = Field(
+        default=1536,
+        ge=100,
+        le=8192,
+        description="Maximum tokens reserved for Nemotron LLM output. "
+        "Input prompts are validated against (context_window - max_output_tokens). "
+        "Default: 1536 tokens.",
+    )
+
+    enrichment_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for enrichment service on transient failures "
+        "(ConnectError, TimeoutException). Uses exponential backoff with jitter "
+        "(2^attempt seconds with +/-10% jitter, capped at 30s). Default: 3 attempts.",
+    )
+
     # AI service concurrency settings (NEM-1463)
     ai_max_concurrent_inferences: int = Field(
         default=4,
@@ -350,22 +385,6 @@ class Settings(BaseSettings):
         "higher for distributed AI services. Default: 4 concurrent operations.",
     )
 
-    # LLM context window settings (NEM-1666)
-    nemotron_context_window: int = Field(
-        default=4096,
-        ge=512,
-        le=131072,
-        description="Maximum context window size in tokens for Nemotron LLM. "
-        "Default 4096 for Nemotron-3-Nano. Adjust based on your model's capacity. "
-        "Prompts exceeding this limit will be truncated with a warning.",
-    )
-    nemotron_max_output_tokens: int = Field(
-        default=1536,
-        ge=128,
-        le=8192,
-        description="Maximum tokens reserved for LLM output. Must be less than context_window. "
-        "Default 1536 provides room for detailed risk explanations.",
-    )
     context_utilization_warning_threshold: float = Field(
         default=0.80,
         ge=0.5,
@@ -627,6 +646,35 @@ class Settings(BaseSettings):
         description="TTL for file dedupe entries in Redis (seconds)",
         ge=60,
         le=3600,
+    )
+
+    # OpenTelemetry settings (NEM-1629)
+    otel_enabled: bool = Field(
+        default=False,
+        description="Enable OpenTelemetry distributed tracing. When enabled, traces are "
+        "collected and exported to the configured OTLP endpoint (e.g., Jaeger, Tempo).",
+    )
+    otel_service_name: str = Field(
+        default="nemotron-backend",
+        description="Service name for OpenTelemetry traces. Used to identify this service "
+        "in distributed tracing dashboards.",
+    )
+    otel_exporter_otlp_endpoint: str = Field(
+        default="http://localhost:4317",
+        description="OTLP gRPC endpoint for trace export. Default uses Jaeger's OTLP port. "
+        "Examples: 'http://jaeger:4317' (Docker), 'http://localhost:4317' (local dev).",
+    )
+    otel_exporter_otlp_insecure: bool = Field(
+        default=True,
+        description="Use insecure (non-TLS) connection to OTLP endpoint. Set to False "
+        "for production deployments with TLS-enabled collectors.",
+    )
+    otel_trace_sample_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Trace sampling rate (0.0-1.0). Set to 1.0 to trace all requests, "
+        "lower values for high-traffic production environments to reduce overhead.",
     )
 
     # Logging settings
@@ -1082,6 +1130,20 @@ class Settings(BaseSettings):
         ge=1.0,
         le=60.0,
         description="How often (in seconds) to check if conditions are met for background evaluation.",
+    )
+
+    # Performance profiling settings (NEM-1644)
+    # Enable deep performance debugging with cProfile
+    profiling_enabled: bool = Field(
+        default=False,
+        description="Enable performance profiling for deep debugging. "
+        "When enabled, the profile_if_enabled decorator will profile decorated functions. "
+        "Profile data is saved as .prof files that can be analyzed with snakeviz or py-spy.",
+    )
+    profiling_output_dir: str = Field(
+        default="data/profiles",
+        description="Directory for storing profiling output files (.prof format). "
+        "Files can be analyzed with 'snakeviz <file>.prof' or converted to flamegraphs.",
     )
 
     # TLS/HTTPS settings (legacy - DEPRECATED, use TLS_MODE instead)

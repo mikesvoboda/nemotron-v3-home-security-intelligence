@@ -403,6 +403,47 @@ class TestDetectionTableArgs:
         column_names = [col.name for col in camera_object_idx.columns]
         assert column_names == ["camera_id", "object_type"]
 
+    def test_detection_has_enrichment_data_gin_index(self):
+        """Test Detection has GIN index on enrichment_data JSONB (NEM-1622)."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "ix_detections_enrichment_data_gin" in index_names
+
+    def test_detection_enrichment_data_gin_index_uses_gin(self):
+        """Test enrichment_data GIN index uses gin postgresql_using (NEM-1622)."""
+        from sqlalchemy import Index
+
+        indexes = Detection.__table_args__
+        gin_index = None
+        for idx in indexes:
+            if isinstance(idx, Index) and idx.name == "ix_detections_enrichment_data_gin":
+                gin_index = idx
+                break
+        assert gin_index is not None
+        # Check that it uses GIN
+        assert gin_index.kwargs.get("postgresql_using") == "gin"
+
+    def test_detection_enrichment_data_gin_index_uses_jsonb_path_ops(self):
+        """Test enrichment_data GIN index uses jsonb_path_ops (NEM-1622)."""
+        from sqlalchemy import Index
+
+        indexes = Detection.__table_args__
+        gin_index = None
+        for idx in indexes:
+            if isinstance(idx, Index) and idx.name == "ix_detections_enrichment_data_gin":
+                gin_index = idx
+                break
+        assert gin_index is not None
+        # Check that it uses jsonb_path_ops operator class
+        pg_ops = gin_index.kwargs.get("postgresql_ops", {})
+        assert pg_ops.get("enrichment_data") == "jsonb_path_ops"
+
+    def test_detection_has_detected_at_brin_index(self):
+        """Test Detection has BRIN index on detected_at for time-series queries."""
+        indexes = Detection.__table_args__
+        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
+        assert "ix_detections_detected_at_brin" in index_names
+
 
 # =============================================================================
 # Property-based Tests

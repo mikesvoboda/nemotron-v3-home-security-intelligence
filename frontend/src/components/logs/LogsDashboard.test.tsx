@@ -125,10 +125,26 @@ describe('LogsDashboard', () => {
       ).toBeInTheDocument();
     });
 
-    it('displays loading state initially', () => {
+    it('displays loading state initially', async () => {
+      // Delay the API response to ensure loading state is visible
+      let resolvePromise: (value: LogsResponse) => void;
+      const delayedPromise = new Promise<LogsResponse>((resolve) => {
+        resolvePromise = resolve;
+      });
+      vi.mocked(api.fetchLogs).mockReturnValue(delayedPromise);
+
       render(<LogsDashboard />);
 
-      expect(screen.getByText('Loading logs...')).toBeInTheDocument();
+      // Loading state shows skeleton elements (animate-pulse class)
+      const skeletonElements = document.querySelectorAll('.animate-pulse');
+      expect(skeletonElements.length).toBeGreaterThan(0);
+
+      // Resolve the promise to complete the test
+      resolvePromise!(mockLogsResponse);
+      await waitFor(() => {
+        // After loading, log data should be visible
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
     });
 
     it('displays logs after loading', async () => {

@@ -1,8 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import CameraGrid, { type CameraStatus } from './CameraGrid';
-import StatsRow from './StatsRow';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import { useThrottledValue } from '../../hooks/useThrottledValue';
@@ -15,6 +13,9 @@ import {
   type Event,
   type EventStatsResponse,
 } from '../../services/api';
+import { CameraCardSkeleton, StatsCardSkeleton, Skeleton } from '../common';
+import CameraGrid, { type CameraStatus } from './CameraGrid';
+import StatsRow from './StatsRow';
 
 /**
  * Throttle interval for WebSocket data updates (in milliseconds).
@@ -205,31 +206,32 @@ export default function DashboardPage() {
     );
   }
 
-  // Loading state
+  // Loading state with skeleton loaders
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121212] p-4 md:p-8">
         <div className="mx-auto max-w-[1920px]">
           {/* Header skeleton */}
           <div className="mb-6 md:mb-8">
-            <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-800 md:h-10 md:w-64"></div>
+            <Skeleton variant="text" width={256} height={40} className="mb-2" />
+            <Skeleton variant="text" width={320} height={20} />
           </div>
 
           {/* Stats Row skeleton */}
           <div className="mb-6 md:mb-8">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-gray-800"></div>
+                <StatsCardSkeleton key={i} />
               ))}
             </div>
           </div>
 
           {/* Camera grid skeleton */}
           <div className="mb-6 md:mb-8">
-            <div className="mb-4 h-6 w-32 animate-pulse rounded-lg bg-gray-800 md:h-8 md:w-48"></div>
+            <Skeleton variant="text" width={192} height={32} className="mb-4" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className="h-40 animate-pulse rounded-lg bg-gray-800 md:h-48"></div>
+                <CameraCardSkeleton key={i} />
               ))}
             </div>
           </div>
@@ -244,8 +246,8 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-[1920px]">
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl font-bold text-white sm:text-3xl md:text-4xl">Security Dashboard</h1>
-          <p className="mt-1 text-xs text-gray-400 sm:mt-2 sm:text-sm">
+          <h1 className="text-page-title">Security Dashboard</h1>
+          <p className="text-body-sm mt-1 sm:mt-2">
             Real-time AI-powered home security monitoring
             {!eventsConnected && !systemConnected && (
               <span className="ml-2 text-yellow-500">(Disconnected)</span>
@@ -266,7 +268,7 @@ export default function DashboardPage() {
 
         {/* Camera Grid */}
         <div className="mb-6 md:mb-8">
-          <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Camera Status</h2>
+          <h2 className="text-section-title mb-3 md:mb-4">Camera Status</h2>
           <CameraGrid cameras={cameraStatuses} onCameraClick={handleCameraClick} />
         </div>
       </div>

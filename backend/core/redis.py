@@ -1194,6 +1194,47 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("bool", await client.setex(key, seconds, value))
 
+    # Server info operations (for debug endpoints)
+
+    async def info(self, section: str | None = None) -> dict[str, Any]:
+        """Get Redis server information.
+
+        Args:
+            section: Optional section to retrieve (e.g., 'server', 'memory', 'stats').
+                If None, returns all sections.
+
+        Returns:
+            Dictionary containing server information
+        """
+        client = self._ensure_connected()
+        if section:
+            return cast("dict[str, Any]", await client.info(section))
+        return cast("dict[str, Any]", await client.info())
+
+    async def pubsub_channels(self, pattern: str = "*") -> list[bytes | str]:
+        """List active pub/sub channels.
+
+        Args:
+            pattern: Glob-style pattern to filter channels (default: "*" for all)
+
+        Returns:
+            List of active channel names
+        """
+        client = self._ensure_connected()
+        return cast("list[bytes | str]", await client.pubsub_channels(pattern))
+
+    async def pubsub_numsub(self, *channels: str) -> list[tuple[bytes | str, int]]:
+        """Get the number of subscribers for specified channels.
+
+        Args:
+            *channels: Channel names to check
+
+        Returns:
+            List of (channel, subscriber_count) tuples
+        """
+        client = self._ensure_connected()
+        return cast("list[tuple[bytes | str, int]]", await client.pubsub_numsub(*channels))
+
 
 # Global Redis client instance
 _redis_client: RedisClient | None = None
@@ -1259,29 +1300,32 @@ async def get_redis_optional() -> AsyncGenerator[RedisClient | None]:
     """
     global _redis_client  # noqa: PLW0603
 
+    # Determine the client to yield (compute before yield for proper cleanup)
+    client_to_yield: RedisClient | None = None
     try:
         # Fast path: client already initialized
         if _redis_client is not None:
-            yield _redis_client
-            return
-
-        # Slow path: acquire lock and check again
-        lock = _get_redis_init_lock()
-        async with lock:
-            # Double-check after acquiring lock
-            if _redis_client is None:
-                client = RedisClient()
-                await client.connect()
-                _redis_client = client
-
-        yield _redis_client
+            client_to_yield = _redis_client
+        else:
+            # Slow path: acquire lock and check again
+            lock = _get_redis_init_lock()
+            async with lock:
+                # Double-check after acquiring lock
+                if _redis_client is None:
+                    client = RedisClient()
+                    await client.connect()
+                    _redis_client = client
+            client_to_yield = _redis_client
     except (ConnectionError, TimeoutError) as e:
         logger.warning(f"Redis unavailable (will report degraded status): {e}")
-        yield None
+        client_to_yield = None
     except Exception as e:
         # Catch any other Redis connection errors
         logger.warning(f"Redis connection error (will report degraded status): {e}")
-        yield None
+        client_to_yield = None
+
+    # Single yield point - proper pattern for FastAPI dependencies with Python 3.14+
+    yield client_to_yield
 
 
 async def init_redis() -> RedisClient:

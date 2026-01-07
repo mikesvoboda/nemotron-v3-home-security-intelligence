@@ -1619,7 +1619,6 @@ export default function PromptPlayground({
           as="div"
           className="relative z-[60]"
           onClose={() => setShowPromoteConfirm(false)}
-          data-testid="promote-confirm-dialog"
         >
           <Transition.Child
             as={Fragment}
@@ -1644,7 +1643,10 @@ export default function PromptPlayground({
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] p-6 shadow-xl transition-all">
+                <Dialog.Panel
+                  className="w-full max-w-md transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] p-6 shadow-xl transition-all"
+                  data-testid="promote-confirm-dialog"
+                >
                   <Dialog.Title className="text-lg font-semibold text-white">
                     Promote Modified Prompt?
                   </Dialog.Title>

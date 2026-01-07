@@ -1,5 +1,9 @@
 """Unit tests for the shared Circuit Breaker utility.
 
+NOTE: These tests import from backend.core.circuit_breaker which re-exports
+from backend.services.circuit_breaker. The canonical implementation is in
+backend.services.circuit_breaker.
+
 Tests cover:
 - State machine transitions (CLOSED -> OPEN -> HALF_OPEN -> CLOSED)
 - Failure count thresholds
@@ -99,16 +103,16 @@ class TestCircuitBreakerInitialization:
     def test_constructor_parameters(self, circuit_breaker: CircuitBreaker) -> None:
         """Test that constructor parameters are stored correctly."""
         assert circuit_breaker._name == "test_service"
-        assert circuit_breaker._failure_threshold == 5
-        assert circuit_breaker._recovery_timeout == 60.0
-        assert circuit_breaker._half_open_max_calls == 3
+        assert circuit_breaker._config.failure_threshold == 5
+        assert circuit_breaker._config.recovery_timeout == 60.0
+        assert circuit_breaker._config.half_open_max_calls == 3
 
     def test_default_parameters(self) -> None:
         """Test default parameter values."""
         cb = CircuitBreaker(name="default_test")
-        assert cb._failure_threshold == 5
-        assert cb._recovery_timeout == 60.0
-        assert cb._half_open_max_calls == 3
+        assert cb._config.failure_threshold == 5
+        assert cb._config.recovery_timeout == 30.0  # Default is 30.0
+        assert cb._config.half_open_max_calls == 3
 
     def test_custom_parameters(self) -> None:
         """Test custom parameter values."""
@@ -118,9 +122,9 @@ class TestCircuitBreakerInitialization:
             recovery_timeout=120.0,
             half_open_max_calls=5,
         )
-        assert cb._failure_threshold == 10
-        assert cb._recovery_timeout == 120.0
-        assert cb._half_open_max_calls == 5
+        assert cb._config.failure_threshold == 10
+        assert cb._config.recovery_timeout == 120.0
+        assert cb._config.half_open_max_calls == 5
 
 
 # =============================================================================
@@ -243,7 +247,7 @@ class TestHalfOpenToClosedTransition:
     def test_success_in_half_open_closes_circuit(
         self, low_threshold_breaker: CircuitBreaker
     ) -> None:
-        """Test that success in HALF_OPEN transitions to CLOSED."""
+        """Test that enough successes in HALF_OPEN transitions to CLOSED."""
         # Get to HALF_OPEN state
         for _ in range(2):
             low_threshold_breaker.record_failure()
@@ -254,7 +258,8 @@ class TestHalfOpenToClosedTransition:
 
         assert low_threshold_breaker.get_state() == CircuitState.HALF_OPEN
 
-        # Success should close the circuit
+        # Need enough successes to close (success_threshold defaults to 2)
+        low_threshold_breaker.record_success()
         low_threshold_breaker.record_success()
 
         assert low_threshold_breaker.get_state() == CircuitState.CLOSED
@@ -306,13 +311,12 @@ class TestHalfOpenCallLimiting:
         with patch("time.monotonic") as mock_time:
             mock_time.return_value = low_threshold_breaker._opened_at + 10.0
 
-            # First call is permitted
+            # First call is permitted and transitions to HALF_OPEN
             assert low_threshold_breaker.allow_request() is True
-            assert low_threshold_breaker._half_open_calls == 1
+            assert low_threshold_breaker.get_state() == CircuitState.HALF_OPEN
 
             # Second call is permitted (half_open_max_calls=2)
             assert low_threshold_breaker.allow_request() is True
-            assert low_threshold_breaker._half_open_calls == 2
 
             # Third call is not permitted (reached max)
             assert low_threshold_breaker.allow_request() is False
@@ -434,83 +438,92 @@ class TestGetStateMethod:
 class TestPrometheusMetrics:
     """Tests for Prometheus metrics integration."""
 
-    def test_state_gauge_updated_on_open(self, circuit_breaker: CircuitBreaker) -> None:
+    def test_state_gauge_updated_on_open(self) -> None:
         """Test that state gauge is updated when circuit opens."""
-        with patch("backend.core.circuit_breaker.CIRCUIT_BREAKER_STATE") as mock_gauge:
+        with patch("backend.services.circuit_breaker.CIRCUIT_BREAKER_STATE") as mock_gauge:
             mock_labels = MagicMock()
             mock_gauge.labels.return_value = mock_labels
 
-            for _ in range(5):
-                circuit_breaker.record_failure()
+            cb = CircuitBreaker(name="test_metrics", failure_threshold=3)
+            for _ in range(3):
+                cb.record_failure()
 
             # Verify gauge was set with correct value (1 for OPEN)
-            mock_gauge.labels.assert_called_with(service="test_service")
+            mock_gauge.labels.assert_called_with(service="test_metrics")
             mock_labels.set.assert_called_with(1)
 
-    def test_state_gauge_updated_on_close(self, low_threshold_breaker: CircuitBreaker) -> None:
+    def test_state_gauge_updated_on_close(self) -> None:
         """Test that state gauge is updated when circuit closes."""
+        cb = CircuitBreaker(name="test_close", failure_threshold=2, recovery_timeout=5.0)
+
         # Get to OPEN then HALF_OPEN then CLOSED
         for _ in range(2):
-            low_threshold_breaker.record_failure()
+            cb.record_failure()
 
         with patch("time.monotonic") as mock_time:
-            mock_time.return_value = low_threshold_breaker._opened_at + 10.0
-            low_threshold_breaker.allow_request()
+            mock_time.return_value = cb._opened_at + 10.0
+            cb.allow_request()
 
-        with patch("backend.core.circuit_breaker.CIRCUIT_BREAKER_STATE") as mock_gauge:
+        with patch("backend.services.circuit_breaker.CIRCUIT_BREAKER_STATE") as mock_gauge:
             mock_labels = MagicMock()
             mock_gauge.labels.return_value = mock_labels
 
-            low_threshold_breaker.record_success()
+            cb.record_success()
+            cb.record_success()  # Need 2 successes for success_threshold
 
             # Verify gauge was set with correct value (0 for CLOSED)
             mock_labels.set.assert_called_with(0)
 
-    def test_state_gauge_updated_on_half_open(self, low_threshold_breaker: CircuitBreaker) -> None:
+    def test_state_gauge_updated_on_half_open(self) -> None:
         """Test that state gauge is updated when entering HALF_OPEN."""
+        cb = CircuitBreaker(name="test_half", failure_threshold=2, recovery_timeout=5.0)
+
         for _ in range(2):
-            low_threshold_breaker.record_failure()
+            cb.record_failure()
 
         with (
             patch("time.monotonic") as mock_time,
-            patch("backend.core.circuit_breaker.CIRCUIT_BREAKER_STATE") as mock_gauge,
+            patch("backend.services.circuit_breaker.CIRCUIT_BREAKER_STATE") as mock_gauge,
         ):
             mock_labels = MagicMock()
             mock_gauge.labels.return_value = mock_labels
-            mock_time.return_value = low_threshold_breaker._opened_at + 10.0
+            mock_time.return_value = cb._opened_at + 10.0
 
-            low_threshold_breaker.allow_request()
+            cb.allow_request()
 
             # Verify gauge was set with correct value (2 for HALF_OPEN)
             mock_labels.set.assert_called_with(2)
 
-    def test_failures_counter_incremented(self, circuit_breaker: CircuitBreaker) -> None:
+    def test_failures_counter_incremented(self) -> None:
         """Test that failures counter is incremented on failure."""
-        with patch("backend.core.circuit_breaker.CIRCUIT_BREAKER_FAILURES_TOTAL") as mock_counter:
-            mock_labels = MagicMock()
-            mock_counter.labels.return_value = mock_labels
-
-            circuit_breaker.record_failure()
-
-            mock_counter.labels.assert_called_with(service="test_service")
-            mock_labels.inc.assert_called_once()
-
-    def test_state_changes_counter_incremented_on_transition(
-        self, low_threshold_breaker: CircuitBreaker
-    ) -> None:
-        """Test that state changes counter is incremented on state transitions."""
         with patch(
-            "backend.core.circuit_breaker.CIRCUIT_BREAKER_STATE_CHANGES_TOTAL"
+            "backend.services.circuit_breaker.CIRCUIT_BREAKER_FAILURES_TOTAL"
         ) as mock_counter:
             mock_labels = MagicMock()
             mock_counter.labels.return_value = mock_labels
 
+            cb = CircuitBreaker(name="test_failures")
+            cb.record_failure()
+
+            mock_counter.labels.assert_called_with(service="test_failures")
+            mock_labels.inc.assert_called_once()
+
+    def test_state_changes_counter_incremented_on_transition(self) -> None:
+        """Test that state changes counter is incremented on state transitions."""
+        with patch(
+            "backend.services.circuit_breaker.CIRCUIT_BREAKER_STATE_CHANGES_TOTAL"
+        ) as mock_counter:
+            mock_labels = MagicMock()
+            mock_counter.labels.return_value = mock_labels
+
+            cb = CircuitBreaker(name="test_transitions", failure_threshold=2)
+
             # Trigger CLOSED -> OPEN transition
             for _ in range(2):
-                low_threshold_breaker.record_failure()
+                cb.record_failure()
 
             mock_counter.labels.assert_called_with(
-                service="low_threshold", from_state="closed", to_state="open"
+                service="test_transitions", from_state="closed", to_state="open"
             )
             mock_labels.inc.assert_called()
 
@@ -583,54 +596,58 @@ class TestThreadSafety:
 class TestLogging:
     """Tests for logging behavior."""
 
-    def test_logs_state_transition_to_open(self, low_threshold_breaker: CircuitBreaker) -> None:
+    def test_logs_state_transition_to_open(self) -> None:
         """Test that state transition to OPEN is logged."""
-        with patch("backend.core.circuit_breaker.logger") as mock_logger:
+        with patch("backend.services.circuit_breaker.logger") as mock_logger:
+            cb = CircuitBreaker(name="log_test", failure_threshold=2)
             for _ in range(2):
-                low_threshold_breaker.record_failure()
+                cb.record_failure()
 
             # Verify warning was logged
             mock_logger.warning.assert_called()
             call_args = str(mock_logger.warning.call_args)
-            assert "low_threshold" in call_args
+            assert "log_test" in call_args
             assert "OPEN" in call_args
 
-    def test_logs_state_transition_to_half_open(
-        self, low_threshold_breaker: CircuitBreaker
-    ) -> None:
+    def test_logs_state_transition_to_half_open(self) -> None:
         """Test that state transition to HALF_OPEN is logged."""
+        cb = CircuitBreaker(name="log_half", failure_threshold=2, recovery_timeout=5.0)
+
         for _ in range(2):
-            low_threshold_breaker.record_failure()
+            cb.record_failure()
 
         with (
             patch("time.monotonic") as mock_time,
-            patch("backend.core.circuit_breaker.logger") as mock_logger,
+            patch("backend.services.circuit_breaker.logger") as mock_logger,
         ):
-            mock_time.return_value = low_threshold_breaker._opened_at + 10.0
-            low_threshold_breaker.allow_request()
+            mock_time.return_value = cb._opened_at + 10.0
+            cb.allow_request()
 
             # Verify info was logged
             mock_logger.info.assert_called()
             call_args = str(mock_logger.info.call_args)
-            assert "low_threshold" in call_args
+            assert "log_half" in call_args
             assert "HALF_OPEN" in call_args
 
-    def test_logs_state_transition_to_closed(self, low_threshold_breaker: CircuitBreaker) -> None:
+    def test_logs_state_transition_to_closed(self) -> None:
         """Test that state transition to CLOSED is logged."""
+        cb = CircuitBreaker(name="log_closed", failure_threshold=2, recovery_timeout=5.0)
+
         for _ in range(2):
-            low_threshold_breaker.record_failure()
+            cb.record_failure()
 
         with patch("time.monotonic") as mock_time:
-            mock_time.return_value = low_threshold_breaker._opened_at + 10.0
-            low_threshold_breaker.allow_request()
+            mock_time.return_value = cb._opened_at + 10.0
+            cb.allow_request()
 
-        with patch("backend.core.circuit_breaker.logger") as mock_logger:
-            low_threshold_breaker.record_success()
+        with patch("backend.services.circuit_breaker.logger") as mock_logger:
+            cb.record_success()
+            cb.record_success()  # Need 2 successes
 
             # Verify info was logged
             mock_logger.info.assert_called()
             call_args = str(mock_logger.info.call_args)
-            assert "low_threshold" in call_args
+            assert "log_closed" in call_args
             assert "CLOSED" in call_args
 
 
@@ -665,7 +682,8 @@ class TestCompleteStateMachineCycle:
         assert is_permitted is True
         assert low_threshold_breaker.get_state() == CircuitState.HALF_OPEN
 
-        # Transition back to CLOSED
+        # Transition back to CLOSED (need 2 successes for success_threshold)
+        low_threshold_breaker.record_success()
         low_threshold_breaker.record_success()
 
         assert low_threshold_breaker.get_state() == CircuitState.CLOSED
@@ -697,7 +715,8 @@ class TestCompleteStateMachineCycle:
 
         assert low_threshold_breaker.get_state() == CircuitState.HALF_OPEN
 
-        # Success closes the circuit
+        # Success closes the circuit (need 2 successes)
+        low_threshold_breaker.record_success()
         low_threshold_breaker.record_success()
 
         assert low_threshold_breaker.get_state() == CircuitState.CLOSED
@@ -756,9 +775,9 @@ class TestFlorenceClientExample:
             mock_time.return_value = florence_breaker._opened_at + 65.0
 
             # Should allow exactly 3 calls
-            assert florence_breaker.allow_request() is True
-            assert florence_breaker.allow_request() is True
-            assert florence_breaker.allow_request() is True
+            assert florence_breaker.allow_request() is True  # First call transitions to HALF_OPEN
+            assert florence_breaker.allow_request() is True  # Second call in HALF_OPEN
+            assert florence_breaker.allow_request() is True  # Third call in HALF_OPEN
             # Fourth should be rejected
             assert florence_breaker.allow_request() is False
 

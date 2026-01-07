@@ -422,10 +422,11 @@ describe('LogsTable', () => {
   });
 
   describe('Loading State', () => {
-    it('displays loading spinner when loading', () => {
+    it('displays skeleton loader when loading', () => {
       render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} loading={true} />);
 
-      expect(screen.getByText('Loading logs...')).toBeInTheDocument();
+      // Skeleton loader displays table row skeletons
+      expect(screen.getByTestId('table-row-skeleton')).toBeInTheDocument();
     });
 
     it('does not show table when loading', () => {

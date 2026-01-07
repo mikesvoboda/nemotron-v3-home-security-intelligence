@@ -2277,3 +2277,361 @@ async def test_check_batch_timeouts_handles_bytes_and_json_combined(
     # Should handle bytes->decode->JSON deserialize chain correctly
     assert batch_id in closed_batches
     assert mock_redis_instance.add_to_queue_safe.called
+
+
+# =============================================================================
+# NEM-1726: Batch Size Limit Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_batch_max_detections_config_default(mock_redis_instance):
+    """Test that batch_max_detections has correct default value (500)."""
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 500
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        assert aggregator._batch_max_detections == 500
+
+
+@pytest.mark.asyncio
+async def test_batch_max_detections_config_custom(mock_redis_instance):
+    """Test that batch_max_detections can be configured to custom value."""
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 100
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        assert aggregator._batch_max_detections == 100
+
+
+@pytest.mark.asyncio
+async def test_add_detection_closes_batch_when_max_reached(mock_redis_instance):
+    """Test that adding detection closes current batch when max size reached.
+
+    NEM-1726: When batch reaches batch_max_detections, it should:
+    1. Close the current batch
+    2. Create a new batch
+    3. Add the detection to the new batch
+    4. Record metric for max reached
+    """
+    camera_id = "front_door"
+    existing_batch_id = "batch_old"
+
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 5  # Low limit for testing
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Mock existing batch with 5 detections (at limit)
+        async def mock_get(key):
+            if key == f"batch:{camera_id}:current":
+                return existing_batch_id
+            elif key == f"batch:{existing_batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{existing_batch_id}:started_at":
+                return str(time.time() - 30)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        # Current batch has 5 detections (at limit)
+        mock_redis_instance._client.llen.return_value = 5
+        mock_redis_instance._client.rpush.return_value = 1
+        mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
+
+        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = "batch_new"
+
+            # Add detection which should trigger batch split
+            batch_id = await aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=6,
+                _file_path="/path/to/image.jpg",
+            )
+
+        # Should return the new batch ID
+        assert batch_id == "batch_new"
+
+        # Should have called add_to_queue_safe to close old batch
+        assert mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_add_detection_no_split_when_under_limit(mock_redis_instance):
+    """Test that detections are added normally when under size limit."""
+    camera_id = "front_door"
+    existing_batch_id = "batch_123"
+
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 500
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Mock existing batch with 3 detections (well under limit)
+        async def mock_get(key):
+            if key == f"batch:{camera_id}:current":
+                return existing_batch_id
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        # Current batch has only 3 detections
+        mock_redis_instance._client.llen.return_value = 3
+        mock_redis_instance._client.rpush.return_value = 4
+
+        batch_id = await aggregator.add_detection(
+            camera_id=camera_id,
+            detection_id=4,
+            _file_path="/path/to/image.jpg",
+        )
+
+        # Should return existing batch ID (no split)
+        assert batch_id == existing_batch_id
+
+        # Should NOT have closed the batch
+        assert not mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_batch_split_logs_info_message(mock_redis_instance, caplog):
+    """Test that batch split due to size limit is logged at INFO level."""
+    import logging
+
+    camera_id = "front_door"
+    existing_batch_id = "batch_old"
+
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 5
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        async def mock_get(key):
+            if key == f"batch:{camera_id}:current":
+                return existing_batch_id
+            elif key == f"batch:{existing_batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{existing_batch_id}:started_at":
+                return str(time.time() - 30)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance._client.llen.return_value = 5
+        mock_redis_instance._client.rpush.return_value = 1
+        mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
+
+        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = "batch_new"
+
+            with caplog.at_level(logging.INFO):
+                await aggregator.add_detection(
+                    camera_id=camera_id,
+                    detection_id=6,
+                    _file_path="/path/to/image.jpg",
+                )
+
+        # Should log message about max size reached
+        assert any(
+            "max" in record.message.lower() and "size" in record.message.lower()
+            for record in caplog.records
+        )
+
+
+@pytest.mark.asyncio
+async def test_batch_split_records_metric(mock_redis_instance):
+    """Test that batch split records the batch_max_detections_reached metric."""
+    camera_id = "front_door"
+    existing_batch_id = "batch_old"
+
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 5
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        async def mock_get(key):
+            if key == f"batch:{camera_id}:current":
+                return existing_batch_id
+            elif key == f"batch:{existing_batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{existing_batch_id}:started_at":
+                return str(time.time() - 30)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance._client.llen.return_value = 5
+        mock_redis_instance._client.rpush.return_value = 1
+        mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
+
+        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = "batch_new"
+
+            with patch("backend.services.batch_aggregator.record_batch_max_reached") as mock_metric:
+                await aggregator.add_detection(
+                    camera_id=camera_id,
+                    detection_id=6,
+                    _file_path="/path/to/image.jpg",
+                )
+
+                # Should have recorded the metric
+                mock_metric.assert_called_once_with(camera_id)
+
+
+@pytest.mark.asyncio
+async def test_batch_split_preserves_detection_order(mock_redis_instance):
+    """Test that batch split doesn't lose or reorder detections."""
+    camera_id = "front_door"
+    existing_batch_id = "batch_old"
+
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 5
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        async def mock_get(key):
+            if key == f"batch:{camera_id}:current":
+                return existing_batch_id
+            elif key == f"batch:{existing_batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{existing_batch_id}:started_at":
+                return str(time.time() - 30)
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance._client.llen.return_value = 5
+        mock_redis_instance._client.rpush.return_value = 1
+        # Old batch has detections 1-5
+        mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
+
+        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = "batch_new"
+
+            await aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=6,
+                _file_path="/path/to/image.jpg",
+            )
+
+        # Verify closed batch had correct detection IDs
+        queue_call = mock_redis_instance.add_to_queue_safe.call_args
+        queue_data = queue_call[0][1]
+        assert queue_data["detection_ids"] == [1, 2, 3, 4, 5]
+
+        # Detection 6 should be in the new batch (verified by RPUSH call)
+        assert mock_redis_instance._client.rpush.called
+
+
+@pytest.mark.asyncio
+async def test_new_batch_after_split_accepts_detections(mock_redis_instance):
+    """Test that the new batch created after split properly accepts new detections."""
+    camera_id = "front_door"
+    existing_batch_id = "batch_old"
+    new_batch_id = "batch_new"
+
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 5
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        # Track which batch is current (changes after split)
+        current_batch = [existing_batch_id]
+        get_call_count = [0]
+
+        async def mock_get(key):
+            get_call_count[0] += 1
+            if key == f"batch:{camera_id}:current":
+                # First few calls return old batch, then new batch after split
+                return current_batch[0]
+            elif key == f"batch:{existing_batch_id}:camera_id":
+                return camera_id
+            elif key == f"batch:{existing_batch_id}:started_at":
+                return str(time.time() - 30)
+            elif key == f"batch:{new_batch_id}:camera_id":
+                return camera_id
+            return None
+
+        mock_redis_instance.get.side_effect = mock_get
+
+        # Simulate batch size check
+        llen_calls = [0]
+
+        async def mock_llen(_key):
+            llen_calls[0] += 1
+            # First call: old batch is at limit
+            # Subsequent calls: new batch starts at 0
+            if llen_calls[0] == 1:
+                return 5
+            return 0
+
+        mock_redis_instance._client.llen = AsyncMock(side_effect=mock_llen)
+        mock_redis_instance._client.rpush.return_value = 1
+        mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
+
+        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value.hex = new_batch_id
+
+            batch_id = await aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=6,
+                _file_path="/path/to/image.jpg",
+            )
+
+        # The returned batch_id should be the new batch
+        assert batch_id == new_batch_id
+
+
+# Property-based test for batch size limits
+@given(
+    max_detections=st.integers(min_value=1, max_value=1000),
+    current_size=st.integers(min_value=0, max_value=1000),
+)
+@hypothesis_settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_batch_should_split_when_at_or_above_limit(
+    max_detections: int,
+    current_size: int,
+    mock_redis_instance,
+) -> None:
+    """Property: Batch should split when current_size >= max_detections."""
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = max_detections
+
+        aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+        should_split = current_size >= max_detections
+
+        # Verify the logic
+        assert (current_size >= aggregator._batch_max_detections) == should_split

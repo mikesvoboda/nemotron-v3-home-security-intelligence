@@ -186,6 +186,7 @@ class RTDETRv2Model:
         model_path: str | Path,
         confidence_threshold: float = 0.5,
         device: str = "cuda:0",
+        cache_clear_frequency: int = 1,
     ):
         """Initialize RT-DETRv2 model.
 
@@ -193,15 +194,21 @@ class RTDETRv2Model:
             model_path: Path to HuggingFace model directory or model name
             confidence_threshold: Minimum confidence for detections
             device: Device to run inference on (cuda:0, cpu)
+            cache_clear_frequency: Clear CUDA cache every N detections.
+                                   Set to 0 to disable cache clearing.
+                                   Default is 1 (clear after every detection).
         """
         self.model_path = str(model_path)
         self.confidence_threshold = confidence_threshold
         self.device = device
+        self.cache_clear_frequency = cache_clear_frequency
+        self.cache_clear_count = 0  # Metric: total number of cache clears
         self.model = None
         self.processor = None
 
         logger.info(f"Initializing RT-DETRv2 model from {self.model_path}")
         logger.info(f"Device: {device}, Confidence threshold: {confidence_threshold}")
+        logger.info(f"CUDA cache clear frequency: {cache_clear_frequency}")
 
     def load_model(self) -> None:
         """Load the model into memory using HuggingFace Transformers."""
@@ -247,6 +254,19 @@ class RTDETRv2Model:
 
         logger.info("Warmup complete")
 
+    def _clear_cuda_cache(self) -> None:
+        """Clear CUDA cache to prevent memory fragmentation.
+
+        Only clears cache when:
+        - cache_clear_frequency > 0 (not disabled)
+        - CUDA is available
+        - Device is CUDA (not CPU)
+        """
+        if self.cache_clear_frequency > 0 and "cuda" in self.device and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            self.cache_clear_count += 1
+            logger.debug(f"CUDA cache cleared (total clears: {self.cache_clear_count})")
+
     def detect(self, image: Image.Image) -> tuple[list[dict[str, Any]], float]:
         """Run object detection on an image.
 
@@ -255,70 +275,78 @@ class RTDETRv2Model:
 
         Returns:
             Tuple of (detections list, inference_time_ms)
+
+        Note:
+            CUDA cache is cleared after each detection to prevent memory fragmentation.
+            This can be controlled via cache_clear_frequency parameter.
         """
         if self.model is None or self.processor is None:
             raise RuntimeError("Model not loaded")
 
         start_time = time.perf_counter()
 
-        # Convert to RGB if needed
-        if image.mode != "RGB":
-            image = image.convert("RGB")
+        try:
+            # Convert to RGB if needed
+            if image.mode != "RGB":
+                image = image.convert("RGB")
 
-        original_size = image.size  # (width, height)
+            original_size = image.size  # (width, height)
 
-        # Preprocess image
-        inputs = self.processor(images=image, return_tensors="pt")
+            # Preprocess image
+            inputs = self.processor(images=image, return_tensors="pt")
 
-        # Move inputs to device
-        if "cuda" in self.device:
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            # Move inputs to device
+            if "cuda" in self.device:
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
-        # Run inference
-        with torch.no_grad():
-            outputs = self.model(**inputs)
+            # Run inference
+            with torch.no_grad():
+                outputs = self.model(**inputs)
 
-        # Post-process results
-        target_sizes = torch.tensor([[original_size[1], original_size[0]]])  # height, width
-        if "cuda" in self.device:
-            target_sizes = target_sizes.to(self.device)
+            # Post-process results
+            target_sizes = torch.tensor([[original_size[1], original_size[0]]])  # height, width
+            if "cuda" in self.device:
+                target_sizes = target_sizes.to(self.device)
 
-        results = self.processor.post_process_object_detection(
-            outputs,
-            target_sizes=target_sizes,
-            threshold=self.confidence_threshold,
-        )[0]
+            results = self.processor.post_process_object_detection(
+                outputs,
+                target_sizes=target_sizes,
+                threshold=self.confidence_threshold,
+            )[0]
 
-        # Convert to detection format
-        detections = []
-        for score, label, box in zip(
-            results["scores"], results["labels"], results["boxes"], strict=False
-        ):
-            # Get class name from model config
-            class_name = self.model.config.id2label[label.item()]
+            # Convert to detection format
+            detections = []
+            for score, label, box in zip(
+                results["scores"], results["labels"], results["boxes"], strict=False
+            ):
+                # Get class name from model config
+                class_name = self.model.config.id2label[label.item()]
 
-            # Filter to security-relevant classes
-            if class_name not in SECURITY_CLASSES:
-                continue
+                # Filter to security-relevant classes
+                if class_name not in SECURITY_CLASSES:
+                    continue
 
-            # Convert box coordinates
-            x1, y1, x2, y2 = box.tolist()
-            detections.append(
-                {
-                    "class": class_name,
-                    "confidence": float(score),
-                    "bbox": {
-                        "x": int(x1),
-                        "y": int(y1),
-                        "width": int(x2 - x1),
-                        "height": int(y2 - y1),
-                    },
-                }
-            )
+                # Convert box coordinates
+                x1, y1, x2, y2 = box.tolist()
+                detections.append(
+                    {
+                        "class": class_name,
+                        "confidence": float(score),
+                        "bbox": {
+                            "x": int(x1),
+                            "y": int(y1),
+                            "width": int(x2 - x1),
+                            "height": int(y2 - y1),
+                        },
+                    }
+                )
 
-        inference_time_ms = (time.perf_counter() - start_time) * 1000
+            inference_time_ms = (time.perf_counter() - start_time) * 1000
 
-        return detections, inference_time_ms
+            return detections, inference_time_ms
+        finally:
+            # Clear CUDA cache to prevent memory fragmentation (NEM-1728)
+            self._clear_cuda_cache()
 
     def detect_batch(self, images: list[Image.Image]) -> tuple[list[list[dict[str, Any]]], float]:
         """Run batch object detection on multiple images.
@@ -328,14 +356,36 @@ class RTDETRv2Model:
 
         Returns:
             Tuple of (list of detections per image, total_inference_time_ms)
+
+        Note:
+            CUDA cache is cleared every N images based on cache_clear_frequency.
+            Individual detect() calls have their cache clearing disabled during batch
+            processing to allow for batch-level cache management.
         """
         start_time = time.perf_counter()
         all_detections = []
 
-        # Process each image
-        for image in images:
-            detections, _ = self.detect(image)
-            all_detections.append(detections)
+        # Store original frequency and temporarily disable per-detection cache clearing
+        # to manage cache clearing at batch level
+        original_frequency = self.cache_clear_frequency
+        self.cache_clear_frequency = 0  # Disable per-detection cache clearing
+
+        try:
+            # Process each image
+            for i, image in enumerate(images):
+                detections, _ = self.detect(image)
+                all_detections.append(detections)
+
+                # Clear cache every N images based on original frequency setting
+                # Skip if cache clearing is disabled (original_frequency == 0)
+                if original_frequency > 0 and (i + 1) % original_frequency == 0:
+                    # Temporarily restore frequency to allow _clear_cuda_cache to work
+                    self.cache_clear_frequency = original_frequency
+                    self._clear_cuda_cache()
+                    self.cache_clear_frequency = 0  # Re-disable for next iteration
+        finally:
+            # Restore original frequency
+            self.cache_clear_frequency = original_frequency
 
         total_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -426,12 +476,15 @@ async def lifespan(_app: FastAPI):
     model_path = os.environ.get("RTDETR_MODEL_PATH", "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd")
     confidence_threshold = float(os.environ.get("RTDETR_CONFIDENCE", "0.5"))
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    # Cache clear frequency: default 1 (every detection), 0 to disable
+    cache_clear_frequency = int(os.environ.get("RTDETR_CACHE_CLEAR_FREQUENCY", "1"))
 
     try:
         model = RTDETRv2Model(
             model_path=model_path,
             confidence_threshold=confidence_threshold,
             device=device,
+            cache_clear_frequency=cache_clear_frequency,
         )
         model.load_model()
         logger.info("Model loaded successfully")

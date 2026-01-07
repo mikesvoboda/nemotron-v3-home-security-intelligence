@@ -337,7 +337,7 @@ start_ai_containers_podman() {
         $gpu_flags \
         -p 8092:8092 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
-        -e "MODEL_PATH=/models/florence-2-large" \
+        -e "MODEL_PATH=/models/florence-2-large" \  # pragma: allowlist secret
         --restart unless-stopped \
         ai-florence
     print_success "ai-florence started"
@@ -350,7 +350,7 @@ start_ai_containers_podman() {
         $gpu_flags \
         -p 8093:8093 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
-        -e "CLIP_MODEL_PATH=/models/clip-vit-l" \
+        -e "CLIP_MODEL_PATH=/models/clip-vit-l" \  # pragma: allowlist secret
         --restart unless-stopped \
         ai-clip
     print_success "ai-clip started"
@@ -366,10 +366,10 @@ start_ai_containers_podman() {
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro,z" \
-        -e "VEHICLE_MODEL_PATH=/models/vehicle-segment-classification" \
-        -e "PET_MODEL_PATH=/models/pet-classifier" \
-        -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \
-        -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \
+        -e "VEHICLE_MODEL_PATH=/models/vehicle-segment-classification" \  # pragma: allowlist secret
+        -e "PET_MODEL_PATH=/models/pet-classifier" \  # pragma: allowlist secret
+        -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \  # pragma: allowlist secret
+        -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \  # pragma: allowlist secret
         --restart unless-stopped \
         ai-enrichment
     print_success "ai-enrichment started"

@@ -20,8 +20,10 @@ __all__ = [
     "DatabaseHandler",
     "SQLiteHandler",  # Backwards compatibility alias
     # Functions
+    "get_log_context",
     "get_logger",
     "get_request_id",
+    "log_context",
     "log_exception_with_context",
     "mask_ip",
     "redact_sensitive_value",
@@ -35,6 +37,8 @@ __all__ = [
 import logging
 import re
 import sys
+from collections.abc import Generator
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
@@ -74,6 +78,82 @@ SENSITIVE_FIELD_NAMES = frozenset(
 
 # Context variable for request ID propagation
 _request_id: ContextVar[str | None] = ContextVar("request_id", default=None)
+
+# Context variable for structured log context propagation (NEM-1645)
+# Stores a dict of context fields that are automatically added to all logs within scope
+# Note: Using None default to avoid mutable default (B039 linting rule)
+_log_context: ContextVar[dict[str, Any] | None] = ContextVar("log_context", default=None)
+
+
+def get_log_context() -> dict[str, Any]:
+    """Get the current structured log context.
+
+    Returns:
+        A copy of the current context dictionary. Returns empty dict if no context is set.
+
+    Example:
+        with log_context(camera_id="front_door", operation="detect"):
+            ctx = get_log_context()
+            # ctx == {"camera_id": "front_door", "operation": "detect"}
+    """
+    ctx = _log_context.get()
+    return dict(ctx) if ctx is not None else {}
+
+
+@contextmanager
+def log_context(**kwargs: Any) -> Generator[None]:
+    """Context manager for enriched logging within a scope.
+
+    All logs made within this context will automatically include the provided
+    keyword arguments as extra fields. This is useful for adding consistent
+    context (like camera_id, operation, retry_count) to all log messages
+    without repeating them in each log call.
+
+    Nested contexts are supported: inner contexts inherit and can override
+    outer context fields. When the inner context exits, the outer context
+    is restored.
+
+    Args:
+        **kwargs: Key-value pairs to add to all log records in this scope.
+            Common fields include:
+            - camera_id: Camera identifier
+            - event_id: Event identifier
+            - detection_id: Detection identifier
+            - operation: Current operation being performed
+            - retry_count: Current retry attempt number
+            - service: External service name
+
+    Yields:
+        None
+
+    Example:
+        with log_context(camera_id="front_door", operation="detect"):
+            logger.info("Starting detection")  # Includes camera_id and operation
+            try:
+                result = await detect_objects(image_path)
+            except TimeoutError as e:
+                logger.error("Detection timed out")  # Also includes camera_id and operation
+                raise
+
+        # Nested context example:
+        with log_context(camera_id="front_door"):
+            with log_context(operation="detect", retry_count=1):
+                logger.info("Processing")
+                # Includes camera_id, operation, and retry_count
+    """
+    # Get the current context and merge with new values
+    current = _log_context.get() or {}
+    # Create a new dict that combines current context with new values
+    # New values override existing ones with the same key
+    merged = {**current, **kwargs}
+
+    # Set the merged context
+    token = _log_context.set(merged)
+    try:
+        yield
+    finally:
+        # Restore the previous context
+        _log_context.reset(token)
 
 
 def redact_url(url: str) -> str:
@@ -187,11 +267,55 @@ def set_request_id(request_id: str | None) -> None:
 
 
 class ContextFilter(logging.Filter):
-    """Filter that adds contextual information to log records."""
+    """Filter that adds contextual information to log records.
+
+    This filter automatically injects:
+    - request_id: From the request context (set by middleware)
+    - connection_id: From WebSocket connection context (NEM-1640)
+    - log_context fields: From the log_context context manager (NEM-1645)
+
+    The log_context fields are merged with any explicit extra= fields passed
+    to the log call, with explicit extra values taking precedence.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """Add request_id and other context to the log record."""
+        """Add request_id, connection_id, and log_context fields to the log record.
+
+        This method enriches every log record with:
+        1. request_id from the request context (for request correlation)
+        2. connection_id from WebSocket context (for WebSocket connection tracing)
+        3. All fields from the current log_context (for structured error context)
+
+        Log context fields are set as attributes on the record, making them
+        available to formatters and handlers.
+
+        Args:
+            record: The log record to enrich
+
+        Returns:
+            True (always allows the record through)
+        """
+        # Add request_id from context
         record.request_id = get_request_id()  # type: ignore[attr-defined]
+
+        # Add connection_id from async_context module (NEM-1640)
+        # Imported lazily to avoid circular imports during startup
+        try:
+            from backend.core.async_context import get_connection_id
+
+            record.connection_id = get_connection_id()  # type: ignore[attr-defined]
+        except ImportError:
+            # Module not yet available during startup
+            record.connection_id = None  # type: ignore[attr-defined]
+
+        # Add log_context fields (NEM-1645)
+        # These are set via the log_context context manager
+        context = get_log_context()
+        for key, value in context.items():
+            # Only set if not already present (explicit extra= takes precedence)
+            if not hasattr(record, key):
+                setattr(record, key, value)
+
         return True
 
 
