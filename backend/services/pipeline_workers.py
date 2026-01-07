@@ -121,7 +121,7 @@ class WorkerState(Enum):
     ERROR = "error"
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkerStats:
     """Statistics for a worker process."""
 

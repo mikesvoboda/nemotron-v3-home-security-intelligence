@@ -58,7 +58,7 @@ WEATHER_SIMPLE_LABELS = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class WeatherResult:
     """Result from weather classification.
 
@@ -152,7 +152,11 @@ async def load_weather_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load Weather Classification model from {model_path}: {e}")
+        logger.error(
+            "Failed to load Weather Classification model",
+            exc_info=True,
+            extra={"model_path": model_path},
+        )
         raise RuntimeError(f"Failed to load Weather Classification model: {e}") from e
 
 
@@ -229,7 +233,7 @@ async def classify_weather(
         return await loop.run_in_executor(None, _classify)
 
     except Exception as e:
-        logger.error(f"Weather classification failed: {e}")
+        logger.error("Weather classification failed", exc_info=True)
         raise RuntimeError(f"Weather classification failed: {e}") from e
 
 

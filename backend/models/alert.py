@@ -21,8 +21,8 @@ Rule Evaluation:
 
 from __future__ import annotations
 
-import enum
 from datetime import datetime
+from enum import StrEnum, auto
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -49,22 +49,27 @@ if TYPE_CHECKING:
     from .event import Event
 
 
-class AlertSeverity(str, enum.Enum):
+class AlertSeverityEnum(StrEnum):
     """Alert severity levels."""
 
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+    CRITICAL = auto()
 
 
-class AlertStatus(str, enum.Enum):
+class AlertStatusEnum(StrEnum):
     """Alert status values."""
 
-    PENDING = "pending"
-    DELIVERED = "delivered"
-    ACKNOWLEDGED = "acknowledged"
-    DISMISSED = "dismissed"
+    PENDING = auto()
+    DELIVERED = auto()
+    ACKNOWLEDGED = auto()
+    DISMISSED = auto()
+
+
+# Backward compatibility aliases
+AlertSeverity = AlertSeverityEnum
+AlertStatus = AlertStatusEnum
 
 
 class Alert(Base):

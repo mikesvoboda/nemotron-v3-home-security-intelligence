@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ServiceConfig:
     """Configuration for a service pattern used in container discovery.
 
@@ -66,7 +66,7 @@ class ServiceConfig:
     restart_backoff_max: float = 300.0
 
 
-@dataclass
+@dataclass(slots=True)
 class ManagedService:
     """Represents a discovered container that is managed by the orchestrator.
 

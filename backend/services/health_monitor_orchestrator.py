@@ -116,7 +116,7 @@ async def check_cmd_health(
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class ManagedService:
     """Represents a container managed by the orchestrator.
 

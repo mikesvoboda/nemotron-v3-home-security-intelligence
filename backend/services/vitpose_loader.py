@@ -81,7 +81,7 @@ KEYPOINT_NAMES = [
 ]
 
 
-@dataclass
+@dataclass(slots=True)
 class Keypoint:
     """A single detected keypoint with position and confidence.
 
@@ -98,7 +98,7 @@ class Keypoint:
     name: str
 
 
-@dataclass
+@dataclass(slots=True)
 class PoseResult:
     """Result of pose estimation for a single person.
 
@@ -191,7 +191,9 @@ async def load_vitpose_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load ViTPose model from {model_path}: {e}")
+        logger.error(
+            "Failed to load ViTPose model", exc_info=True, extra={"model_path": model_path}
+        )
         raise RuntimeError(f"Failed to load ViTPose model: {e}") from e
 
 
@@ -263,8 +265,8 @@ def extract_keypoints_from_output(
 
         return all_keypoints
 
-    except Exception as e:
-        logger.error(f"Failed to extract keypoints from output: {e}")
+    except Exception:
+        logger.error("Failed to extract keypoints from output", exc_info=True)
         return []
 
 
@@ -468,8 +470,8 @@ async def extract_pose_from_crop(
             bbox=bbox,
         )
 
-    except Exception as e:
-        logger.error(f"Failed to extract pose from crop: {e}")
+    except Exception:
+        logger.error("Failed to extract pose from crop", exc_info=True)
         return PoseResult(
             keypoints={},
             pose_class="unknown",
@@ -536,8 +538,8 @@ async def extract_poses_batch(
 
         return results
 
-    except Exception as e:
-        logger.error(f"Failed to extract poses from batch: {e}")
+    except Exception:
+        logger.error("Failed to extract poses from batch", exc_info=True)
         # Return empty results for each crop
         return [
             PoseResult(

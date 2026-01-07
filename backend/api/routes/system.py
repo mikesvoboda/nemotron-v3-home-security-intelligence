@@ -101,7 +101,7 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 # =============================================================================
 
 
-@dataclass
+@dataclass(slots=True)
 class CircuitBreaker:
     """Simple circuit breaker for health checks.
 
@@ -1270,8 +1270,10 @@ async def patch_config(
                 request=request,
             )
             await db.commit()
-        except Exception as e:
-            logger.error(f"Failed to commit audit log: {e}")
+        except Exception:
+            logger.error(
+                "Failed to commit audit log", exc_info=True, extra={"action": "settings_changed"}
+            )
             await db.rollback()
             # Don't fail the main operation - audit is non-critical
 
@@ -1385,8 +1387,12 @@ async def update_anomaly_config(
                 request=request,
             )
             await db.commit()
-        except Exception as e:
-            logger.error(f"Failed to commit audit log: {e}")
+        except Exception:
+            logger.error(
+                "Failed to commit audit log",
+                exc_info=True,
+                extra={"action": "anomaly_config_updated"},
+            )
             await db.rollback()
             # Don't fail the main operation - audit is non-critical
 
@@ -1827,8 +1833,12 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
                 dry_run=True,
                 timestamp=datetime.now(UTC),
             )
-        except Exception as e:
-            logger.error(f"Manual cleanup dry run failed: {e}", exc_info=True)
+        except Exception:
+            logger.error(
+                "Manual cleanup dry run failed",
+                exc_info=True,
+                extra={"retention_days": settings.retention_days},
+            )
             raise
     else:
         logger.info(f"Manual cleanup triggered with retention_days={settings.retention_days}")
@@ -1858,8 +1868,12 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
                 dry_run=False,
                 timestamp=datetime.now(UTC),
             )
-        except Exception as e:
-            logger.error(f"Manual cleanup failed: {e}", exc_info=True)
+        except Exception:
+            logger.error(
+                "Manual cleanup failed",
+                exc_info=True,
+                extra={"retention_days": settings.retention_days},
+            )
             raise
 
 
@@ -2007,8 +2021,12 @@ async def update_severity_thresholds(
                 request=request,
             )
             await db.commit()
-        except Exception as e:
-            logger.error(f"Failed to commit audit log: {e}")
+        except Exception:
+            logger.error(
+                "Failed to commit audit log",
+                exc_info=True,
+                extra={"action": "severity_thresholds_updated"},
+            )
             await db.rollback()
             # Don't fail the main operation - audit is non-critical
 
@@ -2484,8 +2502,8 @@ async def _get_batch_aggregator_status(
             batch_window_seconds=settings.batch_window_seconds,
             idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         )
-    except Exception as e:
-        logger.error(f"Error getting batch aggregator status: {e}", exc_info=True)
+    except Exception:
+        logger.error("Error getting batch aggregator status", exc_info=True)
         return None
 
 
@@ -2532,8 +2550,8 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
             services=services_list,
             available_features=status.get("available_features", []),
         )
-    except Exception as e:
-        logger.error(f"Error getting degradation status: {e}", exc_info=True)
+    except Exception:
+        logger.error("Error getting degradation status", exc_info=True)
         return None
 
 

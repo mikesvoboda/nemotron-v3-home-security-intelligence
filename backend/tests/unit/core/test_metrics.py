@@ -609,3 +609,102 @@ class TestPipelineLatencyAPIEndpoint:
         assert stage_stats["p50_ms"] is not None
         assert stage_stats["p95_ms"] is not None
         assert stage_stats["p99_ms"] is not None
+
+
+# =============================================================================
+# Cache Metrics Tests (NEM-1682)
+# =============================================================================
+
+
+class TestCacheMetrics:
+    """Test cache-related Prometheus metrics."""
+
+    def test_cache_hits_metric_exists(self) -> None:
+        """CACHE_HITS_TOTAL counter should be defined with cache_type label."""
+        from backend.core.metrics import CACHE_HITS_TOTAL
+
+        assert CACHE_HITS_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert CACHE_HITS_TOTAL._name == "hsi_cache_hits"
+        assert "cache_type" in CACHE_HITS_TOTAL._labelnames
+
+    def test_cache_misses_metric_exists(self) -> None:
+        """CACHE_MISSES_TOTAL counter should be defined with cache_type label."""
+        from backend.core.metrics import CACHE_MISSES_TOTAL
+
+        assert CACHE_MISSES_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert CACHE_MISSES_TOTAL._name == "hsi_cache_misses"
+        assert "cache_type" in CACHE_MISSES_TOTAL._labelnames
+
+    def test_cache_invalidations_metric_exists(self) -> None:
+        """CACHE_INVALIDATIONS_TOTAL counter should be defined with cache_type and reason labels."""
+        from backend.core.metrics import CACHE_INVALIDATIONS_TOTAL
+
+        assert CACHE_INVALIDATIONS_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert CACHE_INVALIDATIONS_TOTAL._name == "hsi_cache_invalidations"
+        assert "cache_type" in CACHE_INVALIDATIONS_TOTAL._labelnames
+        assert "reason" in CACHE_INVALIDATIONS_TOTAL._labelnames
+
+
+class TestCacheMetricHelpers:
+    """Test cache metric helper functions."""
+
+    def test_record_cache_hit(self) -> None:
+        """record_cache_hit should increment counter with cache_type."""
+        from backend.core.metrics import record_cache_hit
+
+        record_cache_hit("event_stats")
+        record_cache_hit("cameras")
+        record_cache_hit("system")
+        # No assertion needed - no exception means success
+
+    def test_record_cache_miss(self) -> None:
+        """record_cache_miss should increment counter with cache_type."""
+        from backend.core.metrics import record_cache_miss
+
+        record_cache_miss("event_stats")
+        record_cache_miss("cameras")
+        record_cache_miss("other")
+        # No assertion needed - no exception means success
+
+    def test_record_cache_invalidation(self) -> None:
+        """record_cache_invalidation should increment counter with cache_type and reason."""
+        from backend.core.metrics import record_cache_invalidation
+
+        record_cache_invalidation("event_stats", "event_created")
+        record_cache_invalidation("cameras", "camera_updated")
+        record_cache_invalidation("cameras", "camera_deleted")
+        # No assertion needed - no exception means success
+
+
+class TestMetricsServiceCacheMethods:
+    """Test MetricsService cache-related methods."""
+
+    def test_metrics_service_record_cache_hit(self) -> None:
+        """MetricsService.record_cache_hit should increment counter."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_cache_hit("event_stats")
+        metrics.record_cache_hit("cameras")
+        # No assertion needed - no exception means success
+
+    def test_metrics_service_record_cache_miss(self) -> None:
+        """MetricsService.record_cache_miss should increment counter."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_cache_miss("event_stats")
+        metrics.record_cache_miss("cameras")
+        # No assertion needed - no exception means success
+
+    def test_metrics_service_record_cache_invalidation(self) -> None:
+        """MetricsService.record_cache_invalidation should increment counter."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.record_cache_invalidation("event_stats", "event_created")
+        metrics.record_cache_invalidation("cameras", "camera_updated")
+        # No assertion needed - no exception means success
