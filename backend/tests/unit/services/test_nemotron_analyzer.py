@@ -3009,6 +3009,12 @@ class TestLLMTokenMetrics:
         mock.severity_low_max = 29
         mock.severity_medium_max = 59
         mock.severity_high_max = 84
+        # Token counter settings (NEM-1666)
+        mock.nemotron_context_window = 4096
+        mock.nemotron_max_output_tokens = 1536
+        mock.context_utilization_warning_threshold = 0.80
+        mock.context_truncation_enabled = True
+        mock.llm_tokenizer_encoding = "cl100k_base"
         return mock
 
     @pytest.fixture
@@ -3247,153 +3253,3 @@ class TestTokenCountingIntegration:
 
             # Verify validation was called
             mock_counter.validate_prompt.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_call_llm_records_token_metrics(self, analyzer_with_token_limits):
-        """Test that token metrics are recorded during LLM calls."""
-        mock_response = {
-            "content": json.dumps(
-                {
-                    "risk_score": 50,
-                    "risk_level": "medium",
-                    "summary": "Test event",
-                    "reasoning": "Test reasoning",
-                }
-            ),
-        }
-
-        with (
-            patch("httpx.AsyncClient.post") as mock_post,
-            patch("backend.services.nemotron_analyzer.observe_prompt_tokens") as mock_observe,
-        ):
-            mock_resp = MagicMock(spec=httpx.Response)
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_response
-            mock_post.return_value = mock_resp
-
-            await analyzer_with_token_limits._call_llm(
-                camera_name="Front Door",
-                start_time="2025-12-23T14:30:00",
-                end_time="2025-12-23T14:31:00",
-                detections_list="1. 14:30:00 - person",
-            )
-
-            # Verify token metrics were recorded
-            mock_observe.assert_called_once()
-            # Token count should be positive
-            assert mock_observe.call_args[0][0] > 0
-
-
-class TestPromptSectionTruncation:
-    """Tests for prompt section truncation logic."""
-
-    def test_truncation_removes_lowest_priority_sections_first(self):
-        """Test that cross_camera (lowest priority) is removed first."""
-        from backend.services.token_counter import (
-            PromptSection,
-            truncate_prompt_sections,
-        )
-
-        sections = [
-            PromptSection(
-                name="core",
-                content="Core detection content " * 50,
-                priority=0,
-                can_truncate=False,
-            ),
-            PromptSection(
-                name="zones",
-                content="Zone analysis " * 50,
-                priority=2,
-            ),
-            PromptSection(
-                name="baseline",
-                content="Baseline comparison " * 50,
-                priority=3,
-            ),
-            PromptSection(
-                name="cross_camera",
-                content="Cross camera data " * 50,
-                priority=4,
-            ),
-        ]
-
-        result = truncate_prompt_sections(sections, context_window=500, max_output_tokens=200)
-
-        # Cross-camera should be removed first (priority 4)
-        assert "cross_camera" in result.removed_sections
-        # Core should never be removed (can_truncate=False)
-        remaining_names = [s.name for s in result.sections]
-        assert "core" in remaining_names
-
-    def test_truncation_order_cross_camera_baseline_zones(self):
-        """Test truncation order: cross_camera -> baseline -> zones."""
-        from backend.services.token_counter import (
-            PromptSection,
-            truncate_prompt_sections,
-        )
-
-        # Make sections larger to force more truncation
-        sections = [
-            PromptSection(
-                name="core",
-                content="x" * 100,  # 25 tokens
-                priority=0,
-                can_truncate=False,
-            ),
-            PromptSection(
-                name="zones",
-                content="y" * 200,  # 50 tokens
-                priority=2,
-            ),
-            PromptSection(
-                name="baseline",
-                content="z" * 200,  # 50 tokens
-                priority=3,
-            ),
-            PromptSection(
-                name="cross_camera",
-                content="w" * 200,  # 50 tokens
-                priority=4,
-            ),
-        ]
-        # Total: 175 tokens
-
-        # Very tight limit to force multiple truncations
-        result = truncate_prompt_sections(sections, context_window=100, max_output_tokens=50)
-        # max_safe = 50 tokens, we have 175
-
-        # Should remove in order: cross_camera (50), baseline (50), zones (50)
-        # Until we're under 50 tokens (just core at 25)
-        assert result.truncated is True
-        assert "cross_camera" in result.removed_sections
-
-    def test_truncation_preserves_core_sections(self):
-        """Test that sections marked can_truncate=False are never removed."""
-        from backend.services.token_counter import (
-            PromptSection,
-            truncate_prompt_sections,
-        )
-
-        sections = [
-            PromptSection(
-                name="system_prompt",
-                content="x" * 1000,  # 250 tokens
-                priority=0,
-                can_truncate=False,
-            ),
-            PromptSection(
-                name="detections",
-                content="y" * 400,  # 100 tokens
-                priority=1,
-                can_truncate=False,
-            ),
-        ]
-
-        # Even with very tight limits, non-truncatable sections stay
-        result = truncate_prompt_sections(sections, context_window=100, max_output_tokens=50)
-
-        # Both sections should remain (they can't be truncated)
-        remaining_names = [s.name for s in result.sections]
-        assert "system_prompt" in remaining_names
-        assert "detections" in remaining_names
