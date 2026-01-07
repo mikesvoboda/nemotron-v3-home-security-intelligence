@@ -34,6 +34,17 @@ Retry Logic (NEM-1343):
     - Only retries transient failures (connection, timeout, HTTP 5xx)
 """
 
+__all__ = [
+    # Constants
+    "DETECTOR_CONNECT_TIMEOUT",
+    "DETECTOR_HEALTH_TIMEOUT",
+    "DETECTOR_READ_TIMEOUT",
+    "MIN_DETECTION_IMAGE_SIZE",
+    # Classes
+    "DetectorClient",
+    "DetectorUnavailableError",
+]
+
 import asyncio
 import time
 from datetime import UTC, datetime

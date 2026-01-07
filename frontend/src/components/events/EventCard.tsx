@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Clock, Eye, Timer, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 
 import {
   calculateAverageConfidence,
@@ -48,7 +48,7 @@ export interface EventCardProps {
 /**
  * EventCard component displays a single security event with thumbnail, detections, and AI analysis
  */
-export default function EventCard({
+const EventCard = memo(function EventCard({
   id,
   timestamp,
   camera_name,
@@ -355,4 +355,6 @@ export default function EventCard({
       )}
     </div>
   );
-}
+});
+
+export default EventCard;

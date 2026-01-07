@@ -65,19 +65,64 @@ export function getRiskLevelWithThresholds(
 }
 
 /**
- * Get the color hex code for a given risk level
+ * Get the color hex code for a given risk level using Tailwind CSS standard severity colors.
+ * These colors provide clear visual differentiation between severity levels and work
+ * well in both light and dark themes.
+ *
  * @param level - Risk level category
- * @returns Hex color code
+ * @returns Hex color code matching Tailwind CSS color palette
+ *
+ * Color mapping:
+ * - Critical (85-100): Red (#ef4444 / red-500)
+ * - High (60-84): Orange (#f97316 / orange-500)
+ * - Medium (30-59): Yellow (#eab308 / yellow-500)
+ * - Low (0-29): Green (#22c55e / green-500)
  */
 export function getRiskColor(level: RiskLevel): string {
   const colors: Record<RiskLevel, string> = {
-    low: '#76B900', // NVIDIA Green
-    medium: '#FFB800', // NVIDIA Yellow
-    high: '#E74856', // NVIDIA Red
-    critical: '#ef4444', // red-500
+    low: '#22c55e', // green-500 - Safe/Normal
+    medium: '#eab308', // yellow-500 - Warning/Caution
+    high: '#f97316', // orange-500 - Elevated risk
+    critical: '#ef4444', // red-500 - Critical/Emergency
   };
 
   return colors[level];
+}
+
+/**
+ * Get the Tailwind CSS background color class for a given risk level.
+ * Useful for applying consistent severity-based styling using Tailwind classes.
+ *
+ * @param level - Risk level category
+ * @returns Tailwind CSS background color class
+ */
+export function getRiskBgClass(level: RiskLevel): string {
+  const classes: Record<RiskLevel, string> = {
+    low: 'bg-green-500',
+    medium: 'bg-yellow-500',
+    high: 'bg-orange-500',
+    critical: 'bg-red-500',
+  };
+
+  return classes[level];
+}
+
+/**
+ * Get the Tailwind CSS text color class for a given risk level.
+ * Useful for applying consistent severity-based text styling using Tailwind classes.
+ *
+ * @param level - Risk level category
+ * @returns Tailwind CSS text color class
+ */
+export function getRiskTextClass(level: RiskLevel): string {
+  const classes: Record<RiskLevel, string> = {
+    low: 'text-green-500',
+    medium: 'text-yellow-500',
+    high: 'text-orange-500',
+    critical: 'text-red-500',
+  };
+
+  return classes[level];
 }
 
 /**

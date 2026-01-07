@@ -1,5 +1,19 @@
 """Redis connection and operations module."""
 
+__all__ = [
+    # Classes
+    "QueueAddResult",
+    "QueueOverflowPolicy",
+    "QueuePressureMetrics",
+    "RedisClient",
+    # Functions
+    "close_redis",
+    "get_redis",
+    "get_redis_client_sync",
+    "get_redis_optional",
+    "init_redis",
+]
+
 import asyncio
 import contextlib
 import json
@@ -1162,6 +1176,23 @@ class RedisClient:
         """
         client = self._ensure_connected()
         return cast("int", await client.llen(key))  # type: ignore[misc]
+
+    async def setex(self, key: str, seconds: int, value: str) -> bool:
+        """Set a key with an expiration time (atomic SET + EXPIRE).
+
+        This is equivalent to calling SET key value EX seconds atomically.
+        Useful for cache entries and temporary data that should auto-expire.
+
+        Args:
+            key: Redis key to set
+            seconds: Time-to-live in seconds
+            value: String value to store (should be pre-serialized if JSON)
+
+        Returns:
+            True if the operation was successful
+        """
+        client = self._ensure_connected()
+        return cast("bool", await client.setex(key, seconds, value))
 
 
 # Global Redis client instance
