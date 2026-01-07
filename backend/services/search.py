@@ -31,7 +31,7 @@ from backend.models.event import Event
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class SearchFilters:
     """Filters for event search."""
 
@@ -45,7 +45,7 @@ class SearchFilters:
     reviewed: bool | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class SearchResult:
     """A single search result with relevance score."""
 
@@ -84,7 +84,7 @@ class SearchResult:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class SearchResponse:
     """Response from search_events containing results and pagination info."""
 

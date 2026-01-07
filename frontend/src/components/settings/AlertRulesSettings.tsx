@@ -187,7 +187,7 @@ export default function AlertRulesSettings() {
   // Load rules and cameras on mount
   useEffect(() => {
     void loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData only needed on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect: loadData recreated on each render but should only run once
   }, []);
 
   // Fetch severity metadata

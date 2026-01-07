@@ -56,6 +56,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.batch_fetch import batch_fetch_detections
+from backend.services.cache_service import get_cache_service
 from backend.services.context_enricher import ContextEnricher, EnrichedContext, get_context_enricher
 from backend.services.enrichment_pipeline import (
     BoundingBox,
@@ -516,6 +517,13 @@ class NemotronAnalyzer:
             except Exception as e:
                 logger.warning(f"Failed to broadcast event {event.id}: {e}", exc_info=True)
 
+            # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
+            try:
+                cache = await get_cache_service()
+                await cache.invalidate_event_stats(reason="event_created")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate event stats cache: {e}")
+
             return event
 
     async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
@@ -722,6 +730,13 @@ class NemotronAnalyzer:
                 logger.warning(
                     f"Failed to broadcast fast path event {event.id}: {e}", exc_info=True
                 )
+
+            # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
+            try:
+                cache = await get_cache_service()
+                await cache.invalidate_event_stats(reason="event_created")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate event stats cache: {e}")
 
             return event
 
@@ -1081,13 +1096,20 @@ class NemotronAnalyzer:
                 detections_list=detections_list,
             )
 
+        # Validate and potentially truncate prompt to fit context window (NEM-1666)
+        prompt = self._validate_and_truncate_prompt(prompt)
+
+        # Get max_tokens from settings (accounts for context window limits)
+        settings = get_settings()
+        max_output_tokens = settings.nemotron_max_output_tokens
+
         # Call llama.cpp completion endpoint with retry logic (NEM-1343)
         # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
         payload = {
             "prompt": prompt,
             "temperature": 0.7,  # Slightly creative for detailed reasoning
             "top_p": 0.95,
-            "max_tokens": 1536,  # Extra room for detailed explanations
+            "max_tokens": max_output_tokens,  # Use settings-based value
             "stop": ["<|im_end|>", "<|im_start|>"],
         }
 
@@ -1386,6 +1408,60 @@ class NemotronAnalyzer:
                 "summary": data.get("summary", "Risk analysis completed"),
                 "reasoning": data.get("reasoning", "No detailed reasoning provided"),
             }
+
+    def _validate_and_truncate_prompt(self, prompt: str) -> str:
+        """Validate prompt token count and truncate if necessary (NEM-1666).
+
+        Checks if the prompt fits within the context window limits and
+        intelligently truncates enrichment data if needed.
+
+        Args:
+            prompt: The formatted prompt to validate
+
+        Returns:
+            The original prompt if it fits, or a truncated version if not
+
+        Raises:
+            ValueError: If truncation is disabled and prompt exceeds limits
+        """
+        from backend.core.metrics import record_prompt_truncated
+        from backend.services.token_counter import get_token_counter
+
+        settings = get_settings()
+        counter = get_token_counter()
+
+        # Validate the prompt against context window limits
+        validation = counter.validate_prompt(prompt, settings.nemotron_max_output_tokens)
+
+        if validation.is_valid:
+            # Prompt fits, return as-is (warnings already logged by token_counter)
+            return prompt
+
+        # Prompt exceeds context limits - need to truncate or fail
+        if not settings.context_truncation_enabled:
+            raise ValueError(
+                f"Prompt exceeds context window limits ({validation.prompt_tokens} tokens, "
+                f"max {validation.available_tokens}) and truncation is disabled. "
+                "Enable context_truncation_enabled or reduce enrichment data."
+            )
+
+        # Attempt intelligent truncation
+        truncation_result = counter.truncate_enrichment_data(prompt, validation.available_tokens)
+
+        if truncation_result.was_truncated:
+            record_prompt_truncated()
+            logger.warning(
+                f"Prompt truncated to fit context window: {truncation_result.original_tokens} -> "
+                f"{truncation_result.final_tokens} tokens",
+                extra={
+                    "original_tokens": truncation_result.original_tokens,
+                    "final_tokens": truncation_result.final_tokens,
+                    "sections_removed": truncation_result.sections_removed,
+                    "available_tokens": validation.available_tokens,
+                },
+            )
+
+        return truncation_result.truncated_prompt
 
     async def _broadcast_event(self, event: Event) -> None:
         """Broadcast event via WebSocket (optional).

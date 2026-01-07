@@ -8469,7 +8469,7 @@ export interface components {
              */
             correlation_id?: string | null;
             /** @description Current queue depths */
-            queue_depths: components["schemas"]["backend__api__routes__debug__QueueDepths"];
+            queue_depths: components["schemas"]["QueueDepths"];
             /**
              * Recent Errors
              * @description Recent errors (last 10)
@@ -8933,21 +8933,17 @@ export interface components {
         };
         /**
          * QueueDepths
-         * @description Queue depth information for pipeline queues.
-         * @example {
-         *       "analysis_queue": 2,
-         *       "detection_queue": 5
-         *     }
+         * @description Queue depth information for AI pipeline.
          */
         QueueDepths: {
             /**
              * Analysis Queue
-             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             * @description Number of items in analysis queue
              */
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             * @description Number of items in detection queue
              */
             detection_queue: number;
         };
@@ -10223,7 +10219,7 @@ export interface components {
             /** @description Latency statistics for each pipeline stage */
             latencies?: components["schemas"]["PipelineLatencies"] | null;
             /** @description Current queue depths for detection and analysis queues */
-            queues: components["schemas"]["QueueDepths"];
+            queues: components["schemas"]["backend__api__schemas__system__QueueDepths"];
             /**
              * Timestamp
              * Format: date-time
@@ -10727,22 +10723,6 @@ export interface components {
             zone_type?: components["schemas"]["ZoneType"] | null;
         };
         /**
-         * QueueDepths
-         * @description Queue depth information for AI pipeline.
-         */
-        backend__api__routes__debug__QueueDepths: {
-            /**
-             * Analysis Queue
-             * @description Number of items in analysis queue
-             */
-            analysis_queue: number;
-            /**
-             * Detection Queue
-             * @description Number of items in detection queue
-             */
-            detection_queue: number;
-        };
-        /**
          * WorkerStatus
          * @description Status of a pipeline worker.
          */
@@ -10768,6 +10748,26 @@ export interface components {
              * @description Whether worker is currently running
              */
             running: boolean;
+        };
+        /**
+         * QueueDepths
+         * @description Queue depth information for pipeline queues.
+         * @example {
+         *       "analysis_queue": 2,
+         *       "detection_queue": 5
+         *     }
+         */
+        backend__api__schemas__system__QueueDepths: {
+            /**
+             * Analysis Queue
+             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             */
+            analysis_queue: number;
+            /**
+             * Detection Queue
+             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             */
+            detection_queue: number;
         };
     };
     responses: never;

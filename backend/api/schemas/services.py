@@ -7,12 +7,12 @@ Florence, CLIP, Enrichment), infrastructure (PostgreSQL, Redis), and monitoring
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum, auto
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ServiceCategory(str, Enum):
+class ServiceCategory(StrEnum):
     """Service category for classification and restart policy.
 
     Categories determine restart behavior and priority:
@@ -21,12 +21,12 @@ class ServiceCategory(str, Enum):
     - MONITORING: Optional monitoring services with lenient restart
     """
 
-    INFRASTRUCTURE = "infrastructure"  # PostgreSQL, Redis - critical
-    AI = "ai"  # RT-DETR, Nemotron, Florence, CLIP, Enrichment
-    MONITORING = "monitoring"  # Grafana, Prometheus - optional
+    INFRASTRUCTURE = auto()  # PostgreSQL, Redis - critical
+    AI = auto()  # RT-DETR, Nemotron, Florence, CLIP, Enrichment
+    MONITORING = auto()  # Grafana, Prometheus - optional
 
 
-class ContainerServiceStatus(str, Enum):
+class ContainerServiceStatus(StrEnum):
     """Current status of a managed container service.
 
     Status values:
@@ -38,12 +38,12 @@ class ContainerServiceStatus(str, Enum):
     - NOT_FOUND: Container doesn't exist yet
     """
 
-    RUNNING = "running"  # Container up and healthy
-    STARTING = "starting"  # Container starting, not yet healthy
-    UNHEALTHY = "unhealthy"  # Running but failing health checks
-    STOPPED = "stopped"  # Container not running
-    DISABLED = "disabled"  # Exceeded failure limit, requires manual reset
-    NOT_FOUND = "not_found"  # Container doesn't exist
+    RUNNING = auto()  # Container up and healthy
+    STARTING = auto()  # Container starting, not yet healthy
+    UNHEALTHY = auto()  # Running but failing health checks
+    STOPPED = auto()  # Container not running
+    DISABLED = auto()  # Exceeded failure limit, requires manual reset
+    NOT_FOUND = auto()  # Container doesn't exist
 
 
 class ServiceInfo(BaseModel):

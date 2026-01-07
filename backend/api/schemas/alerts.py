@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum, auto
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
@@ -40,22 +40,22 @@ def validate_dedup_key(value: str) -> str:
 DedupKeyStr = Annotated[str, AfterValidator(validate_dedup_key)]
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     """Alert severity levels."""
 
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+    CRITICAL = auto()
 
 
-class AlertStatus(str, Enum):
+class AlertStatus(StrEnum):
     """Alert status values."""
 
-    PENDING = "pending"
-    DELIVERED = "delivered"
-    ACKNOWLEDGED = "acknowledged"
-    DISMISSED = "dismissed"
+    PENDING = auto()
+    DELIVERED = auto()
+    ACKNOWLEDGED = auto()
+    DISMISSED = auto()
 
 
 # =============================================================================

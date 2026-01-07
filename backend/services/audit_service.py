@@ -362,10 +362,10 @@ class AuditService:
             )
             return await self._call_llm(prompt)
         except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
-            logger.error(f"Self-critique network error for event {event.id}: {e}")
+            logger.error("Self-critique network error", exc_info=True, extra={"event_id": event.id})
             return f"Evaluation network error: {e}"
         except Exception as e:
-            logger.error(f"Self-critique error for event {event.id}: {e}")
+            logger.error("Self-critique error", exc_info=True, extra={"event_id": event.id})
             return f"Evaluation error: {e}"
 
     async def _run_rubric_eval(self, event: Event) -> dict[str, float]:
@@ -386,11 +386,11 @@ class AuditService:
             except ValueError:
                 logger.warning(f"Could not extract JSON from rubric eval for event {event.id}")
                 return {}
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
-            logger.error(f"Rubric eval network error for event {event.id}: {e}")
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError):
+            logger.error("Rubric eval network error", exc_info=True, extra={"event_id": event.id})
             return {}
-        except Exception as e:
-            logger.error(f"Rubric eval error for event {event.id}: {e}")
+        except Exception:
+            logger.error("Rubric eval error", exc_info=True, extra={"event_id": event.id})
             return {}
 
     async def _run_consistency_check(self, event: Event) -> dict[str, Any]:
@@ -413,11 +413,13 @@ class AuditService:
                     f"Could not extract JSON from consistency check for event {event.id}"
                 )
                 return {}
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
-            logger.error(f"Consistency check network error for event {event.id}: {e}")
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError):
+            logger.error(
+                "Consistency check network error", exc_info=True, extra={"event_id": event.id}
+            )
             return {}
-        except Exception as e:
-            logger.error(f"Consistency check error for event {event.id}: {e}")
+        except Exception:
+            logger.error("Consistency check error", exc_info=True, extra={"event_id": event.id})
             return {}
 
     async def _run_prompt_improvement(self, event: Event) -> dict[str, list[str]]:
@@ -439,11 +441,13 @@ class AuditService:
                     f"Could not extract JSON from prompt improvement for event {event.id}"
                 )
                 return {}
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
-            logger.error(f"Prompt improvement network error for event {event.id}: {e}")
+        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError):
+            logger.error(
+                "Prompt improvement network error", exc_info=True, extra={"event_id": event.id}
+            )
             return {}
-        except Exception as e:
-            logger.error(f"Prompt improvement error for event {event.id}: {e}")
+        except Exception:
+            logger.error("Prompt improvement error", exc_info=True, extra={"event_id": event.id})
             return {}
 
     async def get_stats(

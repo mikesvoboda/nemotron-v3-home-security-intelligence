@@ -85,7 +85,7 @@ ANIMAL_CLASSES = frozenset(
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelConfig:
     """Configuration for a Model Zoo model.
 
@@ -142,7 +142,7 @@ async def load_yolo_model(model_path: str) -> Any:
         raise
 
     except Exception as e:
-        logger.error(f"Failed to load YOLO model from {model_path}: {e}")
+        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
 
 
@@ -187,7 +187,7 @@ async def load_paddle_ocr(model_path: str) -> Any:
         raise
 
     except Exception as e:
-        logger.error(f"Failed to load PaddleOCR: {e}")
+        logger.error("Failed to load PaddleOCR", exc_info=True)
         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
 
 
@@ -604,8 +604,8 @@ class ModelManager:
             logger.info(f"Successfully loaded model {model_name}")
             return model
 
-        except Exception as e:
-            logger.error(f"Failed to load model {model_name}: {e}")
+        except Exception:
+            logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
             raise
 
     async def _unload_model(self, model_name: str) -> None:

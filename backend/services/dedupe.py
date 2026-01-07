@@ -76,11 +76,13 @@ def compute_file_hash(file_path: str) -> str | None:
 
         return sha256_hash.hexdigest()
 
-    except OSError as e:
-        logger.error(f"Error reading file for hash: {file_path}: {e}")
+    except OSError:
+        logger.error("Error reading file for hash", exc_info=True, extra={"file_path": file_path})
         return None
-    except Exception as e:
-        logger.error(f"Unexpected error computing hash for {file_path}: {e}")
+    except Exception:
+        logger.error(
+            "Unexpected error computing hash", exc_info=True, extra={"file_path": file_path}
+        )
         return None
 
 
@@ -346,8 +348,8 @@ class DedupeService:
                     extra={"cleaned_count": cleaned_count},
                 )
 
-        except Exception as e:
-            logger.error(f"Error during orphan key cleanup: {e}", exc_info=True)
+        except Exception:
+            logger.error("Error during orphan key cleanup", exc_info=True)
 
         return cleaned_count
 
