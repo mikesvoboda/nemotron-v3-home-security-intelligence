@@ -102,7 +102,7 @@ describe('AIAuditPage', () => {
   it('renders the refresh button', async () => {
     renderWithRouter();
     await waitFor(() => {
-      expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+      expect(screen.getByTestId('ai-audit-refresh-button')).toBeInTheDocument();
     });
   });
 

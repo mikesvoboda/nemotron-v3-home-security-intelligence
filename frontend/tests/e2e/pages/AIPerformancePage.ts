@@ -74,7 +74,7 @@ export class AIPerformancePage extends BasePage {
     this.pageSubtitle = page.getByText(/model metrics|latency|pipeline health/i);
 
     // Controls
-    this.refreshButton = page.getByTestId('refresh-button');
+    this.refreshButton = page.getByTestId('ai-performance-refresh-button');
 
     // Banners
     this.grafanaBanner = page.getByTestId('grafana-banner');
