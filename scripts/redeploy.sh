@@ -233,13 +233,16 @@ EOF
 }
 
 # =============================================================================
-# Podman-specific Functions (workaround for podman-compose parsing bug)
+# Podman-specific Functions (optimized deployment for hybrid mode)
 # =============================================================================
-# podman-compose fails to parse docker-compose.prod.yml due to a bug in
-# norm_as_dict when processing deploy.resources.reservations.devices for GPU.
-# See: https://linear.app/nemotron-v3-home-security/issue/NEM-1720
+# These functions use podman build/run directly to provide:
+# - Optimized hybrid deployment (GHCR images + local AI builds)
+# - Proper internal network routing for AI services
+# - Consistent behavior across Docker and Podman
 #
-# These functions use podman build/run directly to bypass the compose parser.
+# Note: While podman-compose can now parse docker-compose.prod.yml correctly
+# (with version: '3.8' specification), this hybrid approach provides better
+# control over service initialization order and network configuration.
 
 stop_ai_containers_podman() {
     # Stop and remove AI containers if they exist (called during cleanup)
@@ -620,8 +623,8 @@ stop_and_clean() {
             print_info "No GHCR containers were running"
         fi
 
-        # Note: We skip docker-compose.prod.yml with podman-compose due to parsing bug
-        # See: https://linear.app/nemotron-v3-home-security/issue/NEM-1720
+        # Note: We use hybrid mode (GHCR compose + direct podman for AI) for optimal performance
+        # This approach provides better network routing and service initialization control
 
         # Final cleanup of any remaining pods and containers
         print_step "Cleaning up pods and orphaned containers..."
