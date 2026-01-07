@@ -177,6 +177,8 @@ export default defineConfig({
         ...devices['Desktop Firefox'],
         // Firefox can be slower - increase action timeout
         actionTimeout: 8000,
+        // Firefox needs longer navigation timeout for page loads (NEM-1807)
+        navigationTimeout: 20000,
       },
       // Firefox needs longer test timeout for complex workflows
       // (same as WebKit - runs full 433 test suite without sharding)
