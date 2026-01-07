@@ -150,7 +150,8 @@ test.describe('Critical Tests @critical', () => {
 test.describe('Slow Tests @slow', () => {
   test('full navigation workflow @slow', async ({ page }) => {
     // This test navigates through many pages, so needs a longer timeout
-    test.setTimeout(30000);
+    // Firefox needs even more time due to slower page loads (NEM-1807)
+    test.setTimeout(60000);
 
     await setupApiMocks(page, defaultMockConfig);
     const dashboardPage = new DashboardPage(page);
