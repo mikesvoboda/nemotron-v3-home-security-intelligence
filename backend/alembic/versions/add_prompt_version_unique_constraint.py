@@ -1,7 +1,7 @@
 """Add unique constraint to prompt_versions table
 
 Revision ID: add_prompt_version_uq
-Revises: add_alerts_rules
+Revises: add_zones_001
 Create Date: 2026-01-07 12:00:00.000000
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_prompt_version_uq"
-down_revision: str | Sequence[str] | None = "add_alerts_rules"
+down_revision: str | Sequence[str] | None = "add_zones_001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
