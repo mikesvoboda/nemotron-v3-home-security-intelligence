@@ -14,6 +14,9 @@ vi.mock('../../services/api', async () => {
     fetchCameraActivityBaseline: vi.fn(),
     fetchCameraClassBaseline: vi.fn(),
     fetchAnomalyConfig: vi.fn(),
+    fetchEventStats: vi.fn(),
+    fetchDetectionStats: vi.fn(),
+    fetchEvents: vi.fn(),
     updateAnomalyConfig: vi.fn(),
     fetchSceneChanges: vi.fn(),
     acknowledgeSceneChange: vi.fn(),
@@ -64,12 +67,60 @@ describe('AnalyticsPage', () => {
     has_more: false,
   };
 
+  const mockEventStats = {
+    total_events: 42,
+    events_by_camera: [
+      { camera_id: 'cam1', camera_name: 'Front Door', event_count: 25 },
+      { camera_id: 'cam2', camera_name: 'Back Yard', event_count: 17 },
+    ],
+    events_by_risk_level: {
+      low: 10,
+      medium: 20,
+      high: 12,
+      critical: 0,
+    },
+  };
+
+  const mockDetectionStats = {
+    total_detections: 156,
+    detections_by_class: {
+      person: 89,
+      car: 45,
+      dog: 22,
+    },
+    average_confidence: 0.87,
+  };
+
+  const mockEvents = {
+    events: [
+      {
+        id: 1,
+        camera_id: 'cam1',
+        started_at: '2024-01-07T14:00:00Z',
+        ended_at: null,
+        risk_score: 85,
+        risk_level: 'high',
+        reasoning: 'Person detected near entrance after hours',
+        reviewed: false,
+        detection_count: 3,
+        summary: 'High risk event',
+      },
+    ],
+    count: 1,
+    limit: 10,
+    offset: 0,
+    has_more: false,
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchCameraActivityBaseline).mockResolvedValue(mockActivityBaseline);
     vi.mocked(api.fetchCameraClassBaseline).mockResolvedValue(mockClassBaseline);
     vi.mocked(api.fetchAnomalyConfig).mockResolvedValue(mockAnomalyConfig);
+    vi.mocked(api.fetchEventStats).mockResolvedValue(mockEventStats);
+    vi.mocked(api.fetchDetectionStats).mockResolvedValue(mockDetectionStats);
+    vi.mocked(api.fetchEvents).mockResolvedValue(mockEvents);
     vi.mocked(api.fetchSceneChanges).mockResolvedValue(mockSceneChanges);
   });
 
@@ -108,27 +159,43 @@ describe('AnalyticsPage', () => {
     });
   });
 
-  it('displays activity heatmap after loading', async () => {
+  it('displays tab navigation after loading', async () => {
     render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-tab-overview')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-tab-detections')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-tab-risk')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-tab-camera-performance')).toBeInTheDocument();
+    });
+  });
+
+  it('displays key metrics in overview tab', async () => {
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Total Events')).toBeInTheDocument();
+      // Check for multiple metric cards in the overview
+      const detectionElements = screen.getAllByText('Total Detections');
+      expect(detectionElements.length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Average Confidence').length).toBeGreaterThan(0);
+      expect(screen.getByText('High Risk Events')).toBeInTheDocument();
+    });
+  });
+
+  it('displays activity heatmap in camera performance tab', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-tab-camera-performance')).toBeInTheDocument();
+    });
+
+    // Click on Camera Performance tab
+    await user.click(screen.getByTestId('analytics-tab-camera-performance'));
 
     await waitFor(() => {
       expect(screen.getByText('Weekly Activity Pattern')).toBeInTheDocument();
-    });
-  });
-
-  it('displays class frequency chart after loading', async () => {
-    render(<AnalyticsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Object Class Distribution')).toBeInTheDocument();
-    });
-  });
-
-  it('displays anomaly config panel after loading', async () => {
-    render(<AnalyticsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Anomaly Detection Settings')).toBeInTheDocument();
     });
   });
 
@@ -172,7 +239,7 @@ describe('AnalyticsPage', () => {
     render(<AnalyticsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to load baseline data')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load analytics data')).toBeInTheDocument();
     });
   });
 

@@ -200,6 +200,10 @@ export default {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
       },
 
       animation: {
@@ -207,6 +211,7 @@ export default {
         'pulse-critical': 'pulse-critical 2s ease-in-out infinite',
         'slide-in': 'slide-in 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-in',
+        float: 'float 3s ease-in-out infinite',
       },
     },
   },

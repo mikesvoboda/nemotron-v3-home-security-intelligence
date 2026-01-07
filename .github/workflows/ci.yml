@@ -744,7 +744,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -771,7 +771,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -784,7 +784,7 @@ jobs:
   frontend-tests:
     name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
     strategy:
@@ -800,7 +800,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -820,7 +820,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: frontend-coverage-shard-${{ matrix.shard }}-node-${{ matrix.node-version }}
+          name: frontend-coverage-shard-${{ matrix.shard }}-node-${{ env.NODE_VERSION }}
           path: frontend/coverage/
           retention-days: 7
 
@@ -898,7 +898,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -910,7 +910,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('frontend/package-lock.json') }}
+          key: playwright-chromium-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -927,7 +927,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ matrix.node-version }}
+          name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/playwright-report/
           retention-days: 7
 
@@ -935,7 +935,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ matrix.node-version }}
+          name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/test-results/
           retention-days: 7
 

@@ -502,71 +502,8 @@ describe('EventTimeline', () => {
     });
   });
 
-  describe('Search', () => {
-    it('filters events by search query', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      const searchInput = screen.getByPlaceholderText('Search summaries...');
-      await user.type(searchInput, 'cat');
-
-      // Should only show the cat event
-      await waitFor(() => {
-        expect(screen.getByText('Cat walking through yard')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Person detected near entrance')).not.toBeInTheDocument();
-      expect(screen.queryByText('Unknown person at door')).not.toBeInTheDocument();
-    });
-
-    it('clears search query', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      const searchInput = screen.getByPlaceholderText('Search summaries...');
-      await user.type(searchInput, 'cat');
-
-      await waitFor(() => {
-        expect(screen.queryByText('Person detected near entrance')).not.toBeInTheDocument();
-      });
-
-      // Click clear button
-      const clearButton = screen.getByLabelText('Clear search');
-      await user.click(clearButton);
-
-      // All events should be visible again
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-    });
-
-    it('shows no results message when search has no matches', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      const searchInput = screen.getByPlaceholderText('Search summaries...');
-      await user.type(searchInput, 'nonexistent');
-
-      await waitFor(() => {
-        expect(screen.getByText('No Events Found')).toBeInTheDocument();
-      });
-
-      // Updated to match new EmptyState component text
-      expect(screen.getByText(/No events match your current filters/)).toBeInTheDocument();
-    });
-  });
+  // Note: Client-side search has been removed in favor of full-text search only.
+  // Full-text search functionality is tested in the "Full-text search" describe block below.
 
   describe('Pagination', () => {
     beforeEach(() => {
@@ -1531,36 +1468,8 @@ describe('EventTimeline', () => {
       });
     });
 
-    it('updates risk summary badges with search query', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithProviders(<EventTimeline />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
-      });
-
-      // All badges should be present initially (1 critical, 1 high, 1 low)
-      await waitFor(() => {
-        expect(screen.getByText('1', { selector: '.text-red-400' })).toBeInTheDocument(); // Critical
-      });
-
-      // Search for "cat" - should only show the low risk event
-      const searchInput = screen.getByPlaceholderText('Search summaries...');
-      await user.type(searchInput, 'cat');
-
-      await waitFor(() => {
-        expect(screen.getByText('Cat walking through yard')).toBeInTheDocument();
-      });
-
-      // Should only show low risk count now
-      await waitFor(() => {
-        expect(screen.getByText('1', { selector: '.text-green-400' })).toBeInTheDocument(); // Low
-      });
-
-      // Should not show other risk levels
-      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
-      expect(screen.queryByText('1', { selector: '.text-orange-400' })).not.toBeInTheDocument(); // High
-    });
+    // Test removed: Client-side search has been replaced with full-text search only
+    // Risk badges now reflect server-side filtered results, not client-side search
 
     it('does not display risk badges when loading', () => {
       vi.clearAllMocks();
