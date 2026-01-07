@@ -5187,23 +5187,53 @@ export interface components {
         };
         /**
          * CircuitBreakersResponse
-         * @description Response for circuit breaker states.
+         * @description Response schema for circuit breakers status endpoint.
+         * @example {
+         *       "circuit_breakers": {
+         *         "rtdetr": {
+         *           "config": {
+         *             "failure_threshold": 5,
+         *             "half_open_max_calls": 3,
+         *             "recovery_timeout": 30,
+         *             "success_threshold": 2
+         *           },
+         *           "failure_count": 0,
+         *           "name": "rtdetr",
+         *           "rejected_calls": 0,
+         *           "state": "closed",
+         *           "success_count": 0,
+         *           "total_calls": 100
+         *         }
+         *       },
+         *       "open_count": 0,
+         *       "timestamp": "2025-12-30T10:30:00Z",
+         *       "total_count": 2
+         *     }
          */
         CircuitBreakersResponse: {
             /**
              * Circuit Breakers
-             * @description All circuit breaker states keyed by name
+             * @description Status of all circuit breakers keyed by name
              */
             circuit_breakers: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
+                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
             };
             /**
+             * Open Count
+             * @description Number of circuit breakers currently open
+             */
+            open_count: number;
+            /**
              * Timestamp
-             * @description ISO timestamp of response
+             * Format: date-time
+             * @description Timestamp of status snapshot
              */
             timestamp: string;
+            /**
+             * Total Count
+             * @description Total number of circuit breakers
+             */
+            total_count: number;
         };
         /**
          * ClassBaselineEntry
@@ -5604,21 +5634,55 @@ export interface components {
         };
         /**
          * ConfigResponse
-         * @description Response for configuration inspection.
+         * @description Response schema for configuration endpoint.
+         *
+         *     Only includes public, non-sensitive configuration values.
+         * @example {
+         *       "app_name": "Home Security Intelligence",
+         *       "batch_idle_timeout_seconds": 30,
+         *       "batch_window_seconds": 90,
+         *       "detection_confidence_threshold": 0.5,
+         *       "grafana_url": "http://localhost:3002",
+         *       "retention_days": 30,
+         *       "version": "0.1.0"
+         *     }
          */
         ConfigResponse: {
             /**
-             * Config
-             * @description Current configuration with sensitive values redacted
+             * App Name
+             * @description Application name
              */
-            config: {
-                [key: string]: unknown;
-            };
+            app_name: string;
             /**
-             * Timestamp
-             * @description ISO timestamp of response
+             * Batch Idle Timeout Seconds
+             * @description Idle timeout before processing incomplete batch
              */
-            timestamp: string;
+            batch_idle_timeout_seconds: number;
+            /**
+             * Batch Window Seconds
+             * @description Time window for batch processing detections
+             */
+            batch_window_seconds: number;
+            /**
+             * Detection Confidence Threshold
+             * @description Minimum confidence threshold for detections (0.0-1.0)
+             */
+            detection_confidence_threshold: number;
+            /**
+             * Grafana Url
+             * @description Grafana dashboard URL for frontend link
+             */
+            grafana_url: string;
+            /**
+             * Retention Days
+             * @description Number of days to retain events and detections
+             */
+            retention_days: number;
+            /**
+             * Version
+             * @description Application version
+             */
+            version: string;
         };
         /**
          * ConfigUpdateRequest
@@ -5987,6 +6051,75 @@ export interface components {
              * @description Total samples for this day
              */
             total_samples: number;
+        };
+        /**
+         * DebugCircuitBreakersResponse
+         * @description Response for circuit breaker states.
+         */
+        DebugCircuitBreakersResponse: {
+            /**
+             * Circuit Breakers
+             * @description All circuit breaker states keyed by name
+             */
+            circuit_breakers: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
+         * DebugConfigResponse
+         * @description Response for configuration inspection.
+         */
+        DebugConfigResponse: {
+            /**
+             * Config
+             * @description Current configuration with sensitive values redacted
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
+         * DebugWebSocketBroadcasterStatus
+         * @description Status of a WebSocket broadcaster.
+         */
+        DebugWebSocketBroadcasterStatus: {
+            /**
+             * Channel Name
+             * @description Redis channel being listened to
+             */
+            channel_name?: string | null;
+            /**
+             * Circuit State
+             * @description Circuit breaker state (CLOSED, OPEN, HALF_OPEN)
+             */
+            circuit_state: string;
+            /**
+             * Connection Count
+             * @description Number of active connections
+             */
+            connection_count: number;
+            /**
+             * Is Degraded
+             * @description Whether the broadcaster is in degraded mode
+             */
+            is_degraded: boolean;
+            /**
+             * Is Listening
+             * @description Whether the broadcaster is listening for events
+             */
+            is_listening: boolean;
         };
         /**
          * DegradationModeEnum
@@ -10751,34 +10884,26 @@ export interface components {
         };
         /**
          * WebSocketBroadcasterStatus
-         * @description Status of a WebSocket broadcaster.
+         * @description Status of a WebSocket broadcaster's circuit breaker.
          */
         WebSocketBroadcasterStatus: {
             /**
-             * Channel Name
-             * @description Redis channel being listened to
+             * Failure Count
+             * @description Current consecutive failure count
              */
-            channel_name?: string | null;
-            /**
-             * Circuit State
-             * @description Circuit breaker state (CLOSED, OPEN, HALF_OPEN)
-             */
-            circuit_state: string;
-            /**
-             * Connection Count
-             * @description Number of active connections
-             */
-            connection_count: number;
+            failure_count: number;
             /**
              * Is Degraded
              * @description Whether the broadcaster is in degraded mode
              */
             is_degraded: boolean;
             /**
-             * Is Listening
-             * @description Whether the broadcaster is listening for events
+             * Message
+             * @description Optional status message or error details
              */
-            is_listening: boolean;
+            message?: string | null;
+            /** @description Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized) */
+            state: components["schemas"]["CircuitBreakerStateEnum"];
         };
         /**
          * WebSocketConnectionsResponse
@@ -10786,9 +10911,9 @@ export interface components {
          */
         WebSocketConnectionsResponse: {
             /** @description Event broadcaster status */
-            event_broadcaster: components["schemas"]["WebSocketBroadcasterStatus"];
+            event_broadcaster: components["schemas"]["DebugWebSocketBroadcasterStatus"];
             /** @description System broadcaster status */
-            system_broadcaster: components["schemas"]["WebSocketBroadcasterStatus"];
+            system_broadcaster: components["schemas"]["DebugWebSocketBroadcasterStatus"];
             /**
              * Timestamp
              * @description ISO timestamp of response
@@ -10814,9 +10939,9 @@ export interface components {
          */
         WebSocketHealthResponse: {
             /** @description Status of the event broadcaster circuit breaker */
-            event_broadcaster?: components["schemas"]["backend__api__schemas__system__WebSocketBroadcasterStatus"] | null;
+            event_broadcaster?: components["schemas"]["WebSocketBroadcasterStatus"] | null;
             /** @description Status of the system broadcaster circuit breaker */
-            system_broadcaster?: components["schemas"]["backend__api__schemas__system__WebSocketBroadcasterStatus"] | null;
+            system_broadcaster?: components["schemas"]["WebSocketBroadcasterStatus"] | null;
             /**
              * Timestamp
              * Format: date-time
@@ -11127,131 +11252,6 @@ export interface components {
             shape?: components["schemas"]["ZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
-        };
-        /**
-         * CircuitBreakersResponse
-         * @description Response schema for circuit breakers status endpoint.
-         * @example {
-         *       "circuit_breakers": {
-         *         "rtdetr": {
-         *           "config": {
-         *             "failure_threshold": 5,
-         *             "half_open_max_calls": 3,
-         *             "recovery_timeout": 30,
-         *             "success_threshold": 2
-         *           },
-         *           "failure_count": 0,
-         *           "name": "rtdetr",
-         *           "rejected_calls": 0,
-         *           "state": "closed",
-         *           "success_count": 0,
-         *           "total_calls": 100
-         *         }
-         *       },
-         *       "open_count": 0,
-         *       "timestamp": "2025-12-30T10:30:00Z",
-         *       "total_count": 2
-         *     }
-         */
-        backend__api__schemas__system__CircuitBreakersResponse: {
-            /**
-             * Circuit Breakers
-             * @description Status of all circuit breakers keyed by name
-             */
-            circuit_breakers: {
-                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
-            };
-            /**
-             * Open Count
-             * @description Number of circuit breakers currently open
-             */
-            open_count: number;
-            /**
-             * Timestamp
-             * Format: date-time
-             * @description Timestamp of status snapshot
-             */
-            timestamp: string;
-            /**
-             * Total Count
-             * @description Total number of circuit breakers
-             */
-            total_count: number;
-        };
-        /**
-         * ConfigResponse
-         * @description Response schema for configuration endpoint.
-         *
-         *     Only includes public, non-sensitive configuration values.
-         * @example {
-         *       "app_name": "Home Security Intelligence",
-         *       "batch_idle_timeout_seconds": 30,
-         *       "batch_window_seconds": 90,
-         *       "detection_confidence_threshold": 0.5,
-         *       "grafana_url": "http://localhost:3002",
-         *       "retention_days": 30,
-         *       "version": "0.1.0"
-         *     }
-         */
-        backend__api__schemas__system__ConfigResponse: {
-            /**
-             * App Name
-             * @description Application name
-             */
-            app_name: string;
-            /**
-             * Batch Idle Timeout Seconds
-             * @description Idle timeout before processing incomplete batch
-             */
-            batch_idle_timeout_seconds: number;
-            /**
-             * Batch Window Seconds
-             * @description Time window for batch processing detections
-             */
-            batch_window_seconds: number;
-            /**
-             * Detection Confidence Threshold
-             * @description Minimum confidence threshold for detections (0.0-1.0)
-             */
-            detection_confidence_threshold: number;
-            /**
-             * Grafana Url
-             * @description Grafana dashboard URL for frontend link
-             */
-            grafana_url: string;
-            /**
-             * Retention Days
-             * @description Number of days to retain events and detections
-             */
-            retention_days: number;
-            /**
-             * Version
-             * @description Application version
-             */
-            version: string;
-        };
-        /**
-         * WebSocketBroadcasterStatus
-         * @description Status of a WebSocket broadcaster's circuit breaker.
-         */
-        backend__api__schemas__system__WebSocketBroadcasterStatus: {
-            /**
-             * Failure Count
-             * @description Current consecutive failure count
-             */
-            failure_count: number;
-            /**
-             * Is Degraded
-             * @description Whether the broadcaster is in degraded mode
-             */
-            is_degraded: boolean;
-            /**
-             * Message
-             * @description Optional status message or error details
-             */
-            message?: string | null;
-            /** @description Current circuit state: closed (normal), open (failing), half_open (testing), unavailable (not initialized) */
-            state: components["schemas"]["CircuitBreakerStateEnum"];
         };
     };
     responses: never;
@@ -12868,7 +12868,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CircuitBreakersResponse"];
+                    "application/json": components["schemas"]["DebugCircuitBreakersResponse"];
                 };
             };
         };
@@ -12888,7 +12888,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConfigResponse"];
+                    "application/json": components["schemas"]["DebugConfigResponse"];
                 };
             };
         };
@@ -14503,7 +14503,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__system__CircuitBreakersResponse"];
+                    "application/json": components["schemas"]["CircuitBreakersResponse"];
                 };
             };
         };
@@ -14609,7 +14609,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__system__ConfigResponse"];
+                    "application/json": components["schemas"]["ConfigResponse"];
                 };
             };
         };
@@ -14635,7 +14635,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__system__ConfigResponse"];
+                    "application/json": components["schemas"]["ConfigResponse"];
                 };
             };
             /** @description Validation Error */
