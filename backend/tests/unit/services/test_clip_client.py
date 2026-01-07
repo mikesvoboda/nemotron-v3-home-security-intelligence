@@ -231,45 +231,51 @@ class TestCheckHealth:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client directly (NEM-1721) - check_health uses _health_http_client
+        original_client = client._health_http_client
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(return_value=mock_response)
+        client._health_http_client = mock_http
 
+        try:
             result = await client.check_health()
 
             assert result is True
-            mock_client.get.assert_called_once_with("http://test-clip:8093/health")
+            mock_http.get.assert_called_once_with("http://test-clip:8093/health")
+        finally:
+            client._health_http_client = original_client
 
     @pytest.mark.asyncio
     async def test_health_check_connect_error(self, client: CLIPClient) -> None:
         """Test health check returns False on connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client directly (NEM-1721) - check_health uses _health_http_client
+        original_client = client._health_http_client
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client._health_http_client = mock_http
 
+        try:
             result = await client.check_health()
 
             assert result is False
+        finally:
+            client._health_http_client = original_client
 
     @pytest.mark.asyncio
     async def test_health_check_timeout_error(self, client: CLIPClient) -> None:
         """Test health check returns False on timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client directly (NEM-1721) - check_health uses _health_http_client
+        original_client = client._health_http_client
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        client._health_http_client = mock_http
 
+        try:
             result = await client.check_health()
 
             assert result is False
+        finally:
+            client._health_http_client = original_client
 
     @pytest.mark.asyncio
     async def test_health_check_http_status_error(self, client: CLIPClient) -> None:
@@ -282,30 +288,34 @@ class TestCheckHealth:
             )
         )
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client directly (NEM-1721) - check_health uses _health_http_client
+        original_client = client._health_http_client
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(return_value=mock_response)
+        client._health_http_client = mock_http
 
+        try:
             result = await client.check_health()
 
             assert result is False
+        finally:
+            client._health_http_client = original_client
 
     @pytest.mark.asyncio
     async def test_health_check_unexpected_error(self, client: CLIPClient) -> None:
         """Test health check returns False on unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get = AsyncMock(side_effect=RuntimeError("Unexpected error"))
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client directly (NEM-1721) - check_health uses _health_http_client
+        original_client = client._health_http_client
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=RuntimeError("Unexpected error"))
+        client._health_http_client = mock_http
 
+        try:
             result = await client.check_health()
 
             assert result is False
+        finally:
+            client._health_http_client = original_client
 
 
 # =============================================================================
@@ -325,25 +335,25 @@ class TestEmbed:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"embedding": valid_embedding})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            result = await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+                result = await client.embed(sample_image)
 
-            assert result == valid_embedding
-            assert len(result) == EMBEDDING_DIMENSION
-            mock_observe.assert_called_once()
-            mock_client.post.assert_called_once()
-            # Verify the URL
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://test-clip:8093/embed"
+                assert result == valid_embedding
+                assert len(result) == EMBEDDING_DIMENSION
+                mock_observe.assert_called_once()
+                mock_http.post.assert_called_once()
+                # Verify the URL
+                call_args = mock_http.post.call_args
+                assert call_args[0][0] == "http://test-clip:8093/embed"
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_missing_embedding_field(
@@ -354,21 +364,21 @@ class TestEmbed:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"other": "data"})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "missing 'embedding'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_malformed_response")
+                assert "missing 'embedding'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_invalid_dimension(
@@ -379,61 +389,61 @@ class TestEmbed:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"embedding": invalid_embedding_short})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "invalid dimension" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_invalid_dimension")
+                assert "invalid dimension" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_invalid_dimension")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_connect_error(self, client: CLIPClient, sample_image: Image.Image) -> None:
         """Test embed raises CLIPUnavailableError on connection error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "Failed to connect" in str(exc_info.value)
-            assert isinstance(exc_info.value.original_error, httpx.ConnectError)
-            mock_record.assert_called_once_with("clip_connection_error")
+                assert "Failed to connect" in str(exc_info.value)
+                assert isinstance(exc_info.value.original_error, httpx.ConnectError)
+                mock_record.assert_called_once_with("clip_connection_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_timeout_error(self, client: CLIPClient, sample_image: Image.Image) -> None:
         """Test embed raises CLIPUnavailableError on timeout."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "timed out" in str(exc_info.value)
-            assert isinstance(exc_info.value.original_error, httpx.TimeoutException)
-            mock_record.assert_called_once_with("clip_timeout")
+                assert "timed out" in str(exc_info.value)
+                assert isinstance(exc_info.value.original_error, httpx.TimeoutException)
+                mock_record.assert_called_once_with("clip_timeout")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_server_error_5xx(
@@ -444,21 +454,21 @@ class TestEmbed:
         mock_response.status_code = 500
         error = httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "server error: 500" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_server_error")
+                assert "server error: 500" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_server_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_client_error_4xx(
@@ -469,42 +479,42 @@ class TestEmbed:
         mock_response.status_code = 400
         error = httpx.HTTPStatusError("Bad request", request=MagicMock(), response=mock_response)
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "client error: 400" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_client_error")
+                assert "client error: 400" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_client_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_unexpected_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test embed raises CLIPUnavailableError on unexpected error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.embed(sample_image)
 
-            assert "Unexpected error" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_unexpected_error")
+                assert "Unexpected error" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_unexpected_error")
+        finally:
+            client._http_client = original_client
 
 
 # =============================================================================
@@ -526,21 +536,23 @@ class TestAnomalyScore:
             return_value={"anomaly_score": 0.3, "similarity_to_baseline": 0.7}
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            anomaly_score, similarity = await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+                anomaly_score, similarity = await client.anomaly_score(
+                    sample_image, valid_embedding
+                )
 
-            assert anomaly_score == 0.3
-            assert similarity == 0.7
-            mock_observe.assert_called_once()
+                assert anomaly_score == 0.3
+                assert similarity == 0.7
+                mock_observe.assert_called_once()
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_invalid_baseline_dimension(
@@ -562,21 +574,21 @@ class TestAnomalyScore:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"similarity_to_baseline": 0.7})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "missing 'anomaly_score'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_malformed_response")
+                assert "missing 'anomaly_score'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_missing_similarity_field(
@@ -587,63 +599,63 @@ class TestAnomalyScore:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"anomaly_score": 0.3})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "missing 'similarity_to_baseline'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_malformed_response")
+                assert "missing 'similarity_to_baseline'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_connect_error(
         self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
     ) -> None:
         """Test anomaly_score raises CLIPUnavailableError on connection error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "Failed to connect" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_connection_error")
+                assert "Failed to connect" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_connection_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_timeout_error(
         self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
     ) -> None:
         """Test anomaly_score raises CLIPUnavailableError on timeout."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "timed out" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_timeout")
+                assert "timed out" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_timeout")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_server_error(
@@ -656,21 +668,21 @@ class TestAnomalyScore:
             "Service unavailable", request=MagicMock(), response=mock_response
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "server error: 503" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_server_error")
+                assert "server error: 503" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_server_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_client_error(
@@ -683,42 +695,42 @@ class TestAnomalyScore:
             "Unprocessable entity", request=MagicMock(), response=mock_response
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "client error: 422" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_client_error")
+                assert "client error: 422" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_client_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_unexpected_error(
         self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
     ) -> None:
         """Test anomaly_score raises CLIPUnavailableError on unexpected error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.anomaly_score(sample_image, valid_embedding)
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
 
-            assert "Unexpected error" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_anomaly_unexpected_error")
+                assert "Unexpected error" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_anomaly_unexpected_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_reraises_clip_unavailable_error(
@@ -727,17 +739,19 @@ class TestAnomalyScore:
         """Test that anomaly_score re-raises CLIPUnavailableError without wrapping."""
         original_error = CLIPUnavailableError("Original error")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=original_error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=original_error)
+        client._http_client = mock_http
 
+        try:
             with pytest.raises(CLIPUnavailableError) as exc_info:
                 await client.anomaly_score(sample_image, valid_embedding)
 
             assert exc_info.value is original_error
+        finally:
+            client._http_client = original_client
 
 
 # =============================================================================
@@ -758,21 +772,21 @@ class TestClassify:
             return_value={"scores": {"cat": 0.1, "dog": 0.2, "person": 0.7}, "top_label": "person"}
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            scores, top_label = await client.classify(sample_image, labels)
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+                scores, top_label = await client.classify(sample_image, labels)
 
-            assert scores == {"cat": 0.1, "dog": 0.2, "person": 0.7}
-            assert top_label == "person"
-            mock_observe.assert_called_once()
+                assert scores == {"cat": 0.1, "dog": 0.2, "person": 0.7}
+                assert top_label == "person"
+                mock_observe.assert_called_once()
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_empty_labels(
@@ -793,21 +807,21 @@ class TestClassify:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"top_label": "person"})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.classify(sample_image, ["cat", "dog"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.classify(sample_image, ["cat", "dog"])
 
-            assert "missing 'scores' or 'top_label'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_malformed_response")
+                assert "missing 'scores' or 'top_label'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_missing_top_label_field(
@@ -839,40 +853,40 @@ class TestClassify:
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test classify raises CLIPUnavailableError on connection error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.classify(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.classify(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_connection_error")
+                mock_record.assert_called_once_with("clip_connection_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_timeout_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test classify raises CLIPUnavailableError on timeout."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.classify(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.classify(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_timeout")
+                mock_record.assert_called_once_with("clip_timeout")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_server_error(
@@ -885,20 +899,20 @@ class TestClassify:
             "Internal server error", request=MagicMock(), response=mock_response
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.classify(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.classify(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_server_error")
+                mock_record.assert_called_once_with("clip_server_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_client_error(
@@ -909,20 +923,20 @@ class TestClassify:
         mock_response.status_code = 400
         error = httpx.HTTPStatusError("Bad request", request=MagicMock(), response=mock_response)
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.classify(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.classify(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_client_error")
+                mock_record.assert_called_once_with("clip_client_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_classify_unexpected_error(
@@ -951,17 +965,19 @@ class TestClassify:
         """Test that classify re-raises CLIPUnavailableError without wrapping."""
         original_error = CLIPUnavailableError("Original error")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=original_error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=original_error)
+        client._http_client = mock_http
 
+        try:
             with pytest.raises(CLIPUnavailableError) as exc_info:
                 await client.classify(sample_image, ["cat"])
 
             assert exc_info.value is original_error
+        finally:
+            client._http_client = original_client
 
 
 # =============================================================================
@@ -979,20 +995,20 @@ class TestSimilarity:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"similarity": 0.85})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            result = await client.similarity(sample_image, "a photo of a red square")
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+                result = await client.similarity(sample_image, "a photo of a red square")
 
-            assert result == 0.85
-            mock_observe.assert_called_once()
+                assert result == 0.85
+                mock_observe.assert_called_once()
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_missing_field(
@@ -1003,61 +1019,61 @@ class TestSimilarity:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"other": "data"})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.similarity(sample_image, "text")
 
-            assert "missing 'similarity'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_malformed_response")
+                assert "missing 'similarity'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_connect_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test similarity raises CLIPUnavailableError on connection error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.similarity(sample_image, "text")
 
-            mock_record.assert_called_once_with("clip_connection_error")
+                mock_record.assert_called_once_with("clip_connection_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_timeout_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test similarity raises CLIPUnavailableError on timeout."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.similarity(sample_image, "text")
 
-            mock_record.assert_called_once_with("clip_timeout")
+                mock_record.assert_called_once_with("clip_timeout")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_server_error(
@@ -1068,20 +1084,20 @@ class TestSimilarity:
         mock_response.status_code = 502
         error = httpx.HTTPStatusError("Bad gateway", request=MagicMock(), response=mock_response)
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.similarity(sample_image, "text")
 
-            mock_record.assert_called_once_with("clip_server_error")
+                mock_record.assert_called_once_with("clip_server_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_client_error(
@@ -1092,40 +1108,40 @@ class TestSimilarity:
         mock_response.status_code = 404
         error = httpx.HTTPStatusError("Not found", request=MagicMock(), response=mock_response)
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.similarity(sample_image, "text")
 
-            mock_record.assert_called_once_with("clip_client_error")
+                mock_record.assert_called_once_with("clip_client_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_unexpected_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test similarity raises CLIPUnavailableError on unexpected error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.similarity(sample_image, "text")
 
-            mock_record.assert_called_once_with("clip_unexpected_error")
+                mock_record.assert_called_once_with("clip_unexpected_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_reraises_clip_unavailable_error(
@@ -1134,17 +1150,19 @@ class TestSimilarity:
         """Test that similarity re-raises CLIPUnavailableError without wrapping."""
         original_error = CLIPUnavailableError("Original error")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=original_error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=original_error)
+        client._http_client = mock_http
 
+        try:
             with pytest.raises(CLIPUnavailableError) as exc_info:
                 await client.similarity(sample_image, "text")
 
             assert exc_info.value is original_error
+        finally:
+            client._http_client = original_client
 
 
 # =============================================================================
@@ -1167,20 +1185,20 @@ class TestBatchSimilarity:
             return_value={"similarities": {"cat": 0.3, "dog": 0.6, "bird": 0.1}}
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            result = await client.batch_similarity(sample_image, texts)
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+                result = await client.batch_similarity(sample_image, texts)
 
-            assert result == {"cat": 0.3, "dog": 0.6, "bird": 0.1}
-            mock_observe.assert_called_once()
+                assert result == {"cat": 0.3, "dog": 0.6, "bird": 0.1}
+                mock_observe.assert_called_once()
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_empty_texts(
@@ -1201,61 +1219,61 @@ class TestBatchSimilarity:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"other": "data"})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError) as exc_info:
-                await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.batch_similarity(sample_image, ["cat"])
 
-            assert "missing 'similarities'" in str(exc_info.value)
-            mock_record.assert_called_once_with("clip_malformed_response")
+                assert "missing 'similarities'" in str(exc_info.value)
+                mock_record.assert_called_once_with("clip_malformed_response")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_connect_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test batch_similarity raises CLIPUnavailableError on connection error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.batch_similarity(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_connection_error")
+                mock_record.assert_called_once_with("clip_connection_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_timeout_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test batch_similarity raises CLIPUnavailableError on timeout."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.batch_similarity(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_timeout")
+                mock_record.assert_called_once_with("clip_timeout")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_server_error(
@@ -1268,20 +1286,20 @@ class TestBatchSimilarity:
             "Internal server error", request=MagicMock(), response=mock_response
         )
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.batch_similarity(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_server_error")
+                mock_record.assert_called_once_with("clip_server_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_client_error(
@@ -1292,40 +1310,40 @@ class TestBatchSimilarity:
         mock_response.status_code = 400
         error = httpx.HTTPStatusError("Bad request", request=MagicMock(), response=mock_response)
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.batch_similarity(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_client_error")
+                mock_record.assert_called_once_with("clip_client_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_unexpected_error(
         self, client: CLIPClient, sample_image: Image.Image
     ) -> None:
         """Test batch_similarity raises CLIPUnavailableError on unexpected error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
+        client._http_client = mock_http
 
-            with pytest.raises(CLIPUnavailableError):
-                await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.batch_similarity(sample_image, ["cat"])
 
-            mock_record.assert_called_once_with("clip_unexpected_error")
+                mock_record.assert_called_once_with("clip_unexpected_error")
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_reraises_clip_unavailable_error(
@@ -1334,17 +1352,19 @@ class TestBatchSimilarity:
         """Test that batch_similarity re-raises CLIPUnavailableError without wrapping."""
         original_error = CLIPUnavailableError("Original error")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=original_error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=original_error)
+        client._http_client = mock_http
 
+        try:
             with pytest.raises(CLIPUnavailableError) as exc_info:
                 await client.batch_similarity(sample_image, ["cat"])
 
             assert exc_info.value is original_error
+        finally:
+            client._http_client = original_client
 
 
 # =============================================================================
@@ -1355,38 +1375,42 @@ class TestBatchSimilarity:
 class TestGlobalClientSingleton:
     """Tests for global client singleton functions."""
 
-    def test_get_clip_client_creates_instance(self, mock_settings: MagicMock) -> None:
+    @pytest.mark.asyncio
+    async def test_get_clip_client_creates_instance(self, mock_settings: MagicMock) -> None:
         """Test that get_clip_client creates a new instance."""
-        reset_clip_client()
+        await reset_clip_client()
 
         with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
             client = get_clip_client()
             assert isinstance(client, CLIPClient)
 
-    def test_get_clip_client_returns_same_instance(self, mock_settings: MagicMock) -> None:
+    @pytest.mark.asyncio
+    async def test_get_clip_client_returns_same_instance(self, mock_settings: MagicMock) -> None:
         """Test that get_clip_client returns the same instance on subsequent calls."""
-        reset_clip_client()
+        await reset_clip_client()
 
         with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
             client1 = get_clip_client()
             client2 = get_clip_client()
             assert client1 is client2
 
-    def test_reset_clip_client_clears_instance(self, mock_settings: MagicMock) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_clip_client_clears_instance(self, mock_settings: MagicMock) -> None:
         """Test that reset_clip_client clears the global instance."""
-        reset_clip_client()
+        await reset_clip_client()
 
         with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
             client1 = get_clip_client()
-            reset_clip_client()
+            await reset_clip_client()
             client2 = get_clip_client()
             assert client1 is not client2
 
-    def test_reset_clip_client_when_none(self) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_clip_client_when_none(self) -> None:
         """Test that reset_clip_client works when client is already None."""
-        reset_clip_client()
+        await reset_clip_client()
         # Should not raise
-        reset_clip_client()
+        await reset_clip_client()
 
 
 # =============================================================================
@@ -1429,18 +1453,18 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"embedding": valid_embedding})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            result = await client.embed(large_image)
-            assert len(result) == EMBEDDING_DIMENSION
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration"):
+                result = await client.embed(large_image)
+                assert len(result) == EMBEDDING_DIMENSION
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_reraises_clip_unavailable_error(
@@ -1449,17 +1473,19 @@ class TestEdgeCases:
         """Test that embed re-raises CLIPUnavailableError without wrapping."""
         original_error = CLIPUnavailableError("Original error")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(side_effect=original_error)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=original_error)
+        client._http_client = mock_http
 
+        try:
             with pytest.raises(CLIPUnavailableError) as exc_info:
                 await client.embed(sample_image)
 
             assert exc_info.value is original_error
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_anomaly_score_verifies_url_endpoint(
@@ -1496,20 +1522,20 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"scores": {"cat": 1.0}, "top_label": "cat"})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            await client.classify(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration"):
+                await client.classify(sample_image, ["cat"])
 
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://test-clip:8093/classify"
+                call_args = mock_http.post.call_args
+                assert call_args[0][0] == "http://test-clip:8093/classify"
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_similarity_verifies_url_endpoint(
@@ -1520,20 +1546,20 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"similarity": 0.5})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            await client.similarity(sample_image, "text")
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration"):
+                await client.similarity(sample_image, "text")
 
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://test-clip:8093/similarity"
+                call_args = mock_http.post.call_args
+                assert call_args[0][0] == "http://test-clip:8093/similarity"
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_batch_similarity_verifies_url_endpoint(
@@ -1544,20 +1570,20 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"similarities": {"cat": 0.5}})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            await client.batch_similarity(sample_image, ["cat"])
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration"):
+                await client.batch_similarity(sample_image, ["cat"])
 
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://test-clip:8093/batch-similarity"
+                call_args = mock_http.post.call_args
+                assert call_args[0][0] == "http://test-clip:8093/batch-similarity"
+        finally:
+            client._http_client = original_client
 
     @pytest.mark.asyncio
     async def test_embed_sends_correct_payload(
@@ -1568,26 +1594,26 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
         mock_response.json = MagicMock(return_value={"embedding": valid_embedding})
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.clip_client.observe_ai_request_duration"),
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client directly (NEM-1721)
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
 
-            await client.embed(sample_image)
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration"):
+                await client.embed(sample_image)
 
-            call_kwargs = mock_client.post.call_args[1]
-            assert "json" in call_kwargs
-            assert "image" in call_kwargs["json"]
-            # Verify the image is base64 encoded
-            decoded = base64.b64decode(call_kwargs["json"]["image"])
-            buffer = io.BytesIO(decoded)
-            loaded_image = Image.open(buffer)
-            assert loaded_image.format == "PNG"
+                call_kwargs = mock_http.post.call_args[1]
+                assert "json" in call_kwargs
+                assert "image" in call_kwargs["json"]
+                # Verify the image is base64 encoded
+                decoded = base64.b64decode(call_kwargs["json"]["image"])
+                buffer = io.BytesIO(decoded)
+                loaded_image = Image.open(buffer)
+                assert loaded_image.format == "PNG"
+        finally:
+            client._http_client = original_client
 
 
 # =============================================================================
