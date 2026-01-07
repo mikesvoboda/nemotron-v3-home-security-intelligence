@@ -577,7 +577,7 @@ describe('StatsRow', () => {
 
       let sparkline = screen.getByTestId('risk-sparkline');
       let linePath = sparkline.querySelectorAll('path')[1];
-      expect(linePath.getAttribute('stroke')).toBe('#76B900'); // NVIDIA green
+      expect(linePath.getAttribute('stroke')).toBe('#22c55e'); // NVIDIA green
 
       // Critical risk (red)
       rerender(
