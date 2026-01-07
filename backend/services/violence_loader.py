@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ViolenceDetectionResult:
     """Result from violence detection classification.
 
@@ -108,7 +108,11 @@ async def load_violence_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load violence detection model from {model_path}: {e}")
+        logger.error(
+            "Failed to load violence detection model",
+            exc_info=True,
+            extra={"model_path": model_path},
+        )
         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
 
 
@@ -195,5 +199,5 @@ async def classify_violence(
         return await loop.run_in_executor(None, _classify)
 
     except Exception as e:
-        logger.error(f"Violence classification failed: {e}")
+        logger.error("Violence classification failed", exc_info=True)
         raise RuntimeError(f"Violence classification failed: {e}") from e

@@ -211,8 +211,7 @@ export function useWebSocketStatus(
       console.error(`[${channelName}] WebSocket connection error:`, error);
       setConnectionState('disconnected');
     }
-    // protocols is joined for stable comparison (array contents vs reference)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- protocols array joined for stable comparison (array contents vs reference equality)
   }, [url, protocols?.join(','), channelName, onMessage, onOpen, onClose, onError, onMaxRetriesExhausted, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
 
   const send = useCallback((data: unknown) => {

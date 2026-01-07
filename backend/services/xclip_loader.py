@@ -102,7 +102,7 @@ async def load_xclip_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load X-CLIP model from {model_path}: {e}")
+        logger.error("Failed to load X-CLIP model", exc_info=True, extra={"model_path": model_path})
         raise RuntimeError(f"Failed to load X-CLIP model: {e}") from e
 
 
@@ -216,7 +216,7 @@ async def classify_actions(
         return result
 
     except Exception as e:
-        logger.error(f"X-CLIP action classification failed: {e}")
+        logger.error("X-CLIP action classification failed", exc_info=True)
         raise RuntimeError(f"X-CLIP classification failed: {e}") from e
 
 

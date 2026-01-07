@@ -98,7 +98,7 @@ def validate_container_name(name: str) -> bool:
     return bool(CONTAINER_NAME_PATTERN.match(name))
 
 
-@dataclass
+@dataclass(slots=True)
 class ServiceConfig:
     """Configuration for a managed service.
 

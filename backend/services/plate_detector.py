@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class PlateDetection:
     """Detected license plate information.
 
@@ -49,7 +49,7 @@ class PlateDetection:
     vehicle_detection_id: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class VehicleDetection:
     """Vehicle detection information for plate detection.
 

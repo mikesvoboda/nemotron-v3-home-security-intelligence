@@ -49,6 +49,8 @@ dependencies = [
     "accelerate>=1.12.0",
     # Container orchestration
     "docker>=7.0.0",
+    # Token counting for LLM context management
+    "tiktoken>=0.8.0",
 ]
 
 [project.optional-dependencies]

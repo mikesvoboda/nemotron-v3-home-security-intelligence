@@ -37,7 +37,7 @@ BRISQUE_NOISE_THRESHOLD = 60.0  # Above this indicates significant noise
 BRISQUE_LOW_QUALITY_THRESHOLD = 40.0  # Above this is generally low quality
 
 
-@dataclass
+@dataclass(slots=True)
 class ImageQualityResult:
     """Result from BRISQUE image quality assessment.
 
@@ -130,7 +130,7 @@ async def load_brisque_model(model_path: str) -> Any:  # noqa: ARG001
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load BRISQUE metric: {e}")
+        logger.error("Failed to load BRISQUE metric", exc_info=True)
         raise RuntimeError(f"Failed to load BRISQUE metric: {e}") from e
 
 
@@ -233,7 +233,7 @@ async def assess_image_quality(
         raise RuntimeError("torch and torchvision required for image quality assessment") from e
 
     except Exception as e:
-        logger.error(f"Image quality assessment failed: {e}")
+        logger.error("Image quality assessment failed", exc_info=True)
         raise RuntimeError(f"Image quality assessment failed: {e}") from e
 
 

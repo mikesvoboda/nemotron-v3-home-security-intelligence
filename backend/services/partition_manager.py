@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class PartitionConfig:
     """Configuration for a partitioned table.
 
@@ -57,7 +57,7 @@ class PartitionConfig:
     retention_months: int = 12
 
 
-@dataclass
+@dataclass(slots=True)
 class PartitionInfo:
     """Information about an existing partition.
 

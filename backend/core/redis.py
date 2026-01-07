@@ -38,7 +38,7 @@ class QueueOverflowPolicy(str, Enum):
     DROP_OLDEST = "drop_oldest"  # Trim oldest with warning (legacy behavior)
 
 
-@dataclass
+@dataclass(slots=True)
 class QueueAddResult:
     """Result of adding an item to a queue with backpressure handling."""
 
@@ -55,7 +55,7 @@ class QueueAddResult:
         return self.dropped_count > 0 or self.moved_to_dlq_count > 0 or self.error is not None
 
 
-@dataclass
+@dataclass(slots=True)
 class QueuePressureMetrics:
     """Metrics about queue pressure and health."""
 

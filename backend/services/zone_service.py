@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from backend.models.detection import Detection
 
 
-@dataclass
+@dataclass(slots=True)
 class ApproachVector:
     """Result of approach vector calculation.
 

@@ -71,5 +71,5 @@ async def load_clip_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load CLIP model from {model_path}: {e}")
+        logger.error("Failed to load CLIP model", exc_info=True, extra={"model_path": model_path})
         raise RuntimeError(f"Failed to load CLIP model: {e}") from e

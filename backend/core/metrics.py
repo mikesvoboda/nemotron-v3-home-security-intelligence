@@ -210,6 +210,35 @@ PROMPT_TEMPLATE_USED = Counter(
 )
 
 # =============================================================================
+# LLM Context Utilization Metrics (NEM-1666)
+# =============================================================================
+
+# Context utilization histogram tracks how much of the context window is used
+# Buckets cover 0-100% utilization with finer granularity at higher values
+CONTEXT_UTILIZATION_BUCKETS = (0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0)
+
+LLM_CONTEXT_UTILIZATION = Histogram(
+    "hsi_llm_context_utilization",
+    "LLM context window utilization ratio (0.0 to 1.0+)",
+    buckets=CONTEXT_UTILIZATION_BUCKETS,
+    registry=_registry,
+)
+
+# Counter for prompts that exceeded context limits
+PROMPTS_TRUNCATED_TOTAL = Counter(
+    "hsi_prompts_truncated_total",
+    "Total number of prompts that required truncation due to context limits",
+    registry=_registry,
+)
+
+# Counter for prompts that triggered high utilization warnings
+PROMPTS_HIGH_UTILIZATION_TOTAL = Counter(
+    "hsi_prompts_high_utilization_total",
+    "Total number of prompts that exceeded the context utilization warning threshold",
+    registry=_registry,
+)
+
+# =============================================================================
 # Business Metrics (NEM-770)
 # =============================================================================
 
@@ -269,6 +298,31 @@ QUEUE_ITEMS_REJECTED_TOTAL = Counter(
     "hsi_queue_items_rejected_total",
     "Total number of items rejected due to full queue (reject policy)",
     labelnames=["queue_name"],
+    registry=_registry,
+)
+
+# =============================================================================
+# Cache Metrics (NEM-1682)
+# =============================================================================
+
+CACHE_HITS_TOTAL = Counter(
+    "hsi_cache_hits_total",
+    "Total number of cache hits",
+    labelnames=["cache_type"],
+    registry=_registry,
+)
+
+CACHE_MISSES_TOTAL = Counter(
+    "hsi_cache_misses_total",
+    "Total number of cache misses",
+    labelnames=["cache_type"],
+    registry=_registry,
+)
+
+CACHE_INVALIDATIONS_TOTAL = Counter(
+    "hsi_cache_invalidations_total",
+    "Total number of cache invalidations",
+    labelnames=["cache_type", "reason"],
     registry=_registry,
 )
 
@@ -510,6 +564,35 @@ class MetricsService:
         """Increment the events reviewed counter."""
         EVENTS_REVIEWED_TOTAL.inc()
 
+    # -------------------------------------------------------------------------
+    # Cache Metrics (NEM-1682)
+    # -------------------------------------------------------------------------
+
+    def record_cache_hit(self, cache_type: str) -> None:
+        """Record a cache hit.
+
+        Args:
+            cache_type: Type of cache (e.g., "event_stats", "cameras", "system")
+        """
+        CACHE_HITS_TOTAL.labels(cache_type=cache_type).inc()
+
+    def record_cache_miss(self, cache_type: str) -> None:
+        """Record a cache miss.
+
+        Args:
+            cache_type: Type of cache (e.g., "event_stats", "cameras", "system")
+        """
+        CACHE_MISSES_TOTAL.labels(cache_type=cache_type).inc()
+
+    def record_cache_invalidation(self, cache_type: str, reason: str) -> None:
+        """Record a cache invalidation.
+
+        Args:
+            cache_type: Type of cache (e.g., "event_stats", "cameras", "events")
+            reason: Reason for invalidation (e.g., "event_created", "camera_updated")
+        """
+        CACHE_INVALIDATIONS_TOTAL.labels(cache_type=cache_type, reason=reason).inc()
+
 
 # Global singleton instance for MetricsService
 _metrics_service: MetricsService | None = None
@@ -665,6 +748,33 @@ def record_prompt_template_used(template: str) -> None:
 
 
 # =============================================================================
+# Context Utilization Helpers (NEM-1666)
+# =============================================================================
+
+
+def observe_context_utilization(utilization: float) -> None:
+    """Record LLM context utilization ratio to the histogram.
+
+    Args:
+        utilization: Context utilization ratio (0.0 to 1.0+)
+            Values > 1.0 indicate the prompt exceeded the context window
+    """
+    LLM_CONTEXT_UTILIZATION.observe(utilization)
+
+    # Also record if utilization exceeds warning threshold (default 0.8)
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+    if utilization >= settings.context_utilization_warning_threshold:
+        PROMPTS_HIGH_UTILIZATION_TOTAL.inc()
+
+
+def record_prompt_truncated() -> None:
+    """Increment the counter for prompts that required truncation."""
+    PROMPTS_TRUNCATED_TOTAL.inc()
+
+
+# =============================================================================
 # Business Metric Helpers (NEM-770)
 # =============================================================================
 
@@ -747,6 +857,39 @@ def record_queue_items_rejected(queue_name: str, count: int = 1) -> None:
         count: Number of items rejected (default 1)
     """
     QUEUE_ITEMS_REJECTED_TOTAL.labels(queue_name=queue_name).inc(count)
+
+
+# =============================================================================
+# Cache Metric Helpers (NEM-1682)
+# =============================================================================
+
+
+def record_cache_hit(cache_type: str) -> None:
+    """Record a cache hit.
+
+    Args:
+        cache_type: Type of cache (e.g., "event_stats", "cameras", "system")
+    """
+    CACHE_HITS_TOTAL.labels(cache_type=cache_type).inc()
+
+
+def record_cache_miss(cache_type: str) -> None:
+    """Record a cache miss.
+
+    Args:
+        cache_type: Type of cache (e.g., "event_stats", "cameras", "system")
+    """
+    CACHE_MISSES_TOTAL.labels(cache_type=cache_type).inc()
+
+
+def record_cache_invalidation(cache_type: str, reason: str) -> None:
+    """Record a cache invalidation.
+
+    Args:
+        cache_type: Type of cache (e.g., "event_stats", "cameras", "events")
+        reason: Reason for invalidation (e.g., "event_created", "camera_updated")
+    """
+    CACHE_INVALIDATIONS_TOTAL.labels(cache_type=cache_type, reason=reason).inc()
 
 
 def get_metrics_response() -> bytes:

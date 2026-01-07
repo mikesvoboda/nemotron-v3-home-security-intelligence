@@ -55,7 +55,7 @@ class AlertCreationError(Exception):
     pass
 
 
-@dataclass
+@dataclass(slots=True)
 class DedupResult:
     """Result of a deduplication check."""
 
