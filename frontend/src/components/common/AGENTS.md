@@ -26,7 +26,9 @@ Contains reusable UI components shared across multiple features. These are low-l
 | `ScheduleSelector.test.tsx`   | Test suite for ScheduleSelector                                      | Active     |
 | `ServiceStatusAlert.tsx`      | Service health notification banner                                   | Deprecated |
 | `ServiceStatusAlert.test.tsx` | Test suite for ServiceStatusAlert                                    | Deprecated |
-| `index.ts`                    | Barrel exports (ErrorBoundary, RiskBadge, SecureContextWarning, WebSocketStatus) | Active |
+| `TruncatedText.tsx`           | Text truncation with expand/collapse functionality                   | Active     |
+| `TruncatedText.test.tsx`      | Test suite for TruncatedText                                         | Active     |
+| `index.ts`                    | Barrel exports (ErrorBoundary, RiskBadge, SecureContextWarning, TruncatedText, WebSocketStatus) | Active |
 | `.gitkeep`                    | Placeholder file                                                     | -          |
 
 ## Key Components
@@ -580,6 +582,7 @@ All badge components follow the same sizing pattern (sm/md/lg) for consistency a
 **Also see:** `Lightbox.tsx` - Full-size image viewing modal
 **Also see:** `SecureContextWarning.tsx` - HTTPS requirement warning banner
 **Also see:** `ScheduleSelector.tsx` - Alert schedule configuration
+**Also see:** `TruncatedText.tsx` - Text truncation with expand/collapse
 **Reference:** `ServiceStatusAlert.tsx` - Deprecated but documented for future use
 
 ---
@@ -659,6 +662,101 @@ import Lightbox from '../common/Lightbox';
 - Updates time since last message
 - Correct icons and colors per state
 - Accessible status role and aria-label
+
+### TruncatedText.tsx
+
+**Purpose:** Display text with optional truncation and expand/collapse functionality for long descriptions
+
+**Props Interface:**
+
+```typescript
+interface TruncatedTextProps {
+  text: string;             // The text to display (and potentially truncate)
+  maxLength?: number;       // Maximum chars before truncation (default: 200)
+  maxLines?: number;        // Maximum lines before truncation (CSS-based)
+  initialExpanded?: boolean; // Start expanded (default: false)
+  showMoreLabel?: string;   // Custom "Show more" label
+  showLessLabel?: string;   // Custom "Show less" label
+  onToggle?: (isExpanded: boolean) => void; // Callback on expand/collapse
+  className?: string;       // Additional CSS classes
+}
+```
+
+**Key Features:**
+
+- Character-based truncation with word boundary awareness
+- Line-based truncation via CSS `-webkit-line-clamp`
+- Smooth expand/collapse animation with transition classes
+- "Show more" / "Show less" toggle button
+- ChevronDown/ChevronUp icons for visual affordance
+- Full accessibility: `aria-expanded` attribute on toggle button
+- NVIDIA green (#76B900) styling for toggle button
+- Dark theme compatible text styling
+
+**Truncation Modes:**
+
+| Mode      | Prop       | Behavior                                      |
+| --------- | ---------- | --------------------------------------------- |
+| Character | maxLength  | Truncates at character limit (word boundary)  |
+| Line      | maxLines   | Uses CSS line-clamp (takes precedence)        |
+| Combined  | Both       | Shows toggle if either limit is exceeded      |
+
+**Usage:**
+
+```tsx
+import TruncatedText from '../common/TruncatedText';
+// or
+import { TruncatedText } from '../common';
+
+// Basic usage with character limit
+<TruncatedText text={longDescription} maxLength={200} />
+
+// Line-based truncation
+<TruncatedText text={longDescription} maxLines={3} />
+
+// Custom labels
+<TruncatedText
+  text={longDescription}
+  maxLength={150}
+  showMoreLabel="Read more"
+  showLessLabel="Read less"
+/>
+
+// With callback
+<TruncatedText
+  text={longDescription}
+  maxLength={200}
+  onToggle={(expanded) => console.log('Expanded:', expanded)}
+/>
+```
+
+**Used By:**
+
+- `EventCard.tsx` - AI summary truncation in security event cards
+- `AlertsPage.tsx` - Alert descriptions via EventCard
+
+**Dependencies:**
+
+- `lucide-react` - ChevronDown, ChevronUp icons
+- `react` - memo, useCallback, useMemo, useState
+
+---
+
+### TruncatedText.test.tsx
+
+**Test Coverage (34 tests):**
+
+- Basic rendering (text content, short text, className, element type)
+- Truncation behavior (toggle visibility, maxLength, word boundaries)
+- Expand/collapse functionality (click handlers, state management)
+- Accessibility (aria-expanded, accessible button names, data-testid)
+- Styling (text classes, button styling, transition animation)
+- Edge cases (empty string, exact maxLength, whitespace, newlines, special chars)
+- maxLines mode (CSS truncation, precedence over maxLength)
+- Custom labels (showMoreLabel, showLessLabel)
+- Callback support (onToggle called on expand/collapse)
+
+---
 
 ## Dependencies
 

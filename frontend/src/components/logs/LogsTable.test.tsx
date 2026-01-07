@@ -138,11 +138,15 @@ describe('LogsTable', () => {
       expect(debugBadge).toHaveClass('text-gray-400');
     });
 
-    it('displays CRITICAL badge with red styling', () => {
+    it('displays CRITICAL badge with emphasized red styling (solid background, bold)', () => {
       render(<LogsTable logs={[mockLogs[4]]} totalCount={1} limit={50} offset={0} />);
 
       const criticalBadge = screen.getByText('CRITICAL');
-      expect(criticalBadge).toHaveClass('text-red-400');
+      // CRITICAL has solid red background with white text for emphasis
+      expect(criticalBadge).toHaveClass('bg-red-600');
+      expect(criticalBadge).toHaveClass('text-white');
+      expect(criticalBadge).toHaveClass('font-bold');
+      expect(criticalBadge).toHaveClass('border-red-600');
     });
 
     it('displays unknown level with gray styling (default case)', () => {
@@ -467,7 +471,7 @@ describe('LogsTable', () => {
       render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} />);
 
       expect(screen.getByText('No Logs Found')).toBeInTheDocument();
-      expect(screen.getByText('No logs match the current filters')).toBeInTheDocument();
+      expect(screen.getByText(/No logs match the current filters/)).toBeInTheDocument();
     });
 
     it('does not show pagination in empty state', () => {

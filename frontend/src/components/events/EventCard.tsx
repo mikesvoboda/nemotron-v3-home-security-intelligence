@@ -16,6 +16,7 @@ import { getRiskColor, getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
+import TruncatedText from '../common/TruncatedText';
 import DetectionImage from '../detection/DetectionImage';
 
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
@@ -261,7 +262,13 @@ const EventCard = memo(function EventCard({
 
       {/* AI Summary */}
       <div className="mb-3">
-        <p className="text-sm leading-relaxed text-gray-200">{summary}</p>
+        <TruncatedText
+          text={summary}
+          maxLength={200}
+          maxLines={3}
+          showMoreLabel="Show more"
+          showLessLabel="Show less"
+        />
       </div>
 
       {/* Detection List with Color-Coded Confidence */}
