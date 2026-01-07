@@ -286,7 +286,6 @@ export default function StatsRow({
             <div className="text-2xl font-bold text-white" data-testid="system-status-label">
               {statusLabel}
             </div>
-            <span className="sr-only">System status: {statusLabel}</span>
           </div>
           <div className="text-sm text-text-secondary">System Status</div>
         </div>
