@@ -10,6 +10,7 @@ This directory contains observability and monitoring infrastructure configuratio
 monitoring/
   AGENTS.md                    # This file
   prometheus.yml               # Prometheus scrape configuration
+  prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
   json-exporter-config.yml     # JSON Exporter module definitions
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
@@ -49,6 +50,53 @@ monitoring/
 Backend API --> JSON Exporter --> Prometheus --> Grafana
      |
      +--> Direct liveness probe
+```
+
+### prometheus_rules.yml
+
+**Purpose:** Alerting rules for AI pipeline monitoring (NEM-1731).
+
+**Alert Groups:**
+
+1. **ai_pipeline_alerts** - Core AI service monitoring
+
+   | Alert                   | Severity | Description                          |
+   | ----------------------- | -------- | ------------------------------------ |
+   | AIDetectorUnavailable   | critical | RT-DETR detector service down for 2m |
+   | AIBackendDown           | critical | Backend API unreachable for 1m       |
+   | AINemotronTimeout       | warning  | Nemotron P95 inference > 120s for 5m |
+   | AIDetectorSlow          | warning  | RT-DETR P95 detection > 5s for 5m    |
+   | AIHighErrorRate         | warning  | Pipeline error rate > 10% over 5m    |
+   | AIPipelineErrorSpike    | warning  | > 50 errors in 5m window             |
+   | AIGPUOverheating        | critical | GPU temperature > 85C for 2m         |
+   | AIGPUTemperatureWarning | warning  | GPU temperature > 75C for 5m         |
+   | AIGPUMemoryCritical     | critical | GPU VRAM > 95% for 2m                |
+   | AIGPUMemoryWarning      | warning  | GPU VRAM > 85% for 5m                |
+   | AIDetectionQueueBacklog | warning  | Detection queue > 100 items for 5m   |
+   | AIAnalysisQueueBacklog  | warning  | Analysis queue > 50 batches for 5m   |
+   | AISystemDegraded        | warning  | System health degraded for 5m        |
+   | AISystemUnhealthy       | critical | System health unhealthy for 2m       |
+
+2. **infrastructure_alerts** - Dependency monitoring
+
+   | Alert                | Severity | Description                   |
+   | -------------------- | -------- | ----------------------------- |
+   | DatabaseUnhealthy    | critical | PostgreSQL unreachable for 2m |
+   | RedisUnhealthy       | critical | Redis unreachable for 2m      |
+   | PrometheusTargetDown | warning  | Any scrape target down for 5m |
+
+**Severity Levels:**
+
+- **critical**: Immediate action required. System down or data loss imminent.
+- **warning**: Action required soon. Performance degradation or approaching limits.
+- **info**: Informational. Logged for analysis but no notifications.
+
+**Validation:**
+
+```bash
+# Validate rules with promtool
+cat monitoring/prometheus_rules.yml | podman run --rm -i --entrypoint sh \
+  docker.io/prom/prometheus:v2.48.0 -c "cat > /tmp/rules.yml && promtool check rules /tmp/rules.yml"
 ```
 
 ### json-exporter-config.yml

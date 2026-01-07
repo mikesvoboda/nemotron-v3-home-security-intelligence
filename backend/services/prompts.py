@@ -5,11 +5,18 @@ to generate risk assessments from security camera detections.
 
 Nemotron-3-Nano uses ChatML format with <|im_start|> and <|im_end|> tags.
 The model outputs <think>...</think> reasoning blocks before the response.
+
+Security:
+    User-controlled data (object_type, detection descriptions) is sanitized
+    before prompt interpolation to prevent prompt injection attacks.
+    See NEM-1722 and backend/services/prompt_sanitizer.py for details.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+
+from backend.services.prompt_sanitizer import sanitize_object_type
 
 if TYPE_CHECKING:
     from backend.services.enrichment_pipeline import EnrichmentResult
@@ -752,6 +759,10 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
 
     Returns:
         Formatted string with detections and all their attributes
+
+    Security:
+        Sanitizes class_name/object_type to prevent prompt injection via
+        adversarial ML model outputs. See NEM-1722.
     """
     if not detections:
         return "No detections in this batch."
@@ -760,7 +771,9 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
 
     for det in detections:
         det_id = str(det.get("detection_id", det.get("id", "")))
-        class_name = det.get("class_name", det.get("object_type", "unknown"))
+        # Sanitize class_name to prevent prompt injection (NEM-1722)
+        raw_class_name = det.get("class_name", det.get("object_type", "unknown"))
+        class_name = sanitize_object_type(raw_class_name)
         confidence = det.get("confidence", 0.0)
         bbox = det.get("bbox", [])
 

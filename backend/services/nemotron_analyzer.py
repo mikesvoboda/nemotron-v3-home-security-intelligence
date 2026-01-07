@@ -46,6 +46,7 @@ import httpx
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from backend.api.middleware.correlation import get_correlation_headers
 from backend.api.schemas.llm_response import LLMRawResponse, LLMRiskResponse
 from backend.core.config import get_settings
 from backend.core.database import get_session
@@ -57,6 +58,7 @@ from backend.core.metrics import (
     record_event_by_camera,
     record_event_by_risk_level,
     record_event_created,
+    record_nemotron_tokens,
     record_pipeline_error,
     record_prompt_template_used,
 )
@@ -75,6 +77,10 @@ from backend.services.enrichment_pipeline import (
     get_enrichment_pipeline,
 )
 from backend.services.inference_semaphore import get_inference_semaphore
+from backend.services.prompt_sanitizer import (
+    sanitize_camera_name,
+    sanitize_detection_description,
+)
 from backend.services.prompts import (
     ENRICHED_RISK_ANALYSIS_PROMPT,
     FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
@@ -203,6 +209,84 @@ class NemotronAnalyzer:
             self._enrichment_pipeline = get_enrichment_pipeline()
         return self._enrichment_pipeline
 
+    # =========================================================================
+    # Idempotency Handling (NEM-1725)
+    # =========================================================================
+
+    async def _check_idempotency(self, batch_id: str) -> int | None:
+        """Check if an Event was already created for this batch.
+
+        This prevents duplicate Event creation when Nemotron analyzer retries
+        after timeout or other transient failures.
+
+        Args:
+            batch_id: Batch identifier to check
+
+        Returns:
+            event_id if Event already exists for this batch, None otherwise
+        """
+        if not self._redis:
+            return None
+
+        try:
+            key = f"batch_event:{batch_id}"
+            event_id = await self._redis.get(key)
+            if event_id is not None:
+                logger.debug(
+                    f"Idempotency check: batch {batch_id} already has event {event_id}",
+                    extra={"batch_id": batch_id, "event_id": event_id},
+                )
+                return int(event_id)
+            return None
+        except Exception as e:
+            # On Redis failure, proceed with creation (fail open)
+            logger.warning(
+                f"Idempotency check failed for batch {batch_id}, proceeding: {e}",
+                extra={"batch_id": batch_id},
+            )
+            return None
+
+    async def _set_idempotency(self, batch_id: str, event_id: int) -> None:
+        """Store idempotency key after successful Event creation.
+
+        Stores a mapping from batch_id to event_id with a 1-hour TTL.
+        This allows subsequent retries to detect the prior creation
+        and avoid duplicates.
+
+        Args:
+            batch_id: Batch identifier
+            event_id: ID of the created Event
+        """
+        if not self._redis:
+            return
+
+        try:
+            key = f"batch_event:{batch_id}"
+            await self._redis.set(key, str(event_id), expire=3600)  # 1 hour TTL
+            logger.debug(
+                f"Idempotency key set: {key} -> {event_id}",
+                extra={"batch_id": batch_id, "event_id": event_id},
+            )
+        except Exception as e:
+            # On Redis failure, log warning but don't fail the request
+            logger.warning(
+                f"Failed to set idempotency key for batch {batch_id}: {e}",
+                extra={"batch_id": batch_id, "event_id": event_id},
+            )
+
+    async def _get_existing_event(self, event_id: int) -> Event | None:
+        """Fetch an existing Event by ID from the database.
+
+        Args:
+            event_id: ID of the Event to fetch
+
+        Returns:
+            Event object if found, None otherwise
+        """
+        async with get_session() as session:
+            result = await session.execute(select(Event).where(Event.id == event_id))
+            return result.scalar_one_or_none()
+
     async def _get_enriched_context(
         self,
         batch_id: str,
@@ -284,16 +368,21 @@ class NemotronAnalyzer:
             return None
 
     def _get_auth_headers(self) -> dict[str, str]:
-        """Get authentication headers for API requests.
+        """Get authentication and correlation headers for API requests.
 
+        NEM-1729: Includes correlation headers for distributed tracing.
         Security: Returns X-API-Key header if API key is configured.
 
         Returns:
-            Dictionary of headers to include in requests
+            Dictionary of headers to include in requests (auth + correlation)
         """
+        headers: dict[str, str] = {}
+        # Add correlation headers for distributed tracing (NEM-1729)
+        headers.update(get_correlation_headers())
+        # Add API key if configured
         if self._api_key:
-            return {"X-API-Key": self._api_key}
-        return {}
+            headers["X-API-Key"] = self._api_key
+        return headers
 
     async def analyze_batch(  # noqa: PLR0912 - Complex orchestration method
         self,
@@ -320,6 +409,23 @@ class NemotronAnalyzer:
         """
         if not self._redis:
             raise RuntimeError("Redis client not initialized")
+
+        # Idempotency check (NEM-1725): prevent duplicate Events on retry
+        existing_event_id = await self._check_idempotency(batch_id)
+        if existing_event_id is not None:
+            logger.info(
+                f"Idempotency hit: batch {batch_id} already processed as event {existing_event_id}",
+                extra={"batch_id": batch_id, "event_id": existing_event_id},
+            )
+            existing_event = await self._get_existing_event(existing_event_id)
+            if existing_event:
+                return existing_event
+            # If event not found in DB (deleted?), proceed with creation
+            logger.warning(
+                f"Idempotency key exists but event {existing_event_id} not found, "
+                f"proceeding with new Event creation",
+                extra={"batch_id": batch_id, "event_id": existing_event_id},
+            )
 
         # Use provided values or fall back to Redis lookup
         if camera_id is None:
@@ -476,6 +582,9 @@ class NemotronAnalyzer:
             await session.commit()
             await session.refresh(event)
 
+            # Store idempotency key (NEM-1725) to prevent duplicates on retry
+            await self._set_idempotency(batch_id, event.id)
+
             # Create partial audit record for model contribution tracking
             try:
                 from backend.services.audit_service import get_audit_service
@@ -535,7 +644,9 @@ class NemotronAnalyzer:
 
             return event
 
-    async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
+    async def analyze_detection_fast_path(  # noqa: PLR0912 - Complex orchestration method
+        self, camera_id: str, detection_id: int | str
+    ) -> Event:
         """Analyze a single detection via fast path (high-priority).
 
         This method is called for high-confidence critical detections that bypass
@@ -561,6 +672,25 @@ class NemotronAnalyzer:
             detection_id_int = int(detection_id)
         except (ValueError, TypeError):
             raise ValueError(f"Invalid detection_id: {detection_id}") from None
+
+        # Idempotency check (NEM-1725): prevent duplicate Events on retry
+        # Generate batch_id upfront so we can check idempotency before DB query
+        batch_id = f"fast_path_{detection_id_int}"
+        existing_event_id = await self._check_idempotency(batch_id)
+        if existing_event_id is not None:
+            logger.info(
+                f"Idempotency hit: fast path {batch_id} already processed as event {existing_event_id}",
+                extra={"batch_id": batch_id, "event_id": existing_event_id},
+            )
+            existing_event = await self._get_existing_event(existing_event_id)
+            if existing_event:
+                return existing_event
+            # If event not found in DB (deleted?), proceed with creation
+            logger.warning(
+                f"Idempotency key exists but event {existing_event_id} not found, "
+                f"proceeding with new Event creation",
+                extra={"batch_id": batch_id, "event_id": existing_event_id},
+            )
 
         analysis_start = time.time()
 
@@ -595,8 +725,7 @@ class NemotronAnalyzer:
             detection_time = detection.detected_at
             detections_list = self._format_detections([detection])
 
-            # Generate batch ID for fast path
-            batch_id = f"fast_path_{detection_id}"
+            # Note: batch_id was already generated upfront for idempotency check
 
             # Enrich context if enabled (zone, baseline, cross-camera)
             enriched_context = await self._get_enriched_context(
@@ -687,6 +816,9 @@ class NemotronAnalyzer:
             session.add(event)
             await session.commit()
             await session.refresh(event)
+
+            # Store idempotency key (NEM-1725) to prevent duplicates on retry
+            await self._set_idempotency(batch_id, event.id)
 
             # Create partial audit record for model contribution tracking
             try:
@@ -883,7 +1015,18 @@ class NemotronAnalyzer:
         Raises:
             httpx.HTTPError: If LLM request fails
             ValueError: If response cannot be parsed
+
+        Security:
+            Sanitizes user-controlled data (camera_name, detections_list) before
+            prompt interpolation to prevent prompt injection attacks. See
+            NEM-1722 and backend/services/prompt_sanitizer.py for details.
         """
+        # Sanitize user-controlled data to prevent prompt injection (NEM-1722)
+        # Camera names and detection descriptions can be influenced by attackers
+        # through configuration or adversarial ML inputs
+        camera_name = sanitize_camera_name(camera_name)
+        detections_list = sanitize_detection_description(detections_list)
+
         # Format the prompt based on available context
         has_enriched_context = (
             enriched_context is not None and enriched_context.baselines is not None
@@ -1105,7 +1248,7 @@ class NemotronAnalyzer:
                 detections_list=detections_list,
             )
 
-        # Validate and potentially truncate prompt to fit context window (NEM-1666)
+        # Validate and potentially truncate prompt to fit context window (NEM-1666 + NEM-1723)
         prompt = self._validate_and_truncate_prompt(prompt)
 
         # Get max_tokens from settings (accounts for context window limits)
@@ -1133,10 +1276,12 @@ class NemotronAnalyzer:
         # Retry loop with exponential backoff for transient failures
         last_exception: Exception | None = None
         completion_text: str = ""
+        llm_result: dict[str, Any] = {}  # Store full result for token metrics
 
         async with inference_semaphore:
             for attempt in range(self._max_retries):
                 try:
+                    llm_call_start = time.monotonic()
                     async with httpx.AsyncClient(timeout=self._timeout) as client:
                         response = await client.post(
                             f"{self._llm_url}/completion",
@@ -1144,12 +1289,27 @@ class NemotronAnalyzer:
                             headers=headers,
                         )
                         response.raise_for_status()
-                        result = response.json()
+                        llm_result = response.json()
+                    llm_call_duration = time.monotonic() - llm_call_start
 
                     # Extract completion text
-                    completion_text = result.get("content", "")
+                    completion_text = llm_result.get("content", "")
                     if not completion_text:
                         raise ValueError("Empty completion from LLM")
+
+                    # Record token usage metrics (NEM-1730)
+                    usage = llm_result.get("usage", {})
+                    input_tokens = usage.get("prompt_tokens", 0)
+                    output_tokens = usage.get("completion_tokens", 0)
+                    record_nemotron_tokens(
+                        camera_id=camera_name,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        duration_seconds=llm_call_duration
+                        if input_tokens > 0 or output_tokens > 0
+                        else None,
+                    )
+
                     break  # Success, exit retry loop
 
                 except httpx.ConnectError as e:

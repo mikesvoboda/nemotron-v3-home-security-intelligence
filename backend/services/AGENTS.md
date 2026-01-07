@@ -157,20 +157,22 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Prompt Management Services
 
-| Service                     | Purpose                                   | Exported via `__init__.py` |
-| --------------------------- | ----------------------------------------- | -------------------------- |
-| `prompts.py`                | LLM prompt templates                      | No (import directly)       |
-| `prompt_service.py`         | CRUD operations for AI prompt configs     | No (import directly)       |
-| `prompt_storage.py`         | File-based prompt storage with versioning | No (import directly)       |
-| `prompt_version_service.py` | Prompt version history and restoration    | No (import directly)       |
+| Service                     | Purpose                                               | Exported via `__init__.py` |
+| --------------------------- | ----------------------------------------------------- | -------------------------- |
+| `prompts.py`                | LLM prompt templates                                  | No (import directly)       |
+| `prompt_sanitizer.py`       | Prompt injection prevention for LLM inputs (NEM-1722) | No (import directly)       |
+| `prompt_service.py`         | CRUD operations for AI prompt configs                 | No (import directly)       |
+| `prompt_storage.py`         | File-based prompt storage with versioning             | No (import directly)       |
+| `prompt_version_service.py` | Prompt version history and restoration                | No (import directly)       |
 
 ### Utility Services
 
-| Service             | Purpose                                  | Exported via `__init__.py` |
-| ------------------- | ---------------------------------------- | -------------------------- |
-| `search.py`         | Full-text search for events              | Yes                        |
-| `severity.py`       | Severity level mapping and configuration | Yes                        |
-| `clip_generator.py` | Video clip generation for events         | Yes                        |
+| Service             | Purpose                                                 | Exported via `__init__.py` |
+| ------------------- | ------------------------------------------------------- | -------------------------- |
+| `search.py`         | Full-text search for events                             | Yes                        |
+| `severity.py`       | Severity level mapping and configuration                | Yes                        |
+| `clip_generator.py` | Video clip generation for events                        | Yes                        |
+| `token_counter.py`  | LLM prompt token counting and context window validation | No (import directly)       |
 
 ## Detailed Service Documentation
 

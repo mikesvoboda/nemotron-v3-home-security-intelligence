@@ -5,6 +5,18 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Alerting rules for AI pipeline monitoring
+# See prometheus_rules.yml for rule definitions and severity documentation
+rule_files:
+  - 'prometheus_rules.yml'
+
+# Alertmanager configuration (optional - configure if alertmanager is deployed)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#             - alertmanager:9093
+
 scrape_configs:
   # Backend health metrics via JSON exporter
   - job_name: 'hsi-health'
