@@ -60,6 +60,7 @@ const mockAllPromptsResponse: AllPromptsResponse = {
   },
 };
 
+// Expected transformed result after fetchPromptHistory processes API response
 const mockHistoryResponse: PromptHistoryResponse = {
   versions: [
     {
@@ -91,6 +92,15 @@ const mockHistoryResponse: PromptHistoryResponse = {
     },
   ],
   total_count: 3,
+};
+
+// Raw API response format (keyed by model name)
+const mockHistoryApiResponse = {
+  [AIModelEnum.NEMOTRON]: {
+    model_name: AIModelEnum.NEMOTRON,
+    versions: mockHistoryResponse.versions,
+    total_versions: mockHistoryResponse.total_count,
+  },
 };
 
 const mockRestoreResponse: PromptRestoreResponse = {
@@ -313,7 +323,8 @@ describe('updatePromptForModel', () => {
 
 describe('fetchPromptHistory', () => {
   it('should fetch version history with default pagination', async () => {
-    mockFetchSuccess(mockHistoryResponse);
+    // API returns object keyed by model name, function transforms to {versions, total_count}
+    mockFetchSuccess(mockHistoryApiResponse);
 
     const result = await fetchPromptHistory(AIModelEnum.NEMOTRON);
 
@@ -325,7 +336,7 @@ describe('fetchPromptHistory', () => {
   });
 
   it('should fetch version history with custom pagination', async () => {
-    mockFetchSuccess(mockHistoryResponse);
+    mockFetchSuccess(mockHistoryApiResponse);
 
     const result = await fetchPromptHistory(AIModelEnum.NEMOTRON, 10, 20);
 
@@ -341,15 +352,25 @@ describe('fetchPromptHistory', () => {
   });
 
   it('should fetch history for all models when model not specified', async () => {
-    mockFetchSuccess(mockHistoryResponse);
+    // When no model specified, function aggregates all versions from all models
+    mockFetchSuccess(mockHistoryApiResponse);
 
     const result = await fetchPromptHistory();
 
+    // Should aggregate versions from all models (only nemotron in mock)
     expect(result).toEqual(mockHistoryResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/ai-audit/prompts/history?'),
       expect.any(Object)
     );
+  });
+
+  it('should return empty versions when model not found in response', async () => {
+    mockFetchSuccess({}); // Empty response
+
+    const result = await fetchPromptHistory(AIModelEnum.NEMOTRON);
+
+    expect(result).toEqual({ versions: [], total_count: 0 });
   });
 });
 
