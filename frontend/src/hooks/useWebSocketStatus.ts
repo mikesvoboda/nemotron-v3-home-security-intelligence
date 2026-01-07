@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+import { logger } from '../services/logger';
+
 export type ConnectionState = 'connected' | 'disconnected' | 'reconnecting' | 'failed';
 
 export interface ChannelStatus {
@@ -138,7 +140,11 @@ export function useWebSocketStatus(
       if (connectionTimeout > 0) {
         connectionTimeoutRef.current = setTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
-            console.warn(`[${channelName}] WebSocket connection timeout after ${connectionTimeout}ms, retrying...`);
+            logger.warn('WebSocket connection timeout, retrying', {
+              component: 'useWebSocketStatus',
+              channelName,
+              timeoutMs: connectionTimeout,
+            });
             ws.close();
           }
         }, connectionTimeout);
@@ -208,7 +214,11 @@ export function useWebSocketStatus(
         }
       };
     } catch (error) {
-      console.error(`[${channelName}] WebSocket connection error:`, error);
+      logger.error('WebSocket connection error', {
+        component: 'useWebSocketStatus',
+        channelName,
+        error,
+      });
       setConnectionState('disconnected');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- protocols array joined for stable comparison (array contents vs reference equality)
@@ -219,7 +229,10 @@ export function useWebSocketStatus(
       const message = typeof data === 'string' ? data : JSON.stringify(data);
       wsRef.current.send(message);
     } else {
-      console.warn('WebSocket is not connected. Message not sent:', data);
+      logger.warn('WebSocket is not connected. Message not sent', {
+        component: 'useWebSocketStatus',
+        data,
+      });
     }
   }, []);
 

@@ -583,9 +583,14 @@ describe('useWebSocketStatus', () => {
       result.current.send({ type: 'test' });
     });
 
+    // Logger formats messages as: [${level}] ${component}: ${message}
+    // and passes extra data as the second argument
     expect(consoleSpy).toHaveBeenCalledWith(
-      'WebSocket is not connected. Message not sent:',
-      { type: 'test' }
+      '[WARNING] frontend: WebSocket is not connected. Message not sent',
+      expect.objectContaining({
+        component: 'useWebSocketStatus',
+        data: { type: 'test' },
+      })
     );
 
     consoleSpy.mockRestore();

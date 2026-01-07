@@ -9,6 +9,20 @@ it is automatically disposed and recreated to prevent "Future attached to
 a different loop" errors.
 """
 
+__all__ = [
+    # Classes
+    "Base",
+    # Functions
+    "close_db",
+    "escape_ilike_pattern",
+    "get_db",
+    "get_engine",
+    "get_pool_status",
+    "get_session",
+    "get_session_factory",
+    "init_db",
+]
+
 import asyncio
 import hashlib
 from collections.abc import AsyncGenerator

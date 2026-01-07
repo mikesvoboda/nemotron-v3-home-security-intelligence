@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Menu, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
@@ -18,6 +18,36 @@ function getHealthDotColor(status: 'healthy' | 'degraded' | 'unhealthy' | null):
     case 'unhealthy':
     default:
       return 'bg-red-500';
+  }
+}
+
+/**
+ * Get the status icon based on health status (accessibility improvement)
+ */
+function HealthStatusIcon({ status }: { status: 'healthy' | 'degraded' | 'unhealthy' | null }) {
+  switch (status) {
+    case 'healthy':
+      return (
+        <>
+          <CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" />
+          <span className="sr-only">System healthy</span>
+        </>
+      );
+    case 'degraded':
+      return (
+        <>
+          <AlertTriangle className="h-4 w-4 text-yellow-500" aria-hidden="true" />
+          <span className="sr-only">System degraded</span>
+        </>
+      );
+    case 'unhealthy':
+    default:
+      return (
+        <>
+          <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />
+          <span className="sr-only">System unhealthy</span>
+        </>
+      );
   }
 }
 
@@ -53,6 +83,20 @@ interface HealthTooltipProps {
   isVisible: boolean;
 }
 
+/**
+ * Get service status icon for tooltip (accessibility improvement)
+ */
+function ServiceStatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case 'healthy':
+      return <CheckCircle className="h-3 w-3 text-green-500" aria-hidden="true" />;
+    case 'degraded':
+      return <AlertTriangle className="h-3 w-3 text-yellow-500" aria-hidden="true" />;
+    default:
+      return <XCircle className="h-3 w-3 text-red-500" aria-hidden="true" />;
+  }
+}
+
 function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
   if (!isVisible || Object.keys(services).length === 0) {
     return null;
@@ -72,6 +116,8 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
           <div key={name} className="flex items-center justify-between gap-4">
             <span className="text-sm capitalize text-text-secondary">{name}</span>
             <div className="flex items-center gap-2">
+              {/* Status Icon (accessibility improvement - not color-only) */}
+              <ServiceStatusIcon status={service.status} />
               <div
                 className={`h-2 w-2 rounded-full ${
                   service.status === 'healthy'
@@ -81,6 +127,7 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
                       : 'bg-red-500'
                 }`}
                 data-testid={`service-dot-${name}`}
+                aria-hidden="true"
               />
               <span
                 className={`text-xs font-medium ${
@@ -221,11 +268,14 @@ export default function Header() {
           aria-haspopup="true"
           aria-expanded={isTooltipVisible}
         >
+          {/* Status Icon (accessibility improvement - not color-only) */}
+          <HealthStatusIcon status={effectiveHealth} />
           <div
             className={`h-2 w-2 rounded-full ${getHealthDotColor(effectiveHealth)} ${
               effectiveHealth === 'healthy' && isConnected ? 'animate-pulse' : ''
             }`}
             data-testid="health-dot"
+            aria-hidden="true"
           />
           <span className="hidden text-sm text-text-secondary sm:inline">
             {!isConnected

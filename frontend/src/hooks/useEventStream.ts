@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
+import { logger } from '../services/logger';
 import {
   type SecurityEventData,
   isEventMessage,
@@ -88,9 +89,11 @@ export function useEventStream(): UseEventStreamReturn {
     }
 
     if (isErrorMessage(data)) {
-      // Error messages could be logged or handled here
-      // For now, we just acknowledge them
-      console.warn('WebSocket error:', data.message);
+      // Error messages are logged via the structured logger
+      logger.warn('WebSocket error received', {
+        component: 'useEventStream',
+        errorMessage: data.message,
+      });
       return;
     }
 

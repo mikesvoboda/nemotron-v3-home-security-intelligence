@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from backend.api.schemas.system import QueueDepths
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger, get_request_id
 from backend.core.redis import RedisClient, get_redis_optional
@@ -37,14 +38,7 @@ VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 # =============================================================================
 
 
-class QueueDepths(BaseModel):
-    """Queue depth information for AI pipeline."""
-
-    detection_queue: int = Field(description="Number of items in detection queue")
-    analysis_queue: int = Field(description="Number of items in analysis queue")
-
-
-class WorkerStatus(BaseModel):
+class PipelineWorkerStatus(BaseModel):
     """Status of a pipeline worker."""
 
     name: str = Field(description="Worker name")
@@ -53,12 +47,12 @@ class WorkerStatus(BaseModel):
     error_count: int = Field(default=0, description="Number of recent errors")
 
 
-class WorkersStatus(BaseModel):
+class PipelineWorkersStatus(BaseModel):
     """Status of all pipeline workers."""
 
-    file_watcher: WorkerStatus = Field(description="File watcher status")
-    detector: WorkerStatus = Field(description="Detector worker status")
-    analyzer: WorkerStatus = Field(description="Analyzer worker status")
+    file_watcher: PipelineWorkerStatus = Field(description="File watcher status")
+    detector: PipelineWorkerStatus = Field(description="Detector worker status")
+    analyzer: PipelineWorkerStatus = Field(description="Analyzer worker status")
 
 
 class RecentError(BaseModel):
@@ -74,7 +68,7 @@ class PipelineStateResponse(BaseModel):
     """Response for pipeline state inspection."""
 
     queue_depths: QueueDepths = Field(description="Current queue depths")
-    workers: WorkersStatus = Field(description="Worker status")
+    workers: PipelineWorkersStatus = Field(description="Worker status")
     recent_errors: list[RecentError] = Field(
         default_factory=list, description="Recent errors (last 10)"
     )
@@ -122,19 +116,21 @@ async def _get_queue_depths(redis: RedisClient | None) -> QueueDepths:
         return QueueDepths(detection_queue=0, analysis_queue=0)
 
 
-async def _get_workers_status(redis: RedisClient | None) -> WorkersStatus:
+async def _get_workers_status(redis: RedisClient | None) -> PipelineWorkersStatus:
     """Get status of pipeline workers.
 
     Args:
         redis: Redis client instance or None if unavailable
     """
     # Default statuses
-    file_watcher = WorkerStatus(name="file_watcher", running=False)
-    detector = WorkerStatus(name="detector", running=False)
-    analyzer = WorkerStatus(name="analyzer", running=False)
+    file_watcher = PipelineWorkerStatus(name="file_watcher", running=False)
+    detector = PipelineWorkerStatus(name="detector", running=False)
+    analyzer = PipelineWorkerStatus(name="analyzer", running=False)
 
     if redis is None:
-        return WorkersStatus(file_watcher=file_watcher, detector=detector, analyzer=analyzer)
+        return PipelineWorkersStatus(
+            file_watcher=file_watcher, detector=detector, analyzer=analyzer
+        )
 
     try:
         # Check worker heartbeats in Redis
@@ -147,19 +143,19 @@ async def _get_workers_status(redis: RedisClient | None) -> WorkersStatus:
         det_errors = await redis.get("worker:detector:error_count")
         ana_errors = await redis.get("worker:analyzer:error_count")
 
-        file_watcher = WorkerStatus(
+        file_watcher = PipelineWorkerStatus(
             name="file_watcher",
             running=fw_heartbeat is not None,
             last_activity=fw_heartbeat,
             error_count=int(fw_errors) if fw_errors else 0,
         )
-        detector = WorkerStatus(
+        detector = PipelineWorkerStatus(
             name="detector",
             running=det_heartbeat is not None,
             last_activity=det_heartbeat,
             error_count=int(det_errors) if det_errors else 0,
         )
-        analyzer = WorkerStatus(
+        analyzer = PipelineWorkerStatus(
             name="analyzer",
             running=ana_heartbeat is not None,
             last_activity=ana_heartbeat,
@@ -168,7 +164,7 @@ async def _get_workers_status(redis: RedisClient | None) -> WorkersStatus:
     except Exception as e:
         logger.warning(f"Failed to get worker status: {e}")
 
-    return WorkersStatus(file_watcher=file_watcher, detector=detector, analyzer=analyzer)
+    return PipelineWorkersStatus(file_watcher=file_watcher, detector=detector, analyzer=analyzer)
 
 
 async def _get_recent_errors(redis: RedisClient | None, _limit: int = 10) -> list[RecentError]:

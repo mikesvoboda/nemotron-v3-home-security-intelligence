@@ -6,6 +6,8 @@
  * underlying connection. The connection is only closed when all subscribers disconnect.
  */
 
+import { logger } from '../services/logger';
+
 export type MessageHandler = (data: unknown) => void;
 export type OpenHandler = () => void;
 export type CloseHandler = () => void;
@@ -191,7 +193,11 @@ class WebSocketManager {
     const connection = this.connections.get(url);
 
     if (!connection?.ws || connection.ws.readyState !== WebSocket.OPEN) {
-      console.warn("WebSocket is not connected. Message not sent:", data);
+      logger.warn("WebSocket is not connected. Message not sent", {
+        component: "WebSocketManager",
+        url,
+        data,
+      });
       return false;
     }
 
@@ -265,9 +271,11 @@ class WebSocketManager {
       if (config.connectionTimeout > 0) {
         connection.connectionTimeout = setTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
-            console.warn(
-              `WebSocket connection timeout after ${config.connectionTimeout}ms, retrying...`
-            );
+            logger.warn("WebSocket connection timeout, retrying", {
+              component: "WebSocketManager",
+              url,
+              timeoutMs: config.connectionTimeout,
+            });
             ws.close();
           }
         }, config.connectionTimeout);
@@ -368,7 +376,11 @@ class WebSocketManager {
         }
       };
     } catch (error) {
-      console.error("WebSocket connection error:", error);
+      logger.error("WebSocket connection error", {
+        component: "WebSocketManager",
+        url,
+        error,
+      });
       connection.isConnecting = false;
     }
   }

@@ -697,6 +697,15 @@ def integration_env(
     os.environ["REDIS_URL"] = worker_redis_url
     os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
+    # Configure smaller pool sizes for integration tests to prevent
+    # "too many clients" errors. Even serial test execution (-n0) can hit
+    # PostgreSQL's max_connections limit (typically 100) because each test
+    # creates its own engine pool. With default settings (pool_size=20,
+    # max_overflow=30), just 2-3 tests can exhaust the connection limit.
+    # Use pool_size=5 (minimum), max_overflow=2 for 7 connections per test.
+    os.environ["DATABASE_POOL_SIZE"] = "5"
+    os.environ["DATABASE_POOL_OVERFLOW"] = "2"
+
     get_settings.cache_clear()
 
     try:
