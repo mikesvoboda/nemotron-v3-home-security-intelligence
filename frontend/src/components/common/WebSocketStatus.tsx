@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle, RefreshCw, Wifi, WifiOff, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
@@ -64,6 +64,23 @@ function getStateIcon(state: ConnectionState, className: string) {
     case 'disconnected':
     default:
       return <WifiOff className={className} aria-hidden="true" />;
+  }
+}
+
+/**
+ * Get small status icon for channel indicators (accessibility improvement)
+ */
+function ChannelStatusIcon({ state }: { state: ConnectionState }) {
+  switch (state) {
+    case 'connected':
+      return <CheckCircle className="h-3 w-3 text-green-500" aria-hidden="true" />;
+    case 'reconnecting':
+      return <RefreshCw className="h-3 w-3 animate-spin text-yellow-500" aria-hidden="true" />;
+    case 'failed':
+      return <AlertTriangle className="h-3 w-3 text-orange-500" aria-hidden="true" />;
+    case 'disconnected':
+    default:
+      return <XCircle className="h-3 w-3 text-red-500" aria-hidden="true" />;
   }
 }
 
@@ -145,12 +162,15 @@ function ChannelIndicator({ channel }: ChannelIndicatorProps) {
   return (
     <div className="flex items-center justify-between py-1.5" data-testid={`channel-${channel.name.toLowerCase()}`}>
       <div className="flex items-center gap-2">
+        {/* Status Icon (accessibility improvement - not color-only) */}
+        <ChannelStatusIcon state={channel.state} />
         <div
           className={`h-2 w-2 rounded-full ${stateColors.bg}`}
           data-testid={`channel-dot-${channel.name.toLowerCase()}`}
           aria-hidden="true"
         />
         <span className="text-sm text-gray-300">{channel.name}</span>
+        <span className="sr-only">{getStateLabel(channel.state)}</span>
       </div>
       <div className="flex items-center gap-2">
         {channel.state === 'reconnecting' && (

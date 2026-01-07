@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 import { Camera, Circle, Video, VideoOff } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 
 /**
  * Camera status information for the grid
@@ -69,17 +69,22 @@ function getStatusIcon(status: CameraStatus['status']) {
 }
 
 /**
- * Individual camera card component
+ * Props for the CameraCard component
  */
-function CameraCard({
-  camera,
-  isSelected,
-  onClick,
-}: {
+interface CameraCardProps {
   camera: CameraStatus;
   isSelected: boolean;
   onClick?: () => void;
-}) {
+}
+
+/**
+ * Individual camera card component
+ */
+const CameraCard = memo(function CameraCard({
+  camera,
+  isSelected,
+  onClick,
+}: CameraCardProps) {
   const StatusIcon = getStatusIcon(camera.status);
   // Only attempt to load thumbnail for online or recording cameras
   // Offline/error/unknown cameras won't have accessible snapshots
@@ -159,7 +164,7 @@ function CameraCard({
       </div>
     </button>
   );
-}
+});
 
 /**
  * CameraGrid component displays a responsive grid of camera thumbnails
