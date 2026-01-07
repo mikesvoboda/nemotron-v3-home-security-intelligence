@@ -29,13 +29,14 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all four tabs', () => {
+  it('should render all five tabs', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /rules/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /processing/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /notifications/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /prompts/i })).toBeInTheDocument();
   });
 
   it('should show cameras settings by default', () => {
@@ -106,11 +107,11 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
-    const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
+    const promptsTab = screen.getByRole('tab', { name: /prompts/i });
 
-    // Focus on the last tab (notifications is now last)
-    notificationsTab.focus();
-    expect(notificationsTab).toHaveFocus();
+    // Focus on the last tab (prompts is now last)
+    promptsTab.focus();
+    expect(promptsTab).toHaveFocus();
 
     // Press arrow right to cycle to first tab
     await user.keyboard('{ArrowRight}');

@@ -992,7 +992,8 @@ class TestRedisPasswordSettings:
 
     def test_default_redis_password_is_none(self, clean_env):
         """Test that Redis password is None by default (no auth required for local dev)."""
-        settings = Settings()
+        # Use _env_file=None to test true default value without .env file influence
+        settings = Settings(_env_file=None)
         assert settings.redis_password is None
 
     def test_redis_password_from_env(self, clean_env):

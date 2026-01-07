@@ -71,6 +71,11 @@ class Logger {
   }
 
   private setupGlobalHandlers(): void {
+    // Skip in non-browser environments (e.g., Node.js test runner before jsdom is ready)
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     // Capture unhandled errors
     window.onerror = (message, source, lineno, colno, error) => {
       this.error('Unhandled error', {
