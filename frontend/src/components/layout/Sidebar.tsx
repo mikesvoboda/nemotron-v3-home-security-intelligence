@@ -9,11 +9,13 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   path: string;
+  /** Data attribute for product tour targeting */
+  dataTour?: string;
 }
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
-  { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline' },
+  { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline', dataTour: 'timeline-link' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
   { id: 'entities', label: 'Entities', icon: Users, path: '/entities' },
   { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
@@ -22,7 +24,7 @@ const navItems: NavItem[] = [
   { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
   { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
   { id: 'system', label: 'System', icon: Server, path: '/system' },
-  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings', dataTour: 'settings-link' },
 ];
 
 export default function Sidebar() {
@@ -67,6 +69,7 @@ export default function Sidebar() {
               to={item.path}
               end={item.path === '/'}
               onClick={handleNavClick}
+              data-tour={item.dataTour}
               className={({ isActive }: { isActive: boolean }) => `
                 flex w-full items-center gap-3 rounded-lg px-4 py-3
                 transition-colors duration-200

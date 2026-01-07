@@ -56,13 +56,32 @@ The contract tests cover these critical endpoints:
 - Default pagination values (limit=50, offset=0)
 - Maximum limit enforcement (1000)
 
+### WebSocket Message Contracts (NEM-1684)
+
+Schema validation tests for WebSocket message formats:
+
+- `WebSocketEventMessage` - Event notification structure
+- `WebSocketEventData` - Event data payload with risk score constraints
+- `WebSocketServiceStatusMessage` - Service status updates
+- `WebSocketServiceStatusData` - Service health information
+- `WebSocketSceneChangeMessage` - Camera scene change alerts
+- `WebSocketSceneChangeData` - Scene change details
+- `WebSocketErrorResponse` - Error message format
+- `WebSocketPongResponse` - Heartbeat response
+- `RiskLevel` enum - Risk level values (low, medium, high, critical)
+
+### Health API Contracts (NEM-1684)
+
+- `GET /api/system/health` - HealthResponse schema validation
+- `GET /api/system/health/ready` - ReadinessResponse schema validation
+
 ## File Structure
 
 ```
 contracts/
   __init__.py              # Package marker
   conftest.py              # Shared fixtures (mock clients, sessions)
-  test_api_contracts.py    # All contract tests (21+ tests)
+  test_api_contracts.py    # All contract tests (32+ tests)
   AGENTS.md                # This documentation
 ```
 
@@ -136,8 +155,39 @@ Contract tests run in CI via the `contract-tests` job in `.github/workflows/ci.y
    - 400 for bad requests
 4. Verify pagination if applicable
 
+## Frontend Contract Tests (NEM-1684)
+
+Companion frontend tests verify TypeScript types match API responses:
+
+```bash
+# Run frontend contract tests
+cd frontend && npm test -- --run api-contracts
+```
+
+See: `frontend/src/__tests__/api-contracts.test.ts`
+
+## Contract Verification Script
+
+Run both backend and frontend contract tests:
+
+```bash
+# Run all contract tests
+./scripts/check-api-contracts.sh
+
+# Backend only
+./scripts/check-api-contracts.sh --backend
+
+# Frontend only
+./scripts/check-api-contracts.sh --frontend
+
+# Verbose output
+./scripts/check-api-contracts.sh --verbose
+```
+
 ## Related Documentation
 
 - Backend API routes: `backend/api/routes/AGENTS.md`
 - API schemas: `backend/api/schemas/AGENTS.md`
 - Integration tests: `backend/tests/integration/AGENTS.md`
+- Frontend contract tests: `frontend/src/__tests__/api-contracts.test.ts`
+- Contract verification script: `scripts/check-api-contracts.sh`

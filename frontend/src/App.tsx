@@ -6,7 +6,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import {
   ChunkLoadErrorBoundary,
   ErrorBoundary,
+  PageTransition,
+  ProductTour,
   RouteLoadingFallback,
+  ToastProvider,
 } from './components/common';
 import Layout from './components/layout/Layout';
 import { queryClient } from './services/queryClient';
@@ -61,34 +64,40 @@ const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ErrorBoundary
-          title="Application Error"
-          description="The application encountered an unexpected error. Please try again or refresh the page."
-        >
-          <Layout>
-            <ChunkLoadErrorBoundary>
-              <Suspense fallback={<RouteLoadingFallback />}>
-                <Routes>
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/timeline" element={<EventTimeline />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/alerts" element={<AlertsPage />} />
-                  <Route path="/entities" element={<EntitiesPage />} />
-                  <Route path="/logs" element={<LogsDashboard />} />
-                  <Route path="/audit" element={<AuditLogPage />} />
-                  <Route path="/ai" element={<AIPerformancePage />} />
-                  <Route path="/ai-audit" element={<AIAuditPage />} />
-                  <Route path="/system" element={<SystemMonitoringPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                </Routes>
-              </Suspense>
-            </ChunkLoadErrorBoundary>
-          </Layout>
-        </ErrorBoundary>
-      </BrowserRouter>
-      {/* React Query DevTools - only shown in development */}
-      <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+      <ToastProvider>
+        <BrowserRouter>
+          <ErrorBoundary
+            title="Application Error"
+            description="The application encountered an unexpected error. Please try again or refresh the page."
+          >
+            <Layout>
+              <ChunkLoadErrorBoundary>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <PageTransition>
+                    <Routes>
+                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/timeline" element={<EventTimeline />} />
+                      <Route path="/analytics" element={<AnalyticsPage />} />
+                      <Route path="/alerts" element={<AlertsPage />} />
+                      <Route path="/entities" element={<EntitiesPage />} />
+                      <Route path="/logs" element={<LogsDashboard />} />
+                      <Route path="/audit" element={<AuditLogPage />} />
+                      <Route path="/ai" element={<AIPerformancePage />} />
+                      <Route path="/ai-audit" element={<AIAuditPage />} />
+                      <Route path="/system" element={<SystemMonitoringPage />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                    </Routes>
+                  </PageTransition>
+                </Suspense>
+              </ChunkLoadErrorBoundary>
+            </Layout>
+          </ErrorBoundary>
+          {/* Interactive product tour for first-time users */}
+          <ProductTour />
+        </BrowserRouter>
+        {/* React Query DevTools - only shown in development */}
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
