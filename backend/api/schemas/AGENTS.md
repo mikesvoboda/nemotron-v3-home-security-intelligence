@@ -1024,6 +1024,72 @@ Pydantic schemas for enrichment API endpoints - structured access to 18+ vision 
 
 ---
 
+### Error Response Schemas (`errors.py`)
+
+Standardized error response schemas for consistent API error handling across all endpoints.
+
+**Purpose:**
+
+Defines Pydantic models for error responses that ensure all API endpoints return errors in a
+consistent format, regardless of the error source. This improves client integration and
+provides clear, actionable error messages.
+
+**Schemas:**
+
+| Schema                       | Purpose                                        |
+| ---------------------------- | ---------------------------------------------- |
+| `ErrorDetail`                | Detailed error information with code/message   |
+| `ErrorResponse`              | Standard error response wrapper                |
+| `ValidationErrorDetail`      | Detail for a single validation error           |
+| `ValidationErrorResponse`    | Error response with multiple validation errors |
+| `RateLimitErrorResponse`     | Rate limit exceeded with retry information     |
+| `ServiceUnavailableResponse` | Service unavailability with retry hints        |
+
+**Standard Error Response Format:**
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error description",
+    "details": { "field": "value" },
+    "request_id": "uuid-for-tracing",
+    "timestamp": "2025-01-07T10:30:00Z"
+  }
+}
+```
+
+**Common Error Responses Dictionary:**
+
+`COMMON_ERROR_RESPONSES` - Predefined OpenAPI documentation for standard HTTP error codes (400, 401, 403, 404, 409, 429, 500, 502, 503).
+
+**Usage in Routes:**
+
+```python
+from backend.api.schemas.errors import ErrorResponse, COMMON_ERROR_RESPONSES
+
+@router.get("/{id}", responses=COMMON_ERROR_RESPONSES)
+async def get_item(id: int) -> Item:
+    if not item:
+        raise HTTPException(
+            status_code=404,
+            detail="Item not found"
+        )
+    return item
+```
+
+**Error Codes:**
+
+- `CAMERA_NOT_FOUND` - Camera resource not found
+- `VALIDATION_ERROR` - Request validation failed
+- `RATE_LIMIT_EXCEEDED` - Rate limit exceeded
+- `AUTHENTICATION_REQUIRED` - API key required
+- `ACCESS_DENIED` - Forbidden access
+- `INTERNAL_ERROR` - Internal server error
+- `SERVICE_UNAVAILABLE` - External service unavailable
+
+---
+
 ### Entity Schemas (`entities.py`)
 
 Pydantic schemas for entity re-identification API endpoints - tracking persons/vehicles across cameras.

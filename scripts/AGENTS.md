@@ -63,10 +63,28 @@ scripts/
   check-test-mocks.py                # Pre-commit: mock validation
   check-test-timeouts.py             # Pre-commit: timeout validation
   check-api-coverage.sh              # API endpoint coverage check
+  check-api-compatibility.sh         # API backward compatibility check
+  check-branch-name.sh               # Git branch naming convention check
   pre-push-rebase.sh                 # Auto-rebase before push
 
   # Security Scripts
   check-trivyignore-expiry.sh        # Check for expired CVE review dates
+
+  # CI/CD and Analysis Scripts
+  analyze-ci-dependencies.py         # Analyze CI workflow dependencies
+  analyze-flaky-tests.py             # Analyze and report flaky test patterns
+  audit-linear-github-sync.py        # Audit Linear-GitHub synchronization
+  ci-metrics-collector.py            # Collect and report CI metrics
+  ci-smoke-test.sh                   # Quick CI smoke test
+  coverage-analysis.py               # Advanced coverage analysis
+  linear-label-issues.sh             # Bulk label Linear issues
+
+  # Development Tools
+  create-worktree.sh                 # Create git worktree for isolated work
+  git-bisect-helper.sh               # Helper for git bisect debugging
+  generate-docs.sh                   # Generate documentation
+  load-test.sh                       # Load testing script
+  mutation-test.sh                   # Mutation testing runner
 
   # Utilities
   github-models-examples.py          # GitHub Models API examples
@@ -640,6 +658,238 @@ python scripts/cleanup_orphaned_test_cameras.py            # Delete
 - Vulture dead code detection
 - Radon complexity analysis
 - Knip frontend dead code
+
+### CI/CD and Analysis Scripts
+
+#### analyze-ci-dependencies.py
+
+**Purpose:** Analyze GitHub Actions workflow dependencies and execution paths.
+
+**Usage:**
+
+```bash
+python scripts/analyze-ci-dependencies.py
+```
+
+**What it analyzes:**
+
+- Workflow job dependencies
+- Critical path analysis
+- Parallelization opportunities
+- Bottleneck identification
+
+#### analyze-flaky-tests.py
+
+**Purpose:** Analyze test results to identify flaky tests (intermittent failures).
+
+**Usage:**
+
+```bash
+python scripts/analyze-flaky-tests.py <results-dir>
+```
+
+**Outputs:**
+
+- List of tests with inconsistent pass/fail patterns
+- Failure rate statistics
+- Recommendations for `flaky_tests.txt`
+
+#### ci-metrics-collector.py
+
+**Purpose:** Collect and report CI pipeline metrics for performance tracking.
+
+**Usage:**
+
+```bash
+python scripts/ci-metrics-collector.py --workflow ci.yml --days 7
+```
+
+**Metrics Collected:**
+
+- Workflow duration trends
+- Job execution times
+- Success/failure rates
+- Resource usage
+
+#### ci-smoke-test.sh
+
+**Purpose:** Quick smoke test for CI environment validation.
+
+**Usage:**
+
+```bash
+./scripts/ci-smoke-test.sh
+```
+
+**Tests:**
+
+- Environment variables set
+- Dependencies installed
+- Services healthy
+- Basic API connectivity
+
+#### coverage-analysis.py
+
+**Purpose:** Advanced code coverage analysis beyond basic percentage.
+
+**Usage:**
+
+```bash
+python scripts/coverage-analysis.py --format html
+```
+
+**Analysis:**
+
+- Uncovered critical paths
+- Coverage by module
+- Historical trends
+- Coverage gaps
+
+#### audit-linear-github-sync.py
+
+**Purpose:** Audit Linear-GitHub bidirectional synchronization for consistency.
+
+**Usage:**
+
+```bash
+python scripts/audit-linear-github-sync.py
+```
+
+**Checks:**
+
+- Linear issues with corresponding GitHub issues
+- Status synchronization
+- Label mapping accuracy
+- Missing bidirectional links
+
+#### linear-label-issues.sh
+
+**Purpose:** Bulk apply labels to Linear issues matching criteria.
+
+**Usage:**
+
+```bash
+./scripts/linear-label-issues.sh --label backend --filter "NEM-1*"
+```
+
+### Development Tool Scripts
+
+#### create-worktree.sh
+
+**Purpose:** Create git worktree for isolated feature development.
+
+**Usage:**
+
+```bash
+./scripts/create-worktree.sh feature-name
+```
+
+**What it does:**
+
+- Creates worktree in `../<repo>-<feature-name>/`
+- Checks out new branch
+- Sets up working directory
+
+#### git-bisect-helper.sh
+
+**Purpose:** Helper script for git bisect to find regression commits.
+
+**Usage:**
+
+```bash
+./scripts/git-bisect-helper.sh <test-command>
+```
+
+**Example:**
+
+```bash
+git bisect start HEAD v1.0.0
+git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/test_camera.py"
+```
+
+#### generate-docs.sh
+
+**Purpose:** Generate documentation from code comments and schemas.
+
+**Usage:**
+
+```bash
+./scripts/generate-docs.sh
+```
+
+**Generates:**
+
+- API documentation from OpenAPI schema
+- Database schema diagrams
+- Component documentation
+
+#### load-test.sh
+
+**Purpose:** Load testing script for API performance validation.
+
+**Usage:**
+
+```bash
+./scripts/load-test.sh --concurrent 100 --duration 60s
+```
+
+**Metrics:**
+
+- Requests per second
+- Response time percentiles
+- Error rates
+- Resource utilization
+
+#### mutation-test.sh
+
+**Purpose:** Run mutation testing to validate test suite quality.
+
+**Usage:**
+
+```bash
+./scripts/mutation-test.sh
+```
+
+**Runs:**
+
+- `mutmut` for Python backend
+- `stryker` for TypeScript frontend
+- Generates mutation score reports
+
+### Additional Pre-commit Scripts
+
+#### check-api-compatibility.sh
+
+**Purpose:** Verify API backward compatibility before merging.
+
+**Usage:**
+
+```bash
+./scripts/check-api-compatibility.sh
+```
+
+**Checks:**
+
+- Breaking changes in API schemas
+- Removed endpoints
+- Changed response structures
+
+#### check-branch-name.sh
+
+**Purpose:** Enforce git branch naming conventions.
+
+**Usage:**
+
+```bash
+./scripts/check-branch-name.sh
+```
+
+**Valid Patterns:**
+
+- `feature/description`
+- `fix/description`
+- `hotfix/description`
+- `chore/description`
 
 ## Usage Patterns
 

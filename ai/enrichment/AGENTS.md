@@ -29,6 +29,8 @@ ai/enrichment/
 └── requirements.txt   # Python dependencies
 ```
 
+**Note**: This service does not have unit tests yet. Integration tests are handled at the backend level via `backend/tests/integration/services/test_enrichment_client.py`.
+
 ## Key Files
 
 ### `model.py` (Main Server)
@@ -66,6 +68,13 @@ SECURITY_CLOTHING_PROMPTS = [
     "casual clothing", "business attire or suit", ...
 ]
 ```
+
+**Security Features:**
+
+- Image magic bytes validation (prevents non-image uploads)
+- Path traversal protection for model paths (NEM-1098)
+- Size limits enforced (10MB max)
+- Base64 decoding with error handling
 
 ### `vitpose.py` (Pose Analyzer)
 
@@ -392,6 +401,8 @@ curl -X POST http://localhost:8094/clothing-classify \
   -H "Content-Type: application/json" \
   -d '{"image": "'$(base64 -w0 person.jpg)'"}'
 ```
+
+**Note**: Unit tests are not yet implemented. Integration tests exist in `backend/tests/integration/services/test_enrichment_client.py`.
 
 ## Entry Points
 

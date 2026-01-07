@@ -12,7 +12,8 @@ backend/tests/benchmarks/
 ├── __init__.py              # Package initialization
 ├── test_api_benchmarks.py   # API response time benchmarks
 ├── test_bigo.py             # Big-O complexity tests
-└── test_memory.py           # Memory profiling tests
+├── test_memory.py           # Memory profiling tests
+└── test_performance.py      # Core performance regression benchmarks
 ```
 
 ## Running Tests
@@ -43,7 +44,7 @@ pytest backend/tests/benchmarks/ --benchmark-save=baseline
 pytest backend/tests/benchmarks/ -v -m "not slow"
 ```
 
-## Test Files (3 total)
+## Test Files (4 total)
 
 ### `test_api_benchmarks.py`
 
@@ -106,6 +107,36 @@ Memory profiling using pytest-memray (Linux only):
 
 - Run when memray not available (non-Linux)
 - Basic functionality tests without memory limits
+
+### `test_performance.py`
+
+Core performance regression benchmarks:
+
+| Test                                  | Operation Tested           |
+| ------------------------------------- | -------------------------- |
+| `test_json_serialization_performance` | JSON serialization speed   |
+| `test_database_query_performance`     | Simple SELECT query speed  |
+| `test_service_function_call_overhead` | Service function call time |
+
+**Purpose:**
+
+- Detect performance regressions in critical operations
+- Measure baseline performance for future comparisons
+- Identify slow operations early in development
+
+**Fixtures:**
+
+- `performance_env`: Temporary database environment per test
+- `performance_db`: Initialized SQLite database for benchmarks
+- Uses SQLite for faster setup/teardown in benchmarks
+
+**Usage:**
+
+```bash
+pytest backend/tests/benchmarks/test_performance.py --benchmark-only
+pytest backend/tests/benchmarks/test_performance.py --benchmark-compare
+pytest backend/tests/benchmarks/test_performance.py --benchmark-compare-fail=mean:20%
+```
 
 ## Test Markers
 
