@@ -100,6 +100,18 @@ const mockExportResponse: PromptsExportResponse = {
 // Setup and Mocks
 // ============================================================================
 
+// Store original DOM methods before mocking
+const originalCreateElement = document.createElement.bind(document);
+const originalAppendChild = document.body.appendChild.bind(document.body);
+const originalRemoveChild = document.body.removeChild.bind(document.body);
+
+// Shared mock anchor for export tests
+const mockAnchor = {
+  href: '',
+  download: '',
+  click: vi.fn(),
+} as unknown as HTMLAnchorElement;
+
 beforeEach(() => {
   vi.clearAllMocks();
 
@@ -110,23 +122,37 @@ beforeEach(() => {
   vi.spyOn(promptApi, 'restorePromptVersion').mockResolvedValue(mockRestoreResponse);
   vi.spyOn(promptApi, 'exportPrompts').mockResolvedValue(mockExportResponse);
 
-  // Mock URL).createObjectURL and revokeObjectURL for export tests
-  ((globalThis as any).URL).createObjectURL = vi.fn(() => 'blob:mock-url');
-  ((globalThis as any).URL).revokeObjectURL = vi.fn();
+  // Mock URL.createObjectURL and revokeObjectURL for export tests
+  (globalThis as any).URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+  (globalThis as any).URL.revokeObjectURL = vi.fn();
 
-  // Mock document.createElement for download link
-  const mockAnchor = {
-    href: '',
-    download: '',
-    click: vi.fn(),
-  } as unknown as HTMLAnchorElement;
+  // Mock document.createElement ONLY for anchor elements (export download)
+  // Pass through other calls to preserve React Testing Library's DOM handling
+  vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    if (tagName.toLowerCase() === 'a') {
+      return mockAnchor;
+    }
+    return originalCreateElement(tagName);
+  });
 
-  vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor);
-  vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor);
-  vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockAnchor);
+  // Mock appendChild/removeChild ONLY for the mockAnchor
+  // Pass through other calls to preserve React Testing Library's cleanup
+  vi.spyOn(document.body, 'appendChild').mockImplementation((node: Node) => {
+    if (node === mockAnchor) {
+      return mockAnchor;
+    }
+    return originalAppendChild(node);
+  });
 
-  // Mock window).confirm
-  ((globalThis as any)).confirm = vi.fn(() => true);
+  vi.spyOn(document.body, 'removeChild').mockImplementation((node: Node) => {
+    if (node === mockAnchor) {
+      return mockAnchor;
+    }
+    return originalRemoveChild(node);
+  });
+
+  // Mock window.confirm
+  (globalThis as any).confirm = vi.fn(() => true);
 });
 
 // ============================================================================
