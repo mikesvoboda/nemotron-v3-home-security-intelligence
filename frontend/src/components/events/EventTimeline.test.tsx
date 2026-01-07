@@ -16,27 +16,34 @@ vi.mock('../../hooks/useEventStream', () => ({
   useEventStream: vi.fn(),
 }));
 
-// Mock ActivityFeed component
-vi.mock('../dashboard/ActivityFeed', () => ({
+// Mock LiveActivitySection component
+vi.mock('./LiveActivitySection', () => ({
   default: ({
     events,
-    maxItems,
+    isConnected,
     onEventClick,
+    maxItems,
   }: {
     events: Array<{ id: string; camera_name: string }>;
-    maxItems: number;
+    isConnected: boolean;
     onEventClick?: (eventId: string) => void;
+    maxItems: number;
   }) => (
-    <button
-      type="button"
-      data-testid="activity-feed"
-      data-event-count={events.length}
-      data-max-items={maxItems}
-      data-camera-names={events.map((e) => e.camera_name).join(',')}
-      onClick={() => onEventClick && events.length > 0 && onEventClick(events[0].id)}
-    >
-      Activity Feed
-    </button>
+    <div data-testid="live-activity-section">
+      <h2>Live Activity</h2>
+      <button
+        type="button"
+        data-testid="activity-feed"
+        data-event-count={events.length}
+        data-max-items={maxItems}
+        data-is-connected={isConnected}
+        data-camera-names={events.map((e) => e.camera_name).join(',')}
+        onClick={() => onEventClick && events.length > 0 && onEventClick(events[0].id)}
+      >
+        Activity Feed
+      </button>
+      {!isConnected && <span>Disconnected</span>}
+    </div>
   ),
 }));
 
@@ -153,11 +160,11 @@ describe('EventTimeline', () => {
       });
     });
 
-    it('renders the Live Activity feed', async () => {
+    it('renders the Live Activity section', async () => {
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
+        expect(screen.getByTestId('live-activity-section')).toBeInTheDocument();
       });
 
       expect(screen.getByRole('heading', { name: /live activity/i })).toBeInTheDocument();
@@ -555,7 +562,8 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Try adjusting your filters or search query')).toBeInTheDocument();
+      // Updated to match new EmptyState component text
+      expect(screen.getByText(/No events match your current filters/)).toBeInTheDocument();
     });
   });
 
@@ -843,7 +851,8 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No security events have been recorded yet')).toBeInTheDocument();
+      // Updated to match new EmptyState component text
+      expect(screen.getByText(/No security events have been recorded yet/)).toBeInTheDocument();
     });
 
     it('shows filtered empty state when filters match no events', async () => {
@@ -872,7 +881,8 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Try adjusting your filters or search query')).toBeInTheDocument();
+      // Updated to match new EmptyState component text
+      expect(screen.getByText(/No events match your current filters/)).toBeInTheDocument();
     });
 
     it('shows "0 events" instead of confusing "1-0 of 0" when empty', async () => {

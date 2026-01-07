@@ -167,92 +167,80 @@ export default function AnomalyConfigPanel({
 
       <div className="space-y-6">
         {/* Threshold Slider */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <Text className="text-gray-300">Detection Sensitivity</Text>
-            <div className="text-right">
-              <Text className="text-white font-medium">
-                {editedConfig.threshold_stdev?.toFixed(1)} std dev
-              </Text>
+        <div className="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <Text className="nvidia-slider-label">Detection Sensitivity</Text>
+            <div className="flex items-center gap-3">
               <Text className="text-xs text-gray-500">
                 {getThresholdLabel(editedConfig.threshold_stdev ?? 2.0)}
               </Text>
+              <span className="nvidia-slider-value">
+                {editedConfig.threshold_stdev?.toFixed(1)} std
+              </span>
             </div>
           </div>
-          <input
-            type="range"
-            min="1"
-            max="4"
-            step="0.1"
-            value={editedConfig.threshold_stdev ?? 2.0}
-            onChange={(e) =>
-              setEditedConfig((prev) => ({
-                ...prev,
-                threshold_stdev: parseFloat(e.target.value),
-              }))
-            }
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer
-                       [&::-webkit-slider-thumb]:appearance-none
-                       [&::-webkit-slider-thumb]:w-4
-                       [&::-webkit-slider-thumb]:h-4
-                       [&::-webkit-slider-thumb]:bg-green-500
-                       [&::-webkit-slider-thumb]:rounded-full
-                       [&::-webkit-slider-thumb]:cursor-pointer
-                       [&::-moz-range-thumb]:w-4
-                       [&::-moz-range-thumb]:h-4
-                       [&::-moz-range-thumb]:bg-green-500
-                       [&::-moz-range-thumb]:rounded-full
-                       [&::-moz-range-thumb]:cursor-pointer
-                       [&::-moz-range-thumb]:border-0"
-          />
-          <div className="flex justify-between mt-1 text-xs text-gray-500">
-            <span>More sensitive</span>
-            <span>Less sensitive</span>
+          <div className="relative">
+            <input
+              type="range"
+              min="1"
+              max="4"
+              step="0.1"
+              value={editedConfig.threshold_stdev ?? 2.0}
+              onChange={(e) =>
+                setEditedConfig((prev) => ({
+                  ...prev,
+                  threshold_stdev: parseFloat(e.target.value),
+                }))
+              }
+              className="nvidia-slider"
+              aria-label="Detection threshold in standard deviations"
+              aria-valuemin={1}
+              aria-valuemax={4}
+              aria-valuenow={editedConfig.threshold_stdev ?? 2.0}
+            />
+            <div className="nvidia-slider-range">
+              <span>More sensitive</span>
+              <span>Less sensitive</span>
+            </div>
           </div>
-          <Text className="text-xs text-gray-500 mt-2">
+          <Text className="nvidia-slider-description">
             Lower values trigger anomalies more easily. Recommended: 2.0-2.5
           </Text>
         </div>
 
         {/* Minimum Samples Slider */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <Text className="text-gray-300">Minimum Learning Samples</Text>
-            <Text className="text-white font-medium">
+        <div className="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <Text className="nvidia-slider-label">Minimum Learning Samples</Text>
+            <span className="nvidia-slider-value">
               {editedConfig.min_samples ?? 10} samples
-            </Text>
+            </span>
           </div>
-          <input
-            type="range"
-            min="5"
-            max="50"
-            step="1"
-            value={editedConfig.min_samples ?? 10}
-            onChange={(e) =>
-              setEditedConfig((prev) => ({
-                ...prev,
-                min_samples: parseInt(e.target.value, 10),
-              }))
-            }
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer
-                       [&::-webkit-slider-thumb]:appearance-none
-                       [&::-webkit-slider-thumb]:w-4
-                       [&::-webkit-slider-thumb]:h-4
-                       [&::-webkit-slider-thumb]:bg-green-500
-                       [&::-webkit-slider-thumb]:rounded-full
-                       [&::-webkit-slider-thumb]:cursor-pointer
-                       [&::-moz-range-thumb]:w-4
-                       [&::-moz-range-thumb]:h-4
-                       [&::-moz-range-thumb]:bg-green-500
-                       [&::-moz-range-thumb]:rounded-full
-                       [&::-moz-range-thumb]:cursor-pointer
-                       [&::-moz-range-thumb]:border-0"
-          />
-          <div className="flex justify-between mt-1 text-xs text-gray-500">
-            <span>Faster learning</span>
-            <span>More stable baseline</span>
+          <div className="relative">
+            <input
+              type="range"
+              min="5"
+              max="50"
+              step="1"
+              value={editedConfig.min_samples ?? 10}
+              onChange={(e) =>
+                setEditedConfig((prev) => ({
+                  ...prev,
+                  min_samples: parseInt(e.target.value, 10),
+                }))
+              }
+              className="nvidia-slider"
+              aria-label="Minimum learning samples"
+              aria-valuemin={5}
+              aria-valuemax={50}
+              aria-valuenow={editedConfig.min_samples ?? 10}
+            />
+            <div className="nvidia-slider-range">
+              <span>Faster learning</span>
+              <span>More stable baseline</span>
+            </div>
           </div>
-          <Text className="text-xs text-gray-500 mt-2">
+          <Text className="nvidia-slider-description">
             Minimum samples per time slot before anomaly detection activates
           </Text>
         </div>
