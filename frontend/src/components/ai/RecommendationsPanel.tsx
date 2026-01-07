@@ -184,11 +184,12 @@ export default function RecommendationsPanel({
                             {onExploreRecommendation && (
                               <button
                                 onClick={() => onExploreRecommendation(item)}
-                                className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
+                                className="flex items-center gap-1.5 rounded-md bg-[#76B900]/10 px-2 py-1 text-xs font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
                                 data-testid={`explore-recommendation-${category}-${index}`}
                                 title="Open in Prompt Playground"
                                 aria-label={`Explore ${item.suggestion.substring(0, 50)}${item.suggestion.length > 50 ? '...' : ''} in Prompt Playground`}
                               >
+                                Edit Prompt
                                 <ArrowRight className="h-3 w-3" />
                               </button>
                             )}

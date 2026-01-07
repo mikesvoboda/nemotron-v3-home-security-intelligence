@@ -13,6 +13,12 @@ export type { EmptyStateAction, EmptyStateProps } from './EmptyState';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export type { ErrorBoundaryProps, ErrorBoundaryState } from './ErrorBoundary';
 
+export { FeatureErrorBoundary } from './FeatureErrorBoundary';
+export type {
+  FeatureErrorBoundaryProps,
+  FeatureErrorBoundaryState,
+} from './FeatureErrorBoundary';
+
 export { default as LoadingSpinner } from './LoadingSpinner';
 
 export { default as RiskBadge } from './RiskBadge';

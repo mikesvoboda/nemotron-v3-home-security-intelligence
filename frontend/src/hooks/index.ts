@@ -149,3 +149,9 @@ export type {
   SecurityAlertOptions,
   UsePushNotificationsReturn,
 } from './usePushNotifications';
+
+// Mobile Hooks
+export { useIsMobile } from './useIsMobile';
+
+export { useSwipeGesture } from './useSwipeGesture';
+export type { SwipeDirection, SwipeGestureOptions } from './useSwipeGesture';
