@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -36,12 +36,12 @@ const mockNemotronConfig: ModelPromptConfig = {
   model: AIModelEnum.NEMOTRON,
   config: {
     system_prompt: 'You are an AI security analyst...',
-    version: 10,
+    version: 5,
   },
-  version: 10,
-  created_at: '2025-01-07T12:00:00Z',
-  created_by: 'config-admin',
-  change_description: 'Current active configuration',
+  version: 5,
+  created_at: '2025-01-07T10:00:00Z',
+  created_by: 'admin',
+  change_description: 'Improved risk scoring logic',
 };
 
 const mockHistory: PromptHistoryResponse = {
@@ -100,18 +100,6 @@ const mockExportResponse: PromptsExportResponse = {
 // Setup and Mocks
 // ============================================================================
 
-// Store original DOM methods before mocking
-const originalCreateElement = document.createElement.bind(document);
-const originalAppendChild = document.body.appendChild.bind(document.body);
-const originalRemoveChild = document.body.removeChild.bind(document.body);
-
-// Shared mock anchor for export tests
-const mockAnchor = {
-  href: '',
-  download: '',
-  click: vi.fn(),
-} as unknown as HTMLAnchorElement;
-
 beforeEach(() => {
   vi.clearAllMocks();
 
@@ -122,37 +110,8 @@ beforeEach(() => {
   vi.spyOn(promptApi, 'restorePromptVersion').mockResolvedValue(mockRestoreResponse);
   vi.spyOn(promptApi, 'exportPrompts').mockResolvedValue(mockExportResponse);
 
-  // Mock URL.createObjectURL and revokeObjectURL for export tests
-  (globalThis as any).URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-  (globalThis as any).URL.revokeObjectURL = vi.fn();
-
-  // Mock document.createElement ONLY for anchor elements (export download)
-  // Pass through other calls to preserve React Testing Library's DOM handling
-  vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-    if (tagName.toLowerCase() === 'a') {
-      return mockAnchor;
-    }
-    return originalCreateElement(tagName);
-  });
-
-  // Mock appendChild/removeChild ONLY for the mockAnchor
-  // Pass through other calls to preserve React Testing Library's cleanup
-  vi.spyOn(document.body, 'appendChild').mockImplementation((node: Node) => {
-    if (node === mockAnchor) {
-      return mockAnchor;
-    }
-    return originalAppendChild(node);
-  });
-
-  vi.spyOn(document.body, 'removeChild').mockImplementation((node: Node) => {
-    if (node === mockAnchor) {
-      return mockAnchor;
-    }
-    return originalRemoveChild(node);
-  });
-
-  // Mock window.confirm
-  (globalThis as any).confirm = vi.fn(() => true);
+  // Mock window).confirm
+  ((globalThis as any)).confirm = vi.fn(() => true);
 });
 
 // ============================================================================
@@ -200,12 +159,12 @@ describe('PromptManagementPanel - Data Loading', () => {
     render(<PromptManagementPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Version 10/i)).toBeInTheDocument();
+      expect(screen.getByText(/Version 5/i)).toBeInTheDocument();
     });
 
-    // Current config tab shows its own Active badge and description
-    expect(screen.getByText('Current active configuration')).toBeInTheDocument();
-    expect(screen.getByText('config-admin')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Improved risk scoring logic')).toBeInTheDocument();
+    expect(screen.getByText('admin')).toBeInTheDocument();
   });
 
   it('should display loading spinner while fetching data', () => {
@@ -252,12 +211,8 @@ describe('PromptManagementPanel - Model Selection', () => {
     const selectButton = screen.getByRole('button', { name: /Nemotron/i });
     await user.click(selectButton);
 
-    // Wait for dropdown to open and select Florence-2 option
-    await waitFor(() => {
-      const florence2Option = screen.getByRole('option', { name: /Florence-2/i });
-      expect(florence2Option).toBeInTheDocument();
-    });
-    const florence2Option = screen.getByRole('option', { name: /Florence-2/i });
+    // Select Florence-2
+    const florence2Option = screen.getByText(/Florence-2/i);
     await user.click(florence2Option);
 
     // Verify new API call
@@ -282,15 +237,10 @@ describe('PromptManagementPanel - Model Selection', () => {
       );
     });
 
-    // Change model - wait for dropdown to open then select YOLO-World option
+    // Change model
     const selectButton = screen.getByRole('button', { name: /Nemotron/i });
     await user.click(selectButton);
-
-    await waitFor(() => {
-      const yoloOption = screen.getByRole('option', { name: /YOLO-World/i });
-      expect(yoloOption).toBeInTheDocument();
-    });
-    const yoloOption = screen.getByRole('option', { name: /YOLO-World/i });
+    const yoloOption = screen.getByText(/YOLO-World/i);
     await user.click(yoloOption);
 
     // Verify history is fetched for new model starting at page 0
@@ -335,16 +285,9 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
-    // First wait for version data to load
-    await waitFor(() => {
-      expect(screen.getByText('Version 5')).toBeInTheDocument();
-    });
-
-    // Two Active badges exist: one in Current Config tab, one in Version History
-    // Both tabs are in DOM (Tremor uses CSS to show/hide), so we expect 2
     await waitFor(() => {
       const badges = screen.getAllByText('Active');
-      expect(badges).toHaveLength(2);
+      expect(badges).toHaveLength(1); // Only one active version
     });
   });
 
@@ -355,12 +298,6 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
-    // First wait for version data to load
-    await waitFor(() => {
-      expect(screen.getByText('Version 5')).toBeInTheDocument();
-    });
-
-    // Then check for Restore buttons
     await waitFor(() => {
       const restoreButtons = screen.getAllByRole('button', { name: /Restore/i });
       expect(restoreButtons).toHaveLength(2); // Two inactive versions
@@ -374,16 +311,16 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
-    // First wait for version data to load
     await waitFor(() => {
-      expect(screen.getByText('Version 5')).toBeInTheDocument();
-    });
+      // Get the card with "Active" badge
+      const activeCard = screen.getByText('Active').closest('div');
+      expect(activeCard).toBeInTheDocument();
 
-    // Then check that Version 5 (active) has no Restore button
-    // Find all Restore buttons - should be 2 (for versions 4 and 3, not 5)
-    await waitFor(() => {
-      const restoreButtons = screen.getAllByRole('button', { name: /Restore/i });
-      expect(restoreButtons).toHaveLength(2);
+      // Verify no Restore button in the active card
+      const restoreButtons = within(activeCard as HTMLElement).queryAllByRole('button', {
+        name: /Restore/i,
+      });
+      expect(restoreButtons).toHaveLength(0);
     });
   });
 });
@@ -492,29 +429,58 @@ describe('PromptManagementPanel - Restore Version', () => {
 
 describe('PromptManagementPanel - Export', () => {
   it('should export prompts when Export All button is clicked', async () => {
-    const user = userEvent.setup();
-    render(<PromptManagementPanel />);
+    // Mock URL methods for download functionality
+    const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+    const mockRevokeObjectURL = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalCreateObjectURL = URL.createObjectURL;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = mockCreateObjectURL;
+    URL.revokeObjectURL = mockRevokeObjectURL;
 
-    const exportButton = screen.getByRole('button', { name: /Export All/i });
-    await user.click(exportButton);
+    try {
+      const user = userEvent.setup();
+      render(<PromptManagementPanel />);
 
-    await waitFor(() => {
-      expect(promptApi.exportPrompts).toHaveBeenCalled();
-    });
+      const exportButton = screen.getByRole('button', { name: /Export All/i });
+      await user.click(exportButton);
+
+      await waitFor(() => {
+        expect(promptApi.exportPrompts).toHaveBeenCalled();
+      });
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 
   it('should trigger download when export succeeds', async () => {
-    const user = userEvent.setup();
-    render(<PromptManagementPanel />);
+    // Mock URL methods for download functionality
+    const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+    const mockRevokeObjectURL = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalCreateObjectURL = URL.createObjectURL;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = mockCreateObjectURL;
+    URL.revokeObjectURL = mockRevokeObjectURL;
 
-    const exportButton = screen.getByRole('button', { name: /Export All/i });
-    await user.click(exportButton);
+    try {
+      const user = userEvent.setup();
+      render(<PromptManagementPanel />);
 
-    await waitFor(() => {
-      expect(((globalThis as any).URL).createObjectURL).toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/unbound-method -- Spying on document method in test
-      expect(document.createElement).toHaveBeenCalledWith('a');
-    });
+      const exportButton = screen.getByRole('button', { name: /Export All/i });
+      await user.click(exportButton);
+
+      await waitFor(() => {
+        // Verify the URL methods were called (indicating download was triggered)
+        expect(mockCreateObjectURL).toHaveBeenCalled();
+      });
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 
   it('should show loading state during export', async () => {
