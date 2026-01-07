@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { VitePWA } from 'vite-plugin-pwa';
 
 /**
  * Bundle Size Targets (NEM-1562)
@@ -28,7 +29,92 @@ export default defineConfig(({ mode }) => {
   const isAnalyze = mode === 'analyze';
 
   // Build plugins array
-  const plugins: PluginOption[] = [react()];
+  const plugins: PluginOption[] = [
+    react(),
+    // PWA plugin for service worker and offline support
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: [
+        'favicon.svg',
+        'icons/icon-192.png',
+        'icons/icon-512.png',
+        'icons/badge-72.png',
+        'icons/apple-touch-icon.png',
+      ],
+      manifest: false, // Use our custom manifest.json
+      workbox: {
+        // Cache first strategy for assets
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gstatic-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // API requests - network first with fallback
+            urlPattern: /\/api\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              networkTimeoutSeconds: 10,
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 5, // 5 minutes
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // Images - cache first
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+            },
+          },
+        ],
+        // Precache the app shell
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Skip waiting and claim clients immediately
+        skipWaiting: true,
+        clientsClaim: true,
+      },
+      devOptions: {
+        // Enable PWA in development for testing
+        enabled: true,
+        type: 'module',
+      },
+    }) as PluginOption,
+  ];
 
   // Add visualizer plugin for bundle analysis
   if (isAnalyze) {

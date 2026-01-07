@@ -9,12 +9,37 @@ Specialized test directory for configuration file validation and infrastructure 
 ```
 frontend/src/__tests__/
 ├── AGENTS.md              # This documentation file
+├── api-contracts.test.ts  # API contract tests (NEM-1684)
 ├── lighthouserc.test.ts   # Lighthouse CI configuration validation tests
 ├── matchers.ts            # Custom Vitest matchers for domain objects
 └── matchers.test.ts       # Tests for custom matchers
 ```
 
 ## Key Files
+
+### api-contracts.test.ts (NEM-1684)
+
+API contract tests that verify frontend TypeScript types match backend API responses. These tests ensure API parity is maintained across changes.
+
+**Test Suites (7 suites, 31 tests):**
+
+| Suite                         | Tests                                                          |
+| ----------------------------- | -------------------------------------------------------------- |
+| Event API Contract (4)        | EventResponse fields, risk_score range, pagination fields      |
+| Camera API Contract (3)       | CameraResponse fields, status enum values, list structure      |
+| System Health API Contract (3)| HealthResponse fields, status values, ServiceStatus structure  |
+| WebSocket Event Message (4)   | SecurityEventData fields, risk_score range, risk_level values  |
+| WebSocket System Status (7)   | GpuStatusData, CameraStatusData, QueueStatusData, SystemStatus |
+| WebSocket Service Status (3)  | ServiceStatusData, ContainerStatus values                      |
+| WebSocket Heartbeat/Error (4) | Heartbeat, Pong, Error message formats                         |
+| Detection API Contract (3)    | DetectionResponse fields, confidence range, pagination         |
+
+**Running Contract Tests:**
+
+```bash
+npm test -- --run api-contracts        # Run contract tests only
+npm test -- --run api-contracts -v     # Verbose output
+```
 
 ### matchers.ts
 

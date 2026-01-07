@@ -1,5 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <path d="M16 2L4 7v8c0 7.5 5.1 14.5 12 16 6.9-1.5 12-8.5 12-16V7L16 2z" fill="#10B981"/>
-  <path d="M16 4L6 8.2v6.8c0 6.4 4.3 12.4 10 13.8V4z" fill="#059669"/>
-  <path d="M14 15l-3-3-1.5 1.5L14 18l8-8-1.5-1.5L14 15z" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Security Shield with Eye - Nemotron Security Dashboard -->
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8BC34A"/>
+      <stop offset="100%" stop-color="#76B900"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield shape -->
+  <path d="M32 4L8 14v18c0 14.4 10.24 27.84 24 32 13.76-4.16 24-17.6 24-32V14L32 4z" fill="url(#shieldGrad)"/>
+  <!-- Inner shield highlight -->
+  <path d="M32 8L12 16.5v14.5c0 12.32 8.75 23.8 20 27.36V8z" fill="#8BC34A" opacity="0.3"/>
+  <!-- Eye symbol for surveillance -->
+  <ellipse cx="32" cy="32" rx="14" ry="10" fill="white" opacity="0.95"/>
+  <circle cx="32" cy="32" r="6" fill="#1a1a2e"/>
+  <circle cx="34" cy="30" r="2" fill="white"/>
+  <!-- Scan lines for tech feel -->
+  <path d="M18 32h6M40 32h6" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
 </svg>
