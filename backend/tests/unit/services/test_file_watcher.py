@@ -1,4 +1,50 @@
-"""Unit tests for file watcher service."""
+"""Unit tests for the FileWatcher service.
+
+This module contains comprehensive unit tests for the FileWatcher service, which
+monitors camera directories (FTP upload targets) for new images and queues them
+for AI detection processing.
+
+Related Issues:
+    - NEM-1661: Improve Test Documentation with Intent and Acceptance Criteria
+    - NEM-1069: File Stability Check for FTP Uploads
+    - bead 4mje.3: Pipeline Start Time Tracking
+    - wa0t.13: Non-blocking Observer Join
+    - wa0t.14: Task Memory Leak Fix
+
+Test Organization:
+    - Helper function tests: is_image_file(), is_valid_image() validation
+    - FileWatcher initialization tests: Default/custom settings, observer config
+    - Camera ID normalization tests: Handling spaces, hyphens, special chars
+    - Camera detection tests: Extracting camera ID from file paths
+    - File processing tests: Valid images, invalid images, non-images
+    - Debounce tests: Preventing duplicate processing of same file
+    - Start/Stop tests: Service lifecycle, idempotency, task cancellation
+    - Event handler tests: Watchdog events (created, modified, directory)
+    - Deduplication tests: Hash-based duplicate detection via Redis
+    - Camera auto-creation tests: Auto-registering new cameras
+    - Queue overflow tests: Backpressure handling and DLQ routing
+    - Polling observer tests: Native vs polling observer configuration
+    - Bug fix tests: Non-blocking join, task memory leak prevention
+    - Pipeline timing tests: Recording pipeline_start_time in queue payload
+    - File stability tests: Waiting for FTP uploads to complete
+
+Acceptance Criteria:
+    - Monitors camera_root directory for new image files
+    - Validates images (file size, format, corruption) before queueing
+    - Extracts and normalizes camera_id from directory structure
+    - Debounces rapid file events (FTP uploads create multiple events)
+    - Waits for file stability before processing (incomplete FTP uploads)
+    - Queues valid images to Redis detection_queue with metadata
+    - Auto-creates cameras in database when new folders appear
+    - Handles queue overflow via DLQ (dead letter queue) policy
+    - Supports both native (inotify) and polling observers for NFS
+    - Records pipeline_start_time for end-to-end latency tracking
+
+Notes:
+    Tests use mocks for Redis, database, and file system operations.
+    Some tests verify fix of specific bugs (wa0t.13, wa0t.14, bead 4mje.3).
+    File stability checks prevent processing of incomplete FTP uploads.
+"""
 
 import asyncio
 from pathlib import Path

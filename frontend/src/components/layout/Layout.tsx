@@ -2,9 +2,12 @@ import { ReactNode, useCallback, useState } from 'react';
 
 import Header from './Header';
 import Sidebar from './Sidebar';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { SidebarContext, SidebarContextType } from '../../hooks/useSidebarContext';
+import CommandPalette from '../common/CommandPalette';
 import { ServiceStatusAlert } from '../common/ServiceStatusAlert';
+import ShortcutsHelpModal from '../common/ShortcutsHelpModal';
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,6 +17,20 @@ export default function Layout({ children }: LayoutProps) {
   const { services } = useServiceStatus();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [isShortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    onOpenCommandPalette: useCallback(() => setCommandPaletteOpen(true), []),
+    onOpenHelp: useCallback(() => setShortcutsHelpOpen(true), []),
+    onEscape: useCallback(() => {
+      setCommandPaletteOpen(false);
+      setShortcutsHelpOpen(false);
+    }, []),
+    // Disable shortcuts when modals are open (they handle their own)
+    enabled: !isCommandPaletteOpen && !isShortcutsHelpOpen,
+  });
 
   const handleDismiss = useCallback(() => {
     setIsDismissed(true);
@@ -59,6 +76,18 @@ export default function Layout({ children }: LayoutProps) {
             {children}
           </main>
         </div>
+
+        {/* Command Palette */}
+        <CommandPalette
+          open={isCommandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+        />
+
+        {/* Keyboard Shortcuts Help Modal */}
+        <ShortcutsHelpModal
+          open={isShortcutsHelpOpen}
+          onClose={() => setShortcutsHelpOpen(false)}
+        />
       </div>
     </SidebarContext.Provider>
   );
