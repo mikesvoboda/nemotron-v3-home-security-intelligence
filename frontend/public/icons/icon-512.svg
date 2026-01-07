@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Security Shield with Eye - 512x512 PWA Icon -->
+  <defs>
+    <linearGradient id="shieldGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8BC34A"/>
+      <stop offset="100%" stop-color="#76B900"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle for better visibility -->
+  <circle cx="256" cy="256" r="248" fill="#1a1a2e"/>
+  <!-- Shield shape -->
+  <path d="M256 64L96 128v128c0 102.4 68.3 198.4 160 224 91.7-25.6 160-121.6 160-224V128L256 64z" fill="url(#shieldGrad512)"/>
+  <!-- Inner shield highlight -->
+  <path d="M256 86L118 142v108c0 87.5 58.2 169.6 138 194V86z" fill="#8BC34A" opacity="0.3"/>
+  <!-- Eye symbol for surveillance -->
+  <ellipse cx="256" cy="256" rx="96" ry="70" fill="white" opacity="0.95"/>
+  <circle cx="256" cy="256" r="42" fill="#1a1a2e"/>
+  <circle cx="268" cy="244" r="12" fill="white"/>
+  <!-- Scan lines -->
+  <path d="M144 256h42M326 256h42" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+</svg>
