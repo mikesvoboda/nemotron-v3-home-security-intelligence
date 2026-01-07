@@ -7,7 +7,7 @@ avoid real timeout waits while still testing timeout logic correctly.
 
 import json
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -102,6 +102,12 @@ def mock_redis_client():
         # In real Redis this sets expiration; for testing we just return True
         return True
 
+    async def mock_llen(key: str) -> int:
+        """Mock LLEN operation - get list length."""
+        if key not in lists:
+            return 0
+        return len(lists[key])
+
     class MockPipeline:
         """Mock Redis pipeline that collects commands and executes them."""
 
@@ -133,11 +139,13 @@ def mock_redis_client():
     mock_client.pipeline = mock_pipeline
 
     # Internal client for scan_iter, list operations, and pipeline
-    mock_internal = MagicMock()
+    # Use AsyncMock for the client since async methods will be awaited
+    mock_internal = AsyncMock()
     mock_internal.scan_iter = mock_scan_iter
-    mock_internal.rpush = mock_rpush  # AsyncMock will be called with await
-    mock_internal.lrange = mock_lrange  # AsyncMock will be called with await
-    mock_internal.expire = mock_expire  # AsyncMock will be called with await
+    mock_internal.rpush = mock_rpush  # Async function will be called with await
+    mock_internal.lrange = mock_lrange  # Async function will be called with await
+    mock_internal.expire = mock_expire  # Async function will be called with await
+    mock_internal.llen = mock_llen  # Async function will be called with await
     mock_internal.pipeline = mock_pipeline  # Pipeline method on inner client
     mock_client._client = mock_internal
 
@@ -157,6 +165,7 @@ def batch_aggregator(mock_redis_client):
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
         mock_settings.return_value.fast_path_object_types = ["person"]
+        mock_settings.return_value.batch_max_detections = 100
 
         aggregator = BatchAggregator(redis_client=mock_redis_client)
         return aggregator

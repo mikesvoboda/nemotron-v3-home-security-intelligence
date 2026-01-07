@@ -219,6 +219,7 @@ class TestFlorenceClientInstrumentation:
 
             mock_response = MagicMock()
             mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
             mock_response.json.return_value = {"result": "A gray square image"}
             mock_client.post.return_value = mock_response
 
@@ -239,6 +240,7 @@ class TestFlorenceClientInstrumentation:
 
             mock_response = MagicMock()
             mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
             mock_response.json.return_value = {"text": "Hello World"}
             mock_client.post.return_value = mock_response
 
@@ -259,6 +261,7 @@ class TestFlorenceClientInstrumentation:
 
             mock_response = MagicMock()
             mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
             mock_response.json.return_value = {"detections": []}
             mock_client.post.return_value = mock_response
 
@@ -281,6 +284,7 @@ class TestFlorenceClientInstrumentation:
 
             mock_response = MagicMock()
             mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
             mock_response.json.return_value = {"regions": []}
             mock_client.post.return_value = mock_response
 

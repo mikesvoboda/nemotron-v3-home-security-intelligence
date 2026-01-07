@@ -116,6 +116,14 @@ class MockRedisClient:
 
         inner_client.lrange = _lrange_impl
 
+        # llen - get list length
+        async def _llen_impl(key: str) -> int:
+            if key not in parent._lists:
+                return 0
+            return len(parent._lists[key])
+
+        inner_client.llen = _llen_impl
+
         # expire - set key TTL (no-op in mock)
         async def _expire_impl(key: str, ttl: int) -> bool:
             return True
@@ -442,14 +450,10 @@ async def test_full_pipeline_single_image(
     mock_detector_response = create_mock_detector_response()
 
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(detector._http_client, "post") as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
-
-            # Set up the async context manager properly
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_post.return_value = mock_response
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
@@ -564,13 +568,10 @@ async def test_full_pipeline_multiple_images_same_camera(
         )
 
         async with get_session() as session:
-            with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+            # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+            with patch.object(detector._http_client, "post") as mock_post:
                 mock_response = create_mock_httpx_response(mock_detector_response)
-
-                mock_instance = AsyncMock()
-                mock_instance.post = AsyncMock(return_value=mock_response)
-                mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-                mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+                mock_post.return_value = mock_response
 
                 detections = await detector.detect_objects(
                     image_path=str(image_path),
@@ -666,12 +667,10 @@ async def test_pipeline_detector_failure_graceful(
     detector = DetectorClient(max_retries=1)
 
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(
+            detector._http_client, "post", side_effect=httpx.ConnectError("Connection refused")
+        ):
             # Should raise DetectorUnavailableError to allow retry
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
@@ -693,12 +692,10 @@ async def test_pipeline_detector_failure_graceful(
 
     # Test timeout error raises DetectorUnavailableError
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(side_effect=httpx.TimeoutException("Request timed out"))
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(
+            detector._http_client, "post", side_effect=httpx.TimeoutException("Request timed out")
+        ):
             # Should raise DetectorUnavailableError to allow retry
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
@@ -714,20 +711,16 @@ async def test_pipeline_detector_failure_graceful(
 
     # Test HTTP 5xx error raises DetectorUnavailableError
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status = MagicMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Internal Server Error", request=MagicMock(), response=mock_response
-                )
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Internal Server Error", request=MagicMock(), response=mock_response
             )
+        )
 
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(detector._http_client, "post", return_value=mock_response):
             # Should raise DetectorUnavailableError to allow retry
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
@@ -793,13 +786,10 @@ async def test_pipeline_low_confidence_filtering(
     )
 
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(detector._http_client, "post") as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
-
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_post.return_value = mock_response
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
@@ -834,13 +824,10 @@ async def test_pipeline_llm_failure_fallback(
     mock_detector_response = create_mock_detector_response()
 
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(detector._http_client, "post") as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
-
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_post.return_value = mock_response
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
@@ -1007,13 +994,10 @@ async def test_fast_path_high_priority_detection(
 
     detection_id = None
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(detector._http_client, "post") as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
-
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_post.return_value = mock_response
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
@@ -1099,13 +1083,10 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
     detection_id = None
     async with get_session() as session:
-        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+        # Patch the persistent HTTP client's post method (NEM-1721 pattern)
+        with patch.object(detector._http_client, "post") as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
-
-            mock_instance = AsyncMock()
-            mock_instance.post = AsyncMock(return_value=mock_response)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_post.return_value = mock_response
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
