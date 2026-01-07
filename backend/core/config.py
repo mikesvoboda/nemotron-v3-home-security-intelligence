@@ -648,6 +648,35 @@ class Settings(BaseSettings):
         le=3600,
     )
 
+    # OpenTelemetry settings (NEM-1629)
+    otel_enabled: bool = Field(
+        default=False,
+        description="Enable OpenTelemetry distributed tracing. When enabled, traces are "
+        "collected and exported to the configured OTLP endpoint (e.g., Jaeger, Tempo).",
+    )
+    otel_service_name: str = Field(
+        default="nemotron-backend",
+        description="Service name for OpenTelemetry traces. Used to identify this service "
+        "in distributed tracing dashboards.",
+    )
+    otel_exporter_otlp_endpoint: str = Field(
+        default="http://localhost:4317",
+        description="OTLP gRPC endpoint for trace export. Default uses Jaeger's OTLP port. "
+        "Examples: 'http://jaeger:4317' (Docker), 'http://localhost:4317' (local dev).",
+    )
+    otel_exporter_otlp_insecure: bool = Field(
+        default=True,
+        description="Use insecure (non-TLS) connection to OTLP endpoint. Set to False "
+        "for production deployments with TLS-enabled collectors.",
+    )
+    otel_trace_sample_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Trace sampling rate (0.0-1.0). Set to 1.0 to trace all requests, "
+        "lower values for high-traffic production environments to reduce overhead.",
+    )
+
     # Logging settings
     log_level: str = Field(
         default="INFO",

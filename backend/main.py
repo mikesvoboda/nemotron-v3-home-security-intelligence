@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
     AuthMiddleware,
+    BodySizeLimitMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -39,6 +40,7 @@ from backend.core import close_db, get_settings, init_db
 from backend.core.docker_client import DockerClient
 from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
+from backend.core.telemetry import setup_telemetry, shutdown_telemetry
 from backend.models.camera import Camera
 from backend.services.audit_service import get_audit_service
 from backend.services.background_evaluator import BackgroundEvaluator
@@ -277,13 +279,22 @@ async def validate_camera_paths_on_startup() -> tuple[int, int]:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Complex lifecycle requires many branches
     """Manage application lifecycle - startup and shutdown events."""
     # Initialize logging first (before any other initialization)
     setup_logging()
 
     # Startup
     settings = get_settings()
+
+    # Initialize OpenTelemetry tracing (NEM-1629)
+    # Must be done early, before other services are initialized
+    otel_initialized = setup_telemetry(_app, settings)
+    if otel_initialized:
+        print(
+            f"OpenTelemetry tracing enabled: {settings.otel_service_name} -> "
+            f"{settings.otel_exporter_otlp_endpoint}"
+        )
 
     # Pre-register circuit breakers for known services
     # This ensures they appear in monitoring UI even before first use
@@ -520,6 +531,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await close_redis()
     print("Redis connection closed")
 
+    # Shutdown OpenTelemetry (flushes pending traces)
+    shutdown_telemetry()
+    print("OpenTelemetry tracing shut down")
+
 
 def _get_openapi_servers() -> list[dict[str, str]]:
     """Get OpenAPI server URLs from environment variable.
@@ -575,6 +590,10 @@ app.add_middleware(
 
 # Add security headers middleware for defense-in-depth
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Add body size limit middleware to prevent DoS attacks (NEM-1614)
+# Default: 10MB limit for request bodies
+app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
 
 # Register global exception handlers for consistent error responses
 register_exception_handlers(app)

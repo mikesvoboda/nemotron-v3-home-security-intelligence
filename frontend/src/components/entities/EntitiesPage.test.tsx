@@ -86,20 +86,20 @@ describe('EntitiesPage', () => {
       ).toBeInTheDocument();
     });
 
-    it('displays loading state initially', () => {
+    it('displays loading state initially with skeleton loaders', () => {
       mockFetchEntities.mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
       render(<EntitiesPage />);
 
-      expect(screen.getByText('Loading entities...')).toBeInTheDocument();
+      expect(screen.getAllByTestId('entity-card-skeleton').length).toBeGreaterThan(0);
     });
 
     it('displays entity cards after loading', async () => {
       render(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
       // Check for entity type badges

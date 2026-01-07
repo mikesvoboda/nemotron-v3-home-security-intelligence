@@ -51,6 +51,14 @@ dependencies = [
     "docker>=7.0.0",
     # Token counting for LLM context management
     "tiktoken>=0.8.0",
+    # OpenTelemetry distributed tracing (NEM-1629)
+    "opentelemetry-api>=1.23.0",
+    "opentelemetry-sdk>=1.23.0",
+    "opentelemetry-exporter-otlp>=1.23.0",
+    "opentelemetry-instrumentation-fastapi>=0.44b0",
+    "opentelemetry-instrumentation-httpx>=0.44b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.44b0",
+    "opentelemetry-instrumentation-redis>=0.44b0",
 ]
 
 [project.optional-dependencies]

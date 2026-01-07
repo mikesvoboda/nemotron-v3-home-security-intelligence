@@ -80,10 +80,11 @@ describe('AnalyticsPage', () => {
     expect(screen.getByText(/View activity patterns/)).toBeInTheDocument();
   });
 
-  it('shows loading state initially', () => {
+  it('shows loading state initially with skeleton loaders', () => {
     render(<AnalyticsPage />);
 
-    expect(screen.getByText(/Loading baseline data/)).toBeInTheDocument();
+    // Skeleton loaders display chart skeletons during loading
+    expect(screen.getAllByTestId('chart-skeleton').length).toBeGreaterThan(0);
   });
 
   it('loads and displays camera selector', async () => {
