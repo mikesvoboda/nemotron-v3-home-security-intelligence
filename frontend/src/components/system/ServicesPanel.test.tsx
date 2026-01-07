@@ -19,10 +19,12 @@ vi.mock('../../hooks/useServiceStatus', () => ({
   })),
 }));
 
-// Mock the fetchHealth API
+// Mock the API functions
 const mockFetchHealth = vi.fn();
+const mockRestartService = vi.fn();
 vi.mock('../../services/api', () => ({
   fetchHealth: () => mockFetchHealth(),
+  restartService: (name: string) => mockRestartService(name),
 }));
 
 describe('ServicesPanel', () => {
@@ -253,6 +255,17 @@ describe('ServicesPanel', () => {
   });
 
   describe('restart functionality', () => {
+    beforeEach(() => {
+      // Mock window.confirm
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      vi.stubGlobal('alert', vi.fn());
+      mockRestartService.mockResolvedValue({ service: 'postgres', status: 'restarting', message: 'Service restarting', timestamp: '2025-01-01T12:00:00Z' });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
     it('renders restart button for each service', async () => {
       render(<ServicesPanel {...defaultProps} />);
 
@@ -264,7 +277,54 @@ describe('ServicesPanel', () => {
       expect(screen.getByTestId('service-restart-btn-rtdetr')).toBeInTheDocument();
     });
 
-    it('calls onRestart callback when restart button is clicked', async () => {
+    it('shows confirmation dialog before restarting', async () => {
+      const mockConfirm = vi.fn(() => true);
+      vi.stubGlobal('confirm', mockConfirm);
+
+      render(<ServicesPanel {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('service-restart-btn-postgres'));
+
+      expect(mockConfirm).toHaveBeenCalledWith(
+        'Are you sure you want to restart postgres? This will temporarily interrupt the service.'
+      );
+    });
+
+    it('cancels restart if user declines confirmation', async () => {
+      const mockConfirm = vi.fn(() => false);
+      vi.stubGlobal('confirm', mockConfirm);
+
+      render(<ServicesPanel {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('service-restart-btn-postgres'));
+
+      expect(mockConfirm).toHaveBeenCalled();
+      expect(mockRestartService).not.toHaveBeenCalled();
+    });
+
+    it('calls restartService API when restart button is clicked and confirmed', async () => {
+      render(<ServicesPanel {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('service-restart-btn-postgres'));
+
+      await waitFor(() => {
+        expect(mockRestartService).toHaveBeenCalledWith('postgres');
+      });
+    });
+
+    it('calls onRestart callback when restart succeeds', async () => {
       const onRestart = vi.fn();
 
       render(<ServicesPanel {...defaultProps} onRestart={onRestart} />);
@@ -275,13 +335,13 @@ describe('ServicesPanel', () => {
 
       fireEvent.click(screen.getByTestId('service-restart-btn-postgres'));
 
-      expect(onRestart).toHaveBeenCalledWith('postgres');
+      await waitFor(() => {
+        expect(onRestart).toHaveBeenCalledWith('postgres');
+      });
     });
 
     it('disables restart button when service is restarting', async () => {
-      const onRestart = vi.fn();
-
-      render(<ServicesPanel {...defaultProps} onRestart={onRestart} />);
+      render(<ServicesPanel {...defaultProps} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
@@ -291,7 +351,55 @@ describe('ServicesPanel', () => {
       fireEvent.click(screen.getByTestId('service-restart-btn-postgres'));
 
       // Button should be disabled during restart
-      expect(screen.getByTestId('service-restart-btn-postgres')).toBeDisabled();
+      await waitFor(() => {
+        expect(screen.getByTestId('service-restart-btn-postgres')).toBeDisabled();
+      });
+    });
+
+    it('shows error alert when restart fails', async () => {
+      const mockAlert = vi.fn();
+      vi.stubGlobal('alert', mockAlert);
+      mockRestartService.mockRejectedValueOnce(new Error('Network error'));
+
+      render(<ServicesPanel {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('service-restart-btn-postgres'));
+
+      await waitFor(() => {
+        expect(mockAlert).toHaveBeenCalledWith('Failed to restart postgres: Network error');
+      });
+    });
+
+    it('re-enables restart button after restart completes', async () => {
+      render(<ServicesPanel {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('service-restart-btn-postgres')).toBeInTheDocument();
+      });
+
+      const restartBtn = screen.getByTestId('service-restart-btn-postgres');
+
+      // Click restart
+      fireEvent.click(restartBtn);
+
+      // Button should be disabled during restart
+      await waitFor(() => {
+        expect(restartBtn).toBeDisabled();
+      });
+
+      // Wait for restart to complete (3 second delay + health fetch)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      // Button should be enabled again
+      await waitFor(() => {
+        expect(restartBtn).not.toBeDisabled();
+      });
     });
   });
 

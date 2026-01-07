@@ -586,14 +586,15 @@ class TestStoreEmbedding:
 
         await service.store_embedding(mock_redis, embedding)
 
-        # Verify setex was called with correct key and TTL
-        mock_redis.setex.assert_called_once()
-        call_args = mock_redis.setex.call_args
+        # Verify set was called with correct key and TTL
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
         assert call_args[0][0] == "entity_embeddings:2025-12-25"
-        assert call_args[0][1] == EMBEDDING_TTL_SECONDS
+        # Code uses 'ex' parameter (standard Redis API for TTL in seconds)
+        assert call_args.kwargs.get("ex") == EMBEDDING_TTL_SECONDS
 
         # Verify stored data structure
-        stored_data = json.loads(call_args[0][2])
+        stored_data = json.loads(call_args[0][1])
         assert "persons" in stored_data
         assert len(stored_data["persons"]) == 1
         assert stored_data["persons"][0]["detection_id"] == "det_123"
@@ -616,7 +617,7 @@ class TestStoreEmbedding:
 
         await service.store_embedding(mock_redis, embedding)
 
-        stored_data = json.loads(mock_redis.setex.call_args[0][2])
+        stored_data = json.loads(mock_redis.set.call_args[0][1])
         assert "vehicles" in stored_data
         assert len(stored_data["vehicles"]) == 1
         assert stored_data["vehicles"][0]["detection_id"] == "det_456"
@@ -653,7 +654,7 @@ class TestStoreEmbedding:
 
         await service.store_embedding(mock_redis, embedding)
 
-        stored_data = json.loads(mock_redis.setex.call_args[0][2])
+        stored_data = json.loads(mock_redis.set.call_args[0][1])
         assert len(stored_data["persons"]) == 2
         assert stored_data["persons"][0]["detection_id"] == "det_old"
         assert stored_data["persons"][1]["detection_id"] == "det_new"
@@ -1604,11 +1605,11 @@ class TestRateLimitingBehavior:
         mock_redis = AsyncMock()
 
         # Add delay to storage operation
-        async def slow_setex(*args: object, **kwargs: object) -> None:
+        async def slow_set(*args: object, **kwargs: object) -> None:
             await asyncio.sleep(0.1)
 
         mock_redis.get.return_value = None
-        mock_redis.setex.side_effect = slow_setex
+        mock_redis.set.side_effect = slow_set
 
         service = ReIdentificationService(max_concurrent_requests=2)
         now = datetime.now(UTC)
