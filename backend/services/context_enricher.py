@@ -26,6 +26,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.zone import Zone, ZoneType
 from backend.services.baseline import get_baseline_service
+from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.zone_service import bbox_center, point_in_zone
 
 logger = get_logger(__name__)
@@ -41,7 +42,7 @@ DEFAULT_IMAGE_HEIGHT = 1080
 CROSS_CAMERA_WINDOW_SECONDS = 300
 
 
-@dataclass
+@dataclass(slots=True)
 class ZoneContext:
     """Zone information for a detection.
 
@@ -60,7 +61,7 @@ class ZoneContext:
     detection_count: int = 1
 
 
-@dataclass
+@dataclass(slots=True)
 class BaselineContext:
     """Baseline deviation information for current activity.
 
@@ -81,7 +82,7 @@ class BaselineContext:
     is_anomalous: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class RecentEvent:
     """Recent event for context.
 
@@ -100,7 +101,7 @@ class RecentEvent:
     occurred_at: datetime
 
 
-@dataclass
+@dataclass(slots=True)
 class CrossCameraActivity:
     """Activity from other cameras within the time window.
 
@@ -119,7 +120,7 @@ class CrossCameraActivity:
     time_offset_seconds: float = 0.0
 
 
-@dataclass
+@dataclass(slots=True)
 class EnrichedContext:
     """Complete enriched context for a detection batch.
 
@@ -226,12 +227,9 @@ class ContextEnricher:
             camera = camera_result.scalar_one_or_none()
             camera_name = camera.name if camera else camera_id
 
-            # Get detections
+            # Get detections using batch fetching to handle large detection lists
             if detection_ids:
-                detections_result = await sess.execute(
-                    select(Detection).where(Detection.id.in_(detection_ids))
-                )
-                detections = list(detections_result.scalars().all())
+                detections = await batch_fetch_detections(sess, detection_ids)
             else:
                 detections = []
 

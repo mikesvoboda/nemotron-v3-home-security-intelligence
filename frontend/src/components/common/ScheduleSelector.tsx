@@ -3,10 +3,10 @@ import { clsx } from 'clsx';
 import { Calendar, Clock, Globe } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import type { AlertRuleSchedule } from '../../services/api';
+import type { AlertRuleSchedule, DayOfWeek } from '../../services/api';
 
 // Days of the week configuration
-const DAYS_OF_WEEK = [
+const DAYS_OF_WEEK: readonly { value: DayOfWeek; label: string }[] = [
   { value: 'monday', label: 'Mon' },
   { value: 'tuesday', label: 'Tue' },
   { value: 'wednesday', label: 'Wed' },
@@ -14,11 +14,11 @@ const DAYS_OF_WEEK = [
   { value: 'friday', label: 'Fri' },
   { value: 'saturday', label: 'Sat' },
   { value: 'sunday', label: 'Sun' },
-] as const;
+];
 
 // Weekday and weekend day values
-const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-const WEEKENDS = ['saturday', 'sunday'];
+const WEEKDAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+const WEEKENDS: DayOfWeek[] = ['saturday', 'sunday'];
 
 // Common timezone options
 const TIMEZONE_OPTIONS = [
@@ -67,7 +67,7 @@ export default function ScheduleSelector({
   const [scheduleEnabled, setScheduleEnabled] = useState(value !== null);
 
   // Internal state for schedule configuration
-  const [selectedDays, setSelectedDays] = useState<string[]>(value?.days || []);
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(value?.days || []);
   const [startTime, setStartTime] = useState(value?.start_time || '22:00');
   const [endTime, setEndTime] = useState(value?.end_time || '06:00');
   const [timezone, setTimezone] = useState(
@@ -90,7 +90,7 @@ export default function ScheduleSelector({
   // Build and emit schedule when internal state changes
   const emitSchedule = (
     enabled: boolean,
-    days: string[],
+    days: DayOfWeek[],
     start: string,
     end: string,
     tz: string
@@ -116,7 +116,7 @@ export default function ScheduleSelector({
   };
 
   // Handle day selection
-  const handleDayToggle = (day: string) => {
+  const handleDayToggle = (day: DayOfWeek) => {
     const newDays = selectedDays.includes(day)
       ? selectedDays.filter((d) => d !== day)
       : [...selectedDays, day];

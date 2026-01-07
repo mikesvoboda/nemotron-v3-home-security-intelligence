@@ -18,7 +18,6 @@ from pydantic import ValidationError
 
 from backend.api.schemas.websocket import (
     RiskLevel,
-    ServiceStatus,
     WebSocketErrorCode,
     WebSocketErrorResponse,
     WebSocketEventData,
@@ -27,6 +26,7 @@ from backend.api.schemas.websocket import (
     WebSocketMessageType,
     WebSocketPingMessage,
     WebSocketPongResponse,
+    WebSocketServiceStatus,
     WebSocketServiceStatusData,
     WebSocketServiceStatusMessage,
     WebSocketSubscribeMessage,
@@ -542,34 +542,34 @@ class TestRiskLevel:
 
 
 # =============================================================================
-# ServiceStatus Enum Tests
+# WebSocketServiceStatus Enum Tests
 # =============================================================================
 
 
-class TestServiceStatus:
-    """Tests for ServiceStatus enum."""
+class TestWebSocketServiceStatus:
+    """Tests for WebSocketServiceStatus enum."""
 
     def test_service_status_values(self) -> None:
-        """Test that ServiceStatus enum has expected values."""
-        assert ServiceStatus.HEALTHY.value == "healthy"
-        assert ServiceStatus.UNHEALTHY.value == "unhealthy"
-        assert ServiceStatus.RESTARTING.value == "restarting"
-        assert ServiceStatus.RESTART_FAILED.value == "restart_failed"
-        assert ServiceStatus.FAILED.value == "failed"
+        """Test that WebSocketServiceStatus enum has expected values."""
+        assert WebSocketServiceStatus.HEALTHY.value == "healthy"
+        assert WebSocketServiceStatus.UNHEALTHY.value == "unhealthy"
+        assert WebSocketServiceStatus.RESTARTING.value == "restarting"
+        assert WebSocketServiceStatus.RESTART_FAILED.value == "restart_failed"
+        assert WebSocketServiceStatus.FAILED.value == "failed"
 
     def test_service_status_str(self) -> None:
-        """Test ServiceStatus __str__ method returns the value."""
+        """Test WebSocketServiceStatus __str__ method returns the value."""
         # This tests line 343: return self.value
-        assert str(ServiceStatus.HEALTHY) == "healthy"
-        assert str(ServiceStatus.UNHEALTHY) == "unhealthy"
-        assert str(ServiceStatus.RESTARTING) == "restarting"
-        assert str(ServiceStatus.RESTART_FAILED) == "restart_failed"
-        assert str(ServiceStatus.FAILED) == "failed"
+        assert str(WebSocketServiceStatus.HEALTHY) == "healthy"
+        assert str(WebSocketServiceStatus.UNHEALTHY) == "unhealthy"
+        assert str(WebSocketServiceStatus.RESTARTING) == "restarting"
+        assert str(WebSocketServiceStatus.RESTART_FAILED) == "restart_failed"
+        assert str(WebSocketServiceStatus.FAILED) == "failed"
 
     def test_service_status_string_comparison(self) -> None:
-        """Test that ServiceStatus can be compared with strings."""
-        assert ServiceStatus.HEALTHY == "healthy"
-        assert ServiceStatus.FAILED == "failed"
+        """Test that WebSocketServiceStatus can be compared with strings."""
+        assert WebSocketServiceStatus.HEALTHY == "healthy"
+        assert WebSocketServiceStatus.FAILED == "failed"
 
 
 # =============================================================================
@@ -831,29 +831,29 @@ class TestWebSocketServiceStatusData:
         """Test creating valid service status data."""
         status_data = WebSocketServiceStatusData(
             service="redis",
-            status=ServiceStatus.HEALTHY,
+            status=WebSocketServiceStatus.HEALTHY,
             message="Service responding normally",
         )
         assert status_data.service == "redis"
-        assert status_data.status == ServiceStatus.HEALTHY
+        assert status_data.status == WebSocketServiceStatus.HEALTHY
 
     def test_status_validator_with_enum(self) -> None:
-        """Test status validator when passed a ServiceStatus enum directly."""
-        # This tests lines 360-361: if isinstance(v, ServiceStatus): return v
+        """Test status validator when passed a WebSocketServiceStatus enum directly."""
+        # This tests lines 360-361: if isinstance(v, WebSocketServiceStatus): return v
         status_data = WebSocketServiceStatusData(
             service="rtdetr",
-            status=ServiceStatus.RESTARTING,
+            status=WebSocketServiceStatus.RESTARTING,
         )
-        assert status_data.status == ServiceStatus.RESTARTING
+        assert status_data.status == WebSocketServiceStatus.RESTARTING
 
     def test_status_validator_with_lowercase_string(self) -> None:
         """Test status validator with lowercase string."""
-        # This tests lines 362-364: if isinstance(v, str): return ServiceStatus(v.lower())
+        # This tests lines 362-364: if isinstance(v, str): return WebSocketServiceStatus(v.lower())
         status_data = WebSocketServiceStatusData(
             service="redis",
             status="healthy",  # type: ignore[arg-type]
         )
-        assert status_data.status == ServiceStatus.HEALTHY
+        assert status_data.status == WebSocketServiceStatus.HEALTHY
 
     def test_status_validator_with_uppercase_string(self) -> None:
         """Test status validator with uppercase string (case-insensitive)."""
@@ -861,7 +861,7 @@ class TestWebSocketServiceStatusData:
             service="nemotron",
             status="UNHEALTHY",  # type: ignore[arg-type]
         )
-        assert status_data.status == ServiceStatus.UNHEALTHY
+        assert status_data.status == WebSocketServiceStatus.UNHEALTHY
 
     def test_status_validator_with_mixed_case_string(self) -> None:
         """Test status validator with mixed case string."""
@@ -869,7 +869,7 @@ class TestWebSocketServiceStatusData:
             service="redis",
             status="ReStArTiNg",  # type: ignore[arg-type]
         )
-        assert status_data.status == ServiceStatus.RESTARTING
+        assert status_data.status == WebSocketServiceStatus.RESTARTING
 
     def test_status_validator_invalid_string(self) -> None:
         """Test status validator with invalid string value."""
@@ -900,7 +900,7 @@ class TestWebSocketServiceStatusData:
         """Test that message field is optional."""
         status_data = WebSocketServiceStatusData(
             service="redis",
-            status=ServiceStatus.HEALTHY,
+            status=WebSocketServiceStatus.HEALTHY,
         )
         assert status_data.message is None
 
@@ -908,7 +908,7 @@ class TestWebSocketServiceStatusData:
         """Test that service status data serializes to JSON correctly."""
         status_data = WebSocketServiceStatusData(
             service="redis",
-            status=ServiceStatus.HEALTHY,
+            status=WebSocketServiceStatus.HEALTHY,
             message="All good",
         )
         json_str = status_data.model_dump_json()
@@ -930,7 +930,7 @@ class TestWebSocketServiceStatusMessage:
         """Test creating valid service status message envelope."""
         status_data = WebSocketServiceStatusData(
             service="redis",
-            status=ServiceStatus.HEALTHY,
+            status=WebSocketServiceStatus.HEALTHY,
         )
         message = WebSocketServiceStatusMessage(
             data=status_data,
@@ -943,7 +943,7 @@ class TestWebSocketServiceStatusMessage:
         """Test that service status message serializes correctly."""
         status_data = WebSocketServiceStatusData(
             service="nemotron",
-            status=ServiceStatus.UNHEALTHY,
+            status=WebSocketServiceStatus.UNHEALTHY,
             message="Model loading failed",
         )
         message = WebSocketServiceStatusMessage(

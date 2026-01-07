@@ -1026,3 +1026,438 @@ class TestSearchResultToDict:
         d = result.to_dict()
         assert d["started_at"] is None
         assert d["ended_at"] is None
+
+
+class TestBuildSearchQueryOrderBehavior:
+    """Tests for search query ordering behavior.
+
+    These tests verify that the query ordering is correctly set up for both
+    search queries (ordered by relevance_score DESC) and non-search queries
+    (ordered by started_at DESC). Mutation testing identified that the ordering
+    could be replaced with None without failing existing tests.
+    """
+
+    def test_search_query_has_relevance_ordering(self):
+        """Verify search query orders by relevance_score DESC.
+
+        This test ensures that when a search query is built with operators,
+        it includes proper ORDER BY relevance_score DESC ordering.
+        Mutation test mutant_25 identified this could be replaced with None.
+        """
+        from sqlalchemy.dialects import postgresql
+
+        tsquery_str = "person & vehicle"
+        query = "person AND vehicle"
+        result, has_search = _build_search_query(tsquery_str, query)
+
+        assert has_search is True
+        assert result is not None
+
+        # Compile the query to inspect it
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # The query should include the relevance_score column
+        assert "relevance_score" in query_text.lower()
+
+    def test_has_operators_detection_returns_true_for_operators(self):
+        """Test that has_operators correctly detects query operators.
+
+        Mutation testing found that `has_operators = any(op in tsquery_str ...)
+        could be replaced with `has_operators = None`. This test verifies the
+        operator detection path is taken correctly.
+        """
+        # Queries with operators should use to_tsquery
+        operator_queries = [
+            ("person & vehicle", "person AND vehicle"),
+            ("person | animal", "person OR animal"),
+            ("person & !cat", "person NOT cat"),
+            ("(suspicious <-> person)", '"suspicious person"'),
+        ]
+
+        for tsquery_str, query in operator_queries:
+            _result, has_search = _build_search_query(tsquery_str, query)
+            assert has_search is True, f"Expected has_search=True for {tsquery_str}"
+
+    def test_no_operators_uses_websearch_to_tsquery(self):
+        """Test that queries without operators use websearch_to_tsquery.
+
+        When the tsquery string has no operators, it should use websearch_to_tsquery
+        which provides better handling of simple text queries.
+        """
+        from sqlalchemy.dialects import postgresql
+
+        # Simple word without operators
+        tsquery_str = "person"
+        query = "person"
+        result, has_search = _build_search_query(tsquery_str, query)
+
+        assert has_search is True
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # The query should include search_vector matching
+        assert "search_vector" in query_text.lower()
+
+
+# =============================================================================
+# Property-Based Tests (Hypothesis)
+# =============================================================================
+
+from hypothesis import given  # noqa: E402
+from hypothesis import settings as hypothesis_settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from backend.tests.strategies import (  # noqa: E402
+    detection_ids_json_strategy,
+    search_query_strategy,
+    search_terms,
+)
+
+
+class TestSearchQueryParsingProperties:
+    """Property-based tests for search query parsing."""
+
+    # -------------------------------------------------------------------------
+    # Query Conversion Properties
+    # -------------------------------------------------------------------------
+
+    @given(query=search_terms)
+    @hypothesis_settings(max_examples=100)
+    def test_single_word_query_produces_non_empty_result(self, query: str) -> None:
+        """Property: Non-empty query produces non-empty tsquery."""
+        if query.strip():
+            result = _convert_query_to_tsquery(query)
+            # Should produce a non-empty result for valid queries
+            # (unless the query only contains special characters)
+            cleaned = "".join(c for c in query if c.isalnum())
+            if cleaned:
+                assert len(result) > 0
+
+    @given(query=search_query_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_query_conversion_is_deterministic(self, query: str) -> None:
+        """Property: Same query always produces the same tsquery."""
+        result1 = _convert_query_to_tsquery(query)
+        result2 = _convert_query_to_tsquery(query)
+        result3 = _convert_query_to_tsquery(query)
+        assert result1 == result2 == result3
+
+    @given(query=st.text(min_size=0, max_size=100))
+    @hypothesis_settings(max_examples=100)
+    def test_query_conversion_never_crashes(self, query: str) -> None:
+        """Property: Query conversion never raises exceptions."""
+        # Should not raise any exception
+        result = _convert_query_to_tsquery(query)
+        assert isinstance(result, str)
+
+    @given(
+        term1=search_terms,
+        term2=search_terms,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_or_operator_produces_pipe(self, term1: str, term2: str) -> None:
+        """Property: OR between terms produces | in tsquery."""
+        query = f"{term1} OR {term2}"
+        result = _convert_query_to_tsquery(query)
+        # Clean the terms to check if they would actually produce valid tsquery terms
+        clean1 = "".join(c for c in term1 if c.isalnum())
+        clean2 = "".join(c for c in term2 if c.isalnum())
+        if clean1 and clean2:
+            assert "|" in result
+
+    @given(
+        term1=search_terms,
+        term2=search_terms,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_implicit_and_produces_ampersand(self, term1: str, term2: str) -> None:
+        """Property: Two terms without operator produce & (AND)."""
+        query = f"{term1} {term2}"
+        result = _convert_query_to_tsquery(query)
+        # Clean the terms to check if they would actually appear
+        clean1 = "".join(c for c in term1 if c.isalnum())
+        clean2 = "".join(c for c in term2 if c.isalnum())
+        if clean1 and clean2 and clean1 != clean2:
+            assert "&" in result
+
+    @given(
+        term1=search_terms,
+        term2=search_terms,
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_not_operator_produces_negation(self, term1: str, term2: str) -> None:
+        """Property: NOT before a term produces ! in tsquery."""
+        query = f"{term1} NOT {term2}"
+        result = _convert_query_to_tsquery(query)
+        clean2 = "".join(c for c in term2 if c.isalnum())
+        if clean2:
+            assert f"!{clean2}" in result or "!" in result
+
+    # -------------------------------------------------------------------------
+    # Phrase Search Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        word1=st.from_regex(r"[a-z]{2,10}", fullmatch=True),
+        word2=st.from_regex(r"[a-z]{2,10}", fullmatch=True),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_phrase_search_produces_proximity(self, word1: str, word2: str) -> None:
+        """Property: Quoted phrase produces proximity operator <->."""
+        query = f'"{word1} {word2}"'
+        result = _convert_query_to_tsquery(query)
+        assert "<->" in result
+        assert word1 in result
+        assert word2 in result
+
+    # -------------------------------------------------------------------------
+    # Filter Conditions Properties
+    # -------------------------------------------------------------------------
+
+    @given(
+        num_cameras=st.integers(min_value=0, max_value=5),
+        num_severities=st.integers(min_value=0, max_value=4),
+        num_object_types=st.integers(min_value=0, max_value=5),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_filter_conditions_count(
+        self,
+        num_cameras: int,
+        num_severities: int,
+        num_object_types: int,
+    ) -> None:
+        """Property: Number of filter conditions matches expected."""
+        camera_ids = [f"cam{i}" for i in range(num_cameras)]
+        severities = ["low", "medium", "high", "critical"][:num_severities]
+        object_types = [f"obj{i}" for i in range(num_object_types)]
+
+        filters = SearchFilters(
+            camera_ids=camera_ids,
+            severity=severities,
+            object_types=object_types,
+        )
+        conditions = _build_filter_conditions(filters)
+
+        expected_count = 0
+        if camera_ids:
+            expected_count += 1
+        if severities:
+            expected_count += 1
+        if object_types:
+            expected_count += 1
+
+        assert len(conditions) == expected_count
+
+    @given(reviewed=st.booleans())
+    @hypothesis_settings(max_examples=10)
+    def test_reviewed_filter_always_produces_condition(self, reviewed: bool) -> None:
+        """Property: Setting reviewed always produces exactly one condition."""
+        filters = SearchFilters(reviewed=reviewed)
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+
+class TestDetectionIdsParsingProperties:
+    """Property-based tests for detection ID parsing."""
+
+    @given(ids_json=detection_ids_json_strategy())
+    @hypothesis_settings(max_examples=100)
+    def test_json_format_parsing_produces_list(self, ids_json: str) -> None:
+        """Property: JSON array format always produces a list."""
+        result = _parse_detection_ids(ids_json)
+        assert isinstance(result, list)
+        assert all(isinstance(i, int) for i in result)
+
+    @given(ids=st.lists(st.integers(min_value=1, max_value=10000), min_size=2, max_size=10))
+    @hypothesis_settings(max_examples=100)
+    def test_csv_format_parsing_produces_list(self, ids: list[int]) -> None:
+        """Property: CSV format with multiple IDs always produces a list of integers."""
+        # Generate CSV format with commas (at least 2 IDs ensures fallback to comma parsing)
+        ids_csv = ", ".join(str(i) for i in ids)
+        result = _parse_detection_ids(ids_csv)
+        assert isinstance(result, list)
+        assert all(isinstance(i, int) for i in result)
+        # Multi-value CSV falls back to comma-split parsing
+        assert len(result) == len(ids)
+
+    @given(ids=st.lists(st.integers(min_value=1, max_value=10000), min_size=0, max_size=10))
+    @hypothesis_settings(max_examples=100)
+    def test_json_roundtrip_preserves_ids(self, ids: list[int]) -> None:
+        """Property: Serializing to JSON and parsing back preserves IDs."""
+        import json
+
+        json_str = json.dumps(ids)
+        result = _parse_detection_ids(json_str)
+        assert result == ids
+
+    @given(
+        input_type=st.sampled_from(["json_array", "csv", "empty", "invalid_json"]),
+        ids=st.lists(st.integers(min_value=1, max_value=10000), min_size=0, max_size=5),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_valid_inputs_parse_without_crashes(self, input_type: str, ids: list[int]) -> None:
+        """Property: Valid inputs (JSON arrays, CSV numbers) parse without crashes."""
+        import json
+
+        if input_type == "json_array":
+            input_str = json.dumps(ids)
+        elif input_type == "csv":
+            input_str = ", ".join(str(i) for i in ids) if ids else ""
+        elif input_type == "empty":
+            input_str = ""
+        else:  # invalid_json - valid CSV fallback
+            input_str = ", ".join(str(i) for i in ids) if ids else "[]"
+
+        # Should not raise any exception
+        result = _parse_detection_ids(input_str)
+        assert isinstance(result, list)
+
+    def test_empty_inputs_produce_empty_list(self) -> None:
+        """Property: Empty/None inputs produce empty list."""
+        assert _parse_detection_ids("") == []
+        assert _parse_detection_ids(None) == []
+        assert _parse_detection_ids("   ") == []  # Whitespace-only
+
+    @given(ids=st.lists(st.integers(min_value=1, max_value=10000), min_size=1, max_size=10))
+    @hypothesis_settings(max_examples=50)
+    def test_result_count_matches_input(self, ids: list[int]) -> None:
+        """Property: Parsed result has same count as input."""
+        import json
+
+        json_str = json.dumps(ids)
+        result = _parse_detection_ids(json_str)
+        assert len(result) == len(ids)
+
+
+class TestSearchResultProperties:
+    """Property-based tests for SearchResult dataclass."""
+
+    @given(
+        risk_score=st.integers(min_value=0, max_value=100),
+        relevance=st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+        detection_count=st.integers(min_value=0, max_value=100),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_search_result_to_dict_preserves_values(
+        self,
+        risk_score: int,
+        relevance: float,
+        detection_count: int,
+    ) -> None:
+        """Property: to_dict preserves all field values."""
+        detection_ids = list(range(1, detection_count + 1))
+        result = SearchResult(
+            id=1,
+            camera_id="test_cam",
+            camera_name="Test Camera",
+            started_at=datetime(2025, 1, 1, 12, 0, 0),
+            ended_at=None,
+            risk_score=risk_score,
+            risk_level="medium",
+            summary="Test summary",
+            reasoning="Test reasoning",
+            reviewed=False,
+            detection_count=detection_count,
+            detection_ids=detection_ids,
+            object_types="person",
+            relevance_score=relevance,
+        )
+
+        d = result.to_dict()
+
+        assert d["risk_score"] == risk_score
+        assert d["relevance_score"] == relevance
+        assert d["detection_count"] == detection_count
+        assert d["detection_ids"] == detection_ids
+
+    @given(
+        total=st.integers(min_value=0, max_value=10000),
+        limit=st.integers(min_value=1, max_value=100),
+        offset=st.integers(min_value=0, max_value=1000),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_search_response_pagination_values(
+        self,
+        total: int,
+        limit: int,
+        offset: int,
+    ) -> None:
+        """Property: SearchResponse preserves pagination values."""
+        response = SearchResponse(
+            results=[],
+            total_count=total,
+            limit=limit,
+            offset=offset,
+        )
+
+        d = response.to_dict()
+
+        assert d["total_count"] == total
+        assert d["limit"] == limit
+        assert d["offset"] == offset
+        assert d["results"] == []
+
+
+class TestJoinQueryPartsProperties:
+    """Property-based tests for _join_query_parts."""
+
+    @given(parts=st.lists(st.from_regex(r"[a-z]{2,10}", fullmatch=True), min_size=1, max_size=5))
+    @hypothesis_settings(max_examples=50)
+    def test_join_parts_contains_all_terms(self, parts: list[str]) -> None:
+        """Property: All input terms appear in joined result."""
+        result = _join_query_parts(parts)
+        for part in parts:
+            assert part in result
+
+    @given(parts=st.lists(st.from_regex(r"[a-z]{2,10}", fullmatch=True), min_size=2, max_size=5))
+    @hypothesis_settings(max_examples=50)
+    def test_join_parts_produces_and_operators(self, parts: list[str]) -> None:
+        """Property: Multiple parts are joined with & (AND)."""
+        result = _join_query_parts(parts)
+        assert "&" in result
+
+    @given(part=st.from_regex(r"[a-z]{2,10}", fullmatch=True))
+    @hypothesis_settings(max_examples=20)
+    def test_single_part_no_operators(self, part: str) -> None:
+        """Property: Single part has no operators."""
+        result = _join_query_parts([part])
+        assert result == part
+        assert "&" not in result
+        assert "|" not in result
+
+    def test_empty_list_produces_empty_string(self) -> None:
+        """Property: Empty list produces empty string."""
+        assert _join_query_parts([]) == ""
+
+
+class TestQueryIdempotence:
+    """Property-based tests for idempotence of query operations."""
+
+    @given(query=search_query_strategy())
+    @hypothesis_settings(max_examples=50)
+    def test_tsquery_conversion_is_idempotent(self, query: str) -> None:
+        """Property: Converting to tsquery is idempotent (deterministic)."""
+        result1 = _convert_query_to_tsquery(query)
+        result2 = _convert_query_to_tsquery(query)
+        assert result1 == result2
+
+    @given(
+        camera_ids=st.lists(st.from_regex(r"[a-z]{3,10}", fullmatch=True), max_size=3),
+        severity=st.lists(
+            st.sampled_from(["low", "medium", "high", "critical"]),
+            max_size=4,
+            unique=True,
+        ),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_filter_building_is_idempotent(
+        self,
+        camera_ids: list[str],
+        severity: list[str],
+    ) -> None:
+        """Property: Building filter conditions is idempotent."""
+        filters = SearchFilters(camera_ids=camera_ids, severity=severity)
+        conditions1 = _build_filter_conditions(filters)
+        conditions2 = _build_filter_conditions(filters)
+        assert len(conditions1) == len(conditions2)

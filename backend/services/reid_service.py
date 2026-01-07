@@ -54,7 +54,7 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.85
 EMBEDDING_DIMENSION = 768
 
 
-@dataclass
+@dataclass(slots=True)
 class EntityEmbedding:
     """Embedding data for a detected entity.
 
@@ -113,7 +113,7 @@ class EntityEmbedding:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class EntityMatch:
     """A match result between two entities.
 

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class FaceDetection:
     """Detected face information.
 
@@ -49,7 +49,7 @@ class FaceDetection:
     person_detection_id: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class PersonDetection:
     """Person detection information for face detection.
 

@@ -380,4 +380,198 @@ describe('ThumbnailStrip', () => {
       expect(screen.queryByText('Detection Sequence (3)')).not.toBeInTheDocument();
     });
   });
+
+  describe('pagination / show more', () => {
+    const createManyDetections = (count: number): DetectionThumbnail[] => {
+      return Array.from({ length: count }, (_, i) => ({
+        id: i + 1,
+        detected_at: `2024-01-15T10:30:${i.toString().padStart(2, '0')}Z`,
+        thumbnail_url: `https://example.com/thumb${i + 1}.jpg`,
+        object_type: `object-${i + 1}`,
+        confidence: 0.5 + i * 0.01,
+      }));
+    };
+
+    it('shows all thumbnails when count is below initialDisplayCount', () => {
+      const fewDetections = createManyDetections(5);
+      render(<ThumbnailStrip detections={fewDetections} initialDisplayCount={20} />);
+
+      expect(screen.getAllByRole('img')).toHaveLength(5);
+      expect(screen.queryByTestId('show-more-thumbnails')).not.toBeInTheDocument();
+    });
+
+    it('limits displayed thumbnails to initialDisplayCount', () => {
+      const manyDetections = createManyDetections(30);
+      render(<ThumbnailStrip detections={manyDetections} initialDisplayCount={10} />);
+
+      expect(screen.getAllByRole('img')).toHaveLength(10);
+      expect(screen.getByTestId('show-more-thumbnails')).toBeInTheDocument();
+    });
+
+    it('shows correct remaining count on show more button', () => {
+      const manyDetections = createManyDetections(25);
+      render(<ThumbnailStrip detections={manyDetections} initialDisplayCount={10} />);
+
+      expect(screen.getByText('+15')).toBeInTheDocument();
+      expect(screen.getByText('Show more')).toBeInTheDocument();
+    });
+
+    it('displays more thumbnails when show more is clicked', async () => {
+      const user = userEvent.setup();
+      const manyDetections = createManyDetections(30);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={10}
+        />
+      );
+
+      expect(screen.getAllByRole('img')).toHaveLength(10);
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      await user.click(showMoreButton);
+
+      expect(screen.getAllByRole('img')).toHaveLength(20);
+    });
+
+    it('updates remaining count after show more is clicked', async () => {
+      const user = userEvent.setup();
+      const manyDetections = createManyDetections(35);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={10}
+        />
+      );
+
+      expect(screen.getByText('+25')).toBeInTheDocument();
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      await user.click(showMoreButton);
+
+      expect(screen.getByText('+15')).toBeInTheDocument();
+    });
+
+    it('hides show more button when all thumbnails are displayed', async () => {
+      const user = userEvent.setup();
+      const manyDetections = createManyDetections(15);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={10}
+        />
+      );
+
+      expect(screen.getByTestId('show-more-thumbnails')).toBeInTheDocument();
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      await user.click(showMoreButton);
+
+      expect(screen.queryByTestId('show-more-thumbnails')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('img')).toHaveLength(15);
+    });
+
+    it('handles show more when remaining count is less than loadMoreCount', async () => {
+      const user = userEvent.setup();
+      const manyDetections = createManyDetections(23);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={20}
+        />
+      );
+
+      expect(screen.getAllByRole('img')).toHaveLength(10);
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      await user.click(showMoreButton);
+
+      // Should show all 23, not just 30 (10 + 20)
+      expect(screen.getAllByRole('img')).toHaveLength(23);
+      expect(screen.queryByTestId('show-more-thumbnails')).not.toBeInTheDocument();
+    });
+
+    it('uses default initialDisplayCount of 20', () => {
+      const manyDetections = createManyDetections(25);
+      render(<ThumbnailStrip detections={manyDetections} />);
+
+      expect(screen.getAllByRole('img')).toHaveLength(20);
+      expect(screen.getByTestId('show-more-thumbnails')).toBeInTheDocument();
+    });
+
+    it('show more button has correct aria-label', () => {
+      const manyDetections = createManyDetections(30);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={15}
+        />
+      );
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      expect(showMoreButton).toHaveAttribute('aria-label', 'Show 15 more detections');
+    });
+
+    it('show more button has correct aria-label when remaining is less than loadMoreCount', () => {
+      const manyDetections = createManyDetections(15);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={20}
+        />
+      );
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      expect(showMoreButton).toHaveAttribute('aria-label', 'Show 5 more detections');
+    });
+
+    it('show more button has type="button"', () => {
+      const manyDetections = createManyDetections(25);
+      render(<ThumbnailStrip detections={manyDetections} initialDisplayCount={10} />);
+
+      const showMoreButton = screen.getByTestId('show-more-thumbnails');
+      expect(showMoreButton).toHaveAttribute('type', 'button');
+    });
+
+    it('can click show more multiple times to reveal all thumbnails', async () => {
+      const user = userEvent.setup();
+      const manyDetections = createManyDetections(55);
+      render(
+        <ThumbnailStrip
+          detections={manyDetections}
+          initialDisplayCount={10}
+          loadMoreCount={20}
+        />
+      );
+
+      expect(screen.getAllByRole('img')).toHaveLength(10);
+
+      // First click
+      await user.click(screen.getByTestId('show-more-thumbnails'));
+      expect(screen.getAllByRole('img')).toHaveLength(30);
+
+      // Second click
+      await user.click(screen.getByTestId('show-more-thumbnails'));
+      expect(screen.getAllByRole('img')).toHaveLength(50);
+
+      // Third click - should show all
+      await user.click(screen.getByTestId('show-more-thumbnails'));
+      expect(screen.getAllByRole('img')).toHaveLength(55);
+      expect(screen.queryByTestId('show-more-thumbnails')).not.toBeInTheDocument();
+    });
+
+    it('still shows total count in header when paginated', () => {
+      const manyDetections = createManyDetections(50);
+      render(<ThumbnailStrip detections={manyDetections} initialDisplayCount={10} />);
+
+      // Header should show total, not displayed count
+      expect(screen.getByText('Detection Sequence (50)')).toBeInTheDocument();
+    });
+  });
 });

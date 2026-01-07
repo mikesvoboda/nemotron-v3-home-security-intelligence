@@ -16,7 +16,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   createAlertRule,
@@ -32,13 +32,14 @@ import {
   type AlertRuleUpdate,
   type AlertSeverity,
   type Camera,
+  type DayOfWeek,
   type RuleTestResponse,
   type SeverityMetadataResponse,
 } from '../../services/api';
 import SeverityConfigPanel from '../system/SeverityConfigPanel';
 
 // Days of the week for schedule selector
-const DAYS_OF_WEEK = [
+const DAYS_OF_WEEK: readonly { value: DayOfWeek; label: string }[] = [
   { value: 'monday', label: 'Mon' },
   { value: 'tuesday', label: 'Tue' },
   { value: 'wednesday', label: 'Wed' },
@@ -72,7 +73,7 @@ interface AlertRuleFormData {
   camera_ids: string[];
   min_confidence: number | null;
   schedule_enabled: boolean;
-  schedule_days: string[];
+  schedule_days: DayOfWeek[];
   schedule_start_time: string;
   schedule_end_time: string;
   schedule_timezone: string;
@@ -126,10 +127,67 @@ export default function AlertRulesSettings() {
   const [severityLoading, setSeverityLoading] = useState(true);
   const [severityError, setSeverityError] = useState<string | null>(null);
 
+  // Local display state for debounced inputs (immediate visual feedback)
+  const [localRiskThreshold, setLocalRiskThreshold] = useState<string>('');
+  const [localMinConfidence, setLocalMinConfidence] = useState<string>('');
+
+  // Debounce refs for slider inputs
+  const riskThresholdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const minConfidenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync local state when form data changes (e.g., when editing a rule)
+  useEffect(() => {
+    setLocalRiskThreshold(formData.risk_threshold?.toString() ?? '');
+  }, [formData.risk_threshold]);
+
+  useEffect(() => {
+    setLocalMinConfidence(formData.min_confidence?.toString() ?? '');
+  }, [formData.min_confidence]);
+
+  // Debounced handlers for risk threshold and confidence inputs (150ms delay)
+  // Local state updates immediately for visual feedback, form state is debounced
+  const handleRiskThresholdChange = useCallback((value: string) => {
+    setLocalRiskThreshold(value);
+    if (riskThresholdTimeoutRef.current) {
+      clearTimeout(riskThresholdTimeoutRef.current);
+    }
+    riskThresholdTimeoutRef.current = setTimeout(() => {
+      setFormData((prev) => ({
+        ...prev,
+        risk_threshold: value ? Number(value) : null,
+      }));
+    }, 150);
+  }, []);
+
+  const handleMinConfidenceChange = useCallback((value: string) => {
+    setLocalMinConfidence(value);
+    if (minConfidenceTimeoutRef.current) {
+      clearTimeout(minConfidenceTimeoutRef.current);
+    }
+    minConfidenceTimeoutRef.current = setTimeout(() => {
+      setFormData((prev) => ({
+        ...prev,
+        min_confidence: value ? Number(value) : null,
+      }));
+    }, 150);
+  }, []);
+
+  // Cleanup debounce timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (riskThresholdTimeoutRef.current) {
+        clearTimeout(riskThresholdTimeoutRef.current);
+      }
+      if (minConfidenceTimeoutRef.current) {
+        clearTimeout(minConfidenceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Load rules and cameras on mount
   useEffect(() => {
     void loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData only needed on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only effect: loadData recreated on each render but should only run once
   }, []);
 
   // Fetch severity metadata
@@ -794,13 +852,8 @@ export default function AlertRulesSettings() {
                             <input
                               type="number"
                               id="risk_threshold"
-                              value={formData.risk_threshold ?? ''}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  risk_threshold: e.target.value ? Number(e.target.value) : null,
-                                })
-                              }
+                              value={localRiskThreshold}
+                              onChange={(e) => handleRiskThresholdChange(e.target.value)}
                               min={0}
                               max={100}
                               className={clsx(
@@ -828,13 +881,8 @@ export default function AlertRulesSettings() {
                             <input
                               type="number"
                               id="min_confidence"
-                              value={formData.min_confidence ?? ''}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  min_confidence: e.target.value ? Number(e.target.value) : null,
-                                })
-                              }
+                              value={localMinConfidence}
+                              onChange={(e) => handleMinConfidenceChange(e.target.value)}
                               min={0}
                               max={1}
                               step={0.1}
@@ -1253,7 +1301,7 @@ export default function AlertRulesSettings() {
                         void handleDelete();
                       }}
                       disabled={submitting}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition-all hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-all hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-50"
                     >
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                       {submitting ? 'Deleting...' : 'Delete Rule'}

@@ -445,6 +445,40 @@ class TestLoadFashionClipModel:
             )
 
     @pytest.mark.asyncio
+    async def test_load_model_with_hf_hub_prefix(self) -> None:
+        """Test loading model with hf-hub: prefix (line 165 else branch)."""
+        mock_model = MagicMock()
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
+
+        with patch.dict(
+            sys.modules,
+            {
+                "torch": mock_torch,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
+            },
+        ):
+            result = await load_fashion_clip_model("hf-hub:Marqo/marqo-fashionCLIP")
+
+            # Should use the path as-is (line 165: hub_path = model_path)
+            mock_open_clip.create_model_from_pretrained.assert_called_once_with(
+                "hf-hub:Marqo/marqo-fashionCLIP"
+            )
+            assert result["model"] == mock_model
+
+    @pytest.mark.asyncio
     async def test_load_model_import_error_torch(self) -> None:
         """Test ImportError when torch/transformers not installed."""
         # Create a module that raises ImportError when accessed
@@ -481,7 +515,17 @@ class TestLoadFashionClipModel:
 
 
 class TestClassifyClothing:
-    """Tests for classify_clothing function error handling."""
+    """Tests for classify_clothing function.
+
+    Note: The classify_clothing and classify_clothing_batch functions use
+    run_in_executor with inner _classify and _classify_batch functions that
+    perform torch operations. These inner functions are difficult to mock
+    effectively without introducing test brittleness. Error handling is
+    tested, and integration tests verify the happy path behavior.
+
+    Coverage lines 233-295 (classify_clothing) and 333-401 (classify_clothing_batch)
+    are exercised in integration tests with real or mocked GPU services.
+    """
 
     @pytest.mark.asyncio
     async def test_classify_clothing_runtime_error(self) -> None:
@@ -512,7 +556,12 @@ class TestClassifyClothing:
 
 
 class TestClassifyClothingBatch:
-    """Tests for classify_clothing_batch function."""
+    """Tests for classify_clothing_batch function.
+
+    Note: See TestClassifyClothing class docstring for details on why the
+    classification functions have limited unit test coverage. Integration
+    tests provide comprehensive validation of the happy path behaviors.
+    """
 
     @pytest.mark.asyncio
     async def test_batch_empty_images(self) -> None:

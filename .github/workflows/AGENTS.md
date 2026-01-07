@@ -11,6 +11,7 @@ workflows/
   AGENTS.md              # This file
   ci.yml                 # Main CI pipeline
   deploy.yml             # Docker image build and push to GHCR
+  docs.yml               # Documentation generation and GitHub Pages deployment
   preview-deploy.yml     # PR preview container builds
   ai-code-review.yml     # GPT-powered automated code review
   linear-ci-status.yml   # Linear issue status sync from CI/CD events
@@ -57,6 +58,66 @@ workflows/
 - Coverage uploaded to Codecov
 
 **Concurrency:** Only one run per branch at a time.
+
+### docs.yml - Documentation Generation
+
+**Trigger:** Push/PR to main, manual dispatch
+
+**Purpose:** Generate and deploy API and TypeScript documentation.
+
+**Jobs:**
+
+| Job             | Duration | Description                        |
+| --------------- | -------- | ---------------------------------- |
+| openapi         | ~1m      | Extract OpenAPI spec from FastAPI  |
+| typedoc         | ~2m      | Generate TypeScript documentation  |
+| redoc           | ~1m      | Generate Redoc HTML from OpenAPI   |
+| build-docs      | ~1m      | Assemble documentation site        |
+| deploy          | ~1m      | Deploy to GitHub Pages (main only) |
+| archive-openapi | ~1m      | Version and archive OpenAPI spec   |
+
+**Outputs:**
+
+- OpenAPI specification (`openapi.json`)
+- Redoc HTML API documentation
+- TypeDoc markdown documentation
+- Documentation site deployed to GitHub Pages
+
+**Artifacts:**
+
+- `openapi-spec` - Raw OpenAPI JSON
+- `typedoc-output` - TypeDoc markdown files
+- `redoc-html` - Redoc HTML documentation
+- `docs-site` - Complete documentation site
+- `openapi-versioned-{sha}` - Versioned OpenAPI archive
+
+**Local Generation:**
+
+```bash
+# Generate all documentation
+./scripts/generate-docs.sh
+
+# Generate and serve locally
+./scripts/generate-docs.sh --serve
+
+# Generate API docs only
+./scripts/generate-docs.sh --api-only
+
+# Generate TypeScript docs only
+./scripts/generate-docs.sh --ts-only
+```
+
+**Frontend TypeDoc:**
+
+```bash
+cd frontend
+npm run docs        # Generate TypeDoc
+npm run docs:watch  # Watch mode
+```
+
+**Configuration Files:**
+
+- `frontend/typedoc.json` - TypeDoc configuration
 
 ### deploy.yml - Container Deployment
 

@@ -205,16 +205,25 @@ async def test_notification(
             return _create_error_response(channel, result or "Unknown error", message)
 
         # Log the audit entry for successful test
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.NOTIFICATION_TEST,
-            resource_type="notification",
-            resource_id=channel.value,
-            actor="anonymous",
-            details={"channel": channel.value, "success": True},
-            request=request,
-        )
-        await db.commit()
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.NOTIFICATION_TEST,
+                resource_type="notification",
+                resource_id=channel.value,
+                actor="anonymous",
+                details={"channel": channel.value, "success": True},
+                request=request,
+            )
+            await db.commit()
+        except Exception:
+            logger.error(
+                "Failed to commit audit log",
+                exc_info=True,
+                extra={"action": "notification_test", "channel": channel.value},
+            )
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
 
         return TestNotificationResponse(
             channel=channel,

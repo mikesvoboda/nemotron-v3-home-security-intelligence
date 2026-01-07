@@ -24,6 +24,7 @@ from backend.api.schemas.system import (
     ConfigResponse,
     GPUStatsHistoryResponse,
     GPUStatsResponse,
+    HealthCheckServiceStatus,
     HealthResponse,
     PipelineLatencies,
     ReadinessResponse,
@@ -679,7 +680,7 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
         async def mock_ai_health_check():
-            return system_routes.ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy", message="AI services operational", details=None
             )
 
@@ -726,7 +727,7 @@ async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
         async def mock_ai_health_check():
-            return system_routes.ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy", message="AI services operational", details=None
             )
 
@@ -778,7 +779,7 @@ async def test_get_readiness_includes_pipeline_worker_status() -> None:
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
         async def mock_ai_health_check():
-            return system_routes.ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy", message="AI services operational", details=None
             )
 
@@ -861,7 +862,7 @@ async def test_get_readiness_not_ready_when_pipeline_manager_is_none() -> None:
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
         async def mock_ai_health_check():
-            return system_routes.ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy", message="AI services operational", details=None
             )
 
@@ -974,7 +975,7 @@ async def test_get_readiness_ai_services_timeout() -> None:
             """Simulate a slow AI services health check that will timeout."""
             await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
             # This return is never reached due to timeout
-            return system_routes.ServiceStatus(
+            return HealthCheckServiceStatus(
                 status="healthy", message="AI services operational", details=None
             )
 
@@ -2016,16 +2017,35 @@ async def test_get_telemetry_queue_depth_exception() -> None:
 
 @pytest.mark.asyncio
 async def test_check_database_health_healthy() -> None:
-    """Test check_database_health returns healthy on success."""
+    """Test check_database_health returns healthy on success with pool status."""
+    from unittest.mock import patch
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
-    status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
+    # Mock get_pool_status to return realistic pool metrics
+    mock_pool_status = {
+        "pool_size": 20,
+        "overflow": 5,
+        "checkedin": 15,
+        "checkedout": 10,
+        "total_connections": 25,
+    }
+
+    with patch(
+        "backend.core.database.get_pool_status",
+        AsyncMock(return_value=mock_pool_status),
+    ):
+        status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
 
     assert status.status == "healthy"
     assert status.message == "Database operational"
+    assert status.details is not None
+    assert "pool" in status.details
+    assert status.details["pool"]["size"] == 20
+    assert status.details["pool"]["checkedout"] == 10
 
 
 @pytest.mark.asyncio
@@ -3004,7 +3024,7 @@ async def test_verify_api_key_returns_401_for_invalid_key() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         pytest.raises(HTTPException) as exc_info,
     ):
-        await system_routes.verify_api_key(x_api_key="invalid-key")
+        await system_routes.verify_api_key(x_api_key="invalid-key")  # pragma: allowlist secret
 
     assert exc_info.value.status_code == 401
     assert "Invalid API key" in exc_info.value.detail
@@ -3019,7 +3039,9 @@ async def test_verify_api_key_accepts_valid_key() -> None:
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
         # Should not raise any exception
-        await system_routes.verify_api_key(x_api_key="valid-api-key-123")
+        await system_routes.verify_api_key(
+            x_api_key="valid-api-key-123"  # pragma: allowlist secret
+        )
 
 
 @pytest.mark.asyncio
@@ -3031,9 +3053,9 @@ async def test_verify_api_key_accepts_any_valid_key_from_list() -> None:
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
         # Should accept any key from the list
-        await system_routes.verify_api_key(x_api_key="key-one")
-        await system_routes.verify_api_key(x_api_key="key-two")
-        await system_routes.verify_api_key(x_api_key="key-three")
+        await system_routes.verify_api_key(x_api_key="key-one")  # pragma: allowlist secret
+        await system_routes.verify_api_key(x_api_key="key-two")  # pragma: allowlist secret
+        await system_routes.verify_api_key(x_api_key="key-three")  # pragma: allowlist secret
 
 
 # =============================================================================

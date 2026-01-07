@@ -75,6 +75,15 @@ def detector_client():
 
 
 @pytest.fixture
+def detector_client_no_retry():
+    """Create a DetectorClient instance with no retries for error handling tests.
+
+    Using max_retries=1 speeds up error handling tests by skipping retry delays.
+    """
+    return DetectorClient(max_retries=1)
+
+
+@pytest.fixture
 def mock_detector_response():
     """Standard detector response with multiple detections."""
     return {
@@ -324,7 +333,7 @@ class TestConnectionErrorHandling:
     """Tests for handling connection errors with DetectorUnavailableError."""
 
     async def test_detect_objects_handles_connection_error(
-        self, integration_db, sample_camera, temp_image_file, detector_client
+        self, integration_db, sample_camera, temp_image_file, detector_client_no_retry
     ):
         """Test that connection errors raise DetectorUnavailableError for retry handling."""
         from backend.core.database import get_session
@@ -335,13 +344,16 @@ class TestConnectionErrorHandling:
             async with get_session() as session:
                 # Connection errors should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
-                    await detector_client.detect_objects(
+                    await detector_client_no_retry.detect_objects(
                         image_path=temp_image_file,
                         camera_id=sample_camera.id,
                         session=session,
                     )
 
-                assert "Failed to connect to detector service" in str(exc_info.value)
+                # After retry exhaustion, error message indicates failed attempts
+                assert "failed after" in str(exc_info.value).lower()
+                # Original error is preserved for inspection
+                assert isinstance(exc_info.value.original_error, httpx.ConnectError)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -355,7 +367,7 @@ class TestTimeoutHandling:
     """Tests for handling timeout scenarios with DetectorUnavailableError."""
 
     async def test_detect_objects_handles_timeout(
-        self, integration_db, sample_camera, temp_image_file, detector_client
+        self, integration_db, sample_camera, temp_image_file, detector_client_no_retry
     ):
         """Test that timeouts raise DetectorUnavailableError for retry handling."""
         from backend.core.database import get_session
@@ -366,13 +378,16 @@ class TestTimeoutHandling:
             async with get_session() as session:
                 # Timeouts should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
-                    await detector_client.detect_objects(
+                    await detector_client_no_retry.detect_objects(
                         image_path=temp_image_file,
                         camera_id=sample_camera.id,
                         session=session,
                     )
 
-                assert "timed out" in str(exc_info.value)
+                # After retry exhaustion, error message indicates failed attempts
+                assert "failed after" in str(exc_info.value).lower()
+                # Original error is preserved for inspection
+                assert isinstance(exc_info.value.original_error, httpx.TimeoutException)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -488,7 +503,7 @@ class TestBadResponseHandling:
     """Tests for handling malformed or bad responses from detector."""
 
     async def test_detect_objects_handles_http_error(
-        self, integration_db, sample_camera, temp_image_file, detector_client
+        self, integration_db, sample_camera, temp_image_file, detector_client_no_retry
     ):
         """Test that HTTP 5xx errors raise DetectorUnavailableError for retry handling."""
         from backend.core.database import get_session
@@ -503,13 +518,16 @@ class TestBadResponseHandling:
             async with get_session() as session:
                 # 5xx errors should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
-                    await detector_client.detect_objects(
+                    await detector_client_no_retry.detect_objects(
                         image_path=temp_image_file,
                         camera_id=sample_camera.id,
                         session=session,
                     )
 
-                assert "server error: 500" in str(exc_info.value)
+                # After retry exhaustion, error message indicates failed attempts
+                assert "failed after" in str(exc_info.value).lower()
+                # Original error is preserved for inspection
+                assert isinstance(exc_info.value.original_error, httpx.HTTPStatusError)
 
     async def test_detect_objects_handles_missing_detections_key(
         self, integration_db, sample_camera, temp_image_file, detector_client
@@ -753,3 +771,196 @@ class TestTimestampHandling:
             assert before_naive <= detected_at <= after_naive
         else:
             assert before_detection <= detected_at <= after_detection
+
+
+class TestBaselineUpdatesOnDetection:
+    """Tests verifying that baseline updates occur during detection processing (NEM-1259)."""
+
+    async def test_detect_objects_updates_baseline(
+        self,
+        integration_db,
+        sample_camera,
+        temp_image_file,
+        detector_client,
+        mock_detector_response,
+    ):
+        """Test that baseline is updated when detections are stored (NEM-1259).
+
+        This test verifies the fix for the Analytics page being empty because
+        update_baseline() was never called during detection processing.
+        """
+        from backend.core.database import get_session
+        from backend.models.baseline import ActivityBaseline, ClassBaseline
+        from backend.services.baseline import reset_baseline_service
+
+        # Reset baseline service singleton to ensure clean state
+        reset_baseline_service()
+
+        # Mock HTTP call to detector
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_detector_response
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+            async with get_session() as session:
+                detections = await detector_client.detect_objects(
+                    image_path=temp_image_file,
+                    camera_id=sample_camera.id,
+                    session=session,
+                )
+
+                assert len(detections) == 2
+
+        # Verify baseline tables were updated
+        async with get_session() as session:
+            # Check ActivityBaseline records were created
+            activity_result = await session.execute(
+                select(ActivityBaseline).where(ActivityBaseline.camera_id == sample_camera.id)
+            )
+            activity_baselines = activity_result.scalars().all()
+
+            # Should have at least 1 activity baseline entry (for the hour/day when detection occurred)
+            assert len(activity_baselines) >= 1
+
+            # Check ClassBaseline records were created
+            class_result = await session.execute(
+                select(ClassBaseline).where(ClassBaseline.camera_id == sample_camera.id)
+            )
+            class_baselines = class_result.scalars().all()
+
+            # Should have 2 class baselines - one for "person" and one for "car"
+            assert len(class_baselines) == 2
+
+            # Verify the detected classes are present
+            detected_classes = {cb.detection_class for cb in class_baselines}
+            assert "person" in detected_classes
+            assert "car" in detected_classes
+
+            # Verify sample counts are greater than 0
+            for cb in class_baselines:
+                assert cb.sample_count >= 1
+                assert cb.frequency > 0
+
+    async def test_detect_objects_no_baseline_update_when_no_detections(
+        self,
+        integration_db,
+        sample_camera,
+        temp_image_file,
+        detector_client,
+    ):
+        """Test that no baseline update occurs when all detections are filtered out."""
+        from backend.core.database import get_session
+        from backend.models.baseline import ActivityBaseline, ClassBaseline
+        from backend.services.baseline import reset_baseline_service
+
+        # Reset baseline service singleton to ensure clean state
+        reset_baseline_service()
+
+        # Response with all detections below threshold
+        response_data = {
+            "detections": [
+                {"class": "dog", "confidence": 0.40, "bbox": [100, 150, 200, 300]},
+                {"class": "cat", "confidence": 0.35, "bbox": [200, 250, 150, 200]},
+            ],
+            "processing_time_ms": 50.0,
+            "image_size": [1920, 1080],
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = response_data
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+            async with get_session() as session:
+                detections = await detector_client.detect_objects(
+                    image_path=temp_image_file,
+                    camera_id=sample_camera.id,
+                    session=session,
+                )
+
+        # No detections stored (all below threshold)
+        assert len(detections) == 0
+
+        # Verify no baseline records were created
+        async with get_session() as session:
+            activity_result = await session.execute(
+                select(ActivityBaseline).where(ActivityBaseline.camera_id == sample_camera.id)
+            )
+            assert len(activity_result.scalars().all()) == 0
+
+            class_result = await session.execute(
+                select(ClassBaseline).where(ClassBaseline.camera_id == sample_camera.id)
+            )
+            assert len(class_result.scalars().all()) == 0
+
+    async def test_detect_objects_baseline_accumulates(
+        self,
+        integration_db,
+        sample_camera,
+        temp_image_file,
+        detector_client,
+    ):
+        """Test that multiple detections accumulate in baseline statistics."""
+        from backend.core.database import get_session
+        from backend.models.baseline import ClassBaseline
+        from backend.services.baseline import reset_baseline_service
+
+        # Reset baseline service singleton to ensure clean state
+        reset_baseline_service()
+
+        # First detection batch - just a person
+        response_data_1 = {
+            "detections": [
+                {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]},
+            ],
+            "processing_time_ms": 50.0,
+            "image_size": [1920, 1080],
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = response_data_1
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+            async with get_session() as session:
+                detections = await detector_client.detect_objects(
+                    image_path=temp_image_file,
+                    camera_id=sample_camera.id,
+                    session=session,
+                )
+                assert len(detections) == 1
+
+        # Check initial sample count
+        async with get_session() as session:
+            result = await session.execute(
+                select(ClassBaseline).where(
+                    ClassBaseline.camera_id == sample_camera.id,
+                    ClassBaseline.detection_class == "person",
+                )
+            )
+            person_baseline = result.scalar_one()
+            initial_sample_count = person_baseline.sample_count
+
+        # Second detection batch - another person
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+            async with get_session() as session:
+                detections = await detector_client.detect_objects(
+                    image_path=temp_image_file,
+                    camera_id=sample_camera.id,
+                    session=session,
+                )
+                assert len(detections) == 1
+
+        # Check sample count increased
+        async with get_session() as session:
+            result = await session.execute(
+                select(ClassBaseline).where(
+                    ClassBaseline.camera_id == sample_camera.id,
+                    ClassBaseline.detection_class == "person",
+                )
+            )
+            person_baseline = result.scalar_one()
+            assert person_baseline.sample_count > initial_sample_count

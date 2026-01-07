@@ -2,10 +2,10 @@
 
 import re
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum, auto
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
 
 # Pattern for valid dedup_key: alphanumeric, underscore, hyphen, colon only
 # This prevents injection attacks via special characters (NEM-1107)
@@ -40,22 +40,22 @@ def validate_dedup_key(value: str) -> str:
 DedupKeyStr = Annotated[str, AfterValidator(validate_dedup_key)]
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     """Alert severity levels."""
 
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+    CRITICAL = auto()
 
 
-class AlertStatus(str, Enum):
+class AlertStatus(StrEnum):
     """Alert status values."""
 
-    PENDING = "pending"
-    DELIVERED = "delivered"
-    ACKNOWLEDGED = "acknowledged"
-    DISMISSED = "dismissed"
+    PENDING = auto()
+    DELIVERED = auto()
+    ACKNOWLEDGED = auto()
+    DISMISSED = auto()
 
 
 # =============================================================================
@@ -63,11 +63,55 @@ class AlertStatus(str, Enum):
 # =============================================================================
 
 
+# Valid days of the week for schedule validation
+VALID_DAYS = frozenset(
+    ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+)
+
+
+def validate_time_format(time_str: str) -> tuple[int, int]:
+    """Validate time format and return hours and minutes.
+
+    Args:
+        time_str: Time string in HH:MM format
+
+    Returns:
+        Tuple of (hours, minutes)
+
+    Raises:
+        ValueError: If time format is invalid or values out of range
+    """
+    if not time_str or len(time_str) != 5 or time_str[2] != ":":
+        raise ValueError(f"Invalid time format '{time_str}'. Expected HH:MM format.")
+
+    try:
+        hours = int(time_str[:2])
+        minutes = int(time_str[3:])
+    except ValueError as err:
+        raise ValueError(
+            f"Invalid time format '{time_str}'. Hours and minutes must be numeric."
+        ) from err
+
+    if hours < 0 or hours > 23:
+        raise ValueError(f"Invalid hours '{hours}' in time '{time_str}'. Hours must be 00-23.")
+    if minutes < 0 or minutes > 59:
+        raise ValueError(
+            f"Invalid minutes '{minutes}' in time '{time_str}'. Minutes must be 00-59."
+        )
+
+    return hours, minutes
+
+
 class AlertRuleSchedule(BaseModel):
     """Schema for alert rule schedule (time-based conditions).
 
     If start_time > end_time, the schedule spans midnight (e.g., 22:00-06:00).
     Empty days array means all days. No schedule = always active (vacation mode).
+
+    Validation:
+    - Days must be valid day names (monday-sunday)
+    - Times must be valid HH:MM format with hours 00-23, minutes 00-59
+    - Start and end times are validated but can span midnight
     """
 
     model_config = ConfigDict(
@@ -89,14 +133,79 @@ class AlertRuleSchedule(BaseModel):
     start_time: str | None = Field(
         None,
         pattern=r"^\d{2}:\d{2}$",
-        description="Start time in HH:MM format",
+        description="Start time in HH:MM format (00:00-23:59)",
     )
     end_time: str | None = Field(
         None,
         pattern=r"^\d{2}:\d{2}$",
-        description="End time in HH:MM format",
+        description="End time in HH:MM format (00:00-23:59)",
     )
     timezone: str = Field("UTC", description="Timezone for time evaluation")
+
+    @field_validator("days")
+    @classmethod
+    def validate_days(cls, v: list[str] | None) -> list[str] | None:
+        """Validate that days are valid day names.
+
+        Args:
+            v: List of day names or None
+
+        Returns:
+            Validated list or None
+
+        Raises:
+            ValueError: If any day is invalid
+        """
+        if v is None:
+            return v
+
+        invalid_days = [day for day in v if day.lower() not in VALID_DAYS]
+        if invalid_days:
+            raise ValueError(
+                f"Invalid day(s): {', '.join(invalid_days)}. "
+                f"Valid days are: {', '.join(sorted(VALID_DAYS))}"
+            )
+
+        # Normalize to lowercase
+        return [day.lower() for day in v]
+
+    @field_validator("start_time")
+    @classmethod
+    def validate_start_time(cls, v: str | None) -> str | None:
+        """Validate start time format and values.
+
+        Args:
+            v: Time string or None
+
+        Returns:
+            Validated time string or None
+
+        Raises:
+            ValueError: If time format is invalid
+        """
+        if v is None:
+            return v
+        validate_time_format(v)
+        return v
+
+    @field_validator("end_time")
+    @classmethod
+    def validate_end_time(cls, v: str | None) -> str | None:
+        """Validate end time format and values.
+
+        Args:
+            v: Time string or None
+
+        Returns:
+            Validated time string or None
+
+        Raises:
+            ValueError: If time format is invalid
+        """
+        if v is None:
+            return v
+        validate_time_format(v)
+        return v
 
 
 class AlertRuleConditions(BaseModel):

@@ -12,13 +12,13 @@ Supported message types:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum, auto
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Valid risk levels for security events.
 
     This enum mirrors backend.models.enums.Severity but is specifically
@@ -29,23 +29,19 @@ class RiskLevel(str, Enum):
     - critical: Immediate attention required
     """
 
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-
-    def __str__(self) -> str:
-        """Return string representation of risk level."""
-        return self.value
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+    CRITICAL = auto()
 
 
-class WebSocketMessageType(str, Enum):
+class WebSocketMessageType(StrEnum):
     """Valid WebSocket message types."""
 
-    PING = "ping"
-    PONG = "pong"
-    SUBSCRIBE = "subscribe"
-    UNSUBSCRIBE = "unsubscribe"
+    PING = auto()
+    PONG = auto()
+    SUBSCRIBE = auto()
+    UNSUBSCRIBE = auto()
 
 
 class WebSocketPingMessage(BaseModel):
@@ -335,18 +331,14 @@ class WebSocketEventMessage(BaseModel):
     )
 
 
-class ServiceStatus(str, Enum):
-    """Valid service status values for health monitoring."""
+class WebSocketServiceStatus(StrEnum):
+    """Valid service status values for WebSocket health monitoring messages."""
 
-    HEALTHY = "healthy"
-    UNHEALTHY = "unhealthy"
-    RESTARTING = "restarting"
-    RESTART_FAILED = "restart_failed"
-    FAILED = "failed"
-
-    def __str__(self) -> str:
-        """Return string representation of status."""
-        return self.value
+    HEALTHY = auto()
+    UNHEALTHY = auto()
+    RESTARTING = auto()
+    RESTART_FAILED = auto()
+    FAILED = auto()
 
 
 class WebSocketServiceStatusData(BaseModel):
@@ -356,22 +348,22 @@ class WebSocketServiceStatusData(BaseModel):
     """
 
     service: str = Field(..., description="Name of the service (redis, rtdetr, nemotron)")
-    status: ServiceStatus = Field(..., description="Current service status")
+    status: WebSocketServiceStatus = Field(..., description="Current service status")
     message: str | None = Field(None, description="Optional descriptive message")
 
     @field_validator("status", mode="before")
     @classmethod
-    def validate_status(cls, v: str | ServiceStatus) -> ServiceStatus:
-        """Validate and convert status to ServiceStatus enum."""
-        if isinstance(v, ServiceStatus):
+    def validate_status(cls, v: str | WebSocketServiceStatus) -> WebSocketServiceStatus:
+        """Validate and convert status to WebSocketServiceStatus enum."""
+        if isinstance(v, WebSocketServiceStatus):
             return v
         if isinstance(v, str):
             try:
-                return ServiceStatus(v.lower())
+                return WebSocketServiceStatus(v.lower())
             except ValueError:
-                valid_values = [s.value for s in ServiceStatus]
+                valid_values = [s.value for s in WebSocketServiceStatus]
                 raise ValueError(f"Invalid status '{v}'. Must be one of: {valid_values}") from None
-        raise ValueError(f"status must be a string or ServiceStatus enum, got {type(v)}")
+        raise ValueError(f"status must be a string or WebSocketServiceStatus enum, got {type(v)}")
 
     model_config = ConfigDict(
         json_schema_extra={

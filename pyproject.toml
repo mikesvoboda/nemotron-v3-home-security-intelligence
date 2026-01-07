@@ -47,6 +47,10 @@ dependencies = [
     "piq>=0.8.0",  # BRISQUE image quality - lightweight, only needs torchvision
     "open_clip_torch>=2.29.0",
     "accelerate>=1.12.0",
+    # Container orchestration
+    "docker>=7.0.0",
+    # Token counting for LLM context management
+    "tiktoken>=0.8.0",
 ]
 
 [project.optional-dependencies]
@@ -61,9 +65,14 @@ dev = [
     "pytest-xdist>=3.5.0",
     "pytest-timeout>=2.3.0",
     "pytest-rerunfailures>=14.0",  # Flaky test detection - auto-retry failures
+    "pytest-sugar>=1.0.0",  # Pretty progress bar and improved output
+    "pytest-clarity>=1.0.0",  # Better assertion diffs
+    "pytest-randomly>=4.0.0",  # Randomize test execution order
+    "pytest-deadfixtures>=3.0.0",  # Detect unused fixtures
     "fakeredis>=2.20.0",
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
+    "factory-boy>=3.3.0",  # Test fixture factories
     # CI/CD - Performance
     "pytest-benchmark>=4.0.0",
     "pytest-memray>=1.5.0",
@@ -88,7 +97,7 @@ dev = [
 target-version = "py314"
 line-length = 100
 src = ["backend"]
-exclude = ["vulture_whitelist.py"]
+exclude = ["vulture_whitelist.py", "mutants/"]
 
 [tool.ruff.lint]
 select = [
@@ -190,6 +199,9 @@ markers = [
     "benchmark: mark test as a benchmark test (requires pytest-benchmark)",
     "serial: mark test as requiring serial execution (no parallel)",
     "flaky: mark test as flaky (known to fail intermittently, quarantined)",
+    "network: mark test as requiring network access (for isolation in CI)",
+    "db: mark test as requiring database access",
+    "redis: mark test as requiring Redis access",
 ]
 
 [tool.coverage.run]
@@ -246,7 +258,7 @@ deadline = 5000
 database = "directory:.hypothesis"
 
 # =============================================================================
-# Mutation Testing Configuration (mutmut)
+# Mutation Testing Configuration (mutmut 3.x)
 # =============================================================================
 # Mutation testing verifies test effectiveness by making small changes (mutants)
 # to source code and checking if tests catch them. A high mutation score indicates
@@ -255,9 +267,12 @@ database = "directory:.hypothesis"
 # Target modules selected for mutation testing:
 # - bbox_validation.py: Pure logic, well-tested, critical for AI pipeline
 # - severity.py: Pure logic, well-tested, critical for risk assessment
+# - prompt_parser.py: Pure logic, well-tested, critical for prompt management
+# - search.py: Pure logic helpers for full-text search
+# - dedupe.py: File deduplication logic
 #
-# Usage:
-#   uv run mutmut run --paths-to-mutate backend/services/bbox_validation.py
+# Usage (mutmut 3.x):
+#   uv run mutmut run backend/services/prompt_parser.py
 #   uv run mutmut results
 #   uv run mutmut show <mutant_id>
 #
@@ -267,13 +282,23 @@ database = "directory:.hypothesis"
 paths_to_mutate = [
     "backend/services/bbox_validation.py",
     "backend/services/severity.py",
+    "backend/services/prompt_parser.py",
+    "backend/services/search.py",
+    "backend/services/dedupe.py",
 ]
-# Tests to run (must use absolute paths or pytest-compatible paths)
-tests_dir = "backend/tests/unit/services/"
-# Runner configuration
-runner = "python -m pytest -x -q --tb=no"
-# Skip mutations that are equivalent or hard to kill
-dict_synonyms = ["Struct", "NamedStruct"]
-# Parallel execution (use half of available cores)
-# Set to 0 for serial execution if debugging
-# parallel = "auto"
+# Tests directory (list format for mutmut 3.x)
+tests_dir = ["backend/tests/unit/services/"]
+# Extra pytest CLI args - override addopts completely to disable xdist
+pytest_add_cli_args = ["-x", "-q", "--tb=short", "-p", "no:benchmark", "-o", "addopts="]
+# Also copy backend modules to mutants directory for imports
+also_copy = [
+    "backend/",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-clarity>=1.0.1",
+    "pytest-deadfixtures>=3.0.0",
+    "pytest-randomly>=4.0.1",
+    "pytest-sugar>=1.1.1",
+]

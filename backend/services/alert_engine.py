@@ -36,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now_naive
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Event
+from backend.services.batch_fetch import batch_fetch_detections
 
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
@@ -55,7 +56,7 @@ SEVERITY_PRIORITY = {
 DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
-@dataclass
+@dataclass(slots=True)
 class TriggeredRule:
     """Result of a rule evaluation that matched."""
 
@@ -65,7 +66,7 @@ class TriggeredRule:
     dedup_key: str = ""
 
 
-@dataclass
+@dataclass(slots=True)
 class EvaluationResult:
     """Complete result of evaluating all rules against an event."""
 
@@ -192,9 +193,8 @@ class AlertRuleEngine:
         if not detection_id_list:
             return []
 
-        stmt = select(Detection).where(Detection.id.in_(detection_id_list))
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        # Use batch fetching to handle large detection lists efficiently
+        return await batch_fetch_detections(self.session, detection_id_list)
 
     async def _batch_load_detections_for_events(
         self,
@@ -235,10 +235,10 @@ class AlertRuleEngine:
         if not all_detection_ids:
             return {event.id: [] for event in events}
 
-        # Single query to load all detections
-        stmt = select(Detection).where(Detection.id.in_(all_detection_ids))
-        result = await self.session.execute(stmt)
-        all_detections = list(result.scalars().all())
+        # Use batch fetching to handle large detection lists efficiently
+        all_detections = await batch_fetch_detections(
+            self.session, all_detection_ids, order_by_time=False
+        )
 
         # Create lookup by detection ID
         detection_by_id = {d.id: d for d in all_detections}

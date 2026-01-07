@@ -41,22 +41,12 @@ test.beforeEach(async ({ browserName }) => {
 const WCAG_AA_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
 /**
- * Rules to exclude from accessibility checks.
- * Color-contrast is excluded because the NVIDIA dark theme design system has
- * multiple contrast issues that require dedicated design work to fix properly.
- * TODO: Create a Linear ticket to address color contrast issues across the design system.
- * See: https://dequeuniversity.com/rules/axe/4.11/color-contrast
- */
-const EXCLUDED_RULES = ['color-contrast'];
-
-/**
  * Helper function to run axe analysis with standard configuration.
- * Excludes color-contrast checks which require design system updates.
+ * Color-contrast is now enforced after WCAG 2.1 AA compliance fixes (NEM-1481).
  */
 async function runA11yCheck(page: InstanceType<typeof import('@playwright/test').Page>) {
   return new AxeBuilder({ page })
     .withTags(WCAG_AA_TAGS)
-    .disableRules(EXCLUDED_RULES)
     .analyze();
 }
 
@@ -98,7 +88,6 @@ test.describe('Dashboard Page Accessibility', () => {
     // Focus check on the risk card area (replaced RiskGauge with StatsRow risk card)
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .include('[data-testid="risk-card"]')
       .analyze();
 
@@ -502,18 +491,18 @@ test.describe('Keyboard Navigation', () => {
   test('skip link is available for keyboard users', async ({ page }) => {
     await page.goto('/');
 
-    // First Tab should focus skip link (if implemented)
+    // First Tab should focus skip link
     await page.keyboard.press('Tab');
 
     // Check if there's a skip link
-    const skipLink = page.locator('a[href="#main-content"], a:has-text("Skip to content")');
-    const hasSkipLink = (await skipLink.count()) > 0;
+    const skipLink = page.locator('a[href="#main-content"]');
+    await expect(skipLink).toBeVisible();
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toHaveText('Skip to main content');
 
-    // Skip link is a best practice but not strictly required
-    // Log for informational purposes
-    if (!hasSkipLink) {
-      console.log('Note: Consider adding a skip link for keyboard navigation');
-    }
+    // Verify the skip link target exists
+    const mainContent = page.locator('#main-content');
+    await expect(mainContent).toBeVisible();
   });
 });
 

@@ -448,3 +448,448 @@ class TestPromptTestFunction:
 
         assert "test_duration_ms" in result
         assert result["test_duration_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_test_prompt_missing_system_prompt_in_config(self, service, mock_session):
+        """Test that test_prompt returns error when system_prompt is missing from config."""
+        # Mock event found
+        mock_event = MagicMock()
+        mock_event.risk_score = 50
+        mock_event.llm_prompt = "Test context"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_event)
+        mock_session.execute.return_value = mock_result
+
+        result = await service.test_prompt(
+            session=mock_session,
+            model="nemotron",
+            config={},  # Missing system_prompt
+            event_id=123,
+        )
+
+        assert result["error"] is not None
+        assert "system_prompt not found" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_test_prompt_successful_llm_test(self, service, mock_session):
+        """Test successful LLM test with valid response."""
+        from unittest.mock import patch
+
+        # Mock event found
+        mock_event = MagicMock()
+        mock_event.risk_score = 50
+        mock_event.llm_prompt = "Test context"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_event)
+        mock_session.execute.return_value = mock_result
+
+        # Mock _run_llm_test to return a risk score
+        with patch.object(service, "_run_llm_test", new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = {"risk_score": 45, "reasoning": "Test reasoning"}
+
+            result = await service.test_prompt(
+                session=mock_session,
+                model="nemotron",
+                config={"system_prompt": "Test prompt"},
+                event_id=123,
+            )
+
+            assert result["before_score"] == 50
+            assert result["after_score"] == 45
+            assert result["after_response"]["reasoning"] == "Test reasoning"
+            assert result["improved"] is True  # Difference <= 10
+            assert result["error"] is None
+
+    @pytest.mark.asyncio
+    async def test_test_prompt_handles_timeout_exception(self, service, mock_session):
+        """Test that test_prompt handles httpx.TimeoutException."""
+        from unittest.mock import patch
+
+        import httpx
+
+        # Mock event found
+        mock_event = MagicMock()
+        mock_event.risk_score = 50
+        mock_event.llm_prompt = "Test context"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_event)
+        mock_session.execute.return_value = mock_result
+
+        # Mock _run_llm_test to raise TimeoutException
+        with patch.object(service, "_run_llm_test", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = httpx.TimeoutException("Request timeout")
+
+            result = await service.test_prompt(
+                session=mock_session,
+                model="nemotron",
+                config={"system_prompt": "Test prompt"},
+                event_id=123,
+            )
+
+            assert "Request timed out" in result["error"]
+            assert result["test_duration_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_test_prompt_handles_http_status_error(self, service, mock_session):
+        """Test that test_prompt handles httpx.HTTPStatusError."""
+        from unittest.mock import patch
+
+        import httpx
+
+        # Mock event found
+        mock_event = MagicMock()
+        mock_event.risk_score = 50
+        mock_event.llm_prompt = "Test context"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_event)
+        mock_session.execute.return_value = mock_result
+
+        # Create mock response
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+
+        # Mock _run_llm_test to raise HTTPStatusError
+        with patch.object(service, "_run_llm_test", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = httpx.HTTPStatusError(
+                "Server error", request=MagicMock(), response=mock_response
+            )
+
+            result = await service.test_prompt(
+                session=mock_session,
+                model="nemotron",
+                config={"system_prompt": "Test prompt"},
+                event_id=123,
+            )
+
+            assert "HTTP error" in result["error"]
+            assert result["test_duration_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_test_prompt_handles_request_error(self, service, mock_session):
+        """Test that test_prompt handles httpx.RequestError."""
+        from unittest.mock import patch
+
+        import httpx
+
+        # Mock event found
+        mock_event = MagicMock()
+        mock_event.risk_score = 50
+        mock_event.llm_prompt = "Test context"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_event)
+        mock_session.execute.return_value = mock_result
+
+        # Mock _run_llm_test to raise RequestError
+        with patch.object(service, "_run_llm_test", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = httpx.RequestError("Connection failed")
+
+            result = await service.test_prompt(
+                session=mock_session,
+                model="nemotron",
+                config={"system_prompt": "Test prompt"},
+                event_id=123,
+            )
+
+            assert "Request failed" in result["error"]
+            assert result["test_duration_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_test_prompt_handles_data_error(self, service, mock_session):
+        """Test that test_prompt handles KeyError/TypeError/ValueError."""
+        from unittest.mock import patch
+
+        # Mock event found
+        mock_event = MagicMock()
+        mock_event.risk_score = 50
+        mock_event.llm_prompt = "Test context"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_event)
+        mock_session.execute.return_value = mock_result
+
+        # Mock _run_llm_test to raise ValueError
+        with patch.object(service, "_run_llm_test", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = ValueError("Invalid data format")
+
+            result = await service.test_prompt(
+                session=mock_session,
+                model="nemotron",
+                config={"system_prompt": "Test prompt"},
+                event_id=123,
+            )
+
+            assert "Data error" in result["error"]
+            assert result["test_duration_ms"] >= 0
+
+
+class TestRunLLMTest:
+    """Tests for _run_llm_test internal method."""
+
+    @pytest.fixture
+    def service(self):
+        """Create a fresh PromptService instance."""
+        reset_prompt_service()
+        return PromptService()
+
+    @pytest.mark.asyncio
+    async def test_run_llm_test_no_context(self, service):
+        """Test _run_llm_test with no context returns error."""
+        result = await service._run_llm_test("System prompt", None)
+
+        assert "error" in result
+        assert "No context" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_run_llm_test_successful_json_response(self, service):
+        """Test _run_llm_test with successful JSON response."""
+        from unittest.mock import AsyncMock, patch
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": '{"risk_score": 75, "reasoning": "Test"}'}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await service._run_llm_test("System prompt", "User context")
+
+            assert result["risk_score"] == 75
+            assert result["reasoning"] == "Test"
+            mock_client.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_run_llm_test_non_json_response(self, service):
+        """Test _run_llm_test with non-JSON response."""
+        from unittest.mock import AsyncMock, patch
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": "This is not JSON content"}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await service._run_llm_test("System prompt", "User context")
+
+            assert "raw_response" in result
+            assert result["raw_response"] == "This is not JSON content"
+
+    @pytest.mark.asyncio
+    async def test_run_llm_test_timeout_exception(self, service):
+        """Test _run_llm_test handles timeout exception."""
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await service._run_llm_test("System prompt", "User context")
+
+            assert "error" in result
+            assert "timed out" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_run_llm_test_http_status_error(self, service):
+        """Test _run_llm_test handles HTTP status error."""
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Service unavailable",
+                request=MagicMock(),
+                response=mock_response,
+            )
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await service._run_llm_test("System prompt", "User context")
+
+            assert "error" in result
+            assert "HTTP error 503" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_run_llm_test_request_error(self, service):
+        """Test _run_llm_test handles request error."""
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=httpx.RequestError("Connection failed"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await service._run_llm_test("System prompt", "User context")
+
+            assert "error" in result
+            assert "Request failed" in result["error"]
+
+
+class TestImportPromptsErrorHandling:
+    """Tests for import_prompts error handling."""
+
+    @pytest.fixture
+    def service(self):
+        """Create a fresh PromptService instance."""
+        reset_prompt_service()
+        return PromptService()
+
+    @pytest.fixture
+    def mock_session(self):
+        """Create a mock database session."""
+        session = AsyncMock()
+        session.execute = AsyncMock()
+        session.add = MagicMock()
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        return session
+
+    @pytest.mark.asyncio
+    async def test_import_prompts_handles_update_exception(self, service, mock_session):
+        """Test import_prompts handles exceptions during model update."""
+        from unittest.mock import patch
+
+        # Mock update_prompt_for_model to raise an exception
+        with patch.object(
+            service,
+            "update_prompt_for_model",
+            side_effect=Exception("Database error"),
+        ):
+            import_data = {
+                "nemotron": {"system_prompt": "Test prompt"},
+            }
+
+            result = await service.import_prompts(mock_session, import_data)
+
+            assert "nemotron" in result["skipped_models"]
+            assert len(result["imported_models"]) == 0
+            assert "message" in result
+
+    @pytest.mark.asyncio
+    async def test_import_prompts_partial_success(self, service, mock_session):
+        """Test import_prompts with partial success (some succeed, some fail)."""
+        # Mock for successful nemotron import
+        max_result_success = MagicMock()
+        max_result_success.scalar = MagicMock(return_value=0)
+        update_result_success = MagicMock()
+
+        # Set up execute to succeed for first model
+        mock_session.execute.side_effect = [
+            max_result_success,
+            update_result_success,
+        ]
+
+        # Store the original update method
+        original_update = service.update_prompt_for_model
+
+        # Create a counter to track calls
+        call_count = [0]
+
+        async def mock_update(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call succeeds
+                return await original_update(*args, **kwargs)
+            else:
+                # Second call fails
+                raise Exception("Database error")
+
+        from unittest.mock import patch
+
+        with patch.object(service, "update_prompt_for_model", side_effect=mock_update):
+            import_data = {
+                "nemotron": {"system_prompt": "Valid prompt"},
+                "florence2": {"queries": ["Will fail"]},
+            }
+
+            result = await service.import_prompts(mock_session, import_data)
+
+            assert "nemotron" in result["imported_models"]
+            assert "florence2" in result["skipped_models"]
+            assert len(result["imported_models"]) == 1
+            assert len(result["skipped_models"]) == 1
+
+
+class TestVersionConflictHandling:
+    """Tests for optimistic locking and version conflict detection."""
+
+    @pytest.fixture
+    def service(self):
+        """Create a fresh PromptService instance."""
+        reset_prompt_service()
+        return PromptService()
+
+    @pytest.fixture
+    def mock_session(self):
+        """Create a mock database session."""
+        session = AsyncMock()
+        session.execute = AsyncMock()
+        session.add = MagicMock()
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        return session
+
+    @pytest.mark.asyncio
+    async def test_update_prompt_detects_concurrent_modification(self, service, mock_session):
+        """Test update_prompt_for_model detects concurrent modifications."""
+        from backend.api.schemas.prompt_management import PromptVersionConflictError
+
+        # Mock current version is 5, but we expect version 3
+        max_result = MagicMock()
+        max_result.scalar = MagicMock(return_value=5)
+        mock_session.execute.return_value = max_result
+
+        with pytest.raises(PromptVersionConflictError) as exc_info:
+            await service.update_prompt_for_model(
+                session=mock_session,
+                model="nemotron",
+                config={"system_prompt": "New prompt"},
+                expected_version=3,
+            )
+
+        assert "3" in str(exc_info.value)  # Expected version
+        assert "5" in str(exc_info.value)  # Actual version
+
+    @pytest.mark.asyncio
+    async def test_update_prompt_allows_first_version_without_conflict(self, service, mock_session):
+        """Test update_prompt_for_model allows first version creation with expected_version."""
+        # Mock no existing versions (max_version = 0)
+        max_result = MagicMock()
+        max_result.scalar = MagicMock(return_value=0)
+        update_result = MagicMock()
+        mock_session.execute.side_effect = [max_result, update_result]
+
+        # Should succeed even with expected_version=None when max_version=0
+        _new_version = await service.update_prompt_for_model(
+            session=mock_session,
+            model="nemotron",
+            config={"system_prompt": "First prompt"},
+            expected_version=None,
+        )
+
+        # Verify new version was created
+        mock_session.add.assert_called_once()
+        added = mock_session.add.call_args[0][0]
+        assert added.version == 1

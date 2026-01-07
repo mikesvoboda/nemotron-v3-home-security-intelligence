@@ -48,7 +48,7 @@ class NotificationChannel(str, Enum):
     PUSH = "push"
 
 
-@dataclass
+@dataclass(slots=True)
 class NotificationDelivery:
     """Result of a notification delivery attempt."""
 
@@ -69,7 +69,7 @@ class NotificationDelivery:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class DeliveryResult:
     """Complete result of delivering an alert through multiple channels."""
 

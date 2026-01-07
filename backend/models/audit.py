@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import DateTime, Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -93,6 +93,18 @@ class AuditLog(Base):
         Index("idx_audit_logs_status", "status"),
         # Composite index for filtering by resource
         Index("idx_audit_logs_resource", "resource_type", "resource_id"),
+        # BRIN index for time-series queries on timestamp (append-only chronological data)
+        # Much smaller than B-tree (~1000x) and ideal for range queries on ordered timestamps
+        Index(
+            "ix_audit_logs_timestamp_brin",
+            "timestamp",
+            postgresql_using="brin",
+        ),
+        # CHECK constraint for status enum-like values
+        CheckConstraint(
+            "status IN ('success', 'failure')",
+            name="ck_audit_logs_status",
+        ),
     )
 
     def __repr__(self) -> str:

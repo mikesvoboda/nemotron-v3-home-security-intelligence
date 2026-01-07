@@ -53,7 +53,7 @@ This document describes the complete data model for the Home Security Intelligen
 
 ## Entity Relationship Diagram
 
-![Data Model ERD](../images/erd-data-model.png)
+![Entity-relationship diagram showing the database schema with core tables (cameras, detections, events) and supporting tables (alerts, alert_rules, zones, activity_baselines, class_baselines, audit_logs, gpu_stats, logs, api_keys), displaying primary keys, foreign key relationships between cameras and detections/events, and the cascade delete behavior](../images/erd-data-model.png)
 
 The three core entities (Camera, Detection, Event) form the backbone of the system's data model. Cameras produce detections, which are grouped into events by the batch aggregator.
 

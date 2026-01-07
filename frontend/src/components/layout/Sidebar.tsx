@@ -48,7 +48,7 @@ export default function Sidebar() {
         <span className="text-lg font-semibold text-white">Menu</span>
         <button
           onClick={() => setMobileMenuOpen(false)}
-          className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white"
+          className="rounded-lg p-2 text-text-secondary hover:bg-gray-800 hover:text-white"
           aria-label="Close menu"
           data-testid="close-menu-button"
         >

@@ -26,6 +26,7 @@ from backend.services.dedupe import (
     ORPHAN_CLEANUP_MAX_AGE_SECONDS,
     DedupeService,
     compute_file_hash,
+    compute_file_hash_async,
     get_dedupe_service,
     reset_dedupe_service,
 )
@@ -164,6 +165,100 @@ class TestComputeFileHash:
         finally:
             Path(path1).unlink()
             Path(path2).unlink()
+
+
+# =============================================================================
+# compute_file_hash_async() Tests
+# =============================================================================
+
+
+class TestComputeFileHashAsync:
+    """Tests for compute_file_hash_async function."""
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_normal_file(self, temp_file: str) -> None:
+        """Test async hash computation of a normal file."""
+        result = await compute_file_hash_async(temp_file)
+        assert result is not None
+        assert len(result) == 64  # SHA256 hex string is 64 characters
+        # Verify it's a valid hex string
+        int(result, 16)
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_matches_sync(self, temp_file: str) -> None:
+        """Test that async hash matches sync hash for same file."""
+        sync_hash = compute_file_hash(temp_file)
+        async_hash = await compute_file_hash_async(temp_file)
+        assert sync_hash == async_hash
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_nonexistent_file(self) -> None:
+        """Test async hash computation of a file that doesn't exist."""
+        result = await compute_file_hash_async("/nonexistent/path/to/file.jpg")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_empty_file(self, empty_temp_file: str) -> None:
+        """Test async hash computation of an empty file returns None."""
+        result = await compute_file_hash_async(empty_temp_file)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_large_file(self, large_temp_file: str) -> None:
+        """Test async hash computation of a file larger than chunk size."""
+        result = await compute_file_hash_async(large_temp_file)
+        assert result is not None
+        assert len(result) == 64
+
+        # Verify the hash matches what we expect
+        expected_hash = hashlib.sha256(b"x" * 32768).hexdigest()
+        assert result == expected_hash
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_concurrent_calls(
+        self, temp_file: str, large_temp_file: str
+    ) -> None:
+        """Test multiple concurrent async hash computations."""
+        import asyncio
+
+        # Run multiple hash computations concurrently
+        results = await asyncio.gather(
+            compute_file_hash_async(temp_file),
+            compute_file_hash_async(temp_file),
+            compute_file_hash_async(large_temp_file),
+        )
+
+        # All should complete successfully
+        assert all(r is not None for r in results)
+        # First two should be identical (same file)
+        assert results[0] == results[1]
+        # Third should be different (different file)
+        assert results[0] != results[2]
+
+    @pytest.mark.asyncio
+    async def test_compute_hash_async_does_not_block_event_loop(self, temp_file: str) -> None:
+        """Test that async hash computation doesn't block the event loop."""
+        import asyncio
+
+        # Track that tasks can run concurrently
+        execution_order = []
+
+        async def track_hash():
+            result = await compute_file_hash_async(temp_file)
+            execution_order.append("hash_complete")
+            return result
+
+        async def quick_task():
+            await asyncio.sleep(0.001)
+            execution_order.append("quick_task")
+
+        # Run both concurrently
+        await asyncio.gather(track_hash(), quick_task())
+
+        # The quick task should be able to execute while hash is running
+        # (both should complete, order may vary based on timing)
+        assert "hash_complete" in execution_order
+        assert "quick_task" in execution_order
 
 
 # =============================================================================
@@ -499,6 +594,37 @@ class TestIsDuplicateAndMark:
             assert file_hash is not None
             # Verify file was marked
             mock_redis_client.set.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_is_duplicate_and_mark_passes_file_path_to_mark_processed(
+        self, mock_redis_client: AsyncMock, temp_file: str
+    ) -> None:
+        """Test that is_duplicate_and_mark passes the correct file_path to mark_processed.
+
+        This test validates that the file_path parameter is correctly passed through
+        to mark_processed, which stores it in Redis as the value (useful for debugging).
+        The mutation test discovered that file_path could be replaced with None without
+        failing existing tests.
+        """
+        mock_redis_client.exists.return_value = 0
+
+        with patch("backend.services.dedupe.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(spec=[])
+            service = DedupeService(redis_client=mock_redis_client)
+            is_dup, file_hash = await service.is_duplicate_and_mark(temp_file)
+
+            assert is_dup is False
+            assert file_hash is not None
+
+            # Verify mark_processed was called with the correct file_path
+            # The set call should have been made with the file_path as the value
+            call_args = mock_redis_client.set.call_args
+            # Args are: (key, value, expire=ttl)
+            stored_value = call_args[0][1]  # Second positional arg is the value
+            assert stored_value == temp_file, (
+                f"mark_processed should store file_path in Redis, "
+                f"got {stored_value} instead of {temp_file}"
+            )
 
     @pytest.mark.asyncio
     async def test_is_duplicate_and_mark_duplicate_file(

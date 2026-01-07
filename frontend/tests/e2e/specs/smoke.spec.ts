@@ -4,6 +4,11 @@
  * These tests verify that the application loads and renders correctly.
  * They run against a development server with mocked backend responses.
  * Includes accessibility checks using axe-core to ensure WCAG 2.1 AA compliance.
+ *
+ * Tags: @smoke (all tests in this file are smoke tests)
+ *
+ * Run with: npx playwright test specs/smoke.spec.ts
+ * Or use project: npx playwright test --project=smoke
  */
 
 import { test, expect } from '@playwright/test';
@@ -16,7 +21,7 @@ import { setupApiMocks, defaultMockConfig } from '../fixtures';
  */
 const WCAG_AA_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
-test.describe('Dashboard Smoke Tests', () => {
+test.describe('Dashboard Smoke Tests @smoke', () => {
   let dashboardPage: DashboardPage;
 
   test.beforeEach(async ({ page }) => {
@@ -69,7 +74,7 @@ test.describe('Dashboard Smoke Tests', () => {
   });
 });
 
-test.describe('Layout Smoke Tests', () => {
+test.describe('Layout Smoke Tests @smoke', () => {
   let dashboardPage: DashboardPage;
 
   test.beforeEach(async ({ page }) => {
@@ -103,7 +108,7 @@ test.describe('Layout Smoke Tests', () => {
   });
 });
 
-test.describe('Dashboard Camera Tests', () => {
+test.describe('Dashboard Camera Tests @smoke', () => {
   let dashboardPage: DashboardPage;
 
   test.beforeEach(async ({ page }) => {
@@ -127,7 +132,7 @@ test.describe('Dashboard Camera Tests', () => {
   });
 });
 
-test.describe('Timeline Event Tests', () => {
+test.describe('Timeline Event Tests @smoke', () => {
   let timelinePage: TimelinePage;
 
   test.beforeEach(async ({ page }) => {
@@ -152,12 +157,9 @@ test.describe('Timeline Event Tests', () => {
  * These tests use axe-core to verify WCAG 2.1 AA compliance.
  * For comprehensive accessibility testing, see accessibility.spec.ts
  *
- * Note: Color-contrast is excluded because the NVIDIA dark theme design system
- * has multiple contrast issues that require dedicated design work to fix.
+ * Color-contrast is now enforced after WCAG 2.1 AA compliance fixes (NEM-1481).
  */
-test.describe('Accessibility Smoke Tests', () => {
-  // Rules excluded from a11y checks - see accessibility.spec.ts for details
-  const EXCLUDED_RULES = ['color-contrast'];
+test.describe('Accessibility Smoke Tests @smoke @critical', () => {
 
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
@@ -170,7 +172,6 @@ test.describe('Accessibility Smoke Tests', () => {
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .analyze();
 
     // Log violations for debugging if any exist
@@ -191,7 +192,6 @@ test.describe('Accessibility Smoke Tests', () => {
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .analyze();
 
     if (results.violations.length > 0) {
@@ -211,7 +211,6 @@ test.describe('Accessibility Smoke Tests', () => {
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .analyze();
 
     if (results.violations.length > 0) {

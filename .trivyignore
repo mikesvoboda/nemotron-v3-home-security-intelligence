@@ -1,5 +1,18 @@
 # Trivy ignore file for false positives and accepted risks
 # Documentation: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+#
+# CVE EXPIRATION TRACKING
+# =======================
+# Each CVE entry must include a REVIEW BY date in the comment format:
+#   # CVE-XXXX-YYYY - Description (REVIEW BY: YYYY-MM-DD)
+#
+# A CI check validates that no CVE review dates have expired.
+# See scripts/check-trivyignore-expiry.sh for the validation script.
+#
+# Review guidelines:
+# - New CVEs: Set review date 3-6 months from date of addition
+# - On review: Check if fix is available, reassess risk, extend or remove
+# - Remove entries when fixes become available
 
 # =============================================================================
 # Jinja2 Sandbox Escape Vulnerabilities
@@ -8,17 +21,18 @@
 # We use Jinja2 only via FastAPI's template rendering with trusted templates.
 # The sandboxed environment bypass is not exploitable in our use case.
 
-CVE-2024-56326
-# Jinja2 sandbox escape via str.format - requires attacker to control template content
+# CVE-2024-56326 - Jinja2 sandbox escape via str.format (REVIEW BY: 2026-04-05)
+# Requires attacker to control template content
 # Not applicable: We don't use sandboxed environment and don't allow user-controlled templates
+CVE-2024-56326
 
-CVE-2024-22195
-# Jinja2 XSS vulnerability in xmlattr filter
+# CVE-2024-22195 - Jinja2 XSS vulnerability in xmlattr filter (REVIEW BY: 2026-04-05)
 # Not applicable: We use Jinja2 for backend templates only, not user-facing HTML
+CVE-2024-22195
 
-CVE-2025-27516
-# Jinja2 sandbox breakout through attr filter
+# CVE-2025-27516 - Jinja2 sandbox breakout through attr filter (REVIEW BY: 2026-04-05)
 # Not applicable: Same reasoning as CVE-2024-56326 - we don't use sandbox mode
+CVE-2025-27516
 
 # =============================================================================
 # Cryptography Library - No Fix Available
@@ -34,102 +48,123 @@ CVE-2025-27516
 # Alpine-specific CVEs that are false positives or have no fix
 # These often relate to packages not installed in our production image
 
+# CVE-2024-58251 - BusyBox vulnerability affecting busybox-binsh and ssl_client (REVIEW BY: 2026-04-05)
+# Low severity, no fix available in current Alpine stable
 CVE-2024-58251
-# BusyBox low-severity vulnerability affecting busybox-binsh and ssl_client
-# Low severity, no fix available in current Alpine stable
 
-CVE-2025-46394
-# BusyBox low-severity vulnerability affecting busybox-binsh
+# CVE-2025-46394 - BusyBox vulnerability affecting busybox-binsh (REVIEW BY: 2026-04-05)
 # Low severity, no fix available in current Alpine stable
+CVE-2025-46394
 
 # =============================================================================
 # Debian/Ubuntu Base Image - No Fix Available
 # =============================================================================
 # These CVEs are in system packages with no upstream fix available
 
-CVE-2025-2176
-# libzvbi critical vulnerability - no fix available in Debian stable
+# CVE-2025-2176 - libzvbi critical vulnerability (REVIEW BY: 2026-05-05)
+# No fix available in Debian stable
 # Affects libzvbi0 package used by ffmpeg dependencies
+CVE-2025-2176
 
-CVE-2023-45853
-# zlib integer overflow - marked "will_not_fix" by Debian
+# CVE-2023-45853 - zlib integer overflow (REVIEW BY: 2026-06-05)
+# Marked "will_not_fix" by Debian
 # Affects minizip functionality in zipOpenNewFileInZip4_6, not used by application
+CVE-2023-45853
 
-CVE-2023-6879
-# libaom heap-buffer-overflow - CRITICAL but no fix in Debian stable
+# CVE-2023-6879 - libaom heap-buffer-overflow CRITICAL (REVIEW BY: 2026-05-05)
+# No fix in Debian stable
 # Affects AV1 codec library used by ffmpeg, not directly used by application
+CVE-2023-6879
 
-CVE-2023-39616
-# libaom invalid read - marked "will_not_fix" by Debian
+# CVE-2023-39616 - libaom invalid read (REVIEW BY: 2026-06-05)
+# Marked "will_not_fix" by Debian
 # Same package as above, AV1 codec not directly used
+CVE-2023-39616
 
-CVE-2023-45221
-# libmfx improper buffer restrictions - marked "will_not_fix" by Debian
+# CVE-2023-45221 - libmfx improper buffer restrictions (REVIEW BY: 2026-06-05)
+# Marked "will_not_fix" by Debian
 # Intel Media SDK not used by our application
+CVE-2023-45221
 
-CVE-2023-52355
-# libtiff heap buffer overflow - affected status
+# CVE-2023-52355 - libtiff heap buffer overflow (REVIEW BY: 2026-05-05)
+# Affected status
 # TIFF processing handled by PIL with memory safety measures
+CVE-2023-52355
 
-CVE-2023-25193
-# libharfbuzz O(n^2) complexity - no fix available
+# CVE-2023-25193 - libharfbuzz O(n^2) complexity (REVIEW BY: 2026-06-05)
+# No fix available
 # Text shaping library, DoS risk only in malicious font processing
+CVE-2023-25193
 
-CVE-2024-23775
-# libmbedcrypto integer overflow - no fix in Debian stable
+# CVE-2024-23775 - libmbedcrypto integer overflow (REVIEW BY: 2026-05-05)
+# No fix in Debian stable
 # Used by some Python SSL, but not critical path
+CVE-2024-23775
 
+# CVE-2025-47917 - libmbedcrypto use-after-free CRITICAL (REVIEW BY: 2026-04-05)
+# No fix in Debian stable
+# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-47917
-# libmbedcrypto use-after-free - CRITICAL but no fix in Debian stable
-# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 
+# CVE-2025-48965 - libmbedcrypto NULL pointer dereference (REVIEW BY: 2026-05-05)
+# No fix in Debian stable
+# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-48965
-# libmbedcrypto NULL pointer dereference - no fix in Debian stable
-# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 
+# CVE-2025-52496 - libmbedcrypto AESNI race condition (REVIEW BY: 2026-05-05)
+# No fix in Debian stable
+# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-52496
-# libmbedcrypto AESNI race condition - no fix in Debian stable
-# Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 
-CVE-2025-13601
-# libglib2.0 integer overflow in g_escape_uri_string - affected status
+# CVE-2025-13601 - libglib2.0 integer overflow in g_escape_uri_string (REVIEW BY: 2026-05-05)
+# Affected status
 # GLib utility function, not directly exploitable in our context
+CVE-2025-13601
 
-CVE-2025-68973
-# gpgv information disclosure/code execution - affected status
+# CVE-2025-68973 - gpgv information disclosure/code execution (REVIEW BY: 2026-05-05)
+# Affected status
 # Used for apt signature verification, not user-exposed
+CVE-2025-68973
 
-CVE-2025-7345
-# libgdk-pixbuf heap buffer overflow - fix_deferred status
+# CVE-2025-7345 - libgdk-pixbuf heap buffer overflow (REVIEW BY: 2026-05-05)
+# Fix deferred status
 # Image processing library, input validation handles malicious images
+CVE-2025-7345
 
-CVE-2025-7458
-# libsqlite3-0 integer overflow - CRITICAL but no fix in Debian stable
+# CVE-2025-7458 - libsqlite3-0 integer overflow CRITICAL (REVIEW BY: 2026-04-05)
+# No fix in Debian stable
 # SQLite vulnerability, affects libsqlite3-0 package used by Python stdlib
+CVE-2025-7458
 
+# CVE-2025-2173 - libzvbi vulnerability (REVIEW BY: 2026-05-05)
+# Affected, no fix available in Debian stable
+# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 CVE-2025-2173
-# libzvbi vulnerability - affected, no fix available in Debian stable
-# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 
+# CVE-2025-2174 - libzvbi vulnerability (REVIEW BY: 2026-05-05)
+# Affected, no fix available in Debian stable
+# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 CVE-2025-2174
-# libzvbi vulnerability - affected, no fix available in Debian stable
-# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 
+# CVE-2025-5318 - libssh-gcrypt out-of-bounds read in sftp_handle() (REVIEW BY: 2026-05-05)
+# Affected, no fix available
+# SSH library used by ffmpeg libavformat, not directly used by application
 CVE-2025-5318
-# libssh-gcrypt out-of-bounds read in sftp_handle() - affected, no fix available
-# SSH library used by ffmpeg libavformat, not directly used by application
 
+# CVE-2025-5372 - libssh-gcrypt incorrect return code handling in ssh_kdf() (REVIEW BY: 2026-05-05)
+# Affected, no fix available
+# SSH library used by ffmpeg libavformat, not directly used by application
 CVE-2025-5372
-# libssh-gcrypt incorrect return code handling in ssh_kdf() - affected, no fix available
-# SSH library used by ffmpeg libavformat, not directly used by application
 
+# CVE-2025-5987 - libssh-gcrypt invalid return code for chacha20 poly1305 (REVIEW BY: 2026-05-05)
+# Affected, no fix available
+# SSH library used by ffmpeg libavformat, not directly used by application
 CVE-2025-5987
-# libssh-gcrypt invalid return code for chacha20 poly1305 - affected, no fix available
-# SSH library used by ffmpeg libavformat, not directly used by application
 
-CVE-2025-6020
-# libpam directory traversal - affected, no fix available in Debian stable
+# CVE-2025-6020 - libpam directory traversal (REVIEW BY: 2026-05-05)
+# Affected, no fix available in Debian stable
 # PAM modules used for system authentication, not user-exposed in container
+CVE-2025-6020
 
 # =============================================================================
 # Notes
@@ -139,7 +174,7 @@ CVE-2025-6020
 # 2. The vulnerability is not exploitable in our deployment context, OR
 # 3. The risk is accepted after security review
 #
-# Remove entries when fixes become available. Review this file quarterly.
+# Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-04 (NEM-1126)
-# Next review: 2026-04-04
+# Last reviewed: 2026-01-05 (NEM-1356)
+# Next review: 2026-04-05

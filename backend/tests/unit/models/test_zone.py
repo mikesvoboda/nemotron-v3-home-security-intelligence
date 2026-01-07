@@ -14,6 +14,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from backend.models.zone import Zone, ZoneShape, ZoneType
+from backend.tests.factories import ZoneFactory
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -51,40 +52,36 @@ coordinate_points = st.lists(
 
 @pytest.fixture
 def sample_zone():
-    """Create a sample zone for testing."""
-    return Zone(
+    """Create a sample zone for testing using factory."""
+    return ZoneFactory(
         id="zone_001",
         camera_id="front_door",
         name="Driveway",
         zone_type=ZoneType.DRIVEWAY,
-        coordinates=[[0.1, 0.2], [0.3, 0.2], [0.3, 0.8], [0.1, 0.8]],
         shape=ZoneShape.RECTANGLE,
         color="#3B82F6",
-        enabled=True,
         priority=1,
     )
 
 
 @pytest.fixture
 def polygon_zone():
-    """Create a polygon zone for testing."""
-    return Zone(
+    """Create a polygon zone for testing using factory."""
+    return ZoneFactory(
         id="zone_002",
         camera_id="back_yard",
         name="Garden Path",
-        zone_type=ZoneType.YARD,
-        coordinates=[[0.2, 0.1], [0.5, 0.1], [0.6, 0.5], [0.4, 0.9], [0.1, 0.6]],
-        shape=ZoneShape.POLYGON,
+        yard=True,  # Use factory trait
+        polygon=True,  # Use factory trait for polygon shape
         color="#10B981",
-        enabled=True,
         priority=2,
     )
 
 
 @pytest.fixture
 def minimal_zone():
-    """Create a zone with minimal required fields."""
-    return Zone(
+    """Create a zone with minimal required fields using factory."""
+    return ZoneFactory(
         id="zone_min",
         camera_id="test_cam",
         name="Test Zone",
@@ -94,13 +91,13 @@ def minimal_zone():
 
 @pytest.fixture
 def disabled_zone():
-    """Create a disabled zone."""
-    return Zone(
+    """Create a disabled zone using factory."""
+    return ZoneFactory(
         id="zone_disabled",
         camera_id="test_cam",
         name="Disabled Zone",
+        disabled=True,  # Use factory trait
         coordinates=[[0, 0], [1, 0], [1, 1], [0, 1]],
-        enabled=False,
     )
 
 

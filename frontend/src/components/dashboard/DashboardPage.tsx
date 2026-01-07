@@ -5,6 +5,7 @@ import CameraGrid, { type CameraStatus } from './CameraGrid';
 import StatsRow from './StatsRow';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
+import { useThrottledValue } from '../../hooks/useThrottledValue';
 import {
   fetchCameras,
   fetchEvents,
@@ -14,6 +15,14 @@ import {
   type Event,
   type EventStatsResponse,
 } from '../../services/api';
+
+/**
+ * Throttle interval for WebSocket data updates (in milliseconds).
+ * This reduces unnecessary re-renders in StatsRow while keeping
+ * the UI responsive. 500ms provides a good balance between
+ * responsiveness and performance.
+ */
+const WEBSOCKET_THROTTLE_INTERVAL = 500;
 
 /**
  * Main Dashboard Page Component
@@ -46,6 +55,15 @@ export default function DashboardPage() {
   // WebSocket hooks for real-time data
   const { events: wsEvents, isConnected: eventsConnected } = useEventStream();
   const { status: systemStatus, isConnected: systemConnected } = useSystemStatus();
+
+  // Throttle WebSocket data to reduce StatsRow re-renders
+  // This batches rapid updates within WEBSOCKET_THROTTLE_INTERVAL (500ms)
+  const throttledWsEvents = useThrottledValue(wsEvents, {
+    interval: WEBSOCKET_THROTTLE_INTERVAL,
+  });
+  const throttledSystemStatus = useThrottledValue(systemStatus, {
+    interval: WEBSOCKET_THROTTLE_INTERVAL,
+  });
 
   // Fetch initial data including events and stats
   useEffect(() => {
@@ -80,11 +98,12 @@ export default function DashboardPage() {
     void loadInitialData();
   }, []);
 
-  // Merge WebSocket events with initial events, avoiding duplicates
+  // Merge throttled WebSocket events with initial events, avoiding duplicates
   // WebSocket events take precedence (they're newer)
+  // Using throttledWsEvents to reduce StatsRow re-renders
   const mergedEvents: SecurityEvent[] = useMemo(() => {
     // Create a Set of WebSocket event IDs for deduplication
-    const wsEventIds = new Set(wsEvents.map((e) => String(e.id)));
+    const wsEventIds = new Set(throttledWsEvents.map((e) => String(e.id)));
 
     // Convert initial events to SecurityEvent format, excluding any that are also in wsEvents
     const initialSecurityEvents: SecurityEvent[] = initialEvents
@@ -99,8 +118,8 @@ export default function DashboardPage() {
       }));
 
     // Combine: WebSocket events first (newest), then initial events
-    return [...wsEvents, ...initialSecurityEvents];
-  }, [wsEvents, initialEvents]);
+    return [...throttledWsEvents, ...initialSecurityEvents];
+  }, [throttledWsEvents, initialEvents]);
 
   // Calculate current risk score from latest merged event
   const currentRiskScore = mergedEvents.length > 0 ? mergedEvents[0].risk_score : 0;
@@ -116,6 +135,7 @@ export default function DashboardPage() {
 
   // Calculate events today count from stats API (accurate) plus any new WebSocket events
   // eventStats.total_events gives us the count at page load, then we add new WS events from today
+  // Using throttledWsEvents to reduce StatsRow re-renders
   const eventsToday = useMemo(() => {
     // Start with stats from API (events today at time of page load)
     const statsCount = eventStats?.total_events ?? 0;
@@ -124,7 +144,7 @@ export default function DashboardPage() {
     // (to avoid double-counting events that were already in the stats)
     const initialEventIds = new Set(initialEvents.map((e) => String(e.id)));
     const today = new Date();
-    const newWsEventsToday = wsEvents.filter((event) => {
+    const newWsEventsToday = throttledWsEvents.filter((event) => {
       // Skip if this event was in initial load (already counted in stats)
       if (initialEventIds.has(String(event.id))) return false;
 
@@ -139,12 +159,13 @@ export default function DashboardPage() {
     }).length;
 
     return statsCount + newWsEventsToday;
-  }, [eventStats, wsEvents, initialEvents]);
+  }, [eventStats, throttledWsEvents, initialEvents]);
 
   // Determine system health status
   // Default to 'healthy' during initial load (before WebSocket connects)
   // This prevents "Unknown" flashing on mobile where WS connection may be slower
-  const systemHealth = systemStatus?.health ?? 'healthy';
+  // Using throttledSystemStatus to reduce StatsRow re-renders
+  const systemHealth = throttledSystemStatus?.health ?? 'healthy';
 
   // Convert Camera[] to CameraStatus[] for CameraGrid
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({
@@ -175,7 +196,7 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-300">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
           >
             Reload Page
           </button>

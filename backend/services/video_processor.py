@@ -17,10 +17,14 @@ Error Handling Pattern:
     2. OPTIONAL operations (best-effort) -> return None/False/empty list
        - extract_thumbnail() -> str | None
        - extract_thumbnail_for_detection() -> str | None
-       - extract_frames_for_detection() -> list[str] (empty on failure)
+       - extract_frames_for_detection() -> list[str] (empty on failure) [DEPRECATED]
+       - extract_frames_for_detection_batch() -> list[str] (empty on failure) [PREFERRED]
        - cleanup_extracted_frames() -> bool
        - delete_thumbnail() -> bool
        These are operations where callers can proceed with a fallback behavior.
+
+    For frame extraction, use extract_frames_for_detection_batch() (single FFmpeg call)
+    instead of extract_frames_for_detection() (multiple FFmpeg calls) for better performance.
 
     Callers should:
     - Use try/except for get_video_metadata()
@@ -365,15 +369,17 @@ class VideoProcessor:
         """
         try:
             validated_path = _validate_video_path(video_path)
-        except ValueError as e:
-            logger.error(f"Video path validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Video path validation failed", exc_info=True, extra={"video_path": video_path}
+            )
             return None
 
         # Validate size parameter to prevent command injection
         try:
             validated_size = _validate_size(size)
-        except ValueError as e:
-            logger.error(f"Size validation failed: {e}")
+        except ValueError:
+            logger.error("Size validation failed", exc_info=True, extra={"size": size})
             return None
 
         try:
@@ -427,7 +433,10 @@ class VideoProcessor:
             )
 
             if result.returncode != 0:
-                logger.error(f"ffmpeg thumbnail extraction failed: {result.stderr}")
+                logger.error(
+                    "ffmpeg thumbnail extraction failed",
+                    extra={"stderr": result.stderr, "video_path": video_path},
+                )
                 return None
 
             # Verify output file was created
@@ -439,10 +448,16 @@ class VideoProcessor:
             return output_path
 
         except subprocess.TimeoutExpired:
-            logger.error(f"ffmpeg timed out extracting thumbnail from {video_path}")
+            logger.error(
+                "ffmpeg timed out extracting thumbnail",
+                exc_info=True,
+                extra={"video_path": video_path},
+            )
             return None
-        except Exception as e:
-            logger.error(f"Failed to extract thumbnail from {video_path}: {e}")
+        except Exception:
+            logger.error(
+                "Failed to extract thumbnail", exc_info=True, extra={"video_path": video_path}
+            )
             return None
 
     async def extract_frames_for_detection(  # noqa: PLR0911, PLR0912
@@ -453,6 +468,12 @@ class VideoProcessor:
         size: tuple[int, int] | None = None,
     ) -> list[str]:
         """Extract multiple frames from a video at regular intervals for object detection.
+
+        DEPRECATED: Use extract_frames_for_detection_batch() instead for better performance.
+        This method invokes FFmpeg once per frame, which is slower than the batch method
+        that uses a single FFmpeg invocation with the fps filter.
+
+        Kept for backwards compatibility and cases where per-frame control is needed.
 
         This method extracts frames at specified intervals throughout the video
         for use in object detection. Frames are saved as temporary JPEG files.
@@ -470,24 +491,35 @@ class VideoProcessor:
             List of paths to extracted frame images.
             Returns empty list for: invalid path, metadata extraction failure,
             invalid duration, ffmpeg failures, or timeouts.
+
+        See Also:
+            extract_frames_for_detection_batch: Optimized method using single FFmpeg invocation
         """
         try:
             validated_path = _validate_video_path(video_path)
-        except ValueError as e:
-            logger.error(f"Video path validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Video path validation failed", exc_info=True, extra={"video_path": video_path}
+            )
             return []
 
         # Validate interval_seconds and max_frames to prevent command injection
         try:
             validated_interval = _validate_interval_seconds(interval_seconds)
-        except ValueError as e:
-            logger.error(f"Interval validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Interval validation failed",
+                exc_info=True,
+                extra={"interval_seconds": interval_seconds},
+            )
             return []
 
         try:
             validated_max_frames = _validate_max_frames(max_frames)
-        except ValueError as e:
-            logger.error(f"Max frames validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Max frames validation failed", exc_info=True, extra={"max_frames": max_frames}
+            )
             return []
 
         # Validate size if provided
@@ -495,8 +527,8 @@ class VideoProcessor:
         if size is not None:
             try:
                 validated_size = _validate_size(size)
-            except ValueError as e:
-                logger.error(f"Size validation failed: {e}")
+            except ValueError:
+                logger.error("Size validation failed", exc_info=True, extra={"size": size})
                 return []
 
         try:
@@ -583,14 +615,18 @@ class VideoProcessor:
             logger.info(f"Successfully extracted {len(extracted_frames)} frames from {video_path}")
             return extracted_frames
 
-        except VideoProcessingError as e:
-            logger.error(f"Video processing error for {video_path}: {e}")
+        except VideoProcessingError:
+            logger.error("Video processing error", exc_info=True, extra={"video_path": video_path})
             return []
         except subprocess.TimeoutExpired:
-            logger.error(f"Timeout extracting frames from {video_path}")
+            logger.error(
+                "Timeout extracting frames", exc_info=True, extra={"video_path": video_path}
+            )
             return []
-        except Exception as e:
-            logger.error(f"Failed to extract frames from {video_path}: {e}")
+        except Exception:
+            logger.error(
+                "Failed to extract frames", exc_info=True, extra={"video_path": video_path}
+            )
             return []
 
     async def extract_frames_for_detection_batch(  # noqa: PLR0911, PLR0912
@@ -625,21 +661,29 @@ class VideoProcessor:
         """
         try:
             validated_path = _validate_video_path(video_path)
-        except ValueError as e:
-            logger.error(f"Video path validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Video path validation failed", exc_info=True, extra={"video_path": video_path}
+            )
             return []
 
         # Validate interval_seconds and max_frames to prevent command injection
         try:
             validated_interval = _validate_interval_seconds(interval_seconds)
-        except ValueError as e:
-            logger.error(f"Interval validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Interval validation failed",
+                exc_info=True,
+                extra={"interval_seconds": interval_seconds},
+            )
             return []
 
         try:
             validated_max_frames = _validate_max_frames(max_frames)
-        except ValueError as e:
-            logger.error(f"Max frames validation failed: {e}")
+        except ValueError:
+            logger.error(
+                "Max frames validation failed", exc_info=True, extra={"max_frames": max_frames}
+            )
             return []
 
         # Validate size if provided
@@ -647,8 +691,8 @@ class VideoProcessor:
         if size is not None:
             try:
                 validated_size = _validate_size(size)
-            except ValueError as e:
-                logger.error(f"Size validation failed: {e}")
+            except ValueError:
+                logger.error("Size validation failed", exc_info=True, extra={"size": size})
                 return []
 
         try:
@@ -726,7 +770,10 @@ class VideoProcessor:
             )
 
             if result.returncode != 0:
-                logger.error(f"FFmpeg batch frame extraction failed: {result.stderr}")
+                logger.error(
+                    "FFmpeg batch frame extraction failed",
+                    extra={"stderr": result.stderr, "video_path": video_path},
+                )
                 return []
 
             # Collect extracted frame paths
@@ -742,14 +789,24 @@ class VideoProcessor:
             )
             return extracted_frames
 
-        except VideoProcessingError as e:
-            logger.error(f"Video processing error for {video_path}: {e}")
+        except VideoProcessingError:
+            logger.error(
+                "Video processing error during batch extraction",
+                exc_info=True,
+                extra={"video_path": video_path},
+            )
             return []
         except subprocess.TimeoutExpired:
-            logger.error(f"Timeout during batch frame extraction from {video_path}")
+            logger.error(
+                "Timeout during batch frame extraction",
+                exc_info=True,
+                extra={"video_path": video_path},
+            )
             return []
-        except Exception as e:
-            logger.error(f"Failed to batch extract frames from {video_path}: {e}")
+        except Exception:
+            logger.error(
+                "Failed to batch extract frames", exc_info=True, extra={"video_path": video_path}
+            )
             return []
 
     def cleanup_extracted_frames(self, video_path: str) -> bool:
@@ -771,8 +828,10 @@ class VideoProcessor:
                 logger.debug(f"Cleaned up frames directory: {frames_dir}")
                 return True
             return False
-        except Exception as e:
-            logger.error(f"Failed to cleanup frames for {video_path}: {e}")
+        except Exception:
+            logger.error(
+                "Failed to cleanup frames", exc_info=True, extra={"video_path": video_path}
+            )
             return False
 
     async def extract_thumbnail_for_detection(
@@ -826,6 +885,10 @@ class VideoProcessor:
             else:
                 logger.warning(f"Video thumbnail not found: {thumbnail_path}")
                 return False
-        except Exception as e:
-            logger.error(f"Failed to delete video thumbnail for {detection_id}: {e}")
+        except Exception:
+            logger.error(
+                "Failed to delete video thumbnail",
+                exc_info=True,
+                extra={"detection_id": detection_id},
+            )
             return False

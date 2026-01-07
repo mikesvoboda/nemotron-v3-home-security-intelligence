@@ -121,7 +121,7 @@ class WorkerState(Enum):
     ERROR = "error"
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkerStats:
     """Statistics for a worker process."""
 
@@ -494,8 +494,9 @@ class DetectionQueueWorker:
             extra={"camera_id": camera_id, "video_path": video_path},
         )
 
-        # Extract frames from video
-        frame_paths = await self._video_processor.extract_frames_for_detection(
+        # Extract frames from video using optimized batch method (NEM-1329)
+        # Uses single FFmpeg invocation instead of multiple calls per frame
+        frame_paths = await self._video_processor.extract_frames_for_detection_batch(
             video_path=video_path,
             interval_seconds=self._video_frame_interval,
             max_frames=self._video_max_frames,

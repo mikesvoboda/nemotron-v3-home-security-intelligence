@@ -50,7 +50,12 @@ export type PetEnrichment = components['schemas']['PetEnrichment'];
 
 // System types
 export type HealthResponse = components['schemas']['HealthResponse'];
-export type ServiceStatus = components['schemas']['ServiceStatus'];
+// ServiceStatus is an object type with {status, message?, details?} for HealthResponse.services
+// (Backend renamed from ServiceStatus to HealthCheckServiceStatus to avoid collision)
+export type ServiceStatus =
+  components['schemas']['HealthCheckServiceStatus'];
+// ContainerServiceStatus is the enum used by the orchestrator: running, starting, unhealthy, etc.
+export type ContainerServiceStatus = components['schemas']['ContainerServiceStatus'];
 export type GPUStats = components['schemas']['GPUStatsResponse'];
 export type GPUStatsSample = components['schemas']['GPUStatsSample'];
 export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResponse'];
@@ -58,7 +63,10 @@ export type SystemConfig = components['schemas']['ConfigResponse'];
 export type SystemConfigUpdate = components['schemas']['ConfigUpdateRequest'];
 export type SystemStats = components['schemas']['SystemStatsResponse'];
 export type ReadinessResponse = components['schemas']['ReadinessResponse'];
+// WorkerStatus from system health endpoint (has message, name, running)
 export type WorkerStatus = components['schemas']['WorkerStatus'];
+// Debug endpoint worker status (has error_count, last_activity, name, running)
+export type DebugWorkerStatus = components['schemas']['backend__api__routes__debug__WorkerStatus'];
 
 // Telemetry types
 export type TelemetryResponse = components['schemas']['TelemetryResponse'];
@@ -99,13 +107,71 @@ export type AuditLogResponse = components['schemas']['AuditLogResponse'];
 export type AuditLogListResponse = components['schemas']['AuditLogListResponse'];
 export type AuditLogStats = components['schemas']['AuditLogStats'];
 
-// Alert Rule types
-export type AlertRule = components['schemas']['AlertRuleResponse'];
-export type AlertRuleCreate = components['schemas']['AlertRuleCreate'];
-export type AlertRuleUpdate = components['schemas']['AlertRuleUpdate'];
-export type AlertRuleListResponse = components['schemas']['AlertRuleListResponse'];
-export type AlertRuleSchedule = components['schemas']['AlertRuleSchedule'];
+// Alert Rule types - base generated types
+type GeneratedAlertRuleResponse = components['schemas']['AlertRuleResponse'];
+type GeneratedAlertRuleCreate = components['schemas']['AlertRuleCreate'];
+type GeneratedAlertRuleUpdate = components['schemas']['AlertRuleUpdate'];
+type GeneratedAlertRuleListResponse = components['schemas']['AlertRuleListResponse'];
 export type AlertSeverity = components['schemas']['AlertSeverity'];
+
+/**
+ * Day of the week type for schedule configuration.
+ * Constrains days to valid lowercase day names.
+ */
+export type DayOfWeek =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+/**
+ * Alert rule schedule type with properly constrained days.
+ * Overrides the auto-generated type to use DayOfWeek union instead of string[].
+ *
+ * @see backend/api/schemas/alert_rules.py - AlertRuleSchedule
+ */
+export interface AlertRuleSchedule {
+  /** Days of week when rule is active (empty/null = all days) */
+  days?: DayOfWeek[] | null;
+  /** Start time in HH:MM format */
+  start_time?: string | null;
+  /** End time in HH:MM format */
+  end_time?: string | null;
+  /** Timezone for the schedule (IANA timezone string) */
+  timezone: string;
+}
+
+/**
+ * Alert rule response type with properly typed schedule.
+ * Overrides the auto-generated schedule type to use our DayOfWeek-constrained AlertRuleSchedule.
+ */
+export type AlertRule = Omit<GeneratedAlertRuleResponse, 'schedule'> & {
+  schedule?: AlertRuleSchedule | null;
+};
+
+/**
+ * Alert rule create type with properly typed schedule.
+ */
+export type AlertRuleCreate = Omit<GeneratedAlertRuleCreate, 'schedule'> & {
+  schedule?: AlertRuleSchedule | null;
+};
+
+/**
+ * Alert rule update type with properly typed schedule.
+ */
+export type AlertRuleUpdate = Omit<GeneratedAlertRuleUpdate, 'schedule'> & {
+  schedule?: AlertRuleSchedule | null;
+};
+
+/**
+ * Alert rule list response with properly typed rules.
+ */
+export type AlertRuleListResponse = Omit<GeneratedAlertRuleListResponse, 'rules'> & {
+  rules: AlertRule[];
+};
 
 // Circuit Breaker types
 export type CircuitBreakerStateEnum = components['schemas']['CircuitBreakerStateEnum'];

@@ -59,6 +59,7 @@ function findSectionBoundaries(
   targetSection: string
 ): { start: number; end: number; found: boolean } {
   // Match section header (## Section Name)
+  // eslint-disable-next-line security/detect-non-literal-regexp -- SAFE: targetSection is sanitized via escapeRegExp() which escapes all regex metacharacters
   const sectionPattern = new RegExp(`^##\\s*${escapeRegExp(targetSection)}\\s*$`, 'im');
   const match = prompt.match(sectionPattern);
 
@@ -354,6 +355,7 @@ export function isSuggestionApplied(prompt: string, suggestion: EnrichedSuggesti
   }
 
   // Check for the label (case-insensitive)
+  // eslint-disable-next-line security/detect-non-literal-regexp -- SAFE: proposedLabel is sanitized via escapeRegExp() which escapes all regex metacharacters
   const labelPattern = new RegExp(escapeRegExp(suggestion.proposedLabel), 'i');
   if (labelPattern.test(prompt)) {
     return true;

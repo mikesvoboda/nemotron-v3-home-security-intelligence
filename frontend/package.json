@@ -27,27 +27,32 @@
     "generate-types:check": "cd .. && ./scripts/generate-types.sh --check",
     "validate": "npm run typecheck && npm run lint && npm run test:coverage -- --run",
     "dead-code": "knip",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch",
+    "analyze": "vite build --mode analyze"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
+    "@tanstack/react-query": "^5.90.16",
+    "@tanstack/react-query-devtools": "^5.91.2",
     "@tremor/react": "^3.17.4",
     "clsx": "^2.1.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router-dom": "^7.11.0",
-    "tailwind-merge": "^3.4.0"
+    "react-router-dom": "^7.11.0"
   },
   "overrides": {
     "tmp": ">=0.2.4"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
-    "@axe-core/react": "^4.11.0",
     "@eslint/js": "^9.39.2",
-    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.57.0",
+    "@stryker-mutator/core": "^8.7.1",
+    "@stryker-mutator/typescript-checker": "^8.7.1",
+    "@stryker-mutator/vitest-runner": "^9.4.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^16.3.1",
@@ -57,27 +62,28 @@
     "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.4.17",
-    "axe-core": "^4.11.0",
     "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
+    "eslint-plugin-security": "^3.0.1",
     "globals": "^16.5.0",
     "jsdom": "^27.3.0",
     "knip": "^5.79.0",
+    "msw": "^2.12.7",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.1",
+    "typedoc": "0.26.11",
+    "typedoc-plugin-markdown": "4.2.10",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.51.0",
     "vite": "^7.3.0",
-    "vitest": "^4.0.16",
-    "@stryker-mutator/core": "^8.7.1",
-    "@stryker-mutator/typescript-checker": "^8.7.1",
-    "@stryker-mutator/vitest-runner": "^8.7.1"
+    "vitest": "^4.0.16"
   }
 }
