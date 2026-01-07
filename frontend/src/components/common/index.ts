@@ -50,3 +50,46 @@ export type { TruncatedTextProps } from './TruncatedText';
 
 export { default as WebSocketStatus } from './WebSocketStatus';
 export type { WebSocketStatusProps } from './WebSocketStatus';
+
+export { default as ProductTour } from './ProductTour';
+export type { ProductTourProps } from './ProductTour';
+export { restartProductTour } from '../../config/tourSteps';
+
+export { ToastProvider } from './ToastProvider';
+export type {
+  ToastProviderProps,
+  ToastPosition,
+  ToastTheme,
+} from './ToastProvider';
+
+export { default as PageTransition } from './PageTransition';
+export type { PageTransitionProps } from './PageTransition';
+
+export { default as AnimatedList } from './AnimatedList';
+export type { AnimatedListProps } from './AnimatedList';
+
+export { default as AnimatedModal } from './AnimatedModal';
+export type { AnimatedModalProps, ModalSize } from './AnimatedModal';
+
+// Animation variants and utilities
+export {
+  pageTransitionVariants,
+  modalTransitionVariants,
+  listItemVariants,
+  createListContainerVariants,
+  backdropVariants,
+  defaultTransition,
+  reducedMotionTransition,
+  springTransition,
+} from './animations';
+export type {
+  PageTransitionVariant,
+  ModalTransitionVariant,
+  ListItemVariant,
+} from './animations';
+
+export { default as CommandPalette } from './CommandPalette';
+export type { CommandPaletteProps } from './CommandPalette';
+
+export { default as ShortcutsHelpModal } from './ShortcutsHelpModal';
+export type { ShortcutsHelpModalProps } from './ShortcutsHelpModal';

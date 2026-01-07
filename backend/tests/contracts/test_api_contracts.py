@@ -636,3 +636,210 @@ class TestPaginationContracts:
 
         # Should fail validation (max is 1000)
         assert response.status_code == 422
+
+
+# =============================================================================
+# WebSocket Message Contract Tests
+# =============================================================================
+
+
+class TestWebSocketMessageContracts:
+    """Contract tests for WebSocket message formats.
+
+    These tests verify that the backend WebSocket schemas match the
+    documented frontend contract. They test schema structure rather
+    than actual WebSocket connections.
+    """
+
+    def test_event_message_schema_structure(self):
+        """Test WebSocketEventMessage schema has all required fields."""
+        from backend.api.schemas.websocket import WebSocketEventMessage
+
+        # Get schema from the model
+        schema = WebSocketEventMessage.model_json_schema()
+
+        # Verify top-level structure
+        assert "properties" in schema
+        properties = schema["properties"]
+        assert "type" in properties
+        assert "data" in properties
+
+        # Verify type is literal "event"
+        assert properties["type"]["const"] == "event"
+
+    def test_event_data_schema_structure(self):
+        """Test WebSocketEventData schema matches frontend expectations."""
+        from backend.api.schemas.websocket import WebSocketEventData
+
+        schema = WebSocketEventData.model_json_schema()
+        properties = schema["properties"]
+
+        # Required fields expected by frontend SecurityEventData type
+        required_fields = [
+            "id",
+            "event_id",
+            "batch_id",
+            "camera_id",
+            "risk_score",
+            "risk_level",
+            "summary",
+            "reasoning",
+        ]
+
+        for field in required_fields:
+            assert field in properties, f"Missing required field: {field}"
+
+        # Verify risk_score constraints
+        assert properties["risk_score"]["minimum"] == 0
+        assert properties["risk_score"]["maximum"] == 100
+
+    def test_service_status_message_schema_structure(self):
+        """Test WebSocketServiceStatusMessage schema matches frontend."""
+        from backend.api.schemas.websocket import WebSocketServiceStatusMessage
+
+        schema = WebSocketServiceStatusMessage.model_json_schema()
+        properties = schema["properties"]
+
+        # Required fields
+        assert "type" in properties
+        assert "data" in properties
+        assert "timestamp" in properties
+
+        # Verify type discriminant
+        assert properties["type"]["const"] == "service_status"
+
+    def test_service_status_data_schema_structure(self):
+        """Test WebSocketServiceStatusData schema matches frontend."""
+        from backend.api.schemas.websocket import WebSocketServiceStatusData
+
+        schema = WebSocketServiceStatusData.model_json_schema()
+        properties = schema["properties"]
+
+        # Required fields expected by frontend ServiceStatusData type
+        assert "service" in properties
+        assert "status" in properties
+
+        # Optional fields
+        assert "message" in properties
+
+    def test_scene_change_message_schema_structure(self):
+        """Test WebSocketSceneChangeMessage schema matches frontend."""
+        from backend.api.schemas.websocket import WebSocketSceneChangeMessage
+
+        schema = WebSocketSceneChangeMessage.model_json_schema()
+        properties = schema["properties"]
+
+        # Required fields
+        assert "type" in properties
+        assert "data" in properties
+
+        # Verify type discriminant
+        assert properties["type"]["const"] == "scene_change"
+
+    def test_scene_change_data_schema_structure(self):
+        """Test WebSocketSceneChangeData schema matches frontend."""
+        from backend.api.schemas.websocket import WebSocketSceneChangeData
+
+        schema = WebSocketSceneChangeData.model_json_schema()
+        properties = schema["properties"]
+
+        # Required fields
+        required_fields = [
+            "id",
+            "camera_id",
+            "detected_at",
+            "change_type",
+            "similarity_score",
+        ]
+
+        for field in required_fields:
+            assert field in properties, f"Missing required field: {field}"
+
+        # Verify similarity_score constraints
+        assert properties["similarity_score"]["minimum"] == 0.0
+        assert properties["similarity_score"]["maximum"] == 1.0
+
+    def test_error_response_schema_structure(self):
+        """Test WebSocketErrorResponse schema matches frontend ErrorMessage."""
+        from backend.api.schemas.websocket import WebSocketErrorResponse
+
+        schema = WebSocketErrorResponse.model_json_schema()
+        properties = schema["properties"]
+
+        # Required fields expected by frontend ErrorMessage type
+        assert "type" in properties
+        assert "error" in properties
+        assert "message" in properties
+
+        # Verify type discriminant
+        assert properties["type"]["const"] == "error"
+
+    def test_pong_response_schema_structure(self):
+        """Test WebSocketPongResponse schema matches frontend PongMessage."""
+        from backend.api.schemas.websocket import WebSocketPongResponse
+
+        schema = WebSocketPongResponse.model_json_schema()
+        properties = schema["properties"]
+
+        # Verify type discriminant
+        assert "type" in properties
+        assert properties["type"]["const"] == "pong"
+
+    def test_risk_level_enum_values(self):
+        """Test RiskLevel enum has all values expected by frontend."""
+        from backend.api.schemas.websocket import RiskLevel
+
+        # Frontend expects these exact values (lowercase)
+        expected_values = {"low", "medium", "high", "critical"}
+        actual_values = {level.value for level in RiskLevel}
+
+        assert actual_values == expected_values, (
+            f"RiskLevel enum mismatch. Expected: {expected_values}, Actual: {actual_values}"
+        )
+
+
+# =============================================================================
+# Health API Contract Tests
+# =============================================================================
+
+
+class TestHealthAPIContract:
+    """Contract tests for Health API endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_system_health_response_schema(self, client: AsyncClient):
+        """Test GET /api/system/health returns valid HealthResponse schema."""
+        response = await client.get("/api/system/health")
+
+        # Health endpoint may return 200 or 503 based on service status
+        assert response.status_code in [200, 503]
+        data = response.json()
+
+        # Verify required fields
+        assert "status" in data
+        assert "services" in data
+        assert "timestamp" in data
+
+        # Verify status is one of the expected values
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+
+        # Verify services is a dict
+        assert isinstance(data["services"], dict)
+
+    @pytest.mark.asyncio
+    async def test_system_ready_response_schema(self, client: AsyncClient):
+        """Test GET /api/system/health/ready returns valid ReadinessResponse."""
+        response = await client.get("/api/system/health/ready")
+
+        # Readiness endpoint may return 200 or 503
+        assert response.status_code in [200, 503]
+        data = response.json()
+
+        # Verify required fields
+        assert "ready" in data
+        assert "status" in data
+        assert "timestamp" in data
+
+        # Verify types
+        assert isinstance(data["ready"], bool)
+        assert data["status"] in ["ready", "degraded", "not_ready"]
