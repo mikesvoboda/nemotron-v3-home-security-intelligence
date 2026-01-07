@@ -264,7 +264,7 @@ describe('PipelineLatencyPanel', () => {
     vi.clearAllMocks();
 
     // Click refresh button
-    const refreshButton = screen.getByTestId('refresh-button');
+    const refreshButton = screen.getByTestId('pipeline-latency-refresh-button');
     await user.click(refreshButton);
 
     await waitFor(() => {
@@ -437,7 +437,7 @@ describe('PipelineLatencyPanel', () => {
       expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
     });
 
-    const refreshButton = screen.getByTestId('refresh-button');
+    const refreshButton = screen.getByTestId('pipeline-latency-refresh-button');
 
     // Click refresh
     await user.click(refreshButton);
