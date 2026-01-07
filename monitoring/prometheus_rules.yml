@@ -1,0 +1,272 @@
+# Prometheus Alerting Rules for Home Security Intelligence AI Pipeline
+#
+# This file defines alerting rules for monitoring AI service failures and
+# performance degradation in the HSI system.
+#
+# Alert Severity Levels:
+# - critical: Immediate action required. System is down or data loss is imminent.
+#             Typically triggers PagerDuty/on-call notifications.
+# - warning:  Action required soon. Performance degradation or approaching limits.
+#             Typically triggers Slack/email notifications.
+# - info:     Informational. No immediate action required but worth monitoring.
+#             Logged for analysis but doesn't trigger notifications.
+#
+# Validation:
+#   promtool check rules monitoring/prometheus_rules.yml
+#
+# Reference:
+#   - Prometheus Alerting Rules: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+#   - HSI Metrics: See backend/core/metrics.py and monitoring/json-exporter-config.yml
+
+groups:
+  - name: ai_pipeline_alerts
+    interval: 15s
+    rules:
+      # =========================================================================
+      # Service Availability Alerts
+      # =========================================================================
+
+      - alert: AIDetectorUnavailable
+        expr: hsi_ai_healthy == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: ai
+          service: rtdetr
+        annotations:
+          summary: 'AI detector service is unavailable'
+          description: 'The RT-DETR object detection service has been unhealthy for more than 2 minutes. No new detections will be processed until the service recovers.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectorunavailable'
+          dashboard_url: 'http://localhost:3002/d/pipeline/pipeline?orgId=1'
+
+      - alert: AIBackendDown
+        expr: up{job="backend-liveness"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: backend
+          service: api
+        annotations:
+          summary: 'HSI Backend API is down'
+          description: 'The backend API service (port 8000) has been unreachable for more than 1 minute. All security monitoring is offline.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aibackenddown'
+
+      # =========================================================================
+      # Latency and Performance Alerts
+      # =========================================================================
+
+      - alert: AINemotronTimeout
+        expr: |
+          histogram_quantile(0.95,
+            rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])
+          ) > 120
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: nemotron
+        annotations:
+          summary: 'Nemotron LLM inference is timing out'
+          description: 'The 95th percentile inference time for Nemotron has exceeded 120 seconds for 5 minutes. Risk analysis is severely delayed. Current P95: {{ $value | printf "%.1f" }}s'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#ainemotrontimeout'
+
+      - alert: AIDetectorSlow
+        expr: |
+          histogram_quantile(0.95,
+            rate(hsi_ai_request_duration_seconds_bucket{service="rtdetr"}[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: rtdetr
+        annotations:
+          summary: 'RT-DETR object detection is slow'
+          description: 'The 95th percentile detection time has exceeded 5 seconds for 5 minutes. Detection queue may be backing up. Current P95: {{ $value | printf "%.1f" }}s'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectorslow'
+
+      # =========================================================================
+      # Error Rate Alerts
+      # =========================================================================
+
+      - alert: AIHighErrorRate
+        expr: |
+          (
+            sum(rate(hsi_pipeline_errors_total[5m])) /
+            (sum(rate(hsi_detections_processed_total[5m])) + 0.001)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: pipeline
+        annotations:
+          summary: 'AI pipeline error rate is high'
+          description: 'More than 10% of pipeline operations are failing over the last 5 minutes. Error rate: {{ $value | printf "%.1f%%" | humanize }}'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aihigherrorrate'
+
+      - alert: AIPipelineErrorSpike
+        expr: |
+          sum(increase(hsi_pipeline_errors_total[5m])) > 50
+        for: 2m
+        labels:
+          severity: warning
+          component: ai
+          service: pipeline
+        annotations:
+          summary: 'Spike in AI pipeline errors'
+          description: 'More than 50 pipeline errors occurred in the last 5 minutes. This may indicate a systemic issue. Error count: {{ $value | printf "%.0f" }}'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aipipelineerrorspike'
+
+      # =========================================================================
+      # GPU Resource Alerts
+      # =========================================================================
+
+      - alert: AIGPUOverheating
+        expr: hsi_gpu_temperature > 85
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+          service: nvidia
+        annotations:
+          summary: 'GPU temperature is critically high'
+          description: 'GPU temperature has exceeded 85C for more than 2 minutes. Current temperature: {{ $value | printf "%.1f" }}C. The GPU may throttle or shut down to prevent damage.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aigpuoverheating'
+
+      - alert: AIGPUTemperatureWarning
+        expr: hsi_gpu_temperature > 75
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: nvidia
+        annotations:
+          summary: 'GPU temperature is elevated'
+          description: 'GPU temperature has exceeded 75C for more than 5 minutes. Current temperature: {{ $value | printf "%.1f" }}C. Consider improving cooling or reducing workload.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aigputemperaturewarning'
+
+      - alert: AIGPUMemoryCritical
+        expr: |
+          (hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+          service: nvidia
+        annotations:
+          summary: 'GPU VRAM usage is critical'
+          description: 'GPU VRAM usage has exceeded 95% for more than 2 minutes. Current usage: {{ $value | printf "%.1f" }}%. Out-of-memory errors are imminent.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aigpumemorycritical'
+
+      - alert: AIGPUMemoryWarning
+        expr: |
+          (hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: nvidia
+        annotations:
+          summary: 'GPU VRAM usage is high'
+          description: 'GPU VRAM usage has exceeded 85% for more than 5 minutes. Current usage: {{ $value | printf "%.1f" }}%. Consider optimizing batch sizes or model configurations.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aigpumemorywarning'
+
+      # =========================================================================
+      # Queue Depth Alerts
+      # =========================================================================
+
+      - alert: AIDetectionQueueBacklog
+        expr: hsi_detection_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: pipeline
+        annotations:
+          summary: 'Detection queue is backing up'
+          description: 'The detection queue has more than 100 pending items for over 5 minutes. Current depth: {{ $value | printf "%.0f" }}. Processing may be falling behind.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectionqueuebacklog'
+
+      - alert: AIAnalysisQueueBacklog
+        expr: hsi_analysis_queue_depth > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: pipeline
+        annotations:
+          summary: 'Analysis queue is backing up'
+          description: 'The analysis queue has more than 50 pending batches for over 5 minutes. Current depth: {{ $value | printf "%.0f" }}. Nemotron may be overloaded.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aianalysisqueuebacklog'
+
+      # =========================================================================
+      # System Health Alerts
+      # =========================================================================
+
+      - alert: AISystemDegraded
+        expr: hsi_system_healthy == 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+          service: health
+        annotations:
+          summary: 'System health is degraded'
+          description: 'The HSI system has been in degraded state for more than 5 minutes. Some services may not be functioning properly.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aisystemdegraded'
+
+      - alert: AISystemUnhealthy
+        expr: hsi_system_healthy == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+          service: health
+        annotations:
+          summary: 'System is unhealthy'
+          description: 'The HSI system has been unhealthy for more than 2 minutes. Critical services are down.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aisystemunhealthy'
+
+  # ===========================================================================
+  # Infrastructure Dependency Alerts
+  # ===========================================================================
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      - alert: DatabaseUnhealthy
+        expr: hsi_database_healthy == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+          service: postgres
+        annotations:
+          summary: 'Database connection is unhealthy'
+          description: 'PostgreSQL database has been unreachable for more than 2 minutes. Event persistence is failing.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#databaseunhealthy'
+
+      - alert: RedisUnhealthy
+        expr: hsi_redis_healthy == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: cache
+          service: redis
+        annotations:
+          summary: 'Redis connection is unhealthy'
+          description: 'Redis cache has been unreachable for more than 2 minutes. WebSocket pub/sub and caching are failing.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#redisunhealthy'
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Prometheus scrape target is down'
+          description: 'Prometheus target {{ $labels.job }} has been unreachable for more than 5 minutes.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#prometheustargetdown'

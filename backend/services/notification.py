@@ -473,7 +473,7 @@ class NotificationService:
     async def send_push(
         self,
         alert: Alert,
-        device_tokens: list[str] | None = None,  # noqa: ARG002
+        _device_tokens: list[str] | None = None,
     ) -> NotificationDelivery:
         """Send an alert notification via push notification (stubbed).
 

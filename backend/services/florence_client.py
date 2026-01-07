@@ -167,7 +167,27 @@ class FlorenceClient:
             half_open_max_calls=getattr(settings, "florence_cb_half_open_max_calls", 3),
         )
 
+        # Create persistent HTTP connection pool (NEM-1721)
+        # Reusing connections avoids TCP overhead and resource exhaustion
+        self._http_client = httpx.AsyncClient(
+            timeout=self._timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        self._health_http_client = httpx.AsyncClient(
+            timeout=self._health_timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+
         logger.info(f"FlorenceClient initialized with base_url={self._base_url}")
+
+    async def close(self) -> None:
+        """Close the HTTP client connections.
+
+        Should be called when the client is no longer needed to release resources.
+        """
+        await self._http_client.aclose()
+        await self._health_http_client.aclose()
+        logger.debug("FlorenceClient HTTP connections closed")
 
     def _encode_image_to_base64(self, image: Image.Image) -> str:
         """Encode a PIL Image to base64 string.
@@ -218,10 +238,10 @@ class FlorenceClient:
             return False
 
         try:
-            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                response = await client.get(f"{self._base_url}/health")
-                response.raise_for_status()
-                return True
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._health_http_client.get(f"{self._base_url}/health")
+            response.raise_for_status()
+            return True
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             logger.warning(f"Florence health check failed: {e}", exc_info=True)
             return False
@@ -274,13 +294,12 @@ class FlorenceClient:
             # Track AI request time
             ai_start_time = time.time()
 
-            # Send to Florence service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/extract",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Send to Florence service using persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/extract",
+                json=payload,
+            )
+            response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
@@ -419,12 +438,12 @@ class FlorenceClient:
 
             ai_start_time = time.time()
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/ocr",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/ocr",
+                json=payload,
+            )
+            response.raise_for_status()
 
             ai_duration = time.time() - ai_start_time
             observe_ai_request_duration("florence_ocr", ai_duration)
@@ -515,12 +534,12 @@ class FlorenceClient:
 
             ai_start_time = time.time()
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/ocr-with-regions",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/ocr-with-regions",
+                json=payload,
+            )
+            response.raise_for_status()
 
             ai_duration = time.time() - ai_start_time
             observe_ai_request_duration("florence_ocr_regions", ai_duration)
@@ -615,12 +634,12 @@ class FlorenceClient:
 
             ai_start_time = time.time()
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/detect",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/detect",
+                json=payload,
+            )
+            response.raise_for_status()
 
             ai_duration = time.time() - ai_start_time
             observe_ai_request_duration("florence_detect", ai_duration)
@@ -718,12 +737,12 @@ class FlorenceClient:
 
             ai_start_time = time.time()
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/dense-caption",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/dense-caption",
+                json=payload,
+            )
+            response.raise_for_status()
 
             ai_duration = time.time() - ai_start_time
             observe_ai_request_duration("florence_dense_caption", ai_duration)
@@ -811,7 +830,12 @@ def get_florence_client() -> FlorenceClient:
     return _florence_client
 
 
-def reset_florence_client() -> None:
-    """Reset the global FlorenceClient instance (for testing)."""
+async def reset_florence_client() -> None:
+    """Reset the global FlorenceClient instance (for testing).
+
+    This async function properly closes HTTP connections before resetting.
+    """
     global _florence_client  # noqa: PLW0603
+    if _florence_client is not None:
+        await _florence_client.close()
     _florence_client = None

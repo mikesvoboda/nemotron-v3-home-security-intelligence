@@ -275,6 +275,14 @@ class Settings(BaseSettings):
         description="Interval (seconds) between batch timeout checks. "
         "Lower values reduce latency between timeout and batch close but increase CPU usage.",
     )
+    batch_max_detections: int = Field(
+        default=500,
+        ge=1,
+        le=10000,
+        description="Maximum detections per batch before splitting (NEM-1726). "
+        "When a batch reaches this limit, it is closed and a new batch is created. "
+        "Prevents memory exhaustion and LLM timeouts with large batches.",
+    )
 
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
@@ -340,6 +348,33 @@ class Settings(BaseSettings):
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
 
+    # Nemotron context window settings (NEM-1723)
+    nemotron_context_window: int = Field(
+        default=3900,
+        ge=1000,
+        le=128000,
+        description="Nemotron-3-Nano context window size in tokens. "
+        "Prompts exceeding (context_window - max_output_tokens) will be truncated. "
+        "Default: 3900 tokens for Nemotron-3-Nano.",
+    )
+    nemotron_max_output_tokens: int = Field(
+        default=1536,
+        ge=100,
+        le=8192,
+        description="Maximum tokens reserved for Nemotron LLM output. "
+        "Input prompts are validated against (context_window - max_output_tokens). "
+        "Default: 1536 tokens.",
+    )
+
+    enrichment_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for enrichment service on transient failures "
+        "(ConnectError, TimeoutException). Uses exponential backoff with jitter "
+        "(2^attempt seconds with +/-10% jitter, capped at 30s). Default: 3 attempts.",
+    )
+
     # AI service concurrency settings (NEM-1463)
     ai_max_concurrent_inferences: int = Field(
         default=4,
@@ -350,22 +385,6 @@ class Settings(BaseSettings):
         "higher for distributed AI services. Default: 4 concurrent operations.",
     )
 
-    # LLM context window settings (NEM-1666)
-    nemotron_context_window: int = Field(
-        default=4096,
-        ge=512,
-        le=131072,
-        description="Maximum context window size in tokens for Nemotron LLM. "
-        "Default 4096 for Nemotron-3-Nano. Adjust based on your model's capacity. "
-        "Prompts exceeding this limit will be truncated with a warning.",
-    )
-    nemotron_max_output_tokens: int = Field(
-        default=1536,
-        ge=128,
-        le=8192,
-        description="Maximum tokens reserved for LLM output. Must be less than context_window. "
-        "Default 1536 provides room for detailed risk explanations.",
-    )
     context_utilization_warning_threshold: float = Field(
         default=0.80,
         ge=0.5,

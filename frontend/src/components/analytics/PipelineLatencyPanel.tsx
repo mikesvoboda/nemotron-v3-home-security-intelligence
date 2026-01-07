@@ -318,7 +318,7 @@ export default function PipelineLatencyPanel({ refreshInterval = 0 }: PipelineLa
             onClick={() => void handleRefresh()}
             disabled={isRefreshing}
             className="flex items-center gap-2 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-700 disabled:opacity-50"
-            data-testid="pipeline-refresh-button"
+            data-testid="pipeline-latency-refresh-button"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh

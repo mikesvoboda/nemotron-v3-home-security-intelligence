@@ -83,6 +83,8 @@ def mock_redis_client():
     mock_internal.lrange = AsyncMock(return_value=[])
     mock_internal.rpush = AsyncMock(return_value=1)
     mock_internal.expire = AsyncMock(return_value=True)
+    # llen is used for batch size checking (NEM-1726)
+    mock_internal.llen = AsyncMock(return_value=0)
     mock_client._client = mock_internal
 
     # High-level operations
@@ -151,6 +153,8 @@ def batch_aggregator(mock_redis_client, mock_analyzer):
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.9
         mock_settings.return_value.fast_path_object_types = ["person", "vehicle"]
+        # Batch size limit (NEM-1726)
+        mock_settings.return_value.batch_max_detections = 1000
         aggregator = BatchAggregator(redis_client=mock_redis_client, analyzer=mock_analyzer)
         return aggregator
 

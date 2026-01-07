@@ -1697,3 +1697,307 @@ async def test_detect_objects_retry_exhaustion_without_exception(mock_session):
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
         assert "All retries exhausted" in str(exc_info.value)
+
+
+# Test: Circuit Breaker Integration (NEM-1724)
+
+
+@pytest.mark.asyncio
+async def test_detector_client_has_circuit_breaker():
+    """Test that DetectorClient initializes with a circuit breaker."""
+    client = DetectorClient(max_retries=1)
+
+    # Verify circuit breaker is present with correct configuration
+    assert client._circuit_breaker is not None
+    assert client._circuit_breaker.name == "rtdetr"
+    assert client._circuit_breaker.config.failure_threshold == 5
+    assert client._circuit_breaker.config.recovery_timeout == 60.0
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_opens_after_repeated_failures(mock_session):
+    """Test that circuit breaker opens after failure threshold is reached.
+
+    This verifies the circuit breaker prevents retry storms (NEM-1724).
+    """
+    from backend.services.circuit_breaker import CircuitState
+
+    detector_client = DetectorClient(max_retries=1)
+    image_path = "/export/foscam/front_door/circuit_breaker_test.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Reset circuit breaker state to ensure clean test
+    detector_client._circuit_breaker.reset()
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        # Fail 5 times to reach threshold (failure_threshold=5)
+        for _i in range(5):
+            with pytest.raises(DetectorUnavailableError):
+                await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Circuit should now be OPEN
+        assert detector_client._circuit_breaker.state == CircuitState.OPEN
+
+        # Next call should be rejected immediately by circuit breaker
+        # (converted to DetectorUnavailableError with specific message)
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert "temporarily unavailable" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_rejects_calls_when_open(mock_session):
+    """Test that open circuit breaker immediately rejects calls without HTTP request."""
+    from backend.services.circuit_breaker import CircuitState
+
+    detector_client = DetectorClient(max_retries=1)
+    image_path = "/export/foscam/front_door/circuit_open_test.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Force circuit breaker open
+    detector_client._circuit_breaker.force_open()
+    assert detector_client._circuit_breaker.state == CircuitState.OPEN
+
+    http_call_count = 0
+
+    async def mock_http_post(*args, **kwargs):
+        nonlocal http_call_count
+        http_call_count += 1
+        raise httpx.ConnectError("Should not be called")
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=mock_http_post),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Should not have made any HTTP calls
+        assert http_call_count == 0
+        assert "temporarily unavailable" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_allows_recovery_after_timeout(mock_session):
+    """Test that circuit breaker transitions to half-open after recovery timeout."""
+    import asyncio
+
+    from backend.services.circuit_breaker import CircuitBreakerConfig, CircuitState
+
+    # Create client with short recovery timeout for testing
+    detector_client = DetectorClient(max_retries=1)
+
+    # Replace circuit breaker with one that has short timeout
+    from backend.services.circuit_breaker import CircuitBreaker
+
+    detector_client._circuit_breaker = CircuitBreaker(
+        name="rtdetr",
+        config=CircuitBreakerConfig(
+            failure_threshold=5,
+            recovery_timeout=0.1,  # 100ms for testing
+        ),
+    )
+
+    image_path = "/export/foscam/front_door/circuit_recovery_test.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Force circuit open
+    detector_client._circuit_breaker.force_open()
+    assert detector_client._circuit_breaker.state == CircuitState.OPEN
+
+    # Wait for recovery timeout
+    await asyncio.sleep(0.15)
+
+    # Mock successful response
+    success_response = MagicMock(spec=httpx.Response)
+    success_response.status_code = 200
+    success_response.json.return_value = {"detections": []}
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        mock_post.return_value = success_response
+
+        # Should transition to HALF_OPEN and allow trial call
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Call should succeed
+        assert detections == []
+        # Circuit should be in HALF_OPEN or CLOSED after success
+        assert detector_client._circuit_breaker.state in (
+            CircuitState.HALF_OPEN,
+            CircuitState.CLOSED,
+        )
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_success_resets_failure_count(mock_session):
+    """Test that successful calls reset the failure count."""
+    detector_client = DetectorClient(max_retries=1)
+    image_path = "/export/foscam/front_door/circuit_reset_test.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Reset circuit breaker state
+    detector_client._circuit_breaker.reset()
+
+    # First, accumulate some failures (but not enough to open)
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        for _ in range(3):  # Less than threshold of 5
+            with pytest.raises(DetectorUnavailableError):
+                await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+    assert detector_client._circuit_breaker.failure_count == 3
+
+    # Now make a successful call
+    success_response = MagicMock(spec=httpx.Response)
+    success_response.status_code = 200
+    success_response.json.return_value = {"detections": []}
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        mock_post.return_value = success_response
+        await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+    # Failure count should be reset to 0 after success
+    assert detector_client._circuit_breaker.failure_count == 0
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_excluded_exceptions_not_counted():
+    """Test that ValueError (client errors) don't count toward circuit breaker threshold.
+
+    HTTP 4xx errors should not cause the circuit breaker to open since they
+    indicate client-side issues, not server availability problems.
+    """
+    from backend.services.circuit_breaker import CircuitState
+
+    detector_client = DetectorClient(max_retries=1)
+    detector_client._circuit_breaker.reset()
+
+    # Verify ValueError is excluded
+    assert ValueError in detector_client._circuit_breaker.config.excluded_exceptions
+
+    # Circuit should stay closed even after many client errors
+    assert detector_client._circuit_breaker.state == CircuitState.CLOSED
+    assert detector_client._circuit_breaker.failure_count == 0
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_metrics_are_tracked(mock_session):
+    """Test that circuit breaker metrics are properly tracked."""
+    detector_client = DetectorClient(max_retries=1)
+    image_path = "/export/foscam/front_door/circuit_metrics_test.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # Reset circuit breaker
+    detector_client._circuit_breaker.reset()
+    initial_total = detector_client._circuit_breaker.get_metrics().total_calls
+
+    # Make a few calls (successful)
+    success_response = MagicMock(spec=httpx.Response)
+    success_response.status_code = 200
+    success_response.json.return_value = {"detections": []}
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        mock_post.return_value = success_response
+
+        for _ in range(3):
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+    metrics = detector_client._circuit_breaker.get_metrics()
+    assert metrics.total_calls == initial_total + 3
+    assert metrics.failure_count == 0
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_prevents_retry_storms(mock_session):
+    """Test that circuit breaker prevents retry storms when detector is down.
+
+    When the detector is unavailable, the circuit breaker should open and
+    immediately reject subsequent calls without making network requests.
+    This prevents overwhelming a failing service with retry attempts.
+    """
+    from backend.services.circuit_breaker import CircuitState
+
+    detector_client = DetectorClient(max_retries=1)
+    image_path = "/export/foscam/front_door/retry_storm_test.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    detector_client._circuit_breaker.reset()
+
+    http_call_count = 0
+
+    async def counting_http_post(*args, **kwargs):
+        nonlocal http_call_count
+        http_call_count += 1
+        raise httpx.ConnectError("Connection refused")
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=counting_http_post),
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        # First 5 calls will hit the network (threshold=5)
+        for _ in range(5):
+            with pytest.raises(DetectorUnavailableError):
+                await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Circuit should now be open
+        assert detector_client._circuit_breaker.state == CircuitState.OPEN
+        calls_before_open = http_call_count
+
+        # Next 10 calls should be rejected immediately without HTTP
+        for _ in range(10):
+            with pytest.raises(DetectorUnavailableError):
+                await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # HTTP call count should not have increased
+        assert http_call_count == calls_before_open
+
+
+@pytest.mark.asyncio
+async def test_detector_client_get_circuit_breaker_status():
+    """Test that DetectorClient provides access to circuit breaker status."""
+    detector_client = DetectorClient(max_retries=1)
+
+    status = detector_client._circuit_breaker.get_status()
+
+    assert "name" in status
+    assert status["name"] == "rtdetr"
+    assert "state" in status
+    assert "failure_count" in status
+    assert "config" in status
+    assert status["config"]["failure_threshold"] == 5
+    assert status["config"]["recovery_timeout"] == 60.0

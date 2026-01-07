@@ -48,11 +48,11 @@ from backend.tests.async_utils import (
 
 
 @pytest.fixture(autouse=True)
-def reset_global_client() -> None:
+async def reset_global_client() -> None:
     """Reset global enrichment client before and after each test."""
-    reset_enrichment_client()
+    await reset_enrichment_client()
     yield
-    reset_enrichment_client()
+    await reset_enrichment_client()
 
 
 @pytest.fixture
@@ -66,6 +66,8 @@ def mock_settings() -> MagicMock:
     settings.enrichment_cb_failure_threshold = 5
     settings.enrichment_cb_recovery_timeout = 60.0
     settings.enrichment_cb_half_open_max_calls = 3
+    # Retry configuration (NEM-1732)
+    settings.enrichment_max_retries = 3
     return settings
 
 
@@ -83,9 +85,25 @@ def sample_frames() -> list[Image.Image]:
 
 @pytest.fixture
 def client(mock_settings: MagicMock) -> EnrichmentClient:
-    """Create an EnrichmentClient with mocked settings."""
-    with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
-        return EnrichmentClient()
+    """Create an EnrichmentClient with mocked HTTP clients for testing.
+
+    The EnrichmentClient uses persistent HTTP clients (NEM-1721), so we mock
+    httpx.AsyncClient during construction to inject testable mock clients.
+    """
+    mock_http_client = AsyncMock()
+    mock_http_client.aclose = AsyncMock()
+    mock_health_client = AsyncMock()
+    mock_health_client.aclose = AsyncMock()
+
+    with (
+        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
+        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+    ):
+        client = EnrichmentClient()
+        # Store mocks for test access
+        client._http_client = mock_http_client
+        client._health_http_client = mock_health_client
+        return client
 
 
 @pytest.fixture
@@ -655,6 +673,8 @@ class TestEnrichmentClientInit:
         mock_settings.enrichment_cb_failure_threshold = 5
         mock_settings.enrichment_cb_recovery_timeout = 60.0
         mock_settings.enrichment_cb_half_open_max_calls = 3
+        # Retry configuration (NEM-1732)
+        mock_settings.enrichment_max_retries = 3
         with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
             client = EnrichmentClient()
             assert client._base_url == DEFAULT_ENRICHMENT_URL.rstrip("/")
@@ -682,43 +702,32 @@ class TestEnrichmentClientHealthCheck:
         mock_response.json.return_value = {"status": "healthy", "models": ["vehicle", "pet"]}
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
 
-            result = await client.check_health()
-            assert result["status"] == "healthy"
-            assert "models" in result
+        result = await client.check_health()
+        assert result["status"] == "healthy"
+        assert "models" in result
 
     @pytest.mark.asyncio
     async def test_check_health_connection_error(self, client: EnrichmentClient) -> None:
         """Test health check with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._health_http_client.get = AsyncMock(
+            side_effect=httpx.ConnectError("Connection refused")
+        )
 
-            result = await client.check_health()
-            assert result["status"] == "unavailable"
-            assert "error" in result
+        result = await client.check_health()
+        assert result["status"] == "unavailable"
+        assert "error" in result
 
     @pytest.mark.asyncio
     async def test_check_health_timeout(self, client: EnrichmentClient) -> None:
         """Test health check with timeout error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("Request timed out"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._health_http_client.get = AsyncMock(
+            side_effect=httpx.TimeoutException("Request timed out")
+        )
 
-            result = await client.check_health()
-            assert result["status"] == "unavailable"
+        result = await client.check_health()
+        assert result["status"] == "unavailable"
 
     @pytest.mark.asyncio
     async def test_check_health_http_error(self, client: EnrichmentClient) -> None:
@@ -727,32 +736,22 @@ class TestEnrichmentClientHealthCheck:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Server error", request=mock_request, response=mock_response
-                )
+        client._health_http_client.get = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.check_health()
-            assert result["status"] == "error"
+        result = await client.check_health()
+        assert result["status"] == "error"
 
     @pytest.mark.asyncio
     async def test_check_health_unexpected_error(self, client: EnrichmentClient) -> None:
         """Test health check with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(side_effect=RuntimeError("Unexpected error"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._health_http_client.get = AsyncMock(side_effect=RuntimeError("Unexpected error"))
 
-            result = await client.check_health()
-            assert result["status"] == "error"
+        result = await client.check_health()
+        assert result["status"] == "error"
 
     @pytest.mark.asyncio
     async def test_is_healthy_true_healthy(self, client: EnrichmentClient) -> None:
@@ -914,22 +913,17 @@ class TestEnrichmentClientClassifyVehicle:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.enrichment_client.observe_ai_request_duration") as mock_observe,
-        ):
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        with patch(
+            "backend.services.enrichment_client.observe_ai_request_duration"
+        ) as mock_observe:
+            client._http_client.post = AsyncMock(return_value=mock_response)
 
             result = await client.classify_vehicle(sample_image)
 
-            assert result is not None
-            assert result.vehicle_type == "sedan"
-            assert result.confidence == 0.92
-            mock_observe.assert_called_once()
+        assert result is not None
+        assert result.vehicle_type == "sedan"
+        assert result.confidence == 0.92
+        mock_observe.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_classify_vehicle_with_bbox(
@@ -947,34 +941,24 @@ class TestEnrichmentClientClassifyVehicle:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.classify_vehicle(sample_image, bbox=(10.0, 20.0, 80.0, 90.0))
+        result = await client.classify_vehicle(sample_image, bbox=(10.0, 20.0, 80.0, 90.0))
 
-            assert result is not None
-            # Verify bbox was included in request
-            call_args = mock_client.post.call_args
-            assert "bbox" in call_args.kwargs["json"]
+        assert result is not None
+        # Verify bbox was included in request
+        call_args = client._http_client.post.call_args
+        assert "bbox" in call_args.kwargs["json"]
 
     @pytest.mark.asyncio
     async def test_classify_vehicle_connection_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test vehicle classification with connection error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.enrichment_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+            client._http_client.post = AsyncMock(
+                side_effect=httpx.ConnectError("Connection refused")
+            )
 
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
@@ -986,15 +970,10 @@ class TestEnrichmentClientClassifyVehicle:
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test vehicle classification with timeout."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.enrichment_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Request timed out"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+            client._http_client.post = AsyncMock(
+                side_effect=httpx.TimeoutException("Request timed out")
+            )
 
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
@@ -1010,19 +989,12 @@ class TestEnrichmentClientClassifyVehicle:
         mock_response = MagicMock()
         mock_response.status_code = 503
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.enrichment_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
+        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+            client._http_client.post = AsyncMock(
                 side_effect=httpx.HTTPStatusError(
                     "Service unavailable", request=mock_request, response=mock_response
                 )
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
 
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
@@ -1038,38 +1010,24 @@ class TestEnrichmentClientClassifyVehicle:
         mock_response = MagicMock()
         mock_response.status_code = 400
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.enrichment_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
+        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+            client._http_client.post = AsyncMock(
                 side_effect=httpx.HTTPStatusError(
                     "Bad request", request=mock_request, response=mock_response
                 )
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
 
             result = await client.classify_vehicle(sample_image)
-            assert result is None
-            mock_record.assert_called_once_with("enrichment_vehicle_client_error")
+        assert result is None
+        mock_record.assert_called_once_with("enrichment_vehicle_client_error")
 
     @pytest.mark.asyncio
     async def test_classify_vehicle_unexpected_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test vehicle classification with unexpected error."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("backend.services.enrichment_client.record_pipeline_error") as mock_record,
-        ):
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+            client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
 
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
@@ -1100,18 +1058,13 @@ class TestEnrichmentClientClassifyPet:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.classify_pet(sample_image)
+        result = await client.classify_pet(sample_image)
 
-            assert result is not None
-            assert result.pet_type == "cat"
-            assert result.breed == "tabby"
+        assert result is not None
+        assert result.pet_type == "cat"
+        assert result.breed == "tabby"
 
     @pytest.mark.asyncio
     async def test_classify_pet_with_bbox(
@@ -1128,48 +1081,33 @@ class TestEnrichmentClientClassifyPet:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.classify_pet(sample_image, bbox=(5.0, 10.0, 95.0, 90.0))
+        result = await client.classify_pet(sample_image, bbox=(5.0, 10.0, 95.0, 90.0))
 
-            assert result is not None
-            call_args = mock_client.post.call_args
-            assert "bbox" in call_args.kwargs["json"]
+        assert result is not None
+        call_args = client._http_client.post.call_args
+        assert "bbox" in call_args.kwargs["json"]
 
     @pytest.mark.asyncio
     async def test_classify_pet_connection_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test pet classification with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_pet(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_pet(sample_image)
 
     @pytest.mark.asyncio
     async def test_classify_pet_timeout(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test pet classification with timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_pet(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_pet(sample_image)
 
     @pytest.mark.asyncio
     async def test_classify_pet_server_error(
@@ -1180,19 +1118,14 @@ class TestEnrichmentClientClassifyPet:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Internal error", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Internal error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_pet(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_pet(sample_image)
 
     @pytest.mark.asyncio
     async def test_classify_pet_client_error(
@@ -1203,34 +1136,24 @@ class TestEnrichmentClientClassifyPet:
         mock_response = MagicMock()
         mock_response.status_code = 422
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Validation error", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Validation error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.classify_pet(sample_image)
-            assert result is None
+        result = await client.classify_pet(sample_image)
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_classify_pet_unexpected_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test pet classification with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=ValueError("Unexpected"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=ValueError("Unexpected"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_pet(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_pet(sample_image)
 
 
 # =============================================================================
@@ -1260,18 +1183,13 @@ class TestEnrichmentClientClassifyClothing:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.classify_clothing(sample_image)
+        result = await client.classify_clothing(sample_image)
 
-            assert result is not None
-            assert result.clothing_type == "jacket"
-            assert result.color == "blue"
+        assert result is not None
+        assert result.clothing_type == "jacket"
+        assert result.color == "blue"
 
     @pytest.mark.asyncio
     async def test_classify_clothing_with_bbox(
@@ -1292,47 +1210,32 @@ class TestEnrichmentClientClassifyClothing:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.classify_clothing(sample_image, bbox=(0.0, 0.0, 100.0, 100.0))
+        result = await client.classify_clothing(sample_image, bbox=(0.0, 0.0, 100.0, 100.0))
 
-            assert result is not None
-            assert result.is_service_uniform is True
+        assert result is not None
+        assert result.is_service_uniform is True
 
     @pytest.mark.asyncio
     async def test_classify_clothing_connection_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test clothing classification with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_clothing(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_clothing(sample_image)
 
     @pytest.mark.asyncio
     async def test_classify_clothing_timeout(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test clothing classification with timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_clothing(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_clothing(sample_image)
 
     @pytest.mark.asyncio
     async def test_classify_clothing_server_error(
@@ -1343,19 +1246,14 @@ class TestEnrichmentClientClassifyClothing:
         mock_response = MagicMock()
         mock_response.status_code = 502
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Bad gateway", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Bad gateway", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_clothing(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_clothing(sample_image)
 
     @pytest.mark.asyncio
     async def test_classify_clothing_client_error(
@@ -1366,34 +1264,24 @@ class TestEnrichmentClientClassifyClothing:
         mock_response = MagicMock()
         mock_response.status_code = 404
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Not found", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Not found", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.classify_clothing(sample_image)
-            assert result is None
+        result = await client.classify_clothing(sample_image)
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_classify_clothing_unexpected_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test clothing classification with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=KeyError("Missing field"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=KeyError("Missing field"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_clothing(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_clothing(sample_image)
 
 
 # =============================================================================
@@ -1419,48 +1307,33 @@ class TestEnrichmentClientEstimateDepth:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.estimate_depth(sample_image)
+        result = await client.estimate_depth(sample_image)
 
-            assert result is not None
-            assert result.mean_depth == 0.42
-            assert result.depth_map_base64 == "dGVzdGRlcHRobWFw"
+        assert result is not None
+        assert result.mean_depth == 0.42
+        assert result.depth_map_base64 == "dGVzdGRlcHRobWFw"
 
     @pytest.mark.asyncio
     async def test_estimate_depth_connection_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test depth estimation with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_depth(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_depth(sample_image)
 
     @pytest.mark.asyncio
     async def test_estimate_depth_timeout(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test depth estimation with timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_depth(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_depth(sample_image)
 
     @pytest.mark.asyncio
     async def test_estimate_depth_server_error(
@@ -1471,19 +1344,14 @@ class TestEnrichmentClientEstimateDepth:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Server error", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_depth(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_depth(sample_image)
 
     @pytest.mark.asyncio
     async def test_estimate_depth_client_error(
@@ -1494,34 +1362,24 @@ class TestEnrichmentClientEstimateDepth:
         mock_response = MagicMock()
         mock_response.status_code = 400
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Bad request", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Bad request", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.estimate_depth(sample_image)
-            assert result is None
+        result = await client.estimate_depth(sample_image)
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_estimate_depth_unexpected_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test depth estimation with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=AttributeError("Bad response"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=AttributeError("Bad response"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_depth(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_depth(sample_image)
 
 
 # =============================================================================
@@ -1546,20 +1404,13 @@ class TestEnrichmentClientEstimateObjectDistance:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.estimate_object_distance(
-                sample_image, bbox=(20.0, 30.0, 80.0, 90.0)
-            )
+        result = await client.estimate_object_distance(sample_image, bbox=(20.0, 30.0, 80.0, 90.0))
 
-            assert result is not None
-            assert result.estimated_distance_m == 3.5
-            assert result.proximity_label == "medium"
+        assert result is not None
+        assert result.estimated_distance_m == 3.5
+        assert result.proximity_label == "medium"
 
     @pytest.mark.asyncio
     async def test_estimate_object_distance_with_method(
@@ -1575,50 +1426,35 @@ class TestEnrichmentClientEstimateObjectDistance:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.estimate_object_distance(
-                sample_image, bbox=(20.0, 30.0, 80.0, 90.0), method="median"
-            )
+        result = await client.estimate_object_distance(
+            sample_image, bbox=(20.0, 30.0, 80.0, 90.0), method="median"
+        )
 
-            assert result is not None
-            call_args = mock_client.post.call_args
-            assert call_args.kwargs["json"]["method"] == "median"
+        assert result is not None
+        call_args = client._http_client.post.call_args
+        assert call_args.kwargs["json"]["method"] == "median"
 
     @pytest.mark.asyncio
     async def test_estimate_object_distance_connection_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test object distance estimation with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
 
     @pytest.mark.asyncio
     async def test_estimate_object_distance_timeout(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test object distance estimation with timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
 
     @pytest.mark.asyncio
     async def test_estimate_object_distance_server_error(
@@ -1629,19 +1465,14 @@ class TestEnrichmentClientEstimateObjectDistance:
         mock_response = MagicMock()
         mock_response.status_code = 503
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Service unavailable", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Service unavailable", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
 
     @pytest.mark.asyncio
     async def test_estimate_object_distance_client_error(
@@ -1652,36 +1483,24 @@ class TestEnrichmentClientEstimateObjectDistance:
         mock_response = MagicMock()
         mock_response.status_code = 422
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Validation error", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Validation error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.estimate_object_distance(
-                sample_image, bbox=(10.0, 10.0, 90.0, 90.0)
-            )
-            assert result is None
+        result = await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_estimate_object_distance_unexpected_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test object distance estimation with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=TypeError("Type error"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=TypeError("Type error"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
 
 
 # =============================================================================
@@ -1709,19 +1528,14 @@ class TestEnrichmentClientAnalyzePose:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.analyze_pose(sample_image)
+        result = await client.analyze_pose(sample_image)
 
-            assert result is not None
-            assert result.posture == "standing"
-            assert len(result.keypoints) == 2
-            assert result.keypoints[0].name == "nose"
+        assert result is not None
+        assert result.posture == "standing"
+        assert len(result.keypoints) == 2
+        assert result.keypoints[0].name == "nose"
 
     @pytest.mark.asyncio
     async def test_analyze_pose_with_bbox(
@@ -1737,18 +1551,13 @@ class TestEnrichmentClientAnalyzePose:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.analyze_pose(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
+        result = await client.analyze_pose(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
 
-            assert result is not None
-            call_args = mock_client.post.call_args
-            assert "bbox" in call_args.kwargs["json"]
+        assert result is not None
+        call_args = client._http_client.post.call_args
+        assert "bbox" in call_args.kwargs["json"]
 
     @pytest.mark.asyncio
     async def test_analyze_pose_with_min_confidence(
@@ -1764,48 +1573,33 @@ class TestEnrichmentClientAnalyzePose:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.analyze_pose(sample_image, min_confidence=0.5)
+        result = await client.analyze_pose(sample_image, min_confidence=0.5)
 
-            assert result is not None
-            call_args = mock_client.post.call_args
-            assert call_args.kwargs["json"]["min_confidence"] == 0.5
+        assert result is not None
+        call_args = client._http_client.post.call_args
+        assert call_args.kwargs["json"]["min_confidence"] == 0.5
 
     @pytest.mark.asyncio
     async def test_analyze_pose_connection_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test pose analysis with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.analyze_pose(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.analyze_pose(sample_image)
 
     @pytest.mark.asyncio
     async def test_analyze_pose_timeout(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test pose analysis with timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.analyze_pose(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.analyze_pose(sample_image)
 
     @pytest.mark.asyncio
     async def test_analyze_pose_server_error(
@@ -1816,19 +1610,14 @@ class TestEnrichmentClientAnalyzePose:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Server error", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.analyze_pose(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.analyze_pose(sample_image)
 
     @pytest.mark.asyncio
     async def test_analyze_pose_client_error(
@@ -1839,34 +1628,24 @@ class TestEnrichmentClientAnalyzePose:
         mock_response = MagicMock()
         mock_response.status_code = 400
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Bad request", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Bad request", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.analyze_pose(sample_image)
-            assert result is None
+        result = await client.analyze_pose(sample_image)
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_analyze_pose_unexpected_error(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test pose analysis with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=IndexError("Index error"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=IndexError("Index error"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.analyze_pose(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.analyze_pose(sample_image)
 
 
 # =============================================================================
@@ -1893,18 +1672,13 @@ class TestEnrichmentClientClassifyAction:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            result = await client.classify_action(sample_frames)
+        result = await client.classify_action(sample_frames)
 
-            assert result is not None
-            assert result.action == "a person walking"
-            assert result.confidence == 0.88
+        assert result is not None
+        assert result.action == "a person walking"
+        assert result.confidence == 0.88
 
     @pytest.mark.asyncio
     async def test_classify_action_with_labels(
@@ -1922,19 +1696,14 @@ class TestEnrichmentClientClassifyAction:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            custom_labels = ["person walking", "person running", "person loitering"]
-            result = await client.classify_action(sample_frames, labels=custom_labels)
+        custom_labels = ["person walking", "person running", "person loitering"]
+        result = await client.classify_action(sample_frames, labels=custom_labels)
 
-            assert result is not None
-            call_args = mock_client.post.call_args
-            assert call_args.kwargs["json"]["labels"] == custom_labels
+        assert result is not None
+        call_args = client._http_client.post.call_args
+        assert call_args.kwargs["json"]["labels"] == custom_labels
 
     @pytest.mark.asyncio
     async def test_classify_action_encodes_all_frames(
@@ -1952,47 +1721,32 @@ class TestEnrichmentClientClassifyAction:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            await client.classify_action(sample_frames)
+        await client.classify_action(sample_frames)
 
-            call_args = mock_client.post.call_args
-            assert len(call_args.kwargs["json"]["frames"]) == len(sample_frames)
+        call_args = client._http_client.post.call_args
+        assert len(call_args.kwargs["json"]["frames"]) == len(sample_frames)
 
     @pytest.mark.asyncio
     async def test_classify_action_connection_error(
         self, client: EnrichmentClient, sample_frames: list[Image.Image]
     ) -> None:
         """Test action classification with connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_action(sample_frames)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_action(sample_frames)
 
     @pytest.mark.asyncio
     async def test_classify_action_timeout(
         self, client: EnrichmentClient, sample_frames: list[Image.Image]
     ) -> None:
         """Test action classification with timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_action(sample_frames)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_action(sample_frames)
 
     @pytest.mark.asyncio
     async def test_classify_action_server_error(
@@ -2003,19 +1757,14 @@ class TestEnrichmentClientClassifyAction:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Server error", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server error", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_action(sample_frames)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_action(sample_frames)
 
     @pytest.mark.asyncio
     async def test_classify_action_client_error(
@@ -2026,34 +1775,24 @@ class TestEnrichmentClientClassifyAction:
         mock_response = MagicMock()
         mock_response.status_code = 400
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.HTTPStatusError(
-                    "Bad request", request=mock_request, response=mock_response
-                )
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Bad request", request=mock_request, response=mock_response
             )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        )
 
-            result = await client.classify_action(sample_frames)
-            assert result is None
+        result = await client.classify_action(sample_frames)
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_classify_action_unexpected_error(
         self, client: EnrichmentClient, sample_frames: list[Image.Image]
     ) -> None:
         """Test action classification with unexpected error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=MemoryError("Out of memory"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        client._http_client.post = AsyncMock(side_effect=MemoryError("Out of memory"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_action(sample_frames)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_action(sample_frames)
 
 
 # =============================================================================
@@ -2071,11 +1810,11 @@ class TestGlobalClientManagement:
             client2 = get_enrichment_client()
             assert client1 is client2
 
-    def test_reset_enrichment_client_clears_singleton(self, mock_settings: MagicMock) -> None:
+    async def test_reset_enrichment_client_clears_singleton(self, mock_settings: MagicMock) -> None:
         """Test reset_enrichment_client clears the singleton."""
         with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
             client1 = get_enrichment_client()
-            reset_enrichment_client()
+            await reset_enrichment_client()
             client2 = get_enrichment_client()
             assert client1 is not client2
 

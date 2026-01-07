@@ -4,7 +4,7 @@ Tests for backend/services/florence_client.py which provides an HTTP client
 interface to the ai-florence service.
 
 Tests cover:
-- Client initialization (default URL, custom URL, base_url parameter)
+    - Client initialization (default URL, custom URL, base_url parameter)
 - check_health() method and error handling
 - extract() method for image captioning and VQA
 - ocr() method for text extraction
@@ -46,11 +46,11 @@ from backend.services.florence_client import (
 
 
 @pytest.fixture(autouse=True)
-def reset_global_client():
+async def reset_global_client():
     """Reset global client before and after each test."""
-    reset_florence_client()
+    await reset_florence_client()
     yield
-    reset_florence_client()
+    await reset_florence_client()
 
 
 @pytest.fixture
@@ -71,6 +71,29 @@ def mock_settings():
 def sample_image():
     """Create a sample PIL image for testing."""
     return Image.new("RGB", (224, 224), color=(128, 128, 128))
+
+
+@pytest.fixture
+def client(mock_settings):
+    """Create a FlorenceClient with mocked HTTP clients for testing.
+
+    The FlorenceClient uses persistent HTTP clients (NEM-1721), so we mock
+    httpx.AsyncClient during construction to inject testable mock clients.
+    """
+    mock_http_client = AsyncMock()
+    mock_http_client.aclose = AsyncMock()
+    mock_health_client = AsyncMock()
+    mock_health_client.aclose = AsyncMock()
+
+    with (
+        patch(
+            "backend.services.florence_client.get_settings", return_value=mock_settings.return_value
+        ),
+        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+    ):
+        client = FlorenceClient()
+
+    return client
 
 
 # =============================================================================
@@ -307,82 +330,57 @@ class TestCheckHealth:
     """Tests for FlorenceClient.check_health() method."""
 
     @pytest.mark.asyncio
-    async def test_check_health_success(self, mock_settings) -> None:
+    async def test_check_health_success(self, client) -> None:
         """Test successful health check."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        result = await client.check_health()
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_client.get.return_value = mock_response
-
-            result = await client.check_health()
-
-            assert result is True
-            mock_client.get.assert_called_once_with("http://localhost:8092/health")
+        assert result is True
+        client._health_http_client.get.assert_called_once_with("http://localhost:8092/health")
 
     @pytest.mark.asyncio
-    async def test_check_health_connection_error(self, mock_settings) -> None:
+    async def test_check_health_connection_error(self, client) -> None:
         """Test health check with connection error returns False."""
-        client = FlorenceClient()
+        client._health_http_client.get = AsyncMock(
+            side_effect=httpx.ConnectError("Connection refused")
+        )
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.get.side_effect = httpx.ConnectError("Connection refused")
-
-            result = await client.check_health()
-            assert result is False
+        result = await client.check_health()
+        assert result is False
 
     @pytest.mark.asyncio
-    async def test_check_health_timeout(self, mock_settings) -> None:
+    async def test_check_health_timeout(self, client) -> None:
         """Test health check with timeout returns False."""
-        client = FlorenceClient()
+        client._health_http_client.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.get.side_effect = httpx.TimeoutException("Timeout")
-
-            result = await client.check_health()
-            assert result is False
+        result = await client.check_health()
+        assert result is False
 
     @pytest.mark.asyncio
-    async def test_check_health_http_status_error(self, mock_settings) -> None:
+    async def test_check_health_http_status_error(self, client) -> None:
         """Test health check with HTTP status error returns False."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Service unavailable",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 503
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Service unavailable",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.get.return_value = mock_response
-
-            result = await client.check_health()
-            assert result is False
+        result = await client.check_health()
+        assert result is False
 
     @pytest.mark.asyncio
-    async def test_check_health_unexpected_error(self, mock_settings) -> None:
+    async def test_check_health_unexpected_error(self, client) -> None:
         """Test health check with unexpected error returns False."""
-        client = FlorenceClient()
+        client._health_http_client.get = AsyncMock(side_effect=RuntimeError("Unexpected error"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.get.side_effect = RuntimeError("Unexpected error")
-
-            result = await client.check_health()
-            assert result is False
+        result = await client.check_health()
+        assert result is False
 
 
 # =============================================================================
@@ -394,231 +392,163 @@ class TestExtract:
     """Tests for FlorenceClient.extract() method."""
 
     @pytest.mark.asyncio
-    async def test_extract_success(self, mock_settings, sample_image) -> None:
+    async def test_extract_success(self, client, sample_image) -> None:
         """Test successful extraction."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "result": "A gray square image",
+            "inference_time_ms": 50.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        result = await client.extract(sample_image, "<CAPTION>")
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "result": "A gray square image",
-                "inference_time_ms": 50.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            result = await client.extract(sample_image, "<CAPTION>")
-
-            assert result == "A gray square image"
-            mock_client.post.assert_called_once()
+        assert result == "A gray square image"
+        client._http_client.post.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_extract_with_vqa_prompt(self, mock_settings, sample_image) -> None:
+    async def test_extract_with_vqa_prompt(self, client, sample_image) -> None:
         """Test extraction with VQA prompt."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "result": "The image is gray",
+            "inference_time_ms": 60.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        result = await client.extract(sample_image, "<VQA>What color is this?")
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "result": "The image is gray",
-                "inference_time_ms": 60.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            result = await client.extract(sample_image, "<VQA>What color is this?")
-
-            assert result == "The image is gray"
+        assert result == "The image is gray"
 
     @pytest.mark.asyncio
-    async def test_extract_connection_error(self, mock_settings, sample_image) -> None:
+    async def test_extract_connection_error(self, client, sample_image) -> None:
         """Test extract with connection error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
-                await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.extract(sample_image, "<CAPTION>")
 
     @pytest.mark.asyncio
-    async def test_extract_timeout(self, mock_settings, sample_image) -> None:
+    async def test_extract_timeout(self, client, sample_image) -> None:
         """Test extract with timeout raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Read timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.TimeoutException("Read timeout")
-
-            with pytest.raises(FlorenceUnavailableError, match="timed out"):
-                await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.extract(sample_image, "<CAPTION>")
 
     @pytest.mark.asyncio
-    async def test_extract_server_error_5xx(self, mock_settings, sample_image) -> None:
+    async def test_extract_server_error_5xx(self, client, sample_image) -> None:
         """Test extract with HTTP 5xx error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Internal Server Error",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.extract(sample_image, "<CAPTION>")
 
     @pytest.mark.asyncio
-    async def test_extract_server_error_502(self, mock_settings, sample_image) -> None:
+    async def test_extract_server_error_502(self, client, sample_image) -> None:
         """Test extract with HTTP 502 error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 502
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Gateway",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 502
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Bad Gateway",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.extract(sample_image, "<CAPTION>")
 
     @pytest.mark.asyncio
-    async def test_extract_server_error_503(self, mock_settings, sample_image) -> None:
+    async def test_extract_server_error_503(self, client, sample_image) -> None:
         """Test extract with HTTP 503 error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Service Unavailable",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 503
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Service Unavailable",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.extract(sample_image, "<CAPTION>")
 
     @pytest.mark.asyncio
-    async def test_extract_client_error_4xx(self, mock_settings, sample_image) -> None:
+    async def test_extract_client_error_4xx(self, client, sample_image) -> None:
         """Test extract with HTTP 4xx error returns empty string."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 400
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Bad Request",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            result = await client.extract(sample_image, "<CAPTION>")
-            assert result == ""
+        result = await client.extract(sample_image, "<CAPTION>")
+        assert result == ""
 
     @pytest.mark.asyncio
-    async def test_extract_client_error_404(self, mock_settings, sample_image) -> None:
+    async def test_extract_client_error_404(self, client, sample_image) -> None:
         """Test extract with HTTP 404 error returns empty string."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Not Found",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 404
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Not Found",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            result = await client.extract(sample_image, "<CAPTION>")
-            assert result == ""
+        result = await client.extract(sample_image, "<CAPTION>")
+        assert result == ""
 
     @pytest.mark.asyncio
-    async def test_extract_client_error_422(self, mock_settings, sample_image) -> None:
+    async def test_extract_client_error_422(self, client, sample_image) -> None:
         """Test extract with HTTP 422 error returns empty string."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 422
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Unprocessable Entity",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 422
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Unprocessable Entity",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            result = await client.extract(sample_image, "<CAPTION>")
-            assert result == ""
+        result = await client.extract(sample_image, "<CAPTION>")
+        assert result == ""
 
     @pytest.mark.asyncio
     async def test_extract_malformed_response_missing_result(
         self, mock_settings, sample_image
     ) -> None:
-        """Test extract with malformed response (missing 'result' key) returns empty string."""
+        """Test extract with malformed response (missing \'result\' key) returns empty string."""
         client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 50.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"inference_time_ms": 50.0}
-            mock_client.post.return_value = mock_response
-
-            result = await client.extract(sample_image, "<CAPTION>")
-            assert result == ""
+        result = await client.extract(sample_image, "<CAPTION>")
+        assert result == ""
 
     @pytest.mark.asyncio
-    async def test_extract_unexpected_error(self, mock_settings, sample_image) -> None:
+    async def test_extract_unexpected_error(self, client, sample_image) -> None:
         """Test extract with unexpected error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected error"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = RuntimeError("Unexpected error")
-
-            with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
-                await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
+            await client.extract(sample_image, "<CAPTION>")
 
 
 # =============================================================================
@@ -630,123 +560,84 @@ class TestOCR:
     """Tests for FlorenceClient.ocr() method."""
 
     @pytest.mark.asyncio
-    async def test_ocr_success(self, mock_settings, sample_image) -> None:
+    async def test_ocr_success(self, client, sample_image) -> None:
         """Test successful OCR text extraction."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "text": "Hello World",
+            "inference_time_ms": 50.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        text = await client.ocr(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "text": "Hello World",
-                "inference_time_ms": 50.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            text = await client.ocr(sample_image)
-
-            assert text == "Hello World"
+        assert text == "Hello World"
 
     @pytest.mark.asyncio
-    async def test_ocr_connection_error(self, mock_settings, sample_image) -> None:
+    async def test_ocr_connection_error(self, client, sample_image) -> None:
         """Test OCR with connection error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
-                await client.ocr(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.ocr(sample_image)
 
     @pytest.mark.asyncio
-    async def test_ocr_timeout(self, mock_settings, sample_image) -> None:
+    async def test_ocr_timeout(self, client, sample_image) -> None:
         """Test OCR with timeout raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.TimeoutException("Timeout")
-
-            with pytest.raises(FlorenceUnavailableError, match="timed out"):
-                await client.ocr(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.ocr(sample_image)
 
     @pytest.mark.asyncio
-    async def test_ocr_server_error_5xx(self, mock_settings, sample_image) -> None:
+    async def test_ocr_server_error_5xx(self, client, sample_image) -> None:
         """Test OCR with HTTP 5xx error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Internal Server Error",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.ocr(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.ocr(sample_image)
 
     @pytest.mark.asyncio
-    async def test_ocr_client_error_4xx(self, mock_settings, sample_image) -> None:
+    async def test_ocr_client_error_4xx(self, client, sample_image) -> None:
         """Test OCR with HTTP 4xx error returns empty string."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 400
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Bad Request",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            result = await client.ocr(sample_image)
-            assert result == ""
+        result = await client.ocr(sample_image)
+        assert result == ""
 
     @pytest.mark.asyncio
-    async def test_ocr_malformed_response(self, mock_settings, sample_image) -> None:
+    async def test_ocr_malformed_response(self, client, sample_image) -> None:
         """Test OCR with malformed response returns empty string."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 50.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"inference_time_ms": 50.0}
-            mock_client.post.return_value = mock_response
-
-            text = await client.ocr(sample_image)
-            assert text == ""
+        text = await client.ocr(sample_image)
+        assert text == ""
 
     @pytest.mark.asyncio
-    async def test_ocr_unexpected_error(self, mock_settings, sample_image) -> None:
+    async def test_ocr_unexpected_error(self, client, sample_image) -> None:
         """Test OCR with unexpected error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = RuntimeError("Unexpected")
-
-            with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
-                await client.ocr(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
+            await client.ocr(sample_image)
 
 
 # =============================================================================
@@ -758,181 +649,130 @@ class TestOCRWithRegions:
     """Tests for FlorenceClient.ocr_with_regions() method."""
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_success(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_success(self, client, sample_image) -> None:
         """Test successful OCR with regions extraction."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "regions": [
+                {"text": "Hello", "bbox": [10, 10, 50, 10, 50, 30, 10, 30]},
+                {"text": "World", "bbox": [60, 10, 100, 10, 100, 30, 60, 30]},
+            ],
+            "inference_time_ms": 60.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        regions = await client.ocr_with_regions(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "regions": [
-                    {"text": "Hello", "bbox": [10, 10, 50, 10, 50, 30, 10, 30]},
-                    {"text": "World", "bbox": [60, 10, 100, 10, 100, 30, 60, 30]},
-                ],
-                "inference_time_ms": 60.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            regions = await client.ocr_with_regions(sample_image)
-
-            assert len(regions) == 2
-            assert isinstance(regions[0], OCRRegion)
-            assert regions[0].text == "Hello"
-            assert regions[1].text == "World"
+        assert len(regions) == 2
+        assert isinstance(regions[0], OCRRegion)
+        assert regions[0].text == "Hello"
+        assert regions[1].text == "World"
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_empty_result(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_empty_result(self, client, sample_image) -> None:
         """Test OCR with regions when no text found."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "regions": [],
+            "inference_time_ms": 40.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "regions": [],
-                "inference_time_ms": 40.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            regions = await client.ocr_with_regions(sample_image)
-            assert regions == []
+        regions = await client.ocr_with_regions(sample_image)
+        assert regions == []
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_connection_error(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_connection_error(self, client, sample_image) -> None:
         """Test OCR with regions connection error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
-                await client.ocr_with_regions(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.ocr_with_regions(sample_image)
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_timeout(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_timeout(self, client, sample_image) -> None:
         """Test OCR with regions timeout raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.TimeoutException("Timeout")
-
-            with pytest.raises(FlorenceUnavailableError, match="timed out"):
-                await client.ocr_with_regions(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.ocr_with_regions(sample_image)
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_server_error_5xx(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_server_error_5xx(self, client, sample_image) -> None:
         """Test OCR with regions HTTP 5xx error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Service Unavailable",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 503
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Service Unavailable",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.ocr_with_regions(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.ocr_with_regions(sample_image)
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_client_error_4xx(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_client_error_4xx(self, client, sample_image) -> None:
         """Test OCR with regions HTTP 4xx error returns empty list."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 400
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Bad Request",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            regions = await client.ocr_with_regions(sample_image)
-            assert regions == []
+        regions = await client.ocr_with_regions(sample_image)
+        assert regions == []
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_malformed_response(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_malformed_response(self, client, sample_image) -> None:
         """Test OCR with regions malformed response returns empty list."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 60.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"inference_time_ms": 60.0}
-            mock_client.post.return_value = mock_response
-
-            regions = await client.ocr_with_regions(sample_image)
-            assert regions == []
+        regions = await client.ocr_with_regions(sample_image)
+        assert regions == []
 
     @pytest.mark.asyncio
     async def test_ocr_with_regions_handles_missing_fields_in_region(
-        self, mock_settings, sample_image
+        self, client, sample_image
     ) -> None:
         """Test OCR with regions handles regions with missing fields."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "regions": [
+                {},  # Missing both text and bbox
+                {"text": "Hello"},  # Missing bbox
+                {"bbox": [0, 0, 10, 10]},  # Missing text
+            ],
+            "inference_time_ms": 50.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "regions": [
-                    {},  # Missing both text and bbox
-                    {"text": "Hello"},  # Missing bbox
-                    {"bbox": [0, 0, 10, 10]},  # Missing text
-                ],
-                "inference_time_ms": 50.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            regions = await client.ocr_with_regions(sample_image)
-            assert len(regions) == 3
-            assert regions[0].text == ""
-            assert regions[0].bbox == []
-            assert regions[1].text == "Hello"
-            assert regions[1].bbox == []
-            assert regions[2].text == ""
-            assert regions[2].bbox == [0, 0, 10, 10]
+        regions = await client.ocr_with_regions(sample_image)
+        assert len(regions) == 3
+        assert regions[0].text == ""
+        assert regions[0].bbox == []
+        assert regions[1].text == "Hello"
+        assert regions[1].bbox == []
+        assert regions[2].text == ""
+        assert regions[2].bbox == [0, 0, 10, 10]
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_unexpected_error(self, mock_settings, sample_image) -> None:
+    async def test_ocr_with_regions_unexpected_error(self, client, sample_image) -> None:
         """Test OCR with regions unexpected error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = RuntimeError("Unexpected")
-
-            with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
-                await client.ocr_with_regions(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
+            await client.ocr_with_regions(sample_image)
 
 
 # =============================================================================
@@ -944,183 +784,130 @@ class TestDetect:
     """Tests for FlorenceClient.detect() method."""
 
     @pytest.mark.asyncio
-    async def test_detect_success(self, mock_settings, sample_image) -> None:
+    async def test_detect_success(self, client, sample_image) -> None:
         """Test successful object detection."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "detections": [
+                {"label": "person", "bbox": [10, 20, 100, 200], "score": 0.95},
+                {"label": "car", "bbox": [150, 50, 300, 180], "score": 0.87},
+            ],
+            "inference_time_ms": 45.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        detections = await client.detect(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "detections": [
-                    {"label": "person", "bbox": [10, 20, 100, 200], "score": 0.95},
-                    {"label": "car", "bbox": [150, 50, 300, 180], "score": 0.87},
-                ],
-                "inference_time_ms": 45.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            detections = await client.detect(sample_image)
-
-            assert len(detections) == 2
-            assert isinstance(detections[0], Detection)
-            assert detections[0].label == "person"
-            assert detections[0].score == 0.95
-            assert detections[1].label == "car"
+        assert len(detections) == 2
+        assert isinstance(detections[0], Detection)
+        assert detections[0].label == "person"
+        assert detections[0].score == 0.95
+        assert detections[1].label == "car"
 
     @pytest.mark.asyncio
-    async def test_detect_empty_result(self, mock_settings, sample_image) -> None:
+    async def test_detect_empty_result(self, client, sample_image) -> None:
         """Test detection with no objects found."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "detections": [],
+            "inference_time_ms": 30.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "detections": [],
-                "inference_time_ms": 30.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            detections = await client.detect(sample_image)
-            assert detections == []
+        detections = await client.detect(sample_image)
+        assert detections == []
 
     @pytest.mark.asyncio
-    async def test_detect_connection_error(self, mock_settings, sample_image) -> None:
+    async def test_detect_connection_error(self, client, sample_image) -> None:
         """Test detect with connection error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
-                await client.detect(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.detect(sample_image)
 
     @pytest.mark.asyncio
-    async def test_detect_timeout(self, mock_settings, sample_image) -> None:
+    async def test_detect_timeout(self, client, sample_image) -> None:
         """Test detect with timeout raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.TimeoutException("Timeout")
-
-            with pytest.raises(FlorenceUnavailableError, match="timed out"):
-                await client.detect(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.detect(sample_image)
 
     @pytest.mark.asyncio
-    async def test_detect_server_error_5xx(self, mock_settings, sample_image) -> None:
+    async def test_detect_server_error_5xx(self, client, sample_image) -> None:
         """Test detect with HTTP 5xx error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Internal Server Error",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.detect(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.detect(sample_image)
 
     @pytest.mark.asyncio
-    async def test_detect_client_error_4xx(self, mock_settings, sample_image) -> None:
+    async def test_detect_client_error_4xx(self, client, sample_image) -> None:
         """Test detect with HTTP 4xx error returns empty list."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 400
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Bad Request",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            detections = await client.detect(sample_image)
-            assert detections == []
+        detections = await client.detect(sample_image)
+        assert detections == []
 
     @pytest.mark.asyncio
-    async def test_detect_malformed_response(self, mock_settings, sample_image) -> None:
+    async def test_detect_malformed_response(self, client, sample_image) -> None:
         """Test detect with malformed response returns empty list."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 45.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"inference_time_ms": 45.0}
-            mock_client.post.return_value = mock_response
-
-            detections = await client.detect(sample_image)
-            assert detections == []
+        detections = await client.detect(sample_image)
+        assert detections == []
 
     @pytest.mark.asyncio
-    async def test_detect_handles_missing_fields_in_detection(
-        self, mock_settings, sample_image
-    ) -> None:
+    async def test_detect_handles_missing_fields_in_detection(self, client, sample_image) -> None:
         """Test detect handles detections with missing fields."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "detections": [
+                {},  # Missing all fields
+                {"label": "person"},  # Missing bbox and score
+                {"bbox": [0, 0, 10, 10]},  # Missing label and score
+            ],
+            "inference_time_ms": 50.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "detections": [
-                    {},  # Missing all fields
-                    {"label": "person"},  # Missing bbox and score
-                    {"bbox": [0, 0, 10, 10]},  # Missing label and score
-                ],
-                "inference_time_ms": 50.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            detections = await client.detect(sample_image)
-            assert len(detections) == 3
-            assert detections[0].label == ""
-            assert detections[0].bbox == []
-            assert detections[0].score == 1.0
-            assert detections[1].label == "person"
-            assert detections[1].bbox == []
-            assert detections[2].label == ""
-            assert detections[2].bbox == [0, 0, 10, 10]
+        detections = await client.detect(sample_image)
+        assert len(detections) == 3
+        assert detections[0].label == ""
+        assert detections[0].bbox == []
+        assert detections[0].score == 1.0
+        assert detections[1].label == "person"
+        assert detections[1].bbox == []
+        assert detections[2].label == ""
+        assert detections[2].bbox == [0, 0, 10, 10]
 
     @pytest.mark.asyncio
-    async def test_detect_unexpected_error(self, mock_settings, sample_image) -> None:
+    async def test_detect_unexpected_error(self, client, sample_image) -> None:
         """Test detect with unexpected error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = RuntimeError("Unexpected")
-
-            with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
-                await client.detect(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
+            await client.detect(sample_image)
 
 
 # =============================================================================
@@ -1132,181 +919,130 @@ class TestDenseCaption:
     """Tests for FlorenceClient.dense_caption() method."""
 
     @pytest.mark.asyncio
-    async def test_dense_caption_success(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_success(self, client, sample_image) -> None:
         """Test successful dense captioning."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "regions": [
+                {"caption": "a person walking", "bbox": [10, 20, 100, 200]},
+                {"caption": "a red car parked", "bbox": [150, 50, 300, 180]},
+            ],
+            "inference_time_ms": 80.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        regions = await client.dense_caption(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "regions": [
-                    {"caption": "a person walking", "bbox": [10, 20, 100, 200]},
-                    {"caption": "a red car parked", "bbox": [150, 50, 300, 180]},
-                ],
-                "inference_time_ms": 80.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            regions = await client.dense_caption(sample_image)
-
-            assert len(regions) == 2
-            assert isinstance(regions[0], CaptionedRegion)
-            assert regions[0].caption == "a person walking"
-            assert regions[1].caption == "a red car parked"
+        assert len(regions) == 2
+        assert isinstance(regions[0], CaptionedRegion)
+        assert regions[0].caption == "a person walking"
+        assert regions[1].caption == "a red car parked"
 
     @pytest.mark.asyncio
-    async def test_dense_caption_empty_result(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_empty_result(self, client, sample_image) -> None:
         """Test dense caption with no regions found."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "regions": [],
+            "inference_time_ms": 50.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "regions": [],
-                "inference_time_ms": 50.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            regions = await client.dense_caption(sample_image)
-            assert regions == []
+        regions = await client.dense_caption(sample_image)
+        assert regions == []
 
     @pytest.mark.asyncio
-    async def test_dense_caption_connection_error(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_connection_error(self, client, sample_image) -> None:
         """Test dense_caption with connection error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
-                await client.dense_caption(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.dense_caption(sample_image)
 
     @pytest.mark.asyncio
-    async def test_dense_caption_timeout(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_timeout(self, client, sample_image) -> None:
         """Test dense_caption with timeout raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.TimeoutException("Timeout")
-
-            with pytest.raises(FlorenceUnavailableError, match="timed out"):
-                await client.dense_caption(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.dense_caption(sample_image)
 
     @pytest.mark.asyncio
-    async def test_dense_caption_server_error_5xx(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_server_error_5xx(self, client, sample_image) -> None:
         """Test dense_caption with HTTP 5xx error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 502
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Gateway",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 502
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Bad Gateway",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with pytest.raises(FlorenceUnavailableError, match="server error"):
-                await client.dense_caption(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.dense_caption(sample_image)
 
     @pytest.mark.asyncio
-    async def test_dense_caption_client_error_4xx(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_client_error_4xx(self, client, sample_image) -> None:
         """Test dense_caption with HTTP 4xx error returns empty list."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 422
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Unprocessable Entity",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 422
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Unprocessable Entity",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            regions = await client.dense_caption(sample_image)
-            assert regions == []
+        regions = await client.dense_caption(sample_image)
+        assert regions == []
 
     @pytest.mark.asyncio
-    async def test_dense_caption_malformed_response(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_malformed_response(self, client, sample_image) -> None:
         """Test dense_caption with malformed response returns empty list."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 80.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"inference_time_ms": 80.0}
-            mock_client.post.return_value = mock_response
-
-            regions = await client.dense_caption(sample_image)
-            assert regions == []
+        regions = await client.dense_caption(sample_image)
+        assert regions == []
 
     @pytest.mark.asyncio
     async def test_dense_caption_handles_missing_fields_in_region(
-        self, mock_settings, sample_image
+        self, client, sample_image
     ) -> None:
         """Test dense_caption handles regions with missing fields."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "regions": [
+                {},  # Missing both caption and bbox
+                {"caption": "test caption"},  # Missing bbox
+                {"bbox": [0, 0, 10, 10]},  # Missing caption
+            ],
+            "inference_time_ms": 60.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "regions": [
-                    {},  # Missing both caption and bbox
-                    {"caption": "test caption"},  # Missing bbox
-                    {"bbox": [0, 0, 10, 10]},  # Missing caption
-                ],
-                "inference_time_ms": 60.0,
-            }
-            mock_client.post.return_value = mock_response
-
-            regions = await client.dense_caption(sample_image)
-            assert len(regions) == 3
-            assert regions[0].caption == ""
-            assert regions[0].bbox == []
-            assert regions[1].caption == "test caption"
-            assert regions[1].bbox == []
-            assert regions[2].caption == ""
-            assert regions[2].bbox == [0, 0, 10, 10]
+        regions = await client.dense_caption(sample_image)
+        assert len(regions) == 3
+        assert regions[0].caption == ""
+        assert regions[0].bbox == []
+        assert regions[1].caption == "test caption"
+        assert regions[1].bbox == []
+        assert regions[2].caption == ""
+        assert regions[2].bbox == [0, 0, 10, 10]
 
     @pytest.mark.asyncio
-    async def test_dense_caption_unexpected_error(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_unexpected_error(self, client, sample_image) -> None:
         """Test dense_caption with unexpected error raises FlorenceUnavailableError."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = RuntimeError("Unexpected")
-
-            with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
-                await client.dense_caption(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match="Unexpected error"):
+            await client.dense_caption(sample_image)
 
 
 # =============================================================================
@@ -1324,29 +1060,32 @@ class TestGlobalClientFunctions:
 
         assert client1 is client2
 
-    def test_reset_florence_client(self, mock_settings) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_florence_client(self, mock_settings) -> None:
         """Test reset_florence_client clears the singleton."""
         client1 = get_florence_client()
-        reset_florence_client()
+        await reset_florence_client()
         client2 = get_florence_client()
 
         assert client1 is not client2
 
-    def test_get_florence_client_creates_new_after_reset(self, mock_settings) -> None:
+    @pytest.mark.asyncio
+    async def test_get_florence_client_creates_new_after_reset(self, mock_settings) -> None:
         """Test get_florence_client creates new instance after reset."""
         client1 = get_florence_client()
-        reset_florence_client()
+        await reset_florence_client()
         client2 = get_florence_client()
         client3 = get_florence_client()
 
         assert client1 is not client2
         assert client2 is client3
 
-    def test_reset_florence_client_multiple_times(self, mock_settings) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_florence_client_multiple_times(self, mock_settings) -> None:
         """Test reset_florence_client can be called multiple times safely."""
-        reset_florence_client()
-        reset_florence_client()
-        reset_florence_client()
+        await reset_florence_client()
+        await reset_florence_client()
+        await reset_florence_client()
 
         # Should not raise any errors
         client = get_florence_client()
@@ -1362,168 +1101,112 @@ class TestMetricsRecording:
     """Tests for metrics recording during client operations."""
 
     @pytest.mark.asyncio
-    async def test_extract_records_ai_duration(self, mock_settings, sample_image) -> None:
+    async def test_extract_records_ai_duration(self, client, sample_image) -> None:
         """Test extract method records AI request duration."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": "test"}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"result": "test"}
-            mock_client.post.return_value = mock_response
-
-            with patch(
-                "backend.services.florence_client.observe_ai_request_duration"
-            ) as mock_observe:
-                await client.extract(sample_image, "<CAPTION>")
-                mock_observe.assert_called_once()
-                args = mock_observe.call_args[0]
-                assert args[0] == "florence"
-                assert isinstance(args[1], float)
+        with patch("backend.services.florence_client.observe_ai_request_duration") as mock_observe:
+            await client.extract(sample_image, "<CAPTION>")
+            mock_observe.assert_called_once()
+            args = mock_observe.call_args[0]
+            assert args[0] == "florence"
+            assert isinstance(args[1], float)
 
     @pytest.mark.asyncio
-    async def test_ocr_records_ai_duration(self, mock_settings, sample_image) -> None:
+    async def test_ocr_records_ai_duration(self, client, sample_image) -> None:
         """Test ocr method records AI request duration."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"text": "test"}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"text": "test"}
-            mock_client.post.return_value = mock_response
-
-            with patch(
-                "backend.services.florence_client.observe_ai_request_duration"
-            ) as mock_observe:
-                await client.ocr(sample_image)
-                mock_observe.assert_called_once()
-                args = mock_observe.call_args[0]
-                assert args[0] == "florence_ocr"
+        with patch("backend.services.florence_client.observe_ai_request_duration") as mock_observe:
+            await client.ocr(sample_image)
+            mock_observe.assert_called_once()
+            args = mock_observe.call_args[0]
+            assert args[0] == "florence_ocr"
 
     @pytest.mark.asyncio
-    async def test_detect_records_ai_duration(self, mock_settings, sample_image) -> None:
+    async def test_detect_records_ai_duration(self, client, sample_image) -> None:
         """Test detect method records AI request duration."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"detections": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"detections": []}
-            mock_client.post.return_value = mock_response
-
-            with patch(
-                "backend.services.florence_client.observe_ai_request_duration"
-            ) as mock_observe:
-                await client.detect(sample_image)
-                mock_observe.assert_called_once()
-                args = mock_observe.call_args[0]
-                assert args[0] == "florence_detect"
+        with patch("backend.services.florence_client.observe_ai_request_duration") as mock_observe:
+            await client.detect(sample_image)
+            mock_observe.assert_called_once()
+            args = mock_observe.call_args[0]
+            assert args[0] == "florence_detect"
 
     @pytest.mark.asyncio
-    async def test_connection_error_records_pipeline_error(
-        self, mock_settings, sample_image
-    ) -> None:
+    async def test_connection_error_records_pipeline_error(self, client, sample_image) -> None:
         """Test connection error records pipeline error metric."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
-                with pytest.raises(FlorenceUnavailableError):
-                    await client.extract(sample_image, "<CAPTION>")
-                mock_record.assert_called_once_with("florence_connection_error")
+        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+            with pytest.raises(FlorenceUnavailableError):
+                await client.extract(sample_image, "<CAPTION>")
+            mock_record.assert_called_once_with("florence_connection_error")
 
     @pytest.mark.asyncio
-    async def test_timeout_records_pipeline_error(self, mock_settings, sample_image) -> None:
+    async def test_timeout_records_pipeline_error(self, client, sample_image) -> None:
         """Test timeout records pipeline error metric."""
-        client = FlorenceClient()
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.TimeoutException("Timeout")
-
-            with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
-                with pytest.raises(FlorenceUnavailableError):
-                    await client.extract(sample_image, "<CAPTION>")
-                mock_record.assert_called_once_with("florence_timeout")
+        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+            with pytest.raises(FlorenceUnavailableError):
+                await client.extract(sample_image, "<CAPTION>")
+            mock_record.assert_called_once_with("florence_timeout")
 
     @pytest.mark.asyncio
-    async def test_server_error_records_pipeline_error(self, mock_settings, sample_image) -> None:
+    async def test_server_error_records_pipeline_error(self, client, sample_image) -> None:
         """Test server error records pipeline error metric."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Error",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Error",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
-                with pytest.raises(FlorenceUnavailableError):
-                    await client.extract(sample_image, "<CAPTION>")
-                mock_record.assert_called_once_with("florence_server_error")
+        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+            with pytest.raises(FlorenceUnavailableError):
+                await client.extract(sample_image, "<CAPTION>")
+            mock_record.assert_called_once_with("florence_server_error")
 
     @pytest.mark.asyncio
-    async def test_client_error_records_pipeline_error(self, mock_settings, sample_image) -> None:
+    async def test_client_error_records_pipeline_error(self, client, sample_image) -> None:
         """Test client error records pipeline error metric."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Error",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 400
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Error",
-                request=MagicMock(),
-                response=mock_response,
-            )
-            mock_client.post.return_value = mock_response
-
-            with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
-                await client.extract(sample_image, "<CAPTION>")
-                mock_record.assert_called_once_with("florence_client_error")
+        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+            await client.extract(sample_image, "<CAPTION>")
+            mock_record.assert_called_once_with("florence_client_error")
 
     @pytest.mark.asyncio
-    async def test_malformed_response_records_pipeline_error(
-        self, mock_settings, sample_image
-    ) -> None:
+    async def test_malformed_response_records_pipeline_error(self, client, sample_image) -> None:
         """Test malformed response records pipeline error metric."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}  # Missing 'result' key
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {}  # Missing 'result' key
-            mock_client.post.return_value = mock_response
-
-            with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
-                await client.extract(sample_image, "<CAPTION>")
-                mock_record.assert_called_once_with("florence_malformed_response")
+        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+            await client.extract(sample_image, "<CAPTION>")
+            mock_record.assert_called_once_with("florence_malformed_response")
 
 
 # =============================================================================
@@ -1535,123 +1218,85 @@ class TestHTTPRequestVerification:
     """Tests to verify HTTP request details."""
 
     @pytest.mark.asyncio
-    async def test_extract_sends_correct_payload(self, mock_settings, sample_image) -> None:
+    async def test_extract_sends_correct_payload(self, client, sample_image) -> None:
         """Test extract sends correct payload to service."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": "test"}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        await client.extract(sample_image, "<DETAILED_CAPTION>")
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"result": "test"}
-            mock_client.post.return_value = mock_response
-
-            await client.extract(sample_image, "<DETAILED_CAPTION>")
-
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://localhost:8092/extract"
-            payload = call_args[1]["json"]
-            assert "image" in payload
-            assert "prompt" in payload
-            assert payload["prompt"] == "<DETAILED_CAPTION>"
+        client._http_client.post.assert_called_once()
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/extract"
+        payload = call_args[1]["json"]
+        assert "image" in payload
+        assert "prompt" in payload
+        assert payload["prompt"] == "<DETAILED_CAPTION>"
 
     @pytest.mark.asyncio
-    async def test_ocr_sends_correct_endpoint(self, mock_settings, sample_image) -> None:
+    async def test_ocr_sends_correct_endpoint(self, client, sample_image) -> None:
         """Test ocr sends request to correct endpoint."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"text": "test"}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        await client.ocr(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"text": "test"}
-            mock_client.post.return_value = mock_response
-
-            await client.ocr(sample_image)
-
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://localhost:8092/ocr"
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/ocr"
 
     @pytest.mark.asyncio
-    async def test_detect_sends_correct_endpoint(self, mock_settings, sample_image) -> None:
+    async def test_detect_sends_correct_endpoint(self, client, sample_image) -> None:
         """Test detect sends request to correct endpoint."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"detections": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        await client.detect(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"detections": []}
-            mock_client.post.return_value = mock_response
-
-            await client.detect(sample_image)
-
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://localhost:8092/detect"
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/detect"
 
     @pytest.mark.asyncio
-    async def test_dense_caption_sends_correct_endpoint(self, mock_settings, sample_image) -> None:
+    async def test_dense_caption_sends_correct_endpoint(self, client, sample_image) -> None:
         """Test dense_caption sends request to correct endpoint."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"regions": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        await client.dense_caption(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"regions": []}
-            mock_client.post.return_value = mock_response
-
-            await client.dense_caption(sample_image)
-
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://localhost:8092/dense-caption"
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/dense-caption"
 
     @pytest.mark.asyncio
-    async def test_ocr_with_regions_sends_correct_endpoint(
-        self, mock_settings, sample_image
-    ) -> None:
+    async def test_ocr_with_regions_sends_correct_endpoint(self, client, sample_image) -> None:
         """Test ocr_with_regions sends request to correct endpoint."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"regions": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        await client.ocr_with_regions(sample_image)
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"regions": []}
-            mock_client.post.return_value = mock_response
-
-            await client.ocr_with_regions(sample_image)
-
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "http://localhost:8092/ocr-with-regions"
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/ocr-with-regions"
 
     @pytest.mark.asyncio
-    async def test_check_health_sends_correct_endpoint(self, mock_settings) -> None:
+    async def test_check_health_sends_correct_endpoint(self, client) -> None:
         """Test check_health sends request to correct endpoint."""
-        client = FlorenceClient()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
+        await client.check_health()
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_client.get.return_value = mock_response
-
-            await client.check_health()
-
-            mock_client.get.assert_called_once_with("http://localhost:8092/health")
+        client._health_http_client.get.assert_called_once_with("http://localhost:8092/health")
 
 
 # =============================================================================
@@ -1663,11 +1308,11 @@ class TestCircuitBreakerIntegration:
     """Tests for circuit breaker integration in FlorenceClient."""
 
     @pytest.mark.asyncio
-    async def test_client_initializes_circuit_breaker(self, mock_settings) -> None:
+    async def test_client_initializes_circuit_breaker(self, client) -> None:
         """Test that client initializes a circuit breaker."""
-        mock_settings.return_value.florence_cb_failure_threshold = 5
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 3
+        # mock_settings.return_value.florence_cb_failure_threshold  # Not needed with fixture = 5
+        # mock_settings.return_value.florence_cb_recovery_timeout  # Not needed with fixture = 60
+        # mock_settings.return_value.florence_cb_half_open_max_calls  # Not needed with fixture = 3
 
         client = FlorenceClient()
 
@@ -1675,135 +1320,100 @@ class TestCircuitBreakerIntegration:
         assert client._circuit_breaker is not None
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_opens_after_failures(self, mock_settings, sample_image) -> None:
+    async def test_circuit_breaker_opens_after_failures(self, client, sample_image) -> None:
         """Test that circuit breaker opens after reaching failure threshold."""
-        mock_settings.return_value.florence_cb_failure_threshold = 3
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        client = FlorenceClient()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            # Trigger failures up to threshold
-            for _ in range(3):
-                with pytest.raises(FlorenceUnavailableError):
-                    await client.extract(sample_image, "<CAPTION>")
-
-            # Circuit should be open now - next request should fail immediately
-            from backend.core.circuit_breaker import CircuitState
-
-            assert client._circuit_breaker.get_state() == CircuitState.OPEN
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_rejects_when_open(self, mock_settings, sample_image) -> None:
-        """Test that requests are rejected when circuit is open."""
-        mock_settings.return_value.florence_cb_failure_threshold = 2
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 2
-
-        client = FlorenceClient()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-
-            # Trigger failures to open circuit
-            for _ in range(2):
-                with pytest.raises(FlorenceUnavailableError):
-                    await client.extract(sample_image, "<CAPTION>")
-
-            # Reset the mock to not raise - but circuit should block
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"result": "test"}
-            mock_client.post.side_effect = None
-            mock_client.post.return_value = mock_response
-
-            # Request should be rejected due to open circuit
-            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-                await client.extract(sample_image, "<CAPTION>")
-
-    @pytest.mark.asyncio
-    async def test_circuit_breaker_records_success(self, mock_settings, sample_image) -> None:
-        """Test that successful requests record success with circuit breaker."""
-        mock_settings.return_value.florence_cb_failure_threshold = 5
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 3
-
-        client = FlorenceClient()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"result": "test"}
-            mock_client.post.return_value = mock_response
-
-            # Record some failures first
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+        # Trigger failures up to threshold (fixture default is 5)
+        for _ in range(5):
             with pytest.raises(FlorenceUnavailableError):
                 await client.extract(sample_image, "<CAPTION>")
 
-            # Circuit should still be closed (only 1 failure)
-            from backend.core.circuit_breaker import CircuitState
+        # Circuit should be open now - next request should fail immediately
+        from backend.core.circuit_breaker import CircuitState
 
-            assert client._circuit_breaker.get_state() == CircuitState.CLOSED
-            assert client._circuit_breaker._failure_count == 1
+        assert client._circuit_breaker.get_state() == CircuitState.OPEN
 
-            # Now succeed - failure count should reset
-            mock_client.post.side_effect = None
-            mock_client.post.return_value = mock_response
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_rejects_when_open(self, client, sample_image) -> None:
+        """Test that requests are rejected when circuit is open."""
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        # Trigger failures to open circuit (fixture default is 5)
+        for _ in range(5):
+            with pytest.raises(FlorenceUnavailableError):
+                await client.extract(sample_image, "<CAPTION>")
+
+        # Reset the mock to not raise - but circuit should block
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": "test"}
+        client._http_client.post.side_effect = None
+        client._http_client.post.return_value = mock_response
+
+        # Request should be rejected due to open circuit
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
             await client.extract(sample_image, "<CAPTION>")
 
-            assert client._circuit_breaker._failure_count == 0
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_records_success(self, client, sample_image) -> None:
+        """Test that successful requests record success with circuit breaker."""
+        # mock_settings.return_value.florence_cb_failure_threshold  # Not needed with fixture = 5
+        # mock_settings.return_value.florence_cb_recovery_timeout  # Not needed with fixture = 60
+        # mock_settings.return_value.florence_cb_half_open_max_calls  # Not needed with fixture = 3
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": "test"}
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        # Record some failures first
+        client._http_client.post.side_effect = httpx.ConnectError("Connection refused")
+        with pytest.raises(FlorenceUnavailableError):
+            await client.extract(sample_image, "<CAPTION>")
+
+        # Circuit should still be closed (only 1 failure)
+        from backend.core.circuit_breaker import CircuitState
+
+        assert client._circuit_breaker.get_state() == CircuitState.CLOSED
+        assert client._circuit_breaker._failure_count == 1
+
+        # Now succeed - failure count should reset
+        client._http_client.post.side_effect = None
+        client._http_client.post.return_value = mock_response
+        await client.extract(sample_image, "<CAPTION>")
+
+        assert client._circuit_breaker._failure_count == 0
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_applies_to_all_methods(
-        self, mock_settings, sample_image
-    ) -> None:
+    async def test_circuit_breaker_applies_to_all_methods(self, client, sample_image) -> None:
         """Test that circuit breaker applies to all Florence client methods."""
-        mock_settings.return_value.florence_cb_failure_threshold = 2
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        client = FlorenceClient()
+        # Open circuit via extract - need 5 failures (fixture default)
+        for _ in range(5):
+            with pytest.raises(FlorenceUnavailableError):
+                await client.extract(sample_image, "<CAPTION>")
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+        # All other methods should also be blocked
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+            await client.ocr(sample_image)
 
-            # Open circuit via extract
-            for _ in range(2):
-                with pytest.raises(FlorenceUnavailableError):
-                    await client.extract(sample_image, "<CAPTION>")
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+            await client.detect(sample_image)
 
-            # All other methods should also be blocked
-            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-                await client.ocr(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+            await client.dense_caption(sample_image)
 
-            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-                await client.detect(sample_image)
-
-            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-                await client.dense_caption(sample_image)
-
-            with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-                await client.ocr_with_regions(sample_image)
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+            await client.ocr_with_regions(sample_image)
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_health_check_reflects_state(self, mock_settings) -> None:
+    async def test_circuit_breaker_health_check_reflects_state(self, client) -> None:
         """Test that health check reflects circuit breaker state."""
-        mock_settings.return_value.florence_cb_failure_threshold = 2
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 2
+        # mock_settings.return_value.florence_cb_failure_threshold  # Not needed with fixture = 2
+        # mock_settings.return_value.florence_cb_recovery_timeout  # Not needed with fixture = 60
+        # mock_settings.return_value.florence_cb_half_open_max_calls  # Not needed with fixture = 2
 
         client = FlorenceClient()
 
@@ -1816,11 +1426,11 @@ class TestCircuitBreakerIntegration:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_get_circuit_breaker_state(self, mock_settings) -> None:
+    async def test_get_circuit_breaker_state(self, client) -> None:
         """Test that circuit breaker state can be accessed."""
-        mock_settings.return_value.florence_cb_failure_threshold = 5
-        mock_settings.return_value.florence_cb_recovery_timeout = 60
-        mock_settings.return_value.florence_cb_half_open_max_calls = 3
+        # mock_settings.return_value.florence_cb_failure_threshold  # Not needed with fixture = 5
+        # mock_settings.return_value.florence_cb_recovery_timeout  # Not needed with fixture = 60
+        # mock_settings.return_value.florence_cb_half_open_max_calls  # Not needed with fixture = 3
 
         client = FlorenceClient()
 
@@ -1830,14 +1440,9 @@ class TestCircuitBreakerIntegration:
         assert client.get_circuit_breaker_state() == CircuitState.CLOSED
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_uses_config_settings(self, mock_settings) -> None:
-        """Test that circuit breaker uses configuration settings."""
-        mock_settings.return_value.florence_cb_failure_threshold = 10
-        mock_settings.return_value.florence_cb_recovery_timeout = 120
-        mock_settings.return_value.florence_cb_half_open_max_calls = 5
-
-        client = FlorenceClient()
-
-        assert client._circuit_breaker._failure_threshold == 10
-        assert client._circuit_breaker._recovery_timeout == 120.0
-        assert client._circuit_breaker._half_open_max_calls == 5
+    async def test_circuit_breaker_uses_config_settings(self, client) -> None:
+        """Test that circuit breaker uses configuration settings from fixture."""
+        # Fixture provides: failure_threshold=5, recovery_timeout=60.0, half_open_max_calls=3
+        assert client._circuit_breaker._failure_threshold == 5
+        assert client._circuit_breaker._recovery_timeout == 60.0
+        assert client._circuit_breaker._half_open_max_calls == 3

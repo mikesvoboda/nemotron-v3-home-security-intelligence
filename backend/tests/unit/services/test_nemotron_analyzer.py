@@ -2452,3 +2452,804 @@ class TestNemotronAnalyzerImprovedPatterns:
         # Health check is pre-configured
         health = await mock_redis.health_check()
         assert health["status"] == "healthy"
+
+
+# =============================================================================
+# Test: Idempotency Handling for LLM Batch Retries (NEM-1725)
+# =============================================================================
+
+
+class TestIdempotencyHandling:
+    """Tests for idempotency handling to prevent duplicate Events on retries.
+
+    When Nemotron analyzer retries after timeout, we must prevent duplicate
+    Event creation by using Redis idempotency keys.
+    """
+
+    @pytest.fixture
+    def mock_settings_for_idempotency(self):
+        """Create mock settings for idempotency tests."""
+        from backend.core.config import Settings
+
+        mock = MagicMock(spec=Settings)
+        mock.nemotron_url = "http://localhost:8091"
+        mock.nemotron_api_key = None
+        mock.ai_connect_timeout = 10.0
+        mock.nemotron_read_timeout = 120.0
+        mock.ai_health_timeout = 5.0
+        mock.nemotron_max_retries = 3
+        mock.severity_low_max = 29
+        mock.severity_medium_max = 59
+        mock.severity_high_max = 84
+        return mock
+
+    @pytest.fixture
+    def mock_redis_for_idempotency(self):
+        """Create mock Redis with idempotency key support."""
+        from backend.core.redis import RedisClient
+
+        mock_client = MagicMock(spec=RedisClient)
+
+        # Track stored values for idempotency keys
+        stored_values: dict[str, str] = {}
+
+        async def mock_get(key):
+            return stored_values.get(key)
+
+        async def mock_set(key, value, expire=None):
+            stored_values[key] = str(value) if not isinstance(value, str) else value
+            return True
+
+        async def mock_delete(*keys):
+            count = 0
+            for key in keys:
+                if key in stored_values:
+                    del stored_values[key]
+                    count += 1
+            return count
+
+        mock_client.get = AsyncMock(side_effect=mock_get)
+        mock_client.set = AsyncMock(side_effect=mock_set)
+        mock_client.delete = AsyncMock(side_effect=mock_delete)
+        mock_client.publish = AsyncMock(return_value=1)
+        mock_client._stored_values = stored_values  # Expose for test inspection
+
+        return mock_client
+
+    @pytest.mark.asyncio
+    async def test_check_idempotency_returns_none_for_new_batch(
+        self, mock_settings_for_idempotency, mock_redis_for_idempotency
+    ):
+        """Test _check_idempotency returns None when no prior event exists.
+
+        For a new batch that hasn't been processed, the idempotency check
+        should return None indicating we can proceed with Event creation.
+        """
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis_for_idempotency)
+
+            # Check idempotency for a new batch - should return None
+            result = await analyzer._check_idempotency("new_batch_123")
+
+            assert result is None
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_check_idempotency_returns_event_id_for_existing_batch(
+        self, mock_settings_for_idempotency, mock_redis_for_idempotency
+    ):
+        """Test _check_idempotency returns event_id when batch was already processed.
+
+        If an Event was already created for this batch, return the existing
+        event_id instead of None.
+        """
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis_for_idempotency)
+
+            # Pre-store an idempotency key simulating a prior event creation
+            mock_redis_for_idempotency._stored_values["batch_event:existing_batch_456"] = "42"
+
+            # Check idempotency - should return existing event_id
+            result = await analyzer._check_idempotency("existing_batch_456")
+
+            assert result == 42
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_set_idempotency_stores_key_with_ttl(
+        self, mock_settings_for_idempotency, mock_redis_for_idempotency
+    ):
+        """Test _set_idempotency stores idempotency key with 1 hour TTL.
+
+        After creating an Event, store the batch_id -> event_id mapping
+        with a 1 hour TTL to prevent duplicates during retries.
+        """
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis_for_idempotency)
+
+            # Set idempotency key
+            await analyzer._set_idempotency("batch_789", 100)
+
+            # Verify key was stored
+            assert "batch_event:batch_789" in mock_redis_for_idempotency._stored_values
+            assert mock_redis_for_idempotency._stored_values["batch_event:batch_789"] == "100"
+
+            # Verify set was called with TTL (expire parameter)
+            mock_redis_for_idempotency.set.assert_called_with(
+                "batch_event:batch_789", "100", expire=3600
+            )
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_analyze_batch_skips_creation_on_retry(
+        self, mock_settings_for_idempotency, mock_redis_for_idempotency
+    ):
+        """Test analyze_batch returns existing event on retry instead of creating duplicate.
+
+        When a batch is retried (e.g., after timeout), and an Event already exists,
+        return the existing Event without creating a new one.
+        """
+        from datetime import UTC
+
+        from backend.models.event import Event
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis_for_idempotency)
+
+            batch_id = "retry_batch_test"
+            camera_id = "front_door"
+            detection_ids = [1, 2]
+            existing_event_id = 999
+
+            # Pre-store idempotency key (simulating prior successful Event creation)
+            mock_redis_for_idempotency._stored_values[f"batch_event:{batch_id}"] = str(
+                existing_event_id
+            )
+
+            # Create mock existing event to return from DB
+            existing_event = Event(
+                id=existing_event_id,
+                batch_id=batch_id,
+                camera_id=camera_id,
+                started_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+                ended_at=datetime(2025, 12, 23, 14, 31, 0, tzinfo=UTC),
+                risk_score=75,
+                risk_level="high",
+                summary="Pre-existing event",
+                reasoning="This was already created",
+                reviewed=False,
+            )
+
+            # Mock database session for event lookup
+            mock_session = AsyncMock()
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = existing_event
+            mock_session.execute = AsyncMock(return_value=mock_event_result)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+
+            with patch(
+                "backend.services.nemotron_analyzer.get_session",
+                return_value=mock_context,
+            ):
+                # Call analyze_batch - should return existing event, not create new
+                event = await analyzer.analyze_batch(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    detection_ids=detection_ids,
+                )
+
+            # Verify we got the existing event back
+            assert event.id == existing_event_id
+            assert event.summary == "Pre-existing event"
+
+            # Verify session.add was NOT called (no new Event created)
+            mock_session.add.assert_not_called()
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_analyze_batch_stores_idempotency_after_creation(
+        self, mock_settings_for_idempotency, mock_redis_for_idempotency
+    ):
+        """Test analyze_batch stores idempotency key after successful Event creation.
+
+        After creating a new Event, store the idempotency key so subsequent
+        retries will find it and avoid duplication.
+        """
+        from datetime import UTC
+
+        from backend.models.camera import Camera
+        from backend.models.detection import Detection
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis_for_idempotency)
+
+            batch_id = "new_batch_with_idempotency"
+            camera_id = "front_door"
+            detection_ids = [1, 2]
+
+            # Create test fixtures
+            mock_camera = Camera(
+                id=camera_id,
+                name="Front Door Camera",
+                folder_path="/export/foscam/front_door",
+                status="online",
+            )
+
+            mock_detections = [
+                Detection(
+                    id=1,
+                    camera_id=camera_id,
+                    file_path="/export/foscam/front_door/img1.jpg",
+                    detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+                    object_type="person",
+                    confidence=0.95,
+                ),
+                Detection(
+                    id=2,
+                    camera_id=camera_id,
+                    file_path="/export/foscam/front_door/img2.jpg",
+                    detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+                    object_type="car",
+                    confidence=0.88,
+                ),
+            ]
+
+            # Mock database session
+            mock_session = AsyncMock()
+
+            mock_camera_result = MagicMock()
+            mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+            mock_det_result = MagicMock()
+            mock_det_scalars = MagicMock()
+            mock_det_scalars.all.return_value = mock_detections
+            mock_det_result.scalars.return_value = mock_det_scalars
+
+            call_count = 0
+
+            async def mock_execute(query):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return mock_camera_result
+                else:
+                    return mock_det_result
+
+            mock_session.execute = mock_execute
+            mock_session.add = MagicMock()
+            mock_session.commit = AsyncMock()
+
+            # Mock refresh to set the event ID
+            async def mock_refresh(obj):
+                if hasattr(obj, "id") and obj.id is None:
+                    obj.id = 42  # Simulate DB-assigned ID
+
+            mock_session.refresh = mock_refresh
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+
+            mock_broadcaster = MagicMock()
+            mock_broadcaster.broadcast_event = AsyncMock()
+
+            mock_llm_response = {
+                "risk_score": 65,
+                "risk_level": "high",
+                "summary": "New event created",
+                "reasoning": "Test reasoning",
+            }
+
+            async def mock_call_llm(*args, **kwargs):
+                return mock_llm_response
+
+            with (
+                patch(
+                    "backend.services.nemotron_analyzer.get_session",
+                    return_value=mock_context,
+                ),
+                patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+                patch.object(analyzer, "_get_enriched_context", return_value=None),
+                patch.object(analyzer, "_get_enrichment_result", return_value=None),
+                patch(
+                    "backend.services.event_broadcaster.get_broadcaster",
+                    new=AsyncMock(return_value=mock_broadcaster),
+                ),
+            ):
+                _ = await analyzer.analyze_batch(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    detection_ids=detection_ids,
+                )
+
+            # Verify idempotency key was stored after Event creation
+            assert f"batch_event:{batch_id}" in mock_redis_for_idempotency._stored_values
+            assert mock_redis_for_idempotency._stored_values[f"batch_event:{batch_id}"] == "42"
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_idempotency_check_handles_redis_failure_gracefully(
+        self, mock_settings_for_idempotency
+    ):
+        """Test idempotency check continues if Redis is unavailable.
+
+        If Redis fails during idempotency check, we should proceed with
+        normal Event creation rather than failing the request entirely.
+        """
+        from backend.core.redis import RedisClient
+
+        mock_redis = MagicMock(spec=RedisClient)
+        mock_redis.get = AsyncMock(side_effect=Exception("Redis connection failed"))
+        mock_redis.set = AsyncMock(return_value=True)
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis)
+
+            # Should return None on Redis failure (proceed with creation)
+            result = await analyzer._check_idempotency("batch_with_redis_error")
+
+            assert result is None
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_idempotency_set_handles_redis_failure_gracefully(
+        self, mock_settings_for_idempotency
+    ):
+        """Test idempotency set continues if Redis is unavailable.
+
+        If Redis fails during idempotency key storage, we should log
+        a warning but not fail the request.
+        """
+        from backend.core.redis import RedisClient
+
+        mock_redis = MagicMock(spec=RedisClient)
+        mock_redis.get = AsyncMock(return_value=None)
+        mock_redis.set = AsyncMock(side_effect=Exception("Redis write failed"))
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis)
+
+            # Should not raise - just log warning
+            await analyzer._set_idempotency("batch_with_redis_error", 100)
+
+            # Verify set was attempted
+            mock_redis.set.assert_called_once()
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_analyze_detection_fast_path_uses_idempotency(
+        self, mock_settings_for_idempotency, mock_redis_for_idempotency
+    ):
+        """Test fast path analysis also uses idempotency handling.
+
+        The fast path creates Events for single high-priority detections
+        and should also use idempotency to prevent duplicates on retry.
+        """
+        from datetime import UTC
+
+        from backend.models.event import Event
+
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_idempotency,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            analyzer = NemotronAnalyzer(redis_client=mock_redis_for_idempotency)
+
+            camera_id = "front_door"
+            detection_id = 42
+            batch_id = f"fast_path_{detection_id}"
+            existing_event_id = 888
+
+            # Pre-store idempotency key for fast path batch
+            mock_redis_for_idempotency._stored_values[f"batch_event:{batch_id}"] = str(
+                existing_event_id
+            )
+
+            # Create mock existing event
+            existing_event = Event(
+                id=existing_event_id,
+                batch_id=batch_id,
+                camera_id=camera_id,
+                started_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+                ended_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+                risk_score=90,
+                risk_level="critical",
+                summary="Fast path event already exists",
+                reasoning="Created on first attempt",
+                is_fast_path=True,
+                reviewed=False,
+            )
+
+            # Mock database session
+            mock_session = AsyncMock()
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = existing_event
+            mock_session.execute = AsyncMock(return_value=mock_event_result)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+
+            with patch(
+                "backend.services.nemotron_analyzer.get_session",
+                return_value=mock_context,
+            ):
+                event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+            # Should return existing event
+            assert event.id == existing_event_id
+            assert event.is_fast_path is True
+            assert event.summary == "Fast path event already exists"
+
+            # Should not create new event
+            mock_session.add.assert_not_called()
+            reset_severity_service()
+
+
+# =============================================================================
+# Test: LLM Token Usage Metrics (NEM-1730)
+# =============================================================================
+
+
+class TestLLMTokenMetrics:
+    """Tests for LLM token usage tracking metrics.
+
+    Verifies that the Nemotron analyzer extracts token counts from LLM responses
+    and records them via the metrics system.
+    """
+
+    @pytest.fixture
+    def mock_settings_for_token_tests(self):
+        """Create mock settings for token metrics tests."""
+        from backend.core.config import Settings
+
+        mock = MagicMock(spec=Settings)
+        mock.nemotron_url = "http://localhost:8091"
+        mock.nemotron_api_key = None
+        mock.ai_connect_timeout = 10.0
+        mock.nemotron_read_timeout = 120.0
+        mock.ai_health_timeout = 5.0
+        mock.nemotron_max_retries = 1
+        mock.severity_low_max = 29
+        mock.severity_medium_max = 59
+        mock.severity_high_max = 84
+        # Token counter settings (NEM-1666)
+        mock.nemotron_context_window = 4096
+        mock.nemotron_max_output_tokens = 1536
+        mock.context_utilization_warning_threshold = 0.80
+        mock.context_truncation_enabled = True
+        mock.llm_tokenizer_encoding = "cl100k_base"
+        return mock
+
+    @pytest.fixture
+    def analyzer_for_token_tests(self, mock_redis_client, mock_settings_for_token_tests):
+        """Create NemotronAnalyzer for token metrics tests."""
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_for_token_tests,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_for_token_tests,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            yield NemotronAnalyzer(redis_client=mock_redis_client)
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_call_llm_records_token_usage(self, analyzer_for_token_tests):
+        """Test that _call_llm records token usage metrics from LLM response."""
+        # Mock LLM response with usage metadata (llama.cpp format)
+        mock_response = {
+            "content": json.dumps(
+                {
+                    "risk_score": 60,
+                    "risk_level": "high",
+                    "summary": "Test event",
+                    "reasoning": "Test reasoning",
+                }
+            ),
+            "usage": {
+                "prompt_tokens": 150,
+                "completion_tokens": 75,
+            },
+            "timings": {
+                "predicted_per_second": 25.5,
+            },
+        }
+
+        with (
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch("backend.services.nemotron_analyzer.record_nemotron_tokens") as mock_record,
+        ):
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = mock_response
+            mock_post.return_value = mock_resp
+
+            await analyzer_for_token_tests._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+            # Verify token metrics were recorded
+            mock_record.assert_called_once()
+            call_kwargs = mock_record.call_args[1]
+            assert call_kwargs["input_tokens"] == 150
+            assert call_kwargs["output_tokens"] == 75
+
+    @pytest.mark.asyncio
+    async def test_call_llm_handles_missing_usage(self, analyzer_for_token_tests):
+        """Test that _call_llm handles missing usage metadata gracefully."""
+        # Mock LLM response without usage field
+        mock_response = {
+            "content": json.dumps(
+                {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Test event",
+                    "reasoning": "Test reasoning",
+                }
+            )
+            # No "usage" field
+        }
+
+        with (
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch("backend.services.nemotron_analyzer.record_nemotron_tokens") as mock_record,
+        ):
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = mock_response
+            mock_post.return_value = mock_resp
+
+            # Should not raise, should handle missing usage gracefully
+            await analyzer_for_token_tests._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+            # Token metrics should still be recorded with 0 values
+            mock_record.assert_called_once()
+            call_kwargs = mock_record.call_args[1]
+            assert call_kwargs["input_tokens"] == 0
+            assert call_kwargs["output_tokens"] == 0
+
+    @pytest.mark.asyncio
+    async def test_call_llm_records_throughput(self, analyzer_for_token_tests):
+        """Test that _call_llm calculates and records token throughput."""
+        mock_response = {
+            "content": json.dumps(
+                {
+                    "risk_score": 70,
+                    "risk_level": "high",
+                    "summary": "Test event",
+                    "reasoning": "Test reasoning",
+                }
+            ),
+            "usage": {
+                "prompt_tokens": 200,
+                "completion_tokens": 100,
+            },
+        }
+
+        with (
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch("backend.services.nemotron_analyzer.record_nemotron_tokens") as mock_record,
+        ):
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = mock_response
+            mock_post.return_value = mock_resp
+
+            await analyzer_for_token_tests._call_llm(
+                camera_name="Backyard",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - car",
+            )
+
+            # Verify duration was passed for throughput calculation
+            mock_record.assert_called_once()
+            call_kwargs = mock_record.call_args[1]
+            assert "duration_seconds" in call_kwargs
+            # Duration should be positive (actual LLM call time)
+            assert call_kwargs["duration_seconds"] is None or call_kwargs["duration_seconds"] >= 0
+
+
+# =============================================================================
+# Token Counting and Context Window Validation Tests (NEM-1723)
+# =============================================================================
+
+
+class TestTokenCountingIntegration:
+    """Tests for token counting and context window validation in NemotronAnalyzer."""
+
+    @pytest.fixture
+    def mock_settings_with_token_limits(self):
+        """Create mock settings with token limit configuration."""
+        from backend.core.config import Settings
+
+        mock = MagicMock(spec=Settings)
+        mock.nemotron_url = "http://localhost:8091"
+        mock.nemotron_api_key = None
+        mock.ai_connect_timeout = 10.0
+        mock.nemotron_read_timeout = 120.0
+        mock.ai_health_timeout = 5.0
+        mock.nemotron_max_retries = 1
+        mock.severity_low_max = 29
+        mock.severity_medium_max = 59
+        mock.severity_high_max = 84
+        # Token limit settings (NEM-1723)
+        mock.nemotron_context_window = 3900
+        mock.nemotron_max_output_tokens = 1536
+        return mock
+
+    @pytest.fixture
+    def analyzer_with_token_limits(self, mock_redis_client, mock_settings_with_token_limits):
+        """Create analyzer with token limit configuration."""
+        with (
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings_with_token_limits,
+            ),
+            patch(
+                "backend.services.severity.get_settings",
+                return_value=mock_settings_with_token_limits,
+            ),
+        ):
+            from backend.services.severity import reset_severity_service
+
+            reset_severity_service()
+            yield NemotronAnalyzer(redis_client=mock_redis_client)
+            reset_severity_service()
+
+    @pytest.mark.asyncio
+    async def test_call_llm_validates_prompt_tokens(self, analyzer_with_token_limits):
+        """Test that _call_llm validates prompt token count before calling LLM."""
+        mock_response = {
+            "content": json.dumps(
+                {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Test event",
+                    "reasoning": "Test reasoning",
+                }
+            ),
+        }
+
+        # Mock token counter with validation result
+        mock_validation = MagicMock()
+        mock_validation.is_valid = True
+        mock_validation.prompt_tokens = 500
+        mock_validation.available_tokens = 2560
+        mock_validation.utilization = 0.2
+
+        mock_counter = MagicMock()
+        mock_counter.validate_prompt.return_value = mock_validation
+
+        with (
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch(
+                "backend.services.token_counter.get_token_counter",
+                return_value=mock_counter,
+            ),
+        ):
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = mock_response
+            mock_post.return_value = mock_resp
+
+            await analyzer_with_token_limits._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+            # Verify validation was called
+            mock_counter.validate_prompt.assert_called_once()

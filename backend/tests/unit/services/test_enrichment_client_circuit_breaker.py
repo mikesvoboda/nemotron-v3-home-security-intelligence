@@ -33,11 +33,11 @@ from backend.services.enrichment_client import (
 
 
 @pytest.fixture(autouse=True)
-def reset_global_client() -> None:
+async def reset_global_client() -> None:
     """Reset global enrichment client before and after each test."""
-    reset_enrichment_client()
+    await reset_enrichment_client()
     yield
-    reset_enrichment_client()
+    await reset_enrichment_client()
 
 
 @pytest.fixture
@@ -51,6 +51,8 @@ def mock_settings() -> MagicMock:
     settings.enrichment_cb_failure_threshold = 3
     settings.enrichment_cb_recovery_timeout = 30.0
     settings.enrichment_cb_half_open_max_calls = 2
+    # Retry settings (NEM-1732)
+    settings.enrichment_max_retries = 3
     return settings
 
 
@@ -62,9 +64,21 @@ def sample_image() -> Image.Image:
 
 @pytest.fixture
 def client(mock_settings: MagicMock) -> EnrichmentClient:
-    """Create an EnrichmentClient with mocked settings."""
-    with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
-        return EnrichmentClient()
+    """Create an EnrichmentClient with mocked settings and persistent HTTP clients."""
+    mock_http_client = AsyncMock()
+    mock_http_client.aclose = AsyncMock()
+    mock_health_client = AsyncMock()
+    mock_health_client.aclose = AsyncMock()
+
+    with (
+        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
+        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+    ):
+        client = EnrichmentClient()
+        # Ensure the mocked clients are properly attached
+        client._http_client = mock_http_client
+        client._health_http_client = mock_health_client
+        return client
 
 
 # =============================================================================
@@ -117,14 +131,11 @@ class TestCircuitBreakerStateTransitions:
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test that circuit opens after failure threshold is reached."""
-        # Simulate connection failures
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Simulate connection failures on persistent HTTP client
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
+        # Mock asyncio.sleep to prevent actual delays during retries (NEM-1732)
+        with patch("asyncio.sleep", new=AsyncMock()):
             # Make 3 failing calls (threshold is 3)
             for _ in range(3):
                 with pytest.raises(EnrichmentUnavailableError):
@@ -232,39 +243,31 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client's post method
+        client._http_client.post = AsyncMock(return_value=mock_response)
 
-            # Add a failure first
-            client._circuit_breaker.record_failure()
-            assert client._circuit_breaker._failure_count == 1
+        # Add a failure first
+        client._circuit_breaker.record_failure()
+        assert client._circuit_breaker._failure_count == 1
 
-            # Successful call should reset failure count
-            result = await client.classify_vehicle(sample_image)
+        # Successful call should reset failure count
+        result = await client.classify_vehicle(sample_image)
 
-            assert result is not None
-            assert client._circuit_breaker._failure_count == 0
+        assert result is not None
+        assert client._circuit_breaker._failure_count == 0
 
     @pytest.mark.asyncio
     async def test_classify_pet_records_failure(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test that failed pet classification records failure."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client's post method to raise error
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_pet(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_pet(sample_image)
 
-            assert client._circuit_breaker._failure_count == 1
+        assert client._circuit_breaker._failure_count == 1
 
     @pytest.mark.asyncio
     async def test_classify_clothing_respects_circuit_breaker(
@@ -397,17 +400,13 @@ class TestCircuitBreakerHealthCheck:
         mock_response.json.return_value = {"status": "healthy", "models": ["vehicle", "pet"]}
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client's get method
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
 
-            result = await client.check_health()
+        result = await client.check_health()
 
-            assert "circuit_breaker_state" in result
-            assert result["circuit_breaker_state"] == "closed"
+        assert "circuit_breaker_state" in result
+        assert result["circuit_breaker_state"] == "closed"
 
     @pytest.mark.asyncio
     async def test_health_check_shows_open_circuit(self, client: EnrichmentClient) -> None:
@@ -420,16 +419,12 @@ class TestCircuitBreakerHealthCheck:
         mock_response.json.return_value = {"status": "healthy", "models": []}
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the health HTTP client's get method
+        client._health_http_client.get = AsyncMock(return_value=mock_response)
 
-            result = await client.check_health()
+        result = await client.check_health()
 
-            assert result["circuit_breaker_state"] == "open"
+        assert result["circuit_breaker_state"] == "open"
 
     @pytest.mark.asyncio
     async def test_is_healthy_false_when_circuit_open(self, client: EnrichmentClient) -> None:
@@ -459,15 +454,14 @@ class TestGracefulDegradation:
         for _ in range(3):
             client._circuit_breaker.record_failure()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value = mock_client
+        # Setup mock on persistent HTTP client
+        client._http_client.post = AsyncMock()
 
-            with pytest.raises(EnrichmentUnavailableError):
-                await client.classify_vehicle(sample_image)
+        with pytest.raises(EnrichmentUnavailableError):
+            await client.classify_vehicle(sample_image)
 
-            # Verify no HTTP call was made
-            mock_client.post.assert_not_called()
+        # Verify no HTTP call was made
+        client._http_client.post.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_metrics_recorded_when_circuit_open(

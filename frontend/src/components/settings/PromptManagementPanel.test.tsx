@@ -36,12 +36,12 @@ const mockNemotronConfig: ModelPromptConfig = {
   model: AIModelEnum.NEMOTRON,
   config: {
     system_prompt: 'You are an AI security analyst...',
-    version: 5,
+    version: 10,
   },
-  version: 5,
-  created_at: '2025-01-07T10:00:00Z',
-  created_by: 'admin',
-  change_description: 'Improved risk scoring logic',
+  version: 10,
+  created_at: '2025-01-07T12:00:00Z',
+  created_by: 'config-admin',
+  change_description: 'Current active configuration',
 };
 
 const mockHistory: PromptHistoryResponse = {
@@ -100,10 +100,12 @@ const mockExportResponse: PromptsExportResponse = {
 // Setup and Mocks
 // ============================================================================
 
-// Store original createElement before any mocks (bound to avoid unbound-method error)
+// Store original DOM methods before mocking (bound to avoid unbound-method error)
 const originalCreateElement = Document.prototype.createElement.bind(document);
+const originalAppendChild = document.body.appendChild.bind(document.body);
+const originalRemoveChild = document.body.removeChild.bind(document.body);
 
-// Mock anchor element for download tests
+// Shared mock anchor for export tests
 const mockAnchor = {
   href: '',
   download: '',
@@ -129,12 +131,29 @@ beforeEach(() => {
   (globalThis as any).URL.createObjectURL = vi.fn(() => 'blob:mock-url');
   (globalThis as any).URL.revokeObjectURL = vi.fn();
 
-  // Mock document.createElement for download link (only for 'a' elements)
+  // Mock document.createElement ONLY for anchor elements (export download)
+  // Pass through other calls to preserve React Testing Library's DOM handling
   vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
     if (tagName.toLowerCase() === 'a') {
       return mockAnchor;
     }
     return originalCreateElement(tagName);
+  });
+
+  // Mock appendChild/removeChild ONLY for the mockAnchor
+  // Pass through other calls to preserve React Testing Library's cleanup
+  vi.spyOn(document.body, 'appendChild').mockImplementation((node: Node) => {
+    if (node === mockAnchor) {
+      return mockAnchor;
+    }
+    return originalAppendChild(node);
+  });
+
+  vi.spyOn(document.body, 'removeChild').mockImplementation((node: Node) => {
+    if (node === mockAnchor) {
+      return mockAnchor;
+    }
+    return originalRemoveChild(node);
   });
 
   // Mock window.confirm
@@ -186,14 +205,12 @@ describe('PromptManagementPanel - Data Loading', () => {
     render(<PromptManagementPanel />);
 
     await waitFor(() => {
-      // Multiple "Version 5" elements may exist (current config + history), use getAllByText
-      expect(screen.getAllByText(/Version 5/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Version 10/i)).toBeInTheDocument();
     });
 
-    // Check for elements that should appear (may appear in both current config and history)
-    expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Improved risk scoring logic').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('admin').length).toBeGreaterThan(0);
+    // Current config tab shows its own Active badge and description
+    expect(screen.getByText('Current active configuration')).toBeInTheDocument();
+    expect(screen.getByText('config-admin')).toBeInTheDocument();
   });
 
   it('should display loading spinner while fetching data', () => {
@@ -240,7 +257,11 @@ describe('PromptManagementPanel - Model Selection', () => {
     const selectButton = screen.getByRole('button', { name: /Nemotron/i });
     await user.click(selectButton);
 
-    // Select Florence-2 from the listbox options (use role to be specific)
+    // Wait for dropdown to open and select Florence-2 option
+    await waitFor(() => {
+      const florence2Option = screen.getByRole('option', { name: /Florence-2/i });
+      expect(florence2Option).toBeInTheDocument();
+    });
     const florence2Option = screen.getByRole('option', { name: /Florence-2/i });
     await user.click(florence2Option);
 
@@ -266,9 +287,14 @@ describe('PromptManagementPanel - Model Selection', () => {
       );
     });
 
-    // Change model
+    // Change model - wait for dropdown to open then select YOLO-World option
     const selectButton = screen.getByRole('button', { name: /Nemotron/i });
     await user.click(selectButton);
+
+    await waitFor(() => {
+      const yoloOption = screen.getByRole('option', { name: /YOLO-World/i });
+      expect(yoloOption).toBeInTheDocument();
+    });
     const yoloOption = screen.getByRole('option', { name: /YOLO-World/i });
     await user.click(yoloOption);
 
@@ -315,10 +341,17 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
+    // First wait for version data to load
+    await waitFor(() => {
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
+    });
+
+    // Two Active badges exist: one in Current Config tab, one in Version History
+    // Both tabs are in DOM (Tremor uses CSS to show/hide), so we expect 2
     await waitFor(() => {
       // Active badge appears in both current config and history
       const badges = screen.getAllByText('Active');
-      expect(badges.length).toBeGreaterThanOrEqual(1);
+      expect(badges).toHaveLength(2);
     });
   });
 
@@ -329,6 +362,12 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
+    // First wait for version data to load
+    await waitFor(() => {
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
+    });
+
+    // Then check for Restore buttons
     await waitFor(() => {
       const restoreButtons = screen.getAllByRole('button', { name: /Restore/i });
       expect(restoreButtons).toHaveLength(2); // Two inactive versions
@@ -342,13 +381,14 @@ describe('PromptManagementPanel - Version History', () => {
     const historyTab = screen.getByRole('tab', { name: /Version History/i });
     await user.click(historyTab);
 
+    // First wait for version data to load
     await waitFor(() => {
-      // Get all Active badges and find the one in version history
-      const activeBadges = screen.getAllByText('Active');
-      expect(activeBadges.length).toBeGreaterThan(0);
+      expect(screen.getByText('Version 5')).toBeInTheDocument();
+    });
 
-      // The active version in history should not have a Restore button
-      // Check that we have exactly 2 Restore buttons (for the 2 inactive versions)
+    // Then check that Version 5 (active) has no Restore button
+    // Find all Restore buttons - should be 2 (for versions 4 and 3, not 5)
+    await waitFor(() => {
       const restoreButtons = screen.getAllByRole('button', { name: /Restore/i });
       expect(restoreButtons).toHaveLength(2);
     });

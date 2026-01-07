@@ -168,6 +168,18 @@ interface SeverityLevelRowProps {
 }
 
 function SeverityLevelRow({ definition }: SeverityLevelRowProps) {
+  // Get lighter text color for better contrast (WCAG AA compliance)
+  const getBadgeTextColor = (color: string): string => {
+    // Map base colors to lighter variants for better contrast on dark backgrounds
+    const colorMap: Record<string, string> = {
+      '#ef4444': '#fca5a5', // red-500 -> red-300 (4.5:1 contrast)
+      '#f97316': '#fdba74', // orange-500 -> orange-300
+      '#eab308': '#fde047', // yellow-500 -> yellow-300
+      '#22c55e': '#86efac', // green-500 -> green-300
+    };
+    return colorMap[color.toLowerCase()] || color;
+  };
+
   return (
     <div
       className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3"
@@ -188,7 +200,7 @@ function SeverityLevelRow({ definition }: SeverityLevelRowProps) {
             size="xs"
             style={{
               backgroundColor: `${definition.color}20`,
-              color: definition.color,
+              color: getBadgeTextColor(definition.color),
               borderColor: definition.color,
             }}
           >

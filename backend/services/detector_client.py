@@ -55,6 +55,7 @@ import httpx
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware.correlation import get_correlation_headers
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
@@ -69,6 +70,11 @@ from backend.core.mime_types import get_mime_type_with_default
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.baseline import get_baseline_service
+from backend.services.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerError,
+)
 from backend.services.inference_semaphore import get_inference_semaphore
 
 logger = get_logger(__name__)
@@ -184,22 +190,65 @@ class DetectorClient:
         )
         # Concurrency limit (NEM-1500)
         self._max_concurrent = settings.ai_max_concurrent_inferences
-        logger.debug(
-            f"DetectorClient initialized with max_retries={self._max_retries}, "
-            f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}"
+
+        # Create persistent HTTP connection pool (NEM-1721)
+        # Reusing connections avoids TCP overhead and resource exhaustion
+        self._http_client = httpx.AsyncClient(
+            timeout=self._timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        self._health_http_client = httpx.AsyncClient(
+            timeout=self._health_timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
         )
 
-    def _get_auth_headers(self) -> dict[str, str]:
-        """Get authentication headers for API requests.
+        # Circuit breaker for RT-DETRv2 service protection (NEM-1724)
+        # Prevents retry storms when the detector service is unavailable.
+        # - failure_threshold=5: Opens circuit after 5 consecutive failures
+        # - recovery_timeout=60: Waits 60 seconds before attempting recovery
+        # - excluded_exceptions: ValueError (client errors) don't count as failures
+        self._circuit_breaker = CircuitBreaker(
+            name="rtdetr",
+            config=CircuitBreakerConfig(
+                failure_threshold=5,
+                recovery_timeout=60.0,
+                half_open_max_calls=3,
+                success_threshold=2,
+                excluded_exceptions=(ValueError,),  # HTTP 4xx errors should not trip circuit
+            ),
+        )
 
+        logger.debug(
+            f"DetectorClient initialized with max_retries={self._max_retries}, "
+            f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}, "
+            f"circuit_breaker=rtdetr(failure_threshold=5, recovery_timeout=60s)"
+        )
+
+    async def close(self) -> None:
+        """Close the HTTP client connections.
+
+        Should be called when the client is no longer needed to release resources.
+        """
+        await self._http_client.aclose()
+        await self._health_http_client.aclose()
+        logger.debug("DetectorClient HTTP connections closed")
+
+    def _get_auth_headers(self) -> dict[str, str]:
+        """Get authentication and correlation headers for API requests.
+
+        NEM-1729: Includes correlation headers for distributed tracing.
         Security: Returns X-API-Key header if API key is configured.
 
         Returns:
-            Dictionary of headers to include in requests
+            Dictionary of headers to include in requests (auth + correlation)
         """
+        headers: dict[str, str] = {}
+        # Add correlation headers for distributed tracing (NEM-1729)
+        headers.update(get_correlation_headers())
+        # Add API key if configured
         if self._api_key:
-            return {"X-API-Key": self._api_key}
-        return {}
+            headers["X-API-Key"] = self._api_key
+        return headers
 
     async def health_check(self) -> bool:
         """Check if detector service is healthy and reachable.
@@ -208,14 +257,13 @@ class DetectorClient:
             True if detector is healthy, False otherwise
         """
         try:
-            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                # Include auth headers in health check
-                response = await client.get(
-                    f"{self._detector_url}/health",
-                    headers=self._get_auth_headers(),
-                )
-                response.raise_for_status()
-                return True
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._health_http_client.get(
+                f"{self._detector_url}/health",
+                headers=self._get_auth_headers(),
+            )
+            response.raise_for_status()
+            return True
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             logger.warning(f"Detector health check failed: {e}", exc_info=True)
             return False
@@ -264,9 +312,10 @@ class DetectorClient:
         for attempt in range(self._max_retries):
             try:
                 # Use semaphore to limit concurrent GPU requests (NEM-1500)
-                async with semaphore, httpx.AsyncClient(timeout=self._timeout) as client:
+                # Use persistent HTTP client (NEM-1721)
+                async with semaphore:
                     files = {"file": (image_name, image_data, "image/jpeg")}
-                    response = await client.post(
+                    response = await self._http_client.post(
                         f"{self._detector_url}/detect",
                         files=files,
                         headers=self._get_auth_headers(),
@@ -559,6 +608,22 @@ class DetectorClient:
         )
 
         try:
+            # Check if circuit breaker is open before proceeding (NEM-1724)
+            # This prevents retry storms when the detector is known to be unavailable
+            if not await self._circuit_breaker.allow_call():
+                logger.warning(
+                    "Circuit breaker open for RT-DETR, rejecting detection request",
+                    extra={
+                        "camera_id": camera_id,
+                        "file_path": image_path,
+                        "circuit_state": self._circuit_breaker.state.value,
+                    },
+                )
+                record_pipeline_error("circuit_breaker_open")
+                raise DetectorUnavailableError(
+                    "RT-DETR service temporarily unavailable (circuit breaker open)"
+                )
+
             # Read image file asynchronously to avoid blocking the event loop
             image_data = await asyncio.to_thread(image_file.read_bytes)
 
@@ -569,8 +634,10 @@ class DetectorClient:
             # This limits concurrent AI operations to prevent GPU/service overload
             inference_semaphore = get_inference_semaphore()
             async with inference_semaphore:
-                # Send to detector with retry logic (NEM-1343)
-                result = await self._send_detection_request(
+                # Send to detector with retry logic (NEM-1343) and circuit breaker (NEM-1724)
+                # The circuit breaker tracks failures and opens after threshold is reached
+                result = await self._circuit_breaker.call(
+                    self._send_detection_request,
                     image_data=image_data,
                     image_name=image_file.name,
                     camera_id=camera_id,
@@ -741,6 +808,23 @@ class DetectorClient:
         except ValueError:
             # Client errors (4xx) from _send_detection_request - already logged
             return []
+        except CircuitBreakerError as e:
+            # Circuit breaker tripped (NEM-1724) - service temporarily unavailable
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("circuit_breaker_open")
+            logger.warning(
+                f"Circuit breaker open for RT-DETR: {e}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": image_path,
+                    "duration_ms": duration_ms,
+                    "circuit_state": self._circuit_breaker.state.value,
+                },
+            )
+            raise DetectorUnavailableError(
+                "RT-DETR service temporarily unavailable (circuit breaker open)",
+                original_error=e,
+            ) from e
         except DetectorUnavailableError:
             # Transient errors after retry exhaustion - propagate for caller to handle
             raise
