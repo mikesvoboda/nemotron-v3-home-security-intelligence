@@ -880,28 +880,22 @@ export const mockClassBaseline = {
 // Anomaly Config Mock Data
 export const mockAnomalyConfig = {
   default: {
-    enabled: true,
-    sensitivity: 2.0,
+    threshold_stdev: 2.0,
     min_samples: 100,
-    time_window_hours: 1,
-    cooldown_minutes: 30,
-    detection_types: ['activity_spike', 'unusual_class', 'time_anomaly'],
+    decay_factor: 0.1,
+    window_days: 30,
   },
   highSensitivity: {
-    enabled: true,
-    sensitivity: 1.0,
+    threshold_stdev: 1.0,
     min_samples: 50,
-    time_window_hours: 0.5,
-    cooldown_minutes: 15,
-    detection_types: ['activity_spike', 'unusual_class', 'time_anomaly', 'pattern_break'],
+    decay_factor: 0.15,
+    window_days: 30,
   },
   disabled: {
-    enabled: false,
-    sensitivity: 2.0,
+    threshold_stdev: 2.0,
     min_samples: 100,
-    time_window_hours: 1,
-    cooldown_minutes: 30,
-    detection_types: [],
+    decay_factor: 0.1,
+    window_days: 30,
   },
 };
 

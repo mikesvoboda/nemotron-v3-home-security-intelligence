@@ -59,24 +59,38 @@ def mock_settings():
     mock.severity_low_max = 29
     mock.severity_medium_max = 59
     mock.severity_high_max = 84
+    # LLM context window settings (NEM-1666)
+    mock.nemotron_context_window = 4096
+    mock.nemotron_max_output_tokens = 1536
+    mock.context_utilization_warning_threshold = 0.80
+    mock.context_truncation_enabled = True
+    mock.llm_tokenizer_encoding = "cl100k_base"
+    # Enrichment pipeline settings (NEM-1641)
+    mock.image_quality_enabled = False
     return mock
 
 
 @pytest.fixture
 def analyzer(mock_redis_client, mock_settings):
     """Create NemotronAnalyzer instance with mocked Redis and settings."""
-    # Patch both get_settings locations: nemotron_analyzer and severity service
+    # Patch all get_settings locations: nemotron_analyzer, severity service, token counter, metrics
+    # Note: backend.core.config.get_settings handles enrichment_pipeline's import from that module
     with (
         patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
         patch("backend.services.severity.get_settings", return_value=mock_settings),
+        patch("backend.services.token_counter.get_settings", return_value=mock_settings),
+        patch("backend.core.config.get_settings", return_value=mock_settings),
     ):
         # Also clear the severity service cache to ensure fresh service with mocked settings
         from backend.services.severity import reset_severity_service
+        from backend.services.token_counter import reset_token_counter
 
         reset_severity_service()
+        reset_token_counter()
         yield NemotronAnalyzer(redis_client=mock_redis_client)
         # Reset again after test to not affect other tests
         reset_severity_service()
+        reset_token_counter()
 
 
 @pytest.fixture

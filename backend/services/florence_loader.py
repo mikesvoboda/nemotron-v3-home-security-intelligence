@@ -96,5 +96,7 @@ async def load_florence_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load Florence-2 model from {model_path}: {e}")
+        logger.error(
+            "Failed to load Florence-2 model", exc_info=True, extra={"model_path": model_path}
+        )
         raise RuntimeError(f"Failed to load Florence-2 model: {e}") from e

@@ -216,8 +216,12 @@ async def test_notification(
                 request=request,
             )
             await db.commit()
-        except Exception as e:
-            logger.error(f"Failed to commit audit log: {e}")
+        except Exception:
+            logger.error(
+                "Failed to commit audit log",
+                exc_info=True,
+                extra={"action": "notification_test", "channel": channel.value},
+            )
             await db.rollback()
             # Don't fail the main operation - audit is non-critical
 

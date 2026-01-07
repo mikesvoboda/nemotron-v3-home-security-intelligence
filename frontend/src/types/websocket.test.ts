@@ -13,6 +13,8 @@ import {
   isErrorMessage,
   isWebSocketMessage,
   createMessageDispatcher,
+  assertNever,
+  assertNeverSoft,
   type EventMessage,
   type SystemStatusMessage,
   type ServiceStatusMessage,
@@ -441,5 +443,112 @@ describe('Type Inference', () => {
     expect(processMessage(validEventMessage)).toBe('Person detected at front door');
     expect(processMessage(validSystemStatusMessage)).toBe('healthy');
     expect(processMessage({ type: 'unknown' })).toBeNull();
+  });
+});
+
+// ============================================================================
+// Exhaustive Check Utility Tests
+// ============================================================================
+
+describe('assertNever', () => {
+  it('throws an error with the unexpected value', () => {
+    // We need to cast to never to test the function
+    const unexpectedValue = { type: 'unexpected' } as never;
+
+    expect(() => assertNever(unexpectedValue)).toThrow(
+      'Unexpected value: {"type":"unexpected"}'
+    );
+  });
+
+  it('provides type safety for exhaustive switch statements', () => {
+    // This test verifies the pattern works at runtime
+    function handleMessage(message: WebSocketMessage): string {
+      switch (message.type) {
+        case 'event':
+          return 'event';
+        case 'system_status':
+          return 'system_status';
+        case 'service_status':
+          return 'service_status';
+        case 'ping':
+          return 'ping';
+        case 'pong':
+          return 'pong';
+        case 'error':
+          return 'error';
+        default:
+          // TypeScript knows this is never reached if all cases are covered
+          return assertNever(message);
+      }
+    }
+
+    expect(handleMessage(validEventMessage)).toBe('event');
+    expect(handleMessage(validSystemStatusMessage)).toBe('system_status');
+    expect(handleMessage(validServiceStatusMessage)).toBe('service_status');
+    expect(handleMessage(validHeartbeatMessage)).toBe('ping');
+    expect(handleMessage(validPongMessage)).toBe('pong');
+    expect(handleMessage(validErrorMessage)).toBe('error');
+  });
+});
+
+describe('assertNeverSoft', () => {
+  it('logs a warning instead of throwing', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // We need to cast to never to test the function
+    const unexpectedValue = { type: 'unexpected' } as never;
+
+    // Should not throw
+    expect(() => assertNeverSoft(unexpectedValue)).not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Unhandled value: {"type":"unexpected"}'
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it('uses context in the warning message', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const unexpectedValue = { type: 'custom_type' } as never;
+    assertNeverSoft(unexpectedValue, 'WebSocket message');
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Unhandled WebSocket message: {"type":"custom_type"}'
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it('is useful for graceful degradation', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Simulate a handler that gracefully handles unknown types
+    function handleMessageGracefully(message: WebSocketMessage): string {
+      switch (message.type) {
+        case 'event':
+          return 'handled event';
+        case 'system_status':
+          return 'handled system_status';
+        case 'service_status':
+          return 'handled service_status';
+        case 'ping':
+          return 'handled ping';
+        case 'pong':
+          return 'handled pong';
+        case 'error':
+          return 'handled error';
+        default:
+          assertNeverSoft(message, 'WebSocket message');
+          return 'unknown';
+      }
+    }
+
+    // All known types should be handled
+    expect(handleMessageGracefully(validEventMessage)).toBe('handled event');
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 });

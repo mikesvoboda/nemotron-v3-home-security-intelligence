@@ -1,6 +1,8 @@
 import { AlertOctagon, RefreshCw } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
+import { logger } from '../../services/logger';
+
 export interface ErrorBoundaryProps {
   /** Child components to wrap */
   children: ReactNode;
@@ -59,12 +61,18 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
 
   /**
-   * Log error information for debugging
+   * Log error information for debugging.
+   * Uses the centralized logger service to capture errors in both
+   * development and production environments for debugging via source maps.
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Log error to console
-    console.error('ErrorBoundary caught an error:', error);
-    console.error('Component stack:', errorInfo.componentStack);
+    // Log to centralized logger for production debugging (supports source map lookup)
+    logger.error('React component error', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      name: error.name,
+    });
 
     // Update state with error info
     this.setState({ errorInfo });

@@ -26,11 +26,11 @@ describe('RiskBadge', () => {
       expect(badge.closest('span')).toHaveClass('bg-risk-high/10', 'text-risk-high');
     });
 
-    it('renders critical risk badge with red styling', () => {
+    it('renders critical risk badge with WCAG AA compliant styling', () => {
       render(<RiskBadge level="critical" />);
       const badge = screen.getByText('Critical');
       expect(badge).toBeInTheDocument();
-      expect(badge.closest('span')).toHaveClass('bg-red-500/10', 'text-red-500');
+      expect(badge.closest('span')).toHaveClass('bg-risk-critical/10', 'text-risk-critical');
     });
   });
 
@@ -80,28 +80,30 @@ describe('RiskBadge', () => {
   });
 
   describe('animation', () => {
-    it('applies pulse animation for critical level when animated is true', () => {
+    it('applies pulse-critical animation for critical level when animated is true', () => {
       render(<RiskBadge level="critical" animated={true} />);
       const badge = screen.getByText('Critical');
-      expect(badge.closest('span')).toHaveClass('animate-pulse');
+      // Uses animate-pulse-critical (box-shadow based) instead of animate-pulse (opacity based)
+      // to maintain WCAG 2.1 AA color contrast during animation
+      expect(badge.closest('span')).toHaveClass('animate-pulse-critical');
     });
 
     it('does not apply pulse animation for critical level when animated is false', () => {
       render(<RiskBadge level="critical" animated={false} />);
       const badge = screen.getByText('Critical');
-      expect(badge.closest('span')).not.toHaveClass('animate-pulse');
+      expect(badge.closest('span')).not.toHaveClass('animate-pulse-critical');
     });
 
     it('does not apply pulse animation for non-critical levels', () => {
       render(<RiskBadge level="low" animated={true} />);
       const badge = screen.getByText('Low');
-      expect(badge.closest('span')).not.toHaveClass('animate-pulse');
+      expect(badge.closest('span')).not.toHaveClass('animate-pulse-critical');
     });
 
-    it('applies pulse animation by default for critical level', () => {
+    it('applies pulse-critical animation by default for critical level', () => {
       render(<RiskBadge level="critical" />);
       const badge = screen.getByText('Critical');
-      expect(badge.closest('span')).toHaveClass('animate-pulse');
+      expect(badge.closest('span')).toHaveClass('animate-pulse-critical');
     });
   });
 

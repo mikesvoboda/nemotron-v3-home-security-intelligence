@@ -3633,3 +3633,236 @@ class TestEnrichmentPipelineWeatherClassification:
 
             # Result should have no weather classification
             assert result.weather_classification is None
+
+
+# =============================================================================
+# EnrichmentResult get_enrichment_for_detection() Tests
+# =============================================================================
+
+
+class TestEnrichmentResultGetEnrichmentForDetection:
+    """Tests for EnrichmentResult.get_enrichment_for_detection() method."""
+
+    def test_get_enrichment_for_detection_vehicle_classification(self) -> None:
+        """Test vehicle classification enrichment extraction."""
+        vehicle_class = VehicleClassificationResult(
+            vehicle_type="sedan",
+            confidence=0.92,
+            display_name="Sedan",
+            is_commercial=False,
+            all_scores={"sedan": 0.92, "suv": 0.08},
+        )
+        result = EnrichmentResult(vehicle_classifications={"1": vehicle_class})
+
+        enrichment = result.get_enrichment_for_detection(1)
+
+        assert enrichment is not None
+        assert "vehicle" in enrichment
+        assert enrichment["vehicle"]["type"] == "sedan"
+        assert enrichment["vehicle"]["confidence"] == 0.92
+        assert enrichment["vehicle"]["damage"] == []
+
+    def test_get_enrichment_for_detection_vehicle_damage_only(self) -> None:
+        """Test vehicle damage without classification."""
+        damage = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="dent",
+                    confidence=0.85,
+                    bbox=(10, 20, 30, 40),
+                )
+            ]
+        )
+        result = EnrichmentResult(vehicle_damage={"2": damage})
+
+        enrichment = result.get_enrichment_for_detection(2)
+
+        assert enrichment is not None
+        assert "vehicle" in enrichment
+        assert enrichment["vehicle"]["type"] is None
+        assert enrichment["vehicle"]["damage"] == [{"type": "dent", "confidence": 0.85}]
+
+    def test_get_enrichment_for_detection_pet_classification(self) -> None:
+        """Test pet classification enrichment extraction."""
+        pet = PetClassificationResult(
+            animal_type="dog",
+            confidence=0.95,
+            cat_score=0.05,
+            dog_score=0.95,
+            is_household_pet=True,
+        )
+        result = EnrichmentResult(pet_classifications={"3": pet})
+
+        enrichment = result.get_enrichment_for_detection(3)
+
+        assert enrichment is not None
+        assert "pet" in enrichment
+        assert enrichment["pet"]["type"] == "dog"
+        assert enrichment["pet"]["breed"] is None
+        assert enrichment["pet"]["confidence"] == 0.95
+
+    def test_get_enrichment_for_detection_clothing_classification(self) -> None:
+        """Test clothing classification enrichment extraction."""
+        clothing = ClothingClassification(
+            top_category="hoodie",
+            confidence=0.88,
+            all_scores={"hoodie": 0.88},
+            is_suspicious=True,
+            is_service_uniform=False,
+            raw_description="dark hoodie",
+        )
+        result = EnrichmentResult(clothing_classifications={"4": clothing})
+
+        enrichment = result.get_enrichment_for_detection(4)
+
+        assert enrichment is not None
+        assert "person" in enrichment
+        assert enrichment["person"]["clothing"] == "hoodie"
+        assert enrichment["person"]["confidence"] == 0.88
+
+    def test_get_enrichment_for_detection_clothing_segmentation_only(self) -> None:
+        """Test clothing segmentation without classification."""
+        segmentation = ClothingSegmentationResult(
+            clothing_items=["hat", "sunglasses"],
+            has_face_covered=True,
+            has_bag=False,
+        )
+        result = EnrichmentResult(clothing_segmentation={"5": segmentation})
+
+        enrichment = result.get_enrichment_for_detection(5)
+
+        assert enrichment is not None
+        assert "person" in enrichment
+        assert enrichment["person"]["face_covered"] is True
+
+    def test_get_enrichment_for_detection_license_plate(self) -> None:
+        """Test license plate enrichment extraction."""
+        bbox = BoundingBox(x1=100, y1=200, x2=200, y2=250)
+        plate = LicensePlateResult(
+            bbox=bbox,
+            text="ABC123",
+            confidence=0.92,
+            ocr_confidence=0.88,
+            source_detection_id=6,
+        )
+        result = EnrichmentResult(license_plates=[plate])
+
+        enrichment = result.get_enrichment_for_detection(6)
+
+        assert enrichment is not None
+        assert "license_plate" in enrichment
+        assert enrichment["license_plate"]["text"] == "ABC123"
+        assert enrichment["license_plate"]["confidence"] == 0.88
+
+    def test_get_enrichment_for_detection_face_detected(self) -> None:
+        """Test face detection enrichment extraction."""
+        bbox = BoundingBox(x1=50, y1=60, x2=150, y2=160)
+        face1 = FaceResult(bbox=bbox, confidence=0.95, source_detection_id=7)
+        face2 = FaceResult(bbox=bbox, confidence=0.92, source_detection_id=7)
+        result = EnrichmentResult(faces=[face1, face2])
+
+        enrichment = result.get_enrichment_for_detection(7)
+
+        assert enrichment is not None
+        assert enrichment["face_detected"] is True
+        assert enrichment["face_count"] == 2
+
+    def test_get_enrichment_for_detection_weather_global(self) -> None:
+        """Test weather enrichment (global, applies to all detections)."""
+        weather = WeatherResult(
+            condition="clear",
+            confidence=0.95,
+            all_scores={"clear": 0.95},
+            simple_condition="clear",
+        )
+        result = EnrichmentResult(weather_classification=weather)
+
+        enrichment = result.get_enrichment_for_detection(8)
+
+        assert enrichment is not None
+        assert "weather" in enrichment
+        assert enrichment["weather"]["condition"] == "clear"
+        assert enrichment["weather"]["confidence"] == 0.95
+
+    def test_get_enrichment_for_detection_image_quality_global(self) -> None:
+        """Test image quality enrichment (global, applies to all detections)."""
+        quality = ImageQualityResult(
+            quality_score=65.0,
+            brisque_score=35.0,
+            is_blurry=False,
+            is_noisy=False,
+            is_low_quality=False,
+            quality_issues=[],
+        )
+        result = EnrichmentResult(image_quality=quality)
+
+        enrichment = result.get_enrichment_for_detection(9)
+
+        assert enrichment is not None
+        assert "image_quality" in enrichment
+        assert enrichment["image_quality"]["score"] == 65.0
+        assert enrichment["image_quality"]["issues"] == []
+
+    def test_get_enrichment_for_detection_no_enrichment(self) -> None:
+        """Test returns None when no enrichment data for detection."""
+        result = EnrichmentResult()
+
+        enrichment = result.get_enrichment_for_detection(999)
+
+        assert enrichment is None
+
+    def test_get_enrichment_for_detection_combined_vehicle_data(self) -> None:
+        """Test vehicle with both classification and damage."""
+        vehicle_class = VehicleClassificationResult(
+            vehicle_type="suv",
+            confidence=0.90,
+            display_name="SUV",
+            is_commercial=False,
+            all_scores={},
+        )
+        damage = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="glass_shatter",
+                    confidence=0.92,
+                    bbox=(10, 20, 30, 40),
+                )
+            ]
+        )
+        result = EnrichmentResult(
+            vehicle_classifications={"10": vehicle_class},
+            vehicle_damage={"10": damage},
+        )
+
+        enrichment = result.get_enrichment_for_detection(10)
+
+        assert enrichment is not None
+        assert enrichment["vehicle"]["type"] == "suv"
+        assert len(enrichment["vehicle"]["damage"]) == 1
+        assert enrichment["vehicle"]["damage"][0]["type"] == "glass_shatter"
+
+    def test_get_enrichment_for_detection_combined_person_data(self) -> None:
+        """Test person with both classification and segmentation."""
+        clothing = ClothingClassification(
+            top_category="t-shirt",
+            confidence=0.85,
+            all_scores={},
+            is_suspicious=False,
+            is_service_uniform=False,
+            raw_description="casual t-shirt",
+        )
+        segmentation = ClothingSegmentationResult(
+            clothing_items=["shirt", "pants"],
+            has_face_covered=False,
+            has_bag=True,
+        )
+        result = EnrichmentResult(
+            clothing_classifications={"11": clothing},
+            clothing_segmentation={"11": segmentation},
+        )
+
+        enrichment = result.get_enrichment_for_detection(11)
+
+        assert enrichment is not None
+        assert enrichment["person"]["clothing"] == "t-shirt"
+        assert enrichment["person"]["face_covered"] is False

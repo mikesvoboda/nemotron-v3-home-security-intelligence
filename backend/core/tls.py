@@ -71,7 +71,7 @@ class TLSMode(str, Enum):
     PROVIDED = "provided"
 
 
-@dataclass
+@dataclass(slots=True)
 class TLSConfig:
     """TLS configuration settings.
 

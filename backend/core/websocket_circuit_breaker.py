@@ -44,7 +44,7 @@ class WebSocketCircuitState(Enum):
     HALF_OPEN = "half_open"  # Testing recovery
 
 
-@dataclass
+@dataclass(slots=True)
 class WebSocketCircuitBreakerMetrics:
     """Metrics for WebSocket circuit breaker monitoring.
 

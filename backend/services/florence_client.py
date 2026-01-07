@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from PIL import Image
 
 
-@dataclass
+@dataclass(slots=True)
 class OCRRegion:
     """A text region with bounding box coordinates."""
 
@@ -51,7 +51,7 @@ class OCRRegion:
     bbox: list[float]  # [x1, y1, x2, y2, x3, y3, x4, y4] quadrilateral
 
 
-@dataclass
+@dataclass(slots=True)
 class Detection:
     """A detected object with bounding box and confidence score."""
 
@@ -60,7 +60,7 @@ class Detection:
     score: float = 1.0
 
 
-@dataclass
+@dataclass(slots=True)
 class CaptionedRegion:
     """A region with its caption and bounding box."""
 

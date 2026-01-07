@@ -65,8 +65,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      // Enable source maps for production debugging (disable for smaller builds)
-      sourcemap: isAnalyze,
+      // Generate hidden source maps for production debugging
+      // 'hidden' generates .map files but doesn't add //# sourceMappingURL= comment to bundles
+      // This allows debugging via browser DevTools source map upload or error tracking services
+      // while keeping .map files private (not served publicly by nginx)
+      sourcemap: 'hidden',
       // Chunk size warning limit (in KB)
       chunkSizeWarningLimit: 500,
       rollupOptions: {

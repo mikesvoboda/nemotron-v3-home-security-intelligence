@@ -50,7 +50,7 @@ export class AnalyticsPage extends BasePage {
 
     // Page heading
     this.pageTitle = page.getByRole('heading', { name: /Analytics/i });
-    this.pageSubtitle = page.getByText(/activity patterns|anomaly detection/i);
+    this.pageSubtitle = page.getByText(/View activity patterns and configure anomaly detection/i);
 
     // Controls
     this.cameraSelector = page.getByTestId('camera-selector');

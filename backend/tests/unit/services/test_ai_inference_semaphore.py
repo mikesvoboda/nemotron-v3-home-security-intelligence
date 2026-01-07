@@ -267,6 +267,12 @@ class TestNemotronAnalyzerConcurrencyLimits:
         mock.severity_medium_max = 59
         mock.severity_high_max = 84
         mock.background_evaluation_enabled = False
+        # LLM context window settings (NEM-1666)
+        mock.nemotron_context_window = 4096
+        mock.nemotron_max_output_tokens = 1536
+        mock.context_utilization_warning_threshold = 0.80
+        mock.context_truncation_enabled = True
+        mock.llm_tokenizer_encoding = "cl100k_base"
         return mock
 
     @pytest.mark.asyncio
@@ -274,15 +280,19 @@ class TestNemotronAnalyzerConcurrencyLimits:
         """Test that _call_llm respects the semaphore concurrency limit."""
         from backend.services.inference_semaphore import reset_inference_semaphore
         from backend.services.severity import reset_severity_service
+        from backend.services.token_counter import reset_token_counter
 
-        # Reset both services before test
+        # Reset services before test
         reset_inference_semaphore()
         reset_severity_service()
+        reset_token_counter()
 
         with (
             patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
             patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
             patch("backend.services.severity.get_settings", return_value=mock_settings),
+            patch("backend.services.token_counter.get_settings", return_value=mock_settings),
+            patch("backend.core.config.get_settings", return_value=mock_settings),
         ):
             from backend.services.nemotron_analyzer import NemotronAnalyzer
 

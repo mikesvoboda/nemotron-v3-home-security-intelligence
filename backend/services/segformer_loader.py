@@ -75,7 +75,7 @@ SECURITY_CLOTHING_LABELS = frozenset(
 SHOE_LABELS = frozenset({"left_shoe", "right_shoe"})
 
 
-@dataclass
+@dataclass(slots=True)
 class ClothingSegmentationResult:
     """Result from clothing segmentation for a single person.
 
@@ -168,7 +168,9 @@ async def load_segformer_model(model_path: str) -> Any:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load SegFormer model from {model_path}: {e}")
+        logger.error(
+            "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}
+        )
         raise RuntimeError(f"Failed to load SegFormer model: {e}") from e
 
 
@@ -269,8 +271,8 @@ async def segment_clothing(
 
         return await loop.run_in_executor(None, _segment)
 
-    except Exception as e:
-        logger.error(f"Failed to segment clothing: {e}")
+    except Exception:
+        logger.error("Failed to segment clothing", exc_info=True)
         return ClothingSegmentationResult()
 
 

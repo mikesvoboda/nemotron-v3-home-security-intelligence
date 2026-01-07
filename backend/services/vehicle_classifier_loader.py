@@ -104,7 +104,7 @@ VEHICLE_DISPLAY_NAMES: dict[str, str] = {
 }
 
 
-@dataclass
+@dataclass(slots=True)
 class VehicleClassificationResult:
     """Result from vehicle segment classification.
 
@@ -246,7 +246,7 @@ async def load_vehicle_classifier(model_path: str) -> dict[str, Any]:
         ) from e
 
     except Exception as e:
-        logger.error(f"Failed to load Vehicle Segment Classification model: {e}")
+        logger.error("Failed to load Vehicle Segment Classification model", exc_info=True)
         raise RuntimeError(f"Failed to load Vehicle Segment Classification model: {e}") from e
 
 
@@ -330,7 +330,7 @@ async def classify_vehicle(
         return await loop.run_in_executor(None, _classify)
 
     except Exception as e:
-        logger.error(f"Vehicle classification failed: {e}")
+        logger.error("Vehicle classification failed", exc_info=True)
         raise RuntimeError(f"Vehicle classification failed: {e}") from e
 
 
@@ -425,7 +425,7 @@ async def classify_vehicles_batch(
         return await loop.run_in_executor(None, _classify_batch)
 
     except Exception as e:
-        logger.error(f"Batch vehicle classification failed: {e}")
+        logger.error("Batch vehicle classification failed", exc_info=True)
         raise RuntimeError(f"Batch vehicle classification failed: {e}") from e
 
 

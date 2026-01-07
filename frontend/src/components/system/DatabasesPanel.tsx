@@ -60,6 +60,8 @@ export interface DatabasesPanelProps {
   history: DatabaseHistoryData;
   /** Additional CSS classes */
   className?: string;
+  /** Optional data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -156,12 +158,13 @@ export default function DatabasesPanel({
   timeRange: _timeRange,
   history,
   className,
+  'data-testid': testId = 'databases-panel',
 }: DatabasesPanelProps) {
   const postgresChartData = transformToChartData(history.postgresql.connections);
   const redisChartData = transformToChartData(history.redis.memory);
 
   return (
-    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid="databases-panel">
+    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)} data-testid={testId}>
       <Title className="mb-4 flex items-center gap-2 text-white">
         <Database className="h-5 w-5 text-[#76B900]" />
         Databases
