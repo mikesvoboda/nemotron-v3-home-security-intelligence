@@ -59,7 +59,7 @@ export type ContainerServiceStatus = components['schemas']['ContainerServiceStat
 export type GPUStats = components['schemas']['GPUStatsResponse'];
 export type GPUStatsSample = components['schemas']['GPUStatsSample'];
 export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResponse'];
-export type SystemConfig = components['schemas']['ConfigResponse'];
+export type SystemConfig = components['schemas']['backend__api__schemas__system__ConfigResponse'];
 export type SystemConfigUpdate = components['schemas']['ConfigUpdateRequest'];
 export type SystemStats = components['schemas']['SystemStatsResponse'];
 export type ReadinessResponse = components['schemas']['ReadinessResponse'];
@@ -184,7 +184,7 @@ export type AlertRuleListResponse = Omit<GeneratedAlertRuleListResponse, 'rules'
 export type CircuitBreakerStateEnum = components['schemas']['CircuitBreakerStateEnum'];
 export type CircuitBreakerConfigResponse = components['schemas']['CircuitBreakerConfigResponse'];
 export type CircuitBreakerStatusResponse = components['schemas']['CircuitBreakerStatusResponse'];
-export type CircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
+export type CircuitBreakersResponse = components['schemas']['backend__api__schemas__system__CircuitBreakersResponse'];
 export type CircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
 
 // Severity types

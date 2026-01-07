@@ -24,7 +24,7 @@ vi.mock('../../services/api', async () => {
   const actual = await vi.importActual<typeof api>('../../services/api');
   return {
     ...actual,
-    fetchEventDetections: vi.fn().mockResolvedValue({ detections: [], count: 0 }),
+    fetchEventDetections: vi.fn().mockResolvedValue({ detections: [], count: 0, limit: 100, offset: 0, has_more: false }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
     getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
     getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
@@ -1619,6 +1619,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1634,6 +1635,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1651,6 +1653,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1668,6 +1671,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1683,6 +1687,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1700,6 +1705,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1717,6 +1723,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1734,6 +1741,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1752,6 +1760,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1779,6 +1788,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1804,6 +1814,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1821,6 +1832,7 @@ describe('EventDetailModal', () => {
         count: 2,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -1852,6 +1864,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);
@@ -1867,6 +1880,7 @@ describe('EventDetailModal', () => {
         count: 1,
         limit: 100,
         offset: 0,
+        has_more: false,
       });
 
       render(<EventDetailModal {...mockVideoProps} />);

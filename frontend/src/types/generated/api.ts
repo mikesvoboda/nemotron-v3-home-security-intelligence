@@ -926,6 +926,7 @@ export interface paths {
          *     Args:
          *         status_filter: Optional status to filter cameras by (online, offline, error)
          *         db: Database session
+         *         cache: Cache service injected via FastAPI DI
          *
          *     Returns:
          *         CameraListResponse containing list of cameras and total count
@@ -1380,6 +1381,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/circuit-breakers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Circuit Breakers
+         * @description Get all circuit breaker states.
+         *
+         *     Returns the current state and metrics for all registered circuit breakers,
+         *     including failure counts, success counts, and configuration.
+         *
+         *     NEM-1642: Debug endpoint for circuit breaker diagnostics
+         */
+        get: operations["get_circuit_breakers_api_debug_circuit_breakers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Config
+         * @description Get current configuration with sensitive values redacted.
+         *
+         *     Returns all configuration settings with passwords, API keys, and other
+         *     sensitive values replaced with [REDACTED]. URLs containing passwords
+         *     will have only the password portion redacted, preserving the structure.
+         *
+         *     NEM-1642: Debug endpoint for configuration inspection
+         */
+        get: operations["get_config_api_debug_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/debug/log-level": {
         parameters: {
             query?: never;
@@ -1445,6 +1497,140 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/profile/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Profiling
+         * @description Start performance profiling.
+         *
+         *     Begins collecting profiling data for performance analysis.
+         *     Profile data is saved to disk when stop is called.
+         *
+         *     NEM-1644: Debug endpoint for performance profiling
+         *
+         *     Returns:
+         *         Profiling start status
+         */
+        post: operations["start_profiling_api_debug_profile_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/profile/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Profile Stats
+         * @description Get current profiling statistics.
+         *
+         *     Returns the current profiling state and statistics from the last
+         *     completed profiling session.
+         *
+         *     NEM-1644: Debug endpoint for performance profiling
+         *
+         *     Returns:
+         *         Profiling status and statistics
+         */
+        get: operations["get_profile_stats_api_debug_profile_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/profile/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Profiling
+         * @description Stop performance profiling and save results.
+         *
+         *     Stops the profiler and saves the profile data to a .prof file.
+         *     The file can be analyzed with snakeviz or py-spy.
+         *
+         *     NEM-1644: Debug endpoint for performance profiling
+         *
+         *     Returns:
+         *         Profiling stop status with path to saved profile
+         */
+        post: operations["stop_profiling_api_debug_profile_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/redis/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Redis Info
+         * @description Get Redis connection stats and pub/sub channel information.
+         *
+         *     Returns Redis server info, memory usage, connection stats, and
+         *     active pub/sub channels with their subscriber counts.
+         *
+         *     NEM-1642: Debug endpoint for Redis diagnostics
+         */
+        get: operations["get_redis_info_api_debug_redis_info_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/websocket/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Websocket Connections
+         * @description Get active WebSocket connection states.
+         *
+         *     Returns connection counts and health status for both the event broadcaster
+         *     (security event stream) and system broadcaster (system status stream).
+         *
+         *     NEM-1642: Debug endpoint for WebSocket diagnostics
+         */
+        get: operations["get_websocket_connections_api_debug_websocket_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections": {
         parameters: {
             query?: never;
@@ -1454,7 +1640,10 @@ export interface paths {
         };
         /**
          * List Detections
-         * @description List detections with optional filtering and pagination.
+         * @description List detections with optional filtering and cursor-based pagination.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Cursor-based pagination offers better performance for large datasets.
          *
          *     Args:
          *         camera_id: Optional camera ID to filter by
@@ -1462,8 +1651,9 @@ export interface paths {
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         min_confidence: Optional minimum confidence score (0-1)
-         *         limit: Maximum number of results to return (1-1000, default 50)
-         *         offset: Number of results to skip for pagination (default 0)
+         *         limit: Maximum number of results to return (1-100, default 50)
+         *         offset: Number of results to skip (deprecated, use cursor instead)
+         *         cursor: Pagination cursor from previous response's next_cursor field
          *         db: Database session
          *
          *     Returns:
@@ -1471,6 +1661,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if cursor is invalid
          */
         get: operations["list_detections_api_detections_get"];
         put?: never;
@@ -1968,7 +2159,10 @@ export interface paths {
         };
         /**
          * List Events
-         * @description List events with optional filtering and pagination.
+         * @description List events with optional filtering and cursor-based pagination.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Cursor-based pagination offers better performance for large datasets.
          *
          *     Args:
          *         camera_id: Optional camera ID to filter by
@@ -1977,8 +2171,9 @@ export interface paths {
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
          *         object_type: Optional object type to filter by (person, vehicle, animal, etc.)
-         *         limit: Maximum number of results to return (1-1000, default 50)
-         *         offset: Number of results to skip for pagination (default 0)
+         *         limit: Maximum number of results to return (1-100, default 50)
+         *         offset: Number of results to skip (deprecated, use cursor instead)
+         *         cursor: Pagination cursor from previous response's next_cursor field
          *         db: Database session
          *
          *     Returns:
@@ -1986,6 +2181,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if cursor is invalid
          */
         get: operations["list_events_api_events_get"];
         put?: never;
@@ -2114,6 +2310,7 @@ export interface paths {
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         db: Database session
+         *         cache: Cache service injected via FastAPI DI
          *
          *     Returns:
          *         EventStatsResponse with aggregated statistics
@@ -4990,53 +5187,23 @@ export interface components {
         };
         /**
          * CircuitBreakersResponse
-         * @description Response schema for circuit breakers status endpoint.
-         * @example {
-         *       "circuit_breakers": {
-         *         "rtdetr": {
-         *           "config": {
-         *             "failure_threshold": 5,
-         *             "half_open_max_calls": 3,
-         *             "recovery_timeout": 30,
-         *             "success_threshold": 2
-         *           },
-         *           "failure_count": 0,
-         *           "name": "rtdetr",
-         *           "rejected_calls": 0,
-         *           "state": "closed",
-         *           "success_count": 0,
-         *           "total_calls": 100
-         *         }
-         *       },
-         *       "open_count": 0,
-         *       "timestamp": "2025-12-30T10:30:00Z",
-         *       "total_count": 2
-         *     }
+         * @description Response for circuit breaker states.
          */
         CircuitBreakersResponse: {
             /**
              * Circuit Breakers
-             * @description Status of all circuit breakers keyed by name
+             * @description All circuit breaker states keyed by name
              */
             circuit_breakers: {
-                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
+                [key: string]: {
+                    [key: string]: unknown;
+                };
             };
             /**
-             * Open Count
-             * @description Number of circuit breakers currently open
-             */
-            open_count: number;
-            /**
              * Timestamp
-             * Format: date-time
-             * @description Timestamp of status snapshot
+             * @description ISO timestamp of response
              */
             timestamp: string;
-            /**
-             * Total Count
-             * @description Total number of circuit breakers
-             */
-            total_count: number;
         };
         /**
          * ClassBaselineEntry
@@ -5437,55 +5604,21 @@ export interface components {
         };
         /**
          * ConfigResponse
-         * @description Response schema for configuration endpoint.
-         *
-         *     Only includes public, non-sensitive configuration values.
-         * @example {
-         *       "app_name": "Home Security Intelligence",
-         *       "batch_idle_timeout_seconds": 30,
-         *       "batch_window_seconds": 90,
-         *       "detection_confidence_threshold": 0.5,
-         *       "grafana_url": "http://localhost:3002",
-         *       "retention_days": 30,
-         *       "version": "0.1.0"
-         *     }
+         * @description Response for configuration inspection.
          */
         ConfigResponse: {
             /**
-             * App Name
-             * @description Application name
+             * Config
+             * @description Current configuration with sensitive values redacted
              */
-            app_name: string;
+            config: {
+                [key: string]: unknown;
+            };
             /**
-             * Batch Idle Timeout Seconds
-             * @description Idle timeout before processing incomplete batch
+             * Timestamp
+             * @description ISO timestamp of response
              */
-            batch_idle_timeout_seconds: number;
-            /**
-             * Batch Window Seconds
-             * @description Time window for batch processing detections
-             */
-            batch_window_seconds: number;
-            /**
-             * Detection Confidence Threshold
-             * @description Minimum confidence threshold for detections (0.0-1.0)
-             */
-            detection_confidence_threshold: number;
-            /**
-             * Grafana Url
-             * @description Grafana dashboard URL for frontend link
-             */
-            grafana_url: string;
-            /**
-             * Retention Days
-             * @description Number of days to retain events and detections
-             */
-            retention_days: number;
-            /**
-             * Version
-             * @description Application version
-             */
-            version: string;
+            timestamp: string;
         };
         /**
          * ConfigUpdateRequest
@@ -5945,6 +6078,9 @@ export interface components {
         /**
          * DetectionListResponse
          * @description Schema for detection list response with pagination.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Use cursor-based pagination for better performance with large datasets.
          * @example {
          *       "count": 1,
          *       "detections": [
@@ -5963,7 +6099,9 @@ export interface components {
          *           "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
          *         }
          *       ],
+         *       "has_more": false,
          *       "limit": 50,
+         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
          *       "offset": 0
          *     }
          */
@@ -5974,18 +6112,34 @@ export interface components {
              */
             count: number;
             /**
+             * Deprecation Warning
+             * @description Warning message when using deprecated offset pagination
+             */
+            deprecation_warning?: string | null;
+            /**
              * Detections
              * @description List of detections
              */
             detections: components["schemas"]["DetectionResponse"][];
+            /**
+             * Has More
+             * @description Whether there are more results available after this page
+             * @default false
+             */
+            has_more: boolean;
             /**
              * Limit
              * @description Maximum number of results returned
              */
             limit: number;
             /**
+             * Next Cursor
+             * @description Cursor for fetching the next page. Pass this as the 'cursor' parameter.
+             */
+            next_cursor?: string | null;
+            /**
              * Offset
-             * @description Number of results skipped
+             * @description Number of results skipped (deprecated, use cursor)
              */
             offset: number;
         };
@@ -6298,6 +6452,66 @@ export interface components {
             weather?: components["schemas"]["WeatherEnrichment"] | {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * EnrichmentStatusEnum
+         * @description Status of enrichment pipeline execution for an event.
+         *
+         *     Values:
+         *         full: All enrichment models succeeded
+         *         partial: Some models succeeded, some failed
+         *         failed: All models failed (no enrichment data)
+         *         skipped: Enrichment was not attempted
+         * @enum {string}
+         */
+        EnrichmentStatusEnum: "full" | "partial" | "failed" | "skipped";
+        /**
+         * EnrichmentStatusResponse
+         * @description Schema for enrichment status in event responses (NEM-1672).
+         *
+         *     Provides visibility into which enrichment models succeeded/failed
+         *     for a given event, instead of silently degrading.
+         * @example {
+         *       "errors": {
+         *         "clothing": "Model not loaded"
+         *       },
+         *       "failed_models": [
+         *         "clothing"
+         *       ],
+         *       "status": "partial",
+         *       "success_rate": 0.75,
+         *       "successful_models": [
+         *         "violence",
+         *         "weather",
+         *         "face"
+         *       ]
+         *     }
+         */
+        EnrichmentStatusResponse: {
+            /**
+             * Errors
+             * @description Model name to error message mapping
+             */
+            errors?: {
+                [key: string]: string;
+            };
+            /**
+             * Failed Models
+             * @description List of enrichment models that failed
+             */
+            failed_models?: string[];
+            /** @description Overall enrichment status (full, partial, failed, skipped) */
+            status: components["schemas"]["EnrichmentStatusEnum"];
+            /**
+             * Success Rate
+             * @description Success rate (0.0 to 1.0)
+             */
+            success_rate: number;
+            /**
+             * Successful Models
+             * @description List of enrichment models that succeeded
+             */
+            successful_models?: string[];
         };
         /**
          * EntityAppearance
@@ -6713,6 +6927,9 @@ export interface components {
         /**
          * EventListResponse
          * @description Schema for event list response with pagination.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+         *     Use cursor-based pagination for better performance with large datasets.
          * @example {
          *       "count": 1,
          *       "events": [
@@ -6738,7 +6955,9 @@ export interface components {
          *           "thumbnail_url": "/api/media/detections/1"
          *         }
          *       ],
+         *       "has_more": false,
          *       "limit": 50,
+         *       "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
          *       "offset": 0
          *     }
          */
@@ -6749,18 +6968,34 @@ export interface components {
              */
             count: number;
             /**
+             * Deprecation Warning
+             * @description Warning message when using deprecated offset pagination
+             */
+            deprecation_warning?: string | null;
+            /**
              * Events
              * @description List of events
              */
             events: components["schemas"]["EventResponse"][];
+            /**
+             * Has More
+             * @description Whether there are more results available after this page
+             * @default false
+             */
+            has_more: boolean;
             /**
              * Limit
              * @description Maximum number of results returned
              */
             limit: number;
             /**
+             * Next Cursor
+             * @description Cursor for fetching the next page. Pass this as the 'cursor' parameter.
+             */
+            next_cursor?: string | null;
+            /**
              * Offset
-             * @description Number of results skipped
+             * @description Number of results skipped (deprecated, use cursor)
              */
             offset: number;
         };
@@ -6778,6 +7013,18 @@ export interface components {
          *         5
          *       ],
          *       "ended_at": "2025-12-23T12:02:30Z",
+         *       "enrichment_status": {
+         *         "errors": {},
+         *         "failed_models": [],
+         *         "status": "full",
+         *         "success_rate": 1,
+         *         "successful_models": [
+         *           "violence",
+         *           "weather",
+         *           "face",
+         *           "clothing"
+         *         ]
+         *       },
          *       "id": 1,
          *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
@@ -6811,6 +7058,8 @@ export interface components {
              * @description Event end timestamp
              */
             ended_at?: string | null;
+            /** @description Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed */
+            enrichment_status?: components["schemas"]["EnrichmentStatusResponse"] | null;
             /**
              * Id
              * @description Event ID
@@ -8612,6 +8861,79 @@ export interface components {
             keypoints?: number[][] | null;
         };
         /**
+         * ProfileStartResponse
+         * @description Response for starting profiling.
+         */
+        ProfileStartResponse: {
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Started At
+             * @description ISO timestamp when profiling started
+             */
+            started_at: string;
+            /**
+             * Status
+             * @description Profiling status ('started' or 'already_running')
+             */
+            status: string;
+        };
+        /**
+         * ProfileStatsResponse
+         * @description Response for profiling statistics.
+         */
+        ProfileStatsResponse: {
+            /**
+             * Is Profiling
+             * @description Whether profiling is currently active
+             */
+            is_profiling: boolean;
+            /**
+             * Last Profile Path
+             * @description Path to last saved profile
+             */
+            last_profile_path?: string | null;
+            /**
+             * Stats Text
+             * @description Human-readable profiling statistics
+             */
+            stats_text?: string | null;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
+         * ProfileStopResponse
+         * @description Response for stopping profiling.
+         */
+        ProfileStopResponse: {
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Profile Path
+             * @description Path to saved profile file
+             */
+            profile_path?: string | null;
+            /**
+             * Status
+             * @description Profiling status ('stopped' or 'not_running')
+             */
+            status: string;
+            /**
+             * Stopped At
+             * @description ISO timestamp when profiling stopped
+             */
+            stopped_at: string;
+        };
+        /**
          * PromptConfigRequest
          * @description Request to update a model's prompt configuration (database-backed).
          *
@@ -9112,6 +9434,36 @@ export interface components {
             recommendations: components["schemas"]["RecommendationItem"][];
             /** Total Events Analyzed */
             total_events_analyzed: number;
+        };
+        /**
+         * RedisInfoResponse
+         * @description Response for Redis connection stats.
+         */
+        RedisInfoResponse: {
+            /**
+             * Info
+             * @description Redis INFO command output
+             */
+            info?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Pubsub
+             * @description Pub/sub channel information
+             */
+            pubsub?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Status
+             * @description Redis connection status (connected, unavailable)
+             */
+            status: string;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
         };
         /**
          * RuleTestEventResult
@@ -10421,6 +10773,21 @@ export interface components {
             state: components["schemas"]["CircuitBreakerStateEnum"];
         };
         /**
+         * WebSocketConnectionsResponse
+         * @description Response for WebSocket connection states.
+         */
+        WebSocketConnectionsResponse: {
+            /** @description Event broadcaster status */
+            event_broadcaster: components["schemas"]["backend__api__routes__debug__WebSocketBroadcasterStatus"];
+            /** @description System broadcaster status */
+            system_broadcaster: components["schemas"]["backend__api__routes__debug__WebSocketBroadcasterStatus"];
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
          * WebSocketHealthResponse
          * @description Response schema for WebSocket health endpoint.
          * @example {
@@ -10752,6 +11119,139 @@ export interface components {
             shape?: components["schemas"]["ZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
+        };
+        /**
+         * WebSocketBroadcasterStatus
+         * @description Status of a WebSocket broadcaster.
+         */
+        backend__api__routes__debug__WebSocketBroadcasterStatus: {
+            /**
+             * Channel Name
+             * @description Redis channel being listened to
+             */
+            channel_name?: string | null;
+            /**
+             * Circuit State
+             * @description Circuit breaker state (CLOSED, OPEN, HALF_OPEN)
+             */
+            circuit_state: string;
+            /**
+             * Connection Count
+             * @description Number of active connections
+             */
+            connection_count: number;
+            /**
+             * Is Degraded
+             * @description Whether the broadcaster is in degraded mode
+             */
+            is_degraded: boolean;
+            /**
+             * Is Listening
+             * @description Whether the broadcaster is listening for events
+             */
+            is_listening: boolean;
+        };
+        /**
+         * CircuitBreakersResponse
+         * @description Response schema for circuit breakers status endpoint.
+         * @example {
+         *       "circuit_breakers": {
+         *         "rtdetr": {
+         *           "config": {
+         *             "failure_threshold": 5,
+         *             "half_open_max_calls": 3,
+         *             "recovery_timeout": 30,
+         *             "success_threshold": 2
+         *           },
+         *           "failure_count": 0,
+         *           "name": "rtdetr",
+         *           "rejected_calls": 0,
+         *           "state": "closed",
+         *           "success_count": 0,
+         *           "total_calls": 100
+         *         }
+         *       },
+         *       "open_count": 0,
+         *       "timestamp": "2025-12-30T10:30:00Z",
+         *       "total_count": 2
+         *     }
+         */
+        backend__api__schemas__system__CircuitBreakersResponse: {
+            /**
+             * Circuit Breakers
+             * @description Status of all circuit breakers keyed by name
+             */
+            circuit_breakers: {
+                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
+            };
+            /**
+             * Open Count
+             * @description Number of circuit breakers currently open
+             */
+            open_count: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
+             */
+            timestamp: string;
+            /**
+             * Total Count
+             * @description Total number of circuit breakers
+             */
+            total_count: number;
+        };
+        /**
+         * ConfigResponse
+         * @description Response schema for configuration endpoint.
+         *
+         *     Only includes public, non-sensitive configuration values.
+         * @example {
+         *       "app_name": "Home Security Intelligence",
+         *       "batch_idle_timeout_seconds": 30,
+         *       "batch_window_seconds": 90,
+         *       "detection_confidence_threshold": 0.5,
+         *       "grafana_url": "http://localhost:3002",
+         *       "retention_days": 30,
+         *       "version": "0.1.0"
+         *     }
+         */
+        backend__api__schemas__system__ConfigResponse: {
+            /**
+             * App Name
+             * @description Application name
+             */
+            app_name: string;
+            /**
+             * Batch Idle Timeout Seconds
+             * @description Idle timeout before processing incomplete batch
+             */
+            batch_idle_timeout_seconds: number;
+            /**
+             * Batch Window Seconds
+             * @description Time window for batch processing detections
+             */
+            batch_window_seconds: number;
+            /**
+             * Detection Confidence Threshold
+             * @description Minimum confidence threshold for detections (0.0-1.0)
+             */
+            detection_confidence_threshold: number;
+            /**
+             * Grafana Url
+             * @description Grafana dashboard URL for frontend link
+             */
+            grafana_url: string;
+            /**
+             * Retention Days
+             * @description Number of days to retain events and detections
+             */
+            retention_days: number;
+            /**
+             * Version
+             * @description Application version
+             */
+            version: string;
         };
     };
     responses: never;
@@ -12353,6 +12853,46 @@ export interface operations {
             };
         };
     };
+    get_circuit_breakers_api_debug_circuit_breakers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CircuitBreakersResponse"];
+                };
+            };
+        };
+    };
+    get_config_api_debug_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResponse"];
+                };
+            };
+        };
+    };
     get_log_level_api_debug_log_level_get: {
         parameters: {
             query?: never;
@@ -12426,6 +12966,106 @@ export interface operations {
             };
         };
     };
+    start_profiling_api_debug_profile_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileStartResponse"];
+                };
+            };
+        };
+    };
+    get_profile_stats_api_debug_profile_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileStatsResponse"];
+                };
+            };
+        };
+    };
+    stop_profiling_api_debug_profile_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileStopResponse"];
+                };
+            };
+        };
+    };
+    get_redis_info_api_debug_redis_info_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RedisInfoResponse"];
+                };
+            };
+        };
+    };
+    get_websocket_connections_api_debug_websocket_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebSocketConnectionsResponse"];
+                };
+            };
+        };
+    };
     list_detections_api_detections_get: {
         parameters: {
             query?: {
@@ -12441,8 +13081,10 @@ export interface operations {
                 min_confidence?: number | null;
                 /** @description Maximum number of results */
                 limit?: number;
-                /** @description Number of results to skip */
+                /** @description Number of results to skip (deprecated, use cursor) */
                 offset?: number;
+                /** @description Pagination cursor from previous response */
+                cursor?: string | null;
             };
             header?: never;
             path?: never;
@@ -13008,8 +13650,10 @@ export interface operations {
                 object_type?: string | null;
                 /** @description Maximum number of results */
                 limit?: number;
-                /** @description Number of results to skip */
+                /** @description Number of results to skip (deprecated, use cursor) */
                 offset?: number;
+                /** @description Pagination cursor from previous response */
+                cursor?: string | null;
             };
             header?: never;
             path?: never;
@@ -13859,7 +14503,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CircuitBreakersResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__system__CircuitBreakersResponse"];
                 };
             };
         };
@@ -13965,7 +14609,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConfigResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__system__ConfigResponse"];
                 };
             };
         };
@@ -13991,7 +14635,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConfigResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__system__ConfigResponse"];
                 };
             };
             /** @description Validation Error */
