@@ -29,10 +29,10 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
+from backend.services.circuit_breaker import CircuitBreaker
 
 if TYPE_CHECKING:
     from PIL import Image

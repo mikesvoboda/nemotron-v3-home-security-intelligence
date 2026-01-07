@@ -31,11 +31,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitState
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
 from backend.services.bbox_validation import is_valid_bbox, validate_and_clamp_bbox
+from backend.services.circuit_breaker import CircuitBreaker, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image

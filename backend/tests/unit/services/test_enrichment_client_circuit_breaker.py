@@ -174,7 +174,7 @@ class TestCircuitBreakerStateTransitions:
     async def test_circuit_closes_on_success_in_half_open(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that circuit closes on successful request in HALF_OPEN state."""
+        """Test that circuit closes on successful requests in HALF_OPEN state."""
         # Force circuit to open
         for _ in range(3):
             client._circuit_breaker.record_failure()
@@ -187,7 +187,8 @@ class TestCircuitBreakerStateTransitions:
             client._circuit_breaker.allow_request()
             assert client._circuit_breaker.get_state() == CircuitState.HALF_OPEN
 
-            # Record a success
+            # Record successes - default success_threshold is 2
+            client._circuit_breaker.record_success()
             client._circuit_breaker.record_success()
 
             # Circuit should now be CLOSED

@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitState
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
@@ -38,6 +37,7 @@ from backend.core.metrics import (
     record_florence_task,
     record_pipeline_error,
 )
+from backend.services.circuit_breaker import CircuitBreaker, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image
