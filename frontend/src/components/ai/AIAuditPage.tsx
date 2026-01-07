@@ -9,7 +9,7 @@
  */
 
 import { Text, Callout, Select, SelectItem } from '@tremor/react';
-import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play } from 'lucide-react';
+import { ClipboardCheck, RefreshCw, AlertCircle, Calendar, Play, Sparkles } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
@@ -219,6 +219,16 @@ export default function AIAuditPage() {
                 <SelectItem value="90">Last 90 days</SelectItem>
               </Select>
             </div>
+
+            {/* Open Prompt Playground Button */}
+            <button
+              onClick={() => setIsPlaygroundOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              data-testid="open-playground-button"
+            >
+              <Sparkles className="h-4 w-4" />
+              Open Prompt Playground
+            </button>
 
             {/* Trigger Batch Audit Button */}
             <button

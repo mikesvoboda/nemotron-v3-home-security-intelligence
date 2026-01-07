@@ -75,6 +75,10 @@ class Detection(Base):
         Index("idx_detections_detected_at", "detected_at"),
         Index("idx_detections_camera_time", "camera_id", "detected_at"),
         Index("idx_detections_camera_object_type", "camera_id", "object_type"),
+        # NEM-1591: Composite index for class-based analytics queries
+        # Enables efficient queries like "show all person detections in the last hour"
+        # Column order: object_type (equality filter) first, then detected_at (range/sort)
+        Index("ix_detections_object_type_detected_at", "object_type", "detected_at"),
         # GIN index with jsonb_path_ops for containment queries (@>) on enrichment_data
         # Enables fast queries like: enrichment_data @> '{"license_plates": [{}]}'
         Index(

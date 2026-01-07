@@ -21,3 +21,15 @@ export type {
   ToastProviderContextType,
   ToastProviderProps,
 } from './ToastContext';
+
+// System data context for shared polling
+export {
+  SystemDataContext,
+  SystemDataProvider,
+  useSystemData,
+  useSystemDataOptional,
+  DEFAULT_HEALTH,
+  DEFAULT_GPU_STATS,
+} from './SystemDataContext';
+
+export type { SystemData, SystemDataProviderProps } from './SystemDataContext';

@@ -801,6 +801,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/camera-uptime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Uptime
+         * @description Get uptime percentage per camera.
+         *
+         *     Returns uptime percentage and detection count for each camera.
+         *     Uptime is calculated based on the number of days with at least one detection
+         *     divided by the total days in the date range.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *         db: Database session
+         *
+         *     Returns:
+         *         CameraUptimeResponse with per-camera uptime data
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["get_camera_uptime_api_analytics_camera_uptime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/detection-trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Detection Trends
+         * @description Get detection counts aggregated by day.
+         *
+         *     Returns daily detection counts for the specified date range.
+         *     Creates one data point per day even if there are no detections.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *         db: Database session
+         *
+         *     Returns:
+         *         DetectionTrendsResponse with daily detection counts
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["get_detection_trends_api_analytics_detection_trends_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/object-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Object Distribution
+         * @description Get detection counts by object type.
+         *
+         *     Returns detection counts grouped by object type with percentages.
+         *     Only includes detections with non-null object_type.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *         db: Database session
+         *
+         *     Returns:
+         *         ObjectDistributionResponse with object type counts and percentages
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["get_object_distribution_api_analytics_object_distribution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/risk-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Risk History
+         * @description Get risk score distribution over time.
+         *
+         *     Returns daily counts of events grouped by risk level (low, medium, high, critical).
+         *     Creates one data point per day even if there are no events.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *         db: Database session
+         *
+         *     Returns:
+         *         RiskHistoryResponse with daily risk level counts
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["get_risk_history_api_analytics_risk_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit": {
         parameters: {
             query?: never;
@@ -2747,6 +2884,175 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Notification Preferences
+         * @description Get global notification preferences.
+         *
+         *     Returns the global notification settings including:
+         *     - Whether notifications are enabled
+         *     - Notification sound selection
+         *     - Risk level filters (which risk levels trigger notifications)
+         *
+         *     Returns:
+         *         NotificationPreferencesResponse with current preferences
+         */
+        get: operations["get_notification_preferences_api_notification_preferences__get"];
+        /**
+         * Update Notification Preferences
+         * @description Update global notification preferences.
+         *
+         *     Args:
+         *         update: Preferences update data
+         *
+         *     Returns:
+         *         NotificationPreferencesResponse with updated preferences
+         *
+         *     Raises:
+         *         HTTPException: 400 if sound value is invalid
+         */
+        put: operations["update_notification_preferences_api_notification_preferences__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get All Camera Settings
+         * @description Get all camera notification settings.
+         *
+         *     Returns:
+         *         CameraNotificationSettingsListResponse with all camera settings
+         */
+        get: operations["get_all_camera_settings_api_notification_preferences_cameras_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences/cameras/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Setting
+         * @description Get notification setting for a specific camera.
+         *
+         *     Args:
+         *         camera_id: Camera ID
+         *
+         *     Returns:
+         *         CameraNotificationSettingResponse for the camera
+         *
+         *     Raises:
+         *         HTTPException: 404 if setting not found
+         */
+        get: operations["get_camera_setting_api_notification_preferences_cameras__camera_id__get"];
+        /**
+         * Update Camera Setting
+         * @description Update or create notification setting for a camera.
+         *
+         *     Args:
+         *         camera_id: Camera ID
+         *         update: Setting update data
+         *
+         *     Returns:
+         *         CameraNotificationSettingResponse with updated setting
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera doesn't exist
+         */
+        put: operations["update_camera_setting_api_notification_preferences_cameras__camera_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences/quiet-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Quiet Hours
+         * @description Get all quiet hours periods.
+         *
+         *     Returns:
+         *         QuietHoursPeriodsListResponse with all quiet periods
+         */
+        get: operations["get_quiet_hours_api_notification_preferences_quiet_hours_get"];
+        put?: never;
+        /**
+         * Create Quiet Hours Period
+         * @description Create a new quiet hours period.
+         *
+         *     Args:
+         *         period: Quiet hours period data
+         *
+         *     Returns:
+         *         QuietHoursPeriodResponse with created period
+         *
+         *     Raises:
+         *         HTTPException: 400 if time range is invalid
+         */
+        post: operations["create_quiet_hours_period_api_notification_preferences_quiet_hours_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences/quiet-hours/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Quiet Hours Period
+         * @description Delete a quiet hours period.
+         *
+         *     Args:
+         *         period_id: Period UUID
+         *
+         *     Raises:
+         *         HTTPException: 404 if period not found
+         */
+        delete: operations["delete_quiet_hours_period_api_notification_preferences_quiet_hours__period_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4970,6 +5276,91 @@ export interface components {
             count: number;
         };
         /**
+         * CameraNotificationSettingResponse
+         * @description Schema for camera notification setting response.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "enabled": true,
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "risk_threshold": 50
+         *     }
+         */
+        CameraNotificationSettingResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Enabled
+             * @description Whether notifications are enabled for this camera
+             */
+            enabled: boolean;
+            /**
+             * Id
+             * @description Setting UUID
+             */
+            id: string;
+            /**
+             * Risk Threshold
+             * @description Minimum risk score to trigger notifications (0-100)
+             */
+            risk_threshold: number;
+        };
+        /**
+         * CameraNotificationSettingUpdate
+         * @description Schema for updating camera notification setting.
+         * @example {
+         *       "enabled": false,
+         *       "risk_threshold": 70
+         *     }
+         */
+        CameraNotificationSettingUpdate: {
+            /**
+             * Enabled
+             * @description Whether notifications are enabled for this camera
+             */
+            enabled?: boolean | null;
+            /**
+             * Risk Threshold
+             * @description Minimum risk score to trigger notifications (0-100)
+             */
+            risk_threshold?: number | null;
+        };
+        /**
+         * CameraNotificationSettingsListResponse
+         * @description Schema for camera notification settings list response.
+         * @example {
+         *       "count": 2,
+         *       "settings": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "enabled": true,
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "risk_threshold": 50
+         *         },
+         *         {
+         *           "camera_id": "back_yard",
+         *           "enabled": false,
+         *           "id": "550e8400-e29b-41d4-a716-446655440001",
+         *           "risk_threshold": 70
+         *         }
+         *       ]
+         *     }
+         */
+        CameraNotificationSettingsListResponse: {
+            /**
+             * Count
+             * @description Total number of settings
+             */
+            count: number;
+            /**
+             * Settings
+             * @description List of camera notification settings
+             */
+            settings: components["schemas"]["CameraNotificationSettingResponse"][];
+        };
+        /**
          * CameraResponse
          * @description Schema for camera response.
          * @example {
@@ -5044,6 +5435,79 @@ export interface components {
             name?: string | null;
             /** @description Camera status (online, offline, error, unknown) */
             status?: components["schemas"]["CameraStatus"] | null;
+        };
+        /**
+         * CameraUptimeDataPoint
+         * @description Schema for a single camera uptime data point.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "detection_count": 150,
+         *       "uptime_percentage": 98.5
+         *     }
+         */
+        CameraUptimeDataPoint: {
+            /**
+             * Camera Id
+             * @description Normalized camera ID (e.g., 'front_door')
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Camera name
+             */
+            camera_name: string;
+            /**
+             * Detection Count
+             * @description Total detections in date range
+             */
+            detection_count: number;
+            /**
+             * Uptime Percentage
+             * @description Uptime percentage (0-100)
+             */
+            uptime_percentage: number;
+        };
+        /**
+         * CameraUptimeResponse
+         * @description Schema for camera uptime percentage per camera.
+         * @example {
+         *       "cameras": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "detection_count": 150,
+         *           "uptime_percentage": 98.5
+         *         },
+         *         {
+         *           "camera_id": "back_door",
+         *           "camera_name": "Back Door",
+         *           "detection_count": 120,
+         *           "uptime_percentage": 95.2
+         *         }
+         *       ],
+         *       "end_date": "2025-01-07",
+         *       "start_date": "2025-01-01"
+         *     }
+         */
+        CameraUptimeResponse: {
+            /**
+             * Cameras
+             * @description Uptime data per camera
+             */
+            cameras: components["schemas"]["CameraUptimeDataPoint"][];
+            /**
+             * End Date
+             * Format: date
+             * @description End date of the date range
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Start date of the date range
+             */
+            start_date: string;
         };
         /**
          * CategorySummary
@@ -6442,6 +6906,74 @@ export interface components {
             /**
              * Total Detections
              * @description Total number of detections
+             */
+            total_detections: number;
+        };
+        /**
+         * DetectionTrendDataPoint
+         * @description Schema for a single detection trend data point.
+         * @example {
+         *       "count": 25,
+         *       "date": "2025-01-07"
+         *     }
+         */
+        DetectionTrendDataPoint: {
+            /**
+             * Count
+             * @description Number of detections on this date
+             */
+            count: number;
+            /**
+             * Date
+             * Format: date
+             * @description Date of the data point
+             */
+            date: string;
+        };
+        /**
+         * DetectionTrendsResponse
+         * @description Schema for detection trends aggregated by day.
+         * @example {
+         *       "data_points": [
+         *         {
+         *           "count": 20,
+         *           "date": "2025-01-01"
+         *         },
+         *         {
+         *           "count": 25,
+         *           "date": "2025-01-02"
+         *         },
+         *         {
+         *           "count": 18,
+         *           "date": "2025-01-03"
+         *         }
+         *       ],
+         *       "end_date": "2025-01-03",
+         *       "start_date": "2025-01-01",
+         *       "total_detections": 63
+         *     }
+         */
+        DetectionTrendsResponse: {
+            /**
+             * Data Points
+             * @description Detection counts aggregated by day
+             */
+            data_points: components["schemas"]["DetectionTrendDataPoint"][];
+            /**
+             * End Date
+             * Format: date
+             * @description End date of the date range
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Start date of the date range
+             */
+            start_date: string;
+            /**
+             * Total Detections
+             * @description Total detections in date range
              */
             total_detections: number;
         };
@@ -8548,6 +9080,72 @@ export interface components {
             webhook_timeout_seconds?: number | null;
         };
         /**
+         * NotificationPreferencesResponse
+         * @description Schema for notification preferences response.
+         * @example {
+         *       "enabled": true,
+         *       "id": 1,
+         *       "risk_filters": [
+         *         "critical",
+         *         "high",
+         *         "medium"
+         *       ],
+         *       "sound": "default"
+         *     }
+         */
+        NotificationPreferencesResponse: {
+            /**
+             * Enabled
+             * @description Whether notifications are globally enabled
+             */
+            enabled: boolean;
+            /**
+             * Id
+             * @description Preferences ID (always 1, singleton)
+             * @default 1
+             */
+            id: number;
+            /**
+             * Risk Filters
+             * @description Risk levels that trigger notifications (critical, high, medium, low)
+             */
+            risk_filters: string[];
+            /**
+             * Sound
+             * @description Notification sound (none, default, alert, chime, urgent)
+             */
+            sound: string;
+        };
+        /**
+         * NotificationPreferencesUpdate
+         * @description Schema for updating notification preferences.
+         * @example {
+         *       "enabled": true,
+         *       "risk_filters": [
+         *         "critical",
+         *         "high"
+         *       ],
+         *       "sound": "alert"
+         *     }
+         */
+        NotificationPreferencesUpdate: {
+            /**
+             * Enabled
+             * @description Whether notifications are globally enabled
+             */
+            enabled?: boolean | null;
+            /**
+             * Risk Filters
+             * @description Risk levels that trigger notifications (critical, high, medium, low)
+             */
+            risk_filters?: string[] | null;
+            /**
+             * Sound
+             * @description Notification sound (none, default, alert, chime, urgent)
+             */
+            sound?: string | null;
+        };
+        /**
          * ObjectBaseline
          * @description Baseline statistics for a specific object class.
          * @example {
@@ -8570,6 +9168,82 @@ export interface components {
             /**
              * Total Detections
              * @description Total detections of this type in the baseline period
+             */
+            total_detections: number;
+        };
+        /**
+         * ObjectDistributionDataPoint
+         * @description Schema for a single object distribution data point.
+         * @example {
+         *       "count": 120,
+         *       "object_type": "person",
+         *       "percentage": 45.5
+         *     }
+         */
+        ObjectDistributionDataPoint: {
+            /**
+             * Count
+             * @description Number of detections for this object type
+             */
+            count: number;
+            /**
+             * Object Type
+             * @description Detected object type (e.g., 'person', 'car')
+             */
+            object_type: string;
+            /**
+             * Percentage
+             * @description Percentage of total detections (0-100)
+             */
+            percentage: number;
+        };
+        /**
+         * ObjectDistributionResponse
+         * @description Schema for detection counts by object type.
+         * @example {
+         *       "end_date": "2025-01-07",
+         *       "object_types": [
+         *         {
+         *           "count": 120,
+         *           "object_type": "person",
+         *           "percentage": 45.5
+         *         },
+         *         {
+         *           "count": 80,
+         *           "object_type": "car",
+         *           "percentage": 30.3
+         *         },
+         *         {
+         *           "count": 64,
+         *           "object_type": "dog",
+         *           "percentage": 24.2
+         *         }
+         *       ],
+         *       "start_date": "2025-01-01",
+         *       "total_detections": 264
+         *     }
+         */
+        ObjectDistributionResponse: {
+            /**
+             * End Date
+             * Format: date
+             * @description End date of the date range
+             */
+            end_date: string;
+            /**
+             * Object Types
+             * @description Detection counts by object type
+             */
+            object_types: components["schemas"]["ObjectDistributionDataPoint"][];
+            /**
+             * Start Date
+             * Format: date
+             * @description Start date of the date range
+             */
+            start_date: string;
+            /**
+             * Total Detections
+             * @description Total detections in date range
              */
             total_detections: number;
         };
@@ -9446,6 +10120,126 @@ export interface components {
             detection_queue: number;
         };
         /**
+         * QuietHoursPeriodCreate
+         * @description Schema for creating a quiet hours period.
+         * @example {
+         *       "days": [
+         *         "monday",
+         *         "tuesday",
+         *         "wednesday",
+         *         "thursday",
+         *         "friday"
+         *       ],
+         *       "end_time": "06:00:00",
+         *       "label": "Night Time",
+         *       "start_time": "22:00:00"
+         *     }
+         */
+        QuietHoursPeriodCreate: {
+            /**
+             * Days
+             * @description Days of week when period is active
+             */
+            days?: string[];
+            /**
+             * End Time
+             * Format: time
+             * @description End time (HH:MM:SS)
+             */
+            end_time: string;
+            /**
+             * Label
+             * @description Period label
+             */
+            label: string;
+            /**
+             * Start Time
+             * Format: time
+             * @description Start time (HH:MM:SS)
+             */
+            start_time: string;
+        };
+        /**
+         * QuietHoursPeriodResponse
+         * @description Schema for quiet hours period response.
+         * @example {
+         *       "days": [
+         *         "monday",
+         *         "tuesday",
+         *         "wednesday",
+         *         "thursday",
+         *         "friday"
+         *       ],
+         *       "end_time": "06:00:00",
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "label": "Night Time",
+         *       "start_time": "22:00:00"
+         *     }
+         */
+        QuietHoursPeriodResponse: {
+            /**
+             * Days
+             * @description Days of week when period is active
+             */
+            days: string[];
+            /**
+             * End Time
+             * Format: time
+             * @description End time
+             */
+            end_time: string;
+            /**
+             * Id
+             * @description Period UUID
+             */
+            id: string;
+            /**
+             * Label
+             * @description Period label
+             */
+            label: string;
+            /**
+             * Start Time
+             * Format: time
+             * @description Start time
+             */
+            start_time: string;
+        };
+        /**
+         * QuietHoursPeriodsListResponse
+         * @description Schema for quiet hours periods list response.
+         * @example {
+         *       "count": 1,
+         *       "periods": [
+         *         {
+         *           "days": [
+         *             "monday",
+         *             "tuesday",
+         *             "wednesday",
+         *             "thursday",
+         *             "friday"
+         *           ],
+         *           "end_time": "06:00:00",
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "label": "Night Time",
+         *           "start_time": "22:00:00"
+         *         }
+         *       ]
+         *     }
+         */
+        QuietHoursPeriodsListResponse: {
+            /**
+             * Count
+             * @description Total number of periods
+             */
+            count: number;
+            /**
+             * Periods
+             * @description List of quiet hours periods
+             */
+            periods: components["schemas"]["QuietHoursPeriodResponse"][];
+        };
+        /**
          * ReadinessResponse
          * @description Response schema for readiness probe endpoint.
          *
@@ -9597,6 +10391,92 @@ export interface components {
              * @description ISO timestamp of response
              */
             timestamp: string;
+        };
+        /**
+         * RiskHistoryDataPoint
+         * @description Schema for a single risk history data point.
+         * @example {
+         *       "critical": 1,
+         *       "date": "2025-01-07",
+         *       "high": 2,
+         *       "low": 10,
+         *       "medium": 5
+         *     }
+         */
+        RiskHistoryDataPoint: {
+            /**
+             * Critical
+             * @description Count of critical risk events
+             * @default 0
+             */
+            critical: number;
+            /**
+             * Date
+             * Format: date
+             * @description Date of the data point
+             */
+            date: string;
+            /**
+             * High
+             * @description Count of high risk events
+             * @default 0
+             */
+            high: number;
+            /**
+             * Low
+             * @description Count of low risk events
+             * @default 0
+             */
+            low: number;
+            /**
+             * Medium
+             * @description Count of medium risk events
+             * @default 0
+             */
+            medium: number;
+        };
+        /**
+         * RiskHistoryResponse
+         * @description Schema for risk score distribution over time.
+         * @example {
+         *       "data_points": [
+         *         {
+         *           "critical": 1,
+         *           "date": "2025-01-01",
+         *           "high": 2,
+         *           "low": 10,
+         *           "medium": 5
+         *         },
+         *         {
+         *           "critical": 0,
+         *           "date": "2025-01-02",
+         *           "high": 3,
+         *           "low": 12,
+         *           "medium": 4
+         *         }
+         *       ],
+         *       "end_date": "2025-01-02",
+         *       "start_date": "2025-01-01"
+         *     }
+         */
+        RiskHistoryResponse: {
+            /**
+             * Data Points
+             * @description Risk level counts aggregated by day
+             */
+            data_points: components["schemas"]["RiskHistoryDataPoint"][];
+            /**
+             * End Date
+             * Format: date
+             * @description End date of the date range
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Start date of the date range
+             */
+            start_date: string;
         };
         /**
          * RuleTestEventResult
@@ -12165,6 +13045,142 @@ export interface operations {
             };
         };
     };
+    get_camera_uptime_api_analytics_camera_uptime_get: {
+        parameters: {
+            query: {
+                /** @description Start date for analytics (ISO format) */
+                start_date: string;
+                /** @description End date for analytics (ISO format) */
+                end_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraUptimeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_detection_trends_api_analytics_detection_trends_get: {
+        parameters: {
+            query: {
+                /** @description Start date for analytics (ISO format) */
+                start_date: string;
+                /** @description End date for analytics (ISO format) */
+                end_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionTrendsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_object_distribution_api_analytics_object_distribution_get: {
+        parameters: {
+            query: {
+                /** @description Start date for analytics (ISO format) */
+                start_date: string;
+                /** @description End date for analytics (ISO format) */
+                end_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectDistributionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_risk_history_api_analytics_risk_history_get: {
+        parameters: {
+            query: {
+                /** @description Start date for analytics (ISO format) */
+                start_date: string;
+                /** @description End date for analytics (ISO format) */
+                end_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_audit_logs_api_audit_get: {
         parameters: {
             query?: {
@@ -14376,6 +15392,227 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_notification_preferences_api_notification_preferences__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+        };
+    };
+    update_notification_preferences_api_notification_preferences__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_all_camera_settings_api_notification_preferences_cameras_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraNotificationSettingsListResponse"];
+                };
+            };
+        };
+    };
+    get_camera_setting_api_notification_preferences_cameras__camera_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraNotificationSettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_camera_setting_api_notification_preferences_cameras__camera_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraNotificationSettingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraNotificationSettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_quiet_hours_api_notification_preferences_quiet_hours_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuietHoursPeriodsListResponse"];
+                };
+            };
+        };
+    };
+    create_quiet_hours_period_api_notification_preferences_quiet_hours_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuietHoursPeriodCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuietHoursPeriodResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_quiet_hours_period_api_notification_preferences_quiet_hours__period_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

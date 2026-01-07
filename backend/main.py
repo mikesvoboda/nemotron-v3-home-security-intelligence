@@ -11,6 +11,7 @@ from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
     AuthMiddleware,
     BodySizeLimitMiddleware,
+    ContentTypeValidationMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -19,6 +20,7 @@ from backend.api.routes import (
     admin,
     ai_audit,
     alerts,
+    analytics,
     audit,
     cameras,
     debug,
@@ -29,6 +31,7 @@ from backend.api.routes import (
     media,
     metrics,
     notification,
+    notification_preferences,
     services,
     system,
     websocket,
@@ -567,6 +570,10 @@ app = FastAPI(
 # Add authentication middleware (if enabled in settings)
 app.add_middleware(AuthMiddleware)
 
+# Add Content-Type validation middleware for request body validation (NEM-1617)
+# Validates that POST/PUT/PATCH requests have acceptable Content-Type headers
+app.add_middleware(ContentTypeValidationMiddleware)
+
 # Add request ID middleware for log correlation
 app.add_middleware(RequestIDMiddleware)
 
@@ -602,6 +609,7 @@ register_exception_handlers(app)
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
 app.include_router(alerts.router)
+app.include_router(analytics.router)
 app.include_router(audit.router)
 app.include_router(cameras.router)
 app.include_router(debug.router)
@@ -613,6 +621,7 @@ app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
+app.include_router(notification_preferences.router)
 app.include_router(services.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
