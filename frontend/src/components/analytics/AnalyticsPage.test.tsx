@@ -179,7 +179,7 @@ describe('AnalyticsPage', () => {
     render(<AnalyticsPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-refresh-button')).toBeInTheDocument();
     });
   });
 
@@ -188,10 +188,10 @@ describe('AnalyticsPage', () => {
     render(<AnalyticsPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-refresh-button')).toBeInTheDocument();
     });
 
-    const refreshButton = screen.getByTestId('refresh-button');
+    const refreshButton = screen.getByTestId('analytics-refresh-button');
     await user.click(refreshButton);
 
     await waitFor(() => {

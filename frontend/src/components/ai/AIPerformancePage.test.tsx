@@ -128,7 +128,7 @@ describe('AIPerformancePage', () => {
     it('renders the refresh button', async () => {
       renderWithRouter();
       await waitFor(() => {
-        expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-performance-refresh-button')).toBeInTheDocument();
       });
     });
 
@@ -371,10 +371,10 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-performance-refresh-button')).toBeInTheDocument();
       });
 
-      const refreshButton = screen.getByTestId('refresh-button');
+      const refreshButton = screen.getByTestId('ai-performance-refresh-button');
       await user.click(refreshButton);
 
       expect(mockRefresh).toHaveBeenCalled();
@@ -393,10 +393,10 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-performance-refresh-button')).toBeInTheDocument();
       });
 
-      const refreshButton = screen.getByTestId('refresh-button');
+      const refreshButton = screen.getByTestId('ai-performance-refresh-button');
       await user.click(refreshButton);
 
       // Button should be disabled during refresh
@@ -421,10 +421,10 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByTestId('refresh-button')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-performance-refresh-button')).toBeInTheDocument();
       });
 
-      const refreshButton = screen.getByTestId('refresh-button');
+      const refreshButton = screen.getByTestId('ai-performance-refresh-button');
       await user.click(refreshButton);
 
       // Check for spinning animation class
@@ -962,7 +962,7 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const refreshButton = screen.getByTestId('refresh-button');
+        const refreshButton = screen.getByTestId('ai-performance-refresh-button');
         expect(refreshButton).toHaveTextContent('Refresh');
       });
     });
