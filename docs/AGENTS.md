@@ -15,19 +15,20 @@ docs/
   AI_SETUP.md                     # AI services setup guide
   RUNTIME_CONFIG.md               # Authoritative port/env reference
   DOCKER_DEPLOYMENT.md            # Docker deployment guide
-  DOCKER_VERIFICATION_SUMMARY.md  # Docker deployment verification summary
   CHROME_DEVTOOLS_MCP.md          # Chrome DevTools MCP server guide
   COPILOT_SETUP.md                # GitHub Copilot Free tier setup guide
   GITHUB_MODELS.md                # GitHub Models integration guide
   SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
-  LINK_AUDIT.md                   # Documentation link audit results
   LINEAR_SETUP_PROMPT.md          # Linear issue tracking setup prompt
+  LINEAR-GITHUB-INTEGRATION.md    # Linear-GitHub bi-directional sync documentation
   METRICS_ENDPOINT_HARDENING.md   # Metrics endpoint security hardening
   PEER_DEPS_CONFLICT.md           # NPM peer dependency conflict resolution
   SECURITY_API_KEYS.md            # API key security documentation
+  SECURITY.md                     # Security policies and practices
+  TEST_PERFORMANCE_METRICS.md     # Test suite performance metrics and baselines
   developer-hub.md                # Developer documentation hub
   operator-hub.md                 # Operator documentation hub
-  user-hub.md                     # User documentation hub (placeholder - empty)
+  user-hub.md                     # User documentation hub
 
   admin-guide/                    # System administrator documentation
     AGENTS.md                     # Admin guide directory guide
@@ -111,6 +112,12 @@ docs/
     dashboard-full.png            # Full dashboard screenshot
     timeline.png                  # Event timeline screenshot
     alerts.png                    # Alerts page screenshot
+
+  testing/                        # Testing guides and patterns
+    AGENTS.md                     # Testing directory guide
+    TDD_WORKFLOW.md               # Test-Driven Development workflow
+    TESTING_PATTERNS.md           # Common testing patterns
+    HYPOTHESIS_GUIDE.md           # Property-based testing with Hypothesis
 
   operator/                       # Operator-focused documentation
     AGENTS.md                     # Operator directory guide
@@ -228,20 +235,24 @@ Post-MVP roadmap ideas organized into 8 themes:
 
 ### Setup and Deployment Guides
 
-| File                             | Purpose                                    | Key Sections                                                                |
-| -------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
-| `AI_SETUP.md`                    | AI inference services setup                | Hardware requirements, model downloads, service management, troubleshooting |
-| `DOCKER_DEPLOYMENT.md`           | Docker Compose deployment                  | Quick start, configuration, health checks, volume management                |
-| `DOCKER_VERIFICATION_SUMMARY.md` | Phase 8 Docker task completion             | Verification checklist, files modified                                      |
-| `SELF_HOSTED_RUNNER.md`          | Self-hosted GitHub Actions runner with GPU | Installation, security, maintenance                                         |
+| File                          | Purpose                                    | Key Sections                                                                |
+| ----------------------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
+| `AI_SETUP.md`                 | AI inference services setup                | Hardware requirements, model downloads, service management, troubleshooting |
+| `DOCKER_DEPLOYMENT.md`        | Docker Compose deployment                  | Quick start, configuration, health checks, volume management                |
+| `SELF_HOSTED_RUNNER.md`       | Self-hosted GitHub Actions runner with GPU | Installation, security, maintenance                                         |
+| `RUNTIME_CONFIG.md`           | Authoritative port and environment config  | Service ports, environment variables, networking                            |
+| `TEST_PERFORMANCE_METRICS.md` | Test suite performance metrics             | Baselines, thresholds, CI timing, parallelization strategy                  |
 
 ### Developer Tools
 
-| File                     | Purpose                                   | Key Sections                                              |
-| ------------------------ | ----------------------------------------- | --------------------------------------------------------- |
-| `CHROME_DEVTOOLS_MCP.md` | Chrome DevTools MCP server for debugging  | Setup, available tools, usage examples                    |
-| `COPILOT_SETUP.md`       | GitHub Copilot Free tier                  | Enabling, limits (2000 completions/month), best practices |
-| `GITHUB_MODELS.md`       | GitHub Models for AI-assisted development | Available models, rate limits, API usage                  |
+| File                           | Purpose                                   | Key Sections                                              |
+| ------------------------------ | ----------------------------------------- | --------------------------------------------------------- |
+| `CHROME_DEVTOOLS_MCP.md`       | Chrome DevTools MCP server for debugging  | Setup, available tools, usage examples                    |
+| `COPILOT_SETUP.md`             | GitHub Copilot Free tier                  | Enabling, limits (2000 completions/month), best practices |
+| `GITHUB_MODELS.md`             | GitHub Models for AI-assisted development | Available models, rate limits, API usage                  |
+| `LINEAR-GITHUB-INTEGRATION.md` | Linear-GitHub sync configuration          | Webhook setup, bi-directional sync, troubleshooting       |
+| `LINEAR_SETUP_PROMPT.md`       | Prompt for setting up Linear workspace    | Team setup, labels, workflow states                       |
+| `MUTATION_TESTING.md`          | Mutation testing setup (mutmut + Stryker) | Installation, usage, interpreting results                 |
 
 ### Documentation Hubs
 
@@ -250,6 +261,15 @@ Post-MVP roadmap ideas organized into 8 themes:
 | `developer-hub.md` | Developer documentation index | Software developers, contributors |
 | `operator-hub.md`  | Operator documentation index  | System admins, DevOps engineers   |
 | `user-hub.md`      | User documentation index      | End users, homeowners             |
+
+### Security Documentation
+
+| File                            | Purpose                         | Key Topics                                    |
+| ------------------------------- | ------------------------------- | --------------------------------------------- |
+| `SECURITY.md`                   | Security policies and practices | Reporting vulnerabilities, security practices |
+| `SECURITY_API_KEYS.md`          | API key security documentation  | Key storage, rotation, best practices         |
+| `METRICS_ENDPOINT_HARDENING.md` | Metrics endpoint security       | Access control, rate limiting, authentication |
+| `PEER_DEPS_CONFLICT.md`         | NPM peer dependency resolution  | Handling version conflicts safely             |
 
 ## Subdirectories
 
@@ -342,6 +362,20 @@ See `user/AGENTS.md` for detailed information.
 End-user documentation (original structure, standalone documents).
 
 See `user-guide/AGENTS.md` for detailed information.
+
+### testing/
+
+Testing guides and patterns for developers.
+
+See `testing/AGENTS.md` for detailed information.
+
+**Contents:**
+
+- `TDD_WORKFLOW.md` - Test-Driven Development workflow
+- `TESTING_PATTERNS.md` - Common testing patterns
+- `HYPOTHESIS_GUIDE.md` - Property-based testing with Hypothesis
+
+**Note:** These files are currently empty placeholders and need content.
 
 ## Documentation Flow
 

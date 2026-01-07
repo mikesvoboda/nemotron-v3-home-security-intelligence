@@ -16,6 +16,8 @@ Components for tracking and displaying re-identified entities (persons and vehic
 | `EntityTimeline.test.tsx`   | Test suite for EntityTimeline          |
 | `EntityDetailModal.tsx`     | Modal for entity details               |
 | `EntityDetailModal.test.tsx`| Test suite for EntityDetailModal       |
+| `ReidHistoryPanel.tsx`      | Re-identification history panel        |
+| `ReidHistoryPanel.test.tsx` | Test suite for ReidHistoryPanel        |
 | `index.ts`                  | Barrel exports                         |
 
 ## Architecture

@@ -20,6 +20,8 @@ ai/florence/
 └── requirements.txt   # Python dependencies
 ```
 
+**Note**: This service does not have unit tests yet. The Florence-2 service is optional and used for detailed scene descriptions when available.
+
 ## Key Files
 
 ### `model.py` (Main Server)
@@ -329,6 +331,8 @@ async def get_scene_description(image_base64: str) -> str:
         )
         return response.json()["result"]
 ```
+
+**Note**: Florence-2 integration is planned but not yet implemented in the backend. The service is available for future enhancements to the enrichment pipeline.
 
 ## Entry Points
 

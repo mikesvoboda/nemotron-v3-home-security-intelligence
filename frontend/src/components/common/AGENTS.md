@@ -8,10 +8,18 @@ Contains reusable UI components shared across multiple features. These are low-l
 
 | File                          | Purpose                                                              | Status     |
 | ----------------------------- | -------------------------------------------------------------------- | ---------- |
+| `ChunkLoadErrorBoundary.tsx`  | Error boundary for dynamic import/chunk loading failures             | Active     |
+| `ChunkLoadErrorBoundary.test.tsx` | Test suite for ChunkLoadErrorBoundary                            | Active     |
+| `EmptyState.tsx`              | Reusable empty state component with icon and actions                 | Active     |
+| `EmptyState.test.tsx`         | Test suite for EmptyState                                            | Active     |
 | `ErrorBoundary.tsx`           | React error boundary for catching component errors                   | Active     |
 | `ErrorBoundary.test.tsx`      | Test suite for ErrorBoundary                                         | Active     |
+| `LoadingSpinner.tsx`          | Simple loading spinner for Suspense fallbacks                        | Active     |
+| `LoadingSpinner.test.tsx`     | Test suite for LoadingSpinner                                        | Active     |
 | `RiskBadge.tsx`               | Risk level badge with icon and optional score                        | Active     |
 | `RiskBadge.test.tsx`          | Test suite for RiskBadge                                             | Active     |
+| `RouteLoadingFallback.tsx`    | Loading indicator for lazy-loaded routes                             | Active     |
+| `RouteLoadingFallback.test.tsx` | Test suite for RouteLoadingFallback                                | Active     |
 | `ConfidenceBadge.tsx`         | Detection confidence score badge with color coding                   | Active     |
 | `ConfidenceBadge.test.tsx`    | Test suite for ConfidenceBadge                                       | Active     |
 | `ObjectTypeBadge.tsx`         | Detection object type badge                                          | Active     |
@@ -755,6 +763,189 @@ import { TruncatedText } from '../common';
 - maxLines mode (CSS truncation, precedence over maxLength)
 - Custom labels (showMoreLabel, showLessLabel)
 - Callback support (onToggle called on expand/collapse)
+
+---
+
+### ChunkLoadErrorBoundary.tsx
+
+**Purpose:** Specialized error boundary for handling dynamic import and code-splitting chunk loading failures
+
+**Props Interface:**
+
+```typescript
+interface ChunkLoadErrorBoundaryProps {
+  children: ReactNode;                      // Child components to wrap
+  onError?: (error: Error, errorInfo: ErrorInfo) => void; // Optional error callback
+}
+```
+
+**Key Features:**
+
+- Detects chunk load errors (ChunkLoadError, module fetch failures)
+- Provides user-friendly reload UI specifically for chunk errors
+- Re-throws non-chunk errors to parent error boundaries
+- Automatic error classification via `isChunkLoadError()` helper
+- Full accessibility with ARIA labels
+
+**Common Chunk Load Error Patterns:**
+
+- `"loading chunk"` - Webpack/Vite chunk fetch failure
+- `"failed to fetch dynamically imported module"` - Module not found
+- `"dynamically imported module"` - General import failure
+- `ChunkLoadError` - Named error type
+
+**Usage:**
+
+```tsx
+import ChunkLoadErrorBoundary from '../common/ChunkLoadErrorBoundary';
+
+<ChunkLoadErrorBoundary>
+  <Suspense fallback={<RouteLoadingFallback />}>
+    <LazyComponent />
+  </Suspense>
+</ChunkLoadErrorBoundary>
+```
+
+**Dependencies:**
+
+- `lucide-react` - AlertTriangle, RefreshCw icons
+- `react` - Component, ErrorInfo, ReactNode
+
+---
+
+### EmptyState.tsx
+
+**Purpose:** Reusable empty state component with icon, title, description, and optional actions
+
+**Props Interface:**
+
+```typescript
+interface EmptyStateProps {
+  icon: LucideIcon;                         // Lucide icon component to display
+  title: string;                            // Main title text
+  description: string | ReactNode;          // Description or instructions
+  actions?: EmptyStateAction[];             // Optional action buttons
+  children?: ReactNode;                     // Optional additional content
+  className?: string;                       // Additional CSS classes
+}
+
+interface EmptyStateAction {
+  label: string;                            // Button label
+  onClick: () => void;                      // Click handler
+  variant?: 'primary' | 'secondary';        // Button style variant
+}
+```
+
+**Key Features:**
+
+- Consistent empty state styling across application
+- Support for primary and secondary action buttons
+- Flexible content with children prop
+- Icon with NVIDIA green accent
+- Dark theme compatible
+- Responsive layout
+
+**Usage:**
+
+```tsx
+import EmptyState from '../common/EmptyState';
+import { Camera } from 'lucide-react';
+
+<EmptyState
+  icon={Camera}
+  title="No Cameras Found"
+  description="Add cameras to start monitoring your property"
+  actions={[
+    { label: 'Add Camera', onClick: handleAddCamera, variant: 'primary' },
+    { label: 'Learn More', onClick: handleLearnMore, variant: 'secondary' }
+  ]}
+/>
+```
+
+**Used By:**
+
+- `AlertsPage.tsx` - No alerts state
+- `EventTimeline.tsx` - No events state
+- Various pages for empty data states
+
+**Dependencies:**
+
+- `lucide-react` - Icon components
+- `clsx` - Conditional class composition
+
+---
+
+### LoadingSpinner.tsx
+
+**Purpose:** Simple loading spinner for React Suspense fallbacks
+
+**Props:**
+
+- None (stateless component)
+
+**Key Features:**
+
+- Centered full-screen layout
+- Animated spinning border with NVIDIA green accent
+- "Loading..." text with accessible styling
+- Dark theme background (#121212)
+- Minimal implementation for fast loading
+
+**Usage:**
+
+```tsx
+import LoadingSpinner from '../common/LoadingSpinner';
+
+<Suspense fallback={<LoadingSpinner />}>
+  <LazyComponent />
+</Suspense>
+```
+
+**Dependencies:**
+
+- None (pure Tailwind CSS)
+
+---
+
+### RouteLoadingFallback.tsx
+
+**Purpose:** Loading indicator specifically designed for lazy-loaded routes with better accessibility
+
+**Props Interface:**
+
+```typescript
+interface RouteLoadingFallbackProps {
+  message?: string;                         // Custom message (default: "Loading...")
+}
+```
+
+**Key Features:**
+
+- Accessible loading status with ARIA attributes
+- `role="status"`, `aria-busy="true"`, `aria-live="polite"`
+- Animated Loader2 icon from lucide-react
+- Customizable message text
+- Smaller min-height (400px) vs full-screen LoadingSpinner
+- Better suited for route transitions than full-page loads
+
+**Usage:**
+
+```tsx
+import RouteLoadingFallback from '../common/RouteLoadingFallback';
+
+<Suspense fallback={<RouteLoadingFallback message="Loading dashboard..." />}>
+  <LazyDashboardPage />
+</Suspense>
+```
+
+**Used By:**
+
+- `App.tsx` - Route-level Suspense boundaries
+- `ChunkLoadErrorBoundary.tsx` - Combined pattern
+
+**Dependencies:**
+
+- `lucide-react` - Loader2 icon
 
 ---
 

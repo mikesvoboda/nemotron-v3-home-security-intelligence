@@ -22,6 +22,8 @@ The AI pages consolidate AI-related metrics into dedicated views:
 | `AIPerformancePage.test.tsx`     | Test suite for AIPerformancePage                   |
 | `AIAuditPage.tsx`                | AI quality metrics and recommendations dashboard   |
 | `AIAuditPage.test.tsx`           | Test suite for AIAuditPage                         |
+| `ABTestStats.tsx`                | Aggregate A/B test statistics with recommendations |
+| `ABTestStats.test.tsx`           | Test suite for ABTestStats                         |
 | `BatchAuditModal.tsx`            | Modal for triggering batch AI audit                |
 | `BatchAuditModal.test.tsx`       | Test suite for BatchAuditModal                     |
 | `InsightsCharts.tsx`             | Detection and risk distribution charts             |
@@ -38,6 +40,8 @@ The AI pages consolidate AI-related metrics into dedicated views:
 | `ModelZooSection.test.tsx`       | Test suite for ModelZooSection                     |
 | `PipelineHealthPanel.tsx`        | Queue depths, throughput, error monitoring         |
 | `PipelineHealthPanel.test.tsx`   | Test suite for PipelineHealthPanel                 |
+| `PromptABTest.tsx`               | Split-view A/B testing for prompt comparison       |
+| `PromptABTest.test.tsx`          | Test suite for PromptABTest                        |
 | `PromptPlayground.tsx`           | Slide-out panel for prompt editing and testing     |
 | `PromptPlayground.test.tsx`      | Test suite for PromptPlayground                    |
 | `QualityScoreTrends.tsx`         | Quality score stat cards with progress indicators  |
@@ -46,7 +50,10 @@ The AI pages consolidate AI-related metrics into dedicated views:
 | `RecommendationsPanel.test.tsx`  | Test suite for RecommendationsPanel                |
 | `SuggestionDiffView.tsx`         | GitHub-style diff view for prompt suggestions      |
 | `SuggestionDiffView.test.tsx`    | Test suite for SuggestionDiffView                  |
+| `SuggestionExplanation.tsx`      | Expandable explanation for prompt suggestions      |
+| `SuggestionExplanation.test.tsx` | Test suite for SuggestionExplanation               |
 | `index.ts`                       | Barrel exports                                     |
+| `__tests__/`                     | Additional test files for PromptPlayground         |
 | `AGENTS.md`                      | This documentation file                            |
 
 ## Components
@@ -259,6 +266,98 @@ GitHub-style diff view showing what will change when a suggestion is applied.
 
 - `DiffLine`: Interface for diff line data
 - `SuggestionDiffViewProps`: Component props interface
+
+### SuggestionExplanation.tsx
+
+Expandable "Why This Matters" component providing educational context for prompt suggestions.
+
+**Features:**
+
+- Expand/collapse with chevron animation
+- Impact summary section
+- Evidence from source events with clickable links
+- Category-specific prompt engineering tips
+- Dark theme with NVIDIA green accents
+- Full keyboard accessibility (Enter/Space to toggle)
+
+**Props:**
+
+```typescript
+interface SuggestionExplanationProps {
+  suggestion: EnrichedSuggestion;           // The suggestion with explanation data
+  onEventClick?: (eventId: number) => void; // Callback when user clicks an event link
+  defaultExpanded?: boolean;                // Whether to start expanded
+  className?: string;                       // Additional CSS classes
+}
+```
+
+**Category Tips:**
+
+- `missing_context`: Temporal context variable placement
+- `unused_data`: Token count reduction strategies
+- `model_gaps`: Model-specific section benefits
+- `format_suggestions`: Section header importance
+
+### PromptABTest.tsx
+
+Split-view A/B testing component for side-by-side prompt comparison.
+
+**Features:**
+
+- Side-by-side panels showing original (A) vs modified (B) prompts
+- Test results display with risk scores and reasoning
+- Color-coded delta indicators (green for improvement, red for regression)
+- Run test on random events or promote B as default
+- Loading states with disabled buttons during test execution
+- Collapsible test results
+
+**Props:**
+
+```typescript
+interface PromptABTestProps {
+  originalPrompt: string;                   // The original (A) prompt
+  modifiedPrompt: string;                   // The modified (B) prompt
+  results: ABTestResult[];                  // Test results for completed tests
+  isRunning: boolean;                       // Whether a test is currently running
+  onRunTest: (eventId: number) => void;     // Callback to run test on specific event
+  onRunRandomTests: (count: number) => void;// Callback to run test on N random events
+  onPromoteB: () => void;                   // Callback to promote B as new default
+  className?: string;                       // Additional CSS classes
+}
+```
+
+### ABTestStats.tsx
+
+Aggregate statistics display for A/B test results with recommendations.
+
+**Features:**
+
+- Improvement/regression/neutral percentages with segmented progress bar
+- Color-coded segments (green for improvement, red for regression, gray for neutral)
+- Average score change calculation
+- Consistency metric (percentage matching majority direction)
+- Recommendation logic based on test count and improvement rate
+- Visual trend indicators (up/down arrows)
+
+**Props:**
+
+```typescript
+interface ABTestStatsProps {
+  results: ABTestResult[];                  // Array of A/B test results to analyze
+  className?: string;                       // Additional CSS classes
+}
+```
+
+**Exported Functions:**
+
+- `calculateStats(results)`: Calculate aggregate statistics from test results
+
+**Recommendation Logic:**
+
+- Few tests (< 5): "Run more tests"
+- Strong improvement (>60%): "Consider promoting"
+- Moderate improvement (40-60%): "Promising, needs more data"
+- Mixed results: "Investigate further"
 
 ## Data Flow
 
