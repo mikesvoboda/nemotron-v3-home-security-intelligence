@@ -9,11 +9,13 @@ import {
   AlertTriangle,
   BarChart2,
   ExternalLink,
+  Package,
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
 import CircuitBreakerPanel from './CircuitBreakerPanel';
+import CollapsibleSection from './CollapsibleSection';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
@@ -29,17 +31,20 @@ import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
 import { useModelZooStatus } from '../../hooks/useModelZooStatus';
 import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
+import { useSystemPageSections } from '../../hooks/useSystemPageSections';
 import {
   fetchStats,
   fetchTelemetry,
   fetchGPUStats,
   fetchConfig,
   fetchCircuitBreakers,
+  fetchReadiness,
   resetCircuitBreaker,
   type GPUStats,
   type TelemetryResponse,
   type ServiceStatus,
   type CircuitBreakersResponse,
+  type WorkerStatus,
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 
@@ -122,6 +127,9 @@ function ServiceStatusIcon({ status }: { status: string }) {
  * Features NVIDIA dark theme styling with green accents.
  */
 export default function SystemMonitoringPage() {
+  // Section state management with localStorage persistence
+  const { sectionStates, toggleSection } = useSystemPageSections();
+
   // State for fetched data
   const [stats, setStats] = useState<SystemStatsData | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryResponse | null>(null);
@@ -134,6 +142,9 @@ export default function SystemMonitoringPage() {
   const [circuitBreakers, setCircuitBreakers] = useState<CircuitBreakersResponse | null>(null);
   const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
   const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
+
+  // State for workers
+  const [workers, setWorkers] = useState<WorkerStatus[]>([]);
 
   // State for infrastructure grid expanded card
   const [expandedInfraCard, setExpandedInfraCard] = useState<InfrastructureCardId | null>(null);
@@ -529,6 +540,26 @@ export default function SystemMonitoringPage() {
     void loadCircuitBreakers();
   }, []);
 
+  // Fetch workers data
+  useEffect(() => {
+    async function loadWorkers() {
+      try {
+        const readinessData = await fetchReadiness();
+        setWorkers(readinessData.workers || []);
+      } catch (err) {
+        console.error('Failed to load workers:', err);
+      }
+    }
+
+    void loadWorkers();
+    // Poll every 10 seconds
+    const interval = setInterval(() => {
+      void loadWorkers();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Handler for resetting circuit breakers
   const handleResetCircuitBreaker = async (name: string) => {
     try {
@@ -819,15 +850,33 @@ export default function SystemMonitoringPage() {
           </div>
 
           {/* Row 2: Model Zoo (enrichment models with VRAM tracking) */}
-          <div className="xl:col-span-2">
-            <ModelZooPanel
-              models={modelZooModels}
-              vramStats={modelZooVramStats}
-              isLoading={modelZooLoading}
-              error={modelZooError}
-              onRefresh={() => void refreshModelZoo()}
-              data-testid="model-zoo-panel-section"
-            />
+          <div className="xl:col-span-2" id="section-model-zoo">
+            <CollapsibleSection
+              title="AI Model Zoo"
+              icon={<Package className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['model-zoo']}
+              onToggle={() => toggleSection('model-zoo')}
+              summary={
+                modelZooModels.length > 0 ? (
+                  <Badge
+                    color={modelZooModels.filter((m) => m.status === 'loaded').length > 0 ? 'green' : 'gray'}
+                    size="sm"
+                  >
+                    {modelZooModels.filter((m) => m.status === 'loaded').length} Loaded | {modelZooModels.length} Available
+                  </Badge>
+                ) : undefined
+              }
+              data-testid="model-zoo-section"
+            >
+              <ModelZooPanel
+                models={modelZooModels}
+                vramStats={modelZooVramStats}
+                isLoading={modelZooLoading}
+                error={modelZooError}
+                onRefresh={() => void refreshModelZoo()}
+                data-testid="model-zoo-panel-section"
+              />
+            </CollapsibleSection>
           </div>
 
           {/* Row 2: Pipeline Metrics (combined Queues + Latency + Throughput) */}
@@ -847,23 +896,69 @@ export default function SystemMonitoringPage() {
           </div>
 
           {/* Row 2: Database Metrics (PostgreSQL + Redis side-by-side) */}
-          <div className="xl:col-span-2">
-            <DatabasesPanel
-              postgresql={postgresMetrics}
-              redis={redisMetrics}
-              timeRange={timeRange}
-              history={databaseHistory}
-              data-testid="databases-panel-section"
-            />
+          <div className="xl:col-span-2" id="section-databases">
+            <CollapsibleSection
+              title="Databases"
+              icon={<Server className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates.databases}
+              onToggle={() => toggleSection('databases')}
+              summary={
+                postgresMetrics && redisMetrics ? (
+                  <Badge
+                    color={
+                      postgresMetrics.status === 'healthy' && redisMetrics.status === 'healthy'
+                        ? 'green'
+                        : 'yellow'
+                    }
+                    size="sm"
+                  >
+                    {postgresMetrics.status === 'healthy' && redisMetrics.status === 'healthy'
+                      ? '2/2 Healthy'
+                      : '1/2 Healthy'}
+                  </Badge>
+                ) : undefined
+              }
+              data-testid="databases-section"
+            >
+              <DatabasesPanel
+                postgresql={postgresMetrics}
+                redis={redisMetrics}
+                timeRange={timeRange}
+                history={databaseHistory}
+                data-testid="databases-panel-section"
+              />
+            </CollapsibleSection>
           </div>
 
           {/* Row 3: Background Workers (collapsible, compact list) */}
-          <div className="xl:col-span-2">
-            <WorkerStatusPanel
-              pollingInterval={10000}
-              defaultExpanded={false}
-              compact={false}
-            />
+          <div className="xl:col-span-2" id="section-workers">
+            <CollapsibleSection
+              title="Background Workers"
+              icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates.workers}
+              onToggle={() => toggleSection('workers')}
+              summary={
+                workers.length > 0 ? (
+                  <Badge
+                    color={
+                      workers.filter((w) => w.running).length === workers.length
+                        ? 'green'
+                        : 'yellow'
+                    }
+                    size="sm"
+                  >
+                    {workers.filter((w) => w.running).length}/{workers.length} Running
+                  </Badge>
+                ) : undefined
+              }
+              data-testid="workers-section"
+            >
+              <WorkerStatusPanel
+                pollingInterval={10000}
+                defaultExpanded={false}
+                compact={false}
+              />
+            </CollapsibleSection>
           </div>
 
           {/* Row 3: Containers (grid of status badges) */}
@@ -886,22 +981,71 @@ export default function SystemMonitoringPage() {
           </div>
 
           {/* Row 5: Circuit Breakers (full width) */}
-          <div className="lg:col-span-2 xl:col-span-4">
-            <CircuitBreakerPanel
-              data={circuitBreakers}
-              loading={circuitBreakersLoading}
-              error={circuitBreakersError}
-              onReset={handleResetCircuitBreaker}
-              data-testid="circuit-breaker-panel-section"
-            />
+          <div className="lg:col-span-2 xl:col-span-4" id="section-circuit-breakers">
+            <CollapsibleSection
+              title="Circuit Breakers"
+              icon={<AlertTriangle className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['circuit-breakers']}
+              onToggle={() => toggleSection('circuit-breakers')}
+              summary={
+                circuitBreakers ? (
+                  <Badge
+                    color={circuitBreakers.open_count === 0 ? 'green' : 'red'}
+                    size="sm"
+                  >
+                    {circuitBreakers.total_count - circuitBreakers.open_count}/{circuitBreakers.total_count} Healthy
+                  </Badge>
+                ) : undefined
+              }
+              alertBadge={
+                circuitBreakers && circuitBreakers.open_count > 0 ? (
+                  <Badge color="red" size="sm">
+                    {circuitBreakers.open_count} Open
+                  </Badge>
+                ) : undefined
+              }
+              data-testid="circuit-breakers-section"
+            >
+              <CircuitBreakerPanel
+                data={circuitBreakers}
+                loading={circuitBreakersLoading}
+                error={circuitBreakersError}
+                onReset={handleResetCircuitBreaker}
+                data-testid="circuit-breaker-panel-section"
+              />
+            </CollapsibleSection>
           </div>
 
           {/* Row 6: Services Panel (full width) */}
-          <div className="lg:col-span-2 xl:col-span-4">
-            <ServicesPanel
-              pollingInterval={30000}
-              data-testid="services-panel-section"
-            />
+          <div className="lg:col-span-2 xl:col-span-4" id="section-services">
+            <CollapsibleSection
+              title="Services"
+              icon={<Server className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates.services}
+              onToggle={() => toggleSection('services')}
+              summary={
+                services ? (
+                  <Badge
+                    color={
+                      Object.values(services).every((s) => s.status === 'healthy')
+                        ? 'green'
+                        : Object.values(services).some((s) => s.status === 'unhealthy')
+                        ? 'red'
+                        : 'yellow'
+                    }
+                    size="sm"
+                  >
+                    {Object.values(services).filter((s) => s.status === 'healthy').length}/{Object.values(services).length} Healthy
+                  </Badge>
+                ) : undefined
+              }
+              data-testid="services-section"
+            >
+              <ServicesPanel
+                pollingInterval={30000}
+                data-testid="services-panel-section"
+              />
+            </CollapsibleSection>
           </div>
         </div>
       </div>

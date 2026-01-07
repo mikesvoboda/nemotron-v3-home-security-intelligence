@@ -1,6 +1,7 @@
-import { Card, Title, Text, Badge, ProgressBar, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from '@tremor/react';
+import { Text, Badge, ProgressBar, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell, TextInput } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, RefreshCw, AlertCircle, Package, CheckCircle, XCircle, Loader2, MinusCircle } from 'lucide-react';
+import { Cpu, RefreshCw, AlertCircle, CheckCircle, XCircle, Loader2, MinusCircle, Search, Filter } from 'lucide-react';
+import { useState, useMemo } from 'react';
 
 import type { VRAMStats } from '../../hooks/useModelZooStatus';
 import type { ModelStatusResponse } from '../../services/api';
@@ -126,17 +127,38 @@ export default function ModelZooPanel({
   className,
   'data-testid': testId = 'model-zoo-panel',
 }: ModelZooPanelProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Calculate summary stats
+  const loadedCount = models.filter((m) => m.status === 'loaded').length;
+  const availableCount = models.length;
+  const usedVramMB = vramStats?.used_mb ?? 0;
+  const budgetVramMB = vramStats?.budget_mb ?? 0;
+
+  // Filter models based on search query and status filter
+  const filteredModels = useMemo(() => {
+    return models.filter((model) => {
+      // Apply search filter
+      const matchesSearch =
+        searchQuery === '' ||
+        model.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        model.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Apply status filter
+      const matchesStatus = statusFilter === 'all' || model.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [models, searchQuery, statusFilter]);
+
   return (
-    <Card
-      className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
-      data-testid={testId}
-    >
-      {/* Header with title and refresh button */}
+    <div className={clsx('', className)} data-testid={testId}>
+      {/* Header with summary and refresh button */}
       <div className="mb-4 flex items-center justify-between">
-        <Title className="flex items-center gap-2 text-white">
-          <Package className="h-5 w-5 text-[#76B900]" />
-          AI Model Zoo
-        </Title>
+        <Text className="text-sm text-gray-400">
+          {loadedCount} Loaded | {availableCount} Available | {usedVramMB} MB / {budgetVramMB} MB VRAM
+        </Text>
         <button
           onClick={onRefresh}
           disabled={isLoading}
@@ -154,6 +176,41 @@ export default function ModelZooPanel({
           Refresh
         </button>
       </div>
+
+      {/* Search and Filter Bar */}
+      {!isLoading && !error && models.length > 0 && (
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+          {/* Search Input */}
+          <div className="flex-1">
+            <TextInput
+              icon={Search}
+              placeholder="Search models..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
+              data-testid="model-zoo-search"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/50"
+              data-testid="model-zoo-filter"
+            >
+              <option value="all">All Status</option>
+              <option value="loaded">Loaded</option>
+              <option value="unloaded">Unloaded</option>
+              <option value="disabled">Disabled</option>
+              <option value="loading">Loading</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Loading state */}
       {isLoading && models.length === 0 && (
@@ -215,18 +272,32 @@ export default function ModelZooPanel({
 
           {/* Model Table */}
           {models.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-gray-800">
-              <Table>
-                <TableHead className="bg-gray-800/50">
-                  <TableRow>
-                    <TableHeaderCell className="text-gray-400">Model</TableHeaderCell>
-                    <TableHeaderCell className="text-gray-400">Status</TableHeaderCell>
-                    <TableHeaderCell className="text-gray-400">VRAM</TableHeaderCell>
-                    <TableHeaderCell className="text-gray-400">Inferences</TableHeaderCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {models.map((model) => (
+            <>
+              {filteredModels.length === 0 ? (
+                <div
+                  className="flex h-32 items-center justify-center"
+                  data-testid="model-zoo-no-results"
+                >
+                  <div className="text-center">
+                    <Search className="mx-auto mb-2 h-8 w-8 text-gray-600" />
+                    <Text className="text-gray-500">
+                      No models match your search or filter
+                    </Text>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-gray-800">
+                  <Table>
+                    <TableHead className="bg-gray-800/50">
+                      <TableRow>
+                        <TableHeaderCell className="text-gray-400">Model</TableHeaderCell>
+                        <TableHeaderCell className="text-gray-400">Status</TableHeaderCell>
+                        <TableHeaderCell className="text-gray-400">VRAM</TableHeaderCell>
+                        <TableHeaderCell className="text-gray-400">Inferences</TableHeaderCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredModels.map((model) => (
                     <TableRow
                       key={model.name}
                       className="border-gray-800 hover:bg-gray-800/30"
@@ -268,13 +339,15 @@ export default function ModelZooPanel({
                         </Text>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
-    </Card>
+    </div>
   );
 }

@@ -922,7 +922,8 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Component rendered successfully even if reset would fail
-      expect(screen.getByTestId('circuit-breaker-panel-section')).toBeInTheDocument();
+      // Circuit breaker section is collapsible and collapsed by default
+      expect(screen.getByTestId('circuit-breakers-section')).toBeInTheDocument();
     });
   });
 
@@ -1069,13 +1070,23 @@ describe('SystemMonitoringPage', () => {
       });
 
       // Verify all major panels are present (using test IDs from mocked components)
+      // Note: Some panels are now wrapped in CollapsibleSection components
       expect(screen.getByTestId('ai-models-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
+
+      // Databases section is now collapsible
+      expect(screen.getByTestId('databases-section')).toBeInTheDocument();
+
       expect(screen.getByTestId('host-system-panel-section')).toBeInTheDocument();
       expect(screen.getByTestId('containers-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('circuit-breaker-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('services-panel-section')).toBeInTheDocument();
-      expect(screen.getByTestId('worker-status-panel')).toBeInTheDocument();
+
+      // Circuit breaker section is now collapsible
+      expect(screen.getByTestId('circuit-breakers-section')).toBeInTheDocument();
+
+      // Services section is now collapsible
+      expect(screen.getByTestId('services-section')).toBeInTheDocument();
+
+      // Workers section is now collapsible
+      expect(screen.getByTestId('workers-section')).toBeInTheDocument();
     });
 
     it('renders system summary row', async () => {
@@ -1218,9 +1229,12 @@ describe('SystemMonitoringPage', () => {
         expect(screen.getByTestId('system-monitoring-page')).toBeInTheDocument();
       });
 
-      // Verify panels receive transformed data
-      expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
+      // Verify sections are present (some are collapsed by default)
+      // Databases section is collapsible and collapsed by default
+      expect(screen.getByTestId('databases-section')).toBeInTheDocument();
+      // Host system is always visible (not collapsible)
       expect(screen.getByTestId('host-system-panel-section')).toBeInTheDocument();
+      // Containers panel is always visible (not collapsible)
       expect(screen.getByTestId('containers-panel-section')).toBeInTheDocument();
     });
 
@@ -1333,6 +1347,8 @@ describe('SystemMonitoringPage', () => {
 
       // Infrastructure grid should receive degraded status data
       expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+      // Verify databases section is present (collapsed by default)
+      expect(screen.getByTestId('databases-section')).toBeInTheDocument();
     });
 
     it('transforms infrastructure data with unhealthy database statuses', async () => {
@@ -1371,6 +1387,8 @@ describe('SystemMonitoringPage', () => {
 
       // Infrastructure grid should receive unhealthy status data
       expect(screen.getByTestId('infrastructure-status-grid')).toBeInTheDocument();
+      // Verify databases section is present (collapsed by default)
+      expect(screen.getByTestId('databases-section')).toBeInTheDocument();
     });
 
     it('handles containers with mixed health statuses', async () => {

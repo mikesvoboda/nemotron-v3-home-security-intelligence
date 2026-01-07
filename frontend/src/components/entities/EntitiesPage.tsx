@@ -1,6 +1,9 @@
 import { AlertCircle, Car, Loader2, RefreshCw, User, Users } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import EntitiesEmptyState from './EntitiesEmptyState';
+import EntityCard from './EntityCard';
+import EntityDetailModal from './EntityDetailModal';
 import {
   fetchEntities,
   fetchEntity,
@@ -9,8 +12,6 @@ import {
   type EntitiesQueryParams,
 } from '../../services/api';
 import { EntityCardSkeleton } from '../common';
-import EntityCard from './EntityCard';
-import EntityDetailModal from './EntityDetailModal';
 
 /**
  * EntitiesPage component - Display and manage tracked entities
@@ -205,19 +206,28 @@ export default function EntitiesPage() {
         </div>
       ) : entities.length === 0 ? (
         /* Empty state */
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="max-w-md text-center">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#76B900]/10">
-              <Users className="h-10 w-10 text-[#76B900]" />
+        entityTypeFilter === 'all' ? (
+          <EntitiesEmptyState />
+        ) : (
+          /* Filtered empty state - simpler message */
+          <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
+            <div className="max-w-md text-center">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#76B900]/10">
+                {entityTypeFilter === 'person' ? (
+                  <User className="h-10 w-10 text-[#76B900]" />
+                ) : (
+                  <Car className="h-10 w-10 text-[#76B900]" />
+                )}
+              </div>
+              <h2 className="mb-3 text-xl font-semibold text-white">
+                No {entityTypeFilter === 'person' ? 'Persons' : 'Vehicles'} Found
+              </h2>
+              <p className="text-gray-400">
+                No {entityTypeFilter === 'person' ? 'persons' : 'vehicles'} have been tracked yet.
+              </p>
             </div>
-            <h2 className="mb-3 text-xl font-semibold text-white">No Entities Found</h2>
-            <p className="text-gray-400">
-              {entityTypeFilter === 'all'
-                ? 'No tracked entities have been detected yet. Entities will appear here once the system detects and tracks people or vehicles.'
-                : `No ${entityTypeFilter === 'person' ? 'persons' : 'vehicles'} have been tracked yet.`}
-            </p>
           </div>
-        </div>
+        )
       ) : (
         /* Entity grid */
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
