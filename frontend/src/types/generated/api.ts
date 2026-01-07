@@ -5187,53 +5187,23 @@ export interface components {
         };
         /**
          * CircuitBreakersResponse
-         * @description Response schema for circuit breakers status endpoint.
-         * @example {
-         *       "circuit_breakers": {
-         *         "rtdetr": {
-         *           "config": {
-         *             "failure_threshold": 5,
-         *             "half_open_max_calls": 3,
-         *             "recovery_timeout": 30,
-         *             "success_threshold": 2
-         *           },
-         *           "failure_count": 0,
-         *           "name": "rtdetr",
-         *           "rejected_calls": 0,
-         *           "state": "closed",
-         *           "success_count": 0,
-         *           "total_calls": 100
-         *         }
-         *       },
-         *       "open_count": 0,
-         *       "timestamp": "2025-12-30T10:30:00Z",
-         *       "total_count": 2
-         *     }
+         * @description Response for circuit breaker states.
          */
         CircuitBreakersResponse: {
             /**
              * Circuit Breakers
-             * @description Status of all circuit breakers keyed by name
+             * @description All circuit breaker states keyed by name
              */
             circuit_breakers: {
-                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
+                [key: string]: {
+                    [key: string]: unknown;
+                };
             };
             /**
-             * Open Count
-             * @description Number of circuit breakers currently open
-             */
-            open_count: number;
-            /**
              * Timestamp
-             * Format: date-time
-             * @description Timestamp of status snapshot
+             * @description ISO timestamp of response
              */
             timestamp: string;
-            /**
-             * Total Count
-             * @description Total number of circuit breakers
-             */
-            total_count: number;
         };
         /**
          * ClassBaselineEntry
@@ -11160,23 +11130,53 @@ export interface components {
         };
         /**
          * CircuitBreakersResponse
-         * @description Response for circuit breaker states.
+         * @description Response schema for circuit breakers status endpoint.
+         * @example {
+         *       "circuit_breakers": {
+         *         "rtdetr": {
+         *           "config": {
+         *             "failure_threshold": 5,
+         *             "half_open_max_calls": 3,
+         *             "recovery_timeout": 30,
+         *             "success_threshold": 2
+         *           },
+         *           "failure_count": 0,
+         *           "name": "rtdetr",
+         *           "rejected_calls": 0,
+         *           "state": "closed",
+         *           "success_count": 0,
+         *           "total_calls": 100
+         *         }
+         *       },
+         *       "open_count": 0,
+         *       "timestamp": "2025-12-30T10:30:00Z",
+         *       "total_count": 2
+         *     }
          */
-        backend__api__routes__debug__CircuitBreakersResponse: {
+        backend__api__schemas__system__CircuitBreakersResponse: {
             /**
              * Circuit Breakers
-             * @description All circuit breaker states keyed by name
+             * @description Status of all circuit breakers keyed by name
              */
             circuit_breakers: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
+                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
             };
             /**
+             * Open Count
+             * @description Number of circuit breakers currently open
+             */
+            open_count: number;
+            /**
              * Timestamp
-             * @description ISO timestamp of response
+             * Format: date-time
+             * @description Timestamp of status snapshot
              */
             timestamp: string;
+            /**
+             * Total Count
+             * @description Total number of circuit breakers
+             */
+            total_count: number;
         };
         /**
          * ConfigResponse
@@ -12868,7 +12868,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__routes__debug__CircuitBreakersResponse"];
+                    "application/json": components["schemas"]["CircuitBreakersResponse"];
                 };
             };
         };
@@ -14503,7 +14503,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CircuitBreakersResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__system__CircuitBreakersResponse"];
                 };
             };
         };

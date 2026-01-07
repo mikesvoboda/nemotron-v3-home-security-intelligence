@@ -184,7 +184,8 @@ export type AlertRuleListResponse = Omit<GeneratedAlertRuleListResponse, 'rules'
 export type CircuitBreakerStateEnum = components['schemas']['CircuitBreakerStateEnum'];
 export type CircuitBreakerConfigResponse = components['schemas']['CircuitBreakerConfigResponse'];
 export type CircuitBreakerStatusResponse = components['schemas']['CircuitBreakerStatusResponse'];
-export type CircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
+// Use the full system schema with open_count and total_count (not the simpler debug schema)
+export type CircuitBreakersResponse = components['schemas']['backend__api__schemas__system__CircuitBreakersResponse'];
 export type CircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
 
 // Severity types
