@@ -46,24 +46,24 @@ describe('AnomalyConfigPanel', () => {
     expect(input).toHaveValue(10);
   });
 
-  it('shows sensitivity level', () => {
+  it('shows sensitivity level with proper styling', () => {
     render(<AnomalyConfigPanel config={mockConfig} />);
 
-    expect(screen.getByText('Sensitivity: High')).toBeInTheDocument();
+    expect(screen.getByText('High Sensitivity')).toBeInTheDocument();
   });
 
   it('shows very high sensitivity for low threshold', () => {
     const lowThresholdConfig = { ...mockConfig, threshold_stdev: 1.5 };
     render(<AnomalyConfigPanel config={lowThresholdConfig} />);
 
-    expect(screen.getByText('Sensitivity: Very High')).toBeInTheDocument();
+    expect(screen.getByText('Very High Sensitivity')).toBeInTheDocument();
   });
 
   it('shows low sensitivity for high threshold', () => {
     const highThresholdConfig = { ...mockConfig, threshold_stdev: 3.0 };
     render(<AnomalyConfigPanel config={highThresholdConfig} />);
 
-    expect(screen.getByText('Sensitivity: Low')).toBeInTheDocument();
+    expect(screen.getByText('Low Sensitivity')).toBeInTheDocument();
   });
 
   it('displays read-only system settings', () => {
@@ -142,5 +142,48 @@ describe('AnomalyConfigPanel', () => {
 
     expect(input).toHaveValue(15);
     expect(screen.getByTestId('save-config-button')).toBeInTheDocument();
+  });
+
+  describe('slider accessibility', () => {
+    it('has proper aria attributes on threshold slider', () => {
+      render(<AnomalyConfigPanel config={mockConfig} />);
+
+      const slider = screen.getByTestId('threshold-slider');
+      expect(slider).toHaveAttribute('aria-label', 'Detection threshold in standard deviations');
+      expect(slider).toHaveAttribute('aria-valuemin', '1');
+      expect(slider).toHaveAttribute('aria-valuemax', '4');
+      expect(slider).toHaveAttribute('aria-valuenow', '2');
+    });
+
+    it('has proper aria-label on min samples input', () => {
+      render(<AnomalyConfigPanel config={mockConfig} />);
+
+      const input = screen.getByTestId('min-samples-input');
+      expect(input).toHaveAttribute('aria-label', 'Minimum samples required for detection');
+    });
+
+    it('displays tick marks for slider guidance', () => {
+      render(<AnomalyConfigPanel config={mockConfig} />);
+
+      // Check for visual tick mark labels
+      expect(screen.getByText('1.0')).toBeInTheDocument();
+      expect(screen.getByText('2.0')).toBeInTheDocument();
+      expect(screen.getByText('3.0')).toBeInTheDocument();
+      expect(screen.getByText('4.0')).toBeInTheDocument();
+    });
+
+    it('uses nvidia-slider class for enhanced visibility', () => {
+      render(<AnomalyConfigPanel config={mockConfig} />);
+
+      const slider = screen.getByTestId('threshold-slider');
+      expect(slider).toHaveClass('nvidia-slider');
+    });
+
+    it('uses nvidia-input class for enhanced input styling', () => {
+      render(<AnomalyConfigPanel config={mockConfig} />);
+
+      const input = screen.getByTestId('min-samples-input');
+      expect(input).toHaveClass('nvidia-input');
+    });
   });
 });

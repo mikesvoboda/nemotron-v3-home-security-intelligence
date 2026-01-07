@@ -4,6 +4,7 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Download,
   Filter,
   Search,
@@ -16,6 +17,7 @@ import { useSearchParams } from 'react-router-dom';
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
 import ExportPanel from './ExportPanel';
+import LiveActivitySection from './LiveActivitySection';
 import { useEventStream } from '../../hooks/useEventStream';
 import {
   bulkUpdateEvents,
@@ -27,8 +29,9 @@ import {
   updateEvent,
 } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
+import { EmptyState } from '../common';
 import RiskBadge from '../common/RiskBadge';
-import ActivityFeed, { type ActivityEvent } from '../dashboard/ActivityFeed';
+import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { SearchBar, SearchResultsPanel } from '../search';
 
 import type { Detection } from './EventCard';
@@ -565,23 +568,25 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         <h1 className="text-3xl font-bold text-white">Event Timeline</h1>
         <p className="mt-2 text-gray-400">
           View and filter all security events from your cameras
-          {!wsConnected && (
-            <span className="ml-2 text-yellow-500">(Disconnected)</span>
-          )}
         </p>
       </div>
 
-      {/* Live Activity Feed */}
-      <div className="mb-6">
-        <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Live Activity</h2>
-        <ActivityFeed
-          events={activityEvents}
-          maxItems={10}
-          autoScroll={true}
-          onEventClick={(eventId) => setSelectedEventForModal(parseInt(eventId, 10))}
-          className="h-[300px] md:h-[400px]"
-          showHeader={false}
-        />
+      {/* Live Activity Section */}
+      <LiveActivitySection
+        events={activityEvents}
+        isConnected={wsConnected}
+        onEventClick={(eventId) => setSelectedEventForModal(parseInt(eventId, 10))}
+        maxItems={10}
+        className="mb-8"
+      />
+
+      {/* Section Divider - Clear separation between live and historical */}
+      <div className="mb-6 flex items-center gap-4">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
+        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+          Historical Events
+        </span>
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
       </div>
 
       {/* Full-Text Search Bar */}
@@ -1044,15 +1049,29 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           </div>
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="text-center">
-            <p className="mb-2 text-lg font-semibold text-gray-300">No Events Found</p>
-            <p className="text-sm text-gray-500">
-              {hasActiveFilters
-                ? 'Try adjusting your filters or search query'
-                : 'No security events have been recorded yet'}
-            </p>
-          </div>
+        <div className="rounded-lg border border-gray-800 bg-[#1F1F1F]">
+          <EmptyState
+            icon={Clock}
+            title="No Events Found"
+            description={
+              hasActiveFilters
+                ? 'No events match your current filters. Try adjusting your search criteria or clearing some filters.'
+                : 'No security events have been recorded yet. Events will appear here as they are detected by your cameras.'
+            }
+            variant={hasActiveFilters ? 'muted' : 'default'}
+            actions={
+              hasActiveFilters
+                ? [
+                    {
+                      label: 'Clear All Filters',
+                      onClick: handleClearFilters,
+                      variant: 'secondary',
+                    },
+                  ]
+                : undefined
+            }
+            testId="timeline-empty-state"
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">

@@ -1,6 +1,6 @@
 import { Card, Title, Text, Badge, ProgressBar, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, RefreshCw, AlertCircle, Package } from 'lucide-react';
+import { Cpu, RefreshCw, AlertCircle, Package, CheckCircle, XCircle, Loader2, MinusCircle } from 'lucide-react';
 
 import type { VRAMStats } from '../../hooks/useModelZooStatus';
 import type { ModelStatusResponse } from '../../services/api';
@@ -73,6 +73,24 @@ function getVramProgressColor(usagePercent: number): 'emerald' | 'yellow' | 'ora
   if (usagePercent < 75) return 'yellow';
   if (usagePercent < 90) return 'orange';
   return 'red';
+}
+
+/**
+ * Get status icon for accessibility (not color-only).
+ */
+function ModelStatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case 'loaded':
+      return <CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" data-testid="model-status-icon-loaded" />;
+    case 'loading':
+      return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" aria-hidden="true" data-testid="model-status-icon-loading" />;
+    case 'error':
+      return <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" data-testid="model-status-icon-error" />;
+    case 'unloaded':
+    case 'disabled':
+    default:
+      return <MinusCircle className="h-4 w-4 text-gray-500" aria-hidden="true" data-testid="model-status-icon-inactive" />;
+  }
 }
 
 /**
@@ -215,15 +233,19 @@ export default function ModelZooPanel({
                     >
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          {/* Status icon for accessibility (not color-only) */}
+                          <ModelStatusIcon status={model.status} />
                           <div
                             className={clsx(
                               'h-2 w-2 rounded-full',
                               model.status === 'loaded' ? 'bg-green-500' : 'bg-gray-500'
                             )}
+                            aria-hidden="true"
                           />
                           <Text className="font-medium text-white">
                             {model.display_name}
                           </Text>
+                          <span className="sr-only">Status: {getStatusText(model.status)}</span>
                         </div>
                       </TableCell>
                       <TableCell>

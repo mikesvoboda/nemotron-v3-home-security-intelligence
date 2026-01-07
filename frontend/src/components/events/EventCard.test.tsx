@@ -68,11 +68,13 @@ describe('EventCard', () => {
       expect(heading).toHaveAttribute('title', 'Front Door');
     });
 
-    it('renders summary text', () => {
+    it('renders summary text within TruncatedText component', () => {
       render(<EventCard {...mockProps} />);
       const summary = screen.getByText('Person detected approaching the front entrance');
       expect(summary).toBeInTheDocument();
       expect(summary.tagName).toBe('P');
+      // Should be inside a TruncatedText component (indicated by data-testid)
+      expect(summary.closest('[data-testid="truncated-text"]')).toBeInTheDocument();
     });
 
     it('applies custom className', () => {
@@ -899,15 +901,37 @@ describe('EventCard', () => {
       expect(screen.getByText('person')).toBeInTheDocument();
     });
 
-    it('handles very long summary text', () => {
+    it('handles very long summary text with truncation and expand', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
       const longSummaryEvent = {
         ...mockProps,
         summary:
-          'This is a very long summary that describes an extremely complex security event with multiple elements and detailed analysis of what has occurred at this particular location and time with extensive contextual information.',
+          'This is a very long summary that describes an extremely complex security event with multiple elements and detailed analysis of what has occurred at this particular location and time with extensive contextual information and many more details.',
       };
       render(<EventCard {...longSummaryEvent} />);
-      const summary = screen.getByText(/This is a very long summary/);
-      expect(summary).toBeInTheDocument();
+
+      // Text should be truncated initially
+      const truncatedText = screen.getByText(/This is a very long summary/);
+      expect(truncatedText).toBeInTheDocument();
+
+      // Show more button should be present
+      const showMoreButton = screen.getByRole('button', { name: /show more/i });
+      expect(showMoreButton).toBeInTheDocument();
+
+      // Click to expand
+      await user.click(showMoreButton);
+
+      // Full text should now be visible
+      expect(
+        screen.getByText(/extensive contextual information and many more details/)
+      ).toBeInTheDocument();
+
+      // Show less button should now be present
+      expect(screen.getByRole('button', { name: /show less/i })).toBeInTheDocument();
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
     });
 
     it('handles very long reasoning text', async () => {
