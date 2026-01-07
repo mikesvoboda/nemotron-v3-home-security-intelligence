@@ -47,7 +47,7 @@ export class AIAuditPage extends BasePage {
 
     // Controls
     this.periodSelector = page.getByTestId('period-selector');
-    this.refreshButton = page.getByTestId('refresh-button');
+    this.refreshButton = page.getByTestId('ai-audit-refresh-button');
 
     // Quality Score Metrics
     this.qualityScoreTrends = page.getByTestId('quality-score-trends');
