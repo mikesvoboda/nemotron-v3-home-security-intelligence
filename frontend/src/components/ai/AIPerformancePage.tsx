@@ -12,9 +12,11 @@
  * the general System monitoring page.
  */
 
-import { Text, Callout, Title } from '@tremor/react';
-import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2, Layers } from 'lucide-react';
-import { useEffect, useState, useCallback } from 'react';
+import { Tab } from '@headlessui/react';
+import { Text, Callout, Title, Badge, Accordion, AccordionHeader, AccordionBody } from '@tremor/react';
+import { clsx } from 'clsx';
+import { Brain, RefreshCw, AlertCircle, ExternalLink, BarChart2, Layers, Activity, Zap, Database, TrendingUp } from 'lucide-react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 
 import InsightsCharts from './InsightsCharts';
 import LatencyPanel from './LatencyPanel';
@@ -51,6 +53,18 @@ export default function AIPerformancePage() {
   // Model Zoo data state
   const [auditStats, setAuditStats] = useState<AiAuditStatsResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<AiAuditLeaderboardResponse | null>(null);
+
+  // Tab state with localStorage persistence
+  const [selectedTabIndex, setSelectedTabIndex] = useState(() => {
+    const saved = localStorage.getItem('aiPerformanceSelectedTab');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Save selected tab to localStorage
+  const handleTabChange = (index: number) => {
+    setSelectedTabIndex(index);
+    localStorage.setItem('aiPerformanceSelectedTab', String(index));
+  };
 
   // Load Model Zoo data (contribution rates and leaderboard)
   const loadModelZooData = useCallback(async () => {
@@ -204,75 +218,186 @@ export default function AIPerformancePage() {
         {/* Main Content */}
         {hasData && (
           <div className="space-y-6">
-            {/* Summary Row */}
-            <AIPerformanceSummaryRow
-              rtdetr={data.rtdetr}
-              nemotron={data.nemotron}
-              detectionLatency={data.detectionLatency}
-              analysisLatency={data.analysisLatency}
-              detectionQueueDepth={data.detectionQueueDepth}
-              analysisQueueDepth={data.analysisQueueDepth}
-              totalDetections={data.totalDetections}
-              totalEvents={data.totalEvents}
-              totalErrors={Object.values(data.pipelineErrors).reduce((sum, count) => sum + count, 0)}
-            />
+            {/* Calculate total errors for badge */}
+            {(() => {
+              const totalErrors = Object.values(data.pipelineErrors).reduce((sum, count) => sum + count, 0);
+              const hasErrors = totalErrors > 0;
 
-            {/* Model Status Cards */}
-            <ModelStatusCards
-              rtdetr={data.rtdetr}
-              nemotron={data.nemotron}
-              detectionLatency={data.detectionLatency}
-              analysisLatency={data.analysisLatency}
-            />
+              // Define tabs
+              const tabs = [
+                {
+                  id: 'overview',
+                  name: 'Overview',
+                  icon: Activity,
+                  showBadge: hasErrors,
+                  badgeCount: totalErrors,
+                },
+                {
+                  id: 'latency',
+                  name: 'Latency',
+                  icon: Zap,
+                  showBadge: false,
+                },
+                {
+                  id: 'model-zoo',
+                  name: 'Model Zoo',
+                  icon: Database,
+                  showBadge: false,
+                },
+                {
+                  id: 'analytics',
+                  name: 'Analytics',
+                  icon: TrendingUp,
+                  showBadge: false,
+                },
+              ];
 
-            {/* Latency Panel */}
-            <LatencyPanel
-              detectionLatency={data.detectionLatency}
-              analysisLatency={data.analysisLatency}
-              pipelineLatency={data.pipelineLatency}
-            />
+              return (
+                <Tab.Group selectedIndex={selectedTabIndex} onChange={handleTabChange}>
+                  {/* Tab List */}
+                  <Tab.List className="mb-6 flex space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
+                    {tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <Tab key={tab.id} as={Fragment}>
+                          {({ selected }) => (
+                            <button
+                              className={clsx(
+                                'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                                'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                                selected
+                                  ? 'bg-[#76B900] text-black shadow-md'
+                                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                              )}
+                              data-testid={`${tab.id}-tab`}
+                              data-selected={selected}
+                            >
+                              <Icon className="h-5 w-5" aria-hidden="true" />
+                              <span>{tab.name}</span>
+                              {tab.showBadge && (
+                                <Badge color="red" className="ml-1">
+                                  {tab.badgeCount}
+                                </Badge>
+                              )}
+                            </button>
+                          )}
+                        </Tab>
+                      );
+                    })}
+                  </Tab.List>
 
-            {/* Pipeline Health Panel */}
-            <PipelineHealthPanel
-              detectionQueueDepth={data.detectionQueueDepth}
-              analysisQueueDepth={data.analysisQueueDepth}
-              totalDetections={data.totalDetections}
-              totalEvents={data.totalEvents}
-              pipelineErrors={data.pipelineErrors}
-              queueOverflows={data.queueOverflows}
-              dlqItems={data.dlqItems}
-            />
+                  {/* Tab Panels */}
+                  <Tab.Panels>
+                    {/* Overview Tab */}
+                    <Tab.Panel className="space-y-6" data-testid="overview-tab-panel">
+                      {/* Summary Row */}
+                      <AIPerformanceSummaryRow
+                        rtdetr={data.rtdetr}
+                        nemotron={data.nemotron}
+                        detectionLatency={data.detectionLatency}
+                        analysisLatency={data.analysisLatency}
+                        detectionQueueDepth={data.detectionQueueDepth}
+                        analysisQueueDepth={data.analysisQueueDepth}
+                        totalDetections={data.totalDetections}
+                        totalEvents={data.totalEvents}
+                        totalErrors={totalErrors}
+                      />
 
-            {/* Insights Charts */}
-            <InsightsCharts
-              totalDetections={data.totalDetections}
-              detectionsByClass={data.detectionsByClass}
-            />
+                      {/* Model Status Cards */}
+                      <ModelStatusCards
+                        rtdetr={data.rtdetr}
+                        nemotron={data.nemotron}
+                        detectionLatency={data.detectionLatency}
+                        analysisLatency={data.analysisLatency}
+                      />
 
-            {/* Model Zoo Section - Status Cards and Latency Chart */}
-            <ModelZooSection />
+                      {/* Pipeline Health Panel - Errors Section (collapsible, auto-expanded if errors) */}
+                      {hasErrors && (
+                        <Accordion defaultOpen={true}>
+                          <AccordionHeader className="text-white">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="h-5 w-5 text-red-500" />
+                              <span>Pipeline Errors ({totalErrors})</span>
+                            </div>
+                          </AccordionHeader>
+                          <AccordionBody>
+                            <PipelineHealthPanel
+                              detectionQueueDepth={data.detectionQueueDepth}
+                              analysisQueueDepth={data.analysisQueueDepth}
+                              totalDetections={data.totalDetections}
+                              totalEvents={data.totalEvents}
+                              pipelineErrors={data.pipelineErrors}
+                              queueOverflows={data.queueOverflows}
+                              dlqItems={data.dlqItems}
+                            />
+                          </AccordionBody>
+                        </Accordion>
+                      )}
 
-            {/* Model Zoo Analytics Section */}
-            <div data-testid="model-zoo-analytics-section">
-              <div className="mb-4 flex items-center gap-2">
-                <Layers className="h-5 w-5 text-[#76B900]" />
-                <Title className="text-white">Model Zoo Analytics</Title>
-              </div>
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Model Contribution Chart */}
-                {auditStats && (
-                  <ModelContributionChart contributionRates={auditStats.model_contribution_rates} />
-                )}
+                      {/* Key Metrics - Throughput (always visible on Overview) */}
+                      {!hasErrors && (
+                        <PipelineHealthPanel
+                          detectionQueueDepth={data.detectionQueueDepth}
+                          analysisQueueDepth={data.analysisQueueDepth}
+                          totalDetections={data.totalDetections}
+                          totalEvents={data.totalEvents}
+                          pipelineErrors={data.pipelineErrors}
+                          queueOverflows={data.queueOverflows}
+                          dlqItems={data.dlqItems}
+                        />
+                      )}
+                    </Tab.Panel>
 
-                {/* Model Leaderboard */}
-                {leaderboard && (
-                  <ModelLeaderboard
-                    entries={leaderboard.entries}
-                    periodDays={leaderboard.period_days}
-                  />
-                )}
-              </div>
-            </div>
+                    {/* Latency Tab */}
+                    <Tab.Panel className="space-y-6" data-testid="latency-tab-panel">
+                      {/* Latency Panel */}
+                      <LatencyPanel
+                        detectionLatency={data.detectionLatency}
+                        analysisLatency={data.analysisLatency}
+                        pipelineLatency={data.pipelineLatency}
+                      />
+                    </Tab.Panel>
+
+                    {/* Model Zoo Tab */}
+                    <Tab.Panel className="space-y-6" data-testid="model-zoo-tab-panel">
+                      {/* Model Zoo Section - Status Cards and Latency Chart */}
+                      <ModelZooSection />
+                    </Tab.Panel>
+
+                    {/* Analytics Tab */}
+                    <Tab.Panel className="space-y-6" data-testid="analytics-tab-panel">
+                      {/* Insights Charts */}
+                      <InsightsCharts
+                        totalDetections={data.totalDetections}
+                        detectionsByClass={data.detectionsByClass}
+                      />
+
+                      {/* Model Zoo Analytics Section */}
+                      <div data-testid="model-zoo-analytics-section">
+                        <div className="mb-4 flex items-center gap-2">
+                          <Layers className="h-5 w-5 text-[#76B900]" />
+                          <Title className="text-white">Model Zoo Analytics</Title>
+                        </div>
+                        <div className="grid gap-6 lg:grid-cols-2">
+                          {/* Model Contribution Chart */}
+                          {auditStats && (
+                            <ModelContributionChart contributionRates={auditStats.model_contribution_rates} />
+                          )}
+
+                          {/* Model Leaderboard */}
+                          {leaderboard && (
+                            <ModelLeaderboard
+                              entries={leaderboard.entries}
+                              periodDays={leaderboard.period_days}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </Tab.Panel>
+                  </Tab.Panels>
+                </Tab.Group>
+              );
+            })()}
 
             {/* Last Updated */}
             {data.lastUpdated && (
