@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from backend.api.schemas.system import QueueDepths
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger, get_request_id
 from backend.core.redis import RedisClient, get_redis_optional
@@ -35,13 +36,6 @@ VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 # =============================================================================
 # Pydantic Models
 # =============================================================================
-
-
-class QueueDepths(BaseModel):
-    """Queue depth information for AI pipeline."""
-
-    detection_queue: int = Field(description="Number of items in detection queue")
-    analysis_queue: int = Field(description="Number of items in analysis queue")
 
 
 class WorkerStatus(BaseModel):

@@ -8933,17 +8933,21 @@ export interface components {
         };
         /**
          * QueueDepths
-         * @description Queue depth information for AI pipeline.
+         * @description Queue depth information for pipeline queues.
+         * @example {
+         *       "analysis_queue": 2,
+         *       "detection_queue": 5
+         *     }
          */
         QueueDepths: {
             /**
              * Analysis Queue
-             * @description Number of items in analysis queue
+             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
              */
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue
+             * @description Number of items in detection queue waiting for RT-DETRv2 processing
              */
             detection_queue: number;
         };
@@ -10219,7 +10223,7 @@ export interface components {
             /** @description Latency statistics for each pipeline stage */
             latencies?: components["schemas"]["PipelineLatencies"] | null;
             /** @description Current queue depths for detection and analysis queues */
-            queues: components["schemas"]["backend__api__schemas__system__QueueDepths"];
+            queues: components["schemas"]["QueueDepths"];
             /**
              * Timestamp
              * Format: date-time
@@ -10748,26 +10752,6 @@ export interface components {
              * @description Whether worker is currently running
              */
             running: boolean;
-        };
-        /**
-         * QueueDepths
-         * @description Queue depth information for pipeline queues.
-         * @example {
-         *       "analysis_queue": 2,
-         *       "detection_queue": 5
-         *     }
-         */
-        backend__api__schemas__system__QueueDepths: {
-            /**
-             * Analysis Queue
-             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
-             */
-            analysis_queue: number;
-            /**
-             * Detection Queue
-             * @description Number of items in detection queue waiting for RT-DETRv2 processing
-             */
-            detection_queue: number;
         };
     };
     responses: never;
