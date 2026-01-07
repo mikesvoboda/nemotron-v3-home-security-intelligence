@@ -136,14 +136,16 @@ interface RiskBadgeProps {
 - Pulse animation for critical level (controllable via `animated` prop)
 - Full accessibility: `role="status"` and descriptive `aria-label`
 
-**Color Mapping:**
+**Color Mapping (WCAG 2.1 AA Compliant):**
 
-| Level    | Background        | Text             | Icon          |
-| -------- | ----------------- | ---------------- | ------------- |
-| low      | bg-risk-low/10    | text-risk-low    | CheckCircle   |
-| medium   | bg-risk-medium/10 | text-risk-medium | AlertTriangle |
-| high     | bg-risk-high/10   | text-risk-high   | AlertTriangle |
-| critical | bg-red-500/10     | text-red-500     | AlertOctagon  |
+| Level    | Background            | Text                 | Icon          |
+| -------- | --------------------- | -------------------- | ------------- |
+| low      | bg-risk-low/10        | text-risk-low        | CheckCircle   |
+| medium   | bg-risk-medium/10     | text-risk-medium     | AlertTriangle |
+| high     | bg-risk-high/10       | text-risk-high       | AlertTriangle |
+| critical | bg-risk-critical/10   | text-risk-critical   | AlertOctagon  |
+
+**Note:** Risk colors in `tailwind.config.js` are calibrated to achieve 4.5:1 contrast ratio when text is displayed over semi-transparent backgrounds (bg-{color}/10). The browser blends text color with background, so text colors are brightened to compensate.
 
 **Size Mapping:**
 

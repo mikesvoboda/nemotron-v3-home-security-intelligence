@@ -60,7 +60,7 @@ export default function TimeRangeSelector({
             className={clsx(
               'rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-150',
               isSelected
-                ? 'bg-[#76B900] text-white shadow-sm'
+                ? 'bg-[#76B900] text-gray-950 shadow-sm' // WCAG 2.1 AA: dark text on green for 4.5:1+ contrast
                 : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
             )}
           >

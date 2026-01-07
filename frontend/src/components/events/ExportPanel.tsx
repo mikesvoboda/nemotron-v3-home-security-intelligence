@@ -387,7 +387,7 @@ export default function ExportPanel({
       <Button
         onClick={() => void handleExport()}
         disabled={exporting || stats?.total_events === 0}
-        className="w-full bg-[#76B900] text-white hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {exporting ? (
           <>
