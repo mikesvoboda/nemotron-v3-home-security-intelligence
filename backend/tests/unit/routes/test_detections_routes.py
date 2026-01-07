@@ -96,6 +96,7 @@ async def test_list_detections_no_filters(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -130,6 +131,7 @@ async def test_list_detections_with_camera_filter(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -160,6 +162,7 @@ async def test_list_detections_with_object_type_filter(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -193,6 +196,7 @@ async def test_list_detections_with_date_range_filter(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -222,6 +226,7 @@ async def test_list_detections_with_confidence_filter(
         min_confidence=0.9,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -252,6 +257,7 @@ async def test_list_detections_with_all_filters(
         min_confidence=0.9,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -281,6 +287,7 @@ async def test_list_detections_with_pagination(
         min_confidence=None,
         limit=10,
         offset=20,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -310,6 +317,7 @@ async def test_list_detections_empty_result(mock_db_session: AsyncMock) -> None:
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -338,6 +346,7 @@ async def test_list_detections_count_returns_none(mock_db_session: AsyncMock) ->
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -380,6 +389,7 @@ async def test_list_detections_multiple_results(mock_db_session: AsyncMock) -> N
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -739,6 +749,7 @@ async def test_list_detections_with_zero_confidence_filter(mock_db_session: Asyn
         min_confidence=0.0,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -768,6 +779,7 @@ async def test_list_detections_with_start_date_only(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -797,6 +809,7 @@ async def test_list_detections_with_end_date_only(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -864,6 +877,7 @@ async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
         min_confidence=None,
         limit=50,
         offset=1000,  # Way beyond total count
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -895,6 +909,7 @@ async def test_list_detections_max_limit(
         min_confidence=None,
         limit=1000,  # Maximum allowed
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -924,6 +939,7 @@ async def test_list_detections_min_limit(
         min_confidence=None,
         limit=1,  # Minimum allowed
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 
@@ -987,6 +1003,7 @@ async def test_list_detections_equal_dates_is_valid(
         min_confidence=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=mock_db_session,
     )
 

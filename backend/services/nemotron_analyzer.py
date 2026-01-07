@@ -72,6 +72,8 @@ from backend.services.enrichment_pipeline import (
     DetectionInput,
     EnrichmentPipeline,
     EnrichmentResult,
+    EnrichmentStatus,
+    EnrichmentTrackingResult,
     get_enrichment_pipeline,
 )
 from backend.services.inference_semaphore import get_inference_semaphore
@@ -251,8 +253,12 @@ class NemotronAnalyzer:
         batch_id: str,
         detections: list[Detection],
         camera_id: str | None = None,
-    ) -> EnrichmentResult | None:
+    ) -> EnrichmentTrackingResult | None:
         """Get enrichment result (plates, faces) for detections if enabled.
+
+        This method now returns an EnrichmentTrackingResult that tracks which
+        enrichment models succeeded/failed, providing visibility into partial
+        failures instead of silently degrading (NEM-1672).
 
         Args:
             batch_id: Batch identifier (for logging)
@@ -260,28 +266,56 @@ class NemotronAnalyzer:
             camera_id: Camera ID for scene change detection and re-id
 
         Returns:
-            EnrichmentResult or None if enrichment is disabled or fails
+            EnrichmentTrackingResult with status, model results, and data,
+            or None if enrichment is disabled
         """
         if not self._use_enrichment_pipeline:
             return None
 
         try:
-            result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
-            if result:
-                logger.debug(
-                    f"Enrichment pipeline for batch {batch_id}: "
-                    f"{len(result.license_plates)} plates, "
-                    f"{len(result.faces)} faces, "
-                    f"{result.processing_time_ms:.1f}ms"
-                )
-            return result
+            tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
+
+            if tracking_result:
+                # Log partial failures if any models failed
+                if tracking_result.is_partial:
+                    logger.warning(
+                        f"Enrichment pipeline partial failure for batch {batch_id}: "
+                        f"succeeded={tracking_result.successful_models}, "
+                        f"failed={tracking_result.failed_models}, "
+                        f"success_rate={tracking_result.success_rate:.0%}"
+                    )
+                elif tracking_result.all_failed:
+                    logger.warning(
+                        f"Enrichment pipeline failed for batch {batch_id}: "
+                        f"all models failed: {tracking_result.failed_models}"
+                    )
+                elif tracking_result.has_data:
+                    result = tracking_result.data
+                    if result:
+                        logger.debug(
+                            f"Enrichment pipeline for batch {batch_id}: "
+                            f"{len(result.license_plates)} plates, "
+                            f"{len(result.faces)} faces, "
+                            f"{result.processing_time_ms:.1f}ms, "
+                            f"status={tracking_result.status.value}"
+                        )
+
+            return tracking_result
+
         except Exception as e:
             logger.warning(
                 f"Enrichment pipeline failed for batch {batch_id}, "
                 f"continuing without enrichment: {e}",
                 exc_info=True,
             )
-            return None
+            # Return a failed tracking result instead of None
+            return EnrichmentTrackingResult(
+                status=EnrichmentStatus.FAILED,
+                successful_models=[],
+                failed_models=["all"],
+                errors={"all": str(e)},
+                data=None,
+            )
 
     def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication headers for API requests.
@@ -392,9 +426,15 @@ class NemotronAnalyzer:
             )
 
             # Run enrichment pipeline for license plates, faces, OCR
-            enrichment_result = await self._get_enrichment_result(
+            # Returns EnrichmentTrackingResult which includes status and data (NEM-1672)
+            enrichment_tracking = await self._get_enrichment_result(
                 batch_id, detections, camera_id=camera_id
             )
+
+            # Extract the actual EnrichmentResult data from the tracking result
+            enrichment_result: EnrichmentResult | None = None
+            if enrichment_tracking is not None and enrichment_tracking.has_data:
+                enrichment_result = enrichment_tracking.data
 
             # Persist enrichment data to each detection
             if enrichment_result is not None:
@@ -604,9 +644,15 @@ class NemotronAnalyzer:
             )
 
             # Run enrichment pipeline for license plates, faces, OCR
-            enrichment_result = await self._get_enrichment_result(
+            # Returns EnrichmentTrackingResult which includes status and data (NEM-1672)
+            enrichment_tracking = await self._get_enrichment_result(
                 batch_id, [detection], camera_id=camera_id
             )
+
+            # Extract the actual EnrichmentResult data from the tracking result
+            enrichment_result: EnrichmentResult | None = None
+            if enrichment_tracking is not None and enrichment_tracking.has_data:
+                enrichment_result = enrichment_tracking.data
 
             # Persist enrichment data to the detection
             if enrichment_result is not None:
@@ -789,18 +835,21 @@ class NemotronAnalyzer:
 
     async def _run_enrichment_pipeline(
         self, detections: list[Detection], camera_id: str | None = None
-    ) -> EnrichmentResult | None:
-        """Run the enrichment pipeline on detections.
+    ) -> EnrichmentTrackingResult | None:
+        """Run the enrichment pipeline on detections with tracking (NEM-1672).
 
         Converts Detection models to DetectionInput format and runs the
         enrichment pipeline to extract license plates, faces, and OCR.
+        Now returns EnrichmentTrackingResult which tracks which models
+        succeeded/failed for visibility into partial failures.
 
         Args:
             detections: List of Detection models from the database
             camera_id: Camera ID for scene change detection and re-id
 
         Returns:
-            EnrichmentResult with plates and faces, or None if no enrichment
+            EnrichmentTrackingResult with status, model results, and data,
+            or None if no enrichment was needed
         """
         if not detections:
             return None
@@ -853,10 +902,12 @@ class NemotronAnalyzer:
         if detections and detections[0].file_path:
             images[None] = detections[0].file_path
 
-        # Run the enrichment pipeline with camera_id for scene change and re-id
-        result = await pipeline.enrich_batch(detection_inputs, images, camera_id=camera_id)
+        # Run the enrichment pipeline with tracking for partial failure visibility
+        tracking_result = await pipeline.enrich_batch_with_tracking(
+            detection_inputs, images, camera_id=camera_id
+        )
 
-        return result
+        return tracking_result
 
     async def _call_llm(  # noqa: PLR0912
         self,

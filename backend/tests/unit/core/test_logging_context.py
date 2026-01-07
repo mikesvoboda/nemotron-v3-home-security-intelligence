@@ -1,16 +1,20 @@
-"""Tests for structured error context logging (NEM-1468).
+"""Tests for structured error context logging (NEM-1468, NEM-1645).
 
 This module tests the enhanced exception logging with structured context
-including request_id, operation context, and error metadata.
+including request_id, operation context, error metadata, and the log_context
+context manager for enriched logging.
 """
 
+import asyncio
 import logging
 
 import pytest
 
 from backend.core.logging import (
+    get_log_context,
     get_logger,
     get_request_id,
+    log_context,
     set_request_id,
 )
 
@@ -258,3 +262,206 @@ class TestRequestIdContext:
 
         # Clean up
         set_request_id(None)
+
+
+class TestLogContext:
+    """Tests for log_context context manager (NEM-1645).
+
+    The log_context context manager enriches all logs within its scope
+    with additional context fields, making them available via contextvars.
+    """
+
+    def test_log_context_adds_fields_to_log_record(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify log_context adds context fields to log records."""
+        logger = get_logger("test.log_context")
+
+        with caplog.at_level(logging.INFO):  # noqa: SIM117
+            with log_context(camera_id="front_door", operation="detect"):
+                logger.info("Processing detection")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.camera_id == "front_door"
+        assert record.operation == "detect"
+
+    def test_log_context_clears_after_exit(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify log_context clears fields after exiting the context."""
+        logger = get_logger("test.log_context_clear")
+
+        with log_context(camera_id="front_door"):
+            pass  # Context is set here
+
+        # Now context should be cleared
+        context = get_log_context()
+        assert context == {}
+
+        # Log outside context should not have camera_id
+        with caplog.at_level(logging.INFO):
+            logger.info("Outside context")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert not hasattr(record, "camera_id") or record.camera_id is None
+
+    def test_log_context_nesting(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify nested log_context works correctly."""
+        logger = get_logger("test.log_context_nested")
+
+        with caplog.at_level(logging.INFO), log_context(camera_id="front_door"):  # noqa: SIM117
+            with log_context(operation="detect", retry_count=1):
+                logger.info("Inner context")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        # Should have fields from both contexts
+        assert record.camera_id == "front_door"
+        assert record.operation == "detect"
+        assert record.retry_count == 1
+
+    def test_log_context_nested_override(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify inner log_context can override outer fields."""
+        logger = get_logger("test.log_context_override")
+
+        with caplog.at_level(logging.INFO):  # noqa: SIM117
+            with log_context(camera_id="front_door", retry_count=0):
+                with log_context(retry_count=2):
+                    logger.info("Overridden context")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.camera_id == "front_door"  # From outer context
+        assert record.retry_count == 2  # Overridden by inner context
+
+    def test_log_context_restores_after_nested_exit(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify outer context is restored after inner context exits."""
+        logger = get_logger("test.log_context_restore")
+
+        with caplog.at_level(logging.INFO):  # noqa: SIM117
+            with log_context(camera_id="front_door", retry_count=0):
+                with log_context(retry_count=2):
+                    pass  # Inner context exits here
+
+                # Should be back to outer context
+                logger.info("After inner context")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.camera_id == "front_door"
+        assert record.retry_count == 0  # Back to outer value
+
+    def test_log_context_with_exception(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify log_context works correctly when exception is raised."""
+        logger = get_logger("test.log_context_exception")
+
+        with caplog.at_level(logging.ERROR):
+            try:
+                with log_context(camera_id="front_door", operation="detect"):
+                    logger.error("Error occurred")
+                    raise ValueError("Test error")
+            except ValueError:
+                pass  # Expected
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.camera_id == "front_door"
+        assert record.operation == "detect"
+
+        # Context should be cleared after exception
+        context = get_log_context()
+        assert context == {}
+
+    def test_log_context_with_various_types(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify log_context handles various value types."""
+        logger = get_logger("test.log_context_types")
+
+        with (
+            caplog.at_level(logging.INFO),
+            log_context(
+                camera_id="front_door",
+                retry_count=3,
+                confidence=0.95,
+                enabled=True,
+                labels=["person", "car"],
+            ),
+        ):
+            logger.info("Various types")
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.camera_id == "front_door"
+        assert record.retry_count == 3
+        assert record.confidence == 0.95
+        assert record.enabled is True
+        assert record.labels == ["person", "car"]
+
+    def test_get_log_context_returns_current_context(self) -> None:
+        """Verify get_log_context returns the current context dict."""
+        with log_context(camera_id="front_door", operation="detect"):
+            context = get_log_context()
+            assert context == {"camera_id": "front_door", "operation": "detect"}
+
+        # After exiting context
+        context = get_log_context()
+        assert context == {}
+
+    def test_log_context_isolation_between_async_tasks(self) -> None:
+        """Verify log_context is isolated between concurrent async tasks."""
+
+        async def task_with_context(task_id: str) -> dict:
+            with log_context(task_id=task_id):
+                await asyncio.sleep(0.01)  # Simulate async work
+                return get_log_context()
+
+        async def run_concurrent_tasks():
+            # Run two concurrent tasks with different contexts
+            results = await asyncio.gather(
+                task_with_context("task-1"),
+                task_with_context("task-2"),
+            )
+            return results
+
+        result1, result2 = asyncio.run(run_concurrent_tasks())
+        # Each task should have its own context
+        assert result1 == {"task_id": "task-1"}
+        assert result2 == {"task_id": "task-2"}
+
+    def test_log_context_empty_context_is_valid(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify empty log_context works (no-op)."""
+        logger = get_logger("test.log_context_empty")
+
+        with caplog.at_level(logging.INFO), log_context():
+            logger.info("Empty context")
+
+        assert len(caplog.records) == 1
+        # Should not fail, just no extra fields added
+        context = get_log_context()
+        assert context == {}
+
+    def test_log_context_combines_with_extra_param(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Verify log_context combines with explicit extra= parameter."""
+        logger = get_logger("test.log_context_combine")
+
+        with caplog.at_level(logging.INFO), log_context(camera_id="front_door"):
+            logger.info("Combined context", extra={"detection_id": 123, "score": 0.95})
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        # Should have fields from both log_context and extra
+        assert record.camera_id == "front_door"
+        assert record.detection_id == 123
+        assert record.score == 0.95
+
+    def test_log_context_extra_param_overrides_context(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Verify explicit extra= parameter overrides log_context values."""
+        logger = get_logger("test.log_context_extra_override")
+
+        with caplog.at_level(logging.INFO):  # noqa: SIM117
+            with log_context(camera_id="front_door", retry_count=1):
+                logger.info("Extra overrides context", extra={"retry_count": 5})
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.camera_id == "front_door"  # From log_context
+        assert record.retry_count == 5  # Overridden by extra
