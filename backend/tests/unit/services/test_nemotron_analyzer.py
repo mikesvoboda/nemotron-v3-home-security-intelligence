@@ -67,6 +67,10 @@ def mock_settings():
     mock.llm_tokenizer_encoding = "cl100k_base"
     # Enrichment pipeline settings (NEM-1641)
     mock.image_quality_enabled = False
+    # Cold start and warmup settings (NEM-1670)
+    mock.ai_warmup_enabled = True
+    mock.ai_cold_start_threshold_seconds = 300.0
+    mock.nemotron_warmup_prompt = "Test warmup prompt"
     return mock
 
 
@@ -2360,6 +2364,10 @@ class TestNemotronAnalyzerImprovedPatterns:
         mock.severity_low_max = 29
         mock.severity_medium_max = 59
         mock.severity_high_max = 84
+        # Cold start and warmup settings (NEM-1670)
+        mock.ai_warmup_enabled = True
+        mock.ai_cold_start_threshold_seconds = 300.0
+        mock.nemotron_warmup_prompt = "Test warmup prompt"
         return mock
 
     @pytest.fixture
@@ -2544,6 +2552,10 @@ class TestIdempotencyHandling:
         mock.severity_low_max = 29
         mock.severity_medium_max = 59
         mock.severity_high_max = 84
+        # Cold start and warmup settings (NEM-1670)
+        mock.ai_warmup_enabled = True
+        mock.ai_cold_start_threshold_seconds = 300.0
+        mock.nemotron_warmup_prompt = "Test warmup prompt"
         return mock
 
     @pytest.fixture
@@ -3078,6 +3090,10 @@ class TestLLMTokenMetrics:
         mock.context_utilization_warning_threshold = 0.80
         mock.context_truncation_enabled = True
         mock.llm_tokenizer_encoding = "cl100k_base"
+        # Cold start and warmup settings (NEM-1670)
+        mock.ai_warmup_enabled = True
+        mock.ai_cold_start_threshold_seconds = 300.0
+        mock.nemotron_warmup_prompt = "Test warmup prompt"
         return mock
 
     @pytest.fixture
@@ -3250,6 +3266,10 @@ class TestTokenCountingIntegration:
         # Token limit settings (NEM-1723)
         mock.nemotron_context_window = 3900
         mock.nemotron_max_output_tokens = 1536
+        # Cold start and warmup settings (NEM-1670)
+        mock.ai_warmup_enabled = True
+        mock.ai_cold_start_threshold_seconds = 300.0
+        mock.nemotron_warmup_prompt = "Test warmup prompt"
         return mock
 
     @pytest.fixture

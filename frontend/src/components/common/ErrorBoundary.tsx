@@ -2,6 +2,7 @@ import { AlertOctagon, RefreshCw } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { logger } from '../../services/logger';
+import { captureError, isSentryEnabled } from '../../services/sentry';
 
 /**
  * Generates a fingerprint for an error to enable deduplication.
@@ -36,6 +37,8 @@ export interface ErrorBoundaryProps {
   description?: string;
   /** Optional component name for better error context in logs */
   componentName?: string;
+  /** Optional name for the boundary (used in Sentry tags) */
+  boundaryName?: string;
 }
 
 export interface ErrorBoundaryState {
@@ -87,6 +90,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
    * Uses the centralized logger service to capture errors in both
    * development and production environments for debugging via source maps.
    * Implements error deduplication to prevent flooding logs with repeated errors.
+   * Also reports to Sentry if configured.
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Generate fingerprint for deduplication
@@ -104,6 +108,19 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
         name: error.name,
         component: this.props.componentName,
         url: window.location.href,
+      });
+    }
+
+    // Report to Sentry if enabled
+    if (isSentryEnabled()) {
+      const boundaryName = this.props.boundaryName || 'ErrorBoundary';
+      captureError(error, {
+        tags: {
+          component: boundaryName,
+        },
+        extra: {
+          componentStack: errorInfo.componentStack,
+        },
       });
     }
 

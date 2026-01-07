@@ -32,6 +32,7 @@ from backend.api.routes import (
     metrics,
     notification,
     notification_preferences,
+    rum,
     services,
     system,
     websocket,
@@ -622,6 +623,7 @@ app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
 app.include_router(notification_preferences.router)
+app.include_router(rum.router)
 app.include_router(services.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
@@ -652,12 +654,14 @@ async def health() -> dict[str, str]:
     - GET /ready - Readiness probe (checks dependencies)
 
     Returns:
-        Simple status indicating the server is alive.
+        LivenessResponse with status "alive".
     """
-    return {"status": "alive"}
+    from backend.api.schemas.health import LivenessResponse
+
+    return LivenessResponse().model_dump()
 
 
-@app.get("/ready", response_model=None)
+@app.get("/ready")
 async def ready() -> Response:
     """Simple readiness health check endpoint (canonical readiness probe).
 
@@ -676,7 +680,7 @@ async def ready() -> Response:
     - GET /api/system/health/ready - Full readiness response with details
 
     Returns:
-        Simple status indicating readiness. HTTP 200 if ready, 503 if not.
+        SimpleReadinessResponse with ready bool and status. HTTP 200 if ready, 503 if not.
     """
     from starlette.responses import JSONResponse
 
@@ -685,6 +689,7 @@ async def ready() -> Response:
         check_database_health,
         check_redis_health,
     )
+    from backend.api.schemas.health import SimpleReadinessResponse
     from backend.core import get_db
     from backend.core.redis import get_redis_optional
 
@@ -696,7 +701,7 @@ async def ready() -> Response:
 
     if db_status is None:
         return JSONResponse(
-            content={"ready": False, "status": "not_ready"},
+            content=SimpleReadinessResponse(ready=False, status="not_ready").model_dump(),
             status_code=503,
         )
 
@@ -715,12 +720,12 @@ async def ready() -> Response:
 
     if db_healthy and redis_healthy and pipeline_workers_healthy:
         return JSONResponse(
-            content={"ready": True, "status": "ready"},
+            content=SimpleReadinessResponse(ready=True, status="ready").model_dump(),
             status_code=200,
         )
     else:
         return JSONResponse(
-            content={"ready": False, "status": "not_ready"},
+            content=SimpleReadinessResponse(ready=False, status="not_ready").model_dump(),
             status_code=503,
         )
 

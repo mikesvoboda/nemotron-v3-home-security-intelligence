@@ -3164,6 +3164,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest RUM metrics
+         * @description Receive Core Web Vitals metrics from the frontend for Real User Monitoring.
+         */
+        post: operations["ingest_rum_metrics_api_rum_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/anomaly-config": {
         parameters: {
             query?: never;
@@ -4147,7 +4167,7 @@ export interface paths {
          *     - GET /ready - Readiness probe (checks dependencies)
          *
          *     Returns:
-         *         Simple status indicating the server is alive.
+         *         LivenessResponse with status "alive".
          */
         get: operations["health_health_get"];
         put?: never;
@@ -4184,7 +4204,7 @@ export interface paths {
          *     - GET /api/system/health/ready - Full readiness response with details
          *
          *     Returns:
-         *         Simple status indicating readiness. HTTP 200 if ready, 503 if not.
+         *         SimpleReadinessResponse with ready bool and status. HTTP 200 if ready, 503 if not.
          */
         get: operations["ready_ready_get"];
         put?: never;
@@ -4915,6 +4935,23 @@ export interface components {
         /**
          * AuditLogListResponse
          * @description Schema for paginated audit log response.
+         * @example {
+         *       "count": 1,
+         *       "limit": 50,
+         *       "logs": [
+         *         {
+         *           "action": "acknowledge",
+         *           "actor": "admin@example.com",
+         *           "id": 1,
+         *           "ip_address": "192.168.1.100",
+         *           "resource_id": "123",
+         *           "resource_type": "event",
+         *           "status": "success",
+         *           "timestamp": "2026-01-03T10:30:00Z"
+         *         }
+         *       ],
+         *       "offset": 0
+         *     }
          */
         AuditLogListResponse: {
             /**
@@ -4924,7 +4961,7 @@ export interface components {
             count: number;
             /**
              * Limit
-             * @description Page size
+             * @description Page size (1-1000)
              */
             limit: number;
             /**
@@ -4934,18 +4971,33 @@ export interface components {
             logs: components["schemas"]["AuditLogResponse"][];
             /**
              * Offset
-             * @description Page offset
+             * @description Page offset (0-based)
              */
             offset: number;
         };
         /**
          * AuditLogResponse
          * @description Schema for a single audit log entry.
+         * @example {
+         *       "action": "acknowledge",
+         *       "actor": "admin@example.com",
+         *       "details": {
+         *         "new_status": "acknowledged",
+         *         "previous_status": "unacknowledged"
+         *       },
+         *       "id": 1,
+         *       "ip_address": "192.168.1.100",
+         *       "resource_id": "123",
+         *       "resource_type": "event",
+         *       "status": "success",
+         *       "timestamp": "2026-01-03T10:30:00Z",
+         *       "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
+         *     }
          */
         AuditLogResponse: {
             /**
              * Action
-             * @description The action performed
+             * @description The action performed (e.g., 'create', 'update', 'delete', 'acknowledge')
              */
             action: string;
             /**
@@ -4955,7 +5007,7 @@ export interface components {
             actor: string;
             /**
              * Details
-             * @description Action-specific details
+             * @description Action-specific details (JSON-serializable)
              */
             details?: {
                 [key: string]: unknown;
@@ -4967,7 +5019,7 @@ export interface components {
             id: number;
             /**
              * Ip Address
-             * @description IP address of the client
+             * @description IP address of the client (IPv4 or IPv6)
              */
             ip_address?: string | null;
             /**
@@ -4988,7 +5040,7 @@ export interface components {
             /**
              * Timestamp
              * Format: date-time
-             * @description When the action occurred
+             * @description When the action occurred (UTC)
              */
             timestamp: string;
             /**
@@ -5000,6 +5052,31 @@ export interface components {
         /**
          * AuditLogStats
          * @description Schema for audit log statistics.
+         * @example {
+         *       "by_action": {
+         *         "acknowledge": 50,
+         *         "create": 30,
+         *         "delete": 25,
+         *         "update": 45
+         *       },
+         *       "by_resource_type": {
+         *         "alert": 40,
+         *         "camera": 20,
+         *         "event": 80,
+         *         "settings": 10
+         *       },
+         *       "by_status": {
+         *         "failure": 5,
+         *         "success": 145
+         *       },
+         *       "logs_today": 150,
+         *       "recent_actors": [
+         *         "admin@example.com",
+         *         "system",
+         *         "scheduler"
+         *       ],
+         *       "total_logs": 5000
+         *     }
          */
         AuditLogStats: {
             /**
@@ -8006,28 +8083,39 @@ export interface components {
         /**
          * FrontendLogCreate
          * @description Schema for frontend log submission.
+         * @example {
+         *       "component": "RiskGauge",
+         *       "extra": {
+         *         "last_error": "Connection refused",
+         *         "reconnect_attempts": 3
+         *       },
+         *       "level": "ERROR",
+         *       "message": "WebSocket connection lost",
+         *       "url": "https://localhost:5173/dashboard",
+         *       "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
+         *     }
          */
         FrontendLogCreate: {
             /**
              * Component
-             * @description Frontend component name
+             * @description Frontend component name (e.g., 'RiskGauge', 'CameraGrid')
              */
             component: string;
             /**
              * Extra
-             * @description Additional context
+             * @description Additional context (JSON-serializable)
              */
             extra?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Level
-             * @description Log level
+             * @description Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
              */
             level: string;
             /**
              * Message
-             * @description Log message
+             * @description Log message content
              */
             message: string;
             /**
@@ -8037,7 +8125,7 @@ export interface components {
             url?: string | null;
             /**
              * User Agent
-             * @description Browser user agent
+             * @description Browser user agent string
              */
             user_agent?: string | null;
         };
@@ -8404,16 +8492,33 @@ export interface components {
         /**
          * LogEntry
          * @description Schema for a single log entry.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "component": "backend.services.detector",
+         *       "detection_id": 456,
+         *       "duration_ms": 150,
+         *       "event_id": 123,
+         *       "extra": {
+         *         "confidence_avg": 0.87,
+         *         "detections_count": 3
+         *       },
+         *       "id": 1,
+         *       "level": "INFO",
+         *       "message": "Detection completed for front_door camera",
+         *       "request_id": "req-550e8400-e29b-41d4",
+         *       "source": "backend",
+         *       "timestamp": "2026-01-03T10:30:00Z"
+         *     }
          */
         LogEntry: {
             /**
              * Camera Id
-             * @description Associated camera ID
+             * @description Associated camera ID (alphanumeric, underscore, hyphen only)
              */
             camera_id?: string | null;
             /**
              * Component
-             * @description Component/module name
+             * @description Component/module name (e.g., 'backend.services.detector')
              */
             component: string;
             /**
@@ -8433,7 +8538,7 @@ export interface components {
             event_id?: number | null;
             /**
              * Extra
-             * @description Additional structured data
+             * @description Additional structured data (JSON-serializable)
              */
             extra?: {
                 [key: string]: unknown;
@@ -8450,12 +8555,12 @@ export interface components {
             level: string;
             /**
              * Message
-             * @description Log message
+             * @description Log message content
              */
             message: string;
             /**
              * Request Id
-             * @description Request correlation ID
+             * @description Request correlation ID for tracing
              */
             request_id?: string | null;
             /**
@@ -8467,7 +8572,7 @@ export interface components {
             /**
              * Timestamp
              * Format: date-time
-             * @description Log timestamp
+             * @description Log timestamp (UTC)
              */
             timestamp: string;
         };
@@ -8506,6 +8611,24 @@ export interface components {
         /**
          * LogStats
          * @description Schema for log statistics (dashboard).
+         * @example {
+         *       "by_component": {
+         *         "backend.api.routes": 300,
+         *         "backend.services.analyzer": 400,
+         *         "backend.services.detector": 800
+         *       },
+         *       "by_level": {
+         *         "CRITICAL": 0,
+         *         "DEBUG": 500,
+         *         "ERROR": 12,
+         *         "INFO": 900,
+         *         "WARNING": 45
+         *       },
+         *       "errors_today": 12,
+         *       "top_component": "backend.services.detector",
+         *       "total_today": 1500,
+         *       "warnings_today": 45
+         *     }
          */
         LogStats: {
             /**
@@ -8546,6 +8669,25 @@ export interface components {
         /**
          * LogsResponse
          * @description Schema for paginated logs response.
+         * @example {
+         *       "count": 1,
+         *       "limit": 50,
+         *       "logs": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "component": "backend.services.detector",
+         *           "detection_id": 456,
+         *           "duration_ms": 150,
+         *           "event_id": 123,
+         *           "id": 1,
+         *           "level": "INFO",
+         *           "message": "Detection completed",
+         *           "source": "backend",
+         *           "timestamp": "2026-01-03T10:30:00Z"
+         *         }
+         *       ],
+         *       "offset": 0
+         *     }
          */
         LogsResponse: {
             /**
@@ -8555,7 +8697,7 @@ export interface components {
             count: number;
             /**
              * Limit
-             * @description Page size
+             * @description Page size (1-1000)
              */
             limit: number;
             /**
@@ -8565,13 +8707,17 @@ export interface components {
             logs: components["schemas"]["LogEntry"][];
             /**
              * Offset
-             * @description Page offset
+             * @description Page offset (0-based)
              */
             offset: number;
         };
         /**
          * MediaErrorResponse
          * @description Error response for media access failures.
+         * @example {
+         *       "error": "File not found",
+         *       "path": "/export/foscam/front_door/image_001.jpg"
+         *     }
          */
         MediaErrorResponse: {
             /**
@@ -10284,6 +10430,92 @@ export interface components {
             periods: components["schemas"]["QuietHoursPeriodResponse"][];
         };
         /**
+         * RUMBatchRequest
+         * @description Batch request for multiple Core Web Vitals metrics.
+         *
+         *     The frontend batches metrics to reduce API calls. Each batch may contain
+         *     metrics from different pages or navigation events.
+         *
+         *     Attributes:
+         *         metrics: List of Core Web Vital metrics to ingest
+         *         session_id: Optional session identifier for correlating metrics
+         *         user_agent: Optional user agent string for device/browser analysis
+         * @example {
+         *       "metrics": [
+         *         {
+         *           "delta": 2500,
+         *           "id": "v1-1234567890123-1234567890123",
+         *           "name": "LCP",
+         *           "rating": "good",
+         *           "value": 2500
+         *         },
+         *         {
+         *           "delta": 0.02,
+         *           "id": "v1-1234567890123-1234567890124",
+         *           "name": "CLS",
+         *           "rating": "good",
+         *           "value": 0.05
+         *         }
+         *       ],
+         *       "session_id": "sess-12345"
+         *     }
+         */
+        RUMBatchRequest: {
+            /**
+             * Metrics
+             * @description List of metrics to ingest (non-empty)
+             */
+            metrics: components["schemas"]["WebVitalMetric"][];
+            /**
+             * Session Id
+             * @description Optional session identifier
+             */
+            session_id?: string | null;
+            /**
+             * User Agent
+             * @description Optional user agent string
+             */
+            user_agent?: string | null;
+        };
+        /**
+         * RUMIngestResponse
+         * @description Response from the RUM metrics ingestion endpoint.
+         *
+         *     Attributes:
+         *         success: Whether the ingestion was successful
+         *         metrics_count: Number of metrics successfully ingested
+         *         message: Human-readable status message
+         *         errors: List of any errors encountered during ingestion
+         * @example {
+         *       "errors": [],
+         *       "message": "Successfully ingested 5 metrics",
+         *       "metrics_count": 5,
+         *       "success": true
+         *     }
+         */
+        RUMIngestResponse: {
+            /**
+             * Errors
+             * @description List of any errors encountered
+             */
+            errors?: string[];
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Metrics Count
+             * @description Number of metrics successfully ingested
+             */
+            metrics_count: number;
+            /**
+             * Success
+             * @description Whether ingestion was successful
+             */
+            success: boolean;
+        };
+        /**
          * ReadinessResponse
          * @description Response schema for readiness probe endpoint.
          *
@@ -10327,6 +10559,13 @@ export interface components {
          *     }
          */
         ReadinessResponse: {
+            /**
+             * Ai Warmth Status
+             * @description Warmth status of AI models (NEM-1670). Keys are model names (e.g., 'rtdetr', 'nemotron'), values are states: 'cold', 'warming', 'warm'
+             */
+            ai_warmth_status?: {
+                [key: string]: string;
+            } | null;
             /**
              * Ready
              * @description Overall readiness status: True if system can process requests
@@ -11873,6 +12112,74 @@ export interface components {
              */
             timestamp: string;
         };
+        /**
+         * WebVitalMetric
+         * @description A single Core Web Vital metric measurement from the frontend.
+         *
+         *     This schema matches the structure returned by the web-vitals library's
+         *     onLCP, onFID, onINP, onCLS, onTTFB, and onFCP functions.
+         *
+         *     Attributes:
+         *         name: The Core Web Vital metric name (LCP, FID, INP, CLS, TTFB, FCP)
+         *         value: The metric value (milliseconds for most, dimensionless for CLS)
+         *         rating: Performance rating based on thresholds (good, needs-improvement, poor)
+         *         delta: The delta since the last report (for CLS this accumulates)
+         *         id: Unique identifier for this metric instance
+         *         navigationType: The type of navigation (navigate, reload, back_forward, prerender)
+         *         path: The page path where the metric was measured
+         * @example {
+         *       "delta": 2500,
+         *       "id": "v1-1234567890123-1234567890123",
+         *       "name": "LCP",
+         *       "navigationType": "navigate",
+         *       "path": "/dashboard",
+         *       "rating": "good",
+         *       "value": 2500
+         *     }
+         */
+        WebVitalMetric: {
+            /**
+             * Delta
+             * @description Delta since last report
+             */
+            delta: number;
+            /**
+             * Id
+             * @description Unique metric identifier from web-vitals
+             */
+            id: string;
+            /** @description Core Web Vital metric name */
+            name: components["schemas"]["WebVitalName"];
+            /**
+             * Navigationtype
+             * @description Navigation type (navigate, reload, back_forward, prerender)
+             */
+            navigationType?: string | null;
+            /**
+             * Path
+             * @description Page path where metric was measured
+             */
+            path?: string | null;
+            /**
+             * Rating
+             * @description Performance rating
+             * @enum {string}
+             */
+            rating: "good" | "needs-improvement" | "poor";
+            /**
+             * Value
+             * @description Metric value (ms for most, dimensionless for CLS)
+             */
+            value: number;
+        };
+        /**
+         * WebVitalName
+         * @description Supported Core Web Vitals metric names.
+         *
+         *     These correspond to the metrics collected by the web-vitals library.
+         * @enum {string}
+         */
+        WebVitalName: "LCP" | "FID" | "INP" | "CLS" | "TTFB" | "FCP";
         /**
          * WebhookTestNotificationRequest
          * @description Schema for testing notification configuration.
@@ -15737,6 +16044,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestNotificationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingest_rum_metrics_api_rum_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RUMBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RUMIngestResponse"];
                 };
             };
             /** @description Validation Error */

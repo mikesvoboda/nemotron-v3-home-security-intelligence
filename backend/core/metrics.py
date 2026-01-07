@@ -26,8 +26,9 @@ Usage:
     set_queue_depth("detection", 10)
 """
 
+from collections import deque
 from datetime import UTC
-from typing import Any
+from typing import TypedDict
 
 import numpy as np
 from prometheus_client import (
@@ -46,6 +47,52 @@ from backend.core.sanitization import (
     sanitize_object_class,
     sanitize_risk_level,
 )
+
+
+class StageStatsDict(TypedDict):
+    """Type for pipeline stage latency statistics."""
+
+    avg_ms: float | None
+    min_ms: float | None
+    max_ms: float | None
+    p50_ms: float | None
+    p95_ms: float | None
+    p99_ms: float | None
+    sample_count: int
+
+
+class BucketStatsDict(TypedDict):
+    """Type for latency bucket statistics (used in history snapshots)."""
+
+    avg_ms: float
+    p50_ms: float
+    p95_ms: float
+    p99_ms: float
+    sample_count: int
+
+
+class LatencyHistoryEntry(TypedDict):
+    """Type for latency history entry."""
+
+    timestamp: str
+    stages: dict[str, BucketStatsDict | None]
+
+
+class ModelStatsDict(TypedDict):
+    """Type for model latency statistics."""
+
+    avg_ms: float | None
+    p50_ms: float | None
+    p95_ms: float | None
+    sample_count: int
+
+
+class ModelLatencyHistoryEntry(TypedDict):
+    """Type for model latency history entry."""
+
+    timestamp: str
+    stats: BucketStatsDict | None
+
 
 logger = get_logger(__name__)
 
@@ -1207,9 +1254,7 @@ class PipelineLatencyTracker:
         with self._lock:
             self._samples[stage].append((timestamp, latency_ms))
 
-    def get_stage_stats(
-        self, stage: str, window_minutes: int = 60
-    ) -> dict[str, float | int | None]:
+    def get_stage_stats(self, stage: str, window_minutes: int = 60) -> StageStatsDict:
         """Get latency statistics for a single stage.
 
         Args:
@@ -1267,9 +1312,7 @@ class PipelineLatencyTracker:
             "sample_count": count,
         }
 
-    def get_pipeline_summary(
-        self, window_minutes: int = 60
-    ) -> dict[str, dict[str, float | int | None]]:
+    def get_pipeline_summary(self, window_minutes: int = 60) -> dict[str, StageStatsDict]:
         """Get latency statistics for all pipeline stages.
 
         Args:
@@ -1282,7 +1325,7 @@ class PipelineLatencyTracker:
 
     def get_latency_history(
         self, window_minutes: int = 60, bucket_seconds: int = 60
-    ) -> list[dict[str, Any]]:
+    ) -> list[LatencyHistoryEntry]:
         """Get latency history as time-series data for charting.
 
         Groups samples into time buckets and calculates statistics for each bucket.
@@ -1316,12 +1359,12 @@ class PipelineLatencyTracker:
                         bucket_samples[bucket_idx][stage].append(latency)
 
         # Convert buckets to output format
-        snapshots = []
+        snapshots: list[LatencyHistoryEntry] = []
         for bucket_idx in sorted(bucket_samples.keys()):
             bucket_start = cutoff + (bucket_idx * bucket_seconds)
             timestamp = datetime.fromtimestamp(bucket_start, tz=UTC)
 
-            stages: dict[str, dict[str, float | int | None]] = {}
+            stages: dict[str, BucketStatsDict | None] = {}
             for stage in self.STAGES:
                 samples = bucket_samples[bucket_idx][stage]
                 if samples:
@@ -1406,7 +1449,6 @@ class ModelLatencyTracker:
             max_samples: Maximum samples to keep per model (circular buffer size)
         """
         import time
-        from collections import deque
         from threading import Lock
 
         self._max_samples = max_samples
@@ -1415,7 +1457,7 @@ class ModelLatencyTracker:
         self._samples: dict[str, deque[tuple[float, float]]] = {}
         self._time = time  # Store reference for testing
 
-    def _get_or_create_deque(self, model_name: str) -> Any:
+    def _get_or_create_deque(self, model_name: str) -> deque[tuple[float, float]]:
         """Get or create a deque for a model.
 
         Args:
@@ -1442,9 +1484,7 @@ class ModelLatencyTracker:
             samples_deque = self._get_or_create_deque(model_name)
             samples_deque.append((timestamp, latency_ms))
 
-    def get_model_stats(
-        self, model_name: str, window_minutes: int = 60
-    ) -> dict[str, float | int | None]:
+    def get_model_stats(self, model_name: str, window_minutes: int = 60) -> ModelStatsDict:
         """Get latency statistics for a single model.
 
         Args:
@@ -1492,7 +1532,7 @@ class ModelLatencyTracker:
 
     def get_model_latency_history(
         self, model_name: str, window_minutes: int = 60, bucket_seconds: int = 60
-    ) -> list[dict[str, Any]]:
+    ) -> list[ModelLatencyHistoryEntry]:
         """Get latency history for a specific model as time-series data.
 
         Groups samples into time buckets and calculates statistics for each bucket.
@@ -1526,21 +1566,23 @@ class ModelLatencyTracker:
 
         # Generate all buckets in the window (including empty ones)
         num_buckets = (window_minutes * 60) // bucket_seconds
-        snapshots = []
+        snapshots: list[ModelLatencyHistoryEntry] = []
 
         for bucket_idx in range(num_buckets):
             bucket_start = cutoff + (bucket_idx * bucket_seconds)
             timestamp = datetime.fromtimestamp(bucket_start, tz=UTC)
 
             samples = bucket_samples.get(bucket_idx, [])
+            stats: BucketStatsDict | None
             if samples:
                 # NEM-1328: Use numpy for more accurate and efficient percentile calculations
                 arr = np.array(samples)
                 count = len(arr)
-                stats: dict[str, Any] | None = {
+                stats = {
                     "avg_ms": float(np.mean(arr)),
                     "p50_ms": float(np.percentile(arr, 50)),
                     "p95_ms": float(np.percentile(arr, 95)),
+                    "p99_ms": float(np.percentile(arr, 99)),
                     "sample_count": count,
                 }
             else:
@@ -1707,3 +1749,263 @@ def record_prompt_section_truncated(section_name: str) -> None:
     # Sanitize section name to prevent cardinality explosion
     safe_section = sanitize_metric_label(section_name, max_length=32)
     PROMPT_TRUNCATED_TOTAL.labels(section_name=safe_section).inc()
+
+
+# =============================================================================
+# AI Model Cold Start and Warmup Metrics (NEM-1670)
+# =============================================================================
+
+# Warmup duration histogram buckets (in seconds)
+# Covers range from 100ms to 60s with finer granularity at lower values
+WARMUP_DURATION_BUCKETS = (
+    0.1,  # 100ms
+    0.25,  # 250ms
+    0.5,  # 500ms
+    1.0,  # 1s
+    2.5,  # 2.5s
+    5.0,  # 5s
+    10.0,  # 10s
+    30.0,  # 30s
+    60.0,  # 60s
+)
+
+MODEL_WARMUP_DURATION = Histogram(
+    "hsi_model_warmup_duration_seconds",
+    "Duration of AI model warmup operations in seconds",
+    labelnames=["model"],
+    buckets=WARMUP_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+MODEL_COLD_START_TOTAL = Counter(
+    "hsi_model_cold_start_total",
+    "Total number of cold start events per AI model",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+MODEL_WARMTH_STATE = Gauge(
+    "hsi_model_warmth_state",
+    "Current warmth state of AI models (0=cold, 1=warming, 2=warm)",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+MODEL_LAST_INFERENCE_SECONDS_AGO = Gauge(
+    "hsi_model_last_inference_seconds_ago",
+    "Seconds since last inference for AI models",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+
+def observe_model_warmup_duration(model: str, duration_seconds: float) -> None:
+    """Record AI model warmup duration to histogram.
+
+    Args:
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
+        duration_seconds: Warmup duration in seconds
+    """
+    MODEL_WARMUP_DURATION.labels(model=model).observe(duration_seconds)
+
+
+def record_model_cold_start(model: str) -> None:
+    """Increment cold start counter for an AI model.
+
+    Args:
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
+    """
+    MODEL_COLD_START_TOTAL.labels(model=model).inc()
+
+
+def set_model_warmth_state(model: str, state: str) -> None:
+    """Set the current warmth state gauge for an AI model.
+
+    Args:
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
+        state: Warmth state ('cold', 'warming', 'warm')
+    """
+    state_value = {"cold": 0, "warming": 1, "warm": 2}.get(state, 0)
+    MODEL_WARMTH_STATE.labels(model=model).set(state_value)
+
+
+def set_model_last_inference_ago(model: str, seconds_ago: float | None) -> None:
+    """Set the seconds since last inference gauge for an AI model.
+
+    Args:
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
+        seconds_ago: Seconds since last inference, or None if never used
+    """
+    if seconds_ago is None:
+        # Use -1 to indicate "never used" (gauge doesn't support None)
+        MODEL_LAST_INFERENCE_SECONDS_AGO.labels(model=model).set(-1)
+    else:
+        MODEL_LAST_INFERENCE_SECONDS_AGO.labels(model=model).set(seconds_ago)
+
+
+# =============================================================================
+# Real User Monitoring (RUM) Metrics (NEM-1635)
+# =============================================================================
+
+# LCP (Largest Contentful Paint) histogram - measures in seconds
+# Good: < 2.5s, Needs Improvement: 2.5-4s, Poor: > 4s
+RUM_LCP_BUCKETS = (0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 8.0, 10.0)
+
+RUM_LCP_SECONDS = Histogram(
+    "hsi_rum_lcp_seconds",
+    "Largest Contentful Paint - measures loading performance (seconds)",
+    labelnames=["path", "rating"],
+    buckets=RUM_LCP_BUCKETS,
+    registry=_registry,
+)
+
+# FID/INP (First Input Delay / Interaction to Next Paint) histogram - measures in seconds
+# Good: < 100ms (0.1s), Needs Improvement: 100-300ms, Poor: > 300ms
+RUM_INTERACTIVITY_BUCKETS = (0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0, 2.0)
+
+RUM_FID_SECONDS = Histogram(
+    "hsi_rum_fid_seconds",
+    "First Input Delay - measures interactivity (seconds, legacy)",
+    labelnames=["path", "rating"],
+    buckets=RUM_INTERACTIVITY_BUCKETS,
+    registry=_registry,
+)
+
+RUM_INP_SECONDS = Histogram(
+    "hsi_rum_inp_seconds",
+    "Interaction to Next Paint - measures interactivity (seconds)",
+    labelnames=["path", "rating"],
+    buckets=RUM_INTERACTIVITY_BUCKETS,
+    registry=_registry,
+)
+
+# CLS (Cumulative Layout Shift) histogram - dimensionless score
+# Good: < 0.1, Needs Improvement: 0.1-0.25, Poor: > 0.25
+RUM_CLS_BUCKETS = (0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 1.0)
+
+RUM_CLS = Histogram(
+    "hsi_rum_cls",
+    "Cumulative Layout Shift - measures visual stability (dimensionless)",
+    labelnames=["path", "rating"],
+    buckets=RUM_CLS_BUCKETS,
+    registry=_registry,
+)
+
+# TTFB (Time to First Byte) histogram - measures in seconds
+# Good: < 800ms, Needs Improvement: 800-1800ms, Poor: > 1800ms
+RUM_TTFB_BUCKETS = (0.2, 0.4, 0.6, 0.8, 1.0, 1.4, 1.8, 2.5, 5.0)
+
+RUM_TTFB_SECONDS = Histogram(
+    "hsi_rum_ttfb_seconds",
+    "Time to First Byte - measures server response time (seconds)",
+    labelnames=["path", "rating"],
+    buckets=RUM_TTFB_BUCKETS,
+    registry=_registry,
+)
+
+# FCP (First Contentful Paint) histogram - measures in seconds
+# Good: < 1.8s, Needs Improvement: 1.8-3s, Poor: > 3s
+RUM_FCP_BUCKETS = (0.5, 1.0, 1.5, 1.8, 2.0, 2.5, 3.0, 4.0, 6.0)
+
+RUM_FCP_SECONDS = Histogram(
+    "hsi_rum_fcp_seconds",
+    "First Contentful Paint - measures first content render (seconds)",
+    labelnames=["path", "rating"],
+    buckets=RUM_FCP_BUCKETS,
+    registry=_registry,
+)
+
+# Counter for total RUM metrics received
+RUM_METRICS_TOTAL = Counter(
+    "hsi_rum_metrics_total",
+    "Total number of RUM metrics received",
+    labelnames=["metric_name", "rating"],
+    registry=_registry,
+)
+
+
+def observe_rum_lcp(value_ms: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record LCP (Largest Contentful Paint) metric.
+
+    Args:
+        value_ms: LCP value in milliseconds
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    # Sanitize path to prevent cardinality explosion
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    # Convert from milliseconds to seconds for Prometheus
+    RUM_LCP_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
+    RUM_METRICS_TOTAL.labels(metric_name="LCP", rating=safe_rating).inc()
+
+
+def observe_rum_fid(value_ms: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record FID (First Input Delay) metric.
+
+    Args:
+        value_ms: FID value in milliseconds
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    RUM_FID_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
+    RUM_METRICS_TOTAL.labels(metric_name="FID", rating=safe_rating).inc()
+
+
+def observe_rum_inp(value_ms: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record INP (Interaction to Next Paint) metric.
+
+    Args:
+        value_ms: INP value in milliseconds
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    RUM_INP_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
+    RUM_METRICS_TOTAL.labels(metric_name="INP", rating=safe_rating).inc()
+
+
+def observe_rum_cls(value: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record CLS (Cumulative Layout Shift) metric.
+
+    Args:
+        value: CLS value (dimensionless score)
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    # CLS is already dimensionless, no conversion needed
+    RUM_CLS.labels(path=safe_path, rating=safe_rating).observe(value)
+    RUM_METRICS_TOTAL.labels(metric_name="CLS", rating=safe_rating).inc()
+
+
+def observe_rum_ttfb(value_ms: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record TTFB (Time to First Byte) metric.
+
+    Args:
+        value_ms: TTFB value in milliseconds
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    RUM_TTFB_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
+    RUM_METRICS_TOTAL.labels(metric_name="TTFB", rating=safe_rating).inc()
+
+
+def observe_rum_fcp(value_ms: float, path: str = "/", rating: str = "unknown") -> None:
+    """Record FCP (First Contentful Paint) metric.
+
+    Args:
+        value_ms: FCP value in milliseconds
+        path: Page path where metric was measured
+        rating: Performance rating (good, needs-improvement, poor)
+    """
+    safe_path = sanitize_metric_label(path, max_length=64)
+    safe_rating = sanitize_metric_label(rating, max_length=20)
+    RUM_FCP_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
+    RUM_METRICS_TOTAL.labels(metric_name="FCP", rating=safe_rating).inc()

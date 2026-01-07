@@ -158,6 +158,10 @@ class ManagedService:
     status: ContainerServiceStatus = ContainerServiceStatus.NOT_FOUND
     enabled: bool = True
 
+    # Model warmth state (NEM-1670) - for AI services only
+    # Values: 'cold', 'warming', 'warm', 'unknown'
+    warmth_state: str = "unknown"
+
     # Failure tracking
     failure_count: int = 0
     last_failure_at: datetime | None = None
@@ -263,6 +267,34 @@ class ServiceRegistry:
         if service:
             service.failure_count = 0
             logger.debug(f"Reset failure count for {name}")
+
+    # =========================================================================
+    # Warmth State Tracking (NEM-1670)
+    # =========================================================================
+
+    def update_warmth_state(self, name: str, state: str) -> None:
+        """Update a service's warmth state.
+
+        Args:
+            name: Service name
+            state: Warmth state ('cold', 'warming', 'warm', 'unknown')
+        """
+        service = self._services.get(name)
+        if service:
+            service.warmth_state = state
+            logger.debug(f"Updated warmth state for {name}: {state}")
+
+    def get_ai_warmth_states(self) -> dict[str, str]:
+        """Get warmth states for all AI services.
+
+        Returns:
+            Dictionary mapping service names to their warmth states
+        """
+        return {
+            name: service.warmth_state
+            for name, service in self._services.items()
+            if service.category == ServiceCategory.AI
+        }
 
 
 # =============================================================================
