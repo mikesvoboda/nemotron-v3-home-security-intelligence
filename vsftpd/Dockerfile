@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Security labels
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
