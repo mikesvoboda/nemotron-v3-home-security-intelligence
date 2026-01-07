@@ -38,13 +38,35 @@
 }
 
 @layer components {
-  /* Card component styles */
+  /* ============================================
+     Card & Panel Component Styles
+     Enhanced with Interactive States
+     ============================================ */
+
+  /* Base Card - Static, non-interactive */
   .nvidia-card {
     @apply rounded-xl border border-gray-800 bg-card p-6 shadow-dark-md;
   }
 
+  /* Hoverable Card - For clickable cards */
   .nvidia-card-hover {
-    @apply nvidia-card transition-all duration-250 hover:border-gray-700 hover:shadow-dark-lg;
+    @apply nvidia-card transition-all duration-200 ease-out;
+    @apply hover:border-gray-700 hover:bg-gray-850 hover:shadow-dark-lg;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Clickable Card - Cursor and enhanced feedback */
+  .nvidia-card-clickable {
+    @apply nvidia-card-hover cursor-pointer;
+    @apply active:scale-[0.99] active:shadow-dark-md;
+  }
+
+  /* Interactive Card - For cards with primary actions */
+  .nvidia-card-interactive {
+    @apply nvidia-card transition-all duration-200 ease-out cursor-pointer;
+    @apply hover:border-primary-500/50 hover:shadow-nvidia-glow;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply active:scale-[0.99];
   }
 
   /* Panel component styles */
@@ -52,23 +74,185 @@
     @apply rounded-2xl border border-gray-850 bg-panel p-8 shadow-dark-lg;
   }
 
-  /* Button variants */
+  /* ============================================
+     Link Styles with Hover & Focus States
+     WCAG 2.1 AA Compliant
+     ============================================ */
+
+  /* Default Link - Subtle underline on hover */
+  .link {
+    @apply text-link transition-all duration-150;
+    @apply hover:text-link-hover hover:underline;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-link focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Primary Link - NVIDIA green */
+  .link-primary {
+    @apply text-primary-500 transition-all duration-150;
+    @apply hover:text-primary-400 hover:underline;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Subtle Link - Less prominent */
+  .link-subtle {
+    @apply text-text-secondary underline decoration-gray-700 transition-all duration-150;
+    @apply hover:text-text-primary hover:decoration-gray-500;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Nav Link - For navigation menus */
+  .link-nav {
+    @apply relative text-text-secondary transition-all duration-150;
+    @apply hover:text-text-primary;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  .link-nav-active {
+    @apply link-nav text-primary-500;
+  }
+
+  .link-nav-active::after {
+    content: '';
+    @apply absolute bottom-0 left-0 h-0.5 w-full bg-primary-500;
+  }
+
+  /* ============================================
+     Table Styles with Row Hover
+     ============================================ */
+
+  /* Table Container */
+  .nvidia-table {
+    @apply w-full border-collapse;
+  }
+
+  .nvidia-table th {
+    @apply text-caption px-4 py-3 text-left;
+    @apply border-b border-gray-800;
+  }
+
+  .nvidia-table td {
+    @apply px-4 py-3 text-text-secondary;
+    @apply border-b border-gray-800/50;
+  }
+
+  /* Table Row - Hoverable */
+  .nvidia-table-row {
+    @apply transition-colors duration-150;
+    @apply hover:bg-gray-800/50;
+  }
+
+  /* Clickable Table Row */
+  .nvidia-table-row-clickable {
+    @apply nvidia-table-row cursor-pointer;
+    @apply hover:bg-gray-800;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500;
+    @apply active:bg-gray-700;
+  }
+
+  /* Selected Table Row */
+  .nvidia-table-row-selected {
+    @apply bg-primary-500/10;
+    @apply hover:bg-primary-500/15;
+  }
+
+  /* ============================================
+     List Item Styles
+     ============================================ */
+
+  /* Hoverable List Item */
+  .nvidia-list-item {
+    @apply flex items-center px-4 py-3 transition-colors duration-150;
+    @apply hover:bg-gray-800/50;
+  }
+
+  /* Clickable List Item */
+  .nvidia-list-item-clickable {
+    @apply nvidia-list-item cursor-pointer;
+    @apply hover:bg-gray-800;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500;
+    @apply active:bg-gray-700;
+  }
+
+  /* Selected List Item */
+  .nvidia-list-item-selected {
+    @apply bg-primary-500/10 border-l-2 border-primary-500;
+    @apply hover:bg-primary-500/15;
+  }
+
+  /* ============================================
+     Button Variants with Enhanced States
+     WCAG 2.1 AA Compliant Focus Indicators
+     ============================================ */
+
+  /* Base button styles - shared across all variants */
+  .btn-base {
+    @apply relative inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-all duration-200 ease-out;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Primary Button - NVIDIA Green */
   /* WCAG 2.1 AA: Using dark text on NVIDIA green for 4.5:1+ contrast ratio */
   .btn-primary {
-    @apply rounded-lg bg-primary-500 px-4 py-2 font-medium text-gray-950 transition-colors duration-250 hover:bg-primary-600 active:bg-primary-700;
+    @apply btn-base bg-primary-500 text-gray-950;
+    @apply hover:bg-primary-400 hover:scale-102 hover:shadow-dark-md;
+    @apply active:bg-primary-600 active:scale-98;
+    @apply focus-visible:ring-primary-500;
   }
 
+  /* Secondary Button - Gray */
   .btn-secondary {
-    @apply rounded-lg bg-gray-800 px-4 py-2 font-medium text-text-primary transition-colors duration-250 hover:bg-gray-700 active:bg-gray-600;
+    @apply btn-base bg-gray-800 text-text-primary;
+    @apply hover:bg-gray-700 hover:shadow-dark-sm;
+    @apply active:bg-gray-600 active:scale-98;
+    @apply focus-visible:ring-gray-500;
   }
 
+  /* Ghost Button - Transparent with hover fill */
   .btn-ghost {
-    @apply rounded-lg px-4 py-2 font-medium text-text-primary transition-colors duration-250 hover:bg-gray-800 active:bg-gray-700;
+    @apply btn-base bg-transparent text-text-primary;
+    @apply hover:bg-gray-800;
+    @apply active:bg-gray-700 active:scale-98;
+    @apply focus-visible:ring-gray-500;
+  }
+
+  /* Outline Button - Border only */
+  .btn-outline {
+    @apply btn-base border border-gray-700 bg-transparent text-text-primary;
+    @apply hover:border-gray-600 hover:bg-gray-800/50;
+    @apply active:bg-gray-700 active:scale-98;
+    @apply focus-visible:ring-gray-500;
+  }
+
+  /* Outline Primary Button - Green border */
+  .btn-outline-primary {
+    @apply btn-base border border-primary-500 bg-transparent text-primary-500;
+    @apply hover:bg-primary-500/10 hover:border-primary-400;
+    @apply active:bg-primary-500/20 active:scale-98;
+    @apply focus-visible:ring-primary-500;
   }
 
   /* Danger button variant - WCAG 2.1 AA compliant (white on dark red for 4.5:1+ contrast) */
   .btn-danger {
-    @apply rounded-lg bg-danger px-4 py-2 font-medium text-white transition-colors duration-250 hover:bg-danger-hover active:bg-red-800;
+    @apply btn-base bg-danger text-white;
+    @apply hover:bg-danger-hover hover:shadow-dark-md;
+    @apply active:bg-red-800 active:scale-98;
+    @apply focus-visible:ring-red-500;
+  }
+
+  /* Icon Button - Square, for icons only */
+  .btn-icon {
+    @apply btn-base h-10 w-10 p-0;
+  }
+
+  /* Small Button Size */
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  /* Large Button Size */
+  .btn-lg {
+    @apply px-6 py-3 text-lg;
   }
 
   /* Risk badge styles */
@@ -89,17 +273,82 @@
     @apply rounded-lg border border-gray-700 bg-gray-850 px-4 py-2 text-text-primary placeholder-text-muted transition-shadow duration-250 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500;
   }
 
-  /* Text styles */
+  /* ============================================
+     Typography System - Semantic Text Styles
+     ============================================ */
+
+  /* Page Titles - Large prominent headings */
+  .text-page-title {
+    @apply text-4xl font-bold tracking-tight text-text-primary;
+  }
+
+  /* Section Titles - Medium headings for sections */
+  .text-section-title {
+    @apply text-2xl font-semibold tracking-tight text-text-primary;
+  }
+
+  /* Card Titles - Titles within cards and panels */
+  .text-card-title {
+    @apply text-xl font-semibold text-text-primary;
+  }
+
+  /* Subsection Titles - Smaller headings */
+  .text-subsection-title {
+    @apply text-lg font-medium text-text-primary;
+  }
+
+  /* General heading (backwards compat) */
   .text-heading {
     @apply font-semibold text-text-primary;
   }
 
+  /* Body Text - Primary body content */
   .text-body {
-    @apply text-text-secondary;
+    @apply text-base leading-relaxed text-text-secondary;
   }
 
+  /* Body Large - Emphasized body text */
+  .text-body-lg {
+    @apply text-lg leading-relaxed text-text-secondary;
+  }
+
+  /* Body Small - Compact body text */
+  .text-body-sm {
+    @apply text-sm leading-normal text-text-secondary;
+  }
+
+  /* Caption - Small descriptive text */
+  .text-caption {
+    @apply text-xs font-medium uppercase tracking-wide text-text-muted;
+  }
+
+  /* Label - Form labels and small titles */
+  .text-label {
+    @apply text-sm font-medium text-text-primary;
+  }
+
+  /* Muted text (backwards compat) */
   .text-muted {
     @apply text-text-muted;
+  }
+
+  /* Helper text - Form descriptions, hints */
+  .text-helper {
+    @apply text-sm text-text-muted;
+  }
+
+  /* Code/Mono text */
+  .text-code {
+    @apply font-mono text-sm text-primary-400;
+  }
+
+  /* Stat/Number display */
+  .text-stat {
+    @apply text-3xl font-bold tabular-nums text-text-primary;
+  }
+
+  .text-stat-label {
+    @apply text-xs font-medium uppercase tracking-wider text-text-muted;
   }
 
   /* Loading skeleton */
@@ -297,5 +546,66 @@
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ============================================
+     Focus Ring Utilities
+     WCAG 2.1 AA Compliant Focus Indicators
+     ============================================ */
+
+  /* Standard focus ring - primary color */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Focus ring - gray */
+  .focus-ring-gray {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Focus ring - error/danger */
+  .focus-ring-danger {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Inset focus ring - for contained elements */
+  .focus-ring-inset {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500;
+  }
+
+  /* ============================================
+     Interactive State Utilities
+     ============================================ */
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-transform duration-200 ease-out;
+    @apply hover:-translate-y-0.5;
+  }
+
+  /* Hover scale effect */
+  .hover-scale {
+    @apply transition-transform duration-200 ease-out;
+    @apply hover:scale-102;
+  }
+
+  /* Active press effect */
+  .active-press {
+    @apply transition-transform duration-100;
+    @apply active:scale-98;
+  }
+
+  /* Combined interactive states */
+  .interactive {
+    @apply transition-all duration-200 ease-out;
+    @apply hover:scale-102;
+    @apply active:scale-98;
+  }
+
+  /* Subtle interactive - for less prominent elements */
+  .interactive-subtle {
+    @apply transition-all duration-150;
+    @apply hover:opacity-80;
+    @apply active:opacity-70;
   }
 }

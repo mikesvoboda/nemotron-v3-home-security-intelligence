@@ -91,7 +91,14 @@ test.describe('Audit Table', () => {
 
   test('audit table or empty state is visible', async ({ page }) => {
     // The table is only rendered when there are logs, otherwise empty state is shown.
-    // Check for either table content OR empty state message.
+    // Wait for one of the possible states to appear (use Promise.race for auto-waiting)
+    await Promise.race([
+      auditPage.auditTable.waitFor({ state: 'visible', timeout: 5000 }).catch(() => null),
+      page.getByText(/No Audit Entries Found|No audit logs/i).waitFor({ state: 'visible', timeout: 5000 }).catch(() => null),
+      page.getByText(/Loading audit logs/i).waitFor({ state: 'visible', timeout: 5000 }).catch(() => null),
+    ]);
+
+    // After waiting, check that at least one state is now visible
     const tableVisible = await auditPage.auditTable.isVisible().catch(() => false);
     const emptyVisible = await page.getByText(/No Audit Entries Found|No audit logs/i).isVisible().catch(() => false);
     const loadingVisible = await page.getByText(/Loading audit logs/i).isVisible().catch(() => false);

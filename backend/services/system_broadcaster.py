@@ -847,7 +847,11 @@ class SystemBroadcaster:
             except Exception:
                 return False
 
-        # Check both services concurrently for efficiency
+        # Check both services concurrently for efficiency (NEM-1656)
+        # Note: Using asyncio.gather instead of TaskGroup here because:
+        # 1. These are independent operations - we want partial results even if one fails
+        # 2. Each check function handles its own exceptions and returns bool
+        # 3. TaskGroup would cancel the other check if one fails, which is undesirable
         try:
             rtdetr_healthy, nemotron_healthy = await asyncio.gather(
                 check_rtdetr(),

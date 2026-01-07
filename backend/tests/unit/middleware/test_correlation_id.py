@@ -53,15 +53,24 @@ class TestCorrelationIdMiddleware:
     @pytest.mark.asyncio
     async def test_correlation_id_available_in_context(self) -> None:
         """Verify correlation ID is available via get_request_id() during request."""
+        from unittest.mock import patch
+
+        from backend.core.config import Settings
+
         # This is tested implicitly by the middleware setting request_id
         # We can verify by checking the debug endpoint response
         test_correlation_id = "context-test-456"
 
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(
-                "/api/debug/pipeline-state",
-                headers={"X-Correlation-ID": test_correlation_id},
-            )
+        # Enable debug mode for this test (required for debug endpoints)
+        mock_settings = Settings(debug=True, database_url="postgresql+asyncpg://test")
+        with patch("backend.api.routes.debug.get_settings", return_value=mock_settings):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/debug/pipeline-state",
+                    headers={"X-Correlation-ID": test_correlation_id},
+                )
 
         assert response.status_code == 200
         data = response.json()

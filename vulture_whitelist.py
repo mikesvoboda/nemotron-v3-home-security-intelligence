@@ -21,6 +21,7 @@ _.cleanup_keys
 _.temp_foscam_dir
 _.temp_thumbnail_dir
 _.reset_redis_global_state
+_.reset_semaphore
 
 # Test mock fixtures
 _.mock_pil_image

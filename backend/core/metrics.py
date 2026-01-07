@@ -256,6 +256,44 @@ ENRICHMENT_MODEL_CALLS_TOTAL = Counter(
     registry=_registry,
 )
 
+ENRICHMENT_RETRY_TOTAL = Counter(
+    "hsi_enrichment_retry_total",
+    "Total retry attempts for enrichment service by endpoint",
+    labelnames=["endpoint"],  # vehicle, pet, clothing, depth, distance, pose, action
+    registry=_registry,
+)
+
+# =============================================================================
+# Enrichment Pipeline Partial Failure Metrics (NEM-1672)
+# =============================================================================
+
+ENRICHMENT_SUCCESS_RATE = Gauge(
+    "hsi_enrichment_success_rate",
+    "Success rate of enrichment models (0.0 to 1.0)",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+ENRICHMENT_PARTIAL_BATCHES_TOTAL = Counter(
+    "hsi_enrichment_partial_batches_total",
+    "Total number of batches with partial enrichment (some models succeeded, some failed)",
+    registry=_registry,
+)
+
+ENRICHMENT_FAILURES_TOTAL = Counter(
+    "hsi_enrichment_failures_total",
+    "Total number of enrichment model failures by model name",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+ENRICHMENT_BATCH_STATUS_TOTAL = Counter(
+    "hsi_enrichment_batch_status_total",
+    "Total number of enrichment batches by status (full, partial, failed, skipped)",
+    labelnames=["status"],
+    registry=_registry,
+)
+
 EVENTS_BY_CAMERA_TOTAL = Counter(
     "hsi_events_by_camera_total",
     "Events per camera",
@@ -323,6 +361,37 @@ CACHE_INVALIDATIONS_TOTAL = Counter(
     "hsi_cache_invalidations_total",
     "Total number of cache invalidations",
     labelnames=["cache_type", "reason"],
+    registry=_registry,
+)
+
+# =============================================================================
+# LLM Token Usage Metrics (NEM-1730)
+# =============================================================================
+
+NEMOTRON_TOKENS_INPUT_TOTAL = Counter(
+    "hsi_nemotron_tokens_input_total",
+    "Total input tokens sent to Nemotron LLM",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+NEMOTRON_TOKENS_OUTPUT_TOTAL = Counter(
+    "hsi_nemotron_tokens_output_total",
+    "Total output tokens received from Nemotron LLM",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+NEMOTRON_TOKENS_PER_SECOND = Gauge(
+    "hsi_nemotron_tokens_per_second",
+    "Current token throughput (tokens/second) for Nemotron LLM",
+    registry=_registry,
+)
+
+NEMOTRON_TOKEN_COST_USD = Counter(
+    "hsi_nemotron_token_cost_usd_total",
+    "Total estimated cost in USD for Nemotron LLM token usage",
+    labelnames=["camera_id"],
     registry=_registry,
 )
 
@@ -545,6 +614,35 @@ class MetricsService:
         """
         ENRICHMENT_MODEL_CALLS_TOTAL.labels(model=model).inc()
 
+    def set_enrichment_success_rate(self, model: str, rate: float) -> None:
+        """Set the success rate gauge for an enrichment model.
+
+        Args:
+            model: Name of the enrichment model
+            rate: Success rate (0.0 to 1.0)
+        """
+        ENRICHMENT_SUCCESS_RATE.labels(model=model).set(rate)
+
+    def record_enrichment_partial_batch(self) -> None:
+        """Increment the counter for batches with partial enrichment."""
+        ENRICHMENT_PARTIAL_BATCHES_TOTAL.inc()
+
+    def record_enrichment_failure(self, model: str) -> None:
+        """Increment the failure counter for an enrichment model.
+
+        Args:
+            model: Name of the enrichment model that failed
+        """
+        ENRICHMENT_FAILURES_TOTAL.labels(model=model).inc()
+
+    def record_enrichment_batch_status(self, status: str) -> None:
+        """Record the status of an enrichment batch.
+
+        Args:
+            status: Enrichment status (full, partial, failed, skipped)
+        """
+        ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
+
     def record_event_by_camera(self, camera_id: str, camera_name: str) -> None:
         """Increment the events per camera counter.
 
@@ -592,6 +690,55 @@ class MetricsService:
             reason: Reason for invalidation (e.g., "event_created", "camera_updated")
         """
         CACHE_INVALIDATIONS_TOTAL.labels(cache_type=cache_type, reason=reason).inc()
+
+    # -------------------------------------------------------------------------
+    # LLM Token Usage Metrics (NEM-1730)
+    # -------------------------------------------------------------------------
+
+    def record_nemotron_tokens(
+        self,
+        camera_id: str,
+        input_tokens: int,
+        output_tokens: int,
+        duration_seconds: float | None = None,
+        input_cost_per_1k: float | None = None,
+        output_cost_per_1k: float | None = None,
+    ) -> None:
+        """Record Nemotron LLM token usage metrics.
+
+        Args:
+            camera_id: Camera identifier for the analysis request
+            input_tokens: Number of input/prompt tokens
+            output_tokens: Number of output/completion tokens
+            duration_seconds: Optional request duration for throughput calculation
+            input_cost_per_1k: Optional cost per 1000 input tokens (USD)
+            output_cost_per_1k: Optional cost per 1000 output tokens (USD)
+
+        Note:
+            Camera IDs are sanitized to prevent cardinality explosion.
+            If duration_seconds is 0 or negative, throughput is not calculated.
+        """
+        safe_camera_id = sanitize_camera_id(camera_id)
+
+        # Record token counts
+        NEMOTRON_TOKENS_INPUT_TOTAL.labels(camera_id=safe_camera_id).inc(input_tokens)
+        NEMOTRON_TOKENS_OUTPUT_TOTAL.labels(camera_id=safe_camera_id).inc(output_tokens)
+
+        # Calculate and record throughput if duration is valid
+        if duration_seconds is not None and duration_seconds > 0:
+            total_tokens = input_tokens + output_tokens
+            tokens_per_second = total_tokens / duration_seconds
+            NEMOTRON_TOKENS_PER_SECOND.set(tokens_per_second)
+
+        # Calculate and record cost if pricing is configured
+        if input_cost_per_1k is not None or output_cost_per_1k is not None:
+            cost = 0.0
+            if input_cost_per_1k is not None:
+                cost += (input_tokens / 1000.0) * input_cost_per_1k
+            if output_cost_per_1k is not None:
+                cost += (output_tokens / 1000.0) * output_cost_per_1k
+            if cost > 0:
+                NEMOTRON_TOKEN_COST_USD.labels(camera_id=safe_camera_id).inc(cost)
 
 
 # Global singleton instance for MetricsService
@@ -797,6 +944,52 @@ def record_enrichment_model_call(model: str) -> None:
     ENRICHMENT_MODEL_CALLS_TOTAL.labels(model=model).inc()
 
 
+def increment_enrichment_retry(endpoint: str) -> None:
+    """Increment the enrichment retry counter for a specific endpoint.
+
+    Called when an enrichment service call is retried due to transient failures
+    (ConnectError, TimeoutException, HTTP 5xx errors).
+
+    Args:
+        endpoint: Name of the enrichment endpoint (vehicle, pet, clothing,
+            depth, distance, pose, action)
+    """
+    ENRICHMENT_RETRY_TOTAL.labels(endpoint=endpoint).inc()
+
+
+def set_enrichment_success_rate(model: str, rate: float) -> None:
+    """Set the success rate gauge for an enrichment model.
+
+    Args:
+        model: Name of the enrichment model
+        rate: Success rate (0.0 to 1.0)
+    """
+    ENRICHMENT_SUCCESS_RATE.labels(model=model).set(rate)
+
+
+def record_enrichment_partial_batch() -> None:
+    """Increment the counter for batches with partial enrichment."""
+    ENRICHMENT_PARTIAL_BATCHES_TOTAL.inc()
+
+
+def record_enrichment_failure(model: str) -> None:
+    """Increment the failure counter for an enrichment model.
+
+    Args:
+        model: Name of the enrichment model that failed
+    """
+    ENRICHMENT_FAILURES_TOTAL.labels(model=model).inc()
+
+
+def record_enrichment_batch_status(status: str) -> None:
+    """Record the status of an enrichment batch.
+
+    Args:
+        status: Enrichment status (full, partial, failed, skipped)
+    """
+    ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
+
+
 def record_event_by_camera(camera_id: str, camera_name: str) -> None:
     """Increment the events per camera counter.
 
@@ -890,6 +1083,56 @@ def record_cache_invalidation(cache_type: str, reason: str) -> None:
         reason: Reason for invalidation (e.g., "event_created", "camera_updated")
     """
     CACHE_INVALIDATIONS_TOTAL.labels(cache_type=cache_type, reason=reason).inc()
+
+
+# =============================================================================
+# LLM Token Usage Helpers (NEM-1730)
+# =============================================================================
+
+
+def record_nemotron_tokens(
+    camera_id: str,
+    input_tokens: int,
+    output_tokens: int,
+    duration_seconds: float | None = None,
+    input_cost_per_1k: float | None = None,
+    output_cost_per_1k: float | None = None,
+) -> None:
+    """Record Nemotron LLM token usage metrics.
+
+    Args:
+        camera_id: Camera identifier for the analysis request
+        input_tokens: Number of input/prompt tokens
+        output_tokens: Number of output/completion tokens
+        duration_seconds: Optional request duration for throughput calculation
+        input_cost_per_1k: Optional cost per 1000 input tokens (USD)
+        output_cost_per_1k: Optional cost per 1000 output tokens (USD)
+
+    Note:
+        Camera IDs are sanitized to prevent cardinality explosion.
+        If duration_seconds is 0 or negative, throughput is not calculated.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+
+    # Record token counts
+    NEMOTRON_TOKENS_INPUT_TOTAL.labels(camera_id=safe_camera_id).inc(input_tokens)
+    NEMOTRON_TOKENS_OUTPUT_TOTAL.labels(camera_id=safe_camera_id).inc(output_tokens)
+
+    # Calculate and record throughput if duration is valid
+    if duration_seconds is not None and duration_seconds > 0:
+        total_tokens = input_tokens + output_tokens
+        tokens_per_second = total_tokens / duration_seconds
+        NEMOTRON_TOKENS_PER_SECOND.set(tokens_per_second)
+
+    # Calculate and record cost if pricing is configured
+    if input_cost_per_1k is not None or output_cost_per_1k is not None:
+        cost = 0.0
+        if input_cost_per_1k is not None:
+            cost += (input_tokens / 1000.0) * input_cost_per_1k
+        if output_cost_per_1k is not None:
+            cost += (output_tokens / 1000.0) * output_cost_per_1k
+        if cost > 0:
+            NEMOTRON_TOKEN_COST_USD.labels(camera_id=safe_camera_id).inc(cost)
 
 
 def get_metrics_response() -> bytes:
@@ -1341,3 +1584,80 @@ def record_model_zoo_latency(model_name: str, latency_ms: float) -> None:
     tracker = get_model_latency_tracker()
     if tracker is not None:
         tracker.record_model_latency(model_name, latency_ms)
+
+
+# =============================================================================
+# Batch Size Limit Metrics (NEM-1726)
+# =============================================================================
+
+BATCH_MAX_DETECTIONS_REACHED_TOTAL = Counter(
+    "hsi_batch_max_detections_reached_total",
+    "Total number of times a batch reached max detections limit and was split",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+
+def record_batch_max_reached(camera_id: str) -> None:
+    """Record when a batch reaches max detections limit.
+
+    Args:
+        camera_id: Camera identifier where the batch was split
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    BATCH_MAX_DETECTIONS_REACHED_TOTAL.labels(camera_id=safe_camera_id).inc()
+
+
+# =============================================================================
+# Token Counting Metrics (NEM-1723)
+# =============================================================================
+
+# Token count buckets for prompt size histogram
+PROMPT_TOKEN_BUCKETS = (
+    100,
+    250,
+    500,
+    750,
+    1000,
+    1500,
+    2000,
+    2500,
+    3000,
+    3500,
+    4000,
+)
+
+PROMPT_TOKENS = Histogram(
+    "hsi_prompt_tokens",
+    "Token count distribution for LLM prompts",
+    buckets=PROMPT_TOKEN_BUCKETS,
+    registry=_registry,
+)
+
+PROMPT_TRUNCATED_TOTAL = Counter(
+    "hsi_prompt_truncated_total",
+    "Total number of prompt sections truncated to fit context window",
+    labelnames=["section_name"],
+    registry=_registry,
+)
+
+
+def observe_prompt_tokens(token_count: int) -> None:
+    """Record prompt token count to histogram.
+
+    Args:
+        token_count: Number of tokens in the prompt
+    """
+    PROMPT_TOKENS.observe(token_count)
+
+
+def record_prompt_section_truncated(section_name: str) -> None:
+    """Record when a prompt section is truncated.
+
+    Args:
+        section_name: Name of the section that was truncated
+            (e.g., "cross_camera", "baseline", "zones")
+    """
+    # Sanitize section name to prevent cardinality explosion
+    safe_section = sanitize_metric_label(section_name, max_length=32)
+    PROMPT_TRUNCATED_TOTAL.labels(section_name=safe_section).inc()

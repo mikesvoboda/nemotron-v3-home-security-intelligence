@@ -11,7 +11,7 @@ These tests cover all event-related API endpoints including:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -24,26 +24,20 @@ from backend.api.schemas.events import EventUpdate
 # =============================================================================
 
 
-@pytest.fixture(autouse=True)
-def mock_cache_service():
-    """Mock the cache service to avoid Redis connection attempts in unit tests.
-
-    This fixture is automatically applied to all tests in this module.
-    It ensures that tests don't try to connect to Redis for caching operations.
-    """
-    mock_cache = MagicMock()
-    mock_cache.get = AsyncMock(return_value=None)  # Cache miss
-    mock_cache.set = AsyncMock(return_value=True)
-    mock_cache.invalidate_pattern = AsyncMock(return_value=0)
-
-    async def mock_get_cache_service():
-        return mock_cache
-
-    with patch(
-        "backend.api.routes.events.get_cache_service",
-        mock_get_cache_service,
-    ):
-        yield mock_cache
+# Note: Previously this module had an autouse fixture that patched get_cache_service.
+# With the migration to FastAPI dependency injection (NEM-1659), cache service is now
+# injected via Depends(get_cache_service_dep). If you add API endpoint tests to this
+# module, use FastAPI dependency_overrides instead:
+#
+# @pytest.fixture
+# def client(mock_cache_service):
+#     app = FastAPI()
+#     app.include_router(router)
+#     async def override_cache():
+#         yield mock_cache_service
+#     app.dependency_overrides[get_cache_service_dep] = override_cache
+#     with TestClient(app) as test_client:
+#         yield test_client
 
 
 # =============================================================================
@@ -320,6 +314,7 @@ async def test_list_events_returns_empty_list_when_no_events() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -355,6 +350,7 @@ async def test_list_events_returns_events_with_detection_count() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -390,6 +386,7 @@ async def test_list_events_returns_detection_ids_array() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -424,6 +421,7 @@ async def test_list_events_with_empty_detection_ids() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -457,6 +455,7 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -490,6 +489,7 @@ async def test_list_events_with_camera_id_filter() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -523,6 +523,7 @@ async def test_list_events_with_risk_level_filter() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -560,6 +561,7 @@ async def test_list_events_with_date_filters() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -592,6 +594,7 @@ async def test_list_events_with_reviewed_filter_true() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -625,6 +628,7 @@ async def test_list_events_with_reviewed_filter_false() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -659,6 +663,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
         object_type="person",
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -689,6 +694,7 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
         object_type="vehicle",
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -723,6 +729,7 @@ async def test_list_events_with_object_type_filter_single_value() -> None:
         object_type="person",
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -756,6 +763,7 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
         object_type="person",
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -794,6 +802,7 @@ async def test_list_events_object_type_escapes_wildcard_characters() -> None:
         object_type="100%_complete",
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -830,6 +839,7 @@ async def test_list_events_pagination_with_custom_limit() -> None:
         object_type=None,
         limit=3,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -863,6 +873,7 @@ async def test_list_events_pagination_with_offset() -> None:
         object_type=None,
         limit=50,
         offset=5,
+        cursor=None,
         db=db,
     )
 
@@ -900,6 +911,7 @@ async def test_list_events_multiple_events() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -933,6 +945,7 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -969,6 +982,7 @@ async def test_list_events_returns_reasoning_field() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -1005,6 +1019,7 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -1017,18 +1032,22 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
 # =============================================================================
 
 
-@pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_returns_empty_stats_when_no_events(
-    mock_get_cache: MagicMock,
-) -> None:
-    """Test that get_event_stats returns zero counts when no events exist."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
+def _create_mock_cache() -> MagicMock:
+    """Create a mock cache service for use in tests (NEM-1659).
 
+    This helper creates a mock CacheService that can be passed directly
+    to route functions, replacing the previous @patch approach.
+    """
+    mock_cache = MagicMock()
+    mock_cache.get = AsyncMock(return_value=None)  # Cache miss
+    mock_cache.set = AsyncMock()
+    return mock_cache
+
+
+@pytest.mark.asyncio
+async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
+    """Test that get_event_stats returns zero counts when no events exist."""
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # Mock total count query - returns 0
@@ -1045,7 +1064,8 @@ async def test_get_event_stats_returns_empty_stats_when_no_events(
 
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
-    response = await events_routes.get_event_stats(db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
     assert response["total_events"] == 0
     assert response["events_by_risk_level"]["critical"] == 0
@@ -1056,17 +1076,9 @@ async def test_get_event_stats_returns_empty_stats_when_no_events(
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_counts_events_by_risk_level(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_counts_events_by_risk_level() -> None:
     """Test that get_event_stats correctly counts events by risk level using SQL GROUP BY."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
-
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # Mock total count query - returns 7
@@ -1088,7 +1100,8 @@ async def test_get_event_stats_counts_events_by_risk_level(
 
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
-    response = await events_routes.get_event_stats(db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
     assert response["total_events"] == 7
     assert response["events_by_risk_level"]["critical"] == 2
@@ -1098,17 +1111,9 @@ async def test_get_event_stats_counts_events_by_risk_level(
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_counts_events_by_camera(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_counts_events_by_camera() -> None:
     """Test that get_event_stats correctly counts events by camera using SQL GROUP BY."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
-
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # Mock total count query - returns 5
@@ -1129,7 +1134,8 @@ async def test_get_event_stats_counts_events_by_camera(
 
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
-    response = await events_routes.get_event_stats(db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
     assert len(response["events_by_camera"]) == 2
     # Results should be sorted by event count descending (from SQL ORDER BY)
@@ -1141,17 +1147,9 @@ async def test_get_event_stats_counts_events_by_camera(
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_with_unknown_camera(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_with_unknown_camera() -> None:
     """Test that get_event_stats handles unknown camera IDs (NULL from LEFT JOIN)."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
-
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # Mock total count query - returns 1
@@ -1168,24 +1166,17 @@ async def test_get_event_stats_with_unknown_camera(
 
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
-    response = await events_routes.get_event_stats(db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
     assert len(response["events_by_camera"]) == 1
     assert response["events_by_camera"][0]["camera_name"] == "Unknown"
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_with_date_filters(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_with_date_filters() -> None:
     """Test that get_event_stats filters by date range."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
-
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     now = datetime.now(UTC)
@@ -1207,23 +1198,18 @@ async def test_get_event_stats_with_date_filters(
     start = now - timedelta(hours=1)
     end = now + timedelta(hours=1)
 
-    response = await events_routes.get_event_stats(start_date=start, end_date=end, db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(
+        start_date=start, end_date=end, db=db, cache=mock_cache
+    )
 
     assert response["total_events"] == 1
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_ignores_invalid_risk_levels(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
     """Test that get_event_stats ignores events with invalid risk levels."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
-
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # Mock total count query - returns 3
@@ -1245,7 +1231,8 @@ async def test_get_event_stats_ignores_invalid_risk_levels(
 
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
-    response = await events_routes.get_event_stats(db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
     assert response["total_events"] == 3
     assert response["events_by_risk_level"]["high"] == 1
@@ -1882,6 +1869,7 @@ async def test_list_events_with_all_filters_combined() -> None:
         object_type="person",
         limit=10,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -1889,17 +1877,9 @@ async def test_list_events_with_all_filters_combined() -> None:
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_empty_camera_list(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_empty_camera_list() -> None:
     """Test that get_event_stats handles case with events but no camera lookup (NULL from JOIN)."""
-    # Mock cache service to return None (cache miss)
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)
-    mock_cache.set = AsyncMock()
-    mock_get_cache.return_value = mock_cache
-
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # Mock total count query - returns 1
@@ -1916,7 +1896,8 @@ async def test_get_event_stats_empty_camera_list(
 
     db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
-    response = await events_routes.get_event_stats(db=db)
+    # Pass cache directly via DI pattern (NEM-1659)
+    response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
     assert response["total_events"] == 1
     assert response["events_by_camera"][0]["camera_name"] == "Unknown"
@@ -1946,6 +1927,7 @@ async def test_list_events_count_returns_zero_on_none() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -2402,6 +2384,7 @@ async def test_list_events_equal_dates_is_valid() -> None:
         object_type=None,
         limit=50,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -2409,13 +2392,11 @@ async def test_list_events_equal_dates_is_valid() -> None:
 
 
 @pytest.mark.asyncio
-@patch("backend.api.routes.events.get_cache_service")
-async def test_get_event_stats_invalid_date_range_returns_400(
-    mock_get_cache: MagicMock,
-) -> None:
+async def test_get_event_stats_invalid_date_range_returns_400() -> None:
     """Test that get_event_stats returns HTTP 400 when start_date > end_date."""
     from fastapi import HTTPException
 
+    mock_cache = _create_mock_cache()
     db = AsyncMock()
 
     # start_date is after end_date
@@ -2423,10 +2404,12 @@ async def test_get_event_stats_invalid_date_range_returns_400(
     end_date = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
 
     with pytest.raises(HTTPException) as exc_info:
+        # Pass cache directly via DI pattern (NEM-1659)
         await events_routes.get_event_stats(
             start_date=start_date,
             end_date=end_date,
             db=db,
+            cache=mock_cache,
         )
 
     assert exc_info.value.status_code == 400

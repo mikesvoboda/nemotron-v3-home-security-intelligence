@@ -217,11 +217,23 @@ mkdir -p "$GENERATED_TYPES_DIR"
 # Step 5: Generate TypeScript types
 print_step "Generating TypeScript types..."
 
+# Helper function to add pragma comments for detect-secrets false positives
+# These are base64-encoded pagination cursors in OpenAPI examples, not actual secrets
+add_pragma_comments() {
+    local file="$1"
+    # Add pragma: allowlist secret comment to base64 cursor example strings
+    # The pattern matches lines containing next_cursor with base64 values
+    sed -i 's/\("next_cursor": "eyJ[^"]*="\),$/\1, \/\/ pragma: allowlist secret/g' "$file"
+}
+
 if [ "$CHECK_MODE" = true ]; then
     # In check mode, generate to a temp file and compare
     TEMP_FILE=$(mktemp)
 
     npx --prefix "$PROJECT_ROOT/frontend" openapi-typescript "$OPENAPI_SPEC_FILE" -o "$TEMP_FILE" 2>/dev/null
+
+    # Add pragma comments to temp file for comparison
+    add_pragma_comments "$TEMP_FILE"
 
     if [ ! -f "$GENERATED_TYPES_FILE" ]; then
         print_error "Generated types file does not exist: $GENERATED_TYPES_FILE"
@@ -251,6 +263,10 @@ else
         print_error "Failed to generate TypeScript types"
         exit 1
     fi
+
+    # Add pragma comments for detect-secrets false positives
+    add_pragma_comments "$GENERATED_TYPES_FILE"
+
     print_success "TypeScript types generated: $GENERATED_TYPES_FILE"
 fi
 

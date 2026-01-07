@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from backend.core.logging import get_logger, sanitize_error  # noqa: F401
+from backend.core.url_validation import SSRFValidationError, validate_webhook_url_for_request
 
 if TYPE_CHECKING:
     from backend.core.config import Settings
@@ -358,7 +359,7 @@ class NotificationService:
 </html>
 """
 
-    async def send_webhook(
+    async def send_webhook(  # noqa: PLR0911 - Multiple returns for distinct error cases improve readability
         self,
         alert: Alert,
         webhook_url: str | None = None,
@@ -380,14 +381,29 @@ class NotificationService:
                 error="No webhook URL configured or provided",
             )
 
+        # Validate URL to prevent SSRF attacks (NEM-1615)
+        # This checks for private IPs, cloud metadata endpoints, and scheme
+        try:
+            is_development = getattr(self.settings, "is_development", False)
+            validated_url = validate_webhook_url_for_request(url, is_development=is_development)
+        except SSRFValidationError as e:
+            error_msg = f"Invalid webhook URL: {e}"
+            logger.warning("SSRF validation failed for webhook URL: %s", str(e)[:100])
+            return NotificationDelivery(
+                channel=NotificationChannel.WEBHOOK,
+                success=False,
+                error=error_msg,
+                recipient=url,
+            )
+
         try:
             # Build webhook payload
             payload = self._build_webhook_payload(alert)
 
-            # Send HTTP POST
+            # Send HTTP POST using validated URL
             client = await self._get_http_client()
             response = await client.post(
-                url,
+                validated_url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
             )
@@ -473,7 +489,7 @@ class NotificationService:
     async def send_push(
         self,
         alert: Alert,
-        device_tokens: list[str] | None = None,  # noqa: ARG002
+        _device_tokens: list[str] | None = None,
     ) -> NotificationDelivery:
         """Send an alert notification via push notification (stubbed).
 

@@ -26,6 +26,11 @@ Concurrency:
     For distributed environments (multiple backend instances), detection list
     updates use Redis RPUSH for atomic append operations, eliminating race
     conditions in the read-modify-write pattern.
+
+Memory Pressure Backpressure (NEM-1727):
+    When GPU memory pressure reaches CRITICAL levels, the batch aggregator can
+    apply backpressure to reduce processing load. Use should_apply_backpressure()
+    to check if backpressure should be applied before processing detections.
 """
 
 import asyncio
@@ -38,9 +43,51 @@ from typing import Any
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE
 from backend.core.logging import get_logger, sanitize_log_value
+from backend.core.metrics import record_batch_max_reached
 from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 logger = get_logger(__name__)
+
+# Global GPU monitor reference for memory pressure checks
+_gpu_monitor: Any = None
+
+
+def set_gpu_monitor(monitor: Any) -> None:
+    """Set the GPU monitor instance for memory pressure checks.
+
+    This should be called during application startup to enable
+    memory pressure backpressure in the batch aggregator.
+
+    Args:
+        monitor: GPUMonitor instance
+    """
+    global _gpu_monitor  # noqa: PLW0603
+    _gpu_monitor = monitor
+    logger.debug("GPU monitor set for batch aggregator backpressure")
+
+
+async def get_memory_pressure_level() -> Any:
+    """Get current GPU memory pressure level.
+
+    Returns:
+        MemoryPressureLevel enum value, or NORMAL if GPU monitor not available
+
+    Note:
+        This is a helper function that can be mocked in tests.
+    """
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    if _gpu_monitor is None:
+        return MemoryPressureLevel.NORMAL
+
+    try:
+        return await _gpu_monitor.check_memory_pressure()
+    except Exception as e:
+        logger.debug(
+            f"Failed to check memory pressure: {e}",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
+        return MemoryPressureLevel.NORMAL
 
 
 class BatchAggregator:
@@ -71,6 +118,7 @@ class BatchAggregator:
         self._analysis_queue = ANALYSIS_QUEUE
         self._fast_path_threshold = settings.fast_path_confidence_threshold
         self._fast_path_types = settings.fast_path_object_types
+        self._batch_max_detections = settings.batch_max_detections
 
         # Per-camera locks to prevent race conditions when adding detections
         # Using defaultdict to lazily create locks for each camera
@@ -225,6 +273,32 @@ class BatchAggregator:
             batch_key = f"batch:{camera_id}:current"
             batch_id = await self._redis.get(batch_key)
 
+            # NEM-1726: Check if existing batch has reached max size limit
+            if batch_id:
+                detections_key = f"batch:{batch_id}:detections"
+                current_size: int = await self._redis._client.llen(detections_key)  # type: ignore[misc,union-attr]
+
+                if current_size >= self._batch_max_detections:
+                    # Batch at max size - close it and create new batch
+                    logger.info(
+                        f"Batch {batch_id} reached max size {self._batch_max_detections}, closing",
+                        extra={
+                            "camera_id": camera_id,
+                            "batch_id": batch_id,
+                            "current_size": current_size,
+                            "max_size": self._batch_max_detections,
+                        },
+                    )
+                    record_batch_max_reached(camera_id)
+
+                    # Close the current batch (releases camera lock temporarily)
+                    # We need to release the lock before calling close_batch because
+                    # close_batch acquires its own locks
+                    await self._close_batch_for_size_limit(batch_id)
+
+                    # Set batch_id to None so we create a new batch below
+                    batch_id = None
+
             if not batch_id:
                 # Create new batch
                 batch_id = uuid.uuid4().hex
@@ -258,19 +332,26 @@ class BatchAggregator:
                         )
                     )
 
-                results = await asyncio.gather(*redis_ops, return_exceptions=True)
-                # Check for any exceptions in the results (NEM-1097)
-                for i, result in enumerate(results):
-                    if isinstance(result, Exception):
+                # Use TaskGroup for structured concurrency (NEM-1656)
+                # All Redis operations must succeed for batch to be valid.
+                # TaskGroup automatically cancels remaining tasks if any fails.
+                try:
+                    async with asyncio.TaskGroup() as tg:
+                        for redis_op in redis_ops:
+                            tg.create_task(redis_op)
+                except* Exception as eg:
+                    # Log all errors from the ExceptionGroup
+                    for i, exc in enumerate(eg.exceptions):
                         logger.error(
                             f"Redis operation {i} failed during batch creation",
                             extra={
                                 "batch_id": batch_id,
                                 "camera_id": camera_id,
-                                "error": str(result),
+                                "error": str(exc),
                             },
                         )
-                        raise result
+                    # Re-raise the first exception to maintain compatibility
+                    raise eg.exceptions[0] from eg
                 # Note: No need to initialize empty list - RPUSH creates it automatically
 
             # Add detection to batch using atomic RPUSH operation
@@ -494,29 +575,47 @@ class BatchAggregator:
                         "already_closed": True,
                     }
 
-                # Get batch data in parallel for performance (NEM-1097: return_exceptions=True)
-                gather_results = await asyncio.gather(
-                    self._atomic_list_get_all(f"batch:{batch_id}:detections"),
-                    self._redis.get(f"batch:{batch_id}:started_at"),
-                    self._redis.get(f"batch:{batch_id}:pipeline_start_time"),
-                    return_exceptions=True,
-                )
+                # Get batch data in parallel using TaskGroup (NEM-1656)
+                # All data fetches must succeed for batch close to be valid.
+                # TaskGroup provides structured concurrency with automatic cancellation.
+                detections: list[int] = []
+                started_at_str: str | None = None
+                pipeline_start_time: str | None = None
 
-                # Check for any exceptions in the results (NEM-1097)
-                for i, result in enumerate(gather_results):
-                    if isinstance(result, Exception):
+                async def fetch_detections() -> None:
+                    nonlocal detections
+                    detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections")
+
+                async def fetch_started_at() -> None:
+                    nonlocal started_at_str
+                    assert self._redis is not None  # Verified at function start
+                    started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+
+                async def fetch_pipeline_time() -> None:
+                    nonlocal pipeline_start_time
+                    assert self._redis is not None  # Verified at function start
+                    pipeline_start_time = await self._redis.get(
+                        f"batch:{batch_id}:pipeline_start_time"
+                    )
+
+                try:
+                    async with asyncio.TaskGroup() as tg:
+                        tg.create_task(fetch_detections())
+                        tg.create_task(fetch_started_at())
+                        tg.create_task(fetch_pipeline_time())
+                except* Exception as eg:
+                    # Log all errors from the ExceptionGroup
+                    for i, exc in enumerate(eg.exceptions):
                         logger.error(
                             f"Failed to fetch batch data (operation {i})",
                             extra={
                                 "batch_id": batch_id,
                                 "camera_id": camera_id,
-                                "error": str(result),
+                                "error": str(exc),
                             },
                         )
-                        raise result
-
-                detections_result, started_at_str, pipeline_start_time = gather_results
-                detections = detections_result
+                    # Re-raise the first exception to maintain compatibility
+                    raise eg.exceptions[0] from eg
                 started_at = float(started_at_str) if started_at_str else time.time()
 
                 # Create summary
@@ -610,6 +709,122 @@ class BatchAggregator:
 
                 return summary
 
+    async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:
+        """Close a batch that has reached the max detection size limit.
+
+        This is a specialized version of close_batch that is called from within
+        add_detection when a batch reaches batch_max_detections. It handles the
+        batch closing with reason "max_size" for proper tracking.
+
+        NEM-1726: Prevents memory exhaustion by splitting large batches.
+
+        Args:
+            batch_id: Batch identifier to close
+
+        Returns:
+            Batch summary dict if batch was closed, None if batch not found
+        """
+        if not self._redis:
+            raise RuntimeError("Redis client not initialized")
+
+        # Get camera_id from batch metadata
+        camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
+        if not camera_id:
+            logger.warning(
+                f"Cannot close batch {batch_id}: camera_id not found",
+                extra={"batch_id": batch_id},
+            )
+            return None
+
+        # Get detection IDs from the batch
+        detections_key = f"batch:{batch_id}:detections"
+        raw_detections: list[bytes] = await self._redis._client.lrange(  # type: ignore[misc,union-attr]
+            detections_key, 0, -1
+        )
+
+        # Parse detection IDs from Redis (handles both bytes and strings)
+        detections = []
+        for item in raw_detections:
+            if isinstance(item, bytes):
+                detections.append(int(item.decode("utf-8")))
+            else:
+                detections.append(int(item))
+
+        # Get timestamps from batch metadata
+        started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+        pipeline_start_time = await self._redis.get(f"batch:{batch_id}:pipeline_start_time")
+
+        started_at: float = float(started_at_str) if started_at_str else time.time()
+        ended_at: float = time.time()
+
+        # Build batch summary
+        summary = {
+            "batch_id": batch_id,
+            "camera_id": camera_id,
+            "detection_ids": detections,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "reason": "max_size",  # NEM-1726: Distinct reason for tracking
+        }
+
+        # Include pipeline_start_time if available (for latency tracking)
+        if pipeline_start_time:
+            summary["pipeline_start_time"] = pipeline_start_time
+
+        # Only push to analysis queue if there are detections
+        if detections:
+            result = await self._redis.add_to_queue_safe(
+                self._analysis_queue,
+                summary,
+                overflow_policy=QueueOverflowPolicy.DLQ,
+            )
+            if result.warning:
+                logger.warning(
+                    f"Queue overflow handling triggered for batch {batch_id}",
+                    extra={
+                        "camera_id": camera_id,
+                        "batch_id": batch_id,
+                        "detection_count": len(detections),
+                        "queue_name": self._analysis_queue,
+                        "queue_length": result.queue_length,
+                        "moved_to_dlq": result.moved_to_dlq_count,
+                        "warning": result.warning,
+                    },
+                )
+
+            logger.info(
+                f"Pushed batch {batch_id} to analysis queue "
+                f"(camera: {camera_id}, detections: {len(detections)}, reason: max_size)",
+                extra={
+                    "camera_id": camera_id,
+                    "batch_id": batch_id,
+                    "detection_count": len(detections),
+                    "reason": "max_size",
+                },
+            )
+        else:
+            logger.debug(
+                f"Batch {batch_id} has no detections, skipping analysis queue",
+                extra={"camera_id": camera_id, "batch_id": batch_id},
+            )
+
+        # Clean up Redis keys
+        await self._redis.delete(
+            f"batch:{camera_id}:current",
+            f"batch:{batch_id}:camera_id",
+            f"batch:{batch_id}:detections",
+            f"batch:{batch_id}:started_at",
+            f"batch:{batch_id}:last_activity",
+            f"batch:{batch_id}:pipeline_start_time",
+        )
+
+        logger.debug(
+            f"Cleaned up Redis keys for batch {batch_id}",
+            extra={"camera_id": camera_id, "batch_id": batch_id},
+        )
+
+        return summary
+
     def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
         """Check if detection meets fast path criteria.
 
@@ -664,3 +879,40 @@ class BatchAggregator:
                 extra={"camera_id": camera_id, "detection_id": detection_id},
                 exc_info=True,
             )
+
+    # =========================================================================
+    # Memory Pressure Backpressure (NEM-1727)
+    # =========================================================================
+
+    async def should_apply_backpressure(self) -> bool:
+        """Check if backpressure should be applied due to GPU memory pressure.
+
+        Returns True if GPU memory pressure is at CRITICAL level, indicating
+        that processing should be throttled or delayed.
+
+        Returns:
+            True if backpressure should be applied, False otherwise
+
+        Note:
+            If GPU monitor is not available or check fails, returns False
+            to avoid unnecessary throttling.
+        """
+        from backend.services.gpu_monitor import MemoryPressureLevel
+
+        try:
+            pressure_level = await get_memory_pressure_level()
+            should_throttle: bool = pressure_level == MemoryPressureLevel.CRITICAL
+
+            if should_throttle:
+                logger.warning(
+                    "Backpressure active due to critical GPU memory pressure",
+                    extra={"pressure_level": pressure_level.value},
+                )
+
+            return should_throttle
+        except Exception as e:
+            logger.debug(
+                f"Error checking backpressure: {e}",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+            return False

@@ -51,6 +51,14 @@ dependencies = [
     "docker>=7.0.0",
     # Token counting for LLM context management
     "tiktoken>=0.8.0",
+    # OpenTelemetry distributed tracing (NEM-1629)
+    "opentelemetry-api>=1.23.0",
+    "opentelemetry-sdk>=1.23.0",
+    "opentelemetry-exporter-otlp>=1.23.0",
+    "opentelemetry-instrumentation-fastapi>=0.44b0",
+    "opentelemetry-instrumentation-httpx>=0.44b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.44b0",
+    "opentelemetry-instrumentation-redis>=0.44b0",
 ]
 
 [project.optional-dependencies]
@@ -91,6 +99,10 @@ dev = [
     # Note: radon is provided by wily dependency (5.1.x)
     # Mutation testing
     "mutmut>=3.2.0",
+    # Performance profiling (NEM-1644)
+    "snakeviz>=2.2.0",  # Visualize cProfile output as flamegraphs
+    # Note: py-spy requires system installation (not pip) - install with:
+    # pip install py-spy  # or cargo install py-spy
 ]
 
 [tool.ruff]

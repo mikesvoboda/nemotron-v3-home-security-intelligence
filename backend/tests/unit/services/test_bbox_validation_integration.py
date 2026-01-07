@@ -36,6 +36,12 @@ def mock_settings() -> MagicMock:
     settings.enrichment_url = "http://test-enrichment:8094"
     settings.ai_connect_timeout = 10.0
     settings.ai_health_timeout = 5.0
+    # Circuit breaker settings
+    settings.enrichment_cb_failure_threshold = 3
+    settings.enrichment_cb_recovery_timeout = 30.0
+    settings.enrichment_cb_half_open_max_calls = 2
+    # Retry settings (NEM-1732)
+    settings.enrichment_max_retries = 3
     return settings
 
 
@@ -47,9 +53,21 @@ def sample_image() -> Image.Image:
 
 @pytest.fixture
 def enrichment_client(mock_settings: MagicMock) -> EnrichmentClient:
-    """Create an EnrichmentClient with mocked settings."""
-    with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
-        return EnrichmentClient()
+    """Create an EnrichmentClient with mocked settings and persistent HTTP clients."""
+    mock_http_client = AsyncMock()
+    mock_http_client.aclose = AsyncMock()
+    mock_health_client = AsyncMock()
+    mock_health_client.aclose = AsyncMock()
+
+    with (
+        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
+        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+    ):
+        client = EnrichmentClient()
+        # Ensure the mocked clients are properly attached
+        client._http_client = mock_http_client
+        client._health_http_client = mock_health_client
+        return client
 
 
 # =============================================================================
@@ -77,20 +95,16 @@ class TestEstimateObjectDistanceBboxValidation:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client's post method
+        enrichment_client._http_client.post = AsyncMock(return_value=mock_response)
 
-            # Valid bbox within image bounds
-            result = await enrichment_client.estimate_object_distance(
-                sample_image, bbox=(100.0, 100.0, 300.0, 300.0)
-            )
+        # Valid bbox within image bounds
+        result = await enrichment_client.estimate_object_distance(
+            sample_image, bbox=(100.0, 100.0, 300.0, 300.0)
+        )
 
-            assert result is not None
-            assert result.estimated_distance_m == 3.5
+        assert result is not None
+        assert result.estimated_distance_m == 3.5
 
     @pytest.mark.asyncio
     async def test_zero_width_bbox_returns_none(
@@ -159,25 +173,21 @@ class TestEstimateObjectDistanceBboxValidation:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client's post method
+        enrichment_client._http_client.post = AsyncMock(return_value=mock_response)
 
-            # Bbox exceeds image bounds (640x480)
-            result = await enrichment_client.estimate_object_distance(
-                sample_image, bbox=(500.0, 400.0, 700.0, 500.0)
-            )
+        # Bbox exceeds image bounds (640x480)
+        result = await enrichment_client.estimate_object_distance(
+            sample_image, bbox=(500.0, 400.0, 700.0, 500.0)
+        )
 
-            assert result is not None
-            # Verify the bbox was clamped in the request
-            call_args = mock_client.post.call_args
-            sent_bbox = call_args.kwargs["json"]["bbox"]
-            # After clamping: (500, 400, 640, 480)
-            assert sent_bbox[2] <= 640
-            assert sent_bbox[3] <= 480
+        assert result is not None
+        # Verify the bbox was clamped in the request
+        call_args = enrichment_client._http_client.post.call_args
+        sent_bbox = call_args.kwargs["json"]["bbox"]
+        # After clamping: (500, 400, 640, 480)
+        assert sent_bbox[2] <= 640
+        assert sent_bbox[3] <= 480
 
     @pytest.mark.asyncio
     async def test_completely_outside_bbox_returns_none(
@@ -204,24 +214,20 @@ class TestEstimateObjectDistanceBboxValidation:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+        # Mock the persistent HTTP client's post method
+        enrichment_client._http_client.post = AsyncMock(return_value=mock_response)
 
-            # Negative coordinates
-            result = await enrichment_client.estimate_object_distance(
-                sample_image, bbox=(-50.0, -50.0, 200.0, 200.0)
-            )
+        # Negative coordinates
+        result = await enrichment_client.estimate_object_distance(
+            sample_image, bbox=(-50.0, -50.0, 200.0, 200.0)
+        )
 
-            assert result is not None
-            # Verify the bbox was clamped in the request
-            call_args = mock_client.post.call_args
-            sent_bbox = call_args.kwargs["json"]["bbox"]
-            assert sent_bbox[0] >= 0
-            assert sent_bbox[1] >= 0
+        assert result is not None
+        # Verify the bbox was clamped in the request
+        call_args = enrichment_client._http_client.post.call_args
+        sent_bbox = call_args.kwargs["json"]["bbox"]
+        assert sent_bbox[0] >= 0
+        assert sent_bbox[1] >= 0
 
 
 # =============================================================================

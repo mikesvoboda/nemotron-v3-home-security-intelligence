@@ -68,8 +68,8 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-[1920px]">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white">Settings</h1>
-          <p className="mt-2 text-sm text-gray-400">Configure your security monitoring system</p>
+          <h1 className="text-page-title">Settings</h1>
+          <p className="text-body-sm mt-2">Configure your security monitoring system</p>
         </div>
 
         {/* Secure Context Warning - shown when not using HTTPS */}

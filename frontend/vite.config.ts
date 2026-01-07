@@ -96,6 +96,7 @@ export default defineConfig(({ mode }) => {
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,
+      teardownTimeout: 5000,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],

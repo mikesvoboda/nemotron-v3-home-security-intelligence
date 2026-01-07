@@ -1,6 +1,7 @@
 """API middleware components."""
 
 from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api_key
+from .body_limit import BodySizeLimitMiddleware
 from .correlation import get_correlation_headers, merge_headers_with_correlation
 from .rate_limit import (
     RateLimiter,
@@ -21,6 +22,7 @@ from .security_headers import SecurityHeadersMiddleware
 
 __all__ = [
     "AuthMiddleware",
+    "BodySizeLimitMiddleware",
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",

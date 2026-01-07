@@ -120,6 +120,7 @@ class TestSettingsDefaults:
         settings = Settings()
         assert settings.batch_window_seconds == 90
         assert settings.batch_idle_timeout_seconds == 30
+        assert settings.batch_max_detections == 500  # NEM-1726
 
     def test_default_ai_service_urls(self, clean_env):
         """Test default AI service endpoint URLs.
