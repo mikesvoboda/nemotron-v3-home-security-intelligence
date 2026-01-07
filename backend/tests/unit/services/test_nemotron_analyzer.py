@@ -1587,19 +1587,10 @@ async def test_run_enrichment_pipeline_sets_shared_image(analyzer):
         ),
     ]
 
-    # Mock the enrichment pipeline with enrich_batch_with_tracking (NEM-1672)
-    from backend.services.enrichment_pipeline import EnrichmentStatus, EnrichmentTrackingResult
-
+    # Mock the enrichment pipeline
     mock_pipeline = MagicMock()
     mock_result = EnrichmentResult()
-    mock_tracking_result = EnrichmentTrackingResult(
-        status=EnrichmentStatus.FULL,
-        successful_models=["face"],
-        failed_models=[],
-        errors={},
-        data=mock_result,
-    )
-    mock_pipeline.enrich_batch_with_tracking = AsyncMock(return_value=mock_tracking_result)
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
 
     # Replace the analyzer's pipeline getter
     analyzer._enrichment_pipeline = mock_pipeline
@@ -1607,9 +1598,9 @@ async def test_run_enrichment_pipeline_sets_shared_image(analyzer):
     # Call the method with camera_id
     await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
 
-    # Verify enrich_batch_with_tracking was called
-    mock_pipeline.enrich_batch_with_tracking.assert_called_once()
-    call_args = mock_pipeline.enrich_batch_with_tracking.call_args
+    # Verify enrich_batch was called
+    mock_pipeline.enrich_batch.assert_called_once()
+    call_args = mock_pipeline.enrich_batch.call_args
 
     # Get the images dict that was passed
     detection_inputs = call_args[0][0]
@@ -1637,7 +1628,7 @@ async def test_run_enrichment_pipeline_sets_shared_image(analyzer):
 
 @pytest.mark.asyncio
 async def test_run_enrichment_pipeline_passes_camera_id(analyzer):
-    """Test that _run_enrichment_pipeline passes camera_id to enrich_batch_with_tracking.
+    """Test that _run_enrichment_pipeline passes camera_id to enrich_batch.
 
     This is required for scene change detection and re-identification to work.
     """
@@ -1645,11 +1636,7 @@ async def test_run_enrichment_pipeline_passes_camera_id(analyzer):
     from unittest.mock import AsyncMock, MagicMock
 
     from backend.models.detection import Detection
-    from backend.services.enrichment_pipeline import (
-        EnrichmentResult,
-        EnrichmentStatus,
-        EnrichmentTrackingResult,
-    )
+    from backend.services.enrichment_pipeline import EnrichmentResult
 
     detections = [
         Detection(
@@ -1668,21 +1655,14 @@ async def test_run_enrichment_pipeline_passes_camera_id(analyzer):
 
     mock_pipeline = MagicMock()
     mock_result = EnrichmentResult()
-    mock_tracking_result = EnrichmentTrackingResult(
-        status=EnrichmentStatus.FULL,
-        successful_models=["face"],
-        failed_models=[],
-        errors={},
-        data=mock_result,
-    )
-    mock_pipeline.enrich_batch_with_tracking = AsyncMock(return_value=mock_tracking_result)
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
     analyzer._enrichment_pipeline = mock_pipeline
 
     # Call with camera_id
     await analyzer._run_enrichment_pipeline(detections, camera_id="backyard")
 
     # Verify camera_id was passed as keyword argument
-    call_kwargs = mock_pipeline.enrich_batch_with_tracking.call_args[1]
+    call_kwargs = mock_pipeline.enrich_batch.call_args[1]
     assert call_kwargs["camera_id"] == "backyard"
 
 
@@ -1726,11 +1706,7 @@ async def test_run_enrichment_pipeline_no_file_path_for_shared_image(analyzer):
     from unittest.mock import AsyncMock, MagicMock
 
     from backend.models.detection import Detection
-    from backend.services.enrichment_pipeline import (
-        EnrichmentResult,
-        EnrichmentStatus,
-        EnrichmentTrackingResult,
-    )
+    from backend.services.enrichment_pipeline import EnrichmentResult
 
     detections = [
         Detection(
@@ -1761,20 +1737,13 @@ async def test_run_enrichment_pipeline_no_file_path_for_shared_image(analyzer):
 
     mock_pipeline = MagicMock()
     mock_result = EnrichmentResult()
-    mock_tracking_result = EnrichmentTrackingResult(
-        status=EnrichmentStatus.FULL,
-        successful_models=[],
-        failed_models=[],
-        errors={},
-        data=mock_result,
-    )
-    mock_pipeline.enrich_batch_with_tracking = AsyncMock(return_value=mock_tracking_result)
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
     analyzer._enrichment_pipeline = mock_pipeline
 
     await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
 
     # Get images dict
-    images = mock_pipeline.enrich_batch_with_tracking.call_args[0][1]
+    images = mock_pipeline.enrich_batch.call_args[0][1]
 
     # images[None] should NOT be set since first detection has no file_path
     assert None not in images or images.get(None) is None
@@ -1799,11 +1768,7 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
     from unittest.mock import AsyncMock, patch
 
     from backend.models.detection import Detection
-    from backend.services.enrichment_pipeline import (
-        EnrichmentResult,
-        EnrichmentStatus,
-        EnrichmentTrackingResult,
-    )
+    from backend.services.enrichment_pipeline import EnrichmentResult
 
     batch_id = "test_batch_enrichment"
     camera_id = mock_camera.id
@@ -1837,18 +1802,11 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         ),
     ]
 
-    # Mock enrichment result with tracking (NEM-1672)
-    mock_enrichment_data = EnrichmentResult(
+    # Mock enrichment result
+    mock_enrichment_result = EnrichmentResult(
         license_plates=[],
         faces=[],
         processing_time_ms=50.0,
-    )
-    mock_enrichment_tracking = EnrichmentTrackingResult(
-        status=EnrichmentStatus.FULL,
-        successful_models=["face"],
-        failed_models=[],
-        errors={},
-        data=mock_enrichment_data,
     )
 
     # Track calls to _get_enrichment_result
@@ -1856,7 +1814,7 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
 
     async def tracked_get_enrichment(*args, **kwargs):
         enrichment_calls.append((args, kwargs))
-        return mock_enrichment_tracking
+        return mock_enrichment_result
 
     analyzer._get_enrichment_result = tracked_get_enrichment
 
@@ -2141,16 +2099,11 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
 
 
 @pytest.mark.asyncio
-async def test_get_enrichment_result_returns_failed_tracking_on_failure(analyzer):
-    """Test that _get_enrichment_result returns EnrichmentTrackingResult with FAILED status on pipeline failure.
-
-    NEM-1672: Changed behavior - now returns a tracking result with FAILED status
-    instead of None, providing visibility into failures.
-    """
+async def test_get_enrichment_result_returns_none_on_failure(analyzer):
+    """Test that _get_enrichment_result returns None on pipeline failure."""
     from datetime import UTC
 
     from backend.models.detection import Detection
-    from backend.services.enrichment_pipeline import EnrichmentStatus
 
     detections = [
         Detection(
@@ -2169,19 +2122,14 @@ async def test_get_enrichment_result_returns_failed_tracking_on_failure(analyzer
 
     analyzer._run_enrichment_pipeline = failing_pipeline
 
-    # Should return a failed tracking result, not None (NEM-1672)
+    # Should return None, not raise
     result = await analyzer._get_enrichment_result(
         batch_id="test",
         detections=detections,
         camera_id="test",
     )
 
-    # Now returns a tracking result with FAILED status
-    assert result is not None
-    assert result.status == EnrichmentStatus.FAILED
-    assert result.data is None
-    assert "all" in result.failed_models
-    assert "Pipeline failed" in result.errors.get("all", "")
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -2226,8 +2174,6 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
     from backend.services.enrichment_pipeline import (
         BoundingBox,
         EnrichmentResult,
-        EnrichmentStatus,
-        EnrichmentTrackingResult,
         LicensePlateResult,
     )
 
@@ -2254,8 +2200,8 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         ),
     ]
 
-    # Create enrichment result with license plate (NEM-1672 - now wrapped in tracking result)
-    mock_enrichment_data = EnrichmentResult(
+    # Create enrichment result with license plate
+    mock_enrichment_result = EnrichmentResult(
         license_plates=[
             LicensePlateResult(
                 bbox=BoundingBox(x1=100, y1=100, x2=200, y2=150),
@@ -2266,13 +2212,6 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         ],
         faces=[],
         processing_time_ms=75.0,
-    )
-    mock_enrichment_tracking = EnrichmentTrackingResult(
-        status=EnrichmentStatus.FULL,
-        successful_models=["license_plate"],
-        failed_models=[],
-        errors={},
-        data=mock_enrichment_data,
     )
 
     # Track _call_llm calls
@@ -2288,7 +2227,7 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         }
 
     analyzer._call_llm = tracked_call_llm
-    analyzer._get_enrichment_result = AsyncMock(return_value=mock_enrichment_tracking)
+    analyzer._get_enrichment_result = AsyncMock(return_value=mock_enrichment_result)
 
     with (
         patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
@@ -2320,12 +2259,10 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         )
 
     # Verify _call_llm was called with enrichment_result
-    # NEM-1672: Now extracts EnrichmentResult from EnrichmentTrackingResult
     assert len(call_llm_calls) == 1
     llm_kwargs = call_llm_calls[0]
     assert "enrichment_result" in llm_kwargs
-    # The extracted EnrichmentResult (not tracking result) is passed to _call_llm
-    assert llm_kwargs["enrichment_result"] is mock_enrichment_data
+    assert llm_kwargs["enrichment_result"] is mock_enrichment_result
     assert llm_kwargs["enrichment_result"].has_license_plates
 
     # Event should be created with correct risk score
@@ -3072,12 +3009,6 @@ class TestLLMTokenMetrics:
         mock.severity_low_max = 29
         mock.severity_medium_max = 59
         mock.severity_high_max = 84
-        # Token counter settings (NEM-1666)
-        mock.nemotron_context_window = 4096
-        mock.nemotron_max_output_tokens = 1536
-        mock.context_utilization_warning_threshold = 0.80
-        mock.context_truncation_enabled = True
-        mock.llm_tokenizer_encoding = "cl100k_base"
         return mock
 
     @pytest.fixture
@@ -3316,3 +3247,153 @@ class TestTokenCountingIntegration:
 
             # Verify validation was called
             mock_counter.validate_prompt.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_call_llm_records_token_metrics(self, analyzer_with_token_limits):
+        """Test that token metrics are recorded during LLM calls."""
+        mock_response = {
+            "content": json.dumps(
+                {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Test event",
+                    "reasoning": "Test reasoning",
+                }
+            ),
+        }
+
+        with (
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch("backend.services.nemotron_analyzer.observe_prompt_tokens") as mock_observe,
+        ):
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = mock_response
+            mock_post.return_value = mock_resp
+
+            await analyzer_with_token_limits._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+            # Verify token metrics were recorded
+            mock_observe.assert_called_once()
+            # Token count should be positive
+            assert mock_observe.call_args[0][0] > 0
+
+
+class TestPromptSectionTruncation:
+    """Tests for prompt section truncation logic."""
+
+    def test_truncation_removes_lowest_priority_sections_first(self):
+        """Test that cross_camera (lowest priority) is removed first."""
+        from backend.services.token_counter import (
+            PromptSection,
+            truncate_prompt_sections,
+        )
+
+        sections = [
+            PromptSection(
+                name="core",
+                content="Core detection content " * 50,
+                priority=0,
+                can_truncate=False,
+            ),
+            PromptSection(
+                name="zones",
+                content="Zone analysis " * 50,
+                priority=2,
+            ),
+            PromptSection(
+                name="baseline",
+                content="Baseline comparison " * 50,
+                priority=3,
+            ),
+            PromptSection(
+                name="cross_camera",
+                content="Cross camera data " * 50,
+                priority=4,
+            ),
+        ]
+
+        result = truncate_prompt_sections(sections, context_window=500, max_output_tokens=200)
+
+        # Cross-camera should be removed first (priority 4)
+        assert "cross_camera" in result.removed_sections
+        # Core should never be removed (can_truncate=False)
+        remaining_names = [s.name for s in result.sections]
+        assert "core" in remaining_names
+
+    def test_truncation_order_cross_camera_baseline_zones(self):
+        """Test truncation order: cross_camera -> baseline -> zones."""
+        from backend.services.token_counter import (
+            PromptSection,
+            truncate_prompt_sections,
+        )
+
+        # Make sections larger to force more truncation
+        sections = [
+            PromptSection(
+                name="core",
+                content="x" * 100,  # 25 tokens
+                priority=0,
+                can_truncate=False,
+            ),
+            PromptSection(
+                name="zones",
+                content="y" * 200,  # 50 tokens
+                priority=2,
+            ),
+            PromptSection(
+                name="baseline",
+                content="z" * 200,  # 50 tokens
+                priority=3,
+            ),
+            PromptSection(
+                name="cross_camera",
+                content="w" * 200,  # 50 tokens
+                priority=4,
+            ),
+        ]
+        # Total: 175 tokens
+
+        # Very tight limit to force multiple truncations
+        result = truncate_prompt_sections(sections, context_window=100, max_output_tokens=50)
+        # max_safe = 50 tokens, we have 175
+
+        # Should remove in order: cross_camera (50), baseline (50), zones (50)
+        # Until we're under 50 tokens (just core at 25)
+        assert result.truncated is True
+        assert "cross_camera" in result.removed_sections
+
+    def test_truncation_preserves_core_sections(self):
+        """Test that sections marked can_truncate=False are never removed."""
+        from backend.services.token_counter import (
+            PromptSection,
+            truncate_prompt_sections,
+        )
+
+        sections = [
+            PromptSection(
+                name="system_prompt",
+                content="x" * 1000,  # 250 tokens
+                priority=0,
+                can_truncate=False,
+            ),
+            PromptSection(
+                name="detections",
+                content="y" * 400,  # 100 tokens
+                priority=1,
+                can_truncate=False,
+            ),
+        ]
+
+        # Even with very tight limits, non-truncatable sections stay
+        result = truncate_prompt_sections(sections, context_window=100, max_output_tokens=50)
+
+        # Both sections should remain (they can't be truncated)
+        remaining_names = [s.name for s in result.sections]
+        assert "system_prompt" in remaining_names
+        assert "detections" in remaining_names
