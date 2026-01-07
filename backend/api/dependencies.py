@@ -1,9 +1,14 @@
-"""Reusable utility functions for entity existence checks.
+"""Reusable dependencies and utility functions for FastAPI routes.
 
-This module provides utility functions that abstract the repeated pattern of
-querying for an entity by ID and raising a 404 if not found.
+This module provides:
 
-Usage:
+1. Entity existence checks - Utility functions that abstract the repeated pattern of
+   querying for an entity by ID and raising a 404 if not found.
+
+2. Service dependencies - FastAPI dependency injection functions for services,
+   enabling proper DI patterns and easier testing through dependency overrides.
+
+Usage (Entity Existence):
     from backend.api.dependencies import get_camera_or_404
 
     @router.get("/{camera_id}")
@@ -14,26 +19,34 @@ Usage:
         camera = await get_camera_or_404(camera_id, db)
         return camera
 
-These functions can be called directly from route handlers, simplifying the
-common pattern of:
+Usage (Service DI):
+    from backend.api.dependencies import get_cache_service_dep
 
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
-    camera = result.scalar_one_or_none()
-    if not camera:
-        raise HTTPException(status_code=404, detail=f"Camera with id {camera_id} not found")
+    @router.get("/stats")
+    async def get_stats(
+        cache: CacheService = Depends(get_cache_service_dep),
+        db: AsyncSession = Depends(get_db),
+    ):
+        cached = await cache.get("key")
+        ...
 
-Into a single line:
-
-    camera = await get_camera_or_404(camera_id, db)
+These patterns simplify the common patterns and enable:
+- Clean testability via FastAPI dependency_overrides
+- Proper separation of concerns
+- Consistent error handling
 """
 
-from fastapi import HTTPException, status
+from collections.abc import AsyncGenerator
+
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.redis import RedisClient, get_redis
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.services.cache_service import CacheService
 
 
 async def get_camera_or_404(
@@ -127,3 +140,67 @@ async def get_detection_or_404(
         )
 
     return detection
+
+
+# =============================================================================
+# Service Dependency Injection Functions
+# =============================================================================
+#
+# These functions implement proper FastAPI dependency injection for services.
+# This pattern:
+# 1. Enables clean testing via app.dependency_overrides
+# 2. Allows FastAPI to manage service lifecycle
+# 3. Provides consistent patterns across all routes
+# =============================================================================
+
+
+async def get_cache_service_dep(
+    redis: RedisClient = Depends(get_redis),
+) -> AsyncGenerator[CacheService]:
+    """FastAPI dependency for CacheService.
+
+    This dependency properly injects the CacheService with its Redis dependency,
+    enabling clean testing through FastAPI's dependency_overrides mechanism.
+
+    Args:
+        redis: Redis client injected via Depends(get_redis)
+
+    Yields:
+        CacheService instance
+
+    Example usage in routes::
+
+        from backend.api.dependencies import get_cache_service_dep
+
+        @router.get("/stats")
+        async def get_stats(
+            cache: CacheService = Depends(get_cache_service_dep),
+        ):
+            cached = await cache.get("key")
+            ...
+
+    Example usage in tests::
+
+        app.dependency_overrides[get_cache_service_dep] = lambda: mock_cache
+    """
+    yield CacheService(redis)
+
+
+async def get_cache_service_optional_dep(
+    redis: RedisClient = Depends(get_redis),
+) -> AsyncGenerator[CacheService | None]:
+    """FastAPI dependency for optional CacheService.
+
+    Like get_cache_service_dep but returns None if Redis is unavailable,
+    allowing routes to gracefully degrade when cache is not available.
+
+    Args:
+        redis: Redis client injected via Depends(get_redis)
+
+    Yields:
+        CacheService instance or None if Redis unavailable
+    """
+    try:
+        yield CacheService(redis)
+    except Exception:
+        yield None

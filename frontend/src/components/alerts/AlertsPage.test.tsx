@@ -74,6 +74,7 @@ describe('AlertsPage', () => {
     count: 1,
     limit: 20,
     offset: 0,
+    has_more: false,
   };
 
   const mockCriticalResponse: EventListResponse = {
@@ -81,6 +82,7 @@ describe('AlertsPage', () => {
     count: 1,
     limit: 20,
     offset: 0,
+    has_more: false,
   };
 
   const mockEmptyResponse: EventListResponse = {
@@ -88,13 +90,14 @@ describe('AlertsPage', () => {
     count: 0,
     limit: 20,
     offset: 0,
+    has_more: false,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     // Mock detection fetching for modal
-    vi.mocked(api.fetchEventDetections).mockResolvedValue({ detections: [], count: 0, limit: 100, offset: 0 });
+    vi.mocked(api.fetchEventDetections).mockResolvedValue({ detections: [], count: 0, limit: 100, offset: 0, has_more: false });
     // Mock update event for mark as reviewed
     vi.mocked(api.updateEvent).mockResolvedValue({
       id: 1,
@@ -392,12 +395,14 @@ describe('AlertsPage', () => {
           count: 15,
           limit: 20,
           offset: 0,
+          has_more: false,
         })
         .mockResolvedValueOnce({
           events: manyCriticalEvents,
           count: 15,
           limit: 20,
           offset: 0,
+          has_more: false,
         });
 
       render(<AlertsPage />);

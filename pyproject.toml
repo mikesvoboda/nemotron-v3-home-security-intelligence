@@ -91,6 +91,10 @@ dev = [
     # Note: radon is provided by wily dependency (5.1.x)
     # Mutation testing
     "mutmut>=3.2.0",
+    # Performance profiling (NEM-1644)
+    "snakeviz>=2.2.0",  # Visualize cProfile output as flamegraphs
+    # Note: py-spy requires system installation (not pip) - install with:
+    # pip install py-spy  # or cargo install py-spy
 ]
 
 [tool.ruff]

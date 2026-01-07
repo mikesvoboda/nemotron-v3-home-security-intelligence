@@ -332,19 +332,26 @@ class BatchAggregator:
                         )
                     )
 
-                results = await asyncio.gather(*redis_ops, return_exceptions=True)
-                # Check for any exceptions in the results (NEM-1097)
-                for i, result in enumerate(results):
-                    if isinstance(result, Exception):
+                # Use TaskGroup for structured concurrency (NEM-1656)
+                # All Redis operations must succeed for batch to be valid.
+                # TaskGroup automatically cancels remaining tasks if any fails.
+                try:
+                    async with asyncio.TaskGroup() as tg:
+                        for redis_op in redis_ops:
+                            tg.create_task(redis_op)
+                except* Exception as eg:
+                    # Log all errors from the ExceptionGroup
+                    for i, exc in enumerate(eg.exceptions):
                         logger.error(
                             f"Redis operation {i} failed during batch creation",
                             extra={
                                 "batch_id": batch_id,
                                 "camera_id": camera_id,
-                                "error": str(result),
+                                "error": str(exc),
                             },
                         )
-                        raise result
+                    # Re-raise the first exception to maintain compatibility
+                    raise eg.exceptions[0] from eg
                 # Note: No need to initialize empty list - RPUSH creates it automatically
 
             # Add detection to batch using atomic RPUSH operation
@@ -568,29 +575,47 @@ class BatchAggregator:
                         "already_closed": True,
                     }
 
-                # Get batch data in parallel for performance (NEM-1097: return_exceptions=True)
-                gather_results = await asyncio.gather(
-                    self._atomic_list_get_all(f"batch:{batch_id}:detections"),
-                    self._redis.get(f"batch:{batch_id}:started_at"),
-                    self._redis.get(f"batch:{batch_id}:pipeline_start_time"),
-                    return_exceptions=True,
-                )
+                # Get batch data in parallel using TaskGroup (NEM-1656)
+                # All data fetches must succeed for batch close to be valid.
+                # TaskGroup provides structured concurrency with automatic cancellation.
+                detections: list[int] = []
+                started_at_str: str | None = None
+                pipeline_start_time: str | None = None
 
-                # Check for any exceptions in the results (NEM-1097)
-                for i, result in enumerate(gather_results):
-                    if isinstance(result, Exception):
+                async def fetch_detections() -> None:
+                    nonlocal detections
+                    detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections")
+
+                async def fetch_started_at() -> None:
+                    nonlocal started_at_str
+                    assert self._redis is not None  # Verified at function start
+                    started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+
+                async def fetch_pipeline_time() -> None:
+                    nonlocal pipeline_start_time
+                    assert self._redis is not None  # Verified at function start
+                    pipeline_start_time = await self._redis.get(
+                        f"batch:{batch_id}:pipeline_start_time"
+                    )
+
+                try:
+                    async with asyncio.TaskGroup() as tg:
+                        tg.create_task(fetch_detections())
+                        tg.create_task(fetch_started_at())
+                        tg.create_task(fetch_pipeline_time())
+                except* Exception as eg:
+                    # Log all errors from the ExceptionGroup
+                    for i, exc in enumerate(eg.exceptions):
                         logger.error(
                             f"Failed to fetch batch data (operation {i})",
                             extra={
                                 "batch_id": batch_id,
                                 "camera_id": camera_id,
-                                "error": str(result),
+                                "error": str(exc),
                             },
                         )
-                        raise result
-
-                detections_result, started_at_str, pipeline_start_time = gather_results
-                detections = detections_result
+                    # Re-raise the first exception to maintain compatibility
+                    raise eg.exceptions[0] from eg
                 started_at = float(started_at_str) if started_at_str else time.time()
 
                 # Create summary

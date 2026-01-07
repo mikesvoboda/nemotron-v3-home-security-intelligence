@@ -11,8 +11,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_event_or_404
+from backend.api.dependencies import get_cache_service_dep, get_event_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
+from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.clips import (
     ClipGenerateRequest,
     ClipGenerateResponse,
@@ -38,7 +39,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
-from backend.services.cache_service import SHORT_TTL, CacheKeys, get_cache_service
+from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
 from backend.services.search import SearchFilters, search_events
 
 logger = get_logger(__name__)
@@ -148,7 +149,7 @@ def sanitize_csv_value(value: str | None) -> str:
 
 
 @router.get("", response_model=EventListResponse)
-async def list_events(
+async def list_events(  # noqa: PLR0912
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
         None, description="Filter by risk level (low, medium, high, critical)"
@@ -157,11 +158,15 @@ async def list_events(
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
     object_type: str | None = Query(None, description="Filter by detected object type"),
-    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
-    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
+    cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """List events with optional filtering and pagination.
+    """List events with optional filtering and cursor-based pagination.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Cursor-based pagination offers better performance for large datasets.
 
     Args:
         camera_id: Optional camera ID to filter by
@@ -170,8 +175,9 @@ async def list_events(
         end_date: Optional end date for date range filter
         reviewed: Optional filter by reviewed status
         object_type: Optional object type to filter by (person, vehicle, animal, etc.)
-        limit: Maximum number of results to return (1-1000, default 50)
-        offset: Number of results to skip for pagination (default 0)
+        limit: Maximum number of results to return (1-100, default 50)
+        offset: Number of results to skip (deprecated, use cursor instead)
+        cursor: Pagination cursor from previous response's next_cursor field
         db: Database session
 
     Returns:
@@ -179,9 +185,21 @@ async def list_events(
 
     Raises:
         HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if cursor is invalid
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Decode cursor if provided
+    cursor_data: CursorData | None = None
+    if cursor:
+        try:
+            cursor_data = decode_cursor(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor: {e}",
+            ) from e
 
     # Build base query
     query = select(Event)
@@ -217,20 +235,44 @@ async def list_events(
             | (Event.object_types.like(f"%,{safe_object_type}"))
         )
 
-    # Get total count (before pagination)
-    count_query = select(func.count()).select_from(query.subquery())
-    count_result = await db.execute(count_query)
-    total_count = count_result.scalar() or 0
+    # Apply cursor-based pagination filter (takes precedence over offset)
+    if cursor_data:
+        # For descending order by started_at, we want records where:
+        # - started_at < cursor's started_at, OR
+        # - started_at == cursor's started_at AND id < cursor's id (tie-breaker)
+        query = query.where(
+            (Event.started_at < cursor_data.created_at)
+            | ((Event.started_at == cursor_data.created_at) & (Event.id < cursor_data.id))
+        )
 
-    # Sort by started_at descending (newest first)
-    query = query.order_by(Event.started_at.desc())
+    # Get total count (before pagination) - only when not using cursor
+    # With cursor pagination, total count becomes expensive and less meaningful
+    total_count: int = 0
+    if not cursor_data:
+        count_query = select(func.count()).select_from(query.subquery())
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
 
-    # Apply pagination
-    query = query.limit(limit).offset(offset)
+    # Sort by started_at descending (newest first), then by id descending for consistency
+    query = query.order_by(Event.started_at.desc(), Event.id.desc())
+
+    # Apply pagination - fetch one extra to determine if there are more results
+    # Use explicit if/else for readability (clearer than ternary with complex expressions)
+    if cursor_data:  # noqa: SIM108
+        # Cursor-based: fetch limit + 1 to check for more
+        query = query.limit(limit + 1)
+    else:
+        # Offset-based (deprecated): apply offset
+        query = query.limit(limit + 1).offset(offset)
 
     # Execute query
     result = await db.execute(query)
-    events = result.scalars().all()
+    events = list(result.scalars().all())
+
+    # Determine if there are more results
+    has_more = len(events) > limit
+    if has_more:
+        events = events[:limit]  # Trim to requested limit
 
     # Calculate detection count and parse detection_ids for each event
     events_with_counts = []
@@ -261,11 +303,24 @@ async def list_events(
         }
         events_with_counts.append(event_dict)
 
+    # Generate next cursor from the last event
+    next_cursor: str | None = None
+    if has_more and events:
+        last_event = events[-1]
+        cursor_data_next = CursorData(id=last_event.id, created_at=last_event.started_at)
+        next_cursor = encode_cursor(cursor_data_next)
+
+    # Get deprecation warning if using offset without cursor
+    deprecation_warning = get_deprecation_warning(cursor, offset)
+
     return {
         "events": events_with_counts,
         "count": total_count,
         "limit": limit,
         "offset": offset,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "deprecation_warning": deprecation_warning,
     }
 
 
@@ -274,6 +329,7 @@ async def get_event_stats(
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
     """Get aggregated event statistics.
 
@@ -289,6 +345,7 @@ async def get_event_stats(
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         db: Database session
+        cache: Cache service injected via FastAPI DI
 
     Returns:
         EventStatsResponse with aggregated statistics
@@ -307,7 +364,6 @@ async def get_event_stats(
 
     # Try cache first
     try:
-        cache = await get_cache_service()
         cached_data = await cache.get(cache_key)
         if cached_data is not None:
             logger.debug(f"Returning cached event stats for dates={start_str}:{end_str}")
@@ -380,7 +436,6 @@ async def get_event_stats(
 
     # Cache the result
     try:
-        cache = await get_cache_service()
         await cache.set(cache_key, response, ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")

@@ -263,6 +263,37 @@ ENRICHMENT_RETRY_TOTAL = Counter(
     registry=_registry,
 )
 
+# =============================================================================
+# Enrichment Pipeline Partial Failure Metrics (NEM-1672)
+# =============================================================================
+
+ENRICHMENT_SUCCESS_RATE = Gauge(
+    "hsi_enrichment_success_rate",
+    "Success rate of enrichment models (0.0 to 1.0)",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+ENRICHMENT_PARTIAL_BATCHES_TOTAL = Counter(
+    "hsi_enrichment_partial_batches_total",
+    "Total number of batches with partial enrichment (some models succeeded, some failed)",
+    registry=_registry,
+)
+
+ENRICHMENT_FAILURES_TOTAL = Counter(
+    "hsi_enrichment_failures_total",
+    "Total number of enrichment model failures by model name",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+ENRICHMENT_BATCH_STATUS_TOTAL = Counter(
+    "hsi_enrichment_batch_status_total",
+    "Total number of enrichment batches by status (full, partial, failed, skipped)",
+    labelnames=["status"],
+    registry=_registry,
+)
+
 EVENTS_BY_CAMERA_TOTAL = Counter(
     "hsi_events_by_camera_total",
     "Events per camera",
@@ -583,6 +614,35 @@ class MetricsService:
         """
         ENRICHMENT_MODEL_CALLS_TOTAL.labels(model=model).inc()
 
+    def set_enrichment_success_rate(self, model: str, rate: float) -> None:
+        """Set the success rate gauge for an enrichment model.
+
+        Args:
+            model: Name of the enrichment model
+            rate: Success rate (0.0 to 1.0)
+        """
+        ENRICHMENT_SUCCESS_RATE.labels(model=model).set(rate)
+
+    def record_enrichment_partial_batch(self) -> None:
+        """Increment the counter for batches with partial enrichment."""
+        ENRICHMENT_PARTIAL_BATCHES_TOTAL.inc()
+
+    def record_enrichment_failure(self, model: str) -> None:
+        """Increment the failure counter for an enrichment model.
+
+        Args:
+            model: Name of the enrichment model that failed
+        """
+        ENRICHMENT_FAILURES_TOTAL.labels(model=model).inc()
+
+    def record_enrichment_batch_status(self, status: str) -> None:
+        """Record the status of an enrichment batch.
+
+        Args:
+            status: Enrichment status (full, partial, failed, skipped)
+        """
+        ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
+
     def record_event_by_camera(self, camera_id: str, camera_name: str) -> None:
         """Increment the events per camera counter.
 
@@ -895,6 +955,39 @@ def increment_enrichment_retry(endpoint: str) -> None:
             depth, distance, pose, action)
     """
     ENRICHMENT_RETRY_TOTAL.labels(endpoint=endpoint).inc()
+
+
+def set_enrichment_success_rate(model: str, rate: float) -> None:
+    """Set the success rate gauge for an enrichment model.
+
+    Args:
+        model: Name of the enrichment model
+        rate: Success rate (0.0 to 1.0)
+    """
+    ENRICHMENT_SUCCESS_RATE.labels(model=model).set(rate)
+
+
+def record_enrichment_partial_batch() -> None:
+    """Increment the counter for batches with partial enrichment."""
+    ENRICHMENT_PARTIAL_BATCHES_TOTAL.inc()
+
+
+def record_enrichment_failure(model: str) -> None:
+    """Increment the failure counter for an enrichment model.
+
+    Args:
+        model: Name of the enrichment model that failed
+    """
+    ENRICHMENT_FAILURES_TOTAL.labels(model=model).inc()
+
+
+def record_enrichment_batch_status(status: str) -> None:
+    """Record the status of an enrichment batch.
+
+    Args:
+        status: Enrichment status (full, partial, failed, skipped)
+    """
+    ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
 
 
 def record_event_by_camera(camera_id: str, camera_name: str) -> None:

@@ -442,6 +442,64 @@ Development-only admin endpoints for seeding test data.
 - Weighted risk distribution (50% low, 35% medium, 15% high)
 - Auto-generates detections with random bounding boxes
 
+### `debug.py`
+
+Debug endpoints for runtime diagnostics (NEM-1642).
+
+**Router prefix:** `/api/debug`
+
+**SECURITY:** All endpoints gated by `settings.debug == True`. When `debug=False`, endpoints return 404 Not Found to avoid revealing the existence of debug functionality.
+
+**Endpoints:**
+
+| Method | Path                               | Purpose                                    |
+| ------ | ---------------------------------- | ------------------------------------------ |
+| GET    | `/api/debug/config`                | Current configuration with redacted values |
+| GET    | `/api/debug/redis/info`            | Redis connection stats and pub/sub info    |
+| GET    | `/api/debug/websocket/connections` | Active WebSocket connection states         |
+| GET    | `/api/debug/circuit-breakers`      | All circuit breaker states                 |
+| GET    | `/api/debug/pipeline-state`        | Pipeline queue depths and worker status    |
+| GET    | `/api/debug/log-level`             | Get current log level                      |
+| POST   | `/api/debug/log-level`             | Change log level at runtime                |
+
+**Configuration Endpoint (`/api/debug/config`):**
+
+- Returns all settings with sensitive values redacted
+- Uses `redact_sensitive_value()` from `backend/core/logging.py`
+- Redacts: passwords, API keys, secrets, database URLs, Redis URLs
+
+**Redis Info Endpoint (`/api/debug/redis/info`):**
+
+- Connection status (connected, unavailable, error)
+- Server info (version, memory, clients, uptime)
+- Active pub/sub channels and subscriber counts
+
+**WebSocket Connections Endpoint (`/api/debug/websocket/connections`):**
+
+- Event broadcaster status (connection count, listening state, degraded mode)
+- System broadcaster status (connection count, listening state)
+- Circuit breaker state for each broadcaster
+
+**Circuit Breakers Endpoint (`/api/debug/circuit-breakers`):**
+
+- All registered circuit breakers from global registry
+- State (CLOSED, OPEN, HALF_OPEN)
+- Failure/success counts, total/rejected calls
+- Configuration (thresholds, timeouts)
+
+**Log Level Endpoint (`/api/debug/log-level`):**
+
+- GET: Returns current root logger level
+- POST: Changes log level at runtime (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- Updates all handlers to new level
+
+**Key Features:**
+
+- Security: Returns 404 when `debug=False` (hides endpoint existence)
+- Redaction: Uses consistent patterns from `backend/core/logging.py`
+- Graceful degradation: Redis endpoints handle unavailability
+- Real-time: All data is live, not cached
+
 ### `ai_audit.py`
 
 AI pipeline audit management for model performance, quality scoring, recommendations, and prompt management.

@@ -1103,6 +1103,20 @@ class Settings(BaseSettings):
         description="How often (in seconds) to check if conditions are met for background evaluation.",
     )
 
+    # Performance profiling settings (NEM-1644)
+    # Enable deep performance debugging with cProfile
+    profiling_enabled: bool = Field(
+        default=False,
+        description="Enable performance profiling for deep debugging. "
+        "When enabled, the profile_if_enabled decorator will profile decorated functions. "
+        "Profile data is saved as .prof files that can be analyzed with snakeviz or py-spy.",
+    )
+    profiling_output_dir: str = Field(
+        default="data/profiles",
+        description="Directory for storing profiling output files (.prof format). "
+        "Files can be analyzed with 'snakeviz <file>.prof' or converted to flamegraphs.",
+    )
+
     # TLS/HTTPS settings (legacy - DEPRECATED, use TLS_MODE instead)
     # These fields are kept for backward compatibility but will be removed in a future version.
     # Migration guide:
