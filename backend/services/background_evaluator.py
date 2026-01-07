@@ -34,9 +34,9 @@ from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 
 if TYPE_CHECKING:
-    from backend.services.audit_service import AuditService
     from backend.services.evaluation_queue import EvaluationQueue
     from backend.services.gpu_monitor import GPUMonitor
+    from backend.services.pipeline_quality_audit_service import AuditService
 
 logger = get_logger(__name__)
 

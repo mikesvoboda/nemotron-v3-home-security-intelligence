@@ -632,7 +632,7 @@ class NemotronAnalyzer:
 
             # Create partial audit record for model contribution tracking
             try:
-                from backend.services.audit_service import get_audit_service
+                from backend.services.pipeline_quality_audit_service import get_audit_service
 
                 audit_service = get_audit_service()
                 audit = audit_service.create_partial_audit(
@@ -873,7 +873,7 @@ class NemotronAnalyzer:
 
             # Create partial audit record for model contribution tracking
             try:
-                from backend.services.audit_service import get_audit_service
+                from backend.services.pipeline_quality_audit_service import get_audit_service
 
                 audit_service = get_audit_service()
                 audit = audit_service.create_partial_audit(

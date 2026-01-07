@@ -20,7 +20,7 @@ import pytest
 
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
-from backend.services.audit_service import (
+from backend.services.pipeline_quality_audit_service import (
     MODEL_NAMES,
     AuditService,
     get_audit_service,

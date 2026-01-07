@@ -51,7 +51,7 @@ from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 from backend.models.prompt_config import PromptConfig
 from backend.services.audit import AuditService
-from backend.services.audit_service import get_audit_service
+from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.prompt_storage import SUPPORTED_MODELS, get_prompt_storage
 
 logger = get_logger(__name__)

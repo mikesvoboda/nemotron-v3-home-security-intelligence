@@ -3,8 +3,6 @@
 from .alert_dedup import AlertDeduplicationService, DedupResult, build_dedup_key
 from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_alert_engine
 from .audit import AuditService, audit_service
-from .audit_service import AuditService as AIAuditService
-from .audit_service import get_audit_service, reset_audit_service
 from .background_evaluator import (
     BackgroundEvaluator,
     get_background_evaluator,
@@ -141,6 +139,8 @@ from .partition_manager import (
     PartitionInfo,
     PartitionManager,
 )
+from .pipeline_quality_audit_service import AuditService as AIAuditService
+from .pipeline_quality_audit_service import get_audit_service, reset_audit_service
 from .plate_detector import (
     PlateDetection,
     VehicleDetection,
