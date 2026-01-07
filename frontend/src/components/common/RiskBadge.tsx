@@ -46,14 +46,16 @@ export default function RiskBadge({
   }[size];
 
   // Get color classes based on risk level
+  // Uses WCAG 2.1 AA compliant risk colors from tailwind.config.js
   const colorClasses = {
     low: 'bg-risk-low/10 text-risk-low',
     medium: 'bg-risk-medium/10 text-risk-medium',
     high: 'bg-risk-high/10 text-risk-high',
-    critical: 'bg-red-500/10 text-red-500',
+    critical: 'bg-risk-critical/10 text-risk-critical',
   }[level];
 
-  // Apply pulse animation only for critical level
+  // Apply glow animation only for critical level (uses box-shadow instead of opacity
+  // to maintain WCAG 2.1 AA color contrast during animation)
   const shouldAnimate = animated && level === 'critical';
 
   // Build display text
@@ -74,7 +76,7 @@ export default function RiskBadge({
         'inline-flex items-center gap-1 rounded-full font-medium',
         sizeClasses,
         colorClasses,
-        shouldAnimate && 'animate-pulse',
+        shouldAnimate && 'animate-pulse-critical',
         className
       )}
       data-testid="risk-badge"

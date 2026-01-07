@@ -196,7 +196,7 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-300">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
           >
             Reload Page
           </button>

@@ -126,8 +126,8 @@ export default function NotificationSettings({ className }: NotificationSettings
 
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-          <Text className="text-red-500">{error}</Text>
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+          <Text className="text-red-400">{error}</Text>
         </div>
       )}
 
@@ -142,9 +142,9 @@ export default function NotificationSettings({ className }: NotificationSettings
           {testResult.success ? (
             <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
           ) : (
-            <X className="h-5 w-5 flex-shrink-0 text-red-500" />
+            <X className="h-5 w-5 flex-shrink-0 text-red-400" />
           )}
-          <Text className={testResult.success ? 'text-green-500' : 'text-red-500'}>
+          <Text className={testResult.success ? 'text-green-500' : 'text-red-400'}>
             {testResult.message}
           </Text>
         </div>
