@@ -315,13 +315,15 @@ export default function WorkerStatusPanel({
         {!compact && (
           <div className="mb-4 flex items-center justify-center gap-6 rounded-lg bg-gray-800/30 p-3">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              <CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" />
+              <div className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true"></div>
               <Text className="text-sm text-gray-300">
                 <span className="font-bold text-white">{runningCount}</span> Running
               </Text>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-red-500"></div>
+              <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />
+              <div className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true"></div>
               <Text className="text-sm text-gray-300">
                 <span className="font-bold text-white">{stoppedCount}</span> Stopped
               </Text>

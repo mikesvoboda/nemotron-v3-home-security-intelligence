@@ -596,6 +596,7 @@ describe('CamerasSettings', () => {
 
       expect(screen.getByLabelText('Edit Front Door')).toBeInTheDocument();
       expect(screen.getByLabelText('Delete Front Door')).toBeInTheDocument();
+      expect(screen.getByLabelText('Configure zones for Front Door')).toBeInTheDocument();
     });
 
     it('should have accessible modal close button', async () => {
@@ -614,6 +615,90 @@ describe('CamerasSettings', () => {
       });
 
       expect(screen.getByLabelText('Close modal')).toBeInTheDocument();
+    });
+
+    it('should have WCAG-compliant touch targets (44x44px minimum)', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      // Get action buttons for the first camera
+      const editButton = screen.getByLabelText('Edit Front Door');
+      const deleteButton = screen.getByLabelText('Delete Front Door');
+      const zonesButton = screen.getByLabelText('Configure zones for Front Door');
+
+      // All action buttons should have 44x44px minimum touch target classes
+      [editButton, deleteButton, zonesButton].forEach((button) => {
+        expect(button).toHaveClass('min-h-[44px]');
+        expect(button).toHaveClass('min-w-[44px]');
+      });
+    });
+
+    it('should have visible hover states for action buttons', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const editButton = screen.getByLabelText('Edit Front Door');
+      const deleteButton = screen.getByLabelText('Delete Front Door');
+      const zonesButton = screen.getByLabelText('Configure zones for Front Door');
+
+      // All action buttons should have hover state classes
+      [editButton, deleteButton, zonesButton].forEach((button) => {
+        expect(button).toHaveClass('hover:bg-gray-800');
+      });
+
+      // Edit and zones buttons should turn primary on hover
+      expect(editButton).toHaveClass('hover:text-primary');
+      expect(zonesButton).toHaveClass('hover:text-primary');
+
+      // Delete button should turn red on hover
+      expect(deleteButton).toHaveClass('hover:text-red-500');
+    });
+
+    it('should have visible focus indicators on action buttons', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const editButton = screen.getByLabelText('Edit Front Door');
+      const deleteButton = screen.getByLabelText('Delete Front Door');
+      const zonesButton = screen.getByLabelText('Configure zones for Front Door');
+
+      // All action buttons should have focus ring classes
+      [editButton, deleteButton, zonesButton].forEach((button) => {
+        expect(button).toHaveClass('focus:outline-none');
+        expect(button).toHaveClass('focus:ring-2');
+      });
+
+      // Edit and zones buttons should have primary focus ring
+      expect(editButton).toHaveClass('focus:ring-primary');
+      expect(zonesButton).toHaveClass('focus:ring-primary');
+
+      // Delete button should have red focus ring
+      expect(deleteButton).toHaveClass('focus:ring-red-500');
+    });
+
+    it('should have tooltips on action buttons', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const editButton = screen.getByLabelText('Edit Front Door');
+      const deleteButton = screen.getByLabelText('Delete Front Door');
+      const zonesButton = screen.getByLabelText('Configure zones for Front Door');
+
+      expect(editButton).toHaveAttribute('title', 'Edit Camera');
+      expect(deleteButton).toHaveAttribute('title', 'Delete Camera');
+      expect(zonesButton).toHaveAttribute('title', 'Configure Zones');
     });
   });
 

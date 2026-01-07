@@ -6,21 +6,23 @@ Contains components for displaying, filtering, and interacting with security eve
 
 ## Files
 
-| File                        | Purpose                                     |
-| --------------------------- | ------------------------------------------- |
-| `EventCard.tsx`             | Compact event display card                  |
-| `EventCard.test.tsx`        | Test suite for EventCard                    |
-| `EventTimeline.tsx`         | Full-page timeline view with filtering      |
-| `EventTimeline.test.tsx`    | Test suite for EventTimeline                |
-| `EventDetailModal.tsx`      | Full event detail modal                     |
-| `EventDetailModal.test.tsx` | Test suite for EventDetailModal             |
-| `EnrichmentPanel.tsx`       | AI enrichment data accordion display        |
-| `EnrichmentPanel.test.tsx`  | Test suite for EnrichmentPanel              |
-| `ThumbnailStrip.tsx`        | Detection thumbnail strip                   |
-| `ThumbnailStrip.test.tsx`   | Test suite for ThumbnailStrip               |
-| `ExportPanel.tsx`           | Event export with filters and format select |
-| `ExportPanel.test.tsx`      | Test suite for ExportPanel                  |
-| `index.ts`                  | Barrel exports                              |
+| File                            | Purpose                                        |
+| ------------------------------- | ---------------------------------------------- |
+| `EventCard.tsx`                 | Compact event display card                     |
+| `EventCard.test.tsx`            | Test suite for EventCard                       |
+| `EventTimeline.tsx`             | Full-page timeline view with filtering         |
+| `EventTimeline.test.tsx`        | Test suite for EventTimeline                   |
+| `EventDetailModal.tsx`          | Full event detail modal                        |
+| `EventDetailModal.test.tsx`     | Test suite for EventDetailModal                |
+| `LiveActivitySection.tsx`       | Real-time activity section with enhanced UI    |
+| `LiveActivitySection.test.tsx`  | Test suite for LiveActivitySection             |
+| `EnrichmentPanel.tsx`           | AI enrichment data accordion display           |
+| `EnrichmentPanel.test.tsx`      | Test suite for EnrichmentPanel                 |
+| `ThumbnailStrip.tsx`            | Detection thumbnail strip                      |
+| `ThumbnailStrip.test.tsx`       | Test suite for ThumbnailStrip                  |
+| `ExportPanel.tsx`               | Event export with filters and format select    |
+| `ExportPanel.test.tsx`          | Test suite for ExportPanel                     |
+| `index.ts`                      | Barrel exports                                 |
 
 ## Key Components
 
@@ -84,6 +86,50 @@ interface Detection {
 - `convertToBoundingBoxes()` - Transforms Detection[] to BoundingBox[] for DetectionImage
 - `formatConfidence()` - Converts 0-1 to percentage string
 - `getBorderColorClass()` - Returns risk-level-based border color class
+
+### LiveActivitySection.tsx
+
+**Purpose:** Real-time activity section with enhanced visual hierarchy and connection status
+
+**Key Features:**
+
+- Animated connection status indicator (Live/Disconnected) with pulse effect
+- Real-time event count with risk level breakdown
+- Pause/resume functionality for auto-scrolling
+- Paused state overlay with visual feedback
+- Empty state with different messages for connected/disconnected
+- Footer showing event count with auto-refresh indicator
+- Gradient background with shadow styling
+- Responsive design for all screen sizes
+
+**Props:**
+
+```typescript
+interface LiveActivitySectionProps {
+  /** Events to display in the live feed */
+  events: ActivityEvent[];
+  /** Whether the WebSocket connection is active */
+  isConnected: boolean;
+  /** Callback when an event is clicked */
+  onEventClick?: (eventId: string) => void;
+  /** Maximum number of items to display */
+  maxItems?: number;
+  /** Additional CSS classes */
+  className?: string;
+}
+```
+
+**Sub-components:**
+
+- `ConnectionStatus` - Displays connection state with animated indicators
+- `LiveActivityStats` - Shows event count and risk breakdown
+
+**Visual States:**
+
+- Connected: Green "Live" badge with animated pulse
+- Disconnected: Yellow "Disconnected" badge
+- Paused: Overlay with blur effect
+- Empty: Centered icon with contextual message
 
 ### EventTimeline.tsx
 

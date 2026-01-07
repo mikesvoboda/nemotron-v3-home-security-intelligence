@@ -180,10 +180,19 @@ describe('StatsRow', () => {
       expect(indicator).not.toHaveClass('animate-pulse');
     });
 
-    it('has correct aria-label for status indicator', () => {
+    it('has correct aria-hidden for status indicator dot (decorative)', () => {
       renderWithRouter({ systemStatus: 'healthy' });
       const indicator = screen.getByTestId('status-indicator');
-      expect(indicator).toHaveAttribute('aria-label', 'System status: Online');
+      // The color dot is decorative (aria-hidden), status is conveyed by icon + text
+      expect(indicator).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('renders status icon for accessibility (not color-only)', () => {
+      renderWithRouter({ systemStatus: 'healthy' });
+      const icon = screen.getByTestId('status-icon');
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+      // Icon visually conveys status, sr-only text provides screen reader alternative
     });
   });
 
@@ -252,10 +261,14 @@ describe('StatsRow', () => {
       expect(region).toHaveAttribute('aria-label', 'Dashboard statistics');
     });
 
-    it('status indicator has descriptive aria-label', () => {
+    it('status indicator uses aria-hidden with icon for visual accessibility', () => {
       renderWithRouter({ systemStatus: 'healthy' });
       const indicator = screen.getByTestId('status-indicator');
-      expect(indicator).toHaveAttribute('aria-label', 'System status: Online');
+      // The color dot is decorative, aria-hidden; status conveyed by icon + text
+      expect(indicator).toHaveAttribute('aria-hidden', 'true');
+      // Verify the icon is also present for visual accessibility
+      const icon = screen.getByTestId('status-icon');
+      expect(icon).toBeInTheDocument();
     });
   });
 

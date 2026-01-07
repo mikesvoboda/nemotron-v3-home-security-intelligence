@@ -58,7 +58,7 @@ describe('AnomalyConfigPanel', () => {
     render(<AnomalyConfigPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText('2.0 std dev')).toBeInTheDocument();
+      expect(screen.getByText('2.0 std')).toBeInTheDocument();
     });
   });
 

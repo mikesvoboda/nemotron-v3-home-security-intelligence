@@ -110,50 +110,76 @@ export default function AnomalyConfigPanel({
 
       <div className="space-y-6">
         {/* Threshold Slider */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label htmlFor="threshold-slider" className="text-sm text-gray-300">
+        <div className="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <label htmlFor="threshold-slider" className="nvidia-slider-label">
               Detection Threshold
             </label>
-            <span className={`text-sm font-medium ${sensitivity.color}`}>
-              Sensitivity: {sensitivity.label}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`rounded px-2 py-0.5 text-sm font-medium ${sensitivity.color} ${
+                sensitivity.label === 'Very High' ? 'bg-red-500/10' :
+                sensitivity.label === 'High' ? 'bg-orange-500/10' :
+                sensitivity.label === 'Medium' ? 'bg-yellow-500/10' :
+                sensitivity.label === 'Low' ? 'bg-green-500/10' :
+                'bg-blue-500/10'
+              }`}>
+                {sensitivity.label} Sensitivity
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-4">
-            <input
-              type="range"
-              id="threshold-slider"
-              min="1"
-              max="4"
-              step="0.1"
-              value={threshold}
-              onChange={(e) => setThreshold(parseFloat(e.target.value))}
-              className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-              data-testid="threshold-slider"
-            />
-            <span className="w-16 text-right text-sm text-white">{threshold.toFixed(1)} std</span>
+            <div className="relative flex-1">
+              <input
+                type="range"
+                id="threshold-slider"
+                min="1"
+                max="4"
+                step="0.1"
+                value={threshold}
+                onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                className="nvidia-slider"
+                data-testid="threshold-slider"
+                aria-label="Detection threshold in standard deviations"
+                aria-valuemin={1}
+                aria-valuemax={4}
+                aria-valuenow={threshold}
+                aria-valuetext={`${threshold.toFixed(1)} standard deviations, ${sensitivity.label} sensitivity`}
+              />
+              {/* Visual tick marks for guidance */}
+              <div className="nvidia-slider-range">
+                <span>1.0</span>
+                <span>2.0</span>
+                <span>3.0</span>
+                <span>4.0</span>
+              </div>
+            </div>
+            <span className="nvidia-slider-value">{threshold.toFixed(1)} std</span>
           </div>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="nvidia-slider-description">
             Lower values = more sensitive (more false positives), higher = less sensitive
           </p>
         </div>
 
         {/* Minimum Samples */}
-        <div>
-          <label htmlFor="min-samples" className="mb-2 block text-sm text-gray-300">
+        <div className="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
+          <label htmlFor="min-samples" className="nvidia-slider-label mb-3 block">
             Minimum Samples for Detection
           </label>
-          <input
-            type="number"
-            id="min-samples"
-            min="1"
-            max="100"
-            value={minSamples}
-            onChange={(e) => setMinSamples(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-24 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none"
-            data-testid="min-samples-input"
-          />
-          <p className="mt-1 text-xs text-gray-500">
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              id="min-samples"
+              min="1"
+              max="100"
+              value={minSamples}
+              onChange={(e) => setMinSamples(Math.max(1, parseInt(e.target.value) || 1))}
+              className="nvidia-input w-28 text-center"
+              data-testid="min-samples-input"
+              aria-label="Minimum samples required for detection"
+            />
+            <span className="text-sm text-gray-400">samples</span>
+          </div>
+          <p className="nvidia-slider-description">
             Number of samples required before anomaly detection is reliable
           </p>
         </div>
