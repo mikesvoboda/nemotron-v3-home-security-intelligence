@@ -1,4 +1,4 @@
-import { Activity, Calendar, Camera, Shield } from 'lucide-react';
+import { Activity, AlertTriangle, Calendar, Camera, CheckCircle, HelpCircle, Shield, XCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -119,6 +119,34 @@ export default function StatsRow({
         return 'Offline';
       default:
         return 'Unknown';
+    }
+  }, [systemStatus]);
+
+  // Get status icon for accessibility (not color-only)
+  const StatusIcon = useMemo(() => {
+    switch (systemStatus) {
+      case 'healthy':
+        return CheckCircle;
+      case 'degraded':
+        return AlertTriangle;
+      case 'unhealthy':
+        return XCircle;
+      default:
+        return HelpCircle;
+    }
+  }, [systemStatus]);
+
+  // Get status icon color
+  const statusIconColor = useMemo(() => {
+    switch (systemStatus) {
+      case 'healthy':
+        return 'text-green-500';
+      case 'degraded':
+        return 'text-yellow-500';
+      case 'unhealthy':
+        return 'text-red-500';
+      default:
+        return 'text-gray-500';
     }
   }, [systemStatus]);
 
@@ -244,15 +272,21 @@ export default function StatsRow({
         </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
+            {/* Status icon for accessibility (not color-only) */}
+            <StatusIcon
+              className={`h-5 w-5 ${statusIconColor}`}
+              aria-hidden="true"
+              data-testid="status-icon"
+            />
             <div
               className={`h-2 w-2 rounded-full ${statusColor} ${systemStatus === 'healthy' ? 'animate-pulse' : ''}`}
               data-testid="status-indicator"
-              role="status"
-              aria-label={`System status: ${statusLabel}`}
+              aria-hidden="true"
             />
             <div className="text-2xl font-bold text-white" data-testid="system-status-label">
               {statusLabel}
             </div>
+            <span className="sr-only">System status: {statusLabel}</span>
           </div>
           <div className="text-sm text-text-secondary">System Status</div>
         </div>

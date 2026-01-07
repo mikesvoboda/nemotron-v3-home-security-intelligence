@@ -107,6 +107,94 @@
     @apply animate-pulse rounded bg-gray-800;
   }
 
+  /* Enhanced slider/range input styles for dark theme visibility */
+  .nvidia-slider {
+    @apply h-3 w-full cursor-pointer appearance-none rounded-lg;
+    background: linear-gradient(to right, #3A3A3A 0%, #3A3A3A 100%);
+  }
+
+  .nvidia-slider::-webkit-slider-track {
+    @apply h-3 rounded-lg;
+    background: linear-gradient(to right, #3A3A3A, #4A4A4A);
+    border: 1px solid #555555;
+  }
+
+  .nvidia-slider::-moz-range-track {
+    @apply h-3 rounded-lg;
+    background: linear-gradient(to right, #3A3A3A, #4A4A4A);
+    border: 1px solid #555555;
+  }
+
+  .nvidia-slider::-webkit-slider-thumb {
+    @apply appearance-none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #76B900 0%, #5c8f00 100%);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 8px rgba(118, 185, 0, 0.4);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .nvidia-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #76B900 0%, #5c8f00 100%);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 8px rgba(118, 185, 0, 0.4);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .nvidia-slider::-webkit-slider-thumb:hover {
+    background: linear-gradient(135deg, #8BD000 0%, #76B900 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(118, 185, 0, 0.6);
+    transform: scale(1.1);
+  }
+
+  .nvidia-slider::-moz-range-thumb:hover {
+    background: linear-gradient(135deg, #8BD000 0%, #76B900 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(118, 185, 0, 0.6);
+    transform: scale(1.1);
+  }
+
+  .nvidia-slider:focus {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-gray-900;
+  }
+
+  .nvidia-slider:focus::-webkit-slider-thumb {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 16px rgba(118, 185, 0, 0.8);
+  }
+
+  .nvidia-slider:focus::-moz-range-thumb {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 16px rgba(118, 185, 0, 0.8);
+  }
+
+  /* Slider with filled track (shows progress) */
+  .nvidia-slider-filled {
+    @apply nvidia-slider;
+  }
+
+  /* Slider label styling for consistency */
+  .nvidia-slider-label {
+    @apply text-sm font-medium text-gray-200;
+  }
+
+  .nvidia-slider-value {
+    @apply rounded bg-gray-800 px-2 py-1 text-sm font-semibold text-white tabular-nums;
+    border: 1px solid #4A4A4A;
+  }
+
+  .nvidia-slider-description {
+    @apply mt-1 text-xs text-gray-400;
+  }
+
+  .nvidia-slider-range {
+    @apply mt-1 flex justify-between text-xs text-gray-500;
+  }
+
   /* Divider */
   .nvidia-divider {
     @apply border-t border-gray-800;

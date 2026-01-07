@@ -580,7 +580,7 @@ describe('LogsDashboard', () => {
         expect(screen.getByText('No Logs Found')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No logs match the current filters')).toBeInTheDocument();
+      expect(screen.getByText(/No logs match the current filters/)).toBeInTheDocument();
     });
 
     it('shows filtered empty state when filters match no logs', async () => {
@@ -609,7 +609,7 @@ describe('LogsDashboard', () => {
         expect(screen.getByText('No Logs Found')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No logs match the current filters')).toBeInTheDocument();
+      expect(screen.getByText(/No logs match the current filters/)).toBeInTheDocument();
     });
   });
 
