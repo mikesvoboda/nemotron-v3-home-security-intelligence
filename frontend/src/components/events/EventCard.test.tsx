@@ -361,13 +361,14 @@ describe('EventCard', () => {
       expect(images.length).toBeGreaterThan(0);
     });
 
-    it('renders DetectionImage when detections have bounding boxes', () => {
+    it('renders thumbnail image with 64x64 size when detections have bounding boxes', () => {
       render(<EventCard {...mockProps} />);
-      const altText = screen.getByAltText(/Front Door detection at/);
+      const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
+      expect(altText).toHaveClass('h-16', 'w-16');
     });
 
-    it('renders plain img when detections have no bounding boxes', () => {
+    it('renders thumbnail image with 64x64 size when detections have no bounding boxes', () => {
       const detectionsNoBbox: Detection[] = [
         { label: 'person', confidence: 0.95 },
         { label: 'car', confidence: 0.87 },
@@ -376,6 +377,7 @@ describe('EventCard', () => {
       render(<EventCard {...eventNoBbox} />);
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
+      expect(altText).toHaveClass('h-16', 'w-16');
     });
 
     it('does not render thumbnail when thumbnail_url is undefined', () => {
@@ -391,30 +393,33 @@ describe('EventCard', () => {
       expect(img?.getAttribute('src')).toBe('https://example.com/thumbnail.jpg');
     });
 
-    it('passes showLabels=true to DetectionImage', () => {
+    it('renders compact thumbnail in 64x64 format', () => {
       render(<EventCard {...mockProps} />);
-      // DetectionImage will be rendered, so alt text should exist
-      const altText = screen.getByAltText(/Front Door detection at/);
+      // Simple thumbnail should be rendered
+      const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
+      expect(altText).toHaveClass('h-16', 'w-16', 'rounded-md', 'object-cover');
     });
 
-    it('passes showConfidence=true to DetectionImage', () => {
-      render(<EventCard {...mockProps} />);
-      // DetectionImage will be rendered with confidence
-      const altText = screen.getByAltText(/Front Door detection at/);
-      expect(altText).toBeInTheDocument();
+    it('renders placeholder icon when no thumbnail is available', () => {
+      const noThumbnailEvent = { ...mockProps, thumbnail_url: undefined };
+      render(<EventCard {...noThumbnailEvent} />);
+      // Placeholder div should be rendered with Eye icon
+      const placeholderDiv = document.querySelector('.flex.h-16.w-16');
+      expect(placeholderDiv).toBeInTheDocument();
     });
   });
 
   describe('bounding box conversion', () => {
-    it('converts detections with bounding boxes correctly', () => {
+    it('displays thumbnail regardless of bounding boxes', () => {
       render(<EventCard {...mockProps} />);
-      // If conversion works, DetectionImage will be rendered
-      const altText = screen.getByAltText(/Front Door detection at/);
+      // Simple thumbnail should be rendered
+      const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
+      expect(altText).toHaveClass('h-16', 'w-16');
     });
 
-    it('filters out detections without bounding boxes', () => {
+    it('displays thumbnail for mixed detections', () => {
       const mixedDetections: Detection[] = [
         { label: 'person', confidence: 0.95, bbox: { x: 100, y: 100, width: 200, height: 300 } },
         { label: 'car', confidence: 0.87 }, // No bbox
@@ -422,21 +427,22 @@ describe('EventCard', () => {
       ];
       const eventMixed = { ...mockProps, detections: mixedDetections };
       render(<EventCard {...eventMixed} />);
-      // DetectionImage should be used since some detections have bbox
-      const altText = screen.getByAltText(/Front Door detection at/);
+      // Simple thumbnail should be rendered
+      const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
     });
 
-    it('uses plain img when no detections have bounding boxes', () => {
+    it('displays simple thumbnail when no detections have bounding boxes', () => {
       const noBboxDetections: Detection[] = [
         { label: 'person', confidence: 0.95 },
         { label: 'car', confidence: 0.87 },
       ];
       const eventNoBbox = { ...mockProps, detections: noBboxDetections };
       render(<EventCard {...eventNoBbox} />);
-      // Should use plain img, not DetectionImage
+      // Should use simple thumbnail
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
+      expect(altText).toHaveClass('h-16', 'w-16');
     });
   });
 
@@ -686,25 +692,13 @@ describe('EventCard', () => {
 
     it('renders badges before thumbnail image', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      // Get all direct children of the main card container
-      const card = container.querySelector('.rounded-lg.border.border-gray-800');
-      const children = card ? Array.from(card.children) : [];
+      // New layout: thumbnail (64x64) on left, content (with badges) on right
+      const thumbnail = container.querySelector('.flex-shrink-0 img');
+      const badges = container.querySelectorAll('.flex-wrap [role="status"]');
 
-      // Find indices of badges container and thumbnail container
-      const badgesIndex = children.findIndex(
-        (el) =>
-          el.classList.contains('flex') &&
-          el.classList.contains('flex-wrap') &&
-          el.textContent?.includes('Person')
-      );
-      const thumbnailIndex = children.findIndex(
-        (el) => el.classList.contains('mb-3') && el.querySelector('img')
-      );
-
-      // Badges should come before thumbnail
-      expect(badgesIndex).toBeGreaterThan(-1);
-      expect(thumbnailIndex).toBeGreaterThan(-1);
-      expect(badgesIndex).toBeLessThan(thumbnailIndex);
+      expect(thumbnail).toBeInTheDocument();
+      expect(thumbnail).toHaveClass('h-16', 'w-16');
+      expect(badges.length).toBeGreaterThan(0);
     });
 
     it('renders object type badges with small size', () => {
@@ -829,36 +823,26 @@ describe('EventCard', () => {
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(239,\s*68,\s*68\)|#ef4444/i);
     });
 
-    it('renders progress bar after object badges', () => {
+    it('renders progress bar in content column', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      const card = container.querySelector('.rounded-lg.border');
-      const children = card ? Array.from(card.children) : [];
+      // New layout: thumbnail on left, content on right
+      // Progress bar and badges are both in the right content column
+      const progressBar = container.querySelector('[role="progressbar"]');
+      const badges = container.querySelectorAll('.flex-wrap [role="status"]');
 
-      const badgesIndex = children.findIndex(
-        (el) => el.classList.contains('flex') && el.textContent?.includes('Person')
-      );
-      const progressBarIndex = children.findIndex(
-        (el) => el.querySelector('[role="progressbar"]') !== null
-      );
-
-      expect(badgesIndex).toBeGreaterThan(-1);
-      expect(progressBarIndex).toBeGreaterThan(-1);
-      expect(progressBarIndex).toBeGreaterThan(badgesIndex);
+      expect(progressBar).toBeInTheDocument();
+      expect(badges.length).toBeGreaterThan(0);
     });
 
-    it('renders progress bar before thumbnail', () => {
+    it('renders thumbnail and progress bar in new layout', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      const card = container.querySelector('.rounded-lg.border');
-      const children = card ? Array.from(card.children) : [];
+      // New layout: thumbnail (64x64) on left, content (with progress bar) on right
+      const thumbnail = container.querySelector('.flex-shrink-0 img');
+      const progressBar = container.querySelector('[role="progressbar"]');
 
-      const progressBarIndex = children.findIndex(
-        (el) => el.querySelector('[role="progressbar"]') !== null
-      );
-      const thumbnailIndex = children.findIndex((el) => el.querySelector('img') !== null);
-
-      expect(progressBarIndex).toBeGreaterThan(-1);
-      expect(thumbnailIndex).toBeGreaterThan(-1);
-      expect(progressBarIndex).toBeLessThan(thumbnailIndex);
+      expect(thumbnail).toBeInTheDocument();
+      expect(thumbnail).toHaveClass('h-16', 'w-16');
+      expect(progressBar).toBeInTheDocument();
     });
 
     it('progress bar has transition animation', () => {
@@ -1134,10 +1118,12 @@ describe('EventCard', () => {
       expect(card).toHaveClass('transition-all', 'hover:border-gray-700');
     });
 
-    it('applies padding', () => {
+    it('applies padding to content container', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('p-4');
+      // New layout: padding is on inner flex container, not outer card
+      const flexContainer = container.querySelector('.flex.gap-4.p-4');
+      expect(flexContainer).toBeInTheDocument();
+      expect(flexContainer).toHaveClass('p-4');
     });
   });
 

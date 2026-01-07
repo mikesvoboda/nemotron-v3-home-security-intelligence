@@ -80,7 +80,8 @@ describe('ModelZooPanel', () => {
       );
 
       expect(screen.getByTestId('model-zoo-panel')).toBeInTheDocument();
-      expect(screen.getByText('AI Model Zoo')).toBeInTheDocument();
+      // Note: "AI Model Zoo" title is now in the CollapsibleSection wrapper, not in the panel itself
+      expect(screen.getByTestId('model-zoo-refresh-btn')).toBeInTheDocument();
     });
 
     it('renders refresh button', () => {
@@ -126,7 +127,8 @@ describe('ModelZooPanel', () => {
       );
 
       expect(screen.getByTestId('vram-progress-bar')).toBeInTheDocument();
-      expect(screen.getByText(/450.*\/.*1650.*MB/i)).toBeInTheDocument();
+      // Check that VRAM stats are displayed (now in summary section)
+      expect(screen.getAllByText(/450.*MB.*1650.*MB/i).length).toBeGreaterThan(0);
     });
 
     it('displays VRAM usage percentage', () => {
@@ -140,7 +142,8 @@ describe('ModelZooPanel', () => {
         />
       );
 
-      expect(screen.getByText(/27%/)).toBeInTheDocument();
+      // Check that percentage is displayed (in progress bar)
+      expect(screen.getAllByText(/27%/).length).toBeGreaterThan(0);
     });
 
     it('handles null vramStats gracefully', () => {
