@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import ActivityHeatmap from './ActivityHeatmap';
 import AnomalyConfigPanel from './AnomalyConfigPanel';
 import ClassFrequencyChart from './ClassFrequencyChart';
+import PipelineLatencyPanel from './PipelineLatencyPanel';
+import SceneChangePanel from './SceneChangePanel';
 import {
   fetchCameras,
   fetchCameraActivityBaseline,
@@ -225,6 +227,16 @@ export default function AnalyticsPage() {
                 onConfigUpdated={handleConfigUpdated}
               />
             )}
+          </div>
+
+          {/* Pipeline Latency Panel - Full Width */}
+          <div className="lg:col-span-2">
+            <PipelineLatencyPanel refreshInterval={60000} />
+          </div>
+
+          {/* Scene Change Detection Panel - Full Width */}
+          <div className="lg:col-span-2">
+            <SceneChangePanel cameraId={selectedCameraId} cameraName={selectedCamera?.name} />
           </div>
         </div>
       )}

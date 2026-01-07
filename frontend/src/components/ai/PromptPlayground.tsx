@@ -7,11 +7,19 @@
  * - Test functionality with before/after comparison
  * - Save, Export, and Import capabilities
  * - Keyboard shortcuts (Escape to close)
+ * - Syntax highlighting for prompt variables like {camera_name}, {timestamp}
+ * - Line numbers in editor with synchronized scrolling
+ * - Category/priority badges with color coding
+ * - Animated "(modified)" indicator with pulse effect
+ * - Skeleton loaders for async operations
+ * - Toast notifications for save/reset/error actions
+ * - Smooth accordion expand/collapse animations
  *
  * @see backend/api/routes/ai_audit.py - Prompt Playground API endpoints
  */
 
 import { Dialog, Transition, Disclosure } from '@headlessui/react';
+import { clsx } from 'clsx';
 import {
   AlertCircle,
   AlertTriangle,
@@ -28,7 +36,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 
 
@@ -42,6 +50,7 @@ import {
   testPrompt,
   exportPrompts,
   importPrompts,
+  fetchEvents,
   ApiError,
 } from '../../services/api';
 import { applySuggestion, generateDiff } from '../../utils/promptDiff';
@@ -115,6 +124,287 @@ const MODEL_CONFIGS: ModelConfig[] = [
 ];
 
 // ============================================================================
+// Toast Notification Types & Component
+// ============================================================================
+
+interface Toast {
+  id: number;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 3000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  const bgColor = toast.type === 'success'
+    ? 'bg-green-900/90 border-green-700'
+    : toast.type === 'error'
+    ? 'bg-red-900/90 border-red-700'
+    : 'bg-blue-900/90 border-blue-700';
+
+  const textColor = toast.type === 'success'
+    ? 'text-green-300'
+    : toast.type === 'error'
+    ? 'text-red-300'
+    : 'text-blue-300';
+
+  const Icon = toast.type === 'success' ? CheckCircle : toast.type === 'error' ? AlertCircle : AlertCircle;
+
+  return (
+    <div
+      className={clsx(
+        'flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm',
+        'animate-slide-in',
+        bgColor
+      )}
+      role="alert"
+      data-testid="toast-notification"
+    >
+      <Icon className={clsx('h-5 w-5 flex-shrink-0', textColor)} />
+      <span className={clsx('text-sm font-medium', textColor)}>{toast.message}</span>
+      <button
+        onClick={onDismiss}
+        className={clsx('ml-2 rounded p-1 transition-colors hover:bg-white/10', textColor)}
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================================
+// Skeleton Loader Component
+// ============================================================================
+
+function EditorSkeleton() {
+  return (
+    <div className="space-y-6" data-testid="editor-skeleton">
+      {/* Model accordion skeletons */}
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="rounded-lg border border-gray-800 bg-[#121212] p-4">
+          <div className="flex items-center gap-3">
+            <div className="skeleton h-5 w-5 rounded" />
+            <div className="flex-1">
+              <div className="skeleton h-5 w-32 rounded" />
+              <div className="skeleton mt-2 h-3 w-48 rounded" />
+            </div>
+            <div className="skeleton h-4 w-8 rounded" />
+          </div>
+        </div>
+      ))}
+      {/* Test area skeleton */}
+      <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
+        <div className="skeleton mb-4 h-5 w-36 rounded" />
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <div className="skeleton h-10 w-full rounded-lg" />
+          </div>
+          <div className="skeleton h-10 w-24 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Syntax Highlighted Editor Component
+// ============================================================================
+
+interface HighlightedEditorProps {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  height?: string;
+  'data-testid'?: string;
+}
+
+/**
+ * Regex pattern to match prompt variables like {variable_name}
+ */
+const VARIABLE_PATTERN = /(\{[a-zA-Z_][a-zA-Z0-9_]*\})/g;
+
+/**
+ * Renders text with highlighted variables
+ */
+function highlightVariables(text: string): React.ReactNode[] {
+  const parts = text.split(VARIABLE_PATTERN);
+  return parts.map((part, i) => {
+    if (VARIABLE_PATTERN.test(part)) {
+      // Reset the regex lastIndex after test
+      VARIABLE_PATTERN.lastIndex = 0;
+      return (
+        <span
+          key={i}
+          className="rounded bg-[#76B900]/20 px-0.5 text-[#76B900]"
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function HighlightedEditor({
+  id,
+  value,
+  onChange,
+  placeholder,
+  height = 'h-64',
+  'data-testid': testId,
+}: HighlightedEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize scroll between textarea and overlay
+  const handleScroll = useCallback(() => {
+    if (textareaRef.current && highlightRef.current && lineNumbersRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
+
+  // Calculate line numbers
+  const lineNumbers = useMemo(() => {
+    const lines = (value || '').split('\n');
+    return lines.map((_, i) => i + 1);
+  }, [value]);
+
+  // Render highlighted content
+  const highlightedContent = useMemo(() => {
+    if (!value) return null;
+    const lines = value.split('\n');
+    return lines.map((line, i) => (
+      <div key={i} className="whitespace-pre">
+        {line ? highlightVariables(line) : <br />}
+      </div>
+    ));
+  }, [value]);
+
+  return (
+    <div className={clsx('relative flex overflow-hidden rounded-lg border border-gray-700 bg-black/30', height)}>
+      {/* Line numbers gutter */}
+      <div
+        ref={lineNumbersRef}
+        className="flex-shrink-0 select-none overflow-hidden border-r border-gray-700 bg-gray-900/50 px-2 py-3 text-right font-mono text-xs text-gray-500"
+        style={{ width: '3rem' }}
+        aria-hidden="true"
+        data-testid={`${testId}-line-numbers`}
+      >
+        {lineNumbers.map((num) => (
+          <div key={num} className="leading-[1.5rem]">{num}</div>
+        ))}
+      </div>
+
+      {/* Editor container */}
+      <div className="relative flex-1">
+        {/* Highlighted overlay (behind textarea) */}
+        <div
+          ref={highlightRef}
+          className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words p-3 font-mono text-sm leading-[1.5rem] text-transparent"
+          aria-hidden="true"
+        >
+          {highlightedContent}
+        </div>
+
+        {/* Actual textarea (transparent text for typing) */}
+        <textarea
+          ref={textareaRef}
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={handleScroll}
+          placeholder={placeholder}
+          className="absolute inset-0 h-full w-full resize-none bg-transparent p-3 font-mono text-sm leading-[1.5rem] text-white caret-white placeholder-gray-500 focus:outline-none"
+          style={{ caretColor: 'white' }}
+          spellCheck={false}
+          data-testid={testId}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Category Badge Component
+// ============================================================================
+
+interface CategoryBadgeProps {
+  category: string;
+  priority: string;
+  frequency?: number;
+}
+
+const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  missing_context: { bg: 'bg-orange-900/30', border: 'border-orange-700', text: 'text-orange-300' },
+  unused_data: { bg: 'bg-blue-900/30', border: 'border-blue-700', text: 'text-blue-300' },
+  model_gaps: { bg: 'bg-purple-900/30', border: 'border-purple-700', text: 'text-purple-300' },
+  format_suggestions: { bg: 'bg-cyan-900/30', border: 'border-cyan-700', text: 'text-cyan-300' },
+  confusing_sections: { bg: 'bg-yellow-900/30', border: 'border-yellow-700', text: 'text-yellow-300' },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  missing_context: 'Missing Context',
+  unused_data: 'Unused Data',
+  model_gaps: 'Model Gaps',
+  format_suggestions: 'Format Suggestions',
+  confusing_sections: 'Confusing Sections',
+};
+
+const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
+  high: { bg: 'bg-red-500', text: 'text-white' },
+  medium: { bg: 'bg-yellow-500', text: 'text-black' },
+  low: { bg: 'bg-gray-500', text: 'text-white' },
+};
+
+function CategoryBadge({ category, priority, frequency }: CategoryBadgeProps) {
+  const categoryStyle = CATEGORY_COLORS[category] || CATEGORY_COLORS.missing_context;
+  const priorityStyle = PRIORITY_COLORS[priority] || PRIORITY_COLORS.low;
+  const label = CATEGORY_LABELS[category] || category;
+
+  return (
+    <div className="flex items-center gap-2" data-testid="category-badge">
+      {/* Category badge */}
+      <span
+        className={clsx(
+          'rounded-full border px-2.5 py-0.5 text-xs font-medium',
+          categoryStyle.bg,
+          categoryStyle.border,
+          categoryStyle.text
+        )}
+      >
+        {label}
+      </span>
+
+      {/* Priority indicator */}
+      <span
+        className={clsx(
+          'rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
+          priorityStyle.bg,
+          priorityStyle.text
+        )}
+      >
+        {priority}
+      </span>
+
+      {/* Frequency count */}
+      {frequency !== undefined && frequency > 0 && (
+        <span className="text-xs text-gray-400">
+          {frequency}x
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -165,8 +455,22 @@ export default function PromptPlayground({
   // User preferences (persisted)
   const [showTips] = useLocalStorage('promptPlayground.showTips', true);
 
+  // Toast notifications state
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
+
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Toast management functions
+  const addToast = useCallback((type: Toast['type'], message: string) => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, type, message }]);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Load prompts when panel opens
   const loadPrompts = useCallback(async () => {
@@ -288,45 +592,76 @@ export default function PromptPlayground({
     setSuggestionApplied(false);
   };
 
-  // Run A/B test on a random event (simulated for now)
+  // Run A/B test comparing original vs modified prompt on a real event
   const handleRunABTest = useCallback(async () => {
     setIsRunningABTest(true);
     setPromoteWarning(null);
 
     try {
-      // Generate a mock test result for demonstration
-      // In production, this would call the actual A/B test API
-      const mockEventId = Math.floor(Math.random() * 1000) + 1;
-      const originalScore = Math.floor(Math.random() * 40) + 40; // 40-80
-      const modifiedScore = originalScore + Math.floor(Math.random() * 30) - 15; // -15 to +15 delta
+      // Determine which event to test against
+      let eventIdToTest: number;
 
-      const mockResult: ABTestResult = {
-        eventId: mockEventId,
+      if (testEventId && parseInt(testEventId, 10) > 0) {
+        // Use the event ID from the test input field
+        eventIdToTest = parseInt(testEventId, 10);
+      } else {
+        // Fetch a recent event to test against
+        const eventsResponse = await fetchEvents({ limit: 5 });
+        if (!eventsResponse.events || eventsResponse.events.length === 0) {
+          setError('No events available for A/B testing. Please enter an Event ID manually.');
+          setIsRunningABTest(false);
+          return;
+        }
+        // Pick a random event from the recent 5
+        const randomIndex = Math.floor(Math.random() * eventsResponse.events.length);
+        eventIdToTest = eventsResponse.events[randomIndex].id;
+      }
+
+      // Get the original (current saved) config and the modified (edited) config
+      const originalConfig = prompts?.prompts?.nemotron?.config;
+      const modifiedConfig = editedConfigs.nemotron;
+
+      if (!originalConfig || !modifiedConfig) {
+        setError('Unable to load prompt configurations for A/B test');
+        setIsRunningABTest(false);
+        return;
+      }
+
+      // Call testPrompt twice - once with original config, once with modified config
+      const [originalResult, modifiedResult] = await Promise.all([
+        testPrompt('nemotron', originalConfig, eventIdToTest),
+        testPrompt('nemotron', modifiedConfig, eventIdToTest),
+      ]);
+
+      // Transform API responses to ABTestResult format
+      const abTestResult: ABTestResult = {
+        eventId: eventIdToTest,
         originalResult: {
-          riskScore: originalScore,
-          riskLevel: originalScore > 70 ? 'high' : originalScore > 40 ? 'medium' : 'low',
-          reasoning: 'Original prompt analysis reasoning',
-          processingTimeMs: Math.floor(Math.random() * 200) + 100,
+          riskScore: originalResult.before.score,
+          riskLevel: originalResult.before.risk_level,
+          reasoning: originalResult.before.summary,
+          processingTimeMs: originalResult.inference_time_ms,
         },
         modifiedResult: {
-          riskScore: Math.max(0, Math.min(100, modifiedScore)),
-          riskLevel: modifiedScore > 70 ? 'high' : modifiedScore > 40 ? 'medium' : 'low',
-          reasoning: 'Modified prompt analysis reasoning',
-          processingTimeMs: Math.floor(Math.random() * 200) + 100,
+          riskScore: modifiedResult.after.score,
+          riskLevel: modifiedResult.after.risk_level,
+          reasoning: modifiedResult.after.summary,
+          processingTimeMs: modifiedResult.inference_time_ms,
         },
-        scoreDelta: modifiedScore - originalScore,
+        scoreDelta: modifiedResult.after.score - originalResult.before.score,
       };
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      setAbTestResults((prev) => [...prev, mockResult]);
+      setAbTestResults((prev) => [...prev, abTestResult]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run A/B test');
+      if (err instanceof ApiError) {
+        setError(`A/B test failed: ${err.message}`);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to run A/B test');
+      }
     } finally {
       setIsRunningABTest(false);
     }
-  }, []);
+  }, [testEventId, prompts, editedConfigs]);
 
   // Handle Promote B button click
   const handlePromoteB = () => {
@@ -390,14 +725,17 @@ export default function PromptPlayground({
       // Reload prompts to get updated version
       await loadPrompts();
       setSaveSuccess(modelName);
+      addToast('success', `${MODEL_CONFIGS.find((m) => m.name === modelName)?.displayName || modelName} configuration saved successfully`);
 
       // Clear success message after 3 seconds
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
+        addToast('error', `Save failed: ${err.message}`);
       } else {
         setError('Failed to save configuration');
+        addToast('error', 'Failed to save configuration');
       }
     } finally {
       setSavingModel(null);
@@ -412,6 +750,7 @@ export default function PromptPlayground({
       [modelName]: { ...prompts.prompts[modelName].config },
     }));
     setSaveSuccess(null);
+    addToast('info', `${MODEL_CONFIGS.find((m) => m.name === modelName)?.displayName || modelName} configuration reset to original`);
   };
 
   // Test config
@@ -515,29 +854,34 @@ export default function PromptPlayground({
       case 'nemotron':
         return (
           <div className="space-y-4">
-            {/* Variables hint */}
+            {/* Variables hint with highlighted examples */}
             {model.variables && (
-              <div className="rounded-lg bg-black/30 p-3">
+              <div className="rounded-lg border border-gray-700/50 bg-black/30 p-3">
                 <p className="text-xs text-gray-400">
-                  Available variables:{' '}
+                  <span className="font-medium text-gray-300">Available variables:</span>{' '}
                   {model.variables.map((v, i) => (
-                    <code key={i} className="mx-1 rounded bg-gray-800 px-1 py-0.5 text-[#76B900]">
+                    <code key={i} className="mx-1 rounded bg-[#76B900]/20 px-1.5 py-0.5 text-[#76B900]">
                       {v}
                     </code>
                   ))}
                 </p>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Variables are highlighted in the editor below
+                </p>
               </div>
             )}
 
-            {/* System prompt textarea */}
+            {/* System prompt with syntax highlighting and line numbers */}
             <div>
-              <label htmlFor={`${modelName}-system-prompt-input`} className="mb-2 block text-sm font-medium text-gray-300">System Prompt</label>
-              <textarea
+              <label htmlFor={`${modelName}-system-prompt-input`} className="mb-2 block text-sm font-medium text-gray-300">
+                System Prompt
+              </label>
+              <HighlightedEditor
                 id={`${modelName}-system-prompt-input`}
                 value={typeof config.system_prompt === 'string' ? config.system_prompt : ''}
-                onChange={(e) => updateConfigValue(modelName, 'system_prompt', e.target.value)}
-                className="h-64 w-full resize-y rounded-lg border border-gray-700 bg-black/30 p-3 font-mono text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
+                onChange={(value) => updateConfigValue(modelName, 'system_prompt', value)}
                 placeholder="Enter system prompt..."
+                height="h-64"
                 data-testid={`${modelName}-system-prompt`}
               />
             </div>
@@ -786,19 +1130,28 @@ export default function PromptPlayground({
                           Edit, test, and refine AI model prompts and configurations
                         </p>
 
-                        {/* Recommendation context */}
+                        {/* Recommendation context with styled badges */}
                         {recommendation && (
-                          <div className="mt-3 rounded-lg border border-[#76B900]/30 bg-[#76B900]/10 p-3">
-                            <p className="text-sm text-[#76B900]">
-                              <span className="font-medium">Suggestion:</span>{' '}
+                          <div className="mt-3 space-y-3 rounded-lg border border-[#76B900]/30 bg-[#76B900]/10 p-4" data-testid="recommendation-banner">
+                            {/* Category and priority badges */}
+                            <CategoryBadge
+                              category={recommendation.category}
+                              priority={recommendation.priority}
+                              frequency={recommendation.frequency}
+                            />
+
+                            {/* Suggestion text */}
+                            <p className="text-sm text-white">
                               {recommendation.suggestion}
                             </p>
+
+                            {/* Source event link */}
                             {sourceEventId && (
-                              <p className="mt-1 text-xs text-gray-400">
+                              <p className="text-xs text-gray-400">
                                 Source Event:{' '}
                                 <a
                                   href={`/timeline?event=${sourceEventId}`}
-                                  className="text-[#76B900] hover:underline"
+                                  className="font-medium text-[#76B900] transition-colors hover:text-[#8ACE00] hover:underline"
                                 >
                                   #{sourceEventId}
                                 </a>
@@ -896,7 +1249,7 @@ export default function PromptPlayground({
 
                           {/* Test Results Count */}
                           {abTestResults.length > 0 && (
-                            <div className="mb-4 text-sm text-gray-400">
+                            <div className="mb-4 text-sm text-gray-400" data-testid="ab-test-count">
                               <span className="font-medium text-white">{abTestResults.length}</span> test{abTestResults.length !== 1 ? 's' : ''} completed
                             </div>
                           )}
@@ -942,11 +1295,9 @@ export default function PromptPlayground({
                         </div>
                       )}
 
-                      {/* Loading State */}
+                      {/* Loading State - Skeleton Loaders */}
                       {isLoading ? (
-                        <div className="flex h-64 items-center justify-center">
-                          <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" />
-                        </div>
+                        <EditorSkeleton />
                       ) : (
                         <div className="space-y-6">
                           {/* Model Editors */}
@@ -954,22 +1305,27 @@ export default function PromptPlayground({
                             {MODEL_CONFIGS.map((model, index) => (
                               <Disclosure key={model.name} defaultOpen={index === 0}>
                                 {({ open }) => (
-                                  <div className="overflow-hidden rounded-lg border border-gray-800 bg-[#121212]">
+                                  <div className="overflow-hidden rounded-lg border border-gray-800 bg-[#121212] transition-all duration-200">
                                     <Disclosure.Button
-                                      className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-800/50"
+                                      className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors duration-150 hover:bg-gray-800/50"
                                       data-testid={`${model.name}-accordion`}
                                     >
                                       <div className="flex items-center gap-3">
                                         <ChevronDown
-                                          className={`h-5 w-5 text-gray-400 transition-transform ${
-                                            open ? 'rotate-180' : ''
-                                          }`}
+                                          className={clsx(
+                                            'h-5 w-5 text-gray-400 transition-transform duration-200',
+                                            open && 'rotate-180'
+                                          )}
                                         />
                                         <div>
                                           <h3 className="font-medium text-white">
                                             {model.displayName}
                                             {isModified(model.name) && (
-                                              <span className="ml-2 text-xs text-[#76B900]">
+                                              <span
+                                                className="ml-2 inline-flex items-center text-xs text-[#76B900]"
+                                                data-testid={`${model.name}-modified-badge`}
+                                              >
+                                                <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#76B900]" />
                                                 (modified)
                                               </span>
                                             )}
@@ -987,7 +1343,7 @@ export default function PromptPlayground({
                                       )}
                                     </Disclosure.Button>
 
-                                    <Disclosure.Panel className="border-t border-gray-800 p-4">
+                                    <Disclosure.Panel className="border-t border-gray-800 p-4 transition-all duration-200 ease-out">
                                       {renderModelEditor(model)}
 
                                       {/* Action buttons */}
@@ -1351,6 +1707,22 @@ export default function PromptPlayground({
           </div>
         </Dialog>
       </Transition>
+
+      {/* Toast notifications container */}
+      {toasts.length > 0 && (
+        <div
+          className="fixed bottom-4 right-4 z-[70] flex flex-col gap-2"
+          data-testid="toast-container"
+        >
+          {toasts.map((toast) => (
+            <ToastNotification
+              key={toast.id}
+              toast={toast}
+              onDismiss={() => dismissToast(toast.id)}
+            />
+          ))}
+        </div>
+      )}
     </Transition>
   );
 }

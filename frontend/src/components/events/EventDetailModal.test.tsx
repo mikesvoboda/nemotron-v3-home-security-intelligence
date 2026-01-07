@@ -1877,6 +1877,59 @@ describe('EventDetailModal', () => {
     });
   });
 
+  describe('video clip tab', () => {
+    it('renders video clip tab button', async () => {
+      render(<EventDetailModal {...mockProps} />);
+      await waitFor(() => {
+        expect(screen.getByTestId('video-clip-tab')).toBeInTheDocument();
+      });
+    });
+
+    it('switches to video clip tab when clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      render(<EventDetailModal {...mockProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('video-clip-tab')).toBeInTheDocument();
+      });
+
+      const clipTab = screen.getByTestId('video-clip-tab');
+      await user.click(clipTab);
+
+      await waitFor(() => {
+        expect(clipTab).toHaveClass('border-b-2 border-[#76B900] text-[#76B900]');
+      });
+    });
+
+    it('displays EventVideoPlayer when video clip tab is active', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      // Mock fetchEventClipInfo to avoid errors
+      const mockFetchEventClipInfo = vi.fn().mockResolvedValue({
+        event_id: 123,
+        clip_available: false,
+        clip_url: null,
+        duration_seconds: null,
+        generated_at: null,
+        file_size_bytes: null,
+      });
+      vi.spyOn(api, 'fetchEventClipInfo').mockImplementation(mockFetchEventClipInfo);
+
+      render(<EventDetailModal {...mockProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('video-clip-tab')).toBeInTheDocument();
+      });
+
+      const clipTab = screen.getByTestId('video-clip-tab');
+      await user.click(clipTab);
+
+      await waitFor(() => {
+        expect(mockFetchEventClipInfo).toHaveBeenCalledWith(parseInt(mockEvent.id, 10));
+      });
+    });
+  });
+
   describe('re-evaluate AI analysis', () => {
     // Use numeric event ID for re-evaluate tests
     const mockEventWithNumericId: Event = {

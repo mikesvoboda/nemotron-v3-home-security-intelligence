@@ -16,7 +16,7 @@ import {
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 
 import { useServiceStatus, type ServiceName } from '../../hooks/useServiceStatus';
-import { fetchHealth, type HealthResponse, type ServiceStatus } from '../../services/api';
+import { fetchHealth, restartService, type HealthResponse, type ServiceStatus } from '../../services/api';
 
 /**
  * Service category types
@@ -461,18 +461,29 @@ export default function ServicesPanel({
   // Handle service restart
   const handleRestart = useCallback(
     async (serviceName: string) => {
+      // Confirm before restarting
+      const confirmed = window.confirm(
+        `Are you sure you want to restart ${serviceName}? This will temporarily interrupt the service.`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       setRestartingServices((prev) => new Set(prev).add(serviceName));
 
       try {
-        // Call restart API (placeholder - actual implementation depends on backend)
-        // await restartService(serviceName);
+        // Call restart API
+        await restartService(serviceName);
         onRestart?.(serviceName);
 
-        // Simulate restart delay and then refresh health data
+        // Wait for restart to complete and then refresh health data
         await new Promise((resolve) => setTimeout(resolve, 3000));
         await fetchHealthData();
       } catch (err) {
         console.error(`Failed to restart service ${serviceName}:`, err);
+        // Show error to user
+        alert(`Failed to restart ${serviceName}: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         if (isMountedRef.current) {
           setRestartingServices((prev) => {
