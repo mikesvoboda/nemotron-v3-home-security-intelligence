@@ -9,6 +9,29 @@ This module provides:
 - URL redaction utilities for safe logging of connection strings
 """
 
+__all__ = [
+    # Constants
+    "CONSOLE_FORMAT",
+    "FILE_FORMAT",
+    "SENSITIVE_FIELD_NAMES",
+    # Classes
+    "ContextFilter",
+    "CustomJsonFormatter",
+    "DatabaseHandler",
+    "SQLiteHandler",  # Backwards compatibility alias
+    # Functions
+    "get_logger",
+    "get_request_id",
+    "log_exception_with_context",
+    "mask_ip",
+    "redact_sensitive_value",
+    "redact_url",
+    "sanitize_error",
+    "sanitize_log_value",
+    "set_request_id",
+    "setup_logging",
+]
+
 import logging
 import re
 import sys

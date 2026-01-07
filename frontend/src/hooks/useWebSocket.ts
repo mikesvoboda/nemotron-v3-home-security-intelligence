@@ -6,6 +6,7 @@ import {
   isHeartbeatMessage,
   calculateBackoffDelay,
 } from './webSocketManager';
+import { logger } from '../services/logger';
 
 export interface WebSocketOptions {
   url: string;
@@ -157,7 +158,11 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const send = useCallback(
     (data: unknown) => {
       if (!webSocketManager.send(url, data)) {
-        console.warn('WebSocket is not connected. Message not sent:', data);
+        logger.warn('WebSocket is not connected. Message not sent', {
+          component: 'useWebSocket',
+          url,
+          data,
+        });
       }
     },
     [url]

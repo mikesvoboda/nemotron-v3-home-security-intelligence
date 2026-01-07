@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { getRiskColor, getRiskLabel, getRiskLevel, getRiskLevelWithThresholds, RISK_THRESHOLDS } from './risk';
+import {
+  getRiskBgClass,
+  getRiskColor,
+  getRiskLabel,
+  getRiskLevel,
+  getRiskLevelWithThresholds,
+  getRiskTextClass,
+  RISK_THRESHOLDS,
+} from './risk';
 
 describe('risk utilities', () => {
   describe('getRiskLevel', () => {
@@ -42,20 +50,57 @@ describe('risk utilities', () => {
   });
 
   describe('getRiskColor', () => {
-    it('returns NVIDIA green for low risk', () => {
-      expect(getRiskColor('low')).toBe('#76B900');
+    // Colors use Tailwind CSS standard severity colors for clear visual differentiation
+    it('returns green-500 (#22c55e) for low risk', () => {
+      expect(getRiskColor('low')).toBe('#22c55e');
     });
 
-    it('returns NVIDIA yellow for medium risk', () => {
-      expect(getRiskColor('medium')).toBe('#FFB800');
+    it('returns yellow-500 (#eab308) for medium risk', () => {
+      expect(getRiskColor('medium')).toBe('#eab308');
     });
 
-    it('returns NVIDIA red for high risk', () => {
-      expect(getRiskColor('high')).toBe('#E74856');
+    it('returns orange-500 (#f97316) for high risk', () => {
+      expect(getRiskColor('high')).toBe('#f97316');
     });
 
-    it('returns red for critical risk', () => {
+    it('returns red-500 (#ef4444) for critical risk', () => {
       expect(getRiskColor('critical')).toBe('#ef4444');
+    });
+  });
+
+  describe('getRiskBgClass', () => {
+    it('returns bg-green-500 for low risk', () => {
+      expect(getRiskBgClass('low')).toBe('bg-green-500');
+    });
+
+    it('returns bg-yellow-500 for medium risk', () => {
+      expect(getRiskBgClass('medium')).toBe('bg-yellow-500');
+    });
+
+    it('returns bg-orange-500 for high risk', () => {
+      expect(getRiskBgClass('high')).toBe('bg-orange-500');
+    });
+
+    it('returns bg-red-500 for critical risk', () => {
+      expect(getRiskBgClass('critical')).toBe('bg-red-500');
+    });
+  });
+
+  describe('getRiskTextClass', () => {
+    it('returns text-green-500 for low risk', () => {
+      expect(getRiskTextClass('low')).toBe('text-green-500');
+    });
+
+    it('returns text-yellow-500 for medium risk', () => {
+      expect(getRiskTextClass('medium')).toBe('text-yellow-500');
+    });
+
+    it('returns text-orange-500 for high risk', () => {
+      expect(getRiskTextClass('high')).toBe('text-orange-500');
+    });
+
+    it('returns text-red-500 for critical risk', () => {
+      expect(getRiskTextClass('critical')).toBe('text-red-500');
     });
   });
 
