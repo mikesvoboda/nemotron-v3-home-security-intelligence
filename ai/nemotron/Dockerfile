@@ -16,13 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Clone llama.cpp and checkout specific commit for stability
 WORKDIR /build
-RUN git clone https://github.com/ggerganov/llama.cpp.git && \
-    cd llama.cpp && \
-    git checkout 9496bbb80
+RUN git clone https://github.com/ggerganov/llama.cpp.git
+WORKDIR /build/llama.cpp
+RUN git checkout 9496bbb80
 
 # Build llama.cpp with CUDA support
 # Set up CUDA stubs for linking (actual libcuda.so provided at runtime by driver)
-WORKDIR /build/llama.cpp
 # Create versioned symlink and copy stub to standard location
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     cp /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcuda.so && \
