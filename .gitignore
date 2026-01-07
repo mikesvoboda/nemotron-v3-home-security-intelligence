@@ -54,6 +54,10 @@ htmlcov/
 test-results/
 playwright-report/
 
+# Profiling output
+data/profiles/
+*.prof
+
 # OS
 .DS_Store
 Thumbs.db
