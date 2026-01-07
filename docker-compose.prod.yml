@@ -246,6 +246,12 @@ services:
       - FOSCAM_BASE_PATH=${FOSCAM_BASE_PATH:-/cameras}
       - DEBUG=${DEBUG:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
+      # OpenTelemetry distributed tracing (NEM-1629)
+      # Enable with OTEL_ENABLED=true when running with --profile monitoring
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-nemotron-backend}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
+      - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
     depends_on:
       postgres:
         condition: service_healthy
@@ -358,6 +364,38 @@ services:
   # To enable monitoring: podman-compose --profile monitoring -f docker-compose.prod.yml up -d
   # Access Grafana at http://localhost:3002 (admin/admin)
   # Access Prometheus at http://localhost:9090
+  # Access Jaeger at http://localhost:16686 (distributed tracing)
+
+  # Jaeger all-in-one for distributed tracing (NEM-1629)
+  # Provides trace collection, storage, and visualization for cross-service request correlation
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    profiles:
+      - monitoring
+    ports:
+      - '16686:16686' # Jaeger UI
+      - '4317:4317' # OTLP gRPC receiver
+      - '4318:4318' # OTLP HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      # Store traces in memory (sufficient for development/debugging)
+      # For production, configure external storage (Elasticsearch, Cassandra, etc.)
+      - SPAN_STORAGE_TYPE=memory
+      # Limit memory usage for trace storage
+      - MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-100000}
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:16686']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
 
   prometheus:
     image: prom/prometheus:v2.48.0

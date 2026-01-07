@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import DateTime, Index, Integer, String, Text
+from sqlalchemy import DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -67,12 +67,14 @@ class PromptVersion(Base):
     # Used to detect concurrent modifications and prevent race conditions
     row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
-    # Indexes
+    # Indexes and constraints
     __table_args__ = (
         Index("idx_prompt_versions_model", "model"),
         Index("idx_prompt_versions_model_version", "model", "version"),
         Index("idx_prompt_versions_model_active", "model", "is_active"),
         Index("idx_prompt_versions_created_at", "created_at"),
+        # Ensure each (model, version) combination is unique - prevents duplicate versions
+        UniqueConstraint("model", "version", name="uq_prompt_version_model_version"),
     )
 
     @property
