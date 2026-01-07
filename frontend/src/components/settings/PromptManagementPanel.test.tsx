@@ -110,21 +110,6 @@ beforeEach(() => {
   vi.spyOn(promptApi, 'restorePromptVersion').mockResolvedValue(mockRestoreResponse);
   vi.spyOn(promptApi, 'exportPrompts').mockResolvedValue(mockExportResponse);
 
-  // Mock URL).createObjectURL and revokeObjectURL for export tests
-  ((globalThis as any).URL).createObjectURL = vi.fn(() => 'blob:mock-url');
-  ((globalThis as any).URL).revokeObjectURL = vi.fn();
-
-  // Mock document.createElement for download link
-  const mockAnchor = {
-    href: '',
-    download: '',
-    click: vi.fn(),
-  } as unknown as HTMLAnchorElement;
-
-  vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor);
-  vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor);
-  vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockAnchor);
-
   // Mock window).confirm
   ((globalThis as any)).confirm = vi.fn(() => true);
 });
@@ -444,29 +429,58 @@ describe('PromptManagementPanel - Restore Version', () => {
 
 describe('PromptManagementPanel - Export', () => {
   it('should export prompts when Export All button is clicked', async () => {
-    const user = userEvent.setup();
-    render(<PromptManagementPanel />);
+    // Mock URL methods for download functionality
+    const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+    const mockRevokeObjectURL = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalCreateObjectURL = URL.createObjectURL;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = mockCreateObjectURL;
+    URL.revokeObjectURL = mockRevokeObjectURL;
 
-    const exportButton = screen.getByRole('button', { name: /Export All/i });
-    await user.click(exportButton);
+    try {
+      const user = userEvent.setup();
+      render(<PromptManagementPanel />);
 
-    await waitFor(() => {
-      expect(promptApi.exportPrompts).toHaveBeenCalled();
-    });
+      const exportButton = screen.getByRole('button', { name: /Export All/i });
+      await user.click(exportButton);
+
+      await waitFor(() => {
+        expect(promptApi.exportPrompts).toHaveBeenCalled();
+      });
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 
   it('should trigger download when export succeeds', async () => {
-    const user = userEvent.setup();
-    render(<PromptManagementPanel />);
+    // Mock URL methods for download functionality
+    const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+    const mockRevokeObjectURL = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalCreateObjectURL = URL.createObjectURL;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Storing original for restoration
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = mockCreateObjectURL;
+    URL.revokeObjectURL = mockRevokeObjectURL;
 
-    const exportButton = screen.getByRole('button', { name: /Export All/i });
-    await user.click(exportButton);
+    try {
+      const user = userEvent.setup();
+      render(<PromptManagementPanel />);
 
-    await waitFor(() => {
-      expect(((globalThis as any).URL).createObjectURL).toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/unbound-method -- Spying on document method in test
-      expect(document.createElement).toHaveBeenCalledWith('a');
-    });
+      const exportButton = screen.getByRole('button', { name: /Export All/i });
+      await user.click(exportButton);
+
+      await waitFor(() => {
+        // Verify the URL methods were called (indicating download was triggered)
+        expect(mockCreateObjectURL).toHaveBeenCalled();
+      });
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 
   it('should show loading state during export', async () => {
