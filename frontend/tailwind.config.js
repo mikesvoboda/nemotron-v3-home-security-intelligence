@@ -28,11 +28,32 @@ export default {
           900: '#223A00',
         },
 
-        // Risk Level Colors
+        // Risk Level Colors (WCAG 2.1 AA compliant - 4.5:1 contrast on 10% opacity backgrounds)
+        // Text colors are significantly brightened to meet contrast requirements when used on bg-{color}/10
+        // The browser blends the text color with the semi-transparent background, reducing effective contrast
         risk: {
-          low: '#76B900',
-          medium: '#FFB800',
-          high: '#E74856',
+          low: '#76B900', // Green - good contrast on dark backgrounds
+          medium: '#FFB800', // Amber - good contrast on dark backgrounds
+          high: '#FFCDD2', // Light coral for 4.5:1 contrast on bg-risk-high/10
+          critical: '#FFE0E0', // Very light pink for critical badges - 4.5:1 on blended dark bg
+        },
+
+        // Error/Danger Color (WCAG 2.1 AA compliant - 4.5:1 contrast on dark backgrounds)
+        error: {
+          DEFAULT: '#FF6B6B', // Brightened from #ef4444 for proper contrast on dark bg
+          light: '#FF8585', // For 10% opacity backgrounds
+        },
+
+        // Danger Button Color (WCAG 2.1 AA compliant - 4.5:1 contrast with white text)
+        danger: {
+          DEFAULT: '#DC2626', // Darker red (red-600) for 4.5:1 contrast with white
+          hover: '#B91C1C', // red-700 for hover state
+        },
+
+        // Link Colors (WCAG 2.1 AA compliant for dark theme)
+        link: {
+          DEFAULT: '#60A5FA', // blue-400 equivalent - good contrast on dark
+          hover: '#93C5FD', // blue-300 equivalent
         },
 
         // Text Colors (WCAG 2 AA compliant - 4.5:1 minimum contrast on gray-700)
@@ -115,6 +136,11 @@ export default {
           '0%, 100%': { boxShadow: '0 0 10px rgba(118, 185, 0, 0.2)' },
           '50%': { boxShadow: '0 0 20px rgba(118, 185, 0, 0.4)' },
         },
+        // Critical risk pulse - uses box-shadow instead of opacity to maintain WCAG 2.1 AA contrast
+        'pulse-critical': {
+          '0%, 100%': { boxShadow: '0 0 8px rgba(255, 107, 107, 0.3)' },
+          '50%': { boxShadow: '0 0 16px rgba(255, 107, 107, 0.6)' },
+        },
         'slide-in': {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
@@ -127,6 +153,7 @@ export default {
 
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+        'pulse-critical': 'pulse-critical 2s ease-in-out infinite',
         'slide-in': 'slide-in 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-in',
       },
