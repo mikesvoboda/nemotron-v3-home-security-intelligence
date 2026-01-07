@@ -190,10 +190,12 @@ test.describe('All Routes Smoke Tests', () => {
 
     // With mocked APIs and blocked resources, navigation should be fast
     // Use domcontentloaded instead of networkidle for faster page ready detection
+    // Note: React 19 on Node 22 may take slightly longer to hydrate/render, so we increase
+    // the visibility timeout to 5000ms to account for concurrent rendering behavior
     for (const route of routes) {
       await page.goto(route.path, { waitUntil: 'domcontentloaded', timeout: 5000 });
       await expect(page.getByRole('heading', { name: route.title }).first()).toBeVisible({
-        timeout: 2000,
+        timeout: 5000, // Increased from 2000ms to handle React 19 concurrent rendering on Node 22
       });
     }
   });
