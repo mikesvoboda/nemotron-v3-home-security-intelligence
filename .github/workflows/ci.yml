@@ -733,12 +733,10 @@ jobs:
         run: ./scripts/generate-types.sh --check
 
   frontend-lint:
-    name: Frontend Lint (ESLint) [Node ${{ matrix.node-version }}]
+    name: Frontend Lint (ESLint)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['20', '22']
+    env:
+      NODE_VERSION: '20'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -762,12 +760,10 @@ jobs:
         run: cd frontend && npx knip
 
   frontend-typecheck:
-    name: Frontend Type Check (TypeScript) [Node ${{ matrix.node-version }}]
+    name: Frontend Type Check (TypeScript)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['20', '22']
+    env:
+      NODE_VERSION: '20'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -786,7 +782,7 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest ${{ matrix.shard }}/8) [Node ${{ matrix.node-version }}]
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 3
     # Wait for lint to pass first - fail fast on code quality issues
@@ -794,8 +790,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['20', '22']
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      NODE_VERSION: '20'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -882,9 +879,8 @@ jobs:
 
   # Primary E2E tests (Chromium) - non-blocking while stabilizing error state tests
   # Uses sharding to split tests across 4 parallel runners for 4x speed
-  # Tests both Node.js 20 and 22 LTS versions
   frontend-e2e:
-    name: E2E Tests (chromium ${{ matrix.shard }}) [Node ${{ matrix.node-version }}]
+    name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
     # Wait for lint to pass first - fail fast on code quality issues
     needs: [frontend-lint]
@@ -892,8 +888,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['20', '22']
         shard: [1/4, 2/4, 3/4, 4/4]
+    env:
+      NODE_VERSION: '20'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
