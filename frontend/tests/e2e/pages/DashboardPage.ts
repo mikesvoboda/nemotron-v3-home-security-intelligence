@@ -62,7 +62,7 @@ export class DashboardPage extends BasePage {
     this.activeCamerasStat = page.getByText(/Active Cameras/i);
     this.eventsTodayStat = page.getByText(/Events Today/i);
     this.riskScoreStat = page.getByTestId('risk-card');
-    this.systemStatusStat = page.getByText(/System Status/i);
+    this.systemStatusStat = page.getByTestId('system-card');
 
     // Risk sparkline is now integrated in the StatsRow risk card
     this.riskSparkline = page.locator('[data-testid="risk-sparkline"]');
