@@ -8481,7 +8481,7 @@ export interface components {
              */
             timestamp: string;
             /** @description Worker status */
-            workers: components["schemas"]["WorkersStatus"];
+            workers: components["schemas"]["PipelineWorkersStatus"];
         };
         /**
          * PipelineStatusResponse
@@ -8534,6 +8534,45 @@ export interface components {
              * @description Timestamp of status snapshot
              */
             timestamp: string;
+        };
+        /**
+         * PipelineWorkerStatus
+         * @description Status of a pipeline worker.
+         */
+        PipelineWorkerStatus: {
+            /**
+             * Error Count
+             * @description Number of recent errors
+             * @default 0
+             */
+            error_count: number;
+            /**
+             * Last Activity
+             * @description ISO timestamp of last activity
+             */
+            last_activity?: string | null;
+            /**
+             * Name
+             * @description Worker name
+             */
+            name: string;
+            /**
+             * Running
+             * @description Whether worker is currently running
+             */
+            running: boolean;
+        };
+        /**
+         * PipelineWorkersStatus
+         * @description Status of all pipeline workers.
+         */
+        PipelineWorkersStatus: {
+            /** @description Analyzer worker status */
+            analyzer: components["schemas"]["PipelineWorkerStatus"];
+            /** @description Detector worker status */
+            detector: components["schemas"]["PipelineWorkerStatus"];
+            /** @description File watcher status */
+            file_watcher: components["schemas"]["PipelineWorkerStatus"];
         };
         /**
          * PoseEnrichment
@@ -10456,18 +10495,6 @@ export interface components {
             running: boolean;
         };
         /**
-         * WorkersStatus
-         * @description Status of all pipeline workers.
-         */
-        WorkersStatus: {
-            /** @description Analyzer worker status */
-            analyzer: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
-            /** @description Detector worker status */
-            detector: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
-            /** @description File watcher status */
-            file_watcher: components["schemas"]["backend__api__routes__debug__WorkerStatus"];
-        };
-        /**
          * ZoneCreate
          * @description Schema for creating a new zone.
          * @example {
@@ -10725,33 +10752,6 @@ export interface components {
             shape?: components["schemas"]["ZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["ZoneType"] | null;
-        };
-        /**
-         * WorkerStatus
-         * @description Status of a pipeline worker.
-         */
-        backend__api__routes__debug__WorkerStatus: {
-            /**
-             * Error Count
-             * @description Number of recent errors
-             * @default 0
-             */
-            error_count: number;
-            /**
-             * Last Activity
-             * @description ISO timestamp of last activity
-             */
-            last_activity?: string | null;
-            /**
-             * Name
-             * @description Worker name
-             */
-            name: string;
-            /**
-             * Running
-             * @description Whether worker is currently running
-             */
-            running: boolean;
         };
     };
     responses: never;
