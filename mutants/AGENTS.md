@@ -1,0 +1,229 @@
+# Mutants Directory - Agent Guide
+
+## Purpose
+
+This directory contains mutation testing results and configuration for the Home Security Intelligence project. Mutation testing validates the quality of test suites by introducing small code changes (mutations) and verifying that tests catch these changes.
+
+## Directory Contents
+
+```
+mutants/
+  AGENTS.md           # This file
+  pyproject.toml      # Mutmut configuration for Python mutation testing
+  mutmut-stats.json   # Mutation testing statistics (742KB)
+  backend/            # Mutated Python code copies
+  tests/              # Test results for mutations
+```
+
+## Key Files
+
+### pyproject.toml
+
+**Purpose:** Configuration for mutmut Python mutation testing tool.
+
+**Contents:**
+
+- Paths to test and exclude
+- Test command configuration
+- Mutation operators to use
+- Thresholds for passing
+
+### mutmut-stats.json
+
+**Purpose:** Detailed mutation testing results in JSON format.
+
+**Size:** ~743 KB
+
+**Contains:**
+
+- Mutation survival rate
+- Killed vs survived mutations
+- Per-file mutation statistics
+- Individual mutation details
+
+## Mutation Testing
+
+### What is Mutation Testing?
+
+Mutation testing introduces small bugs (mutations) into code to verify that tests catch them:
+
+1. **Generate mutations** - Modify operators, constants, conditionals
+2. **Run tests** - Execute test suite against each mutation
+3. **Classify results:**
+   - **Killed** - Tests failed (good - mutation detected)
+   - **Survived** - Tests passed (bad - mutation not detected)
+   - **Timeout** - Tests took too long
+   - **Suspicious** - Intermittent failures
+
+### Running Mutation Tests
+
+**Backend (Python with mutmut):**
+
+```bash
+# Run mutation testing
+./scripts/mutation-test.sh
+
+# Or manually with mutmut
+mutmut run --paths-to-mutate backend/
+
+# View results
+mutmut results
+mutmut show <id>  # Show specific mutation
+
+# HTML report
+mutmut html
+```
+
+**Frontend (TypeScript with Stryker):**
+
+```bash
+# Run Stryker mutation testing
+cd frontend
+npx stryker run
+
+# View HTML report
+open reports/mutation/html/index.html
+```
+
+## Mutation Score
+
+**Goal:** Achieve high mutation score (80%+ mutations killed)
+
+**Interpretation:**
+
+| Mutation Score | Quality           | Action                         |
+| -------------- | ----------------- | ------------------------------ |
+| 90-100%        | Excellent         | Maintain quality               |
+| 80-89%         | Good              | Minor test improvements        |
+| 70-79%         | Acceptable        | Review survived mutations      |
+| < 70%          | Needs Improvement | Add tests for survived mutants |
+
+## Common Mutation Operators
+
+### Python (mutmut)
+
+| Mutation         | Example               | Test Should Detect          |
+| ---------------- | --------------------- | --------------------------- |
+| Boolean flip     | `if x:` → `if not x:` | Assertion failures          |
+| Number change    | `x + 1` → `x + 2`     | Incorrect results           |
+| Operator change  | `x == y` → `x != y`   | Logic errors                |
+| String change    | `"text"` → `"XXtext"` | String comparison failures  |
+| Conditional flip | `x < y` → `x <= y`    | Boundary condition failures |
+
+### TypeScript (Stryker)
+
+| Mutation        | Example          | Test Should Detect    |
+| --------------- | ---------------- | --------------------- |
+| Arithmetic      | `+` → `-`        | Calculation errors    |
+| Equality        | `===` → `!==`    | Logic errors          |
+| Logical         | `&&` → `\|\|`    | Boolean logic errors  |
+| String literals | `"hello"` → `""` | Empty string handling |
+| Array literals  | `[1, 2]` → `[]`  | Empty array handling  |
+
+## Interpreting Results
+
+### Killed Mutations (Good)
+
+Tests successfully detected the mutation:
+
+```
+KILLED: backend/services/detection.py:45
+- original: if confidence > 0.5:
+- mutation: if confidence >= 0.5:
+- killed by: test_detection_threshold
+```
+
+### Survived Mutations (Bad)
+
+Tests did not detect the mutation - indicates missing test coverage:
+
+```
+SURVIVED: backend/api/routes/cameras.py:89
+- original: return {"status": "online"}
+- mutation: return {"status": ""}
+- suggest: Add test for empty status string
+```
+
+**Action:** Add test case to catch this scenario.
+
+### Timeout Mutations
+
+Mutation caused infinite loop or very slow execution:
+
+```
+TIMEOUT: backend/services/batch.py:120
+- original: while queue:
+- mutation: while True:
+```
+
+**Likely cause:** Missing loop termination condition.
+
+## Integration with CI
+
+Mutation testing is run periodically in CI:
+
+- **Trigger:** Weekly via `nightly.yml` workflow
+- **Threshold:** Warn if mutation score drops below 80%
+- **Reports:** Uploaded as workflow artifacts
+
+## Best Practices
+
+1. **Run mutation tests regularly** - After significant code changes
+2. **Fix survived mutations** - Add tests to catch them
+3. **Don't aim for 100%** - Some mutations are equivalent (same behavior)
+4. **Focus on critical code** - Prioritize high-risk areas (security, business logic)
+5. **Balance with coverage** - High code coverage doesn't mean good tests
+
+## Configuration
+
+### Mutmut Configuration (pyproject.toml)
+
+```toml
+[tool.mutmut]
+paths_to_mutate = "backend/"
+backup = false
+runner = "pytest backend/tests/unit/"
+tests_dir = "backend/tests/"
+```
+
+### Stryker Configuration (frontend)
+
+See `frontend/stryker.config.json` for TypeScript mutation testing configuration.
+
+## Related Documentation
+
+- `/docs/MUTATION_TESTING.md` - Comprehensive mutation testing guide
+- `/scripts/mutation-test.sh` - Mutation testing runner script
+- `/CLAUDE.md` - Testing requirements and TDD approach
+- `/docs/testing/` - Testing patterns and workflows
+
+## Notes for AI Agents
+
+- Mutation testing is a quality assurance tool, not a replacement for code coverage
+- Survived mutations indicate gaps in test suites that should be addressed
+- The `mutants/` directory is generated output - do not manually edit mutated code
+- Results are stored in `mutmut-stats.json` for analysis
+- High mutation scores (80%+) indicate robust test suites
+- Focus on fixing survived mutations in critical code paths first
+
+## Cleaning Up
+
+Mutation testing generates large intermediate files:
+
+```bash
+# Clean mutation testing artifacts
+rm -rf mutants/backend mutants/tests
+mutmut reset  # Reset mutmut cache
+
+# Keep configuration and stats
+# Keep: mutants/pyproject.toml, mutants/mutmut-stats.json
+```
+
+## TODO: Improve Mutation Score
+
+Track mutations that need test coverage:
+
+- [ ] Review survived mutations in `backend/services/`
+- [ ] Add tests for edge cases in `backend/api/routes/`
+- [ ] Improve frontend mutation score with additional component tests
+- [ ] Document equivalent mutations that can be safely ignored

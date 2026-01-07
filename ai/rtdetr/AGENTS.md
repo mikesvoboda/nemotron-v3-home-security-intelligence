@@ -7,7 +7,7 @@ FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-t
 ## Port and Resources
 
 - **Port**: 8090
-- **Expected VRAM**: ~3-4GB (actual: ~650 MiB in production)
+- **Expected VRAM**: ~650 MiB in production (model.py docstring says ~3GB, but actual usage is lower)
 - **Inference Time**: 30-50ms per image on RTX A5500
 
 ## Directory Contents
@@ -21,7 +21,8 @@ ai/rtdetr/
 ├── example_client.py  # Python client example using httpx
 ├── test_model.py      # Unit tests (pytest)
 ├── requirements.txt   # Python dependencies
-└── README.md          # Usage documentation
+├── README.md          # Usage documentation
+└── .gitkeep           # Git placeholder
 ```
 
 ## Key Files
@@ -63,6 +64,13 @@ SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
 ```
 
+**Security Features:**
+
+- Image magic bytes validation (prevents non-image uploads)
+- Path traversal protection
+- Size limits enforced
+- Only security-relevant classes returned
+
 ### `Dockerfile`
 
 Container build configuration:
@@ -91,8 +99,8 @@ Unit tests with pytest covering:
 - Pydantic model validation (BoundingBox, Detection, DetectionResponse)
 - API endpoint tests with mocked model
 - Size limit validation tests
-
-**Note**: Some tests reference deprecated ONNX API (`use_onnx=True`, `preprocess_image()`) that no longer exists. These need updating.
+- Magic bytes validation tests
+- Security validation (path traversal, malformed images)
 
 ### `requirements.txt`
 
@@ -124,7 +132,7 @@ Returns server health status.
   "device": "cuda:0",
   "cuda_available": true,
   "model_name": "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd",
-  "vram_used_gb": 3.2
+  "vram_used_gb": 0.65
 }
 ```
 
@@ -201,13 +209,14 @@ curl -X POST http://localhost:8090/detect/batch \
 ## Inference Pipeline
 
 1. Load image via PIL
-2. Convert to RGB if needed
-3. Preprocess with `AutoImageProcessor`
-4. Run inference with `torch.no_grad()`
-5. Postprocess with `post_process_object_detection()`
-6. Filter by confidence threshold (0.5)
-7. Filter to security-relevant classes only (9 classes)
-8. Return detections with scaled bounding boxes
+2. Validate image magic bytes (security check)
+3. Convert to RGB if needed
+4. Preprocess with `AutoImageProcessor`
+5. Run inference with `torch.no_grad()`
+6. Postprocess with `post_process_object_detection()`
+7. Filter by confidence threshold (0.5)
+8. Filter to security-relevant classes only (9 classes)
+9. Return detections with scaled bounding boxes
 
 ## Backend Integration
 

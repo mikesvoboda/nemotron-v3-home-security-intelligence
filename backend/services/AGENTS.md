@@ -17,7 +17,8 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
                      ├── SystemBroadcaster (system status)
                      ├── HealthMonitor (service recovery)
                      ├── CleanupService (retention policy)
-                     └── PerformanceCollector (metrics aggregation)
+                     ├── PerformanceCollector (metrics aggregation)
+                     └── BackgroundEvaluator (AI audit evaluation)
 ```
 
 ### Service Categories
@@ -28,11 +29,13 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 4. **Model Zoo** - On-demand model loading for attribute extraction
 5. **Model Loaders** - Individual model loading functions for Model Zoo
 6. **Pipeline Workers** - Background queue consumers and managers
-7. **Background Services** - GPU monitoring, cleanup, health checks
+7. **Background Services** - GPU monitoring, cleanup, health checks, evaluation
 8. **Container Orchestrator** - Container discovery, lifecycle management
 9. **Infrastructure** - Circuit breakers, retry handlers, degradation
 10. **Alerting** - Alert rules, deduplication, notifications
-11. **Utility** - Search, severity mapping, prompt templates
+11. **Prompt Management** - LLM prompt templates, storage, versioning
+12. **Utility** - Search, severity mapping, token counting, batch fetching
+13. **Data Management** - Partition management for time-series tables
 
 ## Service Files Overview
 
@@ -51,39 +54,39 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### AI Client Services
 
-| Service              | Purpose                                    | Exported via `__init__.py` |
-| -------------------- | ------------------------------------------ | -------------------------- |
-| `florence_client.py` | HTTP client for Florence-2 vision-language | No (import directly)       |
-| `clip_client.py`     | HTTP client for CLIP embedding generation  | No (import directly)       |
+| Service                | Purpose                                    | Exported via `__init__.py` |
+| ---------------------- | ------------------------------------------ | -------------------------- |
+| `florence_client.py`   | HTTP client for Florence-2 vision-language | No (import directly)       |
+| `clip_client.py`       | HTTP client for CLIP embedding generation  | No (import directly)       |
+| `enrichment_client.py` | HTTP client for enrichment service         | No (import directly)       |
 
 ### Context Enrichment Services
 
 | Service                    | Purpose                                          | Exported via `__init__.py` |
 | -------------------------- | ------------------------------------------------ | -------------------------- |
-| `context_enricher.py`      | Aggregate context from zones, baselines, reid    | No (import directly)       |
-| `enrichment_pipeline.py`   | Orchestrate Model Zoo enrichment for batches     | No (import directly)       |
-| `enrichment_client.py`     | HTTP client for enrichment service               | No (import directly)       |
+| `context_enricher.py`      | Aggregate context from zones, baselines, reid    | Yes                        |
+| `enrichment_pipeline.py`   | Orchestrate Model Zoo enrichment for batches     | Yes                        |
 | `vision_extractor.py`      | Florence-2 attribute extraction orchestration    | No (import directly)       |
-| `florence_extractor.py`    | Florence-2 specific extraction logic             | No (import directly)       |
+| `florence_extractor.py`    | Florence-2 specific extraction logic             | Yes                        |
 | `zone_service.py`          | Zone detection and context generation            | Yes                        |
 | `baseline.py`              | Activity baseline tracking for anomaly detection | Yes                        |
 | `scene_baseline.py`        | Scene-level baseline tracking                    | No (import directly)       |
-| `scene_change_detector.py` | SSIM-based scene change detection                | No (import directly)       |
-| `reid_service.py`          | Entity re-identification across cameras          | No (import directly)       |
+| `scene_change_detector.py` | SSIM-based scene change detection                | Yes                        |
+| `reid_service.py`          | Entity re-identification across cameras          | Yes                        |
 | `bbox_validation.py`       | Bounding box validation utilities                | No (import directly)       |
 
 ### Model Zoo Services
 
 | Service        | Purpose                                      | Exported via `__init__.py` |
 | -------------- | -------------------------------------------- | -------------------------- |
-| `model_zoo.py` | Registry and manager for on-demand AI models | No (import directly)       |
+| `model_zoo.py` | Registry and manager for on-demand AI models | Yes                        |
 
 ### Model Loader Services
 
 | Service                        | Purpose                                          | Exported via `__init__.py` |
 | ------------------------------ | ------------------------------------------------ | -------------------------- |
-| `clip_loader.py`               | Load CLIP ViT-L for embeddings                   | No (import directly)       |
-| `florence_loader.py`           | Load Florence-2 for vision-language              | No (import directly)       |
+| `clip_loader.py`               | Load CLIP ViT-L for embeddings                   | Yes                        |
+| `florence_loader.py`           | Load Florence-2 for vision-language              | Yes                        |
 | `yolo_world_loader.py`         | Load YOLO-World for open-vocabulary detection    | No (import directly)       |
 | `vitpose_loader.py`            | Load ViTPose for human pose estimation           | No (import directly)       |
 | `depth_anything_loader.py`     | Load Depth Anything for depth estimation         | No (import directly)       |
@@ -101,9 +104,9 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 | Service             | Purpose                                     | Exported via `__init__.py` |
 | ------------------- | ------------------------------------------- | -------------------------- |
-| `plate_detector.py` | License plate detection and OCR             | No (import directly)       |
-| `face_detector.py`  | Face detection for person re-identification | No (import directly)       |
-| `ocr_service.py`    | OCR text extraction from detected regions   | No (import directly)       |
+| `plate_detector.py` | License plate detection and OCR             | Yes                        |
+| `face_detector.py`  | Face detection for person re-identification | Yes                        |
+| `ocr_service.py`    | OCR text extraction from detected regions   | Yes                        |
 
 ### Pipeline Workers
 
@@ -121,13 +124,15 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `health_monitor_orchestrator.py` | Container orchestrator health monitoring loop | No (import directly)       |
 | `system_broadcaster.py`          | Broadcast system health status                | No (import directly)       |
 | `performance_collector.py`       | Collect system performance metrics            | No (import directly)       |
+| `background_evaluator.py`        | Run AI audit evaluations when GPU is idle     | Yes                        |
 
 ### Container Orchestrator Services
 
-| Service                  | Purpose                                             | Exported via `__init__.py` |
-| ------------------------ | --------------------------------------------------- | -------------------------- |
-| `container_discovery.py` | Discover Docker containers by name pattern          | No (import directly)       |
-| `lifecycle_manager.py`   | Self-healing restart logic with exponential backoff | No (import directly)       |
+| Service                     | Purpose                                             | Exported via `__init__.py` |
+| --------------------------- | --------------------------------------------------- | -------------------------- |
+| `container_discovery.py`    | Discover Docker containers by name pattern          | No (import directly)       |
+| `lifecycle_manager.py`      | Self-healing restart logic with exponential backoff | No (import directly)       |
+| `container_orchestrator.py` | Coordinate discovery, health, lifecycle, broadcast  | No (import directly)       |
 
 ### Infrastructure Services
 
@@ -137,8 +142,9 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `service_managers.py`    | Strategy pattern for service management | No (import directly)       |
 | `circuit_breaker.py`     | Circuit breaker for service resilience  | Yes                        |
 | `degradation_manager.py` | Graceful degradation management         | Yes                        |
-| `cache_service.py`       | Redis caching utilities                 | No (import directly)       |
+| `cache_service.py`       | Redis caching utilities                 | Yes                        |
 | `service_registry.py`    | Service registry with Redis persistence | No (import directly)       |
+| `inference_semaphore.py` | Shared semaphore for AI inference       | No (import directly)       |
 
 ### Alerting Services
 
@@ -153,7 +159,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | Service            | Purpose                                      | Exported via `__init__.py` |
 | ------------------ | -------------------------------------------- | -------------------------- |
 | `audit.py`         | Audit logging for security-sensitive actions | Yes                        |
-| `audit_service.py` | AI pipeline audit and self-evaluation        | No (import directly)       |
+| `audit_service.py` | AI pipeline audit and self-evaluation        | Yes                        |
 
 ### Prompt Management Services
 
@@ -164,6 +170,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `prompt_service.py`         | CRUD operations for AI prompt configs                 | No (import directly)       |
 | `prompt_storage.py`         | File-based prompt storage with versioning             | No (import directly)       |
 | `prompt_version_service.py` | Prompt version history and restoration                | No (import directly)       |
+| `prompt_parser.py`          | Parse and modify prompts with suggestions             | No (import directly)       |
 
 ### Utility Services
 
@@ -173,6 +180,19 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `severity.py`       | Severity level mapping and configuration                | Yes                        |
 | `clip_generator.py` | Video clip generation for events                        | Yes                        |
 | `token_counter.py`  | LLM prompt token counting and context window validation | No (import directly)       |
+| `batch_fetch.py`    | Batch fetch detections (avoid N+1)                      | No (import directly)       |
+
+### Data Management Services
+
+| Service                | Purpose                         | Exported via `__init__.py` |
+| ---------------------- | ------------------------------- | -------------------------- |
+| `partition_manager.py` | PostgreSQL partition management | Yes                        |
+
+### Evaluation Services
+
+| Service               | Purpose                                 | Exported via `__init__.py` |
+| --------------------- | --------------------------------------- | -------------------------- |
+| `evaluation_queue.py` | Priority queue for AI audit evaluations | Yes                        |
 
 ## Detailed Service Documentation
 
@@ -1095,6 +1115,454 @@ await registry.persist_state("ai-detector")
 await registry.load_state()
 ```
 
+### container_orchestrator.py
+
+**Purpose:** Coordinates container discovery, health monitoring, lifecycle management, and real-time WebSocket broadcasting of service status changes.
+
+**Key Features:**
+
+- Service discovery using container name patterns
+- Health monitoring with configurable intervals
+- Self-healing restart logic with exponential backoff
+- WebSocket broadcast of service status changes
+- Integration with HealthMonitor and LifecycleManager components
+
+**Public API:**
+
+```python
+from backend.services.container_orchestrator import (
+    ContainerOrchestrator,
+    create_service_status_event,
+)
+
+# Create orchestrator with broadcast function
+orchestrator = ContainerOrchestrator(
+    docker_client=docker_client,
+    redis_client=redis_client,
+    settings=settings,
+    broadcast_fn=event_broadcaster.broadcast_service_status,
+)
+
+# Start orchestrator (discovery + monitoring)
+await orchestrator.start()
+
+# Query services
+all_services = orchestrator.get_all_services()
+service = orchestrator.get_service("ai-detector")
+
+# Manual control
+await orchestrator.restart_service("ai-detector")
+await orchestrator.enable_service("ai-detector")
+await orchestrator.disable_service("ai-detector")
+await orchestrator.start_service("ai-detector")
+
+# Stop orchestrator
+await orchestrator.stop()
+```
+
+**Broadcasts service status events when:**
+
+- Service discovered on startup
+- Health check passes after failure (recovery)
+- Health check fails
+- Container restart initiated
+- Container restart succeeded
+- Container restart failed
+- Service disabled (max failures)
+- Service manually enabled
+- Service manually disabled
+- Service manually restarted
+
+### prompt_parser.py
+
+**Purpose:** Prompt parsing utilities for smart insertion of suggestions.
+
+**Key Features:**
+
+- Parse system prompts to identify optimal insertion points
+- Detect variable style patterns (curly/angle/dollar)
+- Generate insertion text matching detected style
+- Validate prompt syntax (unclosed brackets, duplicate variables)
+- Apply suggestions to prompts programmatically
+
+**Public API:**
+
+```python
+from backend.services.prompt_parser import (
+    find_insertion_point,
+    detect_variable_style,
+    generate_insertion_text,
+    validate_prompt_syntax,
+    apply_suggestion_to_prompt,
+)
+
+# Find where to insert a suggestion
+insert_idx, insert_type = find_insertion_point(
+    prompt,
+    target_section="Camera & Time Context",
+    insertion_point="append"
+)
+
+# Detect variable style in prompt
+style = detect_variable_style(prompt)  # {'format': 'curly', 'label_style': 'colon', ...}
+
+# Generate insertion text
+new_text = generate_insertion_text("Time Since Last Event", "time_since_last_event", style)
+
+# Validate prompt syntax
+warnings = validate_prompt_syntax(prompt)
+
+# Apply suggestion to prompt (convenience function)
+modified_prompt = apply_suggestion_to_prompt(
+    prompt,
+    target_section="Camera & Time Context",
+    insertion_point="append",
+    proposed_label="Time Since Last Event",
+    proposed_variable="time_since_last_event"
+)
+```
+
+### batch_fetch.py
+
+**Purpose:** Batch fetching service for detections to avoid N+1 query problems.
+
+**Key Features:**
+
+- Deduplicate input IDs
+- Split IDs into configurable batch sizes (default 250, max 1000)
+- Execute batched queries with IN clauses
+- Aggregate results efficiently
+- Optional ordering by detected_at timestamp
+
+**Configuration:**
+
+- `MIN_BATCH_SIZE`: 1
+- `DEFAULT_BATCH_SIZE`: 250 (balanced between query count and IN clause size)
+- `MAX_BATCH_SIZE`: 1000 (PostgreSQL handles IN clauses well up to ~1000 items)
+
+**Public API:**
+
+```python
+from backend.services.batch_fetch import (
+    batch_fetch_detections,
+    batch_fetch_detections_by_ids,
+    batch_fetch_file_paths,
+)
+
+async with get_session() as session:
+    # Fetch as list
+    detections = await batch_fetch_detections(session, detection_ids)
+
+    # Fetch as dict for O(1) lookup
+    detection_map = await batch_fetch_detections_by_ids(session, detection_ids)
+    detection = detection_map.get(123)
+
+    # Fetch only file paths (optimized)
+    paths = await batch_fetch_file_paths(session, detection_ids)
+```
+
+### inference_semaphore.py
+
+**Purpose:** Shared semaphore for AI inference concurrency control.
+
+**Key Features:**
+
+- Limits concurrent AI inference operations across all services
+- Prevents GPU/AI service overload under high traffic
+- Configurable via `AI_MAX_CONCURRENT_INFERENCES` env var (default: 4)
+- Global singleton pattern for shared resource management
+
+**Benefits:**
+
+- Prevents GPU OOM errors under high load
+- Ensures predictable latency by preventing request pileup
+- Allows graceful degradation instead of service crashes
+- Shared limit ensures total AI load stays bounded
+
+**Public API:**
+
+```python
+from backend.services.inference_semaphore import get_inference_semaphore
+
+async def detect_objects(...):
+    semaphore = get_inference_semaphore()
+    async with semaphore:
+        # Perform AI inference (this block limited to N concurrent operations)
+        result = await ai_client.detect(...)
+    return result
+```
+
+### partition_manager.py
+
+**Purpose:** PostgreSQL native partition management for high-volume time-series tables.
+
+**Key Features:**
+
+- Automatic partition creation for current and future months
+- Configurable partition intervals (monthly, weekly)
+- Automatic cleanup of old partitions beyond retention period
+- Partition statistics and monitoring
+- Idempotent partition creation (safe to run multiple times)
+
+**Partitioned Tables:**
+
+| Table      | Partition Column | Interval | Retention |
+| ---------- | ---------------- | -------- | --------- |
+| detections | detected_at      | monthly  | 12 months |
+| events     | started_at       | monthly  | 12 months |
+| logs       | timestamp        | monthly  | 6 months  |
+| gpu_stats  | recorded_at      | weekly   | 3 months  |
+
+**Partition Naming Convention:**
+
+- Monthly: `{table}_y{year}m{month:02d}` (e.g., `detections_y2026m01`)
+- Weekly: `{table}_y{year}w{week:02d}` (e.g., `gpu_stats_y2026w01`)
+
+**Public API:**
+
+```python
+from backend.services.partition_manager import PartitionManager
+
+manager = PartitionManager()
+await manager.ensure_partitions()  # Create missing partitions
+await manager.cleanup_old_partitions()  # Remove expired partitions
+stats = await manager.get_partition_stats()  # Get partition info
+result = await manager.run_maintenance()  # Full maintenance (create + cleanup)
+```
+
+### evaluation_queue.py
+
+**Purpose:** Priority queue for AI audit evaluations backed by Redis.
+
+**Key Features:**
+
+- Redis sorted set (ZSET) for priority-based ordering
+- Higher priority events (higher risk scores) are evaluated first
+- Persists across restarts (Redis-backed)
+- Supports queue status and management
+
+**Redis Storage:**
+
+- Key: `evaluation:pending` (sorted set)
+- Members: event IDs (as strings)
+- Scores: priorities (higher = evaluated first)
+
+**Public API:**
+
+```python
+from backend.services.evaluation_queue import get_evaluation_queue
+
+queue = get_evaluation_queue(redis_client)
+
+await queue.enqueue(event_id, priority=risk_score)  # Add to queue
+event_id = await queue.dequeue()  # Get highest priority event
+size = await queue.get_size()  # Get queue size
+pending = await queue.get_pending_events(limit=100)  # List pending events
+removed = await queue.remove(event_id)  # Remove specific event
+is_queued = await queue.is_queued(event_id)  # Check if event is queued
+```
+
+### background_evaluator.py
+
+**Purpose:** Background service that runs AI audit evaluations automatically when GPU is idle.
+
+**Key Features:**
+
+- Monitors GPU utilization and only processes when idle
+- Detection and analysis queues take priority over evaluation
+- Higher risk events are evaluated first (priority queue)
+- Configurable idle threshold (default: 20%) and duration requirements (default: 5s)
+
+**Processing Flow:**
+
+1. Check if detection/analysis queues are empty
+2. Check if GPU has been idle for required duration
+3. Dequeue highest priority event from evaluation queue
+4. Run full AI audit evaluation (4 LLM calls)
+5. Repeat or wait based on queue status
+
+**Configuration:**
+
+- `gpu_idle_threshold`: GPU utilization % below which GPU is idle (default: 20%)
+- `idle_duration_required`: Seconds GPU must be idle before processing (default: 5s)
+- `poll_interval`: How often to check for work (default: 5s)
+- `enabled`: Whether background evaluation is enabled (default: True)
+
+**Public API:**
+
+```python
+from backend.services.background_evaluator import get_background_evaluator
+
+evaluator = get_background_evaluator(
+    redis_client=redis_client,
+    gpu_monitor=gpu_monitor,
+    evaluation_queue=evaluation_queue,
+    audit_service=audit_service,
+)
+
+await evaluator.start()  # Start background loop
+is_idle = await evaluator.is_gpu_idle()  # Check GPU idle status
+can_process = await evaluator.can_process_evaluation()  # Check if can process
+processed = await evaluator.process_one()  # Process one evaluation manually
+await evaluator.stop()  # Stop background loop
+```
+
+### token_counter.py
+
+**Purpose:** Token counting service for LLM context window management.
+
+**Key Features:**
+
+- Tiktoken-based token counting with configurable encoding
+- Context utilization tracking with warning thresholds
+- Intelligent truncation of enrichment data by priority
+- Prometheus metrics for context utilization monitoring
+
+**Configuration:**
+
+- `encoding_name`: Tiktoken encoding (default: from settings, usually "cl100k_base")
+- `context_window`: Max context window (default: 32,768 for Nemotron)
+- `max_output_tokens`: Tokens reserved for output (default: 1,536)
+- `warning_threshold`: Utilization threshold for warnings (default: 0.85 = 85%)
+
+**Truncation Priority (lowest priority truncated first):**
+
+1. `depth_context` - Depth estimation (lowest priority)
+2. `pose_analysis` - Human pose estimation
+3. `action_recognition` - Action recognition
+4. `pet_classification_context` - Pet classification
+5. `image_quality_context` - Image quality assessment
+6. `weather_context` - Weather classification
+7. `vehicle_damage_context` - Vehicle damage detection
+8. `vehicle_classification_context` - Vehicle type classification
+9. `clothing_analysis_context` - Clothing analysis
+10. `violence_context` - Violence detection
+11. `reid_context` - Re-identification matches
+12. `cross_camera_summary` - Cross-camera activity
+13. `baseline_comparison` - Baseline anomaly detection
+14. `zone_analysis` - Zone context
+15. `detections_with_all_attributes` - Core detection data (high priority)
+16. `scene_analysis` - Scene analysis (highest priority)
+
+**Public API:**
+
+```python
+from backend.services.token_counter import (
+    get_token_counter,
+    count_prompt_tokens,
+    validate_prompt_tokens,
+)
+
+counter = get_token_counter()
+
+# Count tokens
+token_count = counter.count_tokens(prompt_text)
+token_count = count_prompt_tokens(prompt_text)  # Convenience function
+
+# Validate prompt fits in context window
+result = counter.validate_prompt(prompt, max_output_tokens=1536)
+result = validate_prompt_tokens(prompt, max_output_tokens=1536)  # Convenience function
+if not result.is_valid:
+    # Handle truncation
+    truncated = counter.truncate_enrichment_data(prompt, max_tokens)
+
+# Truncate to fit
+truncated_text = counter.truncate_to_fit(text, max_tokens, suffix="...[truncated]")
+
+# Estimate enrichment token counts
+token_counts = counter.estimate_enrichment_tokens({
+    "zone_analysis": zone_text,
+    "reid_context": reid_text,
+})
+
+# Get context budget
+budget = counter.get_context_budget()  # Returns dict with context_window, max_output_tokens, available_for_prompt
+```
+
+### clip_generator.py
+
+**Purpose:** Event clip generator service for creating video clips around detected events.
+
+**Key Features:**
+
+- Extract clips from existing video files using ffmpeg
+- Generate video from image sequences (MP4/GIF)
+- Configurable pre/post roll seconds (default: 5s each)
+- Store clips in configurable directory
+- Associate clips with Event records
+
+**Output Format:**
+
+- File: `{clips_directory}/{event_id}_clip.mp4` or `{event_id}_clip.gif`
+- Codec: libx264 (H.264) for MP4
+- Audio: copy (if present) or none
+
+**Security:**
+
+- All user inputs are validated before use in subprocess calls
+- Uses subprocess with list arguments (never shell=True)
+- Paths are validated to prevent command-line option injection
+
+**Public API:**
+
+```python
+from backend.services.clip_generator import get_clip_generator
+
+generator = get_clip_generator()
+
+# Generate clip from video
+clip_path = await generator.generate_clip_from_video(
+    event,
+    video_path="/path/to/video.mp4",
+    pre_seconds=5,
+    post_seconds=5
+)
+
+# Generate clip from images
+clip_path = await generator.generate_clip_from_images(
+    event,
+    image_paths=["/path/to/img1.jpg", "/path/to/img2.jpg"],
+    fps=2,
+    output_format="mp4"  # or "gif"
+)
+
+# Generate clip automatically (chooses best method)
+clip_path = await generator.generate_clip_for_event(
+    event,
+    video_path="/path/to/video.mp4",  # Optional
+    image_paths=[...],  # Optional
+    fps=2
+)
+
+# Query clips
+clip_path = generator.get_clip_path(event_id)  # Returns Path or None
+deleted = generator.delete_clip(event_id)  # Returns bool
+```
+
+### clip_loader.py
+
+**Purpose:** CLIP model loader for re-identification embeddings.
+
+**Key Features:**
+
+- Async loading of CLIP ViT-L models from HuggingFace
+- Generates 768-dimensional embeddings for entity re-identification
+- Automatic GPU detection and device placement
+- Thread pool execution to avoid blocking
+
+**Public API:**
+
+```python
+from backend.services.clip_loader import load_clip_model
+
+# Load CLIP model
+result = await load_clip_model("openai/clip-vit-large-patch14")
+model = result["model"]
+processor = result["processor"]
+
+# Model is automatically moved to GPU if available
+```
+
 ## Data Flow Between Services
 
 ### Complete Pipeline Flow
@@ -1135,12 +1603,19 @@ await registry.load_state()
 6. [NemotronAnalyzer]
    | Calls: AuditService.create_partial_audit()
    | Calls: EventBroadcaster.broadcast_event()
+   | Calls: EvaluationQueue.enqueue(event_id, priority=risk_score)
    | Publishes: Redis pub/sub channel "security_events"
 
 7. [AlertRuleEngine] (After Event Creation)
    | Evaluates: Each rule's conditions against event
    | Creates: Alert records for triggered rules
    | Calls: NotificationService.send_alert()
+
+8. [BackgroundEvaluator] (When GPU Idle)
+   | Checks: GPU idle and queues empty
+   | Dequeues: Highest priority event from evaluation queue
+   | Calls: AuditService.run_full_evaluation()
+   | Updates: EventAudit record with quality scores
 ```
 
 ### Enrichment Pipeline Flow
@@ -1200,12 +1675,25 @@ CleanupService (Daily Scheduled)
    | Deletes: Logs older than log_retention_days
    | Removes: Thumbnail files (and optionally original images)
 
+PartitionManager (Periodic Maintenance)
+   | Once per day (recommended)
+   | Creates: Missing partitions for current and future months
+   | Removes: Expired partitions beyond retention period
+   | Logs: Partition statistics and counts
+
 ServiceHealthMonitor (Periodic Health Checks)
    | Every check_interval seconds (default: 15s)
    | Checks: HTTP health endpoints for RT-DETRv2, Nemotron, Florence, CLIP
    | Checks: Redis via redis-cli ping
    | Restarts: Failed services with exponential backoff
    | Broadcasts: Service status changes via WebSocket
+
+BackgroundEvaluator (GPU Idle Processing)
+   | Every poll_interval seconds (default: 5s)
+   | Checks: GPU idle and detection/analysis queues empty
+   | Dequeues: Highest priority event from evaluation queue
+   | Runs: Full AI audit evaluation (4 LLM calls)
+   | Updates: EventAudit records with quality scores
 ```
 
 ### Redis Queue Structure
@@ -1232,6 +1720,13 @@ ServiceHealthMonitor (Periodic Health Checks)
 }
 ```
 
+**evaluation:pending (sorted set):**
+
+```
+Member: "123" (event_id as string)
+Score: 75 (priority, usually risk_score)
+```
+
 ## Import Patterns
 
 ```python
@@ -1247,6 +1742,9 @@ from backend.services import (
     CleanupService,
     CircuitBreaker,
     RetryHandler,
+    BackgroundEvaluator,
+    EvaluationQueue,
+    PartitionManager,
 )
 
 # For context enrichment (import directly)
@@ -1268,6 +1766,17 @@ from backend.services.pipeline_workers import PipelineWorkerManager
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.performance_collector import PerformanceCollector
 from backend.services.audit_service import AuditService, get_audit_service
+
+# For container orchestrator (import directly)
+from backend.services.container_orchestrator import ContainerOrchestrator
+from backend.services.container_discovery import ContainerDiscoveryService
+from backend.services.lifecycle_manager import LifecycleManager
+
+# For utilities (import directly)
+from backend.services.token_counter import get_token_counter, count_prompt_tokens
+from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_detections_by_ids
+from backend.services.prompt_parser import apply_suggestion_to_prompt
+from backend.services.inference_semaphore import get_inference_semaphore
 ```
 
 ## Testing Considerations
@@ -1296,6 +1805,9 @@ Most services provide `reset_*()` functions for test isolation:
 - `reset_reid_service()`, `reset_dedupe_service()`
 - `reset_context_enricher()`, `reset_enrichment_pipeline()`
 - `reset_scene_change_detector()`, `reset_audit_service()`
+- `reset_background_evaluator()`, `reset_evaluation_queue()`
+- `reset_token_counter()`, `reset_clip_generator()`
+- `reset_inference_semaphore()`
 
 ### Integration Test Patterns
 
@@ -1362,6 +1874,7 @@ assert clamped == (10, 10, 100, 100)
 - `scikit-image` - SSIM computation
 - `transformers` - Model loading (HuggingFace)
 - `torch` - PyTorch for model inference
+- `tiktoken` - Token counting for LLMs
 
 ## Related Documentation
 

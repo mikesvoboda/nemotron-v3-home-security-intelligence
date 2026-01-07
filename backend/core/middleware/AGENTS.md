@@ -13,12 +13,14 @@ The `backend/core/middleware/` directory is reserved for core infrastructure mid
 - `rate_limit.py` - Redis-based rate limiting
 - `security_headers.py` - Security headers middleware
 
-## Pruning Consideration
+## Pruning Recommendation
 
-This directory could potentially be removed if no core-level middleware is planned. However, keeping it as a placeholder maintains clear architectural separation between:
+**Recommendation:** This directory should be kept as a placeholder for clear architectural separation between:
 
 - **API middleware** (`backend/api/middleware/`) - HTTP request/response processing
 - **Core middleware** (`backend/core/middleware/`) - Infrastructure-level concerns (future)
+
+While currently empty, maintaining this directory preserves the architectural pattern and avoids confusion about where future infrastructure middleware should live.
 
 ## Future Use Cases
 
@@ -28,6 +30,10 @@ This directory may be used in the future for:
 - Internal service-to-service middleware
 - Background task middleware
 - Metrics collection middleware
+
+## Empty File Cleanup Note
+
+**Note:** The parent `backend/core/` directory contains an empty `result.py` file (0 lines) that serves no purpose and should be removed. This is unrelated to the middleware directory but noted here for completeness.
 
 ## Related Documentation
 
