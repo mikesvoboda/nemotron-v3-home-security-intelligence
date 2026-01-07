@@ -1,0 +1,439 @@
+/**
+ * Toast Notification Styles
+ *
+ * Custom styling for sonner toast notifications with NVIDIA dark theme.
+ * Uses the NVIDIA brand green (#76B900) as the primary accent color.
+ */
+
+/* ============================================
+   Toast Container & Position Overrides
+   ============================================ */
+
+/* Toast container base styles */
+[data-sonner-toaster] {
+  --toast-bg: #1a1a1a;
+  --toast-border: #2a2a2a;
+  --toast-text: #e0e0e0;
+  --toast-text-secondary: #9ca3af;
+  --nvidia-green: #76b900;
+  --nvidia-green-hover: #8bd000;
+  --nvidia-green-dark: #5c8f00;
+}
+
+/* ============================================
+   Base Toast Styling
+   ============================================ */
+
+[data-sonner-toast] {
+  --toast-border-radius: 12px;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  background: var(--toast-bg);
+  border: 1px solid var(--toast-border);
+  border-radius: var(--toast-border-radius);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 1px rgba(0, 0, 0, 0.3);
+  color: var(--toast-text);
+  padding: 16px;
+}
+
+/* Toast content area */
+[data-sonner-toast] [data-content] {
+  gap: 4px;
+}
+
+/* Toast title */
+[data-sonner-toast] [data-title] {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--toast-text);
+}
+
+/* Toast description */
+[data-sonner-toast] [data-description] {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--toast-text-secondary);
+  margin-top: 2px;
+}
+
+/* ============================================
+   Toast Variant Styles
+   ============================================ */
+
+/* Success toast - NVIDIA green accent */
+[data-sonner-toast][data-type='success'] {
+  background: linear-gradient(135deg, #1a2a10 0%, #1a1a1a 100%);
+  border-color: rgba(118, 185, 0, 0.3);
+}
+
+[data-sonner-toast][data-type='success'] [data-icon] svg {
+  color: var(--nvidia-green);
+}
+
+[data-sonner-toast][data-type='success']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--nvidia-green);
+  border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
+}
+
+/* Error toast - Red accent */
+[data-sonner-toast][data-type='error'] {
+  background: linear-gradient(135deg, #2a1a1a 0%, #1a1a1a 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+[data-sonner-toast][data-type='error'] [data-icon] svg {
+  color: #ef4444;
+}
+
+[data-sonner-toast][data-type='error']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #ef4444;
+  border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
+}
+
+/* Warning toast - Amber accent */
+[data-sonner-toast][data-type='warning'] {
+  background: linear-gradient(135deg, #2a2510 0%, #1a1a1a 100%);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-sonner-toast][data-type='warning'] [data-icon] svg {
+  color: #f59e0b;
+}
+
+[data-sonner-toast][data-type='warning']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #f59e0b;
+  border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
+}
+
+/* Info toast - Blue accent */
+[data-sonner-toast][data-type='info'] {
+  background: linear-gradient(135deg, #1a2030 0%, #1a1a1a 100%);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+[data-sonner-toast][data-type='info'] [data-icon] svg {
+  color: #3b82f6;
+}
+
+[data-sonner-toast][data-type='info']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #3b82f6;
+  border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
+}
+
+/* Loading toast - NVIDIA green spinner */
+[data-sonner-toast][data-type='loading'] {
+  background: var(--toast-bg);
+  border-color: rgba(118, 185, 0, 0.2);
+}
+
+[data-sonner-toast][data-type='loading'] [data-icon] svg {
+  color: var(--nvidia-green);
+}
+
+/* ============================================
+   Toast Action Buttons
+   ============================================ */
+
+[data-sonner-toast] [data-button] {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+/* Primary action button - NVIDIA green */
+[data-sonner-toast] [data-button]:not([data-cancel]) {
+  background: var(--nvidia-green);
+  color: #0a0a0a;
+  border: none;
+}
+
+[data-sonner-toast] [data-button]:not([data-cancel]):hover {
+  background: var(--nvidia-green-hover);
+}
+
+[data-sonner-toast] [data-button]:not([data-cancel]):active {
+  background: var(--nvidia-green-dark);
+  transform: scale(0.98);
+}
+
+/* Cancel/secondary action button */
+[data-sonner-toast] [data-cancel] {
+  background: transparent;
+  color: var(--toast-text-secondary);
+  border: 1px solid var(--toast-border);
+}
+
+[data-sonner-toast] [data-cancel]:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--toast-text);
+}
+
+[data-sonner-toast] [data-cancel]:active {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(0.98);
+}
+
+/* ============================================
+   Close Button Styling
+   ============================================ */
+
+[data-sonner-toast] [data-close-button] {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--toast-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+[data-sonner-toast]:hover [data-close-button] {
+  opacity: 1;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--toast-text);
+}
+
+[data-sonner-toast] [data-close-button]:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   Toast Icon Styling
+   ============================================ */
+
+[data-sonner-toast] [data-icon] {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+[data-sonner-toast] [data-icon] svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================
+   Toast Progress Bar
+   ============================================ */
+
+[data-sonner-toast] [data-progress] {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 var(--toast-border-radius) var(--toast-border-radius);
+  overflow: hidden;
+}
+
+[data-sonner-toast] [data-progress]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--nvidia-green);
+  animation: progress linear forwards;
+}
+
+/* ============================================
+   Animation Customizations
+   ============================================ */
+
+/* Entrance animation */
+[data-sonner-toast][data-mounted='true'] {
+  animation: toast-enter 0.2s ease-out;
+}
+
+/* Exit animation */
+[data-sonner-toast][data-removed='true'] {
+  animation: toast-exit 0.15s ease-in forwards;
+}
+
+@keyframes toast-enter {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Top position entrance animation */
+[data-sonner-toaster][data-position^='top'] [data-sonner-toast][data-mounted='true'] {
+  animation: toast-enter-top 0.2s ease-out;
+}
+
+[data-sonner-toaster][data-position^='top'] [data-sonner-toast][data-removed='true'] {
+  animation: toast-exit-top 0.15s ease-in forwards;
+}
+
+@keyframes toast-enter-top {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-exit-top {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 640px) {
+  [data-sonner-toaster] {
+    left: 16px !important;
+    right: 16px !important;
+    bottom: 16px !important;
+    top: auto !important;
+    transform: none !important;
+  }
+
+  [data-sonner-toast] {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   High Contrast Mode Support
+   ============================================ */
+
+@media (prefers-contrast: high) {
+  [data-sonner-toast] {
+    border-width: 2px;
+  }
+
+  [data-sonner-toast][data-type='success'] {
+    border-color: var(--nvidia-green);
+  }
+
+  [data-sonner-toast][data-type='error'] {
+    border-color: #ef4444;
+  }
+
+  [data-sonner-toast][data-type='warning'] {
+    border-color: #f59e0b;
+  }
+
+  [data-sonner-toast][data-type='info'] {
+    border-color: #3b82f6;
+  }
+}
+
+/* ============================================
+   Reduced Motion Support
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast][data-mounted='true'],
+  [data-sonner-toast][data-removed='true'] {
+    animation: none;
+  }
+
+  [data-sonner-toast] [data-button] {
+    transition: none;
+  }
+
+  [data-sonner-toast] [data-close-button] {
+    transition: none;
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   Stacking & Z-Index
+   ============================================ */
+
+[data-sonner-toaster] {
+  z-index: 9999;
+}
+
+/* Stack visual effect for multiple toasts */
+[data-sonner-toast][data-stacked='true']:nth-child(2) {
+  transform: scale(0.98) translateY(-8px);
+  opacity: 0.9;
+}
+
+[data-sonner-toast][data-stacked='true']:nth-child(3) {
+  transform: scale(0.96) translateY(-16px);
+  opacity: 0.8;
+}
+
+[data-sonner-toast][data-stacked='true']:nth-child(n + 4) {
+  transform: scale(0.94) translateY(-24px);
+  opacity: 0.7;
+}

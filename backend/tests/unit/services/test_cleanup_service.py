@@ -1,7 +1,35 @@
-"""Unit tests for cleanup service.
+"""Unit tests for the CleanupService.
 
-These tests use mocks and do not require a database connection.
-Tests that require PostgreSQL are in backend/tests/integration/test_cleanup_service.py.
+This module contains comprehensive unit tests for the CleanupService, which manages
+automated cleanup of old data including events, detections, GPU stats, logs,
+thumbnails, and optionally source images.
+
+Related Issues:
+    - NEM-1661: Improve Test Documentation with Intent and Acceptance Criteria
+
+Test Organization:
+    - CleanupStats tests: Verify the data class for tracking cleanup metrics
+    - Initialization tests: Verify service creation with default/custom settings
+    - Time parsing tests: Verify cleanup time HH:MM parsing logic
+    - File deletion tests: Verify safe file deletion behavior
+    - Service lifecycle tests: Verify start/stop behavior and idempotency
+    - run_cleanup tests: Verify actual cleanup operations with database
+    - dry_run_cleanup tests: Verify preview mode without deletion
+    - Log cleanup tests: Verify old log entry removal
+    - Edge case tests: Verify boundary conditions and error handling
+
+Acceptance Criteria:
+    - Cleanup service respects configured retention_days
+    - Cleanup runs at scheduled cleanup_time (HH:MM format)
+    - Cleanup deletes old events, detections, GPU stats, and logs
+    - Cleanup optionally deletes thumbnail and source image files
+    - Dry run mode counts records without deleting
+    - Service handles database errors gracefully
+    - Service lifecycle (start/stop) is idempotent
+
+Notes:
+    These tests use mocks and do not require a database connection.
+    Tests that require PostgreSQL are in backend/tests/integration/test_cleanup_service.py.
 """
 
 import asyncio
@@ -73,291 +101,451 @@ def cleanup_service_delete_images(tmp_path):
     return service
 
 
-# CleanupStats tests
+# =============================================================================
+# CleanupStats Tests
+# =============================================================================
 
 
-def test_cleanup_stats_initialization():
-    """Test CleanupStats initializes with zero values."""
-    stats = CleanupStats()
+class TestCleanupStats:
+    """Tests for the CleanupStats data class.
 
-    assert stats.events_deleted == 0
-    assert stats.detections_deleted == 0
-    assert stats.gpu_stats_deleted == 0
-    assert stats.logs_deleted == 0
-    assert stats.thumbnails_deleted == 0
-    assert stats.images_deleted == 0
-    assert stats.space_reclaimed == 0
+    CleanupStats tracks metrics from a cleanup operation including:
+    - Number of events, detections, GPU stats, and logs deleted
+    - Number of thumbnail and image files deleted
+    - Total disk space reclaimed in bytes
+    """
 
+    def test_initialization_with_zero_values(self):
+        """Verify CleanupStats initializes all counters to zero.
 
-def test_cleanup_stats_to_dict():
-    """Test CleanupStats converts to dictionary."""
-    stats = CleanupStats()
-    stats.events_deleted = 10
-    stats.detections_deleted = 25
-    stats.gpu_stats_deleted = 100
-    stats.logs_deleted = 50
-    stats.thumbnails_deleted = 20
-    stats.images_deleted = 15
-    stats.space_reclaimed = 1024000
+        Given: No arguments provided to CleanupStats constructor
+        When: A new CleanupStats instance is created
+        Then: All counter fields should be initialized to 0
+        """
+        stats = CleanupStats()
 
-    result = stats.to_dict()
+        assert stats.events_deleted == 0
+        assert stats.detections_deleted == 0
+        assert stats.gpu_stats_deleted == 0
+        assert stats.logs_deleted == 0
+        assert stats.thumbnails_deleted == 0
+        assert stats.images_deleted == 0
+        assert stats.space_reclaimed == 0
 
-    assert result == {
-        "events_deleted": 10,
-        "detections_deleted": 25,
-        "gpu_stats_deleted": 100,
-        "logs_deleted": 50,
-        "thumbnails_deleted": 20,
-        "images_deleted": 15,
-        "space_reclaimed": 1024000,
-    }
+    def test_to_dict_converts_all_fields(self):
+        """Verify CleanupStats converts to dictionary with all fields.
 
+        Given: A CleanupStats instance with populated values
+        When: to_dict() is called
+        Then: Returns a dictionary containing all field names and values
+        """
+        stats = CleanupStats()
+        stats.events_deleted = 10
+        stats.detections_deleted = 25
+        stats.gpu_stats_deleted = 100
+        stats.logs_deleted = 50
+        stats.thumbnails_deleted = 20
+        stats.images_deleted = 15
+        stats.space_reclaimed = 1024000
 
-def test_cleanup_stats_repr():
-    """Test CleanupStats string representation."""
-    stats = CleanupStats()
-    stats.events_deleted = 5
-    stats.detections_deleted = 10
+        result = stats.to_dict()
 
-    repr_str = repr(stats)
+        assert result == {
+            "events_deleted": 10,
+            "detections_deleted": 25,
+            "gpu_stats_deleted": 100,
+            "logs_deleted": 50,
+            "thumbnails_deleted": 20,
+            "images_deleted": 15,
+            "space_reclaimed": 1024000,
+        }
 
-    assert "CleanupStats" in repr_str
-    assert "events=5" in repr_str
-    assert "detections=10" in repr_str
+    def test_repr_includes_key_fields(self):
+        """Verify CleanupStats string representation includes key metrics.
 
+        Given: A CleanupStats instance with some values set
+        When: repr() is called on the instance
+        Then: String includes class name and key metric values
+        """
+        stats = CleanupStats()
+        stats.events_deleted = 5
+        stats.detections_deleted = 10
 
-# CleanupService initialization tests
+        repr_str = repr(stats)
 
-
-def test_cleanup_service_initialization():
-    """Test CleanupService initializes with correct defaults."""
-    service = CleanupService()
-
-    assert service.cleanup_time == "03:00"
-    assert service.retention_days == 30  # From config default
-    assert service.delete_images is False
-    assert service.running is False
-    assert service._cleanup_task is None
-
-
-def test_cleanup_service_custom_settings():
-    """Test CleanupService with custom settings."""
-    service = CleanupService(
-        cleanup_time="01:30",
-        retention_days=14,
-        thumbnail_dir="/custom/path",
-        delete_images=True,
-    )
-
-    assert service.cleanup_time == "01:30"
-    assert service.retention_days == 14
-    assert service.delete_images is True
-    assert str(service.thumbnail_dir) == "/custom/path"
+        assert "CleanupStats" in repr_str
+        assert "events=5" in repr_str
+        assert "detections=10" in repr_str
 
 
-# Time parsing tests
+# =============================================================================
+# CleanupService Initialization Tests
+# =============================================================================
 
 
-def test_parse_cleanup_time_valid():
-    """Test parsing valid cleanup time."""
-    service = CleanupService(cleanup_time="14:30")
-    hours, minutes = service._parse_cleanup_time()
+class TestCleanupServiceInitialization:
+    """Tests for CleanupService initialization and configuration.
 
-    assert hours == 14
-    assert minutes == 30
+    The CleanupService can be configured with:
+    - cleanup_time: When to run daily cleanup (HH:MM format, default "03:00")
+    - retention_days: How many days of data to keep (default 30)
+    - thumbnail_dir: Directory containing thumbnail images
+    - delete_images: Whether to delete source images (default False)
+    """
 
+    def test_default_configuration(self):
+        """Verify CleanupService initializes with sensible defaults.
 
-def test_parse_cleanup_time_midnight():
-    """Test parsing midnight time."""
-    service = CleanupService(cleanup_time="00:00")
-    hours, minutes = service._parse_cleanup_time()
+        Given: No configuration parameters provided
+        When: A new CleanupService instance is created
+        Then: Uses default cleanup_time="03:00", retention_days=30, delete_images=False
+        """
+        service = CleanupService()
 
-    assert hours == 0
-    assert minutes == 0
+        assert service.cleanup_time == "03:00"
+        assert service.retention_days == 30  # From config default
+        assert service.delete_images is False
+        assert service.running is False
+        assert service._cleanup_task is None
 
+    def test_custom_configuration(self):
+        """Verify CleanupService accepts custom configuration values.
 
-def test_parse_cleanup_time_invalid_format():
-    """Test parsing invalid time format."""
-    service = CleanupService(cleanup_time="invalid")
+        Given: Custom configuration parameters
+        When: A new CleanupService instance is created with those parameters
+        Then: Service uses the provided custom values
+        """
+        service = CleanupService(
+            cleanup_time="01:30",
+            retention_days=14,
+            thumbnail_dir="/custom/path",
+            delete_images=True,
+        )
 
-    with pytest.raises(ValueError, match="Invalid cleanup_time format"):
-        service._parse_cleanup_time()
-
-
-def test_parse_cleanup_time_out_of_range():
-    """Test parsing time out of valid range."""
-    service = CleanupService(cleanup_time="25:00")
-
-    with pytest.raises(ValueError, match="Invalid cleanup_time format"):
-        service._parse_cleanup_time()
-
-
-# Next cleanup calculation tests
-
-
-def test_calculate_next_cleanup_future_today():
-    """Test calculating next cleanup when time hasn't passed today."""
-    # Use a fixed time that's definitely in the morning to avoid midnight edge cases
-    mock_now = datetime(2025, 12, 23, 10, 0, 0)  # 10:00 AM
-    future_time = "14:00"  # 2:00 PM - still 4 hours away
-
-    with patch("backend.services.cleanup_service.datetime") as mock_datetime:
-        mock_datetime.now.return_value = mock_now
-        mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
-
-        service = CleanupService(cleanup_time=future_time)
-        next_cleanup = service._calculate_next_cleanup()
-
-        # Should be today
-        assert next_cleanup.date() == mock_now.date()
-        assert next_cleanup > mock_now
+        assert service.cleanup_time == "01:30"
+        assert service.retention_days == 14
+        assert service.delete_images is True
+        assert str(service.thumbnail_dir) == "/custom/path"
 
 
-def test_calculate_next_cleanup_past_today():
-    """Test calculating next cleanup when time has passed today."""
-    # Use a fixed time (14:00) to avoid edge cases near midnight
-    # Mock datetime to ensure the test time is well past the cleanup time
-    fixed_now = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
-
-    with patch("backend.services.cleanup_service.datetime") as mock_datetime:
-        mock_datetime.now.return_value = fixed_now
-        # Pass through timedelta calls
-        mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
-
-        # Set cleanup time to 2 hours before our fixed time (12:00)
-        service = CleanupService(cleanup_time="12:00")
-        next_cleanup = service._calculate_next_cleanup()
-
-    # Should be tomorrow at 12:00
-    assert next_cleanup.date() == (fixed_now + timedelta(days=1)).date()
-    assert next_cleanup > fixed_now
-    assert next_cleanup.hour == 12
-    assert next_cleanup.minute == 0
+# =============================================================================
+# Time Parsing Tests
+# =============================================================================
 
 
-# File deletion tests
+class TestCleanupTimeParsing:
+    """Tests for cleanup time parsing (HH:MM format).
+
+    The cleanup_time setting determines when the daily cleanup runs.
+    It must be in 24-hour HH:MM format (e.g., "03:00" for 3 AM).
+    """
+
+    def test_valid_time_format(self):
+        """Verify valid HH:MM time strings are parsed correctly.
+
+        Given: A CleanupService configured with cleanup_time="14:30"
+        When: _parse_cleanup_time() is called
+        Then: Returns tuple (14, 30) representing 2:30 PM
+        """
+        service = CleanupService(cleanup_time="14:30")
+        hours, minutes = service._parse_cleanup_time()
+
+        assert hours == 14
+        assert minutes == 30
+
+    def test_midnight_time(self):
+        """Verify midnight (00:00) is parsed correctly.
+
+        Given: A CleanupService configured with cleanup_time="00:00"
+        When: _parse_cleanup_time() is called
+        Then: Returns tuple (0, 0) representing midnight
+        """
+        service = CleanupService(cleanup_time="00:00")
+        hours, minutes = service._parse_cleanup_time()
+
+        assert hours == 0
+        assert minutes == 0
+
+    def test_invalid_format_raises_error(self):
+        """Verify invalid time format raises ValueError.
+
+        Given: A CleanupService configured with an invalid time string
+        When: _parse_cleanup_time() is called
+        Then: Raises ValueError with descriptive message
+        """
+        service = CleanupService(cleanup_time="invalid")
+
+        with pytest.raises(ValueError, match="Invalid cleanup_time format"):
+            service._parse_cleanup_time()
+
+    def test_out_of_range_hour_raises_error(self):
+        """Verify out-of-range hour value raises ValueError.
+
+        Given: A CleanupService configured with hour > 23
+        When: _parse_cleanup_time() is called
+        Then: Raises ValueError with descriptive message
+        """
+        service = CleanupService(cleanup_time="25:00")
+
+        with pytest.raises(ValueError, match="Invalid cleanup_time format"):
+            service._parse_cleanup_time()
 
 
-def test_delete_file_success(tmp_path):
-    """Test successful file deletion."""
-    # Create test file
-    test_file = tmp_path / "test.jpg"
-    test_file.write_text("test data")
-
-    service = CleanupService()
-    result = service._delete_file(str(test_file))
-
-    assert result is True
-    assert not test_file.exists()
+# =============================================================================
+# Next Cleanup Calculation Tests
+# =============================================================================
 
 
-def test_delete_file_nonexistent():
-    """Test deleting nonexistent file."""
-    service = CleanupService()
-    result = service._delete_file("/path/that/does/not/exist.jpg")
+class TestNextCleanupCalculation:
+    """Tests for calculating the next scheduled cleanup time.
 
-    assert result is False
+    The service calculates when to next run cleanup based on:
+    - Current time
+    - Configured cleanup_time (HH:MM)
+    - Whether today's cleanup time has already passed
+    """
+
+    def test_cleanup_scheduled_for_today_when_time_not_passed(self):
+        """Verify cleanup is scheduled for today when time hasn't passed.
+
+        Given: Current time is 10:00 AM, cleanup_time is "14:00"
+        When: _calculate_next_cleanup() is called
+        Then: Returns today's date at 14:00
+        """
+        # Use a fixed time that's definitely in the morning to avoid midnight edge cases
+        mock_now = datetime(2025, 12, 23, 10, 0, 0)  # 10:00 AM
+        future_time = "14:00"  # 2:00 PM - still 4 hours away
+
+        with patch("backend.services.cleanup_service.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_now
+            mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+            service = CleanupService(cleanup_time=future_time)
+            next_cleanup = service._calculate_next_cleanup()
+
+            # Should be today
+            assert next_cleanup.date() == mock_now.date()
+            assert next_cleanup > mock_now
+
+    def test_cleanup_scheduled_for_tomorrow_when_time_passed(self):
+        """Verify cleanup is scheduled for tomorrow when today's time has passed.
+
+        Given: Current time is 14:00, cleanup_time is "12:00"
+        When: _calculate_next_cleanup() is called
+        Then: Returns tomorrow's date at 12:00
+        """
+        # Use a fixed time (14:00) to avoid edge cases near midnight
+        # Mock datetime to ensure the test time is well past the cleanup time
+        fixed_now = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
+
+        with patch("backend.services.cleanup_service.datetime") as mock_datetime:
+            mock_datetime.now.return_value = fixed_now
+            # Pass through timedelta calls
+            mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+            # Set cleanup time to 2 hours before our fixed time (12:00)
+            service = CleanupService(cleanup_time="12:00")
+            next_cleanup = service._calculate_next_cleanup()
+
+        # Should be tomorrow at 12:00
+        assert next_cleanup.date() == (fixed_now + timedelta(days=1)).date()
+        assert next_cleanup > fixed_now
+        assert next_cleanup.hour == 12
+        assert next_cleanup.minute == 0
 
 
-def test_delete_file_permission_error(tmp_path):
-    """Test file deletion with permission error."""
-    test_file = tmp_path / "readonly.jpg"
-    test_file.write_text("test")
+# =============================================================================
+# File Deletion Tests
+# =============================================================================
 
-    service = CleanupService()
 
-    # Mock unlink to raise permission error
-    with patch.object(Path, "unlink", side_effect=PermissionError("Access denied")):
+class TestFileDeletion:
+    """Tests for the _delete_file helper method.
+
+    This method safely deletes files, handling common error conditions:
+    - Nonexistent files
+    - Permission errors
+    - Directories (should not delete)
+    """
+
+    def test_successful_deletion(self, tmp_path):
+        """Verify successful file deletion returns True.
+
+        Given: A file exists at a valid path
+        When: _delete_file() is called with that path
+        Then: Returns True and file no longer exists
+        """
+        # Create test file
+        test_file = tmp_path / "test.jpg"
+        test_file.write_text("test data")
+
+        service = CleanupService()
         result = service._delete_file(str(test_file))
 
-    assert result is False
+        assert result is True
+        assert not test_file.exists()
+
+    def test_nonexistent_file_returns_false(self):
+        """Verify deleting nonexistent file returns False.
+
+        Given: A file path that does not exist
+        When: _delete_file() is called with that path
+        Then: Returns False without raising exception
+        """
+        service = CleanupService()
+        result = service._delete_file("/path/that/does/not/exist.jpg")
+
+        assert result is False
+
+    def test_permission_error_returns_false(self, tmp_path):
+        """Verify permission error is handled gracefully.
+
+        Given: A file that cannot be deleted due to permissions
+        When: _delete_file() is called
+        Then: Returns False without raising exception
+        """
+        test_file = tmp_path / "readonly.jpg"
+        test_file.write_text("test")
+
+        service = CleanupService()
+
+        # Mock unlink to raise permission error
+        with patch.object(Path, "unlink", side_effect=PermissionError("Access denied")):
+            result = service._delete_file(str(test_file))
+
+        assert result is False
 
 
-# Service status tests
+# =============================================================================
+# Service Status Tests
+# =============================================================================
 
 
-def test_get_cleanup_stats_not_running():
-    """Test getting cleanup stats when service is not running."""
-    service = CleanupService(retention_days=14, cleanup_time="02:00")
+class TestServiceStatus:
+    """Tests for the get_cleanup_stats() method.
 
-    stats = service.get_cleanup_stats()
+    This method returns the current service configuration and state,
+    useful for health checks and admin dashboards.
+    """
 
-    assert stats["running"] is False
-    assert stats["retention_days"] == 14
-    assert stats["cleanup_time"] == "02:00"
-    assert stats["delete_images"] is False
-    assert stats["next_cleanup"] is None
+    def test_stats_when_not_running(self):
+        """Verify stats show service is not running when stopped.
 
+        Given: A CleanupService that has not been started
+        When: get_cleanup_stats() is called
+        Then: Returns running=False and next_cleanup=None
+        """
+        service = CleanupService(retention_days=14, cleanup_time="02:00")
 
-def test_get_cleanup_stats_running():
-    """Test getting cleanup stats when service is running."""
-    service = CleanupService()
-    service.running = True
+        stats = service.get_cleanup_stats()
 
-    stats = service.get_cleanup_stats()
+        assert stats["running"] is False
+        assert stats["retention_days"] == 14
+        assert stats["cleanup_time"] == "02:00"
+        assert stats["delete_images"] is False
+        assert stats["next_cleanup"] is None
 
-    assert stats["running"] is True
-    assert stats["next_cleanup"] is not None
+    def test_stats_when_running(self):
+        """Verify stats show service is running with next cleanup time.
 
+        Given: A CleanupService that is running
+        When: get_cleanup_stats() is called
+        Then: Returns running=True and next_cleanup is set
+        """
+        service = CleanupService()
+        service.running = True
 
-# Start/Stop tests
+        stats = service.get_cleanup_stats()
 
-
-@pytest.mark.asyncio
-async def test_start_service():
-    """Test starting the cleanup service."""
-    service = CleanupService()
-
-    await service.start()
-
-    assert service.running is True
-    assert service._cleanup_task is not None
-
-    # Cleanup
-    await service.stop()
-
-
-@pytest.mark.asyncio
-async def test_start_service_idempotent():
-    """Test starting service multiple times is idempotent."""
-    service = CleanupService()
-
-    await service.start()
-    first_task = service._cleanup_task
-
-    await service.start()
-    second_task = service._cleanup_task
-
-    # Should be same task
-    assert first_task is second_task
-
-    # Cleanup
-    await service.stop()
+        assert stats["running"] is True
+        assert stats["next_cleanup"] is not None
 
 
-@pytest.mark.asyncio
-async def test_stop_service():
-    """Test stopping the cleanup service."""
-    service = CleanupService()
-
-    await service.start()
-    assert service.running is True
-
-    await service.stop()
-
-    assert service.running is False
-    assert service._cleanup_task is None
+# =============================================================================
+# Service Lifecycle Tests (Start/Stop)
+# =============================================================================
 
 
-@pytest.mark.asyncio
-async def test_stop_service_not_running():
-    """Test stopping service that's not running."""
-    service = CleanupService()
+class TestServiceLifecycle:
+    """Tests for CleanupService start() and stop() methods.
 
-    # Should not raise exception
-    await service.stop()
+    The service lifecycle should be idempotent - calling start() multiple
+    times should be safe, and stop() should gracefully handle already-stopped
+    services.
+    """
 
-    assert service.running is False
+    @pytest.mark.asyncio
+    async def test_start_creates_cleanup_task(self):
+        """Verify starting service creates background cleanup task.
+
+        Given: A new CleanupService instance
+        When: start() is called
+        Then: Service is running and cleanup task is created
+        """
+        service = CleanupService()
+
+        await service.start()
+
+        assert service.running is True
+        assert service._cleanup_task is not None
+
+        # Cleanup
+        await service.stop()
+
+    @pytest.mark.asyncio
+    async def test_start_is_idempotent(self):
+        """Verify calling start() multiple times is safe.
+
+        Given: A CleanupService that is already running
+        When: start() is called again
+        Then: Same task is used, no duplicate tasks created
+        """
+        service = CleanupService()
+
+        await service.start()
+        first_task = service._cleanup_task
+
+        await service.start()
+        second_task = service._cleanup_task
+
+        # Should be same task
+        assert first_task is second_task
+
+        # Cleanup
+        await service.stop()
+
+    @pytest.mark.asyncio
+    async def test_stop_cancels_cleanup_task(self):
+        """Verify stopping service cancels background task.
+
+        Given: A running CleanupService
+        When: stop() is called
+        Then: Service is not running and task is cleared
+        """
+        service = CleanupService()
+
+        await service.start()
+        assert service.running is True
+
+        await service.stop()
+
+        assert service.running is False
+        assert service._cleanup_task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_when_not_running(self):
+        """Verify stopping a non-running service is safe.
+
+        Given: A CleanupService that has not been started
+        When: stop() is called
+        Then: No exception is raised
+        """
+        service = CleanupService()
+
+        # Should not raise exception
+        await service.stop()
+
+        assert service.running is False
 
 
 @pytest.mark.asyncio

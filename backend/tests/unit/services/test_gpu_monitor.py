@@ -1,4 +1,42 @@
-"""Unit tests for GPU monitor service."""
+"""Unit tests for the GPUMonitor service.
+
+This module contains comprehensive unit tests for the GPUMonitor service, which
+monitors NVIDIA GPU metrics (utilization, memory, temperature, power) and
+broadcasts them via WebSocket for the dashboard's GPU stats display.
+
+Related Issues:
+    - NEM-1661: Improve Test Documentation with Intent and Acceptance Criteria
+    - NEM-249: GPU Monitor Service Implementation
+    - NEM-1121: Configurable HTTP Client Timeouts
+    - NEM-1123: Error Logging Context Improvements
+
+Test Organization:
+    - Initialization tests: GPUMonitor creation with pynvml/nvidia-smi/mock modes
+    - Stats collection tests: Real GPU stats, mock GPU stats, and partial failures
+    - nvidia-smi fallback tests: Parsing, N/A values, timeout handling, async support
+    - Stats history tests: Empty history, filtering by time, circular buffer
+    - Async operations tests: Database storage, WebSocket broadcasting
+    - Lifecycle tests: Start/stop, idempotency, poll loop error handling
+    - Database retrieval tests: get_stats_from_db with and without errors
+    - RT-DETR response parsing tests: VRAM metrics from AI containers
+    - Inference FPS calculation tests: Detection-based FPS calculation
+    - HTTP timeout tests: Configurable timeouts for AI container queries
+    - Error logging tests: Context-rich error logging (NEM-1123)
+
+Acceptance Criteria:
+    - GPUMonitor detects and uses pynvml when available
+    - Falls back to nvidia-smi CLI when pynvml unavailable
+    - Falls back to mock data when no GPU access available
+    - Stats include: gpu_name, gpu_utilization, memory_used/total, temperature, power_usage
+    - Stats are stored to database periodically
+    - Stats are broadcast via WebSocket to connected clients
+    - Graceful handling of partial NVML failures (individual metrics)
+    - Configurable poll interval, history retention, and HTTP timeout
+
+Notes:
+    These tests use mocks extensively to simulate GPU hardware behavior.
+    Tests work on machines without NVIDIA GPUs by mocking pynvml and nvidia-smi.
+"""
 
 import asyncio
 import sys
@@ -189,11 +227,18 @@ def mock_broadcaster():
     return broadcaster
 
 
-# Test GPU Monitor Initialization
+# =============================================================================
+# GPUMonitor Initialization Tests
+# =============================================================================
 
 
 def test_gpu_monitor_init_with_gpu(mock_pynvml):
-    """Test GPUMonitor initialization with GPU available."""
+    """Verify GPUMonitor initializes correctly when pynvml detects GPU.
+
+    Given: pynvml module is available and detects "NVIDIA RTX A5500" GPU
+    When: A new GPUMonitor is created with custom poll_interval and history_minutes
+    Then: Service stores GPU name, marks GPU as available, and is not running
+    """
     monitor = GPUMonitor(poll_interval=2.0, history_minutes=30)
 
     assert monitor.poll_interval == 2.0
@@ -206,7 +251,12 @@ def test_gpu_monitor_init_with_gpu(mock_pynvml):
 
 @pytest.mark.usefixtures("mock_no_gpu_access")
 def test_gpu_monitor_init_without_pynvml():
-    """Test GPUMonitor initialization when pynvml is not installed and nvidia-smi unavailable."""
+    """Verify GPUMonitor falls back to mock mode when no GPU access available.
+
+    Given: pynvml module is not installed AND nvidia-smi is not in PATH
+    When: A new GPUMonitor is created
+    Then: Service marks GPU as unavailable and enters mock data mode
+    """
     monitor = GPUMonitor(poll_interval=5.0)
 
     assert monitor._gpu_available is False
@@ -233,11 +283,18 @@ def test_gpu_monitor_init_with_broadcaster(mock_pynvml, mock_broadcaster):
     assert monitor._gpu_available is True
 
 
-# Test GPU Stats Collection
+# =============================================================================
+# GPU Stats Collection Tests
+# =============================================================================
 
 
 def test_get_current_stats_real_gpu(mock_pynvml):
-    """Test getting current GPU stats with real GPU available."""
+    """Verify get_current_stats returns complete GPU metrics from pynvml.
+
+    Given: pynvml is available with mocked GPU metrics
+    When: get_current_stats() is called
+    Then: Returns dict with gpu_name, utilization, memory, temperature, power, timestamp
+    """
     monitor = GPUMonitor()
     stats = monitor.get_current_stats()
 
@@ -288,13 +345,19 @@ def test_get_current_stats_handles_pynvml_errors(mock_pynvml):
         assert isinstance(stats["gpu_utilization"], float)
 
 
-# Test nvidia-smi Fallback
+# =============================================================================
+# nvidia-smi Fallback Tests
+# =============================================================================
 
 
 def test_nvidia_smi_fallback_when_pynvml_unavailable(mock_pynvml_not_available):
-    """Test that nvidia-smi is used as fallback when pynvml is not available.
+    """Verify nvidia-smi CLI is used when pynvml module is unavailable.
 
-    This test runs on systems with nvidia-smi available, verifying the fallback works.
+    Given: pynvml module raises ImportError, but nvidia-smi is in PATH
+    When: GPUMonitor is created and stats are requested
+    Then: Stats are obtained via nvidia-smi subprocess (not mock data)
+
+    Note: This test is conditional - on systems without nvidia-smi, it passes silently.
     """
     monitor = GPUMonitor()
 
@@ -459,11 +522,18 @@ async def test_nvidia_smi_async_used_in_get_current_stats_async():
         assert stats == expected_stats
 
 
-# Test Stats History
+# =============================================================================
+# Stats History Tests
+# =============================================================================
 
 
 def test_stats_history_empty(mock_pynvml):
-    """Test getting stats history when empty."""
+    """Verify empty stats history returns empty list.
+
+    Given: A newly created GPUMonitor with no collected stats
+    When: get_stats_history() is called
+    Then: Returns empty list
+    """
     monitor = GPUMonitor()
     history = monitor.get_stats_history()
 
@@ -512,12 +582,19 @@ def test_stats_history_circular_buffer(mock_pynvml):
     assert len(monitor._stats_history) == 1000
 
 
-# Test Async Operations
+# =============================================================================
+# Async Operations Tests (Database Storage & WebSocket Broadcasting)
+# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_store_stats_in_database(mock_pynvml, mock_database_session):
-    """Test storing GPU stats in database."""
+    """Verify GPU stats are stored to database via SQLAlchemy session.
+
+    Given: A GPUMonitor with collected stats and a mocked database session
+    When: _store_stats() is called with stats dictionary
+    Then: Session.add() and session.commit() are called to persist the record
+    """
     monitor = GPUMonitor()
     stats = monitor.get_current_stats()
 
@@ -575,12 +652,19 @@ async def test_broadcast_stats_handles_error(mock_pynvml, mock_broadcaster):
     await monitor._broadcast_stats(stats)
 
 
-# Test Start/Stop Lifecycle
+# =============================================================================
+# Service Lifecycle Tests (Start/Stop)
+# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_start_monitor(mock_pynvml, mock_database_session):
-    """Test starting GPU monitor."""
+    """Verify starting GPUMonitor creates background polling task.
+
+    Given: A new GPUMonitor instance that is not running
+    When: start() is called
+    Then: Service is running and poll task is created and active
+    """
     monitor = GPUMonitor(poll_interval=0.1)
 
     await monitor.start()
@@ -679,12 +763,19 @@ async def test_poll_loop_continues_on_error(mock_pynvml, mock_database_session):
     assert len(monitor._stats_history) >= 1
 
 
-# Test Database Retrieval
+# =============================================================================
+# Database Retrieval Tests
+# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_get_stats_from_db(mock_pynvml):
-    """Test retrieving GPU stats from database."""
+    """Verify historical GPU stats are retrieved from database.
+
+    Given: Database contains GPU stats records from the past hour
+    When: get_stats_from_db(minutes=60) is called
+    Then: Returns list of GPUStats ORM objects with GPU metrics
+    """
     from backend.models.gpu_stats import GPUStats
 
     monitor = GPUMonitor()
@@ -883,11 +974,19 @@ def test_get_stats_real_generic_exception(mock_pynvml):
         assert stats["gpu_name"] == "Mock GPU (Development Mode)"
 
 
-# Test _parse_rtdetr_response
+# =============================================================================
+# RT-DETR Response Parsing Tests
+# =============================================================================
 
 
 def test_parse_rtdetr_response_full_data(mock_pynvml):
-    """Test parsing RT-DETRv2 response with all data including GPU metrics."""
+    """Verify RT-DETRv2 health endpoint response parsing with full GPU metrics.
+
+    Given: RT-DETRv2 /health response with vram_used_gb, device, gpu_utilization,
+           temperature, and power_watts
+    When: _parse_rtdetr_response() is called with this data
+    Then: Returns tuple (vram_mb, device, gpu_util, temp, power) with converted values
+    """
     monitor = GPUMonitor()
 
     data = {
@@ -1297,7 +1396,14 @@ def test_get_gpu_stats_real_reraises_exception(mock_pynvml):
 
 @pytest.mark.asyncio
 async def test_calculate_inference_fps_with_detections(mock_pynvml):
-    """Test inference FPS calculation when there are recent detections."""
+    """Verify inference FPS is calculated from detection count over time window.
+
+    Given: Database contains 120 detections from the last 60 seconds
+    When: _calculate_inference_fps() is called
+    Then: Returns 2.0 FPS (120 detections / 60 seconds)
+
+    Note: This metric helps users understand RT-DETRv2 throughput on their hardware.
+    """
     monitor = GPUMonitor()
 
     # Mock the database query to return a detection count
@@ -1423,7 +1529,12 @@ async def test_poll_loop_calculates_inference_fps(mock_pynvml, mock_database_ses
 
 
 def test_gpu_monitor_default_http_timeout(mock_pynvml):
-    """Test that GPUMonitor uses default HTTP timeout from settings."""
+    """Verify GPUMonitor uses sensible default HTTP timeout.
+
+    Given: No http_timeout parameter provided to GPUMonitor
+    When: GPUMonitor is created
+    Then: Uses default timeout between 5-10 seconds for AI container queries
+    """
     monitor = GPUMonitor()
 
     # Should use default timeout from settings (or default value)
@@ -1498,17 +1609,19 @@ def test_gpu_monitor_http_timeout_from_settings(mock_get_settings, mock_pynvml):
 
 
 # =============================================================================
-# NEM-1123: Error Logging Context Tests
+# Error Logging Context Tests (NEM-1123)
 # =============================================================================
 
 
 def test_gpu_stats_error_logging_includes_context(mock_pynvml, caplog):
-    """Test that GPU stats collection errors include context (NEM-1123).
+    """Verify GPU stats collection errors include operation context in logs.
 
-    When GPU stats collection fails, the error log should include:
-    - Timestamp of when the error occurred
-    - GPU ID (index)
-    - Operation being performed
+    Given: pynvml is available but utilization query raises an exception
+    When: get_current_stats() is called
+    Then: Error is logged with context about which operation failed,
+          and stats are returned with None for the failed metric
+
+    Note: Context-rich logging helps operators diagnose GPU monitoring issues.
     """
     import logging
 
