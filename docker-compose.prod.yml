@@ -29,6 +29,8 @@
 #   Create secrets/postgres_password.txt with your password, then uncomment the secrets
 #   sections below. The container will read the password from /run/secrets/postgres_password.
 
+version: '3.8'
+
 services:
   postgres:
     image: postgres:16-alpine
