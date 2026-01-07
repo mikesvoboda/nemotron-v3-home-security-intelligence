@@ -49,9 +49,11 @@ export class EntitiesPage extends BasePage {
     // Refresh button - has aria-label
     this.refreshButton = page.getByRole('button', { name: /Refresh entities/i });
 
-    // Empty state
-    this.emptyStateMessage = page.getByText(/No tracked entities have been detected/i);
-    this.emptyStateHeading = page.getByRole('heading', { name: /No Entities (Found|Tracked Yet)/i });
+    // Empty state - matches EntitiesEmptyState component
+    this.emptyStateMessage = page.getByText(
+      /Entities are automatically created when the AI identifies/i
+    );
+    this.emptyStateHeading = page.getByRole('heading', { name: /No Entities Tracked Yet/i });
 
     // Entity grid
     this.entityGrid = page.locator('.grid');

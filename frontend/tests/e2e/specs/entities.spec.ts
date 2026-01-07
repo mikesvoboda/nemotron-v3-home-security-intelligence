@@ -90,7 +90,7 @@ test.describe('Entities Empty State', () => {
   });
 
   test('empty state mentions no entities', async () => {
-    await expect(entitiesPage.emptyStateHeading).toHaveText(/No Entities (Found|Tracked Yet)/i);
+    await expect(entitiesPage.emptyStateHeading).toHaveText(/No Entities Tracked Yet/i);
   });
 });
 
