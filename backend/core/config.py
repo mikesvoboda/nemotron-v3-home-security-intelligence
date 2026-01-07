@@ -9,7 +9,7 @@ __all__ = [
 ]
 
 import os
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -1297,7 +1297,7 @@ class Settings(BaseSettings):
         return v
 
 
-@lru_cache
+@cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     runtime_env_path = os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env")

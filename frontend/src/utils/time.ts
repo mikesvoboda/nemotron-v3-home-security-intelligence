@@ -107,3 +107,78 @@ export function getDurationLabel(startedAt: string, endedAt: string | null): str
 export function isEventOngoing(endedAt: string | null): boolean {
   return endedAt === null;
 }
+
+/**
+ * Format a timestamp as relative time (e.g., "2 hours ago", "3 days ago")
+ * @param timestamp - ISO timestamp string or null
+ * @returns Formatted relative time string or "Never" if null
+ */
+export function formatRelativeTime(timestamp: string | null): string {
+  if (!timestamp) {
+    return 'Never';
+  }
+
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+
+    const diffMs = now.getTime() - date.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 60) {
+      return 'Just now';
+    }
+
+    if (diffMinutes < 60) {
+      return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
+    }
+
+    if (diffHours < 24) {
+      return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+    }
+
+    if (diffDays < 30) {
+      return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+    }
+
+    // For older dates, show absolute date
+    return date.toLocaleDateString();
+  } catch {
+    return 'Invalid date';
+  }
+}
+
+/**
+ * Check if a timestamp is stale (older than specified hours)
+ * @param timestamp - ISO timestamp string or null
+ * @param staleAfterHours - Number of hours after which timestamp is considered stale (default: 24)
+ * @returns True if timestamp is stale, false otherwise
+ */
+export function isTimestampStale(timestamp: string | null, staleAfterHours: number = 24): boolean {
+  if (!timestamp) {
+    return true;
+  }
+
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+
+    if (isNaN(date.getTime())) {
+      return true;
+    }
+
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    return diffHours > staleAfterHours;
+  } catch {
+    return true;
+  }
+}

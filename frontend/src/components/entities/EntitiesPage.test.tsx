@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import EntitiesPage from './EntitiesPage';
@@ -17,6 +18,11 @@ vi.mock('../../services/api', async () => {
 
 const mockFetchEntities = vi.mocked(api.fetchEntities);
 const mockFetchEntity = vi.mocked(api.fetchEntity);
+
+// Helper to render with router
+const renderWithRouter = (component: React.ReactElement) => {
+  return render(<BrowserRouter>{component}</BrowserRouter>);
+};
 
 describe('EntitiesPage', () => {
   // Mock entity data
@@ -74,7 +80,7 @@ describe('EntitiesPage', () => {
 
   describe('Rendering', () => {
     it('renders the page header with title and description', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -90,13 +96,13 @@ describe('EntitiesPage', () => {
       mockFetchEntities.mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       expect(screen.getAllByTestId('entity-card-skeleton').length).toBeGreaterThan(0);
     });
 
     it('displays entity cards after loading', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
@@ -110,7 +116,7 @@ describe('EntitiesPage', () => {
     it('displays error state when API fails', async () => {
       mockFetchEntities.mockRejectedValue(new Error('API Error'));
 
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.getByText('API Error')).toBeInTheDocument();
@@ -127,17 +133,105 @@ describe('EntitiesPage', () => {
         offset: 0,
       });
 
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('No Entities Found')).toBeInTheDocument();
+        expect(screen.getByText('No Entities Tracked Yet')).toBeInTheDocument();
+      });
+    });
+
+    it('displays enhanced empty state with "How it works" section', async () => {
+      mockFetchEntities.mockResolvedValue({
+        entities: [],
+        count: 0,
+        limit: 50,
+        offset: 0,
+      });
+
+      renderWithRouter(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('How it works')).toBeInTheDocument();
+      });
+
+      // Check for steps
+      expect(screen.getByText(/Camera detects a person or vehicle/i)).toBeInTheDocument();
+      expect(screen.getByText(/AI extracts visual features/i)).toBeInTheDocument();
+    });
+
+    it('displays CTA button in empty state', async () => {
+      mockFetchEntities.mockResolvedValue({
+        entities: [],
+        count: 0,
+        limit: 50,
+        offset: 0,
+      });
+
+      renderWithRouter(<EntitiesPage />);
+
+      await waitFor(() => {
+        const ctaButton = screen.getByRole('link', { name: /View Detection Settings/i });
+        expect(ctaButton).toBeInTheDocument();
+        expect(ctaButton).toHaveAttribute('href', '/settings');
       });
     });
   });
 
   describe('Filtering', () => {
+    it('displays simpler empty state when filtered by person with no results', async () => {
+      mockFetchEntities.mockResolvedValue({
+        entities: [],
+        count: 0,
+        limit: 50,
+        offset: 0,
+      });
+
+      const user = userEvent.setup();
+      renderWithRouter(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+      });
+
+      // Click the Persons filter
+      await user.click(screen.getByText('Persons'));
+
+      await waitFor(() => {
+        expect(screen.getByText('No Persons Found')).toBeInTheDocument();
+      });
+
+      // Should NOT show the full "How it works" section
+      expect(screen.queryByText('How it works')).not.toBeInTheDocument();
+    });
+
+    it('displays simpler empty state when filtered by vehicle with no results', async () => {
+      mockFetchEntities.mockResolvedValue({
+        entities: [],
+        count: 0,
+        limit: 50,
+        offset: 0,
+      });
+
+      const user = userEvent.setup();
+      renderWithRouter(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
+      });
+
+      // Click the Vehicles filter
+      await user.click(screen.getByText('Vehicles'));
+
+      await waitFor(() => {
+        expect(screen.getByText('No Vehicles Found')).toBeInTheDocument();
+      });
+
+      // Should NOT show the full "How it works" section
+      expect(screen.queryByText('How it works')).not.toBeInTheDocument();
+    });
+
     it('renders filter buttons for All, Persons, and Vehicles', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -150,7 +244,7 @@ describe('EntitiesPage', () => {
 
     it('filters entities when Persons button is clicked', async () => {
       const user = userEvent.setup();
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -169,7 +263,7 @@ describe('EntitiesPage', () => {
 
     it('filters entities when Vehicles button is clicked', async () => {
       const user = userEvent.setup();
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -189,7 +283,7 @@ describe('EntitiesPage', () => {
 
   describe('Refresh functionality', () => {
     it('renders refresh button', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -200,7 +294,7 @@ describe('EntitiesPage', () => {
 
     it('reloads entities when refresh button is clicked', async () => {
       const user = userEvent.setup();
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -222,7 +316,7 @@ describe('EntitiesPage', () => {
   describe('Entity detail modal', () => {
     it('opens modal when entity card is clicked', async () => {
       const user = userEvent.setup();
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -250,7 +344,7 @@ describe('EntitiesPage', () => {
 
   describe('Stats display', () => {
     it('displays entity type counts', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -264,7 +358,7 @@ describe('EntitiesPage', () => {
 
   describe('Accessibility', () => {
     it('has proper heading hierarchy', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -275,7 +369,7 @@ describe('EntitiesPage', () => {
     });
 
     it('filter buttons have aria-pressed attribute', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -289,7 +383,7 @@ describe('EntitiesPage', () => {
     });
 
     it('refresh button is accessible', async () => {
-      render(<EntitiesPage />);
+      renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -302,7 +396,7 @@ describe('EntitiesPage', () => {
 
   describe('Styling', () => {
     it('applies NVIDIA green accent color to icons', async () => {
-      const { container } = render(<EntitiesPage />);
+      const { container } = renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();
@@ -314,7 +408,7 @@ describe('EntitiesPage', () => {
     });
 
     it('has dark theme background', async () => {
-      const { container } = render(<EntitiesPage />);
+      const { container } = renderWithRouter(<EntitiesPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading entities...')).not.toBeInTheDocument();

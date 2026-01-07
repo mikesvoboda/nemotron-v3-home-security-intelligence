@@ -41,6 +41,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from functools import lru_cache
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
@@ -622,11 +623,16 @@ def sanitize_log_value(value: Any) -> str:
     return sanitized
 
 
+@lru_cache(maxsize=128)
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name.
 
     The returned logger will have the ContextFilter attached to ensure
     request_id and other context variables are included in log records.
+
+    Results are cached to avoid repeated filter checks and logger lookups.
+    The cache size of 128 accommodates most module hierarchies while
+    bounding memory usage.
 
     Args:
         name: Logger name, typically __name__ of the calling module
