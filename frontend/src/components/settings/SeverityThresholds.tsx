@@ -489,7 +489,7 @@ export default function SeverityThresholds({ className }: SeverityThresholdsProp
             <Button
               onClick={() => void handleSave()}
               disabled={!hasChanges || saving || !!validationError}
-              className="flex-1 bg-[#76B900] text-white hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="save-thresholds-button"
             >
               <Save className="mr-2 h-4 w-4" />
