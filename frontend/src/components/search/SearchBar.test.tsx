@@ -1157,4 +1157,201 @@ describe('SearchBar', () => {
       expect(screen.queryByText('Active')).not.toBeInTheDocument();
     });
   });
+
+  describe('Component initialization', () => {
+    it('initializes with default props', () => {
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^search$/i })).toBeInTheDocument();
+    });
+
+    it('uses custom placeholder when provided', () => {
+      const customPlaceholder = 'Search for events here...';
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          placeholder={customPlaceholder}
+        />
+      );
+      expect(screen.getByPlaceholderText(customPlaceholder)).toBeInTheDocument();
+    });
+
+    it('handles undefined cameras gracefully', () => {
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={undefined}
+        />
+      );
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+
+    it('handles empty cameras array', () => {
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          cameras={[]}
+        />
+      );
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+  });
+
+  describe('Query handling', () => {
+    it('displays provided query value', () => {
+      const testQuery = 'test search query';
+      render(
+        <SearchBar
+          query={testQuery}
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      expect(screen.getByDisplayValue(testQuery)).toBeInTheDocument();
+    });
+
+    it('handles whitespace-only query as empty', () => {
+      render(
+        <SearchBar query="   " onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      expect(searchButton).toBeDisabled();
+    });
+
+    it('enables search button with valid query', () => {
+      render(
+        <SearchBar
+          query="valid query"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const searchButton = screen.getByRole('button', { name: /^search$/i });
+      expect(searchButton).not.toBeDisabled();
+    });
+  });
+
+  describe('Search button states', () => {
+    it('shows default search button when not searching', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          isSearching={false}
+        />
+      );
+      expect(screen.getByText('Search')).toBeInTheDocument();
+      expect(screen.queryByText('Searching...')).not.toBeInTheDocument();
+    });
+
+    it('disables input during search', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          isSearching={true}
+        />
+      );
+      expect(screen.getByRole('textbox', { name: /search events/i })).toBeDisabled();
+    });
+  });
+
+  describe('Keyboard shortcuts', () => {
+    it('does not submit on Enter with whitespace-only query', () => {
+      render(
+        <SearchBar query="   " onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(mockOnSearch).not.toHaveBeenCalled();
+    });
+
+    it('ignores other keys', () => {
+      render(
+        <SearchBar
+          query="test"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      const input = screen.getByRole('textbox', { name: /search events/i });
+      fireEvent.keyDown(input, { key: 'a' });
+      fireEvent.keyDown(input, { key: 'Tab' });
+      expect(mockOnSearch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Filter button states', () => {
+    it('shows Active badge when initial filters provided', () => {
+      render(
+        <SearchBar
+          query=""
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+          initialFilters={{ severity: 'high' }}
+        />
+      );
+      expect(screen.getByText('Active')).toBeInTheDocument();
+    });
+
+    it('does not show Active badge without filters', () => {
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.queryByText('Active')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Saved searches count badge', () => {
+    it('shows count badge with saved searches', () => {
+      setMockSavedSearches([
+        { id: '1', name: 'Search 1', query: 'q1', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+        { id: '2', name: 'Search 2', query: 'q2', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+        { id: '3', name: 'Search 3', query: 'q3', filters: {}, createdAt: '2024-01-01T00:00:00Z' },
+      ]);
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.getByText('3')).toBeInTheDocument();
+    });
+
+    it('does not show count badge without saved searches', () => {
+      setMockSavedSearches([]);
+      render(
+        <SearchBar query="" onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      // Badge element should not exist when count is 0
+      expect(screen.queryByText('0')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Save button visibility', () => {
+    it('hides save button with whitespace-only query', () => {
+      render(
+        <SearchBar query="   " onQueryChange={mockOnQueryChange} onSearch={mockOnSearch} />
+      );
+      expect(screen.queryByRole('button', { name: /save search/i })).not.toBeInTheDocument();
+    });
+
+    it('shows save button with valid query', () => {
+      render(
+        <SearchBar
+          query="valid query"
+          onQueryChange={mockOnQueryChange}
+          onSearch={mockOnSearch}
+        />
+      );
+      expect(screen.getByRole('button', { name: /save search/i })).toBeInTheDocument();
+    });
+  });
 });
