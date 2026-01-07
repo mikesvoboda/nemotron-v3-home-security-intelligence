@@ -2,7 +2,7 @@
 # Uses HuggingFace Transformers for model loading and inference
 # Port: 8093 | Expected VRAM: ~800MB
 
-FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+FROM docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="CLIP ViT-L embedding server for entity re-identification"
