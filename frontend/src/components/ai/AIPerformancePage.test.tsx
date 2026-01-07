@@ -95,6 +95,8 @@ const renderWithRouter = () => {
 describe('AIPerformancePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear localStorage to prevent state bleed between tests
+    localStorage.clear();
     // Default mock implementation
     mockUseAIMetrics.mockReturnValue({
       data: defaultMockData,
@@ -106,6 +108,8 @@ describe('AIPerformancePage', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    // Clear localStorage after each test
+    localStorage.clear();
   });
 
   describe('basic rendering', () => {
@@ -113,6 +117,43 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
       await waitFor(() => {
         expect(screen.getByText('AI Performance')).toBeInTheDocument();
+      });
+    });
+
+    it('renders all four tabs', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        expect(screen.getByTestId('overview-tab')).toBeInTheDocument();
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+        expect(screen.getByTestId('model-zoo-tab')).toBeInTheDocument();
+        expect(screen.getByTestId('analytics-tab')).toBeInTheDocument();
+      });
+    });
+
+    it('Overview tab is selected by default', async () => {
+      renderWithRouter();
+      await waitFor(() => {
+        const overviewTab = screen.getByTestId('overview-tab');
+        expect(overviewTab).toHaveAttribute('data-selected', 'true');
+      });
+    });
+
+    it('shows error badge on Overview tab when errors exist', async () => {
+      mockUseAIMetrics.mockReturnValue({
+        data: {
+          ...defaultMockData,
+          pipelineErrors: { detection_timeout: 5, analysis_error: 3 },
+        },
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+      });
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        const overviewTab = screen.getByTestId('overview-tab');
+        expect(overviewTab).toHaveTextContent('8'); // 5 + 3 = 8 errors
       });
     });
 
@@ -162,8 +203,16 @@ describe('AIPerformancePage', () => {
       });
     });
 
-    it('renders latency panel', async () => {
+    it('renders latency panel in Latency tab', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
+
       await waitFor(() => {
         expect(screen.getByTestId('latency-panel')).toBeInTheDocument();
       });
@@ -183,36 +232,76 @@ describe('AIPerformancePage', () => {
       });
     });
 
-    it('renders insights charts', async () => {
+    it('renders insights charts in Analytics tab', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Analytics tab
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('analytics-tab'));
+
       await waitFor(() => {
         expect(screen.getByTestId('insights-charts')).toBeInTheDocument();
       });
     });
 
-    it('renders Model Zoo Analytics section', async () => {
+    it('renders Model Zoo Analytics section in Analytics tab', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Analytics tab
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('analytics-tab'));
+
       await waitFor(() => {
         expect(screen.getByTestId('model-zoo-analytics-section')).toBeInTheDocument();
       });
     });
 
-    it('renders Model Zoo Analytics title', async () => {
+    it('renders Model Zoo Analytics title in Analytics tab', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Analytics tab
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('analytics-tab'));
+
       await waitFor(() => {
         expect(screen.getByText('Model Zoo Analytics')).toBeInTheDocument();
       });
     });
 
-    it('renders model contribution chart in Model Zoo Analytics', async () => {
+    it('renders model contribution chart in Model Zoo Analytics tab', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Analytics tab
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('analytics-tab'));
+
       await waitFor(() => {
         expect(screen.getByTestId('model-contribution-chart')).toBeInTheDocument();
       });
     });
 
-    it('renders model leaderboard in Model Zoo Analytics', async () => {
+    it('renders model leaderboard in Model Zoo Analytics tab', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Analytics tab
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('analytics-tab'));
+
       await waitFor(() => {
         expect(screen.getByTestId('model-leaderboard')).toBeInTheDocument();
       });
@@ -597,7 +686,14 @@ describe('AIPerformancePage', () => {
 
   describe('latency panel display', () => {
     it('displays AI Service Latency card', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
 
       await waitFor(() => {
         expect(screen.getByTestId('ai-latency-card')).toBeInTheDocument();
@@ -606,7 +702,14 @@ describe('AIPerformancePage', () => {
     });
 
     it('displays RT-DETRv2 Detection latency stats', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
 
       await waitFor(() => {
         expect(screen.getByText('RT-DETRv2 Detection')).toBeInTheDocument();
@@ -614,7 +717,14 @@ describe('AIPerformancePage', () => {
     });
 
     it('displays Nemotron Analysis latency stats', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
 
       await waitFor(() => {
         expect(screen.getByText('Nemotron Analysis')).toBeInTheDocument();
@@ -622,6 +732,7 @@ describe('AIPerformancePage', () => {
     });
 
     it('shows "No data available" when latency is null', async () => {
+      const user = userEvent.setup();
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
@@ -635,6 +746,12 @@ describe('AIPerformancePage', () => {
 
       renderWithRouter();
 
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
+
       await waitFor(() => {
         const noDataElements = screen.getAllByText('No data available');
         expect(noDataElements.length).toBeGreaterThanOrEqual(2);
@@ -642,6 +759,7 @@ describe('AIPerformancePage', () => {
     });
 
     it('displays pipeline latency card when data is available', async () => {
+      const user = userEvent.setup();
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
@@ -660,6 +778,12 @@ describe('AIPerformancePage', () => {
       });
 
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
 
       await waitFor(() => {
         expect(screen.getByTestId('pipeline-latency-card')).toBeInTheDocument();
@@ -668,6 +792,7 @@ describe('AIPerformancePage', () => {
     });
 
     it('displays Total Pipeline stats when available', async () => {
+      const user = userEvent.setup();
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
@@ -686,6 +811,12 @@ describe('AIPerformancePage', () => {
       });
 
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
 
       await waitFor(() => {
         // Use getAllByText since 'Total Pipeline' appears in dropdown and display
@@ -986,13 +1117,20 @@ describe('AIPerformancePage', () => {
     });
 
     it('cards have data-testid for identification', async () => {
+      const user = userEvent.setup();
       renderWithRouter();
 
+      // Check Overview tab cards
       await waitFor(() => {
         expect(screen.getByTestId('rtdetr-status-card')).toBeInTheDocument();
         expect(screen.getByTestId('nemotron-status-card')).toBeInTheDocument();
-        expect(screen.getByTestId('latency-panel')).toBeInTheDocument();
         expect(screen.getByTestId('pipeline-health-panel')).toBeInTheDocument();
+      });
+
+      // Click on Latency tab to check latency panel
+      await user.click(screen.getByTestId('latency-tab'));
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-panel')).toBeInTheDocument();
       });
     });
   });
@@ -1017,6 +1155,7 @@ describe('AIPerformancePage', () => {
     });
 
     it('formats seconds correctly for large values', async () => {
+      const user = userEvent.setup();
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
@@ -1029,6 +1168,12 @@ describe('AIPerformancePage', () => {
 
       renderWithRouter();
 
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
+
       await waitFor(() => {
         // formatMs uses toFixed(1) for seconds: 5000ms -> 5.0s
         expect(screen.getByText('5.0s')).toBeInTheDocument();
@@ -1037,6 +1182,7 @@ describe('AIPerformancePage', () => {
     });
 
     it('formats very large latencies as minutes', async () => {
+      const user = userEvent.setup();
       mockUseAIMetrics.mockReturnValue({
         data: {
           ...defaultMockData,
@@ -1048,6 +1194,12 @@ describe('AIPerformancePage', () => {
       });
 
       renderWithRouter();
+
+      // Click on Latency tab
+      await waitFor(() => {
+        expect(screen.getByTestId('latency-tab')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('latency-tab'));
 
       await waitFor(() => {
         // formatMs uses toFixed(1) for minutes: 120000ms -> 2.0m

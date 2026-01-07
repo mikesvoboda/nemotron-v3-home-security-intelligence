@@ -95,6 +95,46 @@ function formatAction(action: string): string {
 }
 
 /**
+ * Returns the color classes for an action badge based on action type
+ */
+function getActionBadgeClasses(action: string): string {
+  const upperAction = action.toUpperCase();
+
+  if (upperAction.includes('CREATE') || upperAction.includes('ADD')) {
+    return 'bg-green-500/10 text-green-400 border-green-500/20';
+  }
+  if (upperAction.includes('UPDATE') || upperAction.includes('EDIT') || upperAction.includes('MODIFY')) {
+    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+  }
+  if (upperAction.includes('DELETE') || upperAction.includes('REMOVE')) {
+    return 'bg-red-500/10 text-red-400 border-red-500/20';
+  }
+  if (upperAction.includes('READ') || upperAction.includes('VIEW') || upperAction.includes('GET')) {
+    return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  }
+
+  // Default for other actions
+  return 'bg-gray-500/10 text-gray-300 border-gray-500/20';
+}
+
+/**
+ * Formats an absolute timestamp for tooltip
+ */
+function formatAbsoluteTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  return date.toLocaleString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short',
+  });
+}
+
+/**
  * AuditTable component displays a paginated table of audit log entries
  * - Click row to open detail modal
  * - Status badges with color coding (success=green, failure=red)
@@ -237,28 +277,38 @@ export default function AuditTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {logs.map((log) => (
+              {logs.map((log, index) => (
                 <tr
                   key={log.id}
                   onClick={() => handleRowClick(log)}
                   className={clsx(
                     'transition-colors',
-                    onRowClick && 'cursor-pointer hover:bg-[#76B900]/5'
+                    index % 2 === 0 ? 'bg-transparent' : 'bg-gray-800/30',
+                    onRowClick && 'cursor-pointer hover:bg-[#76B900]/10'
                   )}
                 >
                   {/* Timestamp */}
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
-                    {formatTimestamp(log.timestamp)}
+                    <span title={formatAbsoluteTimestamp(log.timestamp)} className="cursor-help">
+                      {formatTimestamp(log.timestamp)}
+                    </span>
                   </td>
 
                   {/* Actor */}
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    <span className="font-medium text-[#76B900]">{log.actor}</span>
+                    <span className="font-semibold text-[#76B900]">{log.actor}</span>
                   </td>
 
                   {/* Action */}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
-                    {formatAction(log.action)}
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    <span
+                      className={clsx(
+                        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                        getActionBadgeClasses(log.action)
+                      )}
+                    >
+                      {formatAction(log.action)}
+                    </span>
                   </td>
 
                   {/* Resource */}

@@ -203,47 +203,53 @@ describe('ModelZooSection', () => {
   });
 
   describe('status cards', () => {
-    it('renders enabled models grid', async () => {
+    it('renders enabled models accordion section', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
-        expect(screen.getByTestId('enabled-models-grid')).toBeInTheDocument();
+        // Models are now inside accordion sections
+        expect(screen.getByText(/Active Models/i)).toBeInTheDocument();
       });
     });
 
-    it('renders disabled models grid', async () => {
+    it('renders disabled models accordion section', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
-        expect(screen.getByTestId('disabled-models-grid')).toBeInTheDocument();
+        // Models are now inside accordion sections
+        expect(screen.getByText(/Disabled Models/i)).toBeInTheDocument();
       });
     });
 
-    it('renders model cards with correct testid', async () => {
+    it('renders enabled model cards inside accordion', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
+        // Enabled model cards are in the Active Models accordion (open by default)
         expect(screen.getByTestId('model-card-yolo11-license-plate')).toBeInTheDocument();
         expect(screen.getByTestId('model-card-yolo11-face')).toBeInTheDocument();
         expect(screen.getByTestId('model-card-violence-detection')).toBeInTheDocument();
-        expect(screen.getByTestId('model-card-yolo26-general')).toBeInTheDocument();
+        // Disabled models are in the Disabled Models accordion (closed by default)
+        // So yolo26-general won't be in the DOM initially
       });
     });
 
-    it('displays model display names', async () => {
+    it('displays enabled model display names', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
+        // Only enabled models are visible (Active Models accordion is open by default)
         expect(screen.getByText('YOLO11 License Plate')).toBeInTheDocument();
         expect(screen.getByText('YOLO11 Face')).toBeInTheDocument();
         expect(screen.getByText('Violence Detection')).toBeInTheDocument();
-        expect(screen.getByText('YOLO26 General')).toBeInTheDocument();
+        // YOLO26 General is disabled and in collapsed accordion
       });
     });
 
-    it('displays VRAM amounts on cards', async () => {
+    it('displays VRAM amounts on enabled model cards', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
+        // Only enabled models are visible
         expect(screen.getByText('300MB')).toBeInTheDocument();
         expect(screen.getByText('200MB')).toBeInTheDocument();
         expect(screen.getByText('150MB')).toBeInTheDocument();
-        expect(screen.getByText('400MB')).toBeInTheDocument();
+        // 400MB is on disabled model (yolo26-general) in collapsed accordion
       });
     });
 
@@ -277,12 +283,11 @@ describe('ModelZooSection', () => {
       });
     });
 
-    it('displays Disabled status for disabled models', async () => {
+    it('shows disabled models count in Disabled Models section', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
-        // yolo26-general is disabled
-        const generalCard = screen.getByTestId('model-card-yolo26-general');
-        expect(generalCard).toHaveTextContent('Disabled');
+        // Disabled Models section shows count
+        expect(screen.getByText(/Disabled Models \(1\)/i)).toBeInTheDocument();
       });
     });
   });
@@ -360,9 +365,9 @@ describe('ModelZooSection', () => {
     it('separates enabled and disabled models into different sections', async () => {
       render(<ModelZooSection />);
       await waitFor(() => {
-        // Check section headers
-        expect(screen.getByText('Active Models')).toBeInTheDocument();
-        expect(screen.getByText('Disabled Models')).toBeInTheDocument();
+        // Check section headers with counts
+        expect(screen.getByText(/Active Models \(3\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/Disabled Models \(1\)/i)).toBeInTheDocument();
       });
     });
   });
