@@ -2,6 +2,7 @@ import { Card, Title, Text, Button } from '@tremor/react';
 import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import CleanupPreviewPanel from './CleanupPreviewPanel';
 import DlqMonitor from './DlqMonitor';
 import SeverityThresholds from './SeverityThresholds';
 import StorageDashboard from './StorageDashboard';
@@ -359,6 +360,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
           </div>
         )}
       </Card>
+
+      {/* Cleanup Preview Panel - Preview retention policy impact */}
+      <CleanupPreviewPanel className="mt-6" />
 
       {/* Severity Thresholds - Display risk score thresholds */}
       <SeverityThresholds className="mt-6" />

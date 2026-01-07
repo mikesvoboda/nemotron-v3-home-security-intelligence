@@ -233,6 +233,214 @@ EOF
 }
 
 # =============================================================================
+# Podman-specific Functions (workaround for podman-compose parsing bug)
+# =============================================================================
+# podman-compose fails to parse docker-compose.prod.yml due to a bug in
+# norm_as_dict when processing deploy.resources.reservations.devices for GPU.
+# See: https://linear.app/nemotron-v3-home-security/issue/NEM-1720
+#
+# These functions use podman build/run directly to bypass the compose parser.
+
+stop_ai_containers_podman() {
+    # Stop and remove AI containers if they exist (called during cleanup)
+    local -a ai_containers=("ai-detector" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment")
+
+    for container in "${ai_containers[@]}"; do
+        if $CONTAINER_CMD container exists "$container" 2>/dev/null; then
+            run_cmd $CONTAINER_CMD stop "$container" 2>/dev/null || true
+            run_cmd $CONTAINER_CMD rm -f "$container" 2>/dev/null || true
+        fi
+    done
+}
+
+build_ai_images_podman() {
+    print_header "Building AI Images (podman build)"
+
+    cd "$PROJECT_ROOT"
+
+    local -a ai_services=(
+        "ai-detector:./ai/rtdetr"
+        "ai-llm:./ai/nemotron"
+        "ai-florence:./ai/florence"
+        "ai-clip:./ai/clip"
+        "ai-enrichment:./ai/enrichment"
+    )
+
+    for svc in "${ai_services[@]}"; do
+        local name="${svc%%:*}"
+        local context="${svc#*:}"
+
+        print_step "Building $name from $context..."
+        if run_cmd $CONTAINER_CMD build -t "$name" "$context"; then
+            print_success "$name image built"
+        else
+            print_fail "Failed to build $name"
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+start_ai_containers_podman() {
+    print_header "Starting AI Containers (podman run)"
+
+    cd "$PROJECT_ROOT"
+
+    # Get network name - podman-compose creates networks with project prefix
+    local network_name="nemotron-v3-home-security-intelligence_security-net"
+
+    # Ensure network exists (may have been created by GHCR compose)
+    if ! $CONTAINER_CMD network exists "$network_name" 2>/dev/null; then
+        print_step "Creating network $network_name..."
+        run_cmd $CONTAINER_CMD network create "$network_name" || true
+    fi
+
+    # GPU and security flags for podman
+    # --device nvidia.com/gpu=all: CDI device for GPU access
+    # --security-opt=label=disable: Disable SELinux for GPU device access
+    local gpu_flags="--device nvidia.com/gpu=all --security-opt=label=disable"
+
+    # ai-detector (RT-DETRv2)
+    print_step "Starting ai-detector..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name ai-detector \
+        --network "$network_name" \
+        $gpu_flags \
+        -p 8090:8090 \
+        -v "${HF_CACHE:-$HOME/.cache/huggingface}:/cache/huggingface:z" \
+        -e "RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}" \
+        -e "RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}" \
+        --restart unless-stopped \
+        ai-detector
+    print_success "ai-detector started"
+
+    # ai-llm (Nemotron)
+    print_step "Starting ai-llm..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name ai-llm \
+        --network "$network_name" \
+        $gpu_flags \
+        -p 8091:8091 \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro,z" \
+        -e "GPU_LAYERS=${GPU_LAYERS:-35}" \
+        -e "CTX_SIZE=${CTX_SIZE:-131072}" \
+        --restart unless-stopped \
+        ai-llm
+    print_success "ai-llm started"
+
+    # ai-florence
+    print_step "Starting ai-florence..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name ai-florence \
+        --network "$network_name" \
+        $gpu_flags \
+        -p 8092:8092 \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
+        -e "MODEL_PATH=/models/florence-2-large" \
+        --restart unless-stopped \
+        ai-florence
+    print_success "ai-florence started"
+
+    # ai-clip
+    print_step "Starting ai-clip..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name ai-clip \
+        --network "$network_name" \
+        $gpu_flags \
+        -p 8093:8093 \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
+        -e "CLIP_MODEL_PATH=/models/clip-vit-l" \
+        --restart unless-stopped \
+        ai-clip
+    print_success "ai-clip started"
+
+    # ai-enrichment
+    print_step "Starting ai-enrichment..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name ai-enrichment \
+        --network "$network_name" \
+        $gpu_flags \
+        -p 8094:8094 \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro,z" \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro,z" \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro,z" \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro,z" \
+        -e "VEHICLE_MODEL_PATH=/models/vehicle-segment-classification" \
+        -e "PET_MODEL_PATH=/models/pet-classifier" \
+        -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \
+        -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \
+        --restart unless-stopped \
+        ai-enrichment
+    print_success "ai-enrichment started"
+
+    return 0
+}
+
+# Restart backend with internal network URLs for AI services
+# This is needed because podman-compose starts the backend with host.docker.internal URLs,
+# but in hybrid mode the AI containers are on the same network and should use container names
+restart_backend_with_internal_urls() {
+    print_header "Restarting Backend with Internal AI URLs"
+
+    cd "$PROJECT_ROOT"
+    source .env 2>/dev/null || true
+
+    local network_name="nemotron-v3-home-security-intelligence_security-net"
+    local backend_name="nemotron-v3-home-security-intelligence_backend_1"
+    local frontend_name="nemotron-v3-home-security-intelligence_frontend_1"
+
+    # Stop frontend first (depends on backend)
+    print_step "Stopping frontend..."
+    run_cmd $CONTAINER_CMD stop "$frontend_name" 2>/dev/null || true
+    run_cmd $CONTAINER_CMD rm -f "$frontend_name" 2>/dev/null || true
+
+    # Stop backend
+    print_step "Stopping backend..."
+    run_cmd $CONTAINER_CMD stop "$backend_name" 2>/dev/null || true
+    run_cmd $CONTAINER_CMD rm -f "$backend_name" 2>/dev/null || true
+
+    # Start backend with internal network URLs
+    print_step "Starting backend with internal AI URLs..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name "$backend_name" \
+        --network "$network_name" \
+        --network-alias backend \
+        -p 8000:8000 \
+        -v "./backend/data:/app/data:z" \
+        -v "${CAMERA_PATH:-/export/foscam}:/cameras:ro,z" \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z" \
+        -e "DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}" \
+        -e "REDIS_URL=redis://redis:6379" \
+        -e "REDIS_PASSWORD=${REDIS_PASSWORD:-}" \
+        -e "RTDETR_URL=http://ai-detector:8090" \
+        -e "NEMOTRON_URL=http://ai-llm:8091" \
+        -e "FLORENCE_URL=http://ai-florence:8092" \
+        -e "CLIP_URL=http://ai-clip:8093" \
+        -e "ENRICHMENT_URL=http://ai-enrichment:8094" \
+        -e "FRONTEND_URL=http://frontend:80" \
+        -e "FOSCAM_BASE_PATH=/cameras" \
+        -e "DEBUG=${DEBUG:-false}" \
+        -e "FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}" \
+        --restart unless-stopped \
+        "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}"
+    print_success "Backend started with internal AI URLs"
+
+    # Restart frontend
+    print_step "Starting frontend..."
+    run_cmd $CONTAINER_CMD run -d \
+        --name "$frontend_name" \
+        --network "$network_name" \
+        --network-alias frontend \
+        -p "${FRONTEND_PORT:-5173}:80" \
+        --restart unless-stopped \
+        "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}"
+    print_success "Frontend started"
+
+    return 0
+}
+
+# =============================================================================
 # Main Functions
 # =============================================================================
 
@@ -392,40 +600,46 @@ stop_and_clean() {
         fi
     fi
 
-    # Stop containers from BOTH compose files to ensure clean state
-    print_step "Stopping containers from all compose files..."
+    # Stop containers from compose files and standalone containers
+    print_step "Stopping containers..."
 
     local down_flags=""
     if [ "$KEEP_VOLUMES" != "true" ]; then
         down_flags="-v"
     fi
 
-    # Stop prod compose containers
-    if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" down $down_flags --remove-orphans 2>/dev/null; then
-        print_success "Stopped prod compose containers"
-    else
-        print_info "No prod containers were running"
-    fi
-
-    # Stop GHCR compose containers
-    if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
-        print_success "Stopped GHCR compose containers"
-    else
-        print_info "No GHCR containers were running"
-    fi
-
-    # Force cleanup of any remaining pods and containers (Podman-specific)
     if [ "$CONTAINER_CMD" = "podman" ]; then
-        print_step "Cleaning up pods and orphaned containers..."
-        if run_cmd $CONTAINER_CMD pod rm -f -a 2>/dev/null; then
-            print_success "Pods cleaned up"
+        # Podman: Stop AI containers first (they're not managed by compose)
+        print_step "Stopping AI containers..."
+        stop_ai_containers_podman
+
+        # Stop GHCR compose containers (this works with podman-compose)
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
+            print_success "Stopped GHCR compose containers"
         else
-            print_info "No pods to clean up"
+            print_info "No GHCR containers were running"
         fi
-        if run_cmd $CONTAINER_CMD stop -a 2>/dev/null; then
-            print_success "All containers stopped"
+
+        # Note: We skip docker-compose.prod.yml with podman-compose due to parsing bug
+        # See: https://linear.app/nemotron-v3-home-security/issue/NEM-1720
+
+        # Final cleanup of any remaining pods and containers
+        print_step "Cleaning up pods and orphaned containers..."
+        run_cmd $CONTAINER_CMD pod rm -f -a 2>/dev/null || true
+        run_cmd $CONTAINER_CMD container prune -f 2>/dev/null || true
+        print_success "Cleanup complete"
+    else
+        # Docker: Use compose normally for both files
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" down $down_flags --remove-orphans 2>/dev/null; then
+            print_success "Stopped prod compose containers"
         else
-            print_info "No running containers"
+            print_info "No prod containers were running"
+        fi
+
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
+            print_success "Stopped GHCR compose containers"
+        else
+            print_info "No GHCR containers were running"
         fi
     fi
 
@@ -463,6 +677,10 @@ pull_images() {
     return 0
 }
 
+# =============================================================================
+# Build/Start Functions
+# =============================================================================
+
 build_images() {
     print_header "Building Images"
 
@@ -470,21 +688,44 @@ build_images() {
 
     if [ "$DEPLOY_MODE" = "local" ]; then
         # Build all 9 services locally
-        print_step "Building all service images (this may take a few minutes)..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build; then
-            print_success "All images built"
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            # Podman: Build core services with compose, AI services directly
+            print_step "Building core service images..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" build 2>/dev/null; then
+                print_success "Core images built"
+            else
+                print_info "Core services use pre-built images"
+            fi
+            # Build AI services with podman build (bypasses compose parser bug)
+            if ! build_ai_images_podman; then
+                return 1
+            fi
         else
-            print_fail "Failed to build images"
-            return 1
+            # Docker: Use compose normally
+            print_step "Building all service images (this may take a few minutes)..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build; then
+                print_success "All images built"
+            else
+                print_fail "Failed to build images"
+                return 1
+            fi
         fi
     elif [ "$DEPLOY_MODE" = "hybrid" ]; then
         # Build only AI services locally
-        print_step "Building AI service images (this may take a few minutes)..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
-            print_success "AI images built"
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            # Podman: Use podman build directly (bypasses compose parser bug)
+            if ! build_ai_images_podman; then
+                return 1
+            fi
         else
-            print_fail "Failed to build AI images"
-            return 1
+            # Docker: Use compose normally
+            print_step "Building AI service images (this may take a few minutes)..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+                print_success "AI images built"
+            else
+                print_fail "Failed to build AI images"
+                return 1
+            fi
         fi
     fi
     # GHCR mode doesn't build anything
@@ -498,16 +739,37 @@ start_containers() {
     cd "$PROJECT_ROOT"
 
     if [ "$DEPLOY_MODE" = "local" ]; then
-        # Start all 9 services from prod compose
-        print_step "Starting all containers from prod compose..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
-            print_success "All containers started"
+        # Start all 9 services
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            # Podman: Start core services with compose, AI services with podman run
+            print_step "Starting core containers from GHCR compose..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
+                print_success "Core containers started (postgres, redis, backend, frontend)"
+            else
+                print_fail "Failed to start core containers"
+                return 1
+            fi
+            # Start AI containers with podman run (bypasses compose parser bug)
+            if ! start_ai_containers_podman; then
+                return 1
+            fi
+            # Restart backend with internal network URLs (podman-compose uses host.docker.internal
+            # but AI containers are on the same network, so we need internal container names)
+            if ! restart_backend_with_internal_urls; then
+                return 1
+            fi
         else
-            print_fail "Failed to start containers"
-            return 1
+            # Docker: Use compose normally
+            print_step "Starting all containers from prod compose..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
+                print_success "All containers started"
+            else
+                print_fail "Failed to start containers"
+                return 1
+            fi
         fi
     elif [ "$DEPLOY_MODE" = "ghcr" ]; then
-        # Start only 4 services from GHCR compose
+        # Start only 4 services from GHCR compose (works with both docker and podman)
         print_step "Starting GHCR containers..."
         if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
             print_success "GHCR containers started"
@@ -516,7 +778,7 @@ start_containers() {
             return 1
         fi
     elif [ "$DEPLOY_MODE" = "hybrid" ]; then
-        # Hybrid: Start core services from GHCR, then AI services from prod
+        # Hybrid: Start core services from GHCR, then AI services
         print_step "Starting core containers from GHCR..."
         if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
             print_success "Core containers started (postgres, redis, backend, frontend)"
@@ -525,12 +787,25 @@ start_containers() {
             return 1
         fi
 
-        print_step "Starting AI containers from prod compose..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
-            print_success "AI containers started"
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            # Podman: Start AI containers with podman run (bypasses compose parser bug)
+            if ! start_ai_containers_podman; then
+                return 1
+            fi
+            # Restart backend with internal network URLs (podman-compose uses host.docker.internal
+            # but AI containers are on the same network, so we need internal container names)
+            if ! restart_backend_with_internal_urls; then
+                return 1
+            fi
         else
-            print_fail "Failed to start AI containers"
-            return 1
+            # Docker: Use compose normally
+            print_step "Starting AI containers from prod compose..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+                print_success "AI containers started"
+            else
+                print_fail "Failed to start AI containers"
+                return 1
+            fi
         fi
     fi
 

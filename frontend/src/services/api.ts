@@ -91,6 +91,15 @@ export type {
   SeverityDefinitionResponse,
   SeverityThresholds,
   SeverityMetadataResponse,
+  // Scene Change types
+  SceneChangeListResponse,
+  SceneChangeResponse,
+  SceneChangeAcknowledgeResponse,
+  // Pipeline Latency types
+  PipelineLatencyResponse,
+  PipelineLatencyHistoryResponse,
+  PipelineStageLatency,
+  LatencyHistorySnapshot,
 } from '../types/generated';
 
 // Import concrete types for use in this module
@@ -128,6 +137,10 @@ import type {
   LogsResponse as GeneratedLogsResponse,
   LogStats,
   ReadinessResponse,
+  SceneChangeAcknowledgeResponse,
+  SceneChangeListResponse,
+  PipelineLatencyResponse,
+  PipelineLatencyHistoryResponse,
   SearchResponse as GeneratedSearchResponse,
   SeverityMetadataResponse as GeneratedSeverityMetadataResponse,
   SystemConfig,
@@ -791,6 +804,37 @@ export async function fetchTelemetry(): Promise<TelemetryResponse> {
  */
 export async function fetchReadiness(): Promise<ReadinessResponse> {
   return fetchApi<ReadinessResponse>('/api/system/health/ready');
+}
+
+/**
+ * Fetch pipeline latency metrics with percentiles.
+ * Returns latency statistics for each stage transition in the AI pipeline.
+ *
+ * @param windowMinutes - Time window for calculating statistics (default: 60)
+ * @returns PipelineLatencyResponse with latency stats for each stage
+ */
+export async function fetchPipelineLatency(windowMinutes: number = 60): Promise<PipelineLatencyResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('window_minutes', String(windowMinutes));
+  return fetchApi<PipelineLatencyResponse>(`/api/system/pipeline-latency?${queryParams.toString()}`);
+}
+
+/**
+ * Fetch pipeline latency history for time-series visualization.
+ * Returns latency data grouped into time buckets for charting.
+ *
+ * @param since - Number of minutes of history to return (1-1440, default: 60)
+ * @param bucketSeconds - Size of each time bucket in seconds (10-3600, default: 60)
+ * @returns PipelineLatencyHistoryResponse with chronologically ordered snapshots
+ */
+export async function fetchPipelineLatencyHistory(
+  since: number = 60,
+  bucketSeconds: number = 60
+): Promise<PipelineLatencyHistoryResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('since', String(since));
+  queryParams.append('bucket_seconds', String(bucketSeconds));
+  return fetchApi<PipelineLatencyHistoryResponse>(`/api/system/pipeline-latency/history?${queryParams.toString()}`);
 }
 
 // ============================================================================
@@ -2656,6 +2700,69 @@ export interface EnrichedSuggestion {
 }
 
 // ============================================================================
+// Scene Change Detection Endpoints
+// ============================================================================
+
+/**
+ * Fetch scene changes for a camera with pagination.
+ *
+ * Returns detected camera view changes that may indicate tampering, angle changes,
+ * or blocked views. Uses cursor-based pagination for efficient navigation.
+ *
+ * @param cameraId - Camera ID to fetch scene changes for
+ * @param options - Optional query parameters
+ * @param options.acknowledged - Filter by acknowledgement status
+ * @param options.limit - Maximum number of results (default: 50)
+ * @param options.cursor - Cursor for pagination (ISO 8601 timestamp)
+ * @returns SceneChangeListResponse with list of scene changes and pagination info
+ * @throws ApiError 404 if camera not found
+ */
+export async function fetchSceneChanges(
+  cameraId: string,
+  options?: {
+    acknowledged?: boolean;
+    limit?: number;
+    cursor?: string;
+  }
+): Promise<SceneChangeListResponse> {
+  const params = new URLSearchParams();
+  if (options?.acknowledged !== undefined) {
+    params.append('acknowledged', String(options.acknowledged));
+  }
+  if (options?.limit !== undefined) {
+    params.append('limit', String(options.limit));
+  }
+  if (options?.cursor) {
+    params.append('cursor', options.cursor);
+  }
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return fetchApi<SceneChangeListResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/scene-changes${query}`
+  );
+}
+
+/**
+ * Acknowledge a scene change alert.
+ *
+ * Marks a scene change as acknowledged to indicate it has been reviewed.
+ *
+ * @param cameraId - Camera ID
+ * @param sceneChangeId - Scene change ID to acknowledge
+ * @returns SceneChangeAcknowledgeResponse confirming acknowledgement
+ * @throws ApiError 404 if camera or scene change not found
+ */
+export async function acknowledgeSceneChange(
+  cameraId: string,
+  sceneChangeId: number
+): Promise<SceneChangeAcknowledgeResponse> {
+  return fetchApi<SceneChangeAcknowledgeResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/scene-changes/${sceneChangeId}/acknowledge`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
 // A/B Testing Types
 // ============================================================================
 
@@ -2692,4 +2799,100 @@ export interface ABTestResult {
   };
   /** Score difference: modified - original (negative = B produces lower risk) */
   scoreDelta: number;
+}
+
+// ============================================================================
+// Event Clip Types
+// ============================================================================
+
+/**
+ * Status of clip generation
+ */
+export type ClipStatus = 'pending' | 'completed' | 'failed';
+
+/**
+ * Response from GET /api/events/{event_id}/clip
+ */
+export interface ClipInfoResponse {
+  event_id: number;
+  clip_available: boolean;
+  clip_url: string | null;
+  duration_seconds: number | null;
+  generated_at: string | null;
+  file_size_bytes: number | null;
+}
+
+/**
+ * Request for POST /api/events/{event_id}/clip/generate
+ */
+export interface ClipGenerateRequest {
+  start_offset_seconds?: number;
+  end_offset_seconds?: number;
+  force?: boolean;
+}
+
+/**
+ * Response from POST /api/events/{event_id}/clip/generate
+ */
+export interface ClipGenerateResponse {
+  event_id: number;
+  status: ClipStatus;
+  clip_url: string | null;
+  generated_at: string | null;
+  message: string | null;
+}
+
+// ============================================================================
+// Event Clip Endpoints
+// ============================================================================
+
+/**
+ * Get clip information for a specific event.
+ *
+ * Returns information about whether a video clip is available for the event,
+ * and if available, provides the URL to access it along with metadata.
+ *
+ * @param eventId - The ID of the event
+ * @returns ClipInfoResponse with clip availability and metadata
+ */
+export async function fetchEventClipInfo(eventId: number): Promise<ClipInfoResponse> {
+  return fetchApi<ClipInfoResponse>(`/api/events/${eventId}/clip`);
+}
+
+/**
+ * Trigger video clip generation for an event.
+ *
+ * If a clip already exists and force=false, returns the existing clip info.
+ * If force=true, regenerates the clip even if one exists.
+ *
+ * @param eventId - The ID of the event
+ * @param request - Clip generation parameters (optional)
+ * @returns ClipGenerateResponse with generation status and clip info
+ */
+export async function generateEventClip(
+  eventId: number,
+  request?: ClipGenerateRequest
+): Promise<ClipGenerateResponse> {
+  return fetchApi<ClipGenerateResponse>(`/api/events/${eventId}/clip/generate`, {
+    method: 'POST',
+    body: JSON.stringify(request || {}),
+  });
+}
+
+/**
+ * Get the URL for an event clip video.
+ * This URL can be used directly in a video src attribute.
+ *
+ * Note: Media endpoints are exempt from API key authentication.
+ *
+ * @param clipFilename - The clip filename (from ClipInfoResponse.clip_url)
+ * @returns The full URL to the clip video endpoint
+ */
+export function getEventClipUrl(clipFilename: string): string {
+  // clip_url from API is already in the format "/api/media/clips/{filename}"
+  // If it starts with /api, prepend BASE_URL; otherwise assume it's a full path
+  if (clipFilename.startsWith('/api/')) {
+    return `${BASE_URL}${clipFilename}`;
+  }
+  return clipFilename;
 }

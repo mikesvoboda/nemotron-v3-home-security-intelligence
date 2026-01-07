@@ -15,6 +15,8 @@ vi.mock('../../services/api', async () => {
     fetchCameraClassBaseline: vi.fn(),
     fetchAnomalyConfig: vi.fn(),
     updateAnomalyConfig: vi.fn(),
+    fetchSceneChanges: vi.fn(),
+    acknowledgeSceneChange: vi.fn(),
   };
 });
 
@@ -54,12 +56,21 @@ describe('AnalyticsPage', () => {
     window_days: 30,
   };
 
+  const mockSceneChanges = {
+    camera_id: 'cam1',
+    scene_changes: [],
+    total_changes: 0,
+    next_cursor: null,
+    has_more: false,
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchCameraActivityBaseline).mockResolvedValue(mockActivityBaseline);
     vi.mocked(api.fetchCameraClassBaseline).mockResolvedValue(mockClassBaseline);
     vi.mocked(api.fetchAnomalyConfig).mockResolvedValue(mockAnomalyConfig);
+    vi.mocked(api.fetchSceneChanges).mockResolvedValue(mockSceneChanges);
   });
 
   it('renders the page header', () => {

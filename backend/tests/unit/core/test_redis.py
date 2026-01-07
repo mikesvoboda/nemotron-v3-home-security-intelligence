@@ -1814,9 +1814,21 @@ def test_redis_client_password_from_constructor():
 
 def test_redis_client_password_none_by_default():
     """Test that RedisClient password defaults to None (no auth)."""
-    client = RedisClient(redis_url="redis://localhost:6379/0")
+    with patch("backend.core.redis.get_settings") as mock_get_settings:
+        mock_settings = MagicMock()
+        mock_settings.redis_url = "redis://localhost:6379/0"
+        mock_settings.redis_password = None  # Default is no password
+        mock_settings.redis_ssl_enabled = False
+        mock_settings.redis_ssl_cert_reqs = "required"
+        mock_settings.redis_ssl_ca_certs = None
+        mock_settings.redis_ssl_certfile = None
+        mock_settings.redis_ssl_keyfile = None
+        mock_settings.redis_ssl_check_hostname = True
+        mock_get_settings.return_value = mock_settings
 
-    assert client._password is None
+        client = RedisClient(redis_url="redis://localhost:6379/0")
+
+        assert client._password is None
 
 
 def test_redis_client_password_from_settings():
