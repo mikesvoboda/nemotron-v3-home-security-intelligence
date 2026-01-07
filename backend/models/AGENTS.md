@@ -17,23 +17,24 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 
 ```
 backend/models/
-├── __init__.py       # Module exports (all models and enums)
-├── camera.py         # Camera model and Base class definition
-├── detection.py      # Object detection results model (with video metadata support)
-├── event.py          # Security event model with LLM analysis
-├── event_audit.py    # AI pipeline audit model for performance tracking
-├── alert.py          # Alert and AlertRule models for notification system
-├── zone.py           # Zone model for camera region definitions
-├── baseline.py       # ActivityBaseline and ClassBaseline for anomaly detection
-├── audit.py          # AuditLog model for security-sensitive operations
-├── gpu_stats.py      # GPU performance metrics model
-├── log.py            # Structured application log model
-├── api_key.py        # API key authentication model
-├── prompt_version.py # AI prompt configuration version tracking
-├── scene_change.py   # Scene change detection for camera tampering alerts
+├── __init__.py        # Module exports (all models and enums)
+├── camera.py          # Camera model and Base class definition
+├── detection.py       # Object detection results model (with video metadata support)
+├── event.py           # Security event model with LLM analysis
+├── event_audit.py     # AI pipeline audit model for performance tracking
+├── alert.py           # Alert and AlertRule models for notification system
+├── zone.py            # Zone model for camera region definitions
+├── baseline.py        # ActivityBaseline and ClassBaseline for anomaly detection
+├── audit.py           # AuditLog model for security-sensitive operations
+├── gpu_stats.py       # GPU performance metrics model
+├── log.py             # Structured application log model
+├── api_key.py         # API key authentication model
+├── prompt_config.py   # Current AI prompt configuration (user-editable)
+├── prompt_version.py  # AI prompt configuration version tracking (historical)
+├── scene_change.py    # Scene change detection for camera tampering alerts
 ├── event_detection.py # Junction table for Event-Detection many-to-many relationship
-├── enums.py          # Shared enumerations (Severity)
-└── README.md         # Detailed model documentation
+├── enums.py           # Shared enumerations (Severity)
+└── README.md          # Detailed model documentation
 ```
 
 ## `__init__.py` - Module Exports
@@ -53,6 +54,7 @@ backend/models/
 - `GPUStats` - GPU performance metrics model
 - `Log` - Structured application log model
 - `APIKey` - API key authentication model
+- `PromptConfig` - Current AI prompt configuration model (user-editable, exported via `__init__.py`)
 - `PromptVersion`, `AIModel` - Prompt version tracking model and enum (not re-exported via `__init__.py` - import directly from `backend.models.prompt_version`)
 - `SceneChange`, `SceneChangeType` - Scene change detection model and enum
 - `Severity`, `CameraStatus` - Shared enumerations
@@ -640,6 +642,147 @@ Maps risk scores to severity levels (configurable thresholds):
 
 **Note:** Standalone table with no foreign key relationships. Used by authentication middleware when `api_key_enabled=True`.
 
+## `prompt_config.py` - Prompt Configuration Model
+
+### Purpose
+
+Stores the current (active) configuration for AI model prompts, allowing users to customize system prompts, temperature, and max_tokens settings through the admin UI.
+
+**Note:** This is distinct from `PromptVersion` (which tracks historical versions). `PromptConfig` stores the **current** configuration that is actively used by the AI pipeline.
+
+### Model: `PromptConfig`
+
+**Table:** `prompt_configs`
+
+**Fields:**
+
+| Field           | Type                    | Description                                          |
+| --------------- | ----------------------- | ---------------------------------------------------- |
+| `id`            | int (PK, autoincrement) | Unique config ID                                     |
+| `model`         | str (50 chars)          | Model name (unique index)                            |
+| `system_prompt` | text                    | Full system prompt text for the model                |
+| `temperature`   | float                   | LLM temperature setting (0-2, default: 0.7)          |
+| `max_tokens`    | int                     | Maximum tokens in response (100-8192, default: 2048) |
+| `version`       | int                     | Auto-incrementing version number (default: 1)        |
+| `created_at`    | datetime                | When the config was first created (UTC)              |
+| `updated_at`    | datetime                | When the config was last updated (UTC)               |
+
+**Supported Models:**
+
+- `nemotron` - Nemotron LLM risk analysis model
+- `florence-2` - Florence-2 scene analysis model
+- `yolo-world` - YOLO-World custom object detection
+- `x-clip` - X-CLIP action recognition model
+- `fashion-clip` - Fashion-CLIP clothing analysis
+
+**Indexes:**
+
+- `idx_prompt_configs_model` - Unique index on model (one config per model)
+- `idx_prompt_configs_updated_at` - Index on updated_at for audit queries
+
+### Version Tracking
+
+Each time a configuration is updated:
+
+1. The `version` field is incremented
+2. The `updated_at` timestamp is updated
+3. A new `PromptVersion` record is created for historical tracking
+
+This provides both:
+
+- **Current state**: `PromptConfig` table (one row per model)
+- **Historical audit trail**: `PromptVersion` table (all versions over time)
+
+### Usage
+
+**Fetching Current Configuration:**
+
+```python
+from sqlalchemy import select
+from backend.models import PromptConfig
+
+async with get_session() as session:
+    result = await session.execute(
+        select(PromptConfig).where(PromptConfig.model == "nemotron")
+    )
+    config = result.scalar_one_or_none()
+
+    if config:
+        print(f"System Prompt: {config.system_prompt}")
+        print(f"Temperature: {config.temperature}")
+        print(f"Max Tokens: {config.max_tokens}")
+        print(f"Version: {config.version}")
+```
+
+**Updating Configuration:**
+
+```python
+async with get_session() as session:
+    result = await session.execute(
+        select(PromptConfig).where(PromptConfig.model == "nemotron")
+    )
+    config = result.scalar_one_or_none()
+
+    if config:
+        config.system_prompt = "Updated prompt..."
+        config.temperature = 0.8
+        config.version += 1  # Increment version
+        await session.commit()
+```
+
+**Creating Initial Configuration:**
+
+```python
+from backend.models import PromptConfig
+
+async with get_session() as session:
+    config = PromptConfig(
+        model="nemotron",
+        system_prompt="You are a security analyst...",
+        temperature=0.7,
+        max_tokens=2048,
+    )
+    session.add(config)
+    await session.commit()
+```
+
+### Integration with Admin UI
+
+The admin UI provides a "Prompt Configuration" page where users can:
+
+- View current prompts for all models
+- Edit system prompts in a text editor
+- Adjust temperature and max_tokens sliders
+- See version history (links to `PromptVersion` records)
+- Preview prompt changes before saving
+- Rollback to previous versions
+
+**API Endpoints:**
+
+- `GET /api/admin/prompts` - List all prompt configurations
+- `GET /api/admin/prompts/{model}` - Get specific model config
+- `PUT /api/admin/prompts/{model}` - Update model config
+- `GET /api/admin/prompts/{model}/history` - View version history
+
+### Relationship to PromptVersion
+
+| Model           | Purpose                     | Records per Model  |
+| --------------- | --------------------------- | ------------------ |
+| `PromptConfig`  | Current active config       | 1 (singleton)      |
+| `PromptVersion` | Historical version tracking | Many (audit trail) |
+
+When updating a `PromptConfig`:
+
+1. Update the `PromptConfig` record (in-place update)
+2. Create a new `PromptVersion` record (snapshot)
+3. Increment the `version` field in both tables
+
+This pattern provides:
+
+- **Fast lookups**: Query `PromptConfig` for current state (no sorting required)
+- **Audit trail**: Query `PromptVersion` for history and rollback capability
+- **Version consistency**: Both tables track the same version number
+
 ## SQLAlchemy Patterns Used
 
 ### Modern SQLAlchemy 2.0 Syntax
@@ -705,9 +848,10 @@ AlertRule (1) ----< (many) Alert
 
 GPUStats (standalone, no foreign key relationships)
 APIKey (standalone, no foreign key relationships)
+PromptConfig (standalone, no foreign key relationships - current AI prompt configuration)
+PromptVersion (standalone, no foreign key relationships - historical prompt versions)
 Log (standalone, no foreign key relationships - for reliability)
 AuditLog (standalone, no foreign key relationships)
-PromptVersion (standalone, no foreign key relationships)
 EventDetection (junction table between Event and Detection)
 ```
 

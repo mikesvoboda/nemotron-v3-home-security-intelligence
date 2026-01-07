@@ -8,15 +8,16 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 
 | Directory           | Purpose                                          | Key Components                                                                                                                                                                                                                      |
 | ------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **ai/**             | AI Performance and Audit page components         | AIPerformancePage, AIAuditPage, ModelStatusCards, LatencyPanel, PipelineHealthPanel, InsightsCharts, ModelZooSection, BatchAuditModal, PromptPlayground, QualityScoreTrends, RecommendationsPanel, ModelLeaderboard                 |
+| **ai/**             | AI Performance and Audit page components         | AIPerformancePage, AIAuditPage, ModelStatusCards, LatencyPanel, PipelineHealthPanel, InsightsCharts, ModelZooSection, BatchAuditModal, PromptPlayground, PromptABTest, ABTestStats, QualityScoreTrends, RecommendationsPanel, ModelLeaderboard, SuggestionDiffView, SuggestionExplanation |
 | **ai-audit/**       | AI audit components (placeholder)                | index.ts barrel only (components live in ai/)                                                                                                                                                                                       |
 | **ai-performance/** | AI performance summary row component             | AIPerformanceSummaryRow                                                                                                                                                                                                             |
 | **alerts/**         | Alert management page                            | AlertsPage                                                                                                                                                                                                                          |
-| **audit/**          | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards                                                                                                                                                           |
-| **common/**         | Shared UI components used across the application | ErrorBoundary, RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox, SecureContextWarning, ScheduleSelector, ServiceStatusAlert                                                                                   |
+| **analytics/**      | Analytics and baseline monitoring                | AnalyticsPage, ActivityHeatmap, ClassFrequencyChart, AnomalyConfigPanel, PipelineLatencyPanel, SceneChangePanel                                                                                                                     |
+| **audit/**          | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards, EventAuditDetail                                                                                                                                         |
+| **common/**         | Shared UI components used across the application | ErrorBoundary, ChunkLoadErrorBoundary, RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox, SecureContextWarning, ScheduleSelector, TruncatedText, EmptyState, LoadingSpinner, RouteLoadingFallback             |
 | **dashboard/**      | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow (with integrated risk sparkline), PipelineQueues, PipelineTelemetry                                                                                                     |
 | **detection/**      | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                                                                                                              |
-| **entities/**       | Entity tracking page (WIP)                       | EntitiesPage                                                                                                                                                                                                                        |
+| **entities/**       | Entity tracking and re-identification            | EntitiesPage, EntityCard, EntityTimeline, EntityDetailModal, ReidHistoryPanel                                                                                                                                                      |
 | **events/**         | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                                                                                                             |
 | **layout/**         | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                             |
 | **logs/**           | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                                                                                                                 |
@@ -51,7 +52,16 @@ Routes:
 │ ├── ExportPanel
 │ └── EventDetailModal
 ├── /entities -> EntitiesPage (entities/)
+│   ├── EntityCard (grid of tracked entities)
+│   └── EntityDetailModal
+│       └── ReidHistoryPanel
 ├── /alerts -> AlertsPage (alerts/)
+├── /analytics -> AnalyticsPage (analytics/)
+│   ├── ActivityHeatmap
+│   ├── ClassFrequencyChart
+│   ├── AnomalyConfigPanel
+│   ├── PipelineLatencyPanel
+│   └── SceneChangePanel
 ├── /audit -> AuditLogPage (audit/)
 │ ├── AuditStatsCards
 │ ├── AuditFilters
@@ -119,6 +129,24 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 - `AlertsPage.tsx` - Alert management page with filtering
 - `AlertsPage.test.tsx` - Test suite for AlertsPage
+- `AGENTS.md` - Directory documentation
+
+### analytics/
+
+- `AnalyticsPage.tsx` - Analytics dashboard with baseline visualization
+- `AnalyticsPage.test.tsx` - Test suite for AnalyticsPage
+- `ActivityHeatmap.tsx` - 24x7 activity pattern heatmap
+- `ActivityHeatmap.test.tsx` - Test suite for ActivityHeatmap
+- `ClassFrequencyChart.tsx` - Object class frequency distribution chart
+- `ClassFrequencyChart.test.tsx` - Test suite for ClassFrequencyChart
+- `AnomalyConfigPanel.tsx` - Anomaly detection configuration panel
+- `AnomalyConfigPanel.test.tsx` - Test suite for AnomalyConfigPanel
+- `PipelineLatencyPanel.tsx` - AI pipeline latency monitoring
+- `PipelineLatencyPanel.test.tsx` - Test suite for PipelineLatencyPanel
+- `SceneChangePanel.tsx` - Camera tampering detection panel
+- `SceneChangePanel.test.tsx` - Test suite for SceneChangePanel
+- `index.ts` - Barrel exports
+- `AGENTS.md` - Directory documentation
 
 ### audit/
 
@@ -132,16 +160,37 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### common/
 
+- `ChunkLoadErrorBoundary.tsx` - Error boundary for dynamic import/chunk loading failures
+- `ChunkLoadErrorBoundary.test.tsx` - Test suite for ChunkLoadErrorBoundary
+- `EmptyState.tsx` - Reusable empty state component with icon and actions
+- `EmptyState.test.tsx` - Test suite for EmptyState
 - `ErrorBoundary.tsx` - React error boundary for catching component errors
+- `ErrorBoundary.test.tsx` - Test suite for ErrorBoundary
+- `LoadingSpinner.tsx` - Simple loading spinner for Suspense fallbacks
+- `LoadingSpinner.test.tsx` - Test suite for LoadingSpinner
+- `RouteLoadingFallback.tsx` - Loading indicator for lazy-loaded routes
+- `RouteLoadingFallback.test.tsx` - Test suite for RouteLoadingFallback
 - `RiskBadge.tsx` - Risk level badge with icon and optional score
+- `RiskBadge.test.tsx` - Test suite for RiskBadge
 - `ConfidenceBadge.tsx` - Detection confidence score badge with color coding
+- `ConfidenceBadge.test.tsx` - Test suite for ConfidenceBadge
 - `ObjectTypeBadge.tsx` - Detected object type badge (person, vehicle, animal, etc.)
+- `ObjectTypeBadge.test.tsx` - Test suite for ObjectTypeBadge
 - `WebSocketStatus.tsx` - WebSocket connection status indicator with tooltip
+- `WebSocketStatus.test.tsx` - Test suite for WebSocketStatus
 - `Lightbox.tsx` - Full-size image viewer with navigation
+- `Lightbox.test.tsx` - Test suite for Lightbox
 - `SecureContextWarning.tsx` - Banner for insecure context (HTTP) detection
+- `SecureContextWarning.test.tsx` - Test suite for SecureContextWarning
 - `ScheduleSelector.tsx` - Time-based schedule configuration for alerts
+- `ScheduleSelector.test.tsx` - Test suite for ScheduleSelector
+- `TruncatedText.tsx` - Text truncation with expand/collapse functionality
+- `TruncatedText.test.tsx` - Test suite for TruncatedText
 - `ServiceStatusAlert.tsx` - Service health notification banner (deprecated)
-- `index.ts` - Barrel exports (ErrorBoundary, RiskBadge, SecureContextWarning, WebSocketStatus)
+- `ServiceStatusAlert.test.tsx` - Test suite for ServiceStatusAlert (deprecated)
+- `index.ts` - Barrel exports
+- `.gitkeep` - Placeholder file
+- `AGENTS.md` - Directory documentation
 
 ### dashboard/
 
@@ -171,7 +220,18 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### entities/
 
-- \`EntitiesPage.tsx\` - Entity tracking page (work in progress)
+- `EntitiesPage.tsx` - Main entity tracking and management page
+- `EntitiesPage.test.tsx` - Test suite for EntitiesPage
+- `EntityCard.tsx` - Card display for individual tracked entity
+- `EntityCard.test.tsx` - Test suite for EntityCard
+- `EntityTimeline.tsx` - Timeline of entity appearances across cameras
+- `EntityTimeline.test.tsx` - Test suite for EntityTimeline
+- `EntityDetailModal.tsx` - Modal showing entity details and history
+- `EntityDetailModal.test.tsx` - Test suite for EntityDetailModal
+- `ReidHistoryPanel.tsx` - Re-identification history display panel
+- `ReidHistoryPanel.test.tsx` - Test suite for ReidHistoryPanel
+- `index.ts` - Barrel exports
+- `AGENTS.md` - Directory documentation
 
 ### events/
 
@@ -268,13 +328,24 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 Each subdirectory contains its own `AGENTS.md` with detailed component documentation:
 
-- `ai/AGENTS.md` - AI Performance and Audit page components
+- `ai/AGENTS.md` - AI Performance and Audit page components (updated with A/B testing components)
 - `ai-audit/AGENTS.md` - AI audit placeholder (components live in ai/)
 - `ai-performance/AGENTS.md` - AI performance summary row component
-- `common/AGENTS.md` - Shared component patterns and APIs (ErrorBoundary, RiskBadge, ObjectTypeBadge, Lightbox)
+- `alerts/AGENTS.md` - Alert management and filtering
+- `analytics/AGENTS.md` - Analytics, baseline monitoring, and anomaly detection (NEW)
+- `audit/AGENTS.md` - Audit log viewing and filtering
+- `common/AGENTS.md` - Shared component patterns and APIs (updated with loading/error boundaries)
 - `dashboard/AGENTS.md` - Dashboard widget details and data flow
+- `detection/AGENTS.md` - Bounding box overlays and detection visualization
+- `entities/AGENTS.md` - Entity tracking and re-identification (updated with ReidHistoryPanel)
+- `events/AGENTS.md` - Event cards, timeline, and detail modals
 - `layout/AGENTS.md` - Application shell and navigation (Layout, Header, Sidebar)
+- `logs/AGENTS.md` - Log viewing and filtering dashboard
+- `search/AGENTS.md` - Full-text search components
+- `settings/AGENTS.md` - Configuration pages and settings
 - `system/AGENTS.md` - System monitoring components with redesigned page
+- `video/AGENTS.md` - Video playback components
+- `zones/AGENTS.md` - Zone management and configuration
 
 ## Entry Points
 

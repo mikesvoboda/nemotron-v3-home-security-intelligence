@@ -11,6 +11,9 @@ The `backend/core/` directory contains the foundational infrastructure component
 - **Prometheus metrics** - Observability metrics for pipeline monitoring with latency tracking
 - **TLS/SSL** - Certificate management and HTTPS configuration
 - **MIME type utilities** - Media file type detection and normalization
+- **Async utilities** - Non-blocking I/O wrappers for blocking operations
+- **Resilience patterns** - Circuit breakers, retry logic, and error handling
+- **Validation & sanitization** - Input validation, SSRF protection, and security utilities
 
 These components are designed as singletons and provide dependency injection patterns for FastAPI routes and services.
 
@@ -20,15 +23,21 @@ These components are designed as singletons and provide dependency injection pat
 backend/core/
 ├── __init__.py                   # Public API exports (comprehensive re-exports)
 ├── async_context.py              # Async context propagation utilities (NEM-1640)
+├── async_utils.py                # Non-blocking I/O wrappers (sleep, subprocess, file I/O)
+├── circuit_breaker.py            # Shared circuit breaker for AI service resilience
 ├── config.py                     # Pydantic Settings configuration
 ├── constants.py                  # Application-wide constants (queue names, DLQ names)
 ├── database.py                   # SQLAlchemy async database layer
 ├── docker_client.py              # Async Docker/Podman client wrapper
+├── error_context.py              # Structured error context for enhanced logging
+├── exceptions.py                 # Custom exception hierarchy
 ├── json_utils.py                 # LLM JSON response parsing utilities
 ├── logging.py                    # Centralized logging configuration
 ├── metrics.py                    # Prometheus metrics definitions
 ├── mime_types.py                 # MIME type utilities for media files
+├── query_explain.py              # EXPLAIN ANALYZE logging for slow queries
 ├── redis.py                      # Redis async client with backpressure
+├── retry.py                      # Retry decorators with exponential backoff
 ├── sanitization.py               # Input sanitization (command injection, SSRF)
 ├── time_utils.py                 # UTC datetime utilities
 ├── tls.py                        # TLS/SSL certificate management
@@ -58,6 +67,7 @@ The `__init__.py` file provides a clean public API for the core module:
 - `get_engine()` - Access global async engine
 - `get_session_factory()` - Access session factory
 - `escape_ilike_pattern()` - Escape special characters for ILIKE queries
+- `get_pool_status()` - Get connection pool status metrics
 
 **Exported from json_utils.py:**
 
@@ -72,6 +82,7 @@ The `__init__.py` file provides a clean public API for the core module:
 - `close_redis()` - Cleanup Redis connection
 - `get_redis()` - FastAPI dependency for Redis client
 - `get_redis_optional()` - FastAPI dependency returning None if unavailable
+- `get_redis_client_sync()` - Synchronous Redis client for non-async contexts
 
 **Exported from logging.py:**
 
@@ -82,6 +93,7 @@ The `__init__.py` file provides a clean public API for the core module:
 - `sanitize_error()` - Sanitize error messages for logging
 - `redact_url()` - Redact credentials from URLs for safe logging
 - `redact_sensitive_value()` - Redact sensitive values in log output
+- `log_exception_with_context()` - Log exceptions with structured context
 - `SENSITIVE_FIELD_NAMES` - Set of field names to redact
 
 **Exported from metrics.py:**
@@ -114,6 +126,11 @@ The `__init__.py` file provides a clean public API for the core module:
 - `validate_certificate()` / `validate_certificate_files()` / `get_cert_info()` - Certificate inspection
 - `load_certificate_paths()` - Load cert/key paths from settings
 
+**Exported from query_explain.py:**
+
+- `QueryExplainLogger` - Logger class for EXPLAIN ANALYZE
+- `setup_explain_logging()` - Configure slow query logging
+
 **Usage:**
 
 ```python
@@ -121,7 +138,374 @@ from backend.core import get_settings, init_db, get_redis, get_logger, setup_log
 from backend.core import TLSConfig, TLSMode, create_ssl_context
 from backend.core import get_mime_type, is_video_mime_type
 from backend.core import extract_json_from_llm_response, escape_ilike_pattern
+from backend.core import setup_explain_logging, QueryExplainLogger
 ```
+
+## `async_utils.py` - Async Utilities
+
+### Purpose
+
+Provides async wrappers for common blocking operations that would otherwise block the event loop:
+
+- `async_sleep()` - Non-blocking replacement for time.sleep
+- `async_open_image()` - Non-blocking PIL Image.open
+- `async_subprocess_run()` - Non-blocking subprocess.run
+- `AsyncTaskGroup` - Structured concurrency with Python 3.11+ TaskGroup
+- `bounded_gather()` - asyncio.gather with concurrency limits
+- `async_read_bytes()`/`async_read_text()` - Non-blocking file reading
+- `async_write_bytes()`/`async_write_text()` - Non-blocking file writing
+
+### Key Functions
+
+**`async_sleep(seconds: float)`** - Non-blocking sleep:
+
+```python
+# Instead of: time.sleep(1.0)
+await async_sleep(1.0)
+```
+
+**`async_open_image(path: Path | str)`** - Non-blocking image loading:
+
+```python
+# Instead of: img = Image.open(path)
+img = await async_open_image(path)
+```
+
+**`async_subprocess_run(args, **kwargs)`\*\* - Non-blocking subprocess:
+
+```python
+# Instead of: result = subprocess.run([...])
+result = await async_subprocess_run(["ffmpeg", "-i", "video.mp4"])
+```
+
+**`AsyncTaskGroup`** - Structured concurrency:
+
+```python
+async with AsyncTaskGroup() as tg:
+    tg.create_task(operation_a())
+    tg.create_task(operation_b())
+# Automatically waits for all tasks, cancels on error
+```
+
+**`bounded_gather(coros, limit=10)`** - Concurrent execution with limits:
+
+```python
+results = await bounded_gather(
+    [operation(i) for i in range(100)],
+    limit=10,  # Max 10 concurrent operations
+)
+```
+
+**File I/O:**
+
+```python
+# Non-blocking file operations
+data = await async_read_bytes(Path("file.bin"))
+text = await async_read_text(Path("file.txt"))
+await async_write_bytes(Path("output.bin"), data)
+await async_write_text(Path("output.txt"), text)
+```
+
+### Usage Notes
+
+- All blocking operations run in thread pool via `asyncio.to_thread()`
+- Prevents event loop blocking in async web frameworks
+- Essential for image processing, file I/O, and subprocess calls
+
+## `circuit_breaker.py` - Circuit Breaker Pattern
+
+### Purpose
+
+Provides a reusable `CircuitBreaker` class for protecting AI service calls. Prevents cascading failures by temporarily stopping requests to failing services.
+
+### States
+
+- **CLOSED** - Normal operation, requests proceed
+- **OPEN** - Too many failures, requests blocked for recovery
+- **HALF_OPEN** - Testing recovery, limited requests allowed
+
+### Key Class: `CircuitBreaker`
+
+**Initialization:**
+
+```python
+from backend.core.circuit_breaker import CircuitBreaker
+
+breaker = CircuitBreaker(
+    name="florence",
+    failure_threshold=5,
+    recovery_timeout=60,
+    half_open_max_calls=3
+)
+```
+
+**Methods:**
+
+- `check_and_raise()` - Raises `CircuitBreakerOpenError` if open
+- `record_success()` - Record successful call
+- `record_failure()` - Record failed call
+- `protected_call(func)` - Wrapper for automatic tracking
+- Context manager support for scoped protection
+
+**Usage Patterns:**
+
+```python
+# Method 1: Manual check and record
+breaker.check_and_raise()  # Raises if open
+try:
+    result = await make_request()
+    breaker.record_success()
+except Exception:
+    breaker.record_failure()
+    raise
+
+# Method 2: Protected call wrapper
+result = await breaker.protected_call(make_request)
+
+# Method 3: Context manager
+async with breaker:
+    result = await make_request()
+```
+
+### Integration
+
+- Integrated with Prometheus metrics for monitoring
+- Logs state transitions (CLOSED → OPEN → HALF_OPEN)
+- Thread-safe with asyncio Lock
+- Used by AI service clients (RT-DETR, Nemotron, Florence-2)
+
+## `error_context.py` - Structured Error Context
+
+### Purpose
+
+Provides utilities for capturing rich context around errors for better debugging and monitoring.
+
+### Key Components
+
+**`ErrorContext` dataclass** - Structured error information:
+
+- Exception details (type, message, traceback)
+- Request context (request_id, path, method)
+- Service context (external service errors)
+- Operation details (what was being attempted)
+- Timestamp and duration tracking
+
+**`ErrorContextBuilder`** - Fluent builder API:
+
+```python
+from backend.core.error_context import ErrorContextBuilder
+
+ctx = (
+    ErrorContextBuilder()
+    .from_exception(exc)
+    .with_operation("detect_objects")
+    .with_request(request_id, path, method)
+    .with_service("rtdetr", status_code=503)
+    .build()
+)
+```
+
+**Helper Functions:**
+
+- `log_error(exception, **context)` - Log error with full context
+- `log_with_context(level, message, **context)` - Structured logging helper
+
+**Usage:**
+
+```python
+from backend.core.error_context import log_error, log_with_context
+
+# Log an error with full context
+try:
+    await risky_operation()
+except DatabaseError as e:
+    log_error(e, operation="sync_data", request_id=request_id)
+
+# Structured logging
+log_with_context("info", "Processing started", camera_id="front_door", event_id=123)
+```
+
+### Features
+
+- Exception chain capture for root cause analysis
+- Request context extraction from FastAPI
+- Service context for external service errors
+- Automatic sensitive data redaction
+- Integration with custom exception hierarchy
+
+## `exceptions.py` - Custom Exception Hierarchy
+
+### Purpose
+
+Defines custom exceptions used throughout the backend with HTTP status code mapping.
+
+### Exception Hierarchy
+
+**Base Exception:**
+
+- `SecurityIntelligenceError` - Base for all custom exceptions
+
+**Infrastructure Errors:**
+
+- `DatabaseError` (500) - Database operation failures
+- `RedisError` (500) - Redis operation failures
+- `ConfigurationError` (500) - Configuration problems
+
+**External Service Errors:**
+
+- `ExternalServiceError` (503) - Base for external service failures
+- `AIServiceError` (503) - AI service unavailable
+- `RTDETRError` (503) - RT-DETR service error
+- `NemotronError` (503) - Nemotron service error
+- `FlorenceError` (503) - Florence-2 service error
+
+**Processing Errors:**
+
+- `DetectionError` (500) - Detection processing failure
+- `EventProcessingError` (500) - Event processing failure
+- `MediaProcessingError` (500) - Media file processing failure
+
+**Validation Errors:**
+
+- `ValidationError` (400) - Input validation failure
+- `NotFoundError` (404) - Resource not found
+- `ConflictError` (409) - Resource conflict
+
+**Circuit Breaker:**
+
+- `CircuitBreakerOpenError` (503) - Circuit breaker is open
+
+**Helper Functions:**
+
+- `get_exception_status_code(exc)` - Get HTTP status code for exception
+- `get_exception_error_code(exc)` - Get error code string
+
+**Usage:**
+
+```python
+from backend.core.exceptions import AIServiceError, NotFoundError
+
+# Raise with context
+raise AIServiceError("RT-DETR unavailable", service="rtdetr")
+
+# Get HTTP status
+from backend.core.exceptions import get_exception_status_code
+status = get_exception_status_code(exc)  # Returns 503 for AIServiceError
+```
+
+## `query_explain.py` - Slow Query Logging
+
+### Purpose
+
+Automatic detection and logging of slow database queries with EXPLAIN ANALYZE output for performance debugging.
+
+### Features
+
+- Configurable threshold for slow query detection (default: 100ms)
+- Only runs EXPLAIN on SELECT queries (INSERT/UPDATE/DELETE excluded)
+- Structured JSON logging with query text, parameters, timing, and EXPLAIN output
+- Can be enabled/disabled via settings
+- Graceful error handling to avoid crashing on EXPLAIN failures
+
+### Configuration
+
+Environment variables:
+
+- `SLOW_QUERY_THRESHOLD_MS` - Threshold in milliseconds (default: 100)
+- `SLOW_QUERY_EXPLAIN_ENABLED` - Enable/disable EXPLAIN logging (default: true)
+
+### Usage
+
+```python
+from backend.core.database import get_engine
+from backend.core.query_explain import setup_explain_logging
+
+# During application startup
+engine = get_engine()
+setup_explain_logging(engine.sync_engine)
+```
+
+### Implementation
+
+- Uses SQLAlchemy's event system to intercept queries
+- Measures query execution time
+- Runs EXPLAIN ANALYZE on slow queries
+- Logs with structured metadata (query, params, duration, EXPLAIN output)
+- Redacts sensitive parameters (passwords, tokens, API keys)
+
+## `retry.py` - Retry Decorators
+
+### Purpose
+
+Provides reusable retry patterns with exponential backoff and jitter for transient failures.
+
+### Features
+
+- Configurable exponential backoff with jitter
+- Retry on specific exception types
+- Both async and sync decorators
+- Context manager for fine-grained control
+- Metrics integration for monitoring retry behavior
+- Structured logging of retry attempts
+
+### Decorators
+
+**`@retry_async`** - Decorator for async functions:
+
+```python
+from backend.core.retry import retry_async
+from backend.core.exceptions import ExternalServiceError
+
+@retry_async(max_retries=3, retry_on=(ExternalServiceError,))
+async def call_external_service():
+    return await http_client.get(url)
+```
+
+**`@retry_sync`** - Decorator for sync functions:
+
+```python
+from backend.core.retry import retry_sync
+
+@retry_sync(max_retries=3, retry_on=(ConnectionError,))
+def sync_operation():
+    return requests.get(url)
+```
+
+### Context Manager
+
+**`RetryContext`** - Fine-grained control:
+
+```python
+from backend.core.retry import RetryContext
+
+async with RetryContext(max_retries=3) as retry:
+    while retry.should_retry():
+        try:
+            result = await risky_operation()
+            break
+        except TransientError as e:
+            if not retry.can_retry(e):
+                raise
+            await retry.wait()
+```
+
+### Configuration
+
+**Parameters:**
+
+- `max_retries` - Maximum retry attempts (default: 3)
+- `base_delay` - Initial delay in seconds (default: 1.0)
+- `max_delay` - Maximum delay between retries (default: 60.0)
+- `exponential_base` - Backoff multiplier (default: 2)
+- `retry_on` - Tuple of exception types to retry
+- `jitter` - Whether to add random jitter (default: True)
+
+### Usage Notes
+
+- Exponential backoff: delay = base_delay \* (exponential_base \*\* attempt)
+- Jitter prevents thundering herd problem
+- Integrates with Prometheus for retry metrics
+- Used throughout AI service clients
 
 ## `constants.py` - Application Constants
 
@@ -170,6 +554,12 @@ dlq_name = get_dlq_name("detection_queue")  # Returns "dlq:detection_queue"
 Manages all application configuration using Pydantic Settings with environment variable loading.
 
 ### Key Classes
+
+**`OrchestratorSettings`** - Container orchestrator configuration (Docker/Podman):
+
+- `enabled: bool` - Enable container orchestration (default: True)
+- `docker_host: str | None` - Docker socket path
+- Health monitoring and self-healing for AI containers
 
 **`Settings`** - Main configuration class (Pydantic BaseSettings):
 
