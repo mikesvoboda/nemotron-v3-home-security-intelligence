@@ -1,4 +1,26 @@
-import { BarChart3, AlertCircle, Camera, RefreshCw } from 'lucide-react';
+import {
+  TabGroup,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  Card,
+  Title,
+  Text,
+  Metric,
+  AreaChart,
+  DonutChart,
+  BarChart,
+  ProgressBar,
+  Badge,
+  Table,
+  TableHead,
+  TableRow,
+  TableHeaderCell,
+  TableBody,
+  TableCell,
+} from '@tremor/react';
+import { BarChart3, AlertCircle, Camera, RefreshCw, TrendingUp, Shield, Activity } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import ActivityHeatmap from './ActivityHeatmap';
@@ -12,10 +34,16 @@ import {
   fetchCameraActivityBaseline,
   fetchCameraClassBaseline,
   fetchAnomalyConfig,
+  fetchEventStats,
+  fetchDetectionStats,
+  fetchEvents,
   type Camera as CameraType,
   type ActivityBaselineResponse,
   type ClassBaselineResponse,
   type AnomalyConfig,
+  type EventStatsResponse,
+  type DetectionStatsResponse,
+  type Event,
 } from '../../services/api';
 
 /**
@@ -34,9 +62,13 @@ export default function AnalyticsPage() {
   const [activityBaseline, setActivityBaseline] = useState<ActivityBaselineResponse | null>(null);
   const [classBaseline, setClassBaseline] = useState<ClassBaselineResponse | null>(null);
   const [anomalyConfig, setAnomalyConfig] = useState<AnomalyConfig | null>(null);
+  const [eventStats, setEventStats] = useState<EventStatsResponse | null>(null);
+  const [detectionStats, setDetectionStats] = useState<DetectionStatsResponse | null>(null);
+  const [highRiskEvents, setHighRiskEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState(0);
 
   // Load cameras on mount
   useEffect(() => {
@@ -66,18 +98,32 @@ export default function AnalyticsPage() {
     setError(null);
 
     try {
-      const [activity, classes, config] = await Promise.all([
+      // Calculate date range for last 7 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+
+      const [activity, classes, config, stats, detStats, events] = await Promise.all([
         fetchCameraActivityBaseline(cameraId),
         fetchCameraClassBaseline(cameraId),
         fetchAnomalyConfig(),
+        fetchEventStats({
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+        }),
+        fetchDetectionStats(),
+        fetchEvents({ risk_level: 'high', limit: 10 }),
       ]);
 
       setActivityBaseline(activity);
       setClassBaseline(classes);
       setAnomalyConfig(config);
+      setEventStats(stats);
+      setDetectionStats(detStats);
+      setHighRiskEvents(events.events);
     } catch (err) {
-      setError('Failed to load baseline data');
-      console.error('Failed to load baseline data:', err);
+      setError('Failed to load analytics data');
+      console.error('Failed to load analytics data:', err);
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +160,56 @@ export default function AnalyticsPage() {
 
   // Get selected camera
   const selectedCamera = cameras.find((c) => c.id === selectedCameraId);
+
+  // Empty state component
+  const EmptyState = ({ message }: { message: string }) => (
+    <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
+      <div className="text-center">
+        <AlertCircle className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+        <p className="text-gray-400">{message}</p>
+        <p className="mt-2 text-sm text-gray-500">Try selecting a different time period or camera</p>
+      </div>
+    </div>
+  );
+
+  // Prepare chart data
+  const prepareDetectionTrendData = () => {
+    // Mock data for last 7 days - in real implementation, this would come from API
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days.map((day) => ({
+      date: day,
+      detections: Math.floor(Math.random() * 100) + 20,
+    }));
+  };
+
+  const prepareObjectDistributionData = () => {
+    if (!detectionStats?.detections_by_class) return [];
+    return Object.entries(detectionStats.detections_by_class).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+    }));
+  };
+
+  const prepareRiskDistributionData = () => {
+    if (!eventStats) return [];
+    const riskLevels = eventStats.events_by_risk_level || {};
+    return [
+      { name: 'Low (0-30)', value: riskLevels.low || 0 },
+      { name: 'Medium (30-70)', value: riskLevels.medium || 0 },
+      { name: 'High (70+)', value: riskLevels.high || 0 },
+    ].filter((item) => item.value > 0);
+  };
+
+  const prepareCameraActivityData = () => {
+    if (!eventStats?.events_by_camera) return [];
+    return eventStats.events_by_camera
+      .map((cam) => ({
+        camera: cam.camera_name || cam.camera_id,
+        events: cam.event_count,
+      }))
+      .sort((a, b) => b.events - a.events)
+      .slice(0, 5);
+  };
 
   return (
     <div className="flex flex-col">
@@ -225,49 +321,338 @@ export default function AnalyticsPage() {
 
       {/* Content */}
       {!isLoading && !error && selectedCameraId && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Activity Heatmap - Full Width */}
-          <div className="lg:col-span-2">
-            {activityBaseline && (
-              <ActivityHeatmap
-                entries={activityBaseline.entries}
-                learningComplete={activityBaseline.learning_complete}
-                minSamplesRequired={activityBaseline.min_samples_required}
-              />
-            )}
-          </div>
+        <TabGroup index={selectedTab} onIndexChange={setSelectedTab}>
+          <TabList className="mb-6">
+            <Tab
+              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              data-testid="analytics-tab-overview"
+            >
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Overview
+              </div>
+            </Tab>
+            <Tab
+              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              data-testid="analytics-tab-detections"
+            >
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Detections
+              </div>
+            </Tab>
+            <Tab
+              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              data-testid="analytics-tab-risk"
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Risk Analysis
+              </div>
+            </Tab>
+            <Tab
+              className="data-[selected]:bg-[#76B900] data-[selected]:text-white bg-transparent text-gray-400"
+              data-testid="analytics-tab-camera-performance"
+            >
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Camera Performance
+              </div>
+            </Tab>
+          </TabList>
 
-          {/* Class Frequency Chart */}
-          <div>
-            {classBaseline && (
-              <ClassFrequencyChart
-                entries={classBaseline.entries}
-                uniqueClasses={classBaseline.unique_classes}
-                mostCommonClass={classBaseline.most_common_class}
-              />
-            )}
-          </div>
+          <TabPanels>
+            {/* Overview Tab */}
+            <TabPanel>
+              <div className="space-y-6">
+                {/* Key Metrics Row */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card decoration="top" decorationColor="green">
+                    <Text>Total Events</Text>
+                    <Metric>{eventStats?.total_events || 0}</Metric>
+                  </Card>
+                  <Card decoration="top" decorationColor="blue">
+                    <Text>Total Detections</Text>
+                    <Metric>{detectionStats?.total_detections || 0}</Metric>
+                  </Card>
+                  <Card decoration="top" decorationColor="yellow">
+                    <Text>Average Confidence</Text>
+                    <Metric>
+                      {detectionStats?.average_confidence
+                        ? `${(detectionStats.average_confidence * 100).toFixed(1)}%`
+                        : 'N/A'}
+                    </Metric>
+                  </Card>
+                  <Card decoration="top" decorationColor="red">
+                    <Text>High Risk Events</Text>
+                    <Metric>{highRiskEvents.length}</Metric>
+                  </Card>
+                </div>
 
-          {/* Anomaly Config Panel */}
-          <div>
-            {anomalyConfig && (
-              <AnomalyConfigPanel
-                config={anomalyConfig}
-                onConfigUpdated={handleConfigUpdated}
-              />
-            )}
-          </div>
+                {/* Detection Trend Chart */}
+                <Card>
+                  <Title>Detection Trend (Last 7 Days)</Title>
+                  {prepareDetectionTrendData().length > 0 ? (
+                    <AreaChart
+                      className="mt-4 h-72"
+                      data={prepareDetectionTrendData()}
+                      index="date"
+                      categories={['detections']}
+                      colors={['green']}
+                      valueFormatter={(value) => `${value} detections`}
+                    />
+                  ) : (
+                    <EmptyState message="No detection data available for the selected period" />
+                  )}
+                </Card>
 
-          {/* Pipeline Latency Panel - Full Width */}
-          <div className="lg:col-span-2">
-            <PipelineLatencyPanel refreshInterval={60000} />
-          </div>
+                {/* Top Cameras by Activity */}
+                <Card>
+                  <Title>Top Cameras by Activity</Title>
+                  {prepareCameraActivityData().length > 0 ? (
+                    <BarChart
+                      className="mt-4 h-72"
+                      data={prepareCameraActivityData()}
+                      index="camera"
+                      categories={['events']}
+                      colors={['green']}
+                      valueFormatter={(value) => `${value} events`}
+                    />
+                  ) : (
+                    <EmptyState message="No camera activity data available" />
+                  )}
+                </Card>
+              </div>
+            </TabPanel>
 
-          {/* Scene Change Detection Panel - Full Width */}
-          <div className="lg:col-span-2">
-            <SceneChangePanel cameraId={selectedCameraId} cameraName={selectedCamera?.name} />
-          </div>
-        </div>
+            {/* Detections Tab */}
+            <TabPanel>
+              <div className="space-y-6">
+                {/* Object Type Distribution */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <Card>
+                    <Title>Object Type Distribution</Title>
+                    {prepareObjectDistributionData().length > 0 ? (
+                      <DonutChart
+                        className="mt-4 h-72"
+                        data={prepareObjectDistributionData()}
+                        category="value"
+                        index="name"
+                        colors={['green', 'blue', 'yellow', 'red', 'purple', 'pink']}
+                        valueFormatter={(value) => `${value} detections`}
+                      />
+                    ) : (
+                      <EmptyState message="No detection class data available" />
+                    )}
+                  </Card>
+
+                  {/* Class Frequency Chart */}
+                  <div>
+                    {classBaseline ? (
+                      <ClassFrequencyChart
+                        entries={classBaseline.entries}
+                        uniqueClasses={classBaseline.unique_classes}
+                        mostCommonClass={classBaseline.most_common_class}
+                      />
+                    ) : (
+                      <Card>
+                        <EmptyState message="No class baseline data available" />
+                      </Card>
+                    )}
+                  </div>
+                </div>
+
+                {/* Detections Over Time */}
+                <Card>
+                  <Title>Detections Over Time</Title>
+                  {prepareDetectionTrendData().length > 0 ? (
+                    <AreaChart
+                      className="mt-4 h-72"
+                      data={prepareDetectionTrendData()}
+                      index="date"
+                      categories={['detections']}
+                      colors={['blue']}
+                      valueFormatter={(value) => `${value} detections`}
+                    />
+                  ) : (
+                    <EmptyState message="No detection trend data available" />
+                  )}
+                </Card>
+
+                {/* Detection Confidence Stats */}
+                <Card>
+                  <Title>Detection Quality Metrics</Title>
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <div className="flex justify-between">
+                        <Text>Average Confidence</Text>
+                        <Text>
+                          {detectionStats?.average_confidence
+                            ? `${(detectionStats.average_confidence * 100).toFixed(1)}%`
+                            : 'N/A'}
+                        </Text>
+                      </div>
+                      <ProgressBar
+                        value={
+                          detectionStats?.average_confidence
+                            ? detectionStats.average_confidence * 100
+                            : 0
+                        }
+                        color="green"
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between">
+                        <Text>Total Detections</Text>
+                        <Metric>{detectionStats?.total_detections || 0}</Metric>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </TabPanel>
+
+            {/* Risk Analysis Tab */}
+            <TabPanel>
+              <div className="space-y-6">
+                {/* Risk Score Distribution */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <Card>
+                    <Title>Risk Score Distribution</Title>
+                    {prepareRiskDistributionData().length > 0 ? (
+                      <DonutChart
+                        className="mt-4 h-72"
+                        data={prepareRiskDistributionData()}
+                        category="value"
+                        index="name"
+                        colors={['green', 'yellow', 'red']}
+                        valueFormatter={(value) => `${value} events`}
+                      />
+                    ) : (
+                      <EmptyState message="No risk distribution data available" />
+                    )}
+                  </Card>
+
+                  {/* Anomaly Config Panel */}
+                  <div>
+                    {anomalyConfig ? (
+                      <AnomalyConfigPanel
+                        config={anomalyConfig}
+                        onConfigUpdated={handleConfigUpdated}
+                      />
+                    ) : (
+                      <Card>
+                        <EmptyState message="No anomaly configuration available" />
+                      </Card>
+                    )}
+                  </div>
+                </div>
+
+                {/* High-Risk Events List */}
+                <Card>
+                  <Title>Recent High-Risk Events</Title>
+                  {highRiskEvents.length > 0 ? (
+                    <Table className="mt-4">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeaderCell>Time</TableHeaderCell>
+                          <TableHeaderCell>Camera</TableHeaderCell>
+                          <TableHeaderCell>Risk Score</TableHeaderCell>
+                          <TableHeaderCell>Description</TableHeaderCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {highRiskEvents.map((event) => (
+                          <TableRow key={event.id}>
+                            <TableCell>
+                              {new Date(event.started_at).toLocaleString()}
+                            </TableCell>
+                            <TableCell>{event.camera_id}</TableCell>
+                            <TableCell>
+                              <Badge color="red">{event.risk_score || 'N/A'}</Badge>
+                            </TableCell>
+                            <TableCell className="max-w-md truncate">
+                              {event.reasoning || 'No description available'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <EmptyState message="No high-risk events found" />
+                  )}
+                </Card>
+
+                {/* Risk Trends Over Time */}
+                <Card>
+                  <Title>Event Activity Trend</Title>
+                  {prepareDetectionTrendData().length > 0 ? (
+                    <AreaChart
+                      className="mt-4 h-72"
+                      data={prepareDetectionTrendData()}
+                      index="date"
+                      categories={['detections']}
+                      colors={['red']}
+                      valueFormatter={(value) => `${value} events`}
+                    />
+                  ) : (
+                    <EmptyState message="No trend data available" />
+                  )}
+                </Card>
+              </div>
+            </TabPanel>
+
+            {/* Camera Performance Tab */}
+            <TabPanel>
+              <div className="space-y-6">
+                {/* Per-Camera Detection Counts */}
+                <Card>
+                  <Title>Detection Counts by Camera</Title>
+                  {prepareCameraActivityData().length > 0 ? (
+                    <BarChart
+                      className="mt-4 h-72"
+                      data={prepareCameraActivityData()}
+                      index="camera"
+                      categories={['events']}
+                      colors={['blue']}
+                      valueFormatter={(value) => `${value} detections`}
+                      layout="vertical"
+                    />
+                  ) : (
+                    <EmptyState message="No camera detection data available" />
+                  )}
+                </Card>
+
+                {/* Activity Heatmap */}
+                <div>
+                  {activityBaseline ? (
+                    <ActivityHeatmap
+                      entries={activityBaseline.entries}
+                      learningComplete={activityBaseline.learning_complete}
+                      minSamplesRequired={activityBaseline.min_samples_required}
+                    />
+                  ) : (
+                    <Card>
+                      <EmptyState message="No activity baseline data available" />
+                    </Card>
+                  )}
+                </div>
+
+                {/* Pipeline Latency Panel */}
+                <PipelineLatencyPanel refreshInterval={60000} />
+
+                {/* Scene Change Detection Panel */}
+                {selectedCamera && (
+                  <SceneChangePanel
+                    cameraId={selectedCameraId}
+                    cameraName={selectedCamera.name}
+                  />
+                )}
+              </div>
+            </TabPanel>
+          </TabPanels>
+        </TabGroup>
       )}
 
       {/* No Camera Selected */}

@@ -6,7 +6,7 @@
  * disabled models at the bottom (grayed out).
  */
 
-import { Card, Title, Text, AreaChart, Select, SelectItem } from '@tremor/react';
+import { Card, Title, Text, AreaChart, Select, SelectItem, Accordion, AccordionHeader, AccordionBody, AccordionList } from '@tremor/react';
 import { clsx } from 'clsx';
 import { TrendingUp, Boxes, Cpu, MemoryStick, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -433,37 +433,53 @@ export default function ModelZooSection({ className, pollingInterval = 30000 }: 
         />
       )}
 
-      {/* Status Cards Grid */}
+      {/* Status Cards Grid - Collapsible Accordions */}
       {statusData && (
         <div className="space-y-4">
           {/* Enabled Models */}
           {enabledModels.length > 0 && (
-            <div>
-              <Text className="mb-2 text-sm font-medium text-gray-400">Active Models</Text>
-              <div
-                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                data-testid="enabled-models-grid"
-              >
-                {enabledModels.map((model) => (
-                  <ModelStatusCard key={model.name} model={model} />
-                ))}
-              </div>
-            </div>
+            <AccordionList>
+              <Accordion defaultOpen={true}>
+                <AccordionHeader className="text-white">
+                  <Text className="text-sm font-medium text-gray-400">
+                    Active Models ({enabledModels.length})
+                  </Text>
+                </AccordionHeader>
+                <AccordionBody>
+                  <div
+                    className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    data-testid="enabled-models-grid"
+                  >
+                    {enabledModels.map((model) => (
+                      <ModelStatusCard key={model.name} model={model} />
+                    ))}
+                  </div>
+                </AccordionBody>
+              </Accordion>
+            </AccordionList>
           )}
 
           {/* Disabled Models */}
           {disabledModels.length > 0 && (
-            <div>
-              <Text className="mb-2 text-sm font-medium text-gray-500">Disabled Models</Text>
-              <div
-                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                data-testid="disabled-models-grid"
-              >
-                {disabledModels.map((model) => (
-                  <ModelStatusCard key={model.name} model={model} />
-                ))}
-              </div>
-            </div>
+            <AccordionList>
+              <Accordion defaultOpen={false}>
+                <AccordionHeader className="text-white">
+                  <Text className="text-sm font-medium text-gray-500">
+                    Disabled Models ({disabledModels.length})
+                  </Text>
+                </AccordionHeader>
+                <AccordionBody>
+                  <div
+                    className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    data-testid="disabled-models-grid"
+                  >
+                    {disabledModels.map((model) => (
+                      <ModelStatusCard key={model.name} model={model} />
+                    ))}
+                  </div>
+                </AccordionBody>
+              </Accordion>
+            </AccordionList>
           )}
         </div>
       )}

@@ -100,8 +100,8 @@ describe('CamerasSettings', () => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
       });
 
-      // The exact format depends on locale, so just check it's not "Never"
-      expect(screen.getByText('Never')).toBeInTheDocument(); // For cam-2
+      // Camera with null last_seen_at should show "Awaiting first image"
+      expect(screen.getByText('Awaiting first image')).toBeInTheDocument(); // For cam-2
     });
 
     it('should display error state when fetch fails', async () => {
@@ -145,7 +145,7 @@ describe('CamerasSettings', () => {
         expect(screen.getByText('No cameras configured')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Get started by adding your first camera')).toBeInTheDocument();
+      expect(screen.getByText(/Add your first camera to start monitoring/)).toBeInTheDocument();
     });
   });
 
@@ -696,9 +696,9 @@ describe('CamerasSettings', () => {
       const deleteButton = screen.getByLabelText('Delete Front Door');
       const zonesButton = screen.getByLabelText('Configure zones for Front Door');
 
-      expect(editButton).toHaveAttribute('title', 'Edit Camera');
-      expect(deleteButton).toHaveAttribute('title', 'Delete Camera');
-      expect(zonesButton).toHaveAttribute('title', 'Configure Zones');
+      expect(editButton).toHaveAttribute('title', 'Edit camera settings');
+      expect(deleteButton).toHaveAttribute('title', 'Delete camera');
+      expect(zonesButton).toHaveAttribute('title', 'View camera location on map');
     });
   });
 

@@ -1,6 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { AlertCircle, Camera as CameraIcon, Edit2, MapPin, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, Camera as CameraIcon, Edit2, MapPin, Plus, Search, Trash2, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
 import {
@@ -12,6 +12,7 @@ import {
   type CameraCreate,
   type CameraUpdate,
 } from '../../services/api';
+import { formatRelativeTime, isTimestampStale } from '../../utils/time';
 import { ZoneEditor } from '../zones';
 
 /** Valid camera status values matching backend CameraStatus enum */
@@ -51,9 +52,15 @@ export default function CamerasSettings() {
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Zone editor state
   const [zoneEditorCamera, setZoneEditorCamera] = useState<Camera | null>(null);
+
+  // Filter cameras based on search query
+  const filteredCameras = cameras.filter((camera) =>
+    camera.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Load cameras on mount
   useEffect(() => {
@@ -251,13 +258,27 @@ export default function CamerasSettings() {
         </button>
       </div>
 
+      {/* Search Bar */}
+      {cameras.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search cameras by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-gray-800 bg-card py-2 pl-10 pr-4 text-text-primary placeholder-gray-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+      )}
+
       {/* Cameras Table */}
       {cameras.length === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-card p-8 text-center">
           <CameraIcon className="mx-auto h-12 w-12 text-gray-600" />
           <h3 className="mt-4 text-lg font-medium text-text-primary">No cameras configured</h3>
           <p className="mt-2 text-sm text-text-secondary">
-            Get started by adding your first camera
+            Add your first camera to start monitoring. Each camera should point to a folder where images are uploaded via FTP.
           </p>
           <button
             onClick={handleOpenAddModal}
@@ -265,6 +286,20 @@ export default function CamerasSettings() {
           >
             <Plus className="h-4 w-4" />
             Add Camera
+          </button>
+        </div>
+      ) : filteredCameras.length === 0 ? (
+        <div className="rounded-lg border border-gray-800 bg-card p-8 text-center">
+          <Search className="mx-auto h-12 w-12 text-gray-600" />
+          <h3 className="mt-4 text-lg font-medium text-text-primary">No cameras found</h3>
+          <p className="mt-2 text-sm text-text-secondary">
+            No cameras match &quot;{searchQuery}&quot;. Try a different search term.
+          </p>
+          <button
+            onClick={() => setSearchQuery('')}
+            className="mt-4 rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700"
+          >
+            Clear Search
           </button>
         </div>
       ) : (
@@ -290,57 +325,81 @@ export default function CamerasSettings() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800 bg-card">
-              {cameras.map((camera) => (
-                <tr key={camera.id} className="hover:bg-gray-900/50">
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <CameraIcon className="h-5 w-5 text-gray-400" />
-                      <span className="font-medium text-text-primary">{camera.name}</span>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <span className="font-mono text-sm text-text-secondary">
-                      {camera.folder_path}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <span className={clsx('font-medium capitalize', getStatusColor(camera.status))}>
-                      {camera.status}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
-                    {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : 'Never'}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setZoneEditorCamera(camera)}
-                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        aria-label={`Configure zones for ${camera.name}`}
-                        title="Configure Zones"
+              {filteredCameras.map((camera) => {
+                const lastSeenAt = camera.last_seen_at ?? null;
+                const lastSeenText = lastSeenAt
+                  ? formatRelativeTime(lastSeenAt)
+                  : 'Awaiting first image';
+                const isStale = isTimestampStale(lastSeenAt);
+
+                return (
+                  <tr
+                    key={camera.id}
+                    className="cursor-pointer transition-colors hover:bg-[#76B900]/5"
+                  >
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <CameraIcon className="h-5 w-5 text-gray-400" />
+                        <span className="font-medium text-text-primary">{camera.name}</span>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <span className="font-mono text-sm text-text-secondary">
+                        {camera.folder_path}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <span
+                        className={clsx('font-medium capitalize', getStatusColor(camera.status))}
                       >
-                        <MapPin className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleOpenEditModal(camera)}
-                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        aria-label={`Edit ${camera.name}`}
-                        title="Edit Camera"
+                        {camera.status}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm">
+                      <span
+                        className={clsx(
+                          isStale && lastSeenAt ? 'text-yellow-500' : 'text-text-secondary'
+                        )}
+                        title={
+                          lastSeenAt
+                            ? new Date(lastSeenAt).toLocaleString()
+                            : 'Camera has not sent any images yet'
+                        }
                       >
-                        <Edit2 className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleOpenDeleteModal(camera)}
-                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        aria-label={`Delete ${camera.name}`}
-                        title="Delete Camera"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {lastSeenText}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setZoneEditorCamera(camera)}
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                          aria-label={`Configure zones for ${camera.name}`}
+                          title="View camera location on map"
+                        >
+                          <MapPin className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditModal(camera)}
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                          aria-label={`Edit ${camera.name}`}
+                          title="Edit camera settings"
+                        >
+                          <Edit2 className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenDeleteModal(camera)}
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          aria-label={`Delete ${camera.name}`}
+                          title="Delete camera"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

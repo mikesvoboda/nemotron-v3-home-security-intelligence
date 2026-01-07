@@ -7,9 +7,7 @@ import {
   Clock,
   Download,
   Filter,
-  Search,
   Square,
-  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -71,7 +69,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     offset: 0,
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
 
@@ -222,7 +219,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // Clear all filters
   const handleClearFilters = () => {
     setFilters({ limit: 20, offset: 0 });
-    setSearchQuery('');
     setConfidenceFilter('');
     setSortOption('newest');
   };
@@ -431,10 +427,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     }
   };
 
-  // Filter events by search query (client-side for summary search)
-  let filteredEvents = searchQuery
-    ? events.filter((event) => event.summary?.toLowerCase().includes(searchQuery.toLowerCase()))
-    : events;
+  // Start with all events (search is now handled by full-text search, not client-side filtering)
+  let filteredEvents = events;
 
   // Note: Confidence filtering would ideally be done server-side with detection data
   // For now, this is a placeholder since events in list view don't include detections
@@ -478,7 +472,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     filters.end_date ||
     filters.reviewed !== undefined ||
     filters.object_type ||
-    searchQuery ||
     confidenceFilter ||
     sortOption !== 'newest';
 
@@ -651,26 +644,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             )}
           </button>
 
-          {/* Search */}
-          <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search summaries..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-10 text-sm text-white placeholder-gray-500 focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
 
           {/* Quick Export Button */}
           <button

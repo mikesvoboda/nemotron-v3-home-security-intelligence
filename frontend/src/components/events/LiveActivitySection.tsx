@@ -269,7 +269,7 @@ export default function LiveActivitySection({
             maxItems={maxItems}
             autoScroll={!isPaused}
             onEventClick={onEventClick}
-            className="h-[280px] rounded-b-xl sm:h-[320px] md:h-[360px]"
+            className="max-h-[400px] overflow-y-auto rounded-b-xl"
             showHeader={false}
           />
         )}

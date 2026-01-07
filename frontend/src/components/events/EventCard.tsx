@@ -17,9 +17,6 @@ import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import TruncatedText from '../common/TruncatedText';
-import DetectionImage from '../detection/DetectionImage';
-
-import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
 export interface Detection {
   label: string;
@@ -106,23 +103,6 @@ const EventCard = memo(function EventCard({
     }
   };
 
-  // Convert Detection to BoundingBox format for DetectionImage component
-  const convertToBoundingBoxes = (): BoundingBox[] => {
-    return detections
-      .filter((d) => d.bbox)
-      .map((d) => {
-        const bbox = d.bbox as { x: number; y: number; width: number; height: number };
-        return {
-          x: bbox.x,
-          y: bbox.y,
-          width: bbox.width,
-          height: bbox.height,
-          label: d.label,
-          confidence: d.confidence,
-        };
-      });
-  };
-
   // Get risk level from score
   const riskLevel = getRiskLevel(risk_score);
 
@@ -168,7 +148,7 @@ const EventCard = memo(function EventCard({
 
   return (
     <div
-      className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
       data-testid={`event-card-${id}`}
       {...(isClickable && {
         onClick: handleCardClick,
@@ -183,27 +163,46 @@ const EventCard = memo(function EventCard({
         'aria-label': `View details for event from ${camera_name}`,
       })}
     >
-      {/* Header: Camera name, timestamp, risk badge */}
-      <div className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold text-white" title={camera_name}>
-            {camera_name}
-          </h3>
-          <div className="mt-1 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-sm text-text-secondary">
-              <Clock className="h-3.5 w-3.5" />
-              <span>{formatTimestamp(timestamp)}</span>
+      {/* Main Layout: Thumbnail on left, content on right */}
+      <div className="flex gap-4 p-4">
+        {/* Thumbnail Column (64x64) */}
+        <div className="flex-shrink-0">
+          {thumbnail_url ? (
+            <img
+              src={thumbnail_url}
+              alt={`${camera_name} at ${formatTimestamp(timestamp)}`}
+              className="h-16 w-16 rounded-md object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-800">
+              <Eye className="h-6 w-6 text-gray-600" />
             </div>
-            {(started_at || ended_at !== undefined) && (
-              <div className="flex items-center gap-1.5 text-sm text-text-secondary">
-                <Timer className="h-3.5 w-3.5" />
-                <span>Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-        <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
-      </div>
+
+        {/* Content Column */}
+        <div className="min-w-0 flex-1">
+          {/* Header: Camera name, timestamp, risk badge */}
+          <div className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-base font-semibold text-white" title={camera_name}>
+                {camera_name}
+              </h3>
+              <div className="mt-1 flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{formatTimestamp(timestamp)}</span>
+                </div>
+                {(started_at || ended_at !== undefined) && (
+                  <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+                    <Timer className="h-3.5 w-3.5" />
+                    <span>Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
+          </div>
 
       {/* Object Type Badges */}
       {uniqueObjectTypes.length > 0 && (
@@ -214,152 +213,132 @@ const EventCard = memo(function EventCard({
         </div>
       )}
 
-      {/* Risk Score Progress Bar */}
-      <div className="mb-3">
-        <div className="mb-1.5 flex items-center justify-between text-xs text-text-secondary">
-          <span className="font-medium">Risk Score</span>
-          <span className="font-semibold">{risk_score}/100</span>
-        </div>
-        <div
-          className="h-2 w-full overflow-hidden rounded-full bg-gray-800"
-          role="progressbar"
-          aria-valuenow={risk_score}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Risk score: ${risk_score} out of 100`}
-        >
-          <div
-            className="h-full rounded-full transition-all duration-500 ease-out"
-            style={{
-              width: `${risk_score}%`,
-              backgroundColor: getRiskColor(riskLevel),
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Thumbnail with bounding boxes (if available) */}
-      {thumbnail_url && (
-        <div className="mb-3 overflow-hidden rounded-md bg-black">
-          {detections.some((d) => d.bbox) ? (
-            <DetectionImage
-              src={thumbnail_url}
-              alt={`${camera_name} detection at ${formatTimestamp(timestamp)}`}
-              boxes={convertToBoundingBoxes()}
-              showLabels={true}
-              showConfidence={true}
-              className="w-full"
-            />
-          ) : (
-            <img
-              src={thumbnail_url}
-              alt={`${camera_name} at ${formatTimestamp(timestamp)}`}
-              className="h-48 w-full object-cover"
-            />
-          )}
-        </div>
-      )}
-
-      {/* AI Summary */}
-      <div className="mb-3">
-        <TruncatedText
-          text={summary}
-          maxLength={200}
-          maxLines={3}
-          showMoreLabel="Show more"
-          showLessLabel="Show less"
-        />
-      </div>
-
-      {/* Detection List with Color-Coded Confidence */}
-      {detections.length > 0 && (
-        <div className="mb-3 rounded-md bg-black/30 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-              Detections ({detections.length})
-            </h4>
-            {/* Aggregate Confidence Display */}
-            {avgConfidence !== null && maxConfidence !== null && (
-              <div
-                className="flex items-center gap-2 text-xs"
-                title={`Average: ${formatConfidencePercent(avgConfidence)} | Max: ${formatConfidencePercent(maxConfidence)}`}
-              >
-                <TrendingUp className="h-3 w-3 text-text-secondary" aria-hidden="true" />
-                <span className="text-text-secondary">Avg:</span>
-                <span
-                  className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(avgConfidence))}`}
-                >
-                  {formatConfidencePercent(avgConfidence)}
-                </span>
-                <span className="text-text-muted">|</span>
-                <span className="text-text-secondary">Max:</span>
-                <span
-                  className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(maxConfidence))}`}
-                >
-                  {formatConfidencePercent(maxConfidence)}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {sortedDetections.map((detection, index) => {
-              const level = getConfidenceLevel(detection.confidence);
-              const confidenceLabel = getConfidenceLabel(level);
-              return (
-                <div
-                  key={`${detection.label}-${index}`}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
-                  title={`${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`}
-                >
-                  <span className="font-medium text-white">{detection.label}</span>
-                  <span className={`font-semibold ${getConfidenceTextColorClass(level)}`}>
-                    {formatConfidence(detection.confidence)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* AI Reasoning (expandable) */}
-      {reasoning && (
-        <div className="mb-3">
-          <button
-            onClick={() => setShowReasoning(!showReasoning)}
-            className="flex w-full items-center justify-between rounded-md bg-[#76B900]/10 px-3 py-2 text-left text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
-            aria-expanded={showReasoning}
-            aria-controls={`reasoning-${id}`}
-          >
-            <span>AI Reasoning</span>
-            {showReasoning ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-          {showReasoning && (
+          {/* Risk Score Progress Bar */}
+          <div className="mb-3">
+            <div className="mb-1.5 flex items-center justify-between text-xs text-text-secondary">
+              <span className="font-medium">Risk Score</span>
+              <span className="font-semibold">{risk_score}/100</span>
+            </div>
             <div
-              id={`reasoning-${id}`}
-              className="mt-2 rounded-md bg-black/20 p-3 text-sm leading-relaxed text-gray-300"
+              className="h-2 w-full overflow-hidden rounded-full bg-gray-800"
+              role="progressbar"
+              aria-valuenow={risk_score}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Risk score: ${risk_score} out of 100`}
             >
-              {reasoning}
+              <div
+                className="h-full rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: `${risk_score}%`,
+                  backgroundColor: getRiskColor(riskLevel),
+                }}
+              />
+            </div>
+          </div>
+
+          {/* AI Summary */}
+          <div className="mb-3">
+            <TruncatedText
+              text={summary}
+              maxLength={200}
+              maxLines={3}
+              showMoreLabel="Show more"
+              showLessLabel="Show less"
+            />
+          </div>
+
+          {/* Detection List with Color-Coded Confidence */}
+          {detections.length > 0 && (
+            <div className="mb-3 rounded-md bg-black/30 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                  Detections ({detections.length})
+                </h4>
+                {/* Aggregate Confidence Display */}
+                {avgConfidence !== null && maxConfidence !== null && (
+                  <div
+                    className="flex items-center gap-2 text-xs"
+                    title={`Average: ${formatConfidencePercent(avgConfidence)} | Max: ${formatConfidencePercent(maxConfidence)}`}
+                  >
+                    <TrendingUp className="h-3 w-3 text-text-secondary" aria-hidden="true" />
+                    <span className="text-text-secondary">Avg:</span>
+                    <span
+                      className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(avgConfidence))}`}
+                    >
+                      {formatConfidencePercent(avgConfidence)}
+                    </span>
+                    <span className="text-text-muted">|</span>
+                    <span className="text-text-secondary">Max:</span>
+                    <span
+                      className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(maxConfidence))}`}
+                    >
+                      {formatConfidencePercent(maxConfidence)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sortedDetections.map((detection, index) => {
+                  const level = getConfidenceLevel(detection.confidence);
+                  const confidenceLabel = getConfidenceLabel(level);
+                  return (
+                    <div
+                      key={`${detection.label}-${index}`}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+                      title={`${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`}
+                    >
+                      <span className="font-medium text-white">{detection.label}</span>
+                      <span className={`font-semibold ${getConfidenceTextColorClass(level)}`}>
+                        {formatConfidence(detection.confidence)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* View Details Button */}
-      {onViewDetails && (
-        <button
-          onClick={() => onViewDetails(id)}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
-          aria-label={`View details for event ${id}`}
-        >
-          <Eye className="h-4 w-4" />
-          View Details
-        </button>
-      )}
+          {/* AI Reasoning (expandable) */}
+          {reasoning && (
+            <div className="mb-3">
+              <button
+                onClick={() => setShowReasoning(!showReasoning)}
+                className="flex w-full items-center justify-between rounded-md bg-[#76B900]/10 px-3 py-2 text-left text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
+                aria-expanded={showReasoning}
+                aria-controls={`reasoning-${id}`}
+              >
+                <span>AI Reasoning</span>
+                {showReasoning ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+              {showReasoning && (
+                <div
+                  id={`reasoning-${id}`}
+                  className="mt-2 rounded-md bg-black/20 p-3 text-sm leading-relaxed text-gray-300"
+                >
+                  {reasoning}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* View Details Button */}
+          {onViewDetails && (
+            <button
+              onClick={() => onViewDetails(id)}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
+              aria-label={`View details for event ${id}`}
+            >
+              <Eye className="h-4 w-4" />
+              View Details
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 });

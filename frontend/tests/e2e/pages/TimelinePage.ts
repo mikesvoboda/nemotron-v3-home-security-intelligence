@@ -28,7 +28,6 @@ export class TimelinePage extends BasePage {
   readonly showFiltersButton: Locator;
   readonly hideFiltersButton: Locator;
   readonly filterActiveIndicator: Locator;
-  readonly summarySearchInput: Locator;
   readonly clearSearchButton: Locator;
 
   // Filter Dropdowns
@@ -88,7 +87,6 @@ export class TimelinePage extends BasePage {
     this.showFiltersButton = page.getByRole('button', { name: /Show Filters/i });
     this.hideFiltersButton = page.getByRole('button', { name: /Hide Filters/i });
     this.filterActiveIndicator = page.getByText(/Active/i);
-    this.summarySearchInput = page.getByPlaceholder(/Search summaries/i);
     this.clearSearchButton = page.locator('button[aria-label="Clear search"]');
 
     // Filter Dropdowns
@@ -225,13 +223,6 @@ export class TimelinePage extends BasePage {
   async clearAllFilters(): Promise<void> {
     await this.showFilters();
     await this.clearFiltersButton.click();
-  }
-
-  /**
-   * Search events by summary
-   */
-  async searchSummary(query: string): Promise<void> {
-    await this.summarySearchInput.fill(query);
   }
 
   /**

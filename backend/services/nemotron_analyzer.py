@@ -102,6 +102,11 @@ from backend.services.prompts import (
     format_weather_context,
 )
 
+# Pre-compiled regex patterns for LLM response parsing
+# These are compiled once at module load time for better performance
+_THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+_JSON_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
+
 logger = get_logger(__name__)
 
 # Timeout configuration for Nemotron LLM service
@@ -1512,8 +1517,8 @@ class NemotronAnalyzer:
         """
         # Strip <think>...</think> reasoning blocks (Nemotron-3-Nano format)
         # The model outputs reasoning in <think> tags before the JSON
-        think_pattern = r"<think>.*?</think>"
-        cleaned_text = re.sub(think_pattern, "", text, flags=re.DOTALL).strip()
+        # Uses pre-compiled _THINK_PATTERN for performance
+        cleaned_text = _THINK_PATTERN.sub("", text).strip()
 
         # Also handle incomplete think blocks (model may not close the tag)
         if "<think>" in cleaned_text:
@@ -1541,12 +1546,12 @@ class NemotronAnalyzer:
 
         # Try to extract JSON from the cleaned text
         # Look for JSON object pattern (handles nested objects)
-        json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
-        matches = re.findall(json_pattern, cleaned_text, re.DOTALL)
+        # Uses pre-compiled _JSON_PATTERN for performance
+        matches = _JSON_PATTERN.findall(cleaned_text)
 
         # If no matches in cleaned text, try original text as fallback
         if not matches:
-            matches = re.findall(json_pattern, text, re.DOTALL)
+            matches = _JSON_PATTERN.findall(text)
 
         if not matches:
             raise ValueError(f"No JSON found in LLM response: {text[:200]}")
