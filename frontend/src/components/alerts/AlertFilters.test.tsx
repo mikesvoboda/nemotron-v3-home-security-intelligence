@@ -29,11 +29,12 @@ describe('AlertFilters', () => {
     it('renders all filter buttons', () => {
       render(<AlertFilters {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /all/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /critical/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /high/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /medium/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /unread only/i })).toBeInTheDocument();
+      // Buttons use aria-label for accessible names
+      expect(screen.getByRole('button', { name: /filter by all alerts/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by critical severity/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by high severity/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by medium severity/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by unread alerts/i })).toBeInTheDocument();
     });
 
     it('displays counts for each filter', () => {
@@ -50,8 +51,8 @@ describe('AlertFilters', () => {
     it('highlights the active filter button', () => {
       render(<AlertFilters {...defaultProps} activeFilter="critical" />);
 
-      const criticalBtn = screen.getByRole('button', { name: /critical/i });
-      const allBtn = screen.getByRole('button', { name: /all/i });
+      const criticalBtn = screen.getByRole('button', { name: /filter by critical severity/i });
+      const allBtn = screen.getByRole('button', { name: /filter by all alerts/i });
 
       // Active filter should have highlighted styling
       expect(criticalBtn).toHaveClass(/bg-red/);
@@ -62,21 +63,21 @@ describe('AlertFilters', () => {
     it('applies correct color for critical filter when active', () => {
       render(<AlertFilters {...defaultProps} activeFilter="critical" />);
 
-      const criticalBtn = screen.getByRole('button', { name: /critical/i });
+      const criticalBtn = screen.getByRole('button', { name: /filter by critical severity/i });
       expect(criticalBtn).toHaveClass(/bg-red/);
     });
 
     it('applies correct color for high filter when active', () => {
       render(<AlertFilters {...defaultProps} activeFilter="high" />);
 
-      const highBtn = screen.getByRole('button', { name: /high/i });
+      const highBtn = screen.getByRole('button', { name: /filter by high severity/i });
       expect(highBtn).toHaveClass(/bg-orange/);
     });
 
     it('applies correct color for medium filter when active', () => {
       render(<AlertFilters {...defaultProps} activeFilter="medium" />);
 
-      const mediumBtn = screen.getByRole('button', { name: /medium/i });
+      const mediumBtn = screen.getByRole('button', { name: /filter by medium severity/i });
       expect(mediumBtn).toHaveClass(/bg-yellow/);
     });
   });
@@ -86,7 +87,7 @@ describe('AlertFilters', () => {
       const user = userEvent.setup();
       render(<AlertFilters {...defaultProps} activeFilter="critical" />);
 
-      const allBtn = screen.getByRole('button', { name: /all/i });
+      const allBtn = screen.getByRole('button', { name: /filter by all alerts/i });
       await user.click(allBtn);
 
       expect(mockOnFilterChange).toHaveBeenCalledWith('all');
@@ -97,7 +98,7 @@ describe('AlertFilters', () => {
       const user = userEvent.setup();
       render(<AlertFilters {...defaultProps} />);
 
-      const criticalBtn = screen.getByRole('button', { name: /critical/i });
+      const criticalBtn = screen.getByRole('button', { name: /filter by critical severity/i });
       await user.click(criticalBtn);
 
       expect(mockOnFilterChange).toHaveBeenCalledWith('critical');
@@ -107,7 +108,7 @@ describe('AlertFilters', () => {
       const user = userEvent.setup();
       render(<AlertFilters {...defaultProps} />);
 
-      const highBtn = screen.getByRole('button', { name: /high/i });
+      const highBtn = screen.getByRole('button', { name: /filter by high severity/i });
       await user.click(highBtn);
 
       expect(mockOnFilterChange).toHaveBeenCalledWith('high');
@@ -117,7 +118,7 @@ describe('AlertFilters', () => {
       const user = userEvent.setup();
       render(<AlertFilters {...defaultProps} />);
 
-      const mediumBtn = screen.getByRole('button', { name: /medium/i });
+      const mediumBtn = screen.getByRole('button', { name: /filter by medium severity/i });
       await user.click(mediumBtn);
 
       expect(mockOnFilterChange).toHaveBeenCalledWith('medium');
@@ -127,7 +128,7 @@ describe('AlertFilters', () => {
       const user = userEvent.setup();
       render(<AlertFilters {...defaultProps} />);
 
-      const unreadBtn = screen.getByRole('button', { name: /unread only/i });
+      const unreadBtn = screen.getByRole('button', { name: /filter by unread alerts/i });
       await user.click(unreadBtn);
 
       expect(mockOnFilterChange).toHaveBeenCalledWith('unread');
@@ -137,7 +138,7 @@ describe('AlertFilters', () => {
       const user = userEvent.setup();
       render(<AlertFilters {...defaultProps} activeFilter="all" />);
 
-      const allBtn = screen.getByRole('button', { name: /all/i });
+      const allBtn = screen.getByRole('button', { name: /filter by all alerts/i });
       await user.click(allBtn);
 
       // Should not call handler when clicking active filter
@@ -165,7 +166,7 @@ describe('AlertFilters', () => {
         />
       );
 
-      const criticalBtn = screen.getByRole('button', { name: /critical/i });
+      const criticalBtn = screen.getByRole('button', { name: /filter by critical severity/i });
       expect(criticalBtn).toBeDisabled();
     });
 
@@ -178,7 +179,7 @@ describe('AlertFilters', () => {
         />
       );
 
-      const criticalBtn = screen.getByRole('button', { name: /critical/i });
+      const criticalBtn = screen.getByRole('button', { name: /filter by critical severity/i });
       await user.click(criticalBtn);
 
       expect(mockOnFilterChange).not.toHaveBeenCalled();
@@ -196,14 +197,14 @@ describe('AlertFilters', () => {
     it('has aria-pressed attribute for active filter', () => {
       render(<AlertFilters {...defaultProps} activeFilter="high" />);
 
-      const highBtn = screen.getByRole('button', { name: /high/i });
+      const highBtn = screen.getByRole('button', { name: /filter by high severity/i });
       expect(highBtn).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('has aria-pressed false for inactive filters', () => {
       render(<AlertFilters {...defaultProps} activeFilter="high" />);
 
-      const allBtn = screen.getByRole('button', { name: /all/i });
+      const allBtn = screen.getByRole('button', { name: /filter by all alerts/i });
       expect(allBtn).toHaveAttribute('aria-pressed', 'false');
     });
 

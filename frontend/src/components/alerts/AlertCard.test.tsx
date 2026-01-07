@@ -6,13 +6,20 @@ import AlertCard from './AlertCard';
 
 import type { AlertCardProps } from './AlertCard';
 
+// Helper to create a timestamp X minutes ago
+const minutesAgo = (minutes: number): string => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - minutes);
+  return date.toISOString();
+};
+
 describe('AlertCard', () => {
   const mockAlert: AlertCardProps = {
     id: 'alert-1',
     eventId: 123,
     severity: 'high',
     status: 'pending',
-    timestamp: '2024-01-01T10:00:00Z',
+    timestamp: minutesAgo(30), // 30 minutes ago for relative time display
     camera_name: 'Front Door',
     risk_score: 75,
     summary: 'Person detected near entrance',
