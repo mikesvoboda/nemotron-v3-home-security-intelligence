@@ -157,12 +157,9 @@ test.describe('Timeline Event Tests @smoke', () => {
  * These tests use axe-core to verify WCAG 2.1 AA compliance.
  * For comprehensive accessibility testing, see accessibility.spec.ts
  *
- * Note: Color-contrast is excluded because the NVIDIA dark theme design system
- * has multiple contrast issues that require dedicated design work to fix.
+ * Color-contrast is now enforced after WCAG 2.1 AA compliance fixes (NEM-1481).
  */
 test.describe('Accessibility Smoke Tests @smoke @critical', () => {
-  // Rules excluded from a11y checks - see accessibility.spec.ts for details
-  const EXCLUDED_RULES = ['color-contrast'];
 
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
@@ -175,7 +172,6 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .analyze();
 
     // Log violations for debugging if any exist
@@ -196,7 +192,6 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .analyze();
 
     if (results.violations.length > 0) {
@@ -216,7 +211,6 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
 
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .disableRules(EXCLUDED_RULES)
       .analyze();
 
     if (results.violations.length > 0) {

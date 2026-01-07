@@ -143,7 +143,7 @@ export default class ChunkLoadErrorBoundary extends Component<
             <button
               type="button"
               onClick={this.handleReload}
-              className="inline-flex items-center gap-2 rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+              className="inline-flex items-center gap-2 rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-gray-950 transition-colors hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               Reload Page
