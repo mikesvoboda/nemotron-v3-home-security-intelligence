@@ -22,6 +22,22 @@ import {
   getEnrichmentValue,
   hasAnyEnrichment,
   countEnrichments,
+  // New strict null handling exports
+  hasEnrichmentData,
+  hasEnrichmentError,
+  enrichmentSuccess,
+  enrichmentError,
+  enrichmentEmpty,
+  getEnrichmentString,
+  getEnrichmentNumber,
+  getEnrichmentArray,
+  getEnrichmentBoolean,
+  getVehicleEnrichmentResult,
+  getPetEnrichmentResult,
+  getPersonEnrichmentResult,
+  getLicensePlateEnrichmentResult,
+  getWeatherEnrichmentResult,
+  getImageQualityEnrichmentResult,
   type VehicleEnrichment,
   type PetEnrichment,
   type PersonEnrichment,
@@ -29,6 +45,7 @@ import {
   type WeatherEnrichment,
   type ImageQualityEnrichment,
   type EnrichmentData,
+  type EnrichmentResult,
 } from './enrichment';
 
 // ============================================================================
@@ -433,5 +450,283 @@ describe('Type Inference', () => {
       // TypeScript knows weather is WeatherEnrichment
       expect(weather.condition).toBe('rain');
     }
+  });
+});
+
+// ============================================================================
+// EnrichmentResult Type Tests
+// ============================================================================
+
+describe('EnrichmentResult Types', () => {
+  describe('hasEnrichmentData', () => {
+    it('returns true for valid data', () => {
+      const result: EnrichmentResult<VehicleEnrichment> = {
+        data: { type: 'sedan', color: 'blue', confidence: 0.95 },
+        error: null,
+        isAvailable: true,
+      };
+      expect(hasEnrichmentData(result)).toBe(true);
+    });
+
+    it('returns false for null data', () => {
+      const result: EnrichmentResult<VehicleEnrichment> = {
+        data: null,
+        error: null,
+        isAvailable: false,
+      };
+      expect(hasEnrichmentData(result)).toBe(false);
+    });
+
+    it('returns false when error is present', () => {
+      const result: EnrichmentResult<VehicleEnrichment> = {
+        data: null,
+        error: 'Some error',
+        isAvailable: false,
+      };
+      expect(hasEnrichmentData(result)).toBe(false);
+    });
+
+    it('returns false when isAvailable is false even with data', () => {
+      const result: EnrichmentResult<VehicleEnrichment> = {
+        data: { type: 'sedan', color: 'blue', confidence: 0.95 },
+        error: null,
+        isAvailable: false,
+      };
+      expect(hasEnrichmentData(result)).toBe(false);
+    });
+  });
+
+  describe('hasEnrichmentError', () => {
+    it('returns true when error is present', () => {
+      const result: EnrichmentResult<VehicleEnrichment> = {
+        data: null,
+        error: 'Failed to fetch',
+        isAvailable: false,
+      };
+      expect(hasEnrichmentError(result)).toBe(true);
+    });
+
+    it('returns false when no error', () => {
+      const result: EnrichmentResult<VehicleEnrichment> = {
+        data: { type: 'sedan', color: 'blue', confidence: 0.95 },
+        error: null,
+        isAvailable: true,
+      };
+      expect(hasEnrichmentError(result)).toBe(false);
+    });
+  });
+
+  describe('enrichmentSuccess', () => {
+    it('creates a successful result', () => {
+      const vehicle: VehicleEnrichment = { type: 'SUV', color: 'black', confidence: 0.9 };
+      const result = enrichmentSuccess(vehicle);
+      expect(result.data).toEqual(vehicle);
+      expect(result.error).toBeNull();
+      expect(result.isAvailable).toBe(true);
+    });
+  });
+
+  describe('enrichmentError', () => {
+    it('creates an error result', () => {
+      const result = enrichmentError<VehicleEnrichment>('Network error');
+      expect(result.data).toBeNull();
+      expect(result.error).toBe('Network error');
+      expect(result.isAvailable).toBe(false);
+    });
+  });
+
+  describe('enrichmentEmpty', () => {
+    it('creates an empty result', () => {
+      const result = enrichmentEmpty<VehicleEnrichment>();
+      expect(result.data).toBeNull();
+      expect(result.error).toBeNull();
+      expect(result.isAvailable).toBe(false);
+    });
+  });
+});
+
+// ============================================================================
+// Safe Accessor Function Tests
+// ============================================================================
+
+describe('Safe Accessor Functions', () => {
+  describe('getEnrichmentString', () => {
+    it('returns value when present', () => {
+      expect(getEnrichmentString('sedan')).toBe('sedan');
+    });
+
+    it('returns default for null', () => {
+      expect(getEnrichmentString(null)).toBe('N/A');
+    });
+
+    it('returns default for undefined', () => {
+      expect(getEnrichmentString(undefined)).toBe('N/A');
+    });
+
+    it('returns custom default when provided', () => {
+      expect(getEnrichmentString(null, 'Unknown')).toBe('Unknown');
+    });
+  });
+
+  describe('getEnrichmentNumber', () => {
+    it('returns value when present', () => {
+      expect(getEnrichmentNumber(0.95)).toBe(0.95);
+    });
+
+    it('returns zero for null', () => {
+      expect(getEnrichmentNumber(null)).toBe(0);
+    });
+
+    it('returns zero for undefined', () => {
+      expect(getEnrichmentNumber(undefined)).toBe(0);
+    });
+
+    it('returns custom default when provided', () => {
+      expect(getEnrichmentNumber(null, -1)).toBe(-1);
+    });
+
+    it('returns zero value when zero is provided', () => {
+      expect(getEnrichmentNumber(0)).toBe(0);
+    });
+  });
+
+  describe('getEnrichmentArray', () => {
+    it('returns value when present', () => {
+      expect(getEnrichmentArray(['a', 'b'])).toEqual(['a', 'b']);
+    });
+
+    it('returns empty array for null', () => {
+      expect(getEnrichmentArray(null)).toEqual([]);
+    });
+
+    it('returns empty array for undefined', () => {
+      expect(getEnrichmentArray(undefined)).toEqual([]);
+    });
+
+    it('returns custom default when provided', () => {
+      expect(getEnrichmentArray(null, ['default'])).toEqual(['default']);
+    });
+  });
+
+  describe('getEnrichmentBoolean', () => {
+    it('returns true when true', () => {
+      expect(getEnrichmentBoolean(true)).toBe(true);
+    });
+
+    it('returns false when false', () => {
+      expect(getEnrichmentBoolean(false)).toBe(false);
+    });
+
+    it('returns false for null', () => {
+      expect(getEnrichmentBoolean(null)).toBe(false);
+    });
+
+    it('returns false for undefined', () => {
+      expect(getEnrichmentBoolean(undefined)).toBe(false);
+    });
+
+    it('returns custom default when provided', () => {
+      expect(getEnrichmentBoolean(null, true)).toBe(true);
+    });
+  });
+});
+
+// ============================================================================
+// Wrapped Enrichment Accessor Tests
+// ============================================================================
+
+describe('Wrapped Enrichment Accessors', () => {
+  describe('getVehicleEnrichmentResult', () => {
+    it('returns success for valid vehicle data', () => {
+      const data: EnrichmentData = {
+        vehicle: { type: 'sedan', color: 'blue', confidence: 0.9 },
+      };
+      const result = getVehicleEnrichmentResult(data);
+      expect(hasEnrichmentData(result)).toBe(true);
+      if (hasEnrichmentData(result)) {
+        expect(result.data.type).toBe('sedan');
+      }
+    });
+
+    it('returns empty for null data', () => {
+      const result = getVehicleEnrichmentResult(null);
+      expect(result.isAvailable).toBe(false);
+      expect(result.error).toBeNull();
+    });
+
+    it('returns empty for missing vehicle', () => {
+      const data: EnrichmentData = {};
+      const result = getVehicleEnrichmentResult(data);
+      expect(result.isAvailable).toBe(false);
+    });
+
+    it('returns error for invalid vehicle data', () => {
+      const data = {
+        vehicle: { invalid: true } as unknown as VehicleEnrichment,
+      };
+      const result = getVehicleEnrichmentResult(data);
+      expect(hasEnrichmentError(result)).toBe(true);
+    });
+  });
+
+  describe('getPetEnrichmentResult', () => {
+    it('returns success for valid pet data', () => {
+      const data: EnrichmentData = {
+        pet: { type: 'dog', confidence: 0.85 },
+      };
+      const result = getPetEnrichmentResult(data);
+      expect(hasEnrichmentData(result)).toBe(true);
+    });
+
+    it('returns error for invalid pet type', () => {
+      const data = {
+        pet: { type: 'bird', confidence: 0.85 } as unknown as PetEnrichment,
+      };
+      const result = getPetEnrichmentResult(data);
+      expect(hasEnrichmentError(result)).toBe(true);
+    });
+  });
+
+  describe('getPersonEnrichmentResult', () => {
+    it('returns success for valid person data', () => {
+      const data: EnrichmentData = {
+        person: { confidence: 0.9, action: 'walking' },
+      };
+      const result = getPersonEnrichmentResult(data);
+      expect(hasEnrichmentData(result)).toBe(true);
+    });
+  });
+
+  describe('getLicensePlateEnrichmentResult', () => {
+    it('returns success for valid license plate data', () => {
+      const data: EnrichmentData = {
+        license_plate: { text: 'ABC123', confidence: 0.95 },
+      };
+      const result = getLicensePlateEnrichmentResult(data);
+      expect(hasEnrichmentData(result)).toBe(true);
+      if (hasEnrichmentData(result)) {
+        expect(result.data.text).toBe('ABC123');
+      }
+    });
+  });
+
+  describe('getWeatherEnrichmentResult', () => {
+    it('returns success for valid weather data', () => {
+      const data: EnrichmentData = {
+        weather: { condition: 'clear', confidence: 0.8 },
+      };
+      const result = getWeatherEnrichmentResult(data);
+      expect(hasEnrichmentData(result)).toBe(true);
+    });
+  });
+
+  describe('getImageQualityEnrichmentResult', () => {
+    it('returns success for valid image quality data', () => {
+      const data: EnrichmentData = {
+        image_quality: { score: 0.9, issues: [] },
+      };
+      const result = getImageQualityEnrichmentResult(data);
+      expect(hasEnrichmentData(result)).toBe(true);
+    });
   });
 });

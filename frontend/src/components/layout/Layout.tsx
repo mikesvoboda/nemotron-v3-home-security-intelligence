@@ -1,7 +1,9 @@
 import { ReactNode, useCallback, useState } from 'react';
 
 import Header from './Header';
+import MobileBottomNav from './MobileBottomNav';
 import Sidebar from './Sidebar';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { SidebarContext, SidebarContextType } from '../../hooks/useSidebarContext';
@@ -19,6 +21,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isShortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Global keyboard shortcuts
   useKeyboardShortcuts({
@@ -59,7 +62,9 @@ export default function Layout({ children }: LayoutProps) {
         </a>
         <Header />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
+          {/* Hide sidebar on mobile, show MobileBottomNav instead */}
+          {!isMobile && <Sidebar />}
+
           {/* Mobile overlay backdrop */}
           {isMobileMenuOpen && (
             <div
@@ -69,7 +74,12 @@ export default function Layout({ children }: LayoutProps) {
               data-testid="mobile-overlay"
             />
           )}
-          <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto focus:outline-none" data-testid="main-content">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={`flex-1 overflow-auto focus:outline-none ${isMobile ? 'pb-14' : ''}`}
+            data-testid="main-content"
+          >
             {!isDismissed && (
               <ServiceStatusAlert services={services} onDismiss={handleDismiss} />
             )}
@@ -88,6 +98,9 @@ export default function Layout({ children }: LayoutProps) {
           open={isShortcutsHelpOpen}
           onClose={() => setShortcutsHelpOpen(false)}
         />
+
+        {/* Show mobile bottom navigation on mobile viewports */}
+        {isMobile && <MobileBottomNav />}
       </div>
     </SidebarContext.Provider>
   );

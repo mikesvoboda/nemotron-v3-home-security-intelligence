@@ -52,6 +52,23 @@ class AuditAction(str, Enum):
     # Admin actions
     DATA_CLEARED = "data_cleared"
 
+    # Security actions (NEM-1616)
+    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
+    SECURITY_ALERT = "security_alert"
+    CONTENT_TYPE_REJECTED = "content_type_rejected"
+    FILE_MAGIC_REJECTED = "file_magic_rejected"
+
+    # Bulk operations
+    BULK_EXPORT_COMPLETED = "bulk_export_completed"
+
+    # Cleanup operations
+    CLEANUP_EXECUTED = "cleanup_executed"
+
+    # Zone actions
+    ZONE_CREATED = "zone_created"
+    ZONE_UPDATED = "zone_updated"
+    ZONE_DELETED = "zone_deleted"
+
 
 class AuditStatus(str, Enum):
     """Enumeration of audit log statuses."""

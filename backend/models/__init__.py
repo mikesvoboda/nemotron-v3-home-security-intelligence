@@ -12,6 +12,14 @@ from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
 from .gpu_stats import GPUStats
 from .log import Log
+from .notification_preferences import (
+    CameraNotificationSetting,
+    DayOfWeek,
+    NotificationPreferences,
+    NotificationSound,
+    QuietHoursPeriod,
+    RiskLevel,
+)
 from .prompt_config import PromptConfig
 from .scene_change import SceneChange, SceneChangeType
 from .zone import Zone, ZoneShape, ZoneType
@@ -28,15 +36,21 @@ __all__ = [
     "AuditStatus",
     "Base",
     "Camera",
+    "CameraNotificationSetting",
     "CameraStatus",
     "ClassBaseline",
+    "DayOfWeek",
     "Detection",
     "Event",
     "EventAudit",
     "EventDetection",
     "GPUStats",
     "Log",
+    "NotificationPreferences",
+    "NotificationSound",
     "PromptConfig",
+    "QuietHoursPeriod",
+    "RiskLevel",
     "SceneChange",
     "SceneChangeType",
     "Severity",
