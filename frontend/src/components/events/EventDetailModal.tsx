@@ -16,6 +16,7 @@ import {
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import EnrichmentPanel from './EnrichmentPanel';
+import EventVideoPlayer from './EventVideoPlayer';
 import ThumbnailStrip from './ThumbnailStrip';
 import {
   fetchEventDetections,
@@ -99,8 +100,8 @@ export default function EventDetailModal({
   onFlagEvent,
   onDownloadMedia,
 }: EventDetailModalProps) {
-  // State for active tab (Details vs AI Audit)
-  const [activeTab, setActiveTab] = useState<'details' | 'audit'>('details');
+  // State for active tab (Details vs AI Audit vs Video Clip)
+  const [activeTab, setActiveTab] = useState<'details' | 'audit' | 'clip'>('details');
 
   // State for notes editing
   const [notesText, setNotesText] = useState<string>('');
@@ -530,11 +531,24 @@ export default function EventDetailModal({
                   >
                     AI Audit
                   </button>
+                  <button
+                    onClick={() => setActiveTab('clip')}
+                    className={`px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === 'clip'
+                        ? 'border-b-2 border-[#76B900] text-[#76B900]'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                    data-testid="video-clip-tab"
+                  >
+                    Video Clip
+                  </button>
                 </div>
 
                 {/* Content */}
                 <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
-                  {activeTab === 'details' ? (
+                  {activeTab === 'clip' ? (
+                    <EventVideoPlayer eventId={parseInt(event.id, 10)} />
+                  ) : activeTab === 'details' ? (
                     <>
                       {/* Media display: Video or Image based on selected detection */}
                   {isVideoDetection && selectedDetectionId ? (

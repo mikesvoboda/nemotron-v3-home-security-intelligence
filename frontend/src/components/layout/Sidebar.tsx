@@ -15,7 +15,7 @@ const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
   { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
-  { id: 'entities', label: 'Entities', icon: Users, badge: 'WIP', path: '/entities' },
+  { id: 'entities', label: 'Entities', icon: Users, path: '/entities' },
   { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
   { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
   { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },

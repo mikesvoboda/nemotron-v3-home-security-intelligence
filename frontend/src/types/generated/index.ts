@@ -74,6 +74,13 @@ export type QueueDepths = components['schemas']['QueueDepths'];
 export type PipelineLatencies = components['schemas']['PipelineLatencies'];
 export type StageLatency = components['schemas']['StageLatency'];
 
+// Pipeline Latency types
+export type PipelineLatencyResponse = components['schemas']['PipelineLatencyResponse'];
+export type PipelineLatencyHistoryResponse = components['schemas']['PipelineLatencyHistoryResponse'];
+export type PipelineStageLatency = components['schemas']['PipelineStageLatency'];
+export type LatencyHistorySnapshot = components['schemas']['LatencyHistorySnapshot'];
+export type LatencyHistoryStageStats = components['schemas']['LatencyHistoryStageStats'];
+
 // Log types
 export type LogEntry = components['schemas']['LogEntry'];
 export type LogsResponse = components['schemas']['LogsResponse'];
@@ -185,6 +192,11 @@ export type SeverityEnum = components['schemas']['SeverityEnum'];
 export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
 export type SeverityThresholds = components['schemas']['SeverityThresholds'];
 export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
+
+// Scene Change types
+export type SceneChangeResponse = components['schemas']['SceneChangeResponse'];
+export type SceneChangeListResponse = components['schemas']['SceneChangeListResponse'];
+export type SceneChangeAcknowledgeResponse = components['schemas']['SceneChangeAcknowledgeResponse'];
 
 // Zone types
 export type Zone = components['schemas']['ZoneResponse'];

@@ -408,7 +408,7 @@ services:
       # SECURITY: Admin credentials - password must be explicitly set (no default)
       # Generate a strong password: openssl rand -base64 32
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set - generate with: openssl rand -base64 32}
+      - 'GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set}'
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3002
       - GF_INSTALL_PLUGINS=marcusolsson-json-datasource

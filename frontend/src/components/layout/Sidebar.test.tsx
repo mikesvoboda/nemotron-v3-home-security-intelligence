@@ -65,25 +65,6 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
   });
 
-  it('displays WIP badge on Entities item', () => {
-    renderWithRouter();
-    expect(screen.getByText('WIP')).toBeInTheDocument();
-  });
-
-  it('WIP badge has correct styling', () => {
-    renderWithRouter();
-    const wipBadge = screen.getByText('WIP');
-    expect(wipBadge).toHaveClass(
-      'px-2',
-      'py-0.5',
-      'text-xs',
-      'font-medium',
-      'bg-yellow-500',
-      'text-black',
-      'rounded'
-    );
-  });
-
   it('renders icons for all navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');

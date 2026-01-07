@@ -467,7 +467,7 @@ class ReIdentificationService:
 
     async def store_embedding(
         self,
-        redis_client: Redis,
+        redis_client: Redis | Any,
         embedding: EntityEmbedding,
     ) -> None:
         """Store an entity embedding in Redis.
@@ -477,7 +477,7 @@ class ReIdentificationService:
         This method is rate-limited to prevent resource exhaustion.
 
         Args:
-            redis_client: Redis client instance
+            redis_client: Redis client instance (raw Redis or RedisClient wrapper)
             embedding: EntityEmbedding to store
         """
         async with self._rate_limit_semaphore:
@@ -487,17 +487,23 @@ class ReIdentificationService:
             try:
                 # Get existing embeddings
                 existing = await redis_client.get(key)
-                data = json.loads(existing) if existing else {"persons": [], "vehicles": []}
+                # Handle both raw Redis (returns bytes/string) and RedisClient wrapper (returns JSON-decoded)
+                if existing is not None:
+                    data: dict[str, list[dict[str, Any]]] = (
+                        existing if isinstance(existing, dict) else json.loads(existing)
+                    )
+                else:
+                    data = {"persons": [], "vehicles": []}
 
                 # Add new embedding
                 list_key = "persons" if embedding.entity_type == "person" else "vehicles"
                 data[list_key].append(embedding.to_dict())
 
-                # Store with TTL
-                await redis_client.setex(
+                # Store with TTL using 'ex' parameter (standard Redis API)
+                await redis_client.set(
                     key,
-                    EMBEDDING_TTL_SECONDS,
                     json.dumps(data),
+                    ex=EMBEDDING_TTL_SECONDS,
                 )
 
                 logger.debug(

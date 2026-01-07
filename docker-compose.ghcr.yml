@@ -61,14 +61,19 @@ services:
       # Docker ignores the :U flag, making this backward compatible
       - ./backend/data:/app/data:U
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro
     environment:
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://${AI_HOST:-host.docker.internal}:8090
       - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
+      - FLORENCE_URL=http://${AI_HOST:-host.docker.internal}:8092
+      - CLIP_URL=http://${AI_HOST:-host.docker.internal}:8093
+      - ENRICHMENT_URL=http://${AI_HOST:-host.docker.internal}:8094
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=${DEBUG:-false}
+      - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
     depends_on:
       postgres:
         condition: service_healthy

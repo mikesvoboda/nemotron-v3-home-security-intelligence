@@ -10,6 +10,8 @@ export type { EmptyStateAction, EmptyStateProps } from './EmptyState';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export type { ErrorBoundaryProps, ErrorBoundaryState } from './ErrorBoundary';
 
+export { default as LoadingSpinner } from './LoadingSpinner';
+
 export { default as RiskBadge } from './RiskBadge';
 export type { RiskBadgeProps } from './RiskBadge';
 
