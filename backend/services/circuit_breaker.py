@@ -1,5 +1,8 @@
 """Circuit breaker pattern implementation for external service protection.
 
+This is the canonical circuit breaker implementation for the project. All modules
+should import from here rather than from backend.core.circuit_breaker.
+
 This module provides a circuit breaker implementation that protects external services
 from cascading failures. When a service experiences repeated failures, the circuit
 breaker "opens" to prevent further calls, allowing the service time to recover.
@@ -16,7 +19,26 @@ Features:
     - Thread-safe async implementation
     - Registry for managing multiple circuit breakers
     - Async context manager support
-    - Metrics and monitoring support
+    - Prometheus metrics integration for monitoring
+    - Protected call wrapper and async context manager
+
+Usage:
+    from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+
+    # Method 1: Manual check and record
+    breaker = CircuitBreaker(name="ai_service", config=config)
+    try:
+        result = await breaker.call(async_operation, arg1, arg2)
+    except CircuitBreakerError:
+        # Handle service unavailable
+        pass
+
+    # Method 2: Async context manager
+    async with breaker:
+        result = await async_operation()
+
+    # Method 3: Protected call wrapper
+    result = await breaker.protected_call(async_operation)
 """
 
 from __future__ import annotations
@@ -24,16 +46,55 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum, auto
 from typing import Any, TypeVar
 
+from prometheus_client import Counter, Gauge
+
+from backend.core.exceptions import CircuitBreakerOpenError as CoreCircuitBreakerOpenError
 from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 T = TypeVar("T")
+
+
+# =============================================================================
+# Prometheus Metrics
+# =============================================================================
+
+CIRCUIT_BREAKER_STATE = Gauge(
+    "circuit_breaker_state",
+    "Current state of the circuit breaker (0=closed, 1=open, 2=half_open)",
+    labelnames=["service"],
+)
+
+CIRCUIT_BREAKER_FAILURES_TOTAL = Counter(
+    "circuit_breaker_failures_total",
+    "Total number of failures recorded by the circuit breaker",
+    labelnames=["service"],
+)
+
+CIRCUIT_BREAKER_STATE_CHANGES_TOTAL = Counter(
+    "circuit_breaker_state_changes_total",
+    "Total number of state transitions",
+    labelnames=["service", "from_state", "to_state"],
+)
+
+CIRCUIT_BREAKER_CALLS_TOTAL = Counter(
+    "circuit_breaker_calls_total",
+    "Total number of calls through the circuit breaker",
+    labelnames=["service", "result"],
+)
+
+CIRCUIT_BREAKER_REJECTED_TOTAL = Counter(
+    "circuit_breaker_rejected_total",
+    "Total number of calls rejected by the circuit breaker",
+    labelnames=["service"],
+)
 
 
 class CircuitState(StrEnum):
@@ -106,22 +167,50 @@ class CircuitBreakerMetrics:
 
 
 class CircuitBreakerError(Exception):
-    """Exception raised when circuit breaker is open."""
+    """Exception raised when circuit breaker is open.
 
-    def __init__(self, service_name: str, state: str | CircuitState) -> None:
+    This is compatible with backend.core.exceptions.CircuitBreakerOpenError
+    and provides the same interface for error handling.
+    """
+
+    def __init__(
+        self,
+        service_name: str,
+        state: str | CircuitState | None = None,
+        *,
+        recovery_timeout: float | None = None,
+    ) -> None:
         """Initialize circuit breaker error.
 
         Args:
             service_name: Name of the service with open circuit
-            state: Current circuit state
+            state: Current circuit state (optional, defaults to 'open')
+            recovery_timeout: Seconds until recovery attempt (optional)
         """
         self.service_name = service_name
         self.name = service_name  # Alias for compatibility
-        state_value = state.value if isinstance(state, CircuitState) else state
-        self.state = state
+        self.recovery_timeout = recovery_timeout
+
+        if state is None:
+            state_value = "open"
+            self.state = CircuitState.OPEN
+        elif isinstance(state, CircuitState):
+            state_value = state.value
+            self.state = state
+        else:
+            state_value = state
+            try:
+                self.state = CircuitState(state)
+            except ValueError:
+                self.state = CircuitState.OPEN
+
         super().__init__(
             f"Circuit breaker for '{service_name}' is {state_value}. Service is temporarily unavailable."
         )
+
+
+# Alias for compatibility with code using CircuitBreakerOpenError from core.exceptions
+CircuitBreakerOpenError = CircuitBreakerError
 
 
 class CircuitBreaker:
@@ -150,15 +239,32 @@ class CircuitBreaker:
         self,
         name: str,
         config: CircuitBreakerConfig | None = None,
+        *,
+        failure_threshold: int | None = None,
+        recovery_timeout: float | None = None,
+        half_open_max_calls: int | None = None,
     ) -> None:
         """Initialize circuit breaker.
 
         Args:
             name: Unique name for this circuit breaker
             config: Configuration (uses defaults if not provided)
+            failure_threshold: Override config failure threshold (for compatibility)
+            recovery_timeout: Override config recovery timeout (for compatibility)
+            half_open_max_calls: Override config half_open_max_calls (for compatibility)
         """
         self._name = name
-        self._config = config or CircuitBreakerConfig()
+
+        # Build config from either provided config or individual parameters
+        if config is not None:
+            self._config = config
+        else:
+            self._config = CircuitBreakerConfig(
+                failure_threshold=failure_threshold if failure_threshold is not None else 5,
+                recovery_timeout=recovery_timeout if recovery_timeout is not None else 30.0,
+                half_open_max_calls=half_open_max_calls if half_open_max_calls is not None else 3,
+            )
+
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
@@ -170,10 +276,14 @@ class CircuitBreaker:
         self._last_state_change: datetime | None = None
         self._lock = asyncio.Lock()
 
+        # Initialize Prometheus metrics
+        CIRCUIT_BREAKER_STATE.labels(service=name).set(0)
+
         logger.info(
             f"CircuitBreaker '{name}' initialized: "
             f"failure_threshold={self._config.failure_threshold}, "
-            f"recovery_timeout={self._config.recovery_timeout}s"
+            f"recovery_timeout={self._config.recovery_timeout}s, "
+            f"half_open_max_calls={self._config.half_open_max_calls}"
         )
 
     @property
@@ -210,6 +320,28 @@ class CircuitBreaker:
     def is_open(self) -> bool:
         """Check if circuit is open (rejecting calls)."""
         return self._state == CircuitState.OPEN
+
+    # =========================================================================
+    # Backward Compatibility Properties
+    # =========================================================================
+    # These properties provide direct access to config values for code that
+    # expects _failure_threshold, _recovery_timeout, _half_open_max_calls
+    # as instance attributes (e.g., tests accessing internal state).
+
+    @property
+    def _failure_threshold(self) -> int:
+        """Backward-compatible access to config.failure_threshold."""
+        return self._config.failure_threshold
+
+    @property
+    def _recovery_timeout(self) -> float:
+        """Backward-compatible access to config.recovery_timeout."""
+        return self._config.recovery_timeout
+
+    @property
+    def _half_open_max_calls(self) -> int:
+        """Backward-compatible access to config.half_open_max_calls."""
+        return self._config.half_open_max_calls
 
     async def allow_call(self) -> bool:
         """Check if a call is allowed based on current state.
@@ -301,6 +433,9 @@ class CircuitBreaker:
     async def _record_success(self) -> None:
         """Record a successful call."""
         async with self._lock:
+            # Update Prometheus metrics
+            CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="success").inc()
+
             if self._state == CircuitState.HALF_OPEN:
                 self._success_count += 1
                 logger.debug(
@@ -323,6 +458,10 @@ class CircuitBreaker:
         async with self._lock:
             self._failure_count += 1
             self._last_failure_time = time.monotonic()
+
+            # Update Prometheus metrics
+            CIRCUIT_BREAKER_FAILURES_TOTAL.labels(service=self._name).inc()
+            CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="failure").inc()
 
             logger.warning(
                 f"CircuitBreaker '{self._name}' failure recorded: "
@@ -354,6 +493,14 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
 
+        # Update Prometheus metrics
+        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(1)
+        CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+            service=self._name,
+            from_state=prev_state.value,
+            to_state="open",
+        ).inc()
+
         logger.warning(
             f"CircuitBreaker '{self._name}' transitioned {prev_state.value} -> OPEN "
             f"(failures={self._failure_count}, "
@@ -366,6 +513,14 @@ class CircuitBreaker:
         self._success_count = 0
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
+
+        # Update Prometheus metrics
+        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(2)
+        CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+            service=self._name,
+            from_state="open",
+            to_state="half_open",
+        ).inc()
 
         logger.info(
             f"CircuitBreaker '{self._name}' transitioned OPEN -> HALF_OPEN "
@@ -381,12 +536,21 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._last_state_change = datetime.now(UTC)
 
+        # Update Prometheus metrics
+        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+        CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+            service=self._name,
+            from_state="half_open",
+            to_state="closed",
+        ).inc()
+
         logger.info(
             f"CircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED (service recovered)"
         )
 
     def reset(self) -> None:
         """Manually reset circuit breaker to CLOSED state."""
+        prev_state = self._state
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
@@ -394,6 +558,15 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._last_failure_time = None
         self._last_state_change = datetime.now(UTC)
+
+        # Update Prometheus metrics
+        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+        if prev_state != CircuitState.CLOSED:
+            CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+                service=self._name,
+                from_state=prev_state.value,
+                to_state="closed",
+            ).inc()
 
         logger.info(f"CircuitBreaker '{self._name}' manually reset to CLOSED")
 
@@ -454,6 +627,212 @@ class CircuitBreaker:
             last_failure_time=last_failure_dt,
             last_state_change=self._last_state_change,
         )
+
+    # =========================================================================
+    # Compatibility Methods (for core/circuit_breaker.py interface)
+    # =========================================================================
+
+    def get_state(self) -> CircuitState:
+        """Get current circuit state (alias for state property).
+
+        Returns:
+            Current CircuitState
+        """
+        return self._state
+
+    def allow_request(self) -> bool:
+        """Check if a request should proceed based on current state (sync version).
+
+        This method also handles state transitions from OPEN to HALF_OPEN
+        when the recovery timeout has elapsed. It also increments the
+        half_open_calls counter when in HALF_OPEN state.
+
+        Returns:
+            True if request should proceed, False if it should be rejected
+        """
+        allowed = self._allow_call_unlocked()
+        if allowed and self._state == CircuitState.HALF_OPEN:
+            self._half_open_calls += 1
+        return allowed
+
+    async def allow_request_async(self) -> bool:
+        """Check if a request should proceed (async version with lock).
+
+        Thread-safe version that acquires a lock before checking state
+        and potentially transitioning.
+
+        Returns:
+            True if request should proceed, False if it should be rejected
+        """
+        return await self.allow_call()
+
+    def record_success(self) -> None:
+        """Record a successful operation (sync version).
+
+        Resets failure count and may transition circuit from HALF_OPEN to CLOSED.
+        Note: Prefer using async methods for thread safety.
+        """
+        # Update Prometheus metrics
+        CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="success").inc()
+
+        if self._state == CircuitState.HALF_OPEN:
+            self._success_count += 1
+            if self._success_count >= self._config.success_threshold:
+                self._transition_to_closed()
+        elif self._state == CircuitState.CLOSED and self._failure_count > 0:
+            self._failure_count = 0
+
+    async def record_success_async(self) -> None:
+        """Record a successful operation (async version with lock)."""
+        await self._record_success()
+
+    def record_failure(self) -> None:
+        """Record a failed operation (sync version).
+
+        Increments failure count and may transition circuit to OPEN state.
+        Note: Prefer using async methods for thread safety.
+        """
+        self._failure_count += 1
+        self._last_failure_time = time.monotonic()
+
+        # Update Prometheus metrics
+        CIRCUIT_BREAKER_FAILURES_TOTAL.labels(service=self._name).inc()
+        CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="failure").inc()
+
+        if self._state == CircuitState.HALF_OPEN or (
+            self._state == CircuitState.CLOSED
+            and self._failure_count >= self._config.failure_threshold
+        ):
+            self._transition_to_open()
+
+    async def record_failure_async(self) -> None:
+        """Record a failed operation (async version with lock)."""
+        await self._record_failure()
+
+    async def reset_async(self) -> None:
+        """Manually reset circuit breaker to CLOSED state (async version with lock)."""
+        async with self._lock:
+            self.reset()
+
+    def check_and_raise(self) -> None:
+        """Check circuit state and raise CircuitBreakerOpenError if open.
+
+        Use this method when you want to explicitly check the circuit state
+        and raise an exception with full context if the circuit is open.
+
+        Raises:
+            CoreCircuitBreakerOpenError: If the circuit is open and not allowing requests
+        """
+        if not self.allow_request():
+            raise CoreCircuitBreakerOpenError(
+                service_name=self._name,
+                recovery_timeout=self._config.recovery_timeout,
+            )
+
+    async def check_and_raise_async(self) -> None:
+        """Check circuit state and raise CircuitBreakerOpenError if open (async version).
+
+        Thread-safe version that acquires a lock before checking state.
+
+        Raises:
+            CoreCircuitBreakerOpenError: If the circuit is open and not allowing requests
+        """
+        async with self._lock:
+            self.check_and_raise()
+
+    async def protected_call(
+        self,
+        func: Callable[[], Awaitable[T]],
+        record_on: tuple[type[BaseException], ...] = (Exception,),
+    ) -> T:
+        """Execute an async function with circuit breaker protection.
+
+        This method provides a convenient way to wrap async calls with full
+        circuit breaker protection:
+        1. Checks if circuit is open (raises CircuitBreakerError if so)
+        2. Executes the function
+        3. Records success or failure based on the outcome
+
+        Args:
+            func: Async function to execute (no arguments)
+            record_on: Exception types that should be recorded as failures
+
+        Returns:
+            The result of the function call
+
+        Raises:
+            CircuitBreakerError: If the circuit is open
+            Any exception raised by the function
+
+        Example:
+            result = await circuit_breaker.protected_call(
+                lambda: client.fetch_data(),
+                record_on=(ConnectionError, TimeoutError),
+            )
+        """
+        async with self._lock:
+            self.check_and_raise()
+
+        try:
+            result = await func()
+            await self.record_success_async()
+            return result
+        except record_on:
+            await self.record_failure_async()
+            raise
+
+    @asynccontextmanager
+    async def protect(
+        self,
+        record_on: tuple[type[BaseException], ...] = (Exception,),
+    ) -> Any:
+        """Async context manager for circuit breaker protection.
+
+        Provides a scoped way to protect code blocks with the circuit breaker.
+        Automatically records success or failure when exiting the context.
+
+        Args:
+            record_on: Exception types that should be recorded as failures
+
+        Yields:
+            None
+
+        Raises:
+            CircuitBreakerError: If the circuit is open when entering
+
+        Example:
+            async with circuit_breaker.protect():
+                result = await risky_operation()
+                return result
+        """
+        await self.check_and_raise_async()
+
+        try:
+            yield
+            await self.record_success_async()
+        except record_on:
+            await self.record_failure_async()
+            raise
+
+    def get_state_info(self) -> dict[str, Any]:
+        """Get comprehensive state information for monitoring/debugging.
+
+        Returns:
+            Dictionary containing state, config, and timing information.
+        """
+        return {
+            "name": self._name,
+            "state": self._state.value,
+            "failure_count": self._failure_count,
+            "failure_threshold": self._config.failure_threshold,
+            "recovery_timeout": self._config.recovery_timeout,
+            "half_open_max_calls": self._config.half_open_max_calls,
+            "half_open_calls": self._half_open_calls,
+            "opened_at": self._opened_at,
+            "last_state_change": (
+                self._last_state_change.isoformat() if self._last_state_change else None
+            ),
+        }
 
     async def __aenter__(self) -> CircuitBreaker:
         """Async context manager entry.

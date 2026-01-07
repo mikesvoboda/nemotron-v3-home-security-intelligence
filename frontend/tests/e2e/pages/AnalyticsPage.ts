@@ -54,7 +54,8 @@ export class AnalyticsPage extends BasePage {
 
     // Controls
     this.cameraSelector = page.getByTestId('camera-selector');
-    this.refreshButton = page.getByTestId('analytics-refresh-button');
+    // Use .first() to handle cases where multiple refresh buttons may exist (e.g., PipelineLatencyPanel)
+    this.refreshButton = page.getByRole('button', { name: /refresh/i }).first();
 
     // Baseline Status
     this.totalSamplesText = page.getByText(/Total samples:/i);

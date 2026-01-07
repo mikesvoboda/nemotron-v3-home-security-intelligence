@@ -19,14 +19,14 @@ and clothing classification instead of loading models locally.
 from __future__ import annotations
 
 __all__ = [
-    # Classes
     "BoundingBox",
     "DetectionInput",
     "EnrichmentPipeline",
     "EnrichmentResult",
+    "EnrichmentStatus",
+    "EnrichmentTrackingResult",
     "FaceResult",
     "LicensePlateResult",
-    # Functions
     "get_enrichment_pipeline",
     "reset_enrichment_pipeline",
 ]
@@ -34,6 +34,7 @@ __all__ = [
 import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +108,110 @@ from backend.services.weather_loader import (
 )
 
 logger = get_logger(__name__)
+
+
+class EnrichmentStatus(str, Enum):
+    """Status of enrichment pipeline execution.
+
+    Tracks the overall success/failure state of enrichment operations:
+    - FULL: All enabled enrichment models succeeded
+    - PARTIAL: Some models succeeded, some failed (partial enrichment available)
+    - FAILED: All models failed (no enrichment data available)
+    - SKIPPED: Enrichment was not attempted (disabled or no applicable detections)
+    """
+
+    FULL = "full"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+@dataclass(slots=True)
+class EnrichmentTrackingResult:
+    """Tracks which enrichment models succeeded/failed for a batch.
+
+    This provides visibility into partial failures instead of silently
+    degrading when some enrichment models fail.
+
+    Attributes:
+        status: Overall enrichment status (full, partial, failed, skipped)
+        successful_models: List of model names that succeeded
+        failed_models: List of model names that failed
+        errors: Dictionary mapping model names to error messages
+        data: The actual EnrichmentResult data (if any models succeeded)
+    """
+
+    status: EnrichmentStatus = EnrichmentStatus.SKIPPED
+    successful_models: list[str] = field(default_factory=list)
+    failed_models: list[str] = field(default_factory=list)
+    errors: dict[str, str] = field(default_factory=dict)
+    data: EnrichmentResult | None = None
+
+    @property
+    def has_data(self) -> bool:
+        """Check if any enrichment data is available."""
+        return self.data is not None
+
+    @property
+    def success_rate(self) -> float:
+        """Calculate the success rate of enrichment models.
+
+        Returns:
+            Float between 0.0 and 1.0 representing success rate.
+            Returns 1.0 if no models were attempted.
+        """
+        total = len(self.successful_models) + len(self.failed_models)
+        if total == 0:
+            return 1.0
+        return len(self.successful_models) / total
+
+    @property
+    def is_partial(self) -> bool:
+        """Check if this is a partial result (some succeeded, some failed)."""
+        return self.status == EnrichmentStatus.PARTIAL
+
+    @property
+    def all_succeeded(self) -> bool:
+        """Check if all attempted models succeeded."""
+        return self.status == EnrichmentStatus.FULL
+
+    @property
+    def all_failed(self) -> bool:
+        """Check if all attempted models failed."""
+        return self.status == EnrichmentStatus.FAILED
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary representation of tracking result
+        """
+        return {
+            "status": self.status.value,
+            "successful_models": self.successful_models,
+            "failed_models": self.failed_models,
+            "errors": self.errors,
+            "success_rate": self.success_rate,
+        }
+
+    @classmethod
+    def compute_status(cls, successful: list[str], failed: list[str]) -> EnrichmentStatus:
+        """Compute the appropriate status based on model results.
+
+        Args:
+            successful: List of models that succeeded
+            failed: List of models that failed
+
+        Returns:
+            EnrichmentStatus enum value
+        """
+        if not successful and not failed:
+            return EnrichmentStatus.SKIPPED
+        if not failed:
+            return EnrichmentStatus.FULL
+        if not successful:
+            return EnrichmentStatus.FAILED
+        return EnrichmentStatus.PARTIAL
 
 
 @dataclass(slots=True)
@@ -2203,6 +2308,215 @@ class EnrichmentPipeline:
             logger.error("Pet classification error", exc_info=True)
 
         return results
+
+    async def enrich_batch_with_tracking(  # noqa: PLR0912
+        self,
+        detections: list[DetectionInput],
+        images: dict[int | None, Image.Image | Path | str],
+        camera_id: str | None = None,
+    ) -> EnrichmentTrackingResult:
+        """Enrich a batch with tracking of individual model success/failure.
+
+        This method wraps enrich_batch and tracks which enrichment models
+        succeeded or failed, providing visibility into partial failures
+        instead of silently degrading.
+
+        Args:
+            detections: List of detections to enrich
+            images: Dictionary mapping detection IDs to images
+            camera_id: Camera ID for scene change detection and re-id
+
+        Returns:
+            EnrichmentTrackingResult with status, model results, and data
+        """
+        from backend.core.metrics import (
+            record_enrichment_batch_status,
+            record_enrichment_failure,
+            record_enrichment_partial_batch,
+            set_enrichment_success_rate,
+        )
+
+        # Track which models were attempted and their success/failure
+        successful_models: list[str] = []
+        failed_models: list[str] = []
+        errors: dict[str, str] = {}
+
+        # If no detections, return skipped status
+        if not detections:
+            tracking_result = EnrichmentTrackingResult(
+                status=EnrichmentStatus.SKIPPED,
+                successful_models=[],
+                failed_models=[],
+                errors={},
+                data=None,
+            )
+            record_enrichment_batch_status("skipped")
+            return tracking_result
+
+        # Run the standard enrichment and capture results
+        result = await self.enrich_batch(detections, images, camera_id)
+
+        # Analyze which models succeeded/failed based on result.errors
+        # and the presence of enrichment data
+
+        # Map of error message prefixes to model names
+        error_model_mapping = {
+            "License plate detection": "license_plate",
+            "Face detection": "face",
+            "Vision extraction": "vision",
+            "Re-identification": "reid",
+            "Scene change detection": "scene_change",
+            "Violence detection": "violence",
+            "Weather classification": "weather",
+            "Clothing classification": "clothing",
+            "Clothing segmentation": "segformer",
+            "Vehicle damage detection": "vehicle_damage",
+            "Vehicle classification": "vehicle_class",
+            "Image quality assessment": "image_quality",
+            "Pet classification": "pet",
+        }
+
+        # Track failed models from errors list
+        for error_msg in result.errors:
+            for prefix, model_name in error_model_mapping.items():
+                if error_msg.startswith(prefix):
+                    failed_models.append(model_name)
+                    errors[model_name] = error_msg
+                    record_enrichment_failure(model_name)
+                    break
+
+        # Determine which models were enabled and attempted
+        # Get the shared image to check if image-based processing was possible
+        shared_image = images.get(None)
+        pil_image_available = shared_image is not None
+
+        # Track successful models based on enabled features and results
+        high_conf_detections = [d for d in detections if d.confidence >= self.min_confidence]
+        has_vehicles = any(d.class_name in VEHICLE_CLASSES for d in high_conf_detections)
+        has_persons = any(d.class_name == PERSON_CLASS for d in high_conf_detections)
+        has_animals = any(d.class_name in ANIMAL_CLASSES for d in high_conf_detections)
+        has_multiple_persons = (
+            sum(1 for d in high_conf_detections if d.class_name == PERSON_CLASS) >= 2
+        )
+
+        # Check each model that was enabled and applicable
+        if self.license_plate_enabled and has_vehicles:
+            if "license_plate" not in failed_models:
+                successful_models.append("license_plate")
+                set_enrichment_success_rate("license_plate", 1.0)
+            else:
+                set_enrichment_success_rate("license_plate", 0.0)
+
+        if self.face_detection_enabled and has_persons:
+            if "face" not in failed_models:
+                successful_models.append("face")
+                set_enrichment_success_rate("face", 1.0)
+            else:
+                set_enrichment_success_rate("face", 0.0)
+
+        if self.vision_extraction_enabled and pil_image_available:
+            if "vision" not in failed_models and result.vision_extraction is not None:
+                successful_models.append("vision")
+                set_enrichment_success_rate("vision", 1.0)
+            elif "vision" in failed_models:
+                set_enrichment_success_rate("vision", 0.0)
+
+        if self.reid_enabled and self.redis_client and pil_image_available:
+            if "reid" not in failed_models:
+                successful_models.append("reid")
+                set_enrichment_success_rate("reid", 1.0)
+            else:
+                set_enrichment_success_rate("reid", 0.0)
+
+        if self.scene_change_enabled and camera_id and pil_image_available:
+            if "scene_change" not in failed_models:
+                successful_models.append("scene_change")
+                set_enrichment_success_rate("scene_change", 1.0)
+            else:
+                set_enrichment_success_rate("scene_change", 0.0)
+
+        if self.violence_detection_enabled and pil_image_available and has_multiple_persons:
+            if "violence" not in failed_models:
+                successful_models.append("violence")
+                set_enrichment_success_rate("violence", 1.0)
+            else:
+                set_enrichment_success_rate("violence", 0.0)
+
+        if self.weather_classification_enabled and pil_image_available:
+            if "weather" not in failed_models and result.weather_classification is not None:
+                successful_models.append("weather")
+                set_enrichment_success_rate("weather", 1.0)
+            elif "weather" in failed_models:
+                set_enrichment_success_rate("weather", 0.0)
+
+        if self.clothing_classification_enabled and pil_image_available and has_persons:
+            if "clothing" not in failed_models:
+                successful_models.append("clothing")
+                set_enrichment_success_rate("clothing", 1.0)
+            else:
+                set_enrichment_success_rate("clothing", 0.0)
+
+        if self.clothing_segmentation_enabled and pil_image_available and has_persons:
+            if "segformer" not in failed_models:
+                successful_models.append("segformer")
+                set_enrichment_success_rate("segformer", 1.0)
+            else:
+                set_enrichment_success_rate("segformer", 0.0)
+
+        if self.vehicle_damage_detection_enabled and pil_image_available and has_vehicles:
+            if "vehicle_damage" not in failed_models:
+                successful_models.append("vehicle_damage")
+                set_enrichment_success_rate("vehicle_damage", 1.0)
+            else:
+                set_enrichment_success_rate("vehicle_damage", 0.0)
+
+        if self.vehicle_classification_enabled and pil_image_available and has_vehicles:
+            if "vehicle_class" not in failed_models:
+                successful_models.append("vehicle_class")
+                set_enrichment_success_rate("vehicle_class", 1.0)
+            else:
+                set_enrichment_success_rate("vehicle_class", 0.0)
+
+        if self.image_quality_enabled and pil_image_available:
+            if "image_quality" not in failed_models and result.image_quality is not None:
+                successful_models.append("image_quality")
+                set_enrichment_success_rate("image_quality", 1.0)
+            elif "image_quality" in failed_models:
+                set_enrichment_success_rate("image_quality", 0.0)
+
+        if self.pet_classification_enabled and pil_image_available and has_animals:
+            if "pet" not in failed_models:
+                successful_models.append("pet")
+                set_enrichment_success_rate("pet", 1.0)
+            else:
+                set_enrichment_success_rate("pet", 0.0)
+
+        # Compute final status
+        status = EnrichmentTrackingResult.compute_status(successful_models, failed_models)
+
+        # Record metrics
+        record_enrichment_batch_status(status.value)
+        if status == EnrichmentStatus.PARTIAL:
+            record_enrichment_partial_batch()
+
+        # Create tracking result
+        tracking_result = EnrichmentTrackingResult(
+            status=status,
+            successful_models=successful_models,
+            failed_models=failed_models,
+            errors=errors,
+            data=result,
+        )
+
+        logger.info(
+            f"Enrichment tracking for camera {camera_id}: "
+            f"status={status.value}, "
+            f"success={len(successful_models)}, "
+            f"failed={len(failed_models)}, "
+            f"success_rate={tracking_result.success_rate:.0%}"
+        )
+
+        return tracking_result
 
 
 # Global EnrichmentPipeline instance

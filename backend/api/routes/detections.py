@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_detection_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
+from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.detections import (
     DetectionListResponse,
     DetectionResponse,
@@ -103,7 +104,7 @@ video_processor = VideoProcessor()
 
 
 @router.get("", response_model=DetectionListResponse)
-async def list_detections(
+async def list_detections(  # noqa: PLR0912
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     object_type: str | None = Query(None, description="Filter by object type"),
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
@@ -111,11 +112,15 @@ async def list_detections(
     min_confidence: float | None = Query(
         None, ge=0.0, le=1.0, description="Minimum confidence score"
     ),
-    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
-    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
+    cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """List detections with optional filtering and pagination.
+    """List detections with optional filtering and cursor-based pagination.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Cursor-based pagination offers better performance for large datasets.
 
     Args:
         camera_id: Optional camera ID to filter by
@@ -123,8 +128,9 @@ async def list_detections(
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         min_confidence: Optional minimum confidence score (0-1)
-        limit: Maximum number of results to return (1-1000, default 50)
-        offset: Number of results to skip for pagination (default 0)
+        limit: Maximum number of results to return (1-100, default 50)
+        offset: Number of results to skip (deprecated, use cursor instead)
+        cursor: Pagination cursor from previous response's next_cursor field
         db: Database session
 
     Returns:
@@ -132,9 +138,21 @@ async def list_detections(
 
     Raises:
         HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if cursor is invalid
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Decode cursor if provided
+    cursor_data: CursorData | None = None
+    if cursor:
+        try:
+            cursor_data = decode_cursor(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor: {e}",
+            ) from e
 
     # Build base query
     query = select(Detection)
@@ -151,26 +169,63 @@ async def list_detections(
     if min_confidence is not None:
         query = query.where(Detection.confidence >= min_confidence)
 
-    # Get total count (before pagination)
-    count_query = select(func.count()).select_from(query.subquery())
-    count_result = await db.execute(count_query)
-    total_count = count_result.scalar() or 0
+    # Apply cursor-based pagination filter (takes precedence over offset)
+    if cursor_data:
+        # For descending order by detected_at, we want records where:
+        # - detected_at < cursor's created_at, OR
+        # - detected_at == cursor's created_at AND id < cursor's id (tie-breaker)
+        query = query.where(
+            (Detection.detected_at < cursor_data.created_at)
+            | ((Detection.detected_at == cursor_data.created_at) & (Detection.id < cursor_data.id))
+        )
 
-    # Sort by detected_at descending (newest first)
-    query = query.order_by(Detection.detected_at.desc())
+    # Get total count (before pagination) - only when not using cursor
+    # With cursor pagination, total count becomes expensive and less meaningful
+    total_count: int = 0
+    if not cursor_data:
+        count_query = select(func.count()).select_from(query.subquery())
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
 
-    # Apply pagination
-    query = query.limit(limit).offset(offset)
+    # Sort by detected_at descending (newest first), then by id descending for consistency
+    query = query.order_by(Detection.detected_at.desc(), Detection.id.desc())
+
+    # Apply pagination - fetch one extra to determine if there are more results
+    # Use explicit if/else for readability (clearer than ternary with complex expressions)
+    if cursor_data:  # noqa: SIM108
+        # Cursor-based: fetch limit + 1 to check for more
+        query = query.limit(limit + 1)
+    else:
+        # Offset-based (deprecated): apply offset
+        query = query.limit(limit + 1).offset(offset)
 
     # Execute query
     result = await db.execute(query)
-    detections = result.scalars().all()
+    detections = list(result.scalars().all())
+
+    # Determine if there are more results
+    has_more = len(detections) > limit
+    if has_more:
+        detections = detections[:limit]  # Trim to requested limit
+
+    # Generate next cursor from the last detection
+    next_cursor: str | None = None
+    if has_more and detections:
+        last_detection = detections[-1]
+        cursor_data_next = CursorData(id=last_detection.id, created_at=last_detection.detected_at)
+        next_cursor = encode_cursor(cursor_data_next)
+
+    # Get deprecation warning if using offset without cursor
+    deprecation_warning = get_deprecation_warning(cursor, offset)
 
     return {
         "detections": detections,
         "count": total_count,
         "limit": limit,
         "offset": offset,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "deprecation_warning": deprecation_warning,
     }
 
 
@@ -616,6 +671,7 @@ async def get_detection_image(
             )
 
         try:
+            # nosemgrep: path-traversal-open - file_path from database, not user input
             with open(detection.file_path, "rb") as f:
                 image_data = f.read()
 
@@ -676,6 +732,7 @@ async def get_detection_image(
 
     # Read and return image
     try:
+        # nosemgrep: path-traversal-open - thumbnail_path derived from database path
         with open(thumbnail_path, "rb") as f:
             image_data = f.read()
 
@@ -815,6 +872,7 @@ async def stream_detection_video(
 
         def iter_file_range() -> Generator[bytes]:
             """Generator to stream file range."""
+            # nosemgrep: path-traversal-open - file_path from database, not user input
             with open(detection.file_path, "rb") as f:
                 f.seek(start)
                 remaining = content_length
@@ -844,6 +902,7 @@ async def stream_detection_video(
         def iter_file() -> Generator[bytes]:
             """Generator to stream entire file."""
             chunk_size = 64 * 1024  # 64KB chunks
+            # nosemgrep: path-traversal-open - file_path from database, not user input
             with open(detection.file_path, "rb") as f:
                 while chunk := f.read(chunk_size):
                     yield chunk
@@ -938,6 +997,7 @@ async def get_video_thumbnail(
 
     # Read and return thumbnail
     try:
+        # nosemgrep: path-traversal-open - thumbnail_path derived from database path
         with open(thumbnail_path, "rb") as f:
             image_data = f.read()
 

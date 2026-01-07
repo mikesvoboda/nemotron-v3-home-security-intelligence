@@ -11,6 +11,15 @@ Fallback order:
 
 Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
 from AI containers are obtained exclusively from RT-DETRv2.
+
+Memory Pressure Monitoring (NEM-1727):
+This module provides GPU memory pressure monitoring with configurable thresholds:
+- NORMAL: Memory usage < 85% - normal operations
+- WARNING: Memory usage 85-95% - moderate throttling recommended
+- CRITICAL: Memory usage >= 95% - aggressive throttling required
+
+When memory pressure changes, registered callbacks are invoked to allow
+downstream services (like inference_semaphore) to throttle operations.
 """
 
 import asyncio
@@ -18,7 +27,9 @@ import contextlib
 import shutil
 import subprocess
 from collections import deque
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from typing import Any
 
 import httpx
@@ -30,6 +41,31 @@ from backend.core.logging import get_logger, sanitize_error  # noqa: F401
 from backend.models.gpu_stats import GPUStats
 
 logger = get_logger(__name__)
+
+# Memory pressure thresholds (NEM-1727)
+MEMORY_PRESSURE_WARNING_THRESHOLD = 85.0  # Percentage
+MEMORY_PRESSURE_CRITICAL_THRESHOLD = 95.0  # Percentage
+
+
+class MemoryPressureLevel(Enum):
+    """GPU memory pressure levels for throttling decisions.
+
+    Used to determine when to reduce inference concurrency and apply
+    backpressure to batch processing.
+
+    Thresholds:
+    - NORMAL: Memory usage < 85%
+    - WARNING: Memory usage 85-95%
+    - CRITICAL: Memory usage >= 95%
+    """
+
+    NORMAL = "normal"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+# Type alias for memory pressure callbacks
+MemoryPressureCallback = Callable[[MemoryPressureLevel, MemoryPressureLevel], Any]
 
 
 class GPUMonitor:
@@ -82,6 +118,14 @@ class GPUMonitor:
         # nvidia-smi availability (checked once at init)
         self._nvidia_smi_available = False
         self._nvidia_smi_path: str | None = None
+
+        # Memory pressure monitoring (NEM-1727)
+        self._last_memory_pressure_level = MemoryPressureLevel.NORMAL
+        self._memory_pressure_callbacks: list[MemoryPressureCallback] = []
+        self._memory_pressure_warning_events = 0
+        self._memory_pressure_critical_events = 0
+        self._last_warning_event_at: datetime | None = None
+        self._last_critical_event_at: datetime | None = None
 
         # Initialize pynvml first, then check nvidia-smi as fallback
         self._initialize_nvml()
@@ -781,6 +825,9 @@ class GPUMonitor:
                 # Broadcast via WebSocket
                 await self._broadcast_stats(stats)
 
+                # Check memory pressure and trigger callbacks if changed (NEM-1727)
+                await self.check_memory_pressure()
+
                 # Wait for next poll interval
                 await asyncio.sleep(self.poll_interval)
 
@@ -892,3 +939,174 @@ class GPUMonitor:
                 },
             )
             return []
+
+    # =========================================================================
+    # Memory Pressure Monitoring (NEM-1727)
+    # =========================================================================
+
+    def register_memory_pressure_callback(self, callback: MemoryPressureCallback) -> None:
+        """Register a callback to be invoked when memory pressure level changes.
+
+        The callback will receive (new_level, old_level) when pressure changes.
+        Callbacks can be async or sync functions.
+
+        Args:
+            callback: Function to call on pressure change. Signature:
+                      async def callback(new_level: MemoryPressureLevel,
+                                        old_level: MemoryPressureLevel) -> None
+        """
+        self._memory_pressure_callbacks.append(callback)
+        logger.debug(
+            f"Registered memory pressure callback: {callback.__name__}",
+            extra={"callback_count": len(self._memory_pressure_callbacks)},
+        )
+
+    async def check_memory_pressure(self) -> MemoryPressureLevel:
+        """Check current GPU memory pressure level.
+
+        Retrieves current GPU stats and determines the memory pressure level
+        based on VRAM usage percentage:
+        - NORMAL: < 85%
+        - WARNING: 85-95%
+        - CRITICAL: >= 95%
+
+        If memory pressure level changes from the previous check, registered
+        callbacks are invoked.
+
+        Returns:
+            Current MemoryPressureLevel
+
+        Note:
+            On error (e.g., GPU unavailable), returns NORMAL to avoid
+            unnecessary throttling. Errors are logged but don't raise.
+        """
+        try:
+            stats = await self.get_current_stats_async()
+
+            memory_used = stats.get("memory_used")
+            memory_total = stats.get("memory_total")
+
+            if memory_used is None or memory_total is None or memory_total == 0:
+                # Cannot determine memory usage, assume NORMAL
+                logger.debug(
+                    "Cannot determine memory pressure: missing memory stats",
+                    extra={"memory_used": memory_used, "memory_total": memory_total},
+                )
+                return MemoryPressureLevel.NORMAL
+
+            usage_percent = (memory_used / memory_total) * 100.0
+
+            # Determine pressure level
+            if usage_percent >= MEMORY_PRESSURE_CRITICAL_THRESHOLD:
+                new_level = MemoryPressureLevel.CRITICAL
+            elif usage_percent >= MEMORY_PRESSURE_WARNING_THRESHOLD:
+                new_level = MemoryPressureLevel.WARNING
+            else:
+                new_level = MemoryPressureLevel.NORMAL
+
+            # Check for level change
+            old_level = self._last_memory_pressure_level
+            if new_level != old_level:
+                await self._handle_pressure_level_change(new_level, old_level, usage_percent)
+
+            self._last_memory_pressure_level = new_level
+            return new_level
+
+        except Exception as e:
+            logger.error(
+                "Error checking memory pressure",
+                extra={
+                    "operation": "check_memory_pressure",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            # On error, return NORMAL to avoid unnecessary throttling
+            return MemoryPressureLevel.NORMAL
+
+    async def _handle_pressure_level_change(
+        self,
+        new_level: MemoryPressureLevel,
+        old_level: MemoryPressureLevel,
+        usage_percent: float,
+    ) -> None:
+        """Handle memory pressure level change.
+
+        Updates metrics, logs the change, and invokes registered callbacks.
+
+        Args:
+            new_level: New pressure level
+            old_level: Previous pressure level
+            usage_percent: Current memory usage percentage
+        """
+        now = datetime.now(UTC)
+
+        # Update metrics
+        if new_level == MemoryPressureLevel.WARNING:
+            self._memory_pressure_warning_events += 1
+            self._last_warning_event_at = now
+        elif new_level == MemoryPressureLevel.CRITICAL:
+            self._memory_pressure_critical_events += 1
+            self._last_critical_event_at = now
+
+        # Log the change
+        log_level = "warning" if new_level != MemoryPressureLevel.NORMAL else "info"
+        log_fn = getattr(logger, log_level)
+        log_fn(
+            f"GPU memory pressure changed: {old_level.value} -> {new_level.value} "
+            f"(usage: {usage_percent:.1f}%)",
+            extra={
+                "old_level": old_level.value,
+                "new_level": new_level.value,
+                "memory_usage_percent": usage_percent,
+                "warning_threshold": MEMORY_PRESSURE_WARNING_THRESHOLD,
+                "critical_threshold": MEMORY_PRESSURE_CRITICAL_THRESHOLD,
+            },
+        )
+
+        # Invoke callbacks
+        for callback in self._memory_pressure_callbacks:
+            try:
+                result = callback(new_level, old_level)
+                # Support both sync and async callbacks
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as e:
+                logger.error(
+                    f"Memory pressure callback failed: {callback.__name__}",
+                    extra={
+                        "callback": callback.__name__,
+                        "new_level": new_level.value,
+                        "old_level": old_level.value,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                    exc_info=True,
+                )
+
+    def get_memory_pressure_metrics(self) -> dict[str, Any]:
+        """Get memory pressure monitoring metrics.
+
+        Returns:
+            Dictionary containing:
+            - current_level: Current pressure level
+            - warning_threshold: Warning threshold percentage
+            - critical_threshold: Critical threshold percentage
+            - total_warning_events: Count of warning transitions
+            - total_critical_events: Count of critical transitions
+            - last_warning_event_at: Timestamp of last warning (or None)
+            - last_critical_event_at: Timestamp of last critical (or None)
+        """
+        return {
+            "current_level": self._last_memory_pressure_level.value,
+            "warning_threshold": MEMORY_PRESSURE_WARNING_THRESHOLD,
+            "critical_threshold": MEMORY_PRESSURE_CRITICAL_THRESHOLD,
+            "total_warning_events": self._memory_pressure_warning_events,
+            "total_critical_events": self._memory_pressure_critical_events,
+            "last_warning_event_at": (
+                self._last_warning_event_at.isoformat() if self._last_warning_event_at else None
+            ),
+            "last_critical_event_at": (
+                self._last_critical_event_at.isoformat() if self._last_critical_event_at else None
+            ),
+        }

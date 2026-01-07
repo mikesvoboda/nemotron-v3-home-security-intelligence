@@ -29,7 +29,7 @@ import {
   updateEvent,
 } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
-import { EmptyState } from '../common';
+import { EmptyState, EventCardSkeleton } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { SearchBar, SearchResultsPanel } from '../search';
@@ -1035,11 +1035,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
       {/* Event List */}
       {loading ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#76B900]" />
-            <p className="text-gray-400">Loading events...</p>
-          </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <EventCardSkeleton key={i} />
+          ))}
         </div>
       ) : error ? (
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">

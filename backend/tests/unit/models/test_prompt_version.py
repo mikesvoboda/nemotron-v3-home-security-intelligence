@@ -553,6 +553,37 @@ class TestPromptVersionTableArgs:
         assert "idx_prompt_versions_model_active" in index_names
         assert "idx_prompt_versions_created_at" in index_names
 
+    def test_prompt_version_has_unique_constraint(self):
+        """Test PromptVersion has unique constraint on (model, version) (NEM-1620)."""
+        from sqlalchemy import UniqueConstraint
+
+        table_args = PromptVersion.__table_args__
+        unique_constraints = [arg for arg in table_args if isinstance(arg, UniqueConstraint)]
+        assert len(unique_constraints) >= 1
+
+    def test_prompt_version_unique_constraint_name(self):
+        """Test PromptVersion unique constraint has expected name (NEM-1620)."""
+        from sqlalchemy import UniqueConstraint
+
+        table_args = PromptVersion.__table_args__
+        constraint_names = [arg.name for arg in table_args if isinstance(arg, UniqueConstraint)]
+        assert "uq_prompt_version_model_version" in constraint_names
+
+    def test_prompt_version_unique_constraint_columns(self):
+        """Test PromptVersion unique constraint covers (model, version) columns (NEM-1620)."""
+        from sqlalchemy import UniqueConstraint
+
+        table_args = PromptVersion.__table_args__
+        for arg in table_args:
+            if isinstance(arg, UniqueConstraint) and arg.name == "uq_prompt_version_model_version":
+                column_names = [col.name if hasattr(col, "name") else col for col in arg.columns]
+                assert "model" in column_names
+                assert "version" in column_names
+                assert len(column_names) == 2
+                break
+        else:
+            pytest.fail("UniqueConstraint 'uq_prompt_version_model_version' not found")
+
 
 # =============================================================================
 # Model-Specific Config Tests

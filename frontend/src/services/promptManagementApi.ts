@@ -200,7 +200,31 @@ export async function fetchPromptHistory(
   const queryString = queryParams.toString();
   const endpoint = `/history?${queryString}`;
 
-  return fetchPromptApi<PromptHistoryResponse>(endpoint);
+  // API returns object keyed by model name, transform to expected format
+  const response = await fetchPromptApi<Record<string, { model_name: string; versions: PromptHistoryResponse['versions']; total_versions: number }>>(endpoint);
+
+  // If model specified, extract that model's data
+  if (model && response[model]) {
+    return {
+      versions: response[model].versions || [],
+      total_count: response[model].total_versions || 0,
+    };
+  }
+
+  // If no model specified, aggregate all versions
+  const allVersions: PromptHistoryResponse['versions'] = [];
+  let totalCount = 0;
+  for (const modelData of Object.values(response)) {
+    if (modelData.versions) {
+      allVersions.push(...modelData.versions);
+      totalCount += modelData.total_versions || modelData.versions.length;
+    }
+  }
+
+  return {
+    versions: allVersions,
+    total_count: totalCount,
+  };
 }
 
 /**

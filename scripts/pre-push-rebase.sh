@@ -93,6 +93,26 @@ if git rebase "origin/$DEFAULT_BRANCH" --quiet; then
     # Show what changed
     AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..HEAD")
     echo "[auto-rebase] Branch is now $AHEAD commit(s) ahead of origin/$DEFAULT_BRANCH"
+
+    # Regenerate API types if backend schema might have changed after rebase
+    # This ensures the api-types-contract check passes
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    if [ -f "$SCRIPT_DIR/generate-types.sh" ]; then
+        # Check if any backend schema files changed in the rebase
+        SCHEMA_CHANGED=$(git diff --name-only "HEAD~$AHEAD" HEAD -- "backend/api/schemas/*.py" "backend/api/routes/*.py" 2>/dev/null | head -1)
+        if [ -n "$SCHEMA_CHANGED" ]; then
+            echo "[auto-rebase] Backend schema changes detected, regenerating frontend types..."
+            if "$SCRIPT_DIR/generate-types.sh" >/dev/null 2>&1; then
+                # Check if types actually changed
+                if ! git diff --quiet frontend/src/types/generated/api.ts 2>/dev/null; then
+                    echo "[auto-rebase] Types regenerated, amending last commit..."
+                    git add frontend/src/types/generated/api.ts
+                    git commit --amend --no-edit --no-verify >/dev/null 2>&1 || true
+                    echo "[auto-rebase] Commit updated with regenerated types"
+                fi
+            fi
+        fi
+    fi
 else
     echo ""
     echo "[auto-rebase] Rebase failed due to conflicts!"

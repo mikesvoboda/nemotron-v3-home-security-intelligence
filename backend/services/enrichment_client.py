@@ -23,19 +23,25 @@ Error Handling:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
+import random
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitState
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
-from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
+from backend.core.metrics import (
+    increment_enrichment_retry,
+    observe_ai_request_duration,
+    record_pipeline_error,
+)
 from backend.services.bbox_validation import is_valid_bbox, validate_and_clamp_bbox
+from backend.services.circuit_breaker import CircuitBreaker, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -507,7 +513,30 @@ class EnrichmentClient:
             half_open_max_calls=settings.enrichment_cb_half_open_max_calls,
         )
 
+        # Retry configuration for transient failures (NEM-1732)
+        self._max_retries = settings.enrichment_max_retries
+
+        # Create persistent HTTP connection pool (NEM-1721)
+        # Reusing connections avoids TCP overhead and resource exhaustion
+        self._http_client = httpx.AsyncClient(
+            timeout=self._timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        self._health_http_client = httpx.AsyncClient(
+            timeout=self._health_timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+
         logger.info(f"EnrichmentClient initialized with base_url={self._base_url}")
+
+    async def close(self) -> None:
+        """Close the HTTP client connections.
+
+        Should be called when the client is no longer needed to release resources.
+        """
+        await self._http_client.aclose()
+        await self._health_http_client.aclose()
+        logger.debug("EnrichmentClient HTTP connections closed")
 
     def _encode_image_to_base64(self, image: Image.Image) -> str:
         """Encode a PIL Image to base64 string.
@@ -548,6 +577,51 @@ class EnrichmentClient:
         """
         self._circuit_breaker.reset()
 
+    def _calculate_backoff_delay(self, attempt: int) -> float:
+        """Calculate exponential backoff delay with jitter.
+
+        Uses 2^attempt seconds as base delay with +/-10% jitter, capped at 30 seconds.
+
+        Args:
+            attempt: Current attempt number (0-indexed)
+
+        Returns:
+            Delay in seconds before next retry
+        """
+        # Exponential backoff: 2^attempt (1s, 2s, 4s, 8s, ...)
+        base_delay: float = float(2**attempt)
+        # Add jitter of +/-10% (not for crypto, just for backoff distribution)
+        jitter: float = random.uniform(-0.1, 0.1)  # noqa: S311
+        delay: float = base_delay * (1 + jitter)
+        # Cap at 30 seconds
+        return min(delay, 30.0)
+
+    def _is_retryable_error(self, error: Exception) -> bool:
+        """Check if an error is retryable.
+
+        Transient errors that should trigger retry:
+        - ConnectError: Network connectivity issues
+        - TimeoutException: Request/response timeouts
+        - HTTPStatusError with 5xx: Server-side errors
+
+        Non-retryable errors (no retry):
+        - HTTPStatusError with 4xx: Client errors (bad request)
+        - Other exceptions: Unexpected/programming errors
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error is retryable, False otherwise
+        """
+        if isinstance(error, httpx.ConnectError):
+            return True
+        if isinstance(error, httpx.TimeoutException):
+            return True
+        if isinstance(error, httpx.HTTPStatusError):
+            return bool(error.response.status_code >= 500)
+        return False
+
     async def check_health(self) -> dict[str, Any]:
         """Check if Enrichment service is healthy and get model status.
 
@@ -558,12 +632,12 @@ class EnrichmentClient:
         circuit_state = self._circuit_breaker.get_state().value
 
         try:
-            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                response = await client.get(f"{self._base_url}/health")
-                response.raise_for_status()
-                result = cast("dict[str, Any]", response.json())
-                result["circuit_breaker_state"] = circuit_state
-                return result
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._health_http_client.get(f"{self._base_url}/health")
+            response.raise_for_status()
+            result = cast("dict[str, Any]", response.json())
+            result["circuit_breaker_state"] = circuit_state
+            return result
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             logger.warning(f"Enrichment health check failed: {e}", exc_info=True)
             return {
@@ -603,6 +677,9 @@ class EnrichmentClient:
     ) -> VehicleClassificationResult | None:
         """Classify vehicle type from an image.
 
+        Includes retry logic with exponential backoff for transient failures
+        (ConnectError, TimeoutException, HTTP 5xx).
+
         Args:
             image: PIL Image containing vehicle
             bbox: Optional bounding box (x1, y1, x2, y2) to crop before classification
@@ -611,7 +688,7 @@ class EnrichmentClient:
             VehicleClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable or circuit is open
+            EnrichmentUnavailableError: If the service is unavailable after retries
         """
         # Check circuit breaker before making request
         if not self._circuit_breaker.allow_request():
@@ -622,115 +699,129 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "vehicle-classify"
+        endpoint_name = "vehicle"
+        last_error: Exception | None = None
 
         logger.debug("Sending vehicle classification request")
 
-        try:
-            # Encode image to base64
-            image_b64 = self._encode_image_to_base64(image)
+        # Encode image to base64 (done once before retry loop)
+        image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload
-            payload: dict[str, Any] = {"image": image_b64}
-            if bbox:
-                payload["bbox"] = list(bbox)
+        # Build request payload
+        payload: dict[str, Any] = {"image": image_b64}
+        if bbox:
+            payload["bbox"] = list(bbox)
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
 
-            # Send to Enrichment service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_vehicle", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_vehicle", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
 
-            return VehicleClassificationResult(
-                vehicle_type=result["vehicle_type"],
-                display_name=result["display_name"],
-                confidence=result["confidence"],
-                is_commercial=result["is_commercial"],
-                all_scores=result["all_scores"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                return VehicleClassificationResult(
+                    vehicle_type=result["vehicle_type"],
+                    display_name=result["display_name"],
+                    confidence=result["confidence"],
+                    is_commercial=result["is_commercial"],
+                    all_scores=result["all_scores"],
+                    inference_time_ms=result["inference_time_ms"],
+                )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_vehicle_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_vehicle_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_vehicle_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment vehicle request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment vehicle request timed out: {e}",
-                original_error=e,
-            ) from e
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_vehicle_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-            if status_code >= 500:
-                record_pipeline_error("enrichment_vehicle_server_error")
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_vehicle_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_vehicle_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during vehicle classification: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during vehicle classification: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_vehicle_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
-
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_vehicle_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during vehicle classification: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during vehicle classification: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment vehicle classification failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
     async def classify_pet(
         self,
@@ -738,6 +829,9 @@ class EnrichmentClient:
         bbox: tuple[float, float, float, float] | None = None,
     ) -> PetClassificationResult | None:
         """Classify pet type (cat/dog) from an image.
+
+        Includes retry logic with exponential backoff for transient failures
+        (ConnectError, TimeoutException, HTTP 5xx).
 
         Args:
             image: PIL Image containing pet
@@ -747,7 +841,7 @@ class EnrichmentClient:
             PetClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable or circuit is open
+            EnrichmentUnavailableError: If the service is unavailable after retries
         """
         # Check circuit breaker before making request
         if not self._circuit_breaker.allow_request():
@@ -758,114 +852,128 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "pet-classify"
+        endpoint_name = "pet"
+        last_error: Exception | None = None
 
         logger.debug("Sending pet classification request")
 
-        try:
-            # Encode image to base64
-            image_b64 = self._encode_image_to_base64(image)
+        # Encode image to base64 (done once before retry loop)
+        image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload
-            payload: dict[str, Any] = {"image": image_b64}
-            if bbox:
-                payload["bbox"] = list(bbox)
+        # Build request payload
+        payload: dict[str, Any] = {"image": image_b64}
+        if bbox:
+            payload["bbox"] = list(bbox)
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
 
-            # Send to Enrichment service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_pet", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_pet", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
 
-            return PetClassificationResult(
-                pet_type=result["pet_type"],
-                breed=result["breed"],
-                confidence=result["confidence"],
-                is_household_pet=result["is_household_pet"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                return PetClassificationResult(
+                    pet_type=result["pet_type"],
+                    breed=result["breed"],
+                    confidence=result["confidence"],
+                    is_household_pet=result["is_household_pet"],
+                    inference_time_ms=result["inference_time_ms"],
+                )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_pet_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_pet_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_pet_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment pet request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment pet request timed out: {e}",
-                original_error=e,
-            ) from e
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_pet_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-            if status_code >= 500:
-                record_pipeline_error("enrichment_pet_server_error")
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_pet_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_pet_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during pet classification: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during pet classification: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_pet_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
-
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_pet_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during pet classification: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during pet classification: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment pet classification failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
     async def classify_clothing(
         self,
@@ -893,124 +1001,141 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "clothing-classify"
+        endpoint_name = "clothing"
+        last_error: Exception | None = None
 
         logger.debug("Sending clothing classification request")
 
-        try:
-            # Encode image to base64
-            image_b64 = self._encode_image_to_base64(image)
+        # Encode image to base64 (done once before retry loop)
+        image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload
-            payload: dict[str, Any] = {"image": image_b64}
-            if bbox:
-                payload["bbox"] = list(bbox)
+        # Build request payload
+        payload: dict[str, Any] = {"image": image_b64}
+        if bbox:
+            payload["bbox"] = list(bbox)
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
 
-            # Send to Enrichment service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_clothing", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_clothing", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
 
-            return ClothingClassificationResult(
-                clothing_type=result["clothing_type"],
-                color=result["color"],
-                style=result["style"],
-                confidence=result["confidence"],
-                top_category=result["top_category"],
-                description=result["description"],
-                is_suspicious=result["is_suspicious"],
-                is_service_uniform=result["is_service_uniform"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                return ClothingClassificationResult(
+                    clothing_type=result["clothing_type"],
+                    color=result["color"],
+                    style=result["style"],
+                    confidence=result["confidence"],
+                    top_category=result["top_category"],
+                    description=result["description"],
+                    is_suspicious=result["is_suspicious"],
+                    is_service_uniform=result["is_service_uniform"],
+                    inference_time_ms=result["inference_time_ms"],
+                )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_clothing_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_clothing_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_clothing_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment clothing request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment clothing request timed out: {e}",
-                original_error=e,
-            ) from e
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_clothing_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-            if status_code >= 500:
-                record_pipeline_error("enrichment_clothing_server_error")
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_clothing_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_clothing_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during clothing classification: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during clothing classification: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_clothing_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
-
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_clothing_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during clothing classification: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during clothing classification: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment clothing classification failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
     async def estimate_depth(
         self,
         image: Image.Image,
     ) -> DepthEstimationResult | None:
         """Estimate depth map for an image using Depth Anything V2.
+
+        Includes retry logic with exponential backoff for transient failures
+        (ConnectError, TimeoutException, HTTP 5xx).
 
         Args:
             image: PIL Image to estimate depth for
@@ -1019,7 +1144,7 @@ class EnrichmentClient:
             DepthEstimationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable or circuit is open
+            EnrichmentUnavailableError: If the service is unavailable after retries
         """
         # Check circuit breaker before making request
         if not self._circuit_breaker.allow_request():
@@ -1030,114 +1155,128 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "depth-estimate"
+        endpoint_name = "depth"
+        last_error: Exception | None = None
 
         logger.debug("Sending depth estimation request")
 
-        try:
-            # Encode image to base64
-            image_b64 = self._encode_image_to_base64(image)
+        # Encode image to base64 (done once before retry loop)
+        image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload
-            payload: dict[str, Any] = {"image": image_b64}
+        # Build request payload
+        payload: dict[str, Any] = {"image": image_b64}
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
 
-            # Send to Enrichment service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_depth", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_depth", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
 
-            return DepthEstimationResult(
-                depth_map_base64=result["depth_map_base64"],
-                min_depth=result["min_depth"],
-                max_depth=result["max_depth"],
-                mean_depth=result["mean_depth"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                return DepthEstimationResult(
+                    depth_map_base64=result["depth_map_base64"],
+                    min_depth=result["min_depth"],
+                    max_depth=result["max_depth"],
+                    mean_depth=result["mean_depth"],
+                    inference_time_ms=result["inference_time_ms"],
+                )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_depth_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_depth_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_depth_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment depth request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment depth request timed out: {e}",
-                original_error=e,
-            ) from e
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_depth_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-            if status_code >= 500:
-                record_pipeline_error("enrichment_depth_server_error")
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_depth_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_depth_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during depth estimation: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during depth estimation: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_depth_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment depth estimation failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_depth_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during depth estimation: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during depth estimation: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
-
-    async def estimate_object_distance(
+    async def estimate_object_distance(  # noqa: PLR0912
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float],
@@ -1149,6 +1288,9 @@ class EnrichmentClient:
         before processing. Invalid bounding boxes (zero width/height, NaN values,
         inverted coordinates) will return None.
 
+        Includes retry logic with exponential backoff for transient failures
+        (ConnectError, TimeoutException, HTTP 5xx).
+
         Args:
             image: PIL Image
             bbox: Bounding box (x1, y1, x2, y2) of object to measure
@@ -1158,7 +1300,7 @@ class EnrichmentClient:
             ObjectDistanceResult or None if bbox is invalid or on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable or circuit is open
+            EnrichmentUnavailableError: If the service is unavailable after retries
         """
         # Check circuit breaker before making request
         if not self._circuit_breaker.allow_request():
@@ -1169,6 +1311,8 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "object-distance"
+        endpoint_name = "distance"
+        last_error: Exception | None = None
 
         # Validate and clamp bounding box (NEM-1102, NEM-1122)
         image_width, image_height = image.size
@@ -1199,112 +1343,124 @@ class EnrichmentClient:
 
         logger.debug(f"Sending object distance request with method={method}")
 
-        try:
-            # Encode image to base64
-            image_b64 = self._encode_image_to_base64(image)
+        # Encode image to base64 (done once before retry loop)
+        image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload with validated bbox
-            payload: dict[str, Any] = {
-                "image": image_b64,
-                "bbox": list(validated_bbox),  # type: ignore[arg-type]
-                "method": method,
-            }
+        # Build request payload with validated bbox
+        payload: dict[str, Any] = {
+            "image": image_b64,
+            "bbox": list(validated_bbox),  # type: ignore[arg-type]
+            "method": method,
+        }
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
 
-            # Send to Enrichment service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_distance", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_distance", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
 
-            return ObjectDistanceResult(
-                estimated_distance_m=result["estimated_distance_m"],
-                relative_depth=result["relative_depth"],
-                proximity_label=result["proximity_label"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                return ObjectDistanceResult(
+                    estimated_distance_m=result["estimated_distance_m"],
+                    relative_depth=result["relative_depth"],
+                    proximity_label=result["proximity_label"],
+                    inference_time_ms=result["inference_time_ms"],
+                )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_distance_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_distance_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_distance_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment distance request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment distance request timed out: {e}",
-                original_error=e,
-            ) from e
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_distance_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-            if status_code >= 500:
-                record_pipeline_error("enrichment_distance_server_error")
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_distance_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_distance_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during distance estimation: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during distance estimation: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_distance_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
-
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_distance_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during distance estimation: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during distance estimation: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment distance estimation failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
     async def analyze_pose(
         self,
@@ -1313,6 +1469,9 @@ class EnrichmentClient:
         min_confidence: float = 0.3,
     ) -> PoseAnalysisResult | None:
         """Analyze human pose keypoints from an image using ViTPose.
+
+        Includes retry logic with exponential backoff for transient failures
+        (ConnectError, TimeoutException, HTTP 5xx).
 
         Args:
             image: PIL Image containing person
@@ -1323,7 +1482,7 @@ class EnrichmentClient:
             PoseAnalysisResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable or circuit is open
+            EnrichmentUnavailableError: If the service is unavailable after retries
         """
         # Check circuit breaker before making request
         if not self._circuit_breaker.allow_request():
@@ -1334,127 +1493,141 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "pose-analyze"
+        endpoint_name = "pose"
+        last_error: Exception | None = None
 
         logger.debug("Sending pose analysis request")
 
-        try:
-            # Encode image to base64
-            image_b64 = self._encode_image_to_base64(image)
+        # Encode image to base64 (done once before retry loop)
+        image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload
-            payload: dict[str, Any] = {
-                "image": image_b64,
-                "min_confidence": min_confidence,
-            }
-            if bbox:
-                payload["bbox"] = list(bbox)
+        # Build request payload
+        payload: dict[str, Any] = {
+            "image": image_b64,
+            "min_confidence": min_confidence,
+        }
+        if bbox:
+            payload["bbox"] = list(bbox)
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
 
-            # Send to Enrichment service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_pose", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_pose", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Parse keypoints
-            keypoints = [
-                KeypointData(
-                    name=kp["name"],
-                    x=kp["x"],
-                    y=kp["y"],
-                    confidence=kp["confidence"],
+                # Parse keypoints
+                keypoints = [
+                    KeypointData(
+                        name=kp["name"],
+                        x=kp["x"],
+                        y=kp["y"],
+                        confidence=kp["confidence"],
+                    )
+                    for kp in result["keypoints"]
+                ]
+
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
+
+                return PoseAnalysisResult(
+                    keypoints=keypoints,
+                    posture=result["posture"],
+                    alerts=result["alerts"],
+                    inference_time_ms=result["inference_time_ms"],
                 )
-                for kp in result["keypoints"]
-            ]
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_pose_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-            return PoseAnalysisResult(
-                keypoints=keypoints,
-                posture=result["posture"],
-                alerts=result["alerts"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_pose_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_pose_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_pose_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment pose request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment pose request timed out: {e}",
-                original_error=e,
-            ) from e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_pose_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
-
-            if status_code >= 500:
-                record_pipeline_error("enrichment_pose_server_error")
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_pose_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during pose analysis: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during pose analysis: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_pose_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
-
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_pose_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during pose analysis: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during pose analysis: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment pose analysis failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
     async def classify_action(
         self,
@@ -1466,6 +1639,9 @@ class EnrichmentClient:
         X-CLIP analyzes temporal patterns across frames to detect security-relevant
         actions like loitering, running away, or suspicious behavior.
 
+        Includes retry logic with exponential backoff for transient failures
+        (ConnectError, TimeoutException, HTTP 5xx).
+
         Args:
             frames: List of PIL Images representing video frames (8 is optimal)
             labels: Optional custom action labels (defaults to security-focused prompts)
@@ -1474,7 +1650,7 @@ class EnrichmentClient:
             ActionClassificationResult or None on error
 
         Raises:
-            EnrichmentUnavailableError: If the service is unavailable or circuit is open
+            EnrichmentUnavailableError: If the service is unavailable after retries
         """
         # Check circuit breaker before making request
         if not self._circuit_breaker.allow_request():
@@ -1485,121 +1661,138 @@ class EnrichmentClient:
 
         start_time = time.time()
         endpoint = "action-classify"
+        endpoint_name = "action"
+        last_error: Exception | None = None
 
         logger.debug(f"Sending action classification request with {len(frames)} frames")
 
-        try:
-            # Encode all frames to base64
-            frames_b64 = [self._encode_image_to_base64(frame) for frame in frames]
+        # Encode all frames to base64 (done once before retry loop)
+        frames_b64 = [self._encode_image_to_base64(frame) for frame in frames]
 
-            # Build request payload
-            payload: dict[str, Any] = {"frames": frames_b64}
-            if labels:
-                payload["labels"] = labels
+        # Build request payload
+        payload: dict[str, Any] = {"frames": frames_b64}
+        if labels:
+            payload["labels"] = labels
 
-            # Track AI request time
-            ai_start_time = time.time()
+        # Use longer timeout for multi-frame video processing (override default)
+        action_timeout = httpx.Timeout(
+            connect=self._timeout.connect,
+            read=60.0,  # Longer timeout for video processing
+            write=self._timeout.write,
+            pool=self._timeout.pool,
+        )
 
-            # Send to Enrichment service (longer timeout for multi-frame processing)
-            action_timeout = httpx.Timeout(
-                connect=self._timeout.connect,
-                read=60.0,  # Longer timeout for video processing
-                write=self._timeout.write,
-                pool=self._timeout.pool,
-            )
-            async with httpx.AsyncClient(timeout=action_timeout) as client:
-                response = await client.post(
+        # Retry loop with exponential backoff
+        for attempt in range(self._max_retries):
+            try:
+                # Track AI request time
+                ai_start_time = time.time()
+
+                # Send to Enrichment service using persistent HTTP client (NEM-1721)
+                response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
+                    timeout=action_timeout,  # Override default timeout for this request
                 )
                 response.raise_for_status()
 
-            # Record AI request duration
-            ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("enrichment_action", ai_duration)
+                # Record AI request duration
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_action", ai_duration)
 
-            # Parse response
-            result = response.json()
+                # Parse response
+                result = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+                # Record success with circuit breaker
+                self._circuit_breaker.record_success()
 
-            return ActionClassificationResult(
-                action=result["action"],
-                confidence=result["confidence"],
-                is_suspicious=result["is_suspicious"],
-                risk_weight=result["risk_weight"],
-                all_scores=result["all_scores"],
-                inference_time_ms=result["inference_time_ms"],
-            )
+                return ActionClassificationResult(
+                    action=result["action"],
+                    confidence=result["confidence"],
+                    is_suspicious=result["is_suspicious"],
+                    risk_weight=result["risk_weight"],
+                    all_scores=result["all_scores"],
+                    inference_time_ms=result["inference_time_ms"],
+                )
 
-        except httpx.ConnectError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_action_connection_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Failed to connect to Enrichment service: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Failed to connect to Enrichment service: {e}",
-                original_error=e,
-            ) from e
+            except httpx.HTTPStatusError as e:
+                # Check if it's a client error (4xx) - don't retry
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_action_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
 
-        except httpx.TimeoutException as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_action_timeout")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Enrichment action request timed out: {e}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Enrichment action request timed out: {e}",
-                original_error=e,
-            ) from e
+                # Server error (5xx) - retry
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_action_server_error")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
 
-        except httpx.HTTPStatusError as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            status_code = e.response.status_code
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
 
-            if status_code >= 500:
-                record_pipeline_error("enrichment_action_server_error")
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    error_metric = f"enrichment_action_{error_type}"
+                    record_pipeline_error(error_metric)
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                # Unexpected errors - don't retry
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_action_unexpected_error")
                 self._circuit_breaker.record_failure()
                 logger.error(
-                    f"Enrichment returned server error: {status_code} - {e}",
-                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    f"Unexpected error during action classification: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
                     exc_info=True,
                 )
                 raise EnrichmentUnavailableError(
-                    f"Enrichment returned server error: {status_code}",
+                    f"Unexpected error during action classification: {sanitize_error(e)}",
                     original_error=e,
                 ) from e
 
-            # 4xx errors are client errors - don't affect circuit breaker
-            record_pipeline_error("enrichment_action_client_error")
-            logger.error(
-                f"Enrichment returned client error: {status_code} - {e}",
-                extra={"duration_ms": duration_ms, "status_code": status_code},
-                exc_info=True,
-            )
-            return None
-
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("enrichment_action_unexpected_error")
-            self._circuit_breaker.record_failure()
-            logger.error(
-                f"Unexpected error during action classification: {sanitize_error(e)}",
-                extra={"duration_ms": duration_ms},
-                exc_info=True,
-            )
-            raise EnrichmentUnavailableError(
-                f"Unexpected error during action classification: {sanitize_error(e)}",
-                original_error=e,
-            ) from e
+        # All retries exhausted
+        raise EnrichmentUnavailableError(
+            f"Enrichment action classification failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
 
 
 # Global client instance
@@ -1618,7 +1811,12 @@ def get_enrichment_client() -> EnrichmentClient:
     return _enrichment_client
 
 
-def reset_enrichment_client() -> None:
-    """Reset the global EnrichmentClient instance (for testing)."""
+async def reset_enrichment_client() -> None:
+    """Reset the global EnrichmentClient instance (for testing).
+
+    This async function properly closes HTTP connections before resetting.
+    """
     global _enrichment_client  # noqa: PLW0603
+    if _enrichment_client is not None:
+        await _enrichment_client.close()
     _enrichment_client = None

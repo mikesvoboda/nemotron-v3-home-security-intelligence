@@ -29,10 +29,10 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
+from backend.services.circuit_breaker import CircuitBreaker
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -132,7 +132,27 @@ class CLIPClient:
             half_open_max_calls=settings.clip_cb_half_open_max_calls,
         )
 
+        # Create persistent HTTP connection pool (NEM-1721)
+        # Reusing connections avoids TCP overhead and resource exhaustion
+        self._http_client = httpx.AsyncClient(
+            timeout=self._timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        self._health_http_client = httpx.AsyncClient(
+            timeout=self._health_timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+
         logger.info(f"CLIPClient initialized with base_url={self._base_url}")
+
+    async def close(self) -> None:
+        """Close the HTTP client connections.
+
+        Should be called when the client is no longer needed to release resources.
+        """
+        await self._http_client.aclose()
+        await self._health_http_client.aclose()
+        logger.debug("CLIPClient HTTP connections closed")
 
     def _encode_image_to_base64(self, image: Image.Image) -> str:
         """Encode a PIL Image to base64 string.
@@ -171,10 +191,10 @@ class CLIPClient:
             True if CLIP service is healthy, False otherwise
         """
         try:
-            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                response = await client.get(f"{self._base_url}/health")
-                response.raise_for_status()
-                return True
+            # Use persistent HTTP client (NEM-1721)
+            response = await self._health_http_client.get(f"{self._base_url}/health")
+            response.raise_for_status()
+            return True
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             logger.warning(f"CLIP health check failed: {e}", exc_info=True)
             return False
@@ -222,13 +242,12 @@ class CLIPClient:
             # Track AI request time
             ai_start_time = time.time()
 
-            # Send to CLIP service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/embed",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Send to CLIP service using persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/embed",
+                json=payload,
+            )
+            response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
@@ -400,13 +419,12 @@ class CLIPClient:
             # Track AI request time
             ai_start_time = time.time()
 
-            # Send to CLIP service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/anomaly-score",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Send to CLIP service using persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/anomaly-score",
+                json=payload,
+            )
+            response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
@@ -566,13 +584,12 @@ class CLIPClient:
             # Track AI request time
             ai_start_time = time.time()
 
-            # Send to CLIP service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/classify",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Send to CLIP service using persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/classify",
+                json=payload,
+            )
+            response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
@@ -714,13 +731,12 @@ class CLIPClient:
             # Track AI request time
             ai_start_time = time.time()
 
-            # Send to CLIP service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/similarity",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Send to CLIP service using persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/similarity",
+                json=payload,
+            )
+            response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
@@ -865,13 +881,12 @@ class CLIPClient:
             # Track AI request time
             ai_start_time = time.time()
 
-            # Send to CLIP service
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self._base_url}/batch-similarity",
-                    json=payload,
-                )
-                response.raise_for_status()
+            # Send to CLIP service using persistent HTTP client (NEM-1721)
+            response = await self._http_client.post(
+                f"{self._base_url}/batch-similarity",
+                json=payload,
+            )
+            response.raise_for_status()
 
             # Record AI request duration
             ai_duration = time.time() - ai_start_time
@@ -998,7 +1013,12 @@ def get_clip_client() -> CLIPClient:
     return _clip_client
 
 
-def reset_clip_client() -> None:
-    """Reset the global CLIPClient instance (for testing)."""
+async def reset_clip_client() -> None:
+    """Reset the global CLIPClient instance (for testing).
+
+    This async function properly closes HTTP connections before resetting.
+    """
     global _clip_client  # noqa: PLW0603
+    if _clip_client is not None:
+        await _clip_client.close()
     _clip_client = None

@@ -189,13 +189,14 @@ curl -X POST http://localhost:8090/detect/batch \
 
 ## Environment Variables
 
-| Variable            | Default                                        | Description              |
-| ------------------- | ---------------------------------------------- | ------------------------ |
-| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path   |
-| `RTDETR_CONFIDENCE` | `0.5`                                          | Min confidence threshold |
-| `HOST`              | `0.0.0.0`                                      | Bind address             |
-| `PORT`              | `8090`                                         | Server port              |
-| `HF_HOME`           | `/cache/huggingface`                           | HuggingFace cache dir    |
+| Variable                       | Default                                        | Description                                        |
+| ------------------------------ | ---------------------------------------------- | -------------------------------------------------- |
+| `RTDETR_MODEL_PATH`            | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path                             |
+| `RTDETR_CONFIDENCE`            | `0.5`                                          | Min confidence threshold                           |
+| `RTDETR_CACHE_CLEAR_FREQUENCY` | `1`                                            | Clear CUDA cache every N detections (0 to disable) |
+| `HOST`                         | `0.0.0.0`                                      | Bind address                                       |
+| `PORT`                         | `8090`                                         | Server port                                        |
+| `HF_HOME`                      | `/cache/huggingface`                           | HuggingFace cache dir                              |
 
 ## Inference Pipeline
 

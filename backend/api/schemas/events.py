@@ -1,8 +1,59 @@
 """Pydantic schemas for events API endpoints."""
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class EnrichmentStatusEnum(str, Enum):
+    """Status of enrichment pipeline execution for an event.
+
+    Values:
+        full: All enrichment models succeeded
+        partial: Some models succeeded, some failed
+        failed: All models failed (no enrichment data)
+        skipped: Enrichment was not attempted
+    """
+
+    FULL = "full"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class EnrichmentStatusResponse(BaseModel):
+    """Schema for enrichment status in event responses (NEM-1672).
+
+    Provides visibility into which enrichment models succeeded/failed
+    for a given event, instead of silently degrading.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "status": "partial",
+                "successful_models": ["violence", "weather", "face"],
+                "failed_models": ["clothing"],
+                "errors": {"clothing": "Model not loaded"},
+                "success_rate": 0.75,
+            }
+        }
+    )
+
+    status: EnrichmentStatusEnum = Field(
+        ..., description="Overall enrichment status (full, partial, failed, skipped)"
+    )
+    successful_models: list[str] = Field(
+        default_factory=list, description="List of enrichment models that succeeded"
+    )
+    failed_models: list[str] = Field(
+        default_factory=list, description="List of enrichment models that failed"
+    )
+    errors: dict[str, str] = Field(
+        default_factory=dict, description="Model name to error message mapping"
+    )
+    success_rate: float = Field(..., ge=0.0, le=1.0, description="Success rate (0.0 to 1.0)")
 
 
 class EventResponse(BaseModel):
@@ -26,6 +77,13 @@ class EventResponse(BaseModel):
                 "detection_count": 5,
                 "detection_ids": [1, 2, 3, 4, 5],
                 "thumbnail_url": "/api/media/detections/1",
+                "enrichment_status": {
+                    "status": "full",
+                    "successful_models": ["violence", "weather", "face", "clothing"],
+                    "failed_models": [],
+                    "errors": {},
+                    "success_rate": 1.0,
+                },
             }
         },
     )
@@ -50,6 +108,10 @@ class EventResponse(BaseModel):
     thumbnail_url: str | None = Field(
         None, description="URL to thumbnail image (first detection's media)"
     )
+    enrichment_status: EnrichmentStatusResponse | None = Field(
+        None,
+        description="Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed",
+    )
 
 
 class EventUpdate(BaseModel):
@@ -69,7 +131,11 @@ class EventUpdate(BaseModel):
 
 
 class EventListResponse(BaseModel):
-    """Schema for event list response with pagination."""
+    """Schema for event list response with pagination.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Use cursor-based pagination for better performance with large datasets.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -95,6 +161,8 @@ class EventListResponse(BaseModel):
                 "count": 1,
                 "limit": 50,
                 "offset": 0,
+                "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",  # pragma: allowlist secret
+                "has_more": False,
             }
         }
     )
@@ -102,7 +170,18 @@ class EventListResponse(BaseModel):
     events: list[EventResponse] = Field(..., description="List of events")
     count: int = Field(..., description="Total number of events matching filters")
     limit: int = Field(..., description="Maximum number of results returned")
-    offset: int = Field(..., description="Number of results skipped")
+    offset: int = Field(..., description="Number of results skipped (deprecated, use cursor)")
+    next_cursor: str | None = Field(
+        default=None,
+        description="Cursor for fetching the next page. Pass this as the 'cursor' parameter.",
+    )
+    has_more: bool = Field(
+        default=False, description="Whether there are more results available after this page"
+    )
+    deprecation_warning: str | None = Field(
+        default=None,
+        description="Warning message when using deprecated offset pagination",
+    )
 
 
 class EventsByRiskLevel(BaseModel):

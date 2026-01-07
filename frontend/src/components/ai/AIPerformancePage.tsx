@@ -126,9 +126,9 @@ export default function AIPerformancePage() {
           <div>
             <div className="flex items-center gap-3">
               <Brain className="h-8 w-8 text-[#76B900]" />
-              <h1 className="text-4xl font-bold text-white">AI Performance</h1>
+              <h1 className="text-page-title">AI Performance</h1>
             </div>
-            <p className="mt-2 text-sm text-gray-400">
+            <p className="text-body-sm mt-2">
               Real-time AI model metrics, latency statistics, and pipeline health
             </p>
           </div>

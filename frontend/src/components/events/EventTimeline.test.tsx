@@ -111,6 +111,7 @@ describe('EventTimeline', () => {
     count: 3,
     limit: 20,
     offset: 0,
+    has_more: false,
   };
 
   // Mock WebSocket events for live activity
@@ -205,14 +206,14 @@ describe('EventTimeline', () => {
       expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
     });
 
-    it('displays loading state initially', async () => {
+    it('displays loading state initially with skeleton loaders', async () => {
       renderWithProviders(<EventTimeline />);
 
-      expect(screen.getByText('Loading events...')).toBeInTheDocument();
+      expect(screen.getAllByTestId('event-card-skeleton').length).toBeGreaterThan(0);
 
       // Wait for loading to complete to avoid act() warnings
       await waitFor(() => {
-        expect(screen.queryByText('Loading events...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('event-card-skeleton')).not.toBeInTheDocument();
       });
     });
 
@@ -588,6 +589,7 @@ describe('EventTimeline', () => {
         count: 50,
         limit: 20,
         offset: 0,
+        has_more: true,
       });
     });
 
@@ -621,18 +623,21 @@ describe('EventTimeline', () => {
           count: 50,
           limit: 20,
           offset: 0,
+          has_more: true,
         })
         .mockResolvedValueOnce({
           events: mockEvents,
           count: 50,
           limit: 20,
           offset: 20,
+          has_more: true,
         })
         .mockResolvedValueOnce({
           events: mockEvents,
           count: 50,
           limit: 20,
           offset: 0,
+          has_more: true,
         });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -683,18 +688,21 @@ describe('EventTimeline', () => {
           count: 50,
           limit: 20,
           offset: 0,
+          has_more: true,
         })
         .mockResolvedValueOnce({
           events: mockEvents,
           count: 50,
           limit: 20,
           offset: 20,
+          has_more: true,
         })
         .mockResolvedValueOnce({
           events: mockEvents,
           count: 50,
           limit: 20,
           offset: 40,
+          has_more: false,
         });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -738,18 +746,21 @@ describe('EventTimeline', () => {
           count: 50,
           limit: 20,
           offset: 0,
+          has_more: true,
         })
         .mockResolvedValueOnce({
           events: mockEvents,
           count: 50,
           limit: 20,
           offset: 20,
+          has_more: true,
         })
         .mockResolvedValueOnce({
           events: mockEvents,
           count: 50,
           limit: 20,
           offset: 0,
+          has_more: true,
         });
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -843,6 +854,7 @@ describe('EventTimeline', () => {
         count: 0,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
@@ -870,6 +882,7 @@ describe('EventTimeline', () => {
         count: 0,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       await user.click(screen.getByText('Show Filters'));
@@ -891,6 +904,7 @@ describe('EventTimeline', () => {
         count: 0,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
@@ -910,6 +924,7 @@ describe('EventTimeline', () => {
         count: 0,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
@@ -986,6 +1001,7 @@ describe('EventTimeline', () => {
         count: 1,
         limit: 20,
         offset: 0,
+        has_more: false,
       };
 
       vi.mocked(api.fetchEvents).mockResolvedValue(eventsWithUnknownCamera);
@@ -1499,6 +1515,7 @@ describe('EventTimeline', () => {
         count: 1,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       await user.click(screen.getByText('Show Filters'));
@@ -1555,8 +1572,8 @@ describe('EventTimeline', () => {
 
       renderWithProviders(<EventTimeline />);
 
-      // Should show loading state
-      expect(screen.getByText('Loading events...')).toBeInTheDocument();
+      // Should show loading state with skeleton loaders
+      expect(screen.getAllByTestId('event-card-skeleton').length).toBeGreaterThan(0);
 
       // Should not show risk badges during loading
       expect(screen.queryByText('Critical')).not.toBeInTheDocument();
@@ -1596,6 +1613,7 @@ describe('EventTimeline', () => {
         count: 0,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
@@ -1645,6 +1663,7 @@ describe('EventTimeline', () => {
         count: 2,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
@@ -1710,6 +1729,7 @@ describe('EventTimeline', () => {
         count: 3,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
@@ -1758,6 +1778,7 @@ describe('EventTimeline', () => {
         count: 2,
         limit: 20,
         offset: 0,
+        has_more: false,
       });
 
       renderWithProviders(<EventTimeline />);
