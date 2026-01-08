@@ -859,7 +859,7 @@ export default function SystemMonitoringPage() {
               summary={
                 modelZooModels.length > 0 ? (
                   <Badge
-                    color={modelZooModels.filter((m) => m.status === 'loaded').length > 0 ? 'green' : 'gray'}
+                    color={modelZooModels.filter((m) => m.status === 'loaded').length > 0 ? 'emerald' : 'gray'}
                     size="sm"
                   >
                     {modelZooModels.filter((m) => m.status === 'loaded').length} Loaded | {modelZooModels.length} Available
@@ -907,7 +907,7 @@ export default function SystemMonitoringPage() {
                   <Badge
                     color={
                       postgresMetrics.status === 'healthy' && redisMetrics.status === 'healthy'
-                        ? 'green'
+                        ? 'emerald'
                         : 'yellow'
                     }
                     size="sm"
@@ -942,7 +942,7 @@ export default function SystemMonitoringPage() {
                   <Badge
                     color={
                       workers.filter((w) => w.running).length === workers.length
-                        ? 'green'
+                        ? 'emerald'
                         : 'yellow'
                     }
                     size="sm"
@@ -990,7 +990,7 @@ export default function SystemMonitoringPage() {
               summary={
                 circuitBreakers ? (
                   <Badge
-                    color={circuitBreakers.open_count === 0 ? 'green' : 'red'}
+                    color={circuitBreakers.open_count === 0 ? 'emerald' : 'red'}
                     size="sm"
                   >
                     {circuitBreakers.total_count - circuitBreakers.open_count}/{circuitBreakers.total_count} Healthy
@@ -1028,7 +1028,7 @@ export default function SystemMonitoringPage() {
                   <Badge
                     color={
                       Object.values(services).every((s) => s.status === 'healthy')
-                        ? 'green'
+                        ? 'emerald'
                         : Object.values(services).some((s) => s.status === 'unhealthy')
                         ? 'red'
                         : 'yellow'
