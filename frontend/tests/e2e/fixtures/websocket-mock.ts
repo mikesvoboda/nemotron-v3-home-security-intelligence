@@ -151,6 +151,26 @@ export interface WebSocketMockController {
 
   /** Clear all mocked state */
   reset: () => Promise<void>;
+
+  /**
+   * Send event and verify UI updates
+   *
+   * Helper method that sends a WebSocket event and verifies that the UI
+   * displays the expected content in response.
+   *
+   * @param event - The event data to send
+   * @param page - Playwright page object
+   * @param expectedSelector - CSS selector or test ID for the UI element to verify
+   * @param expectedContent - Text content or RegExp to match in the UI element
+   * @param timeout - Optional timeout in milliseconds (default: 10000)
+   */
+  sendEventAndVerifyUI: (
+    event: WebSocketEventMessage['data'],
+    page: Page,
+    expectedSelector: string,
+    expectedContent: string | RegExp,
+    timeout?: number
+  ) => Promise<void>;
 }
 
 /**
@@ -580,6 +600,31 @@ export async function setupWebSocketMock(
           mock.connectionAttempts?.forEach((_, key, map) => map.set(key, 0));
         }
       });
+    },
+
+    async sendEventAndVerifyUI(
+      event: WebSocketEventMessage['data'],
+      testPage: Page,
+      expectedSelector: string,
+      expectedContent: string | RegExp,
+      timeout: number = 10000
+    ): Promise<void> {
+      // Send the event via WebSocket
+      await controller.sendSecurityEvent(event);
+
+      // Wait for UI to update with expected content
+      const locator = expectedSelector.startsWith('[data-testid')
+        ? testPage.locator(expectedSelector)
+        : testPage.getByTestId(expectedSelector).or(testPage.locator(expectedSelector));
+
+      // Import expect from Playwright for assertions
+      const { expect } = await import('@playwright/test');
+
+      if (typeof expectedContent === 'string') {
+        await expect(locator).toContainText(expectedContent, { timeout });
+      } else {
+        await expect(locator).toContainText(expectedContent, { timeout });
+      }
     },
   };
 
