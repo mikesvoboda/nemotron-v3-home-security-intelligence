@@ -18,6 +18,10 @@ media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 router = APIRouter(prefix="/api/media", tags=["media"])
 
+# Maximum path length to prevent potential buffer overflow attacks
+# and filesystem limitations. Most filesystems have limits around 4096 bytes.
+MAX_PATH_LENGTH = 4096
+
 # Allowed file types and their content-type mappings
 ALLOWED_TYPES = {
     ".jpg": "image/jpeg",
@@ -44,6 +48,16 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
     Raises:
         HTTPException: If path is invalid, contains traversal attempts, or file doesn't exist
     """
+    # Check path length to prevent buffer overflow attacks and filesystem issues
+    if len(requested_path) > MAX_PATH_LENGTH:
+        raise HTTPException(
+            status_code=414,
+            detail=MediaErrorResponse(
+                error=f"Path too long. Maximum length is {MAX_PATH_LENGTH} characters.",
+                path=requested_path[:100] + "..." if len(requested_path) > 100 else requested_path,
+            ).model_dump(),
+        )
+
     # Check for path traversal attempts
     if ".." in requested_path or requested_path.startswith("/"):
         raise HTTPException(
@@ -54,8 +68,19 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
             ).model_dump(),
         )
 
-    # Resolve the full path
-    full_path = (base_path / requested_path).resolve()
+    # Resolve the full path with error handling for filesystem limits
+    try:
+        full_path = (base_path / requested_path).resolve()
+    except (OSError, ValueError) as err:
+        # OSError: filesystem limits exceeded (e.g., path too long for OS)
+        # ValueError: invalid path characters or format
+        raise HTTPException(
+            status_code=400,
+            detail=MediaErrorResponse(
+                error=f"Invalid path: {type(err).__name__}",
+                path=requested_path[:100] + "..." if len(requested_path) > 100 else requested_path,
+            ).model_dump(),
+        ) from err
 
     # Ensure the resolved path is still within the base directory
     try:

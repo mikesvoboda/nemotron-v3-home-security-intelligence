@@ -176,7 +176,8 @@ export default defineConfig(({ mode }) => {
       setupFiles: './src/test/setup.ts',
       css: true,
       // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
-      exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
+      // Also exclude contract tests (Playwright-based API contract validation)
+      exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/contract/**'],
       // Thread-based parallelization for faster execution
       pool: 'threads',
       // Test timeouts

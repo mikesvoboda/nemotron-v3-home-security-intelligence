@@ -747,9 +747,9 @@ async def test_analyze_batch_success(
     assert event.reviewed is False
 
     # Verify session operations were called
-    # Event + EventAudit are both added, committed, and refreshed
-    assert mock_session.add.call_count == 2  # Event and EventAudit
-    assert mock_session.commit.await_count == 2  # Commit for Event and EventAudit
+    # Event + EventDetection records (2) + EventAudit are all added
+    assert mock_session.add.call_count == 4  # Event + 2 EventDetections + EventAudit
+    assert mock_session.commit.await_count == 3  # Commit for Event, EventDetections, EventAudit
     assert mock_session.refresh.await_count == 2  # Refresh for Event and EventAudit
 
 
