@@ -11,6 +11,7 @@ import contextlib
 import json
 import random
 import threading
+from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
@@ -37,6 +38,39 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Buffer size for message replay on reconnection (NEM-1688)
+MESSAGE_BUFFER_SIZE = 100
+
+
+def requires_ack(message: dict[str, Any]) -> bool:
+    """Determine if a message requires client acknowledgment.
+
+    High-priority messages that require acknowledgment:
+    - Events with risk_score >= 80
+    - Events with risk_level == 'critical'
+
+    Args:
+        message: WebSocket message dictionary
+
+    Returns:
+        True if the message requires acknowledgment, False otherwise
+    """
+    if message.get("type") != "event":
+        return False
+
+    data = message.get("data")
+    if not data:
+        return False
+
+    # Check risk_score >= 80
+    risk_score = data.get("risk_score", 0)
+    if risk_score >= 80:
+        return True
+
+    # Check risk_level == 'critical'
+    risk_level = data.get("risk_level", "")
+    return bool(risk_level == "critical")
+
 
 def get_event_channel() -> str:
     """Get the Redis event channel name from settings.
@@ -58,6 +92,12 @@ class EventBroadcaster:
 
     When max recovery attempts are exhausted, the broadcaster enters degraded mode
     where it continues to accept connections but cannot broadcast real-time events.
+
+    Message Delivery Guarantees (NEM-1688):
+    - All messages include monotonically increasing sequence numbers
+    - Last MESSAGE_BUFFER_SIZE messages are buffered for replay
+    - High-priority messages (risk_score >= 80 or critical) require acknowledgment
+    - Per-client ACK tracking for delivery confirmation
     """
 
     # Maximum number of consecutive recovery attempts before giving up
@@ -66,6 +106,9 @@ class EventBroadcaster:
 
     # Interval for supervision checks (seconds)
     SUPERVISION_INTERVAL = 30.0
+
+    # Message buffer size for replay on reconnection
+    MESSAGE_BUFFER_SIZE = MESSAGE_BUFFER_SIZE
 
     # Kept for backward compatibility - fetches from settings dynamically
     # Note: This is a property that returns the current settings value each time
@@ -101,6 +144,11 @@ class EventBroadcaster:
             name="event_broadcaster",
         )
 
+        # Message sequencing and buffering (NEM-1688)
+        self._sequence_counter = 0
+        self._message_buffer: deque[dict[str, Any]] = deque(maxlen=self.MESSAGE_BUFFER_SIZE)
+        self._client_acks: dict[WebSocket, int] = {}
+
     @property
     def channel_name(self) -> str:
         """Get the Redis channel name for this broadcaster instance."""
@@ -118,6 +166,115 @@ class EventBroadcaster:
             Current WebSocketCircuitState (CLOSED, OPEN, or HALF_OPEN)
         """
         return self._circuit_breaker.get_state()
+
+    @property
+    def current_sequence(self) -> int:
+        """Get the current sequence counter value.
+
+        Returns:
+            The current sequence number (0 if no messages have been sent).
+        """
+        return self._sequence_counter
+
+    def _next_sequence(self) -> int:
+        """Get the next sequence number.
+
+        Returns:
+            The next sequence number (monotonically increasing).
+        """
+        self._sequence_counter += 1
+        return self._sequence_counter
+
+    def _add_sequence_and_buffer(self, message: dict[str, Any]) -> dict[str, Any]:
+        """Add sequence number and buffer the message for replay.
+
+        Creates a copy of the message with sequence and requires_ack fields,
+        then adds it to the message buffer.
+
+        Args:
+            message: The original message to sequence and buffer.
+
+        Returns:
+            A new dict with sequence and requires_ack fields added.
+        """
+        # Create a copy to avoid modifying the original
+        sequenced = dict(message)
+        sequenced["sequence"] = self._next_sequence()
+        sequenced["requires_ack"] = requires_ack(message)
+
+        # Add to buffer
+        self._message_buffer.append(sequenced)
+
+        return sequenced
+
+    def _sequence_event_data(self, event_data: Any) -> Any:
+        """Add sequence number to event data (NEM-1688).
+
+        This is a helper method that handles the different types of event data
+        that can come from Redis pub/sub.
+
+        Args:
+            event_data: The event data from Redis, can be dict, str, or other.
+
+        Returns:
+            The sequenced event data if it could be parsed, otherwise original data.
+        """
+        if isinstance(event_data, dict):
+            return self._add_sequence_and_buffer(event_data)
+        if isinstance(event_data, str):
+            try:
+                parsed = json.loads(event_data)
+                return self._add_sequence_and_buffer(parsed)
+            except json.JSONDecodeError:
+                # Can't sequence non-JSON string messages
+                return event_data
+        return event_data
+
+    def get_messages_since(
+        self, last_sequence: int, mark_as_replay: bool = False
+    ) -> list[dict[str, Any]]:
+        """Get all buffered messages since a given sequence number.
+
+        Used for reconnection replay to catch up clients that missed messages.
+
+        Args:
+            last_sequence: The last sequence number the client received.
+            mark_as_replay: If True, add replay=True to returned messages.
+
+        Returns:
+            List of messages with sequence > last_sequence.
+        """
+        messages = [msg for msg in self._message_buffer if msg["sequence"] > last_sequence]
+
+        if mark_as_replay:
+            # Create copies with replay flag
+            return [{**msg, "replay": True} for msg in messages]
+
+        return messages
+
+    def record_ack(self, websocket: WebSocket, sequence: int) -> None:
+        """Record a client's acknowledgment of a sequence number.
+
+        Only updates if the new sequence is higher than the current one.
+
+        Args:
+            websocket: The client's WebSocket connection.
+            sequence: The sequence number being acknowledged.
+        """
+        current = self._client_acks.get(websocket, 0)
+        if sequence > current:
+            self._client_acks[websocket] = sequence
+
+    def get_last_ack(self, websocket: WebSocket) -> int:
+        """Get the last acknowledged sequence for a client.
+
+        Args:
+            websocket: The client's WebSocket connection.
+
+        Returns:
+            The last acknowledged sequence number, or 0 if none.
+        """
+        return self._client_acks.get(websocket, 0)
 
     async def start(self) -> None:
         """Start listening for events from Redis pub/sub.
@@ -186,10 +343,14 @@ class EventBroadcaster:
     async def disconnect(self, websocket: WebSocket) -> None:
         """Unregister a WebSocket connection.
 
+        Cleans up ACK tracking for the client.
+
         Args:
             websocket: WebSocket connection to unregister
         """
         self._connections.discard(websocket)
+        # Clean up ACK tracking (NEM-1688)
+        self._client_acks.pop(websocket, None)
         with contextlib.suppress(Exception):
             await websocket.close()
         logger.info(f"WebSocket disconnected. Total connections: {len(self._connections)}")
@@ -434,10 +595,13 @@ class EventBroadcaster:
 
                 logger.debug(f"Received event from Redis: {event_data}")
 
+                # NEM-1688: Add sequence number and buffer the message
+                broadcast_data = self._sequence_event_data(event_data)
+
                 # Broadcast to all connected WebSocket clients
                 # Wrapped in try/except to prevent message loss from broadcast failures
                 try:
-                    await self._send_to_all_clients(event_data)
+                    await self._send_to_all_clients(broadcast_data)
                 except Exception as broadcast_error:
                     # Log error but continue processing - don't lose future messages
                     logger.error(

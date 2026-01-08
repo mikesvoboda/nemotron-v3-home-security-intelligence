@@ -156,6 +156,42 @@ class MockEventBroadcaster:
         """
         return getattr(self, "_is_degraded", False)
 
+    def get_messages_since(
+        self, last_sequence: int, mark_as_replay: bool = False
+    ) -> list[dict[str, Any]]:
+        """Get all buffered messages since a given sequence number.
+
+        Args:
+            last_sequence: The last sequence number the client received.
+            mark_as_replay: If True, add replay=True to returned messages.
+
+        Returns:
+            List of messages with sequence > last_sequence.
+        """
+        # Mock implementation returns empty list
+        return []
+
+    def record_ack(self, websocket: Any, sequence: int) -> None:
+        """Record a client's acknowledgment of a sequence number.
+
+        Args:
+            websocket: The client's WebSocket connection.
+            sequence: The sequence number being acknowledged.
+        """
+        # Mock implementation does nothing
+        pass
+
+    def get_last_ack(self, websocket: Any) -> int:
+        """Get the last acknowledged sequence for a client.
+
+        Args:
+            websocket: The client's WebSocket connection.
+
+        Returns:
+            The last acknowledged sequence number, or 0 if none.
+        """
+        return 0
+
     async def broadcast_scene_change(self, scene_change_data: dict[str, Any]) -> int:
         """Broadcast a scene change message to all connected WebSocket clients.
 

@@ -1223,3 +1223,100 @@ async def generate_event_clip(
             generated_at=None,
             message=safe_message,
         )
+
+
+@router.get("/analyze/{batch_id}/stream")
+async def analyze_batch_streaming(
+    batch_id: str,
+    camera_id: str | None = Query(None, description="Camera ID for the batch"),
+    detection_ids: str | None = Query(None, description="Comma-separated detection IDs (optional)"),
+) -> StreamingResponse:
+    """Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).
+
+    This endpoint provides progressive LLM response updates during long inference
+    times, allowing the frontend to display partial results and show typing
+    indicators while the analysis is in progress.
+
+    Event Types:
+    - progress: Partial LLM response chunk with accumulated_text
+    - complete: Final event with risk assessment and event_id
+    - error: Error information with error_code and recoverable flag
+
+    Args:
+        batch_id: Batch identifier to analyze
+        camera_id: Optional camera ID (uses Redis lookup if not provided)
+        detection_ids: Optional comma-separated detection IDs
+
+    Returns:
+        StreamingResponse with SSE event stream (text/event-stream)
+
+    Example SSE output:
+        data: {"event_type": "progress", "content": "Based on", "accumulated_text": "Based on"}
+
+        data: {"event_type": "progress", "content": " the", "accumulated_text": "Based on the"}
+
+        data: {"event_type": "complete", "event_id": 123, "risk_score": 75, ...}
+    """
+    from backend.core.redis import get_redis
+    from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+    async def event_generator() -> Any:
+        """Generate SSE events from streaming analysis."""
+        try:
+            # Get Redis client from async generator (FastAPI dependency pattern)
+            redis_gen = get_redis()
+            redis_client = await anext(redis_gen)
+            try:
+                analyzer = NemotronAnalyzer(redis_client=redis_client)
+
+                # Parse detection_ids if provided
+                parsed_detection_ids: list[int | str] | None = None
+                if detection_ids:
+                    try:
+                        parsed_detection_ids = [
+                            int(d.strip()) for d in detection_ids.split(",") if d.strip()
+                        ]
+                    except ValueError:
+                        # Return error event for invalid detection_ids
+                        error_event = {
+                            "event_type": "error",
+                            "error_code": "INVALID_DETECTION_IDS",
+                            "error_message": "Detection IDs must be numeric",
+                            "recoverable": False,
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+
+                # Stream analysis updates
+                async for update in analyzer.analyze_batch_streaming(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    detection_ids=parsed_detection_ids,
+                ):
+                    yield f"data: {json.dumps(update)}\n\n"
+            finally:
+                # Clean up the generator
+                try:
+                    await redis_gen.aclose()
+                except Exception as cleanup_err:
+                    logger.debug(f"Generator cleanup: {cleanup_err}")
+
+        except Exception as e:
+            logger.error(f"Streaming analysis error for batch {batch_id}: {e}", exc_info=True)
+            error_event = {
+                "event_type": "error",
+                "error_code": "INTERNAL_ERROR",
+                "error_message": "An internal error occurred during analysis",
+                "recoverable": False,
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering for SSE
+        },
+    )

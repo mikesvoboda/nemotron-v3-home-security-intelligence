@@ -1,0 +1,223 @@
+# SLI/SLO Recording Rules for Home Security Intelligence
+# These rules pre-compute Service Level Indicators for efficient dashboard queries
+
+groups:
+  # API Availability SLI
+  - name: api_availability_sli
+    interval: 30s
+    rules:
+      # Request success rate (non-5xx responses)
+      - record: hsi:api_requests:success_rate_5m
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+
+      # API availability over different windows
+      - record: hsi:api_availability:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total[1h]))
+
+      - record: hsi:api_availability:ratio_rate6h
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[6h]))
+          /
+          sum(rate(http_requests_total[6h]))
+
+      - record: hsi:api_availability:ratio_rate1d
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[1d]))
+          /
+          sum(rate(http_requests_total[1d]))
+
+      - record: hsi:api_availability:ratio_rate30d
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[30d]))
+          /
+          sum(rate(http_requests_total[30d]))
+
+  # Detection Latency SLI
+  - name: detection_latency_sli
+    interval: 30s
+    rules:
+      # P95 detection latency
+      - record: hsi:detection_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hsi_detection_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: hsi:detection_latency:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(hsi_detection_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Detection success rate
+      - record: hsi:detection:success_rate_5m
+        expr: |
+          sum(rate(hsi_detection_success_total[5m]))
+          /
+          sum(rate(hsi_detection_total[5m]))
+
+      # Detection within SLO (< 2s)
+      - record: hsi:detection_latency:within_slo_rate5m
+        expr: |
+          sum(rate(hsi_detection_duration_seconds_bucket{le="2"}[5m]))
+          /
+          sum(rate(hsi_detection_duration_seconds_count[5m]))
+
+  # Analysis Latency SLI
+  - name: analysis_latency_sli
+    interval: 30s
+    rules:
+      # P95 analysis latency
+      - record: hsi:analysis_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hsi_analysis_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: hsi:analysis_latency:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(hsi_analysis_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Analysis success rate
+      - record: hsi:analysis:success_rate_5m
+        expr: |
+          sum(rate(hsi_analysis_success_total[5m]))
+          /
+          sum(rate(hsi_analysis_total[5m]))
+
+      # Analysis within SLO (< 30s)
+      - record: hsi:analysis_latency:within_slo_rate5m
+        expr: |
+          sum(rate(hsi_analysis_duration_seconds_bucket{le="30"}[5m]))
+          /
+          sum(rate(hsi_analysis_duration_seconds_count[5m]))
+
+  # Event Processing SLI
+  - name: event_processing_sli
+    interval: 30s
+    rules:
+      # P95 event processing latency
+      - record: hsi:event_processing_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hsi_event_processing_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Event processing within SLO (< 5s)
+      - record: hsi:event_processing_latency:within_slo_rate5m
+        expr: |
+          sum(rate(hsi_event_processing_duration_seconds_bucket{le="5"}[5m]))
+          /
+          sum(rate(hsi_event_processing_duration_seconds_count[5m]))
+
+  # WebSocket Availability SLI
+  - name: websocket_availability_sli
+    interval: 30s
+    rules:
+      # WebSocket connection success rate
+      - record: hsi:websocket:connection_success_rate_5m
+        expr: |
+          sum(rate(hsi_websocket_connections_successful[5m]))
+          /
+          sum(rate(hsi_websocket_connection_attempts[5m]))
+
+      # Active WebSocket connections
+      - record: hsi:websocket:active_connections
+        expr: sum(hsi_websocket_active_connections)
+
+  # Infrastructure Health SLI
+  - name: infrastructure_health_sli
+    interval: 30s
+    rules:
+      # Backend health
+      - record: hsi:backend:healthy
+        expr: up{job="backend-liveness"}
+
+      # Redis health
+      - record: hsi:redis:healthy
+        expr: up{job="redis"}
+
+      # GPU memory utilization
+      - record: hsi:gpu:memory_utilization
+        expr: |
+          hsi_gpu_memory_used_bytes
+          /
+          hsi_gpu_memory_total_bytes
+
+      # GPU utilization
+      - record: hsi:gpu:utilization
+        expr: hsi_gpu_utilization_percent
+
+  # Error Budget Calculations
+  - name: error_budget
+    interval: 1m
+    rules:
+      # API availability error budget remaining (target: 99.5%)
+      - record: hsi:error_budget:api_availability_remaining
+        expr: |
+          1 - (
+            (1 - hsi:api_availability:ratio_rate30d)
+            /
+            (1 - 0.995)
+          )
+
+      # Detection latency error budget remaining (target: 95% within SLO)
+      - record: hsi:error_budget:detection_latency_remaining
+        expr: |
+          1 - (
+            (1 - hsi:detection_latency:within_slo_rate5m)
+            /
+            (1 - 0.95)
+          )
+
+      # Analysis latency error budget remaining (target: 95% within SLO)
+      - record: hsi:error_budget:analysis_latency_remaining
+        expr: |
+          1 - (
+            (1 - hsi:analysis_latency:within_slo_rate5m)
+            /
+            (1 - 0.95)
+          )
+
+  # Burn Rate Calculations
+  - name: burn_rate
+    interval: 1m
+    rules:
+      # API availability burn rates
+      - record: hsi:burn_rate:api_availability_1h
+        expr: |
+          (1 - hsi:api_availability:ratio_rate1h) / (1 - 0.995)
+
+      - record: hsi:burn_rate:api_availability_6h
+        expr: |
+          (1 - hsi:api_availability:ratio_rate6h) / (1 - 0.995)
+
+      - record: hsi:burn_rate:api_availability_1d
+        expr: |
+          (1 - hsi:api_availability:ratio_rate1d) / (1 - 0.995)
+
+      # Detection latency burn rates
+      - record: hsi:burn_rate:detection_latency_1h
+        expr: |
+          (1 - avg_over_time(hsi:detection_latency:within_slo_rate5m[1h])) / (1 - 0.95)
+
+      - record: hsi:burn_rate:detection_latency_6h
+        expr: |
+          (1 - avg_over_time(hsi:detection_latency:within_slo_rate5m[6h])) / (1 - 0.95)
+
+      # Analysis latency burn rates
+      - record: hsi:burn_rate:analysis_latency_1h
+        expr: |
+          (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[1h])) / (1 - 0.95)
+
+      - record: hsi:burn_rate:analysis_latency_6h
+        expr: |
+          (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[6h])) / (1 - 0.95)
