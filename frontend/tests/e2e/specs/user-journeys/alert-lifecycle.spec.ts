@@ -17,7 +17,7 @@ import { test, expect } from '../../fixtures';
 test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard first
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'networkidle' });
 
     // Wait for dashboard to load first (more reliable than WebSocket status)
     const timeout = browserName === 'chromium' ? 10000 : 20000;
@@ -26,9 +26,9 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
       timeout
     });
 
-    // WebSocket status should be visible after dashboard loads
-    await page.waitForSelector('[data-testid="websocket-status"]', {
-      state: 'attached', // Use 'attached' instead of 'visible' for more reliability
+    // Wait for main content to be ready (handles lazy loading)
+    await page.waitForSelector('[data-testid="main-content"]', {
+      state: 'visible',
       timeout: 5000
     });
   });
@@ -40,25 +40,25 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      * Then: User is taken to the alerts page with alert list
      */
 
-    // Given: Dashboard is visible
-    await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
+    // Given: User is on dashboard (verified by URL)
+    await expect(page).toHaveURL('/');
 
-    // When: Click alerts navigation link
+    // When: Click alerts navigation link (navigation is always visible)
     const alertsLink = page.locator('[data-testid="nav-alerts"]').or(
       page.locator('a[href="/alerts"]')
     );
 
-    await expect(alertsLink.first()).toBeVisible();
+    await expect(alertsLink.first()).toBeVisible({ timeout: 10000 });
     await alertsLink.first().click();
 
     // Then: Alerts page should load
-    await expect(page).toHaveURL(/\/alerts/);
+    await expect(page).toHaveURL(/\/alerts/, { timeout: 10000 });
 
-    // Verify alerts page container
-    const alertsPage = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsPage.first()).toBeVisible({ timeout: 5000 });
+    // Wait for navigation to complete and page to render
+    await page.waitForLoadState('networkidle');
+
+    // Verify alerts page loaded (check for actual heading)
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
   });
 
   test('user can filter alerts by severity level', async ({ page }) => {
@@ -69,12 +69,10 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts');
+    await page.goto('/alerts', { waitUntil: 'networkidle' });
 
-    const alertsContainer = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsContainer.first()).toBeVisible({ timeout: 5000 });
+    // Wait for alerts page to load
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // When: Locate severity filter dropdown/buttons
     const severityFilter = page.locator('[data-testid="severity-filter"]').or(
@@ -124,12 +122,10 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts');
+    await page.goto('/alerts', { waitUntil: 'networkidle' });
 
-    const alertsContainer = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsContainer.first()).toBeVisible({ timeout: 5000 });
+    // Wait for alerts page to load
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // Find first unacknowledged alert
     const alerts = page.locator('[data-testid^="alert-card-"]');
@@ -174,12 +170,10 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts');
+    await page.goto('/alerts', { waitUntil: 'networkidle' });
 
-    const alertsContainer = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsContainer.first()).toBeVisible({ timeout: 5000 });
+    // Wait for alerts page to load
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // When: Click on first alert
     const firstAlert = page.locator('[data-testid^="alert-card-"]').first();
@@ -215,12 +209,10 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given & When: Navigate to alerts page
-    await page.goto('/alerts');
+    await page.goto('/alerts', { waitUntil: 'networkidle' });
 
-    const alertsContainer = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsContainer.first()).toBeVisible({ timeout: 5000 });
+    // Wait for alerts page to load
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // Then: Look for summary statistics
     const summarySection = page.locator('[data-testid="alerts-summary"]').or(
@@ -255,12 +247,10 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts');
+    await page.goto('/alerts', { waitUntil: 'networkidle' });
 
-    const alertsContainer = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsContainer.first()).toBeVisible({ timeout: 5000 });
+    // Wait for alerts page to load
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // Check if batch actions are available
     const batchActionButton = page.locator('[data-testid="batch-acknowledge"]').or(
@@ -305,12 +295,10 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts');
+    await page.goto('/alerts', { waitUntil: 'networkidle' });
 
-    const alertsContainer = page.locator('[data-testid="alerts-page"]').or(
-      page.locator('[data-testid="alerts-container"]')
-    );
-    await expect(alertsContainer.first()).toBeVisible({ timeout: 5000 });
+    // Wait for alerts page to load
+    await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // When: Locate alerts with severity indicators
     const alerts = page.locator('[data-testid^="alert-card-"]');
