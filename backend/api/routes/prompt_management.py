@@ -175,7 +175,7 @@ async def test_prompt(
     validation_errors = validate_config_for_model(request.model, request.config)
     if validation_errors:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": "Invalid configuration for model",
                 "model": request.model.value,
@@ -440,7 +440,7 @@ async def update_prompt_for_model(
     validation_errors = validate_config_for_model(model, request.config)
     if validation_errors:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "message": "Invalid configuration for model",
                 "model": model.value,

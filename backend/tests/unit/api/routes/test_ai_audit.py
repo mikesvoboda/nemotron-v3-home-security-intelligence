@@ -1617,3 +1617,619 @@ class TestCustomTestPromptSchemas:
         assert response.entities == []  # Default
         assert response.flags == []  # Default
         assert response.recommended_action == ""  # Default
+
+
+class TestHelperFunctions:
+    """Tests for helper functions in ai_audit module."""
+
+    def test_safe_parse_datetime_valid_iso(self) -> None:
+        """Test parsing valid ISO datetime strings."""
+        from backend.api.routes.ai_audit import safe_parse_datetime
+
+        result = safe_parse_datetime("2025-12-23T12:00:00Z")
+        assert result.year == 2025
+        assert result.month == 12
+        assert result.day == 23
+        assert result.hour == 12
+
+    def test_safe_parse_datetime_valid_with_offset(self) -> None:
+        """Test parsing ISO datetime with timezone offset."""
+        from backend.api.routes.ai_audit import safe_parse_datetime
+
+        result = safe_parse_datetime("2025-12-23T12:00:00+00:00")
+        assert result.year == 2025
+        assert result.month == 12
+
+    def test_safe_parse_datetime_none_uses_fallback(self) -> None:
+        """Test that None value returns fallback."""
+        from backend.api.routes.ai_audit import safe_parse_datetime
+
+        fallback = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+        result = safe_parse_datetime(None, fallback=fallback)
+        assert result == fallback
+
+    def test_safe_parse_datetime_empty_string_uses_fallback(self) -> None:
+        """Test that empty string returns fallback."""
+        from backend.api.routes.ai_audit import safe_parse_datetime
+
+        fallback = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+        result = safe_parse_datetime("", fallback=fallback)
+        assert result == fallback
+
+    def test_safe_parse_datetime_invalid_format_uses_fallback(self) -> None:
+        """Test that invalid format returns fallback and logs warning."""
+        from backend.api.routes.ai_audit import safe_parse_datetime
+
+        fallback = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+        result = safe_parse_datetime("not-a-date", fallback=fallback)
+        assert result == fallback
+
+    def test_safe_parse_datetime_no_fallback_uses_now(self) -> None:
+        """Test that no fallback uses current time."""
+        from backend.api.routes.ai_audit import safe_parse_datetime
+
+        result = safe_parse_datetime("invalid")
+        # Should be close to now
+        now = datetime.now(UTC)
+        assert abs((now - result).total_seconds()) < 1
+
+    def test_get_risk_level_low(self) -> None:
+        """Test risk level mapping for low scores."""
+        from backend.api.routes.ai_audit import _get_risk_level
+
+        assert _get_risk_level(0) == "low"
+        assert _get_risk_level(10) == "low"
+        assert _get_risk_level(24) == "low"
+
+    def test_get_risk_level_medium(self) -> None:
+        """Test risk level mapping for medium scores."""
+        from backend.api.routes.ai_audit import _get_risk_level
+
+        assert _get_risk_level(25) == "medium"
+        assert _get_risk_level(35) == "medium"
+        assert _get_risk_level(49) == "medium"
+
+    def test_get_risk_level_high(self) -> None:
+        """Test risk level mapping for high scores."""
+        from backend.api.routes.ai_audit import _get_risk_level
+
+        assert _get_risk_level(50) == "high"
+        assert _get_risk_level(60) == "high"
+        assert _get_risk_level(74) == "high"
+
+    def test_get_risk_level_critical(self) -> None:
+        """Test risk level mapping for critical scores."""
+        from backend.api.routes.ai_audit import _get_risk_level
+
+        assert _get_risk_level(75) == "critical"
+        assert _get_risk_level(85) == "critical"
+        assert _get_risk_level(100) == "critical"
+
+    def test_get_recommended_action_all_levels(self) -> None:
+        """Test recommended actions for all risk levels."""
+        from backend.api.routes.ai_audit import _get_recommended_action
+
+        assert _get_recommended_action("low") == "Monitor - No immediate action required"
+        assert _get_recommended_action("medium") == "Review - Check event details when convenient"
+        assert _get_recommended_action("high") == "Investigate - Review event details promptly"
+        assert _get_recommended_action("critical") == "Alert - Immediate attention required"
+
+    def test_get_recommended_action_unknown_level(self) -> None:
+        """Test recommended action for unknown risk level."""
+        from backend.api.routes.ai_audit import _get_recommended_action
+
+        assert _get_recommended_action("unknown") == "Review event details"
+        assert _get_recommended_action("") == "Review event details"
+
+
+class TestPromptPlaygroundEndpoints:
+    """Tests for Prompt Playground API endpoints."""
+
+    def test_get_all_prompts_success(self, client: TestClient) -> None:
+        """Test successful retrieval of all prompt configurations."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.get_all_configs.return_value = {
+                "nemotron": {
+                    "config": {"system_prompt": "Test prompt"},
+                    "version": 1,
+                    "updated_at": "2025-12-23T12:00:00Z",
+                },
+                "florence2": {
+                    "config": {"system_prompt": "Florence prompt"},
+                    "version": 2,
+                    "updated_at": "2025-12-23T13:00:00Z",
+                },
+            }
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.get("/api/ai-audit/prompts")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "prompts" in data
+            assert "nemotron" in data["prompts"]
+            assert "florence2" in data["prompts"]
+            assert data["prompts"]["nemotron"]["version"] == 1
+            assert data["prompts"]["florence2"]["version"] == 2
+
+    def test_get_model_prompt_success(self, client: TestClient) -> None:
+        """Test successful retrieval of specific model prompt."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.get_config_with_metadata.return_value = {
+                "config": {"system_prompt": "Nemotron test prompt"},
+                "version": 3,
+                "updated_at": "2025-12-23T12:00:00Z",
+            }
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.get("/api/ai-audit/prompts/nemotron")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["model_name"] == "nemotron"
+            assert data["version"] == 3
+            assert data["config"]["system_prompt"] == "Nemotron test prompt"
+
+    def test_get_model_prompt_invalid_model(self, client: TestClient) -> None:
+        """Test 404 for invalid model name."""
+        response = client.get("/api/ai-audit/prompts/invalid_model")
+        assert response.status_code == 404
+
+    def test_update_model_prompt_success(self, client: TestClient) -> None:
+        """Test successful update of model prompt configuration."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.validate_config.return_value = []
+            mock_version = MagicMock()
+            mock_version.version = 4
+            mock_version.config = {"system_prompt": "Updated prompt"}
+            mock_storage_instance.update_config.return_value = mock_version
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.put(
+                "/api/ai-audit/prompts/nemotron",
+                json={"config": {"system_prompt": "Updated prompt"}, "description": "Test update"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["model_name"] == "nemotron"
+            assert data["version"] == 4
+            assert "updated" in data["message"].lower()
+
+    def test_update_model_prompt_invalid_config(self, client: TestClient) -> None:
+        """Test 400 for invalid configuration."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.validate_config.return_value = [
+                "Invalid field X",
+                "Missing field Y",
+            ]
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.put(
+                "/api/ai-audit/prompts/nemotron",
+                json={"config": {"invalid": "config"}},
+            )
+
+            assert response.status_code == 400
+            assert "Invalid configuration" in response.json()["detail"]
+
+    def test_test_prompt_success(self, client: TestClient, mock_db_session: MagicMock) -> None:
+        """Test successful prompt testing endpoint."""
+        mock_event = create_mock_event(event_id=1, risk_score=65)
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.run_mock_test = AsyncMock(
+                return_value={
+                    "before": {"score": 65, "risk_level": "high", "summary": "Before summary"},
+                    "after": {"score": 70, "risk_level": "high", "summary": "After summary"},
+                    "improved": True,
+                    "inference_time_ms": 150,
+                }
+            )
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"system_prompt": "Test prompt"},
+                    "event_id": 1,
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["before"]["score"] == 65
+            assert data["after"]["score"] == 70
+            assert data["improved"] is True
+
+    def test_test_prompt_event_not_found(
+        self, client: TestClient, mock_db_session: MagicMock
+    ) -> None:
+        """Test 404 when event not found for prompt testing."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.post(
+            "/api/ai-audit/prompts/test",
+            json={
+                "model": "nemotron",
+                "config": {"system_prompt": "Test"},
+                "event_id": 999,
+            },
+        )
+
+        assert response.status_code == 404
+
+    def test_test_prompt_invalid_config(
+        self, client: TestClient, mock_db_session: MagicMock
+    ) -> None:
+        """Test 400 when config is invalid."""
+        mock_event = create_mock_event(event_id=1)
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_db_session.execute = AsyncMock(return_value=mock_event_result)
+
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.run_mock_test = AsyncMock(
+                side_effect=ValueError("Invalid config")
+            )
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"invalid": "config"},
+                    "event_id": 1,
+                },
+            )
+
+            assert response.status_code == 400
+
+    def test_get_all_prompts_history_success(self, client: TestClient) -> None:
+        """Test successful retrieval of prompt history for all models."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_version = MagicMock()
+            mock_version.version = 1
+            mock_version.config = {"system_prompt": "Test"}
+            mock_version.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+            mock_version.created_by = "user"
+            mock_version.description = "Initial version"
+
+            mock_storage_instance.get_history.return_value = [mock_version]
+            mock_storage_instance.get_total_versions.return_value = 1
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.get("/api/ai-audit/prompts/history?limit=5")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert isinstance(data, dict)
+            # Should have entries for supported models
+            for model_name in data:
+                assert "model_name" in data[model_name]
+                assert "versions" in data[model_name]
+                assert "total_versions" in data[model_name]
+
+    def test_get_model_history_success(self, client: TestClient) -> None:
+        """Test successful retrieval of single model history."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_version1 = MagicMock()
+            mock_version1.version = 2
+            mock_version1.config = {"system_prompt": "Version 2"}
+            mock_version1.created_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+            mock_version1.created_by = "user"
+            mock_version1.description = "Update 2"
+
+            mock_version2 = MagicMock()
+            mock_version2.version = 1
+            mock_version2.config = {"system_prompt": "Version 1"}
+            mock_version2.created_at = datetime(2025, 12, 22, 12, 0, 0, tzinfo=UTC)
+            mock_version2.created_by = "system"
+            mock_version2.description = "Initial"
+
+            mock_storage_instance.get_history.return_value = [mock_version1, mock_version2]
+            mock_storage_instance.get_total_versions.return_value = 2
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.get("/api/ai-audit/prompts/history/nemotron?limit=10&offset=0")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["model_name"] == "nemotron"
+            assert len(data["versions"]) == 2
+            assert data["total_versions"] == 2
+            assert data["versions"][0]["version"] == 2
+            assert data["versions"][1]["version"] == 1
+
+    def test_export_prompts_success(self, client: TestClient) -> None:
+        """Test successful export of all prompts."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.export_all.return_value = {
+                "exported_at": "2025-12-23T12:00:00Z",
+                "version": "1.0",
+                "prompts": {
+                    "nemotron": {"system_prompt": "Test"},
+                    "florence2": {"system_prompt": "Florence"},
+                },
+            }
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.get("/api/ai-audit/prompts/export")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "exported_at" in data
+            assert data["version"] == "1.0"
+            assert "nemotron" in data["prompts"]
+            assert "florence2" in data["prompts"]
+
+    def test_import_prompts_success(self, client: TestClient) -> None:
+        """Test successful import of prompts."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.validate_config.return_value = []
+            mock_storage_instance.import_configs.return_value = {
+                "imported": "nemotron, florence2",
+                "skipped": "none",
+                "errors": "none",
+            }
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/import",
+                json={
+                    "prompts": {
+                        "nemotron": {"system_prompt": "Test"},
+                        "florence2": {"system_prompt": "Florence"},
+                    },
+                    "overwrite": False,
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["imported_count"] == 2
+            assert data["skipped_count"] == 0
+            assert len(data["errors"]) == 0
+
+    def test_import_prompts_no_prompts(self, client: TestClient) -> None:
+        """Test 400 when no prompts provided for import."""
+        response = client.post(
+            "/api/ai-audit/prompts/import",
+            json={"prompts": {}, "overwrite": False},
+        )
+
+        assert response.status_code == 400
+        assert "No prompts provided" in response.json()["detail"]
+
+    def test_import_prompts_with_validation_errors(self, client: TestClient) -> None:
+        """Test import with validation errors."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.validate_config.return_value = ["Invalid field X"]
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/import",
+                json={
+                    "prompts": {"nemotron": {"invalid": "config"}},
+                    "overwrite": True,
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["imported_count"] == 0
+            assert len(data["errors"]) > 0
+
+    def test_import_prompts_unsupported_model(self, client: TestClient) -> None:
+        """Test import with unsupported model name."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.validate_config.return_value = []
+            mock_storage_instance.import_configs.return_value = {
+                "imported": "none",
+                "skipped": "none",
+                "errors": "none",
+            }
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/import",
+                json={
+                    "prompts": {"unsupported_model": {"system_prompt": "Test"}},
+                    "overwrite": False,
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            # Should have validation error for unsupported model (added during validation phase)
+            assert data["imported_count"] == 0
+            assert len(data["errors"]) > 0
+            assert any("unsupported_model" in err for err in data["errors"])
+
+    def test_restore_prompt_version_success(self, client: TestClient) -> None:
+        """Test successful restore of prompt version."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_old_version = MagicMock()
+            mock_old_version.version = 2
+            mock_storage_instance.get_version.return_value = mock_old_version
+
+            mock_new_version = MagicMock()
+            mock_new_version.version = 5
+            mock_storage_instance.restore_version.return_value = mock_new_version
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/history/2?model=nemotron",
+                json={"description": "Restored version 2"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["model_name"] == "nemotron"
+            assert data["restored_version"] == 2
+            assert data["new_version"] == 5
+
+    def test_restore_prompt_version_not_found(self, client: TestClient) -> None:
+        """Test 404 when restoring non-existent version."""
+        with patch("backend.api.routes.ai_audit.get_prompt_storage") as mock_storage:
+            mock_storage_instance = MagicMock()
+            mock_storage_instance.get_version.return_value = None
+            mock_storage.return_value = mock_storage_instance
+
+            response = client.post(
+                "/api/ai-audit/prompts/history/999?model=nemotron",
+                json={"description": "Restore missing"},
+            )
+
+            assert response.status_code == 404
+
+
+class TestDatabaseBackedPromptConfigEndpoints:
+    """Tests for database-backed prompt config endpoints."""
+
+    def test_get_prompt_config_success(
+        self, client: TestClient, mock_db_session: MagicMock
+    ) -> None:
+        """Test successful retrieval of database-backed prompt config."""
+        # Create a proper mock with all required attributes
+        mock_config = MagicMock()
+        # Set attributes directly (not spec since that causes issues)
+        mock_config.model = "nemotron"
+        mock_config.system_prompt = "Test system prompt"
+        mock_config.temperature = 0.7
+        mock_config.max_tokens = 2048
+        mock_config.version = 1
+        mock_config.updated_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_config
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.get("/api/ai-audit/prompt-config/nemotron")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["model"] == "nemotron"
+        # FastAPI converts snake_case to camelCase in JSON responses
+        assert data["systemPrompt"] == "Test system prompt"
+        assert data["temperature"] == 0.7
+        assert data["maxTokens"] == 2048
+        assert data["version"] == 1
+
+    def test_get_prompt_config_not_found(
+        self, client: TestClient, mock_db_session: MagicMock
+    ) -> None:
+        """Test 404 when config not found."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.get("/api/ai-audit/prompt-config/nemotron")
+
+        assert response.status_code == 404
+        assert "No configuration found" in response.json()["detail"]
+
+    def test_get_prompt_config_invalid_model(self, client: TestClient) -> None:
+        """Test 404 for invalid model name."""
+        response = client.get("/api/ai-audit/prompt-config/invalid-model")
+        assert response.status_code == 404
+
+    def test_update_prompt_config_create_new(
+        self, client: TestClient, mock_db_session: MagicMock
+    ) -> None:
+        """Test creating new prompt config."""
+        # First query returns None (config doesn't exist)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        async def mock_refresh(obj):
+            # Simulate refresh by updating attributes
+            obj.model = "nemotron"
+            obj.system_prompt = "New prompt"
+            obj.temperature = 0.8
+            obj.max_tokens = 1024
+            obj.version = 1
+            obj.updated_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+
+        mock_db_session.refresh = AsyncMock(side_effect=mock_refresh)
+
+        response = client.put(
+            "/api/ai-audit/prompt-config/nemotron",
+            json={
+                "system_prompt": "New prompt",
+                "temperature": 0.8,
+                "max_tokens": 1024,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["model"] == "nemotron"
+        assert data["version"] == 1
+        # FastAPI converts snake_case to camelCase
+        assert data["systemPrompt"] == "New prompt"
+        assert data["maxTokens"] == 1024
+
+    def test_update_prompt_config_update_existing(
+        self, client: TestClient, mock_db_session: MagicMock
+    ) -> None:
+        """Test updating existing prompt config."""
+        # Create mock with all attributes
+        mock_config = MagicMock()
+        mock_config.model = "nemotron"
+        mock_config.system_prompt = "Old prompt"
+        mock_config.temperature = 0.7
+        mock_config.max_tokens = 2048
+        mock_config.version = 1
+        mock_config.updated_at = datetime(2025, 12, 22, 12, 0, 0, tzinfo=UTC)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_config
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        async def mock_refresh(obj):
+            # Simulate the actual update that happened in the route
+            obj.system_prompt = "Updated prompt"
+            obj.temperature = 0.9
+            obj.max_tokens = 4096
+            obj.version = 2
+            obj.updated_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
+
+        mock_db_session.refresh = AsyncMock(side_effect=mock_refresh)
+
+        response = client.put(
+            "/api/ai-audit/prompt-config/nemotron",
+            json={
+                "system_prompt": "Updated prompt",
+                "temperature": 0.9,
+                "max_tokens": 4096,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["model"] == "nemotron"
+        assert data["version"] == 2
+        # FastAPI converts snake_case to camelCase
+        assert data["systemPrompt"] == "Updated prompt"
+        assert data["maxTokens"] == 4096
