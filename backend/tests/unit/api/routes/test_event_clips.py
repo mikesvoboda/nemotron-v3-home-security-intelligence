@@ -206,15 +206,11 @@ class TestGenerateEventClip:
         mock_event.started_at = now
         mock_event.ended_at = now
         mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.detection_id_list = [1, 2, 3]  # Property used by the route
         mock_event_result = MagicMock()
         mock_event_result.scalar_one_or_none.return_value = mock_event
 
-        # Mock detection file paths query
-        mock_det_result = MagicMock()
-        mock_det_result.all.return_value = [("/path/to/image1.jpg",), ("/path/to/image2.jpg",)]
-
-        # Configure mock_db to return different results for different queries
-        mock_db.execute = AsyncMock(side_effect=[mock_event_result, mock_det_result])
+        mock_db.execute = AsyncMock(return_value=mock_event_result)
 
         request = ClipGenerateRequest(
             start_offset_seconds=-15,
@@ -231,9 +227,16 @@ class TestGenerateEventClip:
         mock_generator = MagicMock()
         mock_generator.generate_clip_from_images = AsyncMock(return_value=mock_clip_path)
 
-        with patch(
-            "backend.services.clip_generator.get_clip_generator",
-            return_value=mock_generator,
+        # Mock batch_fetch_file_paths to return detection image paths
+        with (
+            patch(
+                "backend.services.clip_generator.get_clip_generator",
+                return_value=mock_generator,
+            ),
+            patch(
+                "backend.api.routes.events.batch_fetch_file_paths",
+                return_value=["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"],
+            ),
         ):
             result = await generate_event_clip(event_id=456, request=request, db=mock_db)
 
@@ -257,14 +260,11 @@ class TestGenerateEventClip:
         mock_event.started_at = now
         mock_event.ended_at = now
         mock_event.detection_ids = "[1, 2]"
+        mock_event.detection_id_list = [1, 2]  # Property used by the route
         mock_event_result = MagicMock()
         mock_event_result.scalar_one_or_none.return_value = mock_event
 
-        # Mock detection file paths query
-        mock_det_result = MagicMock()
-        mock_det_result.all.return_value = [("/path/to/image1.jpg",)]
-
-        mock_db.execute = AsyncMock(side_effect=[mock_event_result, mock_det_result])
+        mock_db.execute = AsyncMock(return_value=mock_event_result)
 
         request = ClipGenerateRequest(force=True)
 
@@ -279,9 +279,16 @@ class TestGenerateEventClip:
         mock_generator.generate_clip_from_images = AsyncMock(return_value=mock_clip_path)
         mock_generator.delete_clip = MagicMock(return_value=True)
 
-        with patch(
-            "backend.services.clip_generator.get_clip_generator",
-            return_value=mock_generator,
+        # Mock batch_fetch_file_paths to return detection image paths
+        with (
+            patch(
+                "backend.services.clip_generator.get_clip_generator",
+                return_value=mock_generator,
+            ),
+            patch(
+                "backend.api.routes.events.batch_fetch_file_paths",
+                return_value=["/path/to/image1.jpg", "/path/to/image2.jpg"],
+            ),
         ):
             result = await generate_event_clip(event_id=789, request=request, db=mock_db)
 

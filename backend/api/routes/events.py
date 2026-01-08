@@ -72,6 +72,27 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
         return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
 
 
+def get_detection_ids_from_event(event: Event) -> list[int]:
+    """Get detection IDs using the Event.detections relationship or fallback to legacy column.
+
+    This function provides a migration path from the legacy detection_ids text column
+    to the normalized event_detections junction table. It prefers the relationship
+    but falls back to parsing the legacy column if the relationship is not populated.
+
+    Args:
+        event: Event model instance
+
+    Returns:
+        List of detection IDs associated with the event
+    """
+    # Try the relationship first (normalized data from event_detections table)
+    if event.detections:
+        return event.detection_id_list
+
+    # Fallback to legacy column for events not yet migrated to junction table
+    return parse_detection_ids(event.detection_ids)
+
+
 def parse_severity_filter(severity_str: str | None) -> list[str]:
     """Parse and validate severity filter parameter.
 
@@ -279,7 +300,7 @@ async def list_events(  # noqa: PLR0912
     events_with_counts = []
     for event in events:
         # Parse detection_ids (JSON array string) to list of integers
-        parsed_detection_ids = parse_detection_ids(event.detection_ids)
+        parsed_detection_ids = get_detection_ids_from_event(event)
         detection_count = len(parsed_detection_ids)
 
         # Compute thumbnail_url from first detection ID
@@ -650,7 +671,7 @@ async def export_events(
     # Write event rows
     for event in events:
         camera_name = cameras.get(event.camera_id, "Unknown")
-        detection_count = len(parse_detection_ids(event.detection_ids))
+        detection_count = len(get_detection_ids_from_event(event))
 
         # Format timestamps as ISO strings
         started_at_str = event.started_at.isoformat() if event.started_at else ""
@@ -738,7 +759,7 @@ async def get_event(
     event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids and calculate count
-    parsed_detection_ids = parse_detection_ids(event.detection_ids)
+    parsed_detection_ids = get_detection_ids_from_event(event)
     detection_count = len(parsed_detection_ids)
 
     # Compute thumbnail_url from first detection ID
@@ -847,7 +868,7 @@ async def update_event(
     await db.refresh(event)
 
     # Parse detection_ids and calculate count
-    parsed_detection_ids = parse_detection_ids(event.detection_ids)
+    parsed_detection_ids = get_detection_ids_from_event(event)
     detection_count = len(parsed_detection_ids)
 
     # Compute thumbnail_url from first detection ID
@@ -896,7 +917,7 @@ async def get_event_detections(
     event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
-    detection_ids = parse_detection_ids(event.detection_ids)
+    detection_ids = get_detection_ids_from_event(event)
 
     # If no detections, return empty list
     if not detection_ids:
@@ -970,7 +991,7 @@ async def get_event_enrichments(
     event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
-    detection_ids = parse_detection_ids(event.detection_ids)
+    detection_ids = get_detection_ids_from_event(event)
     total = len(detection_ids)
 
     # If no detections, return empty response with pagination metadata
@@ -1152,7 +1173,7 @@ async def generate_event_clip(
             )
 
     # Check if event has detections
-    detection_ids = parse_detection_ids(event.detection_ids)
+    detection_ids = get_detection_ids_from_event(event)
     if not detection_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

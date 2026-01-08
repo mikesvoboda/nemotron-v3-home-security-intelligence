@@ -10,6 +10,7 @@ from .enums import CameraStatus, Severity
 from .event import Event
 from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
+from .event_feedback import EventFeedback, FeedbackType
 from .gpu_stats import GPUStats
 from .log import Log
 from .notification_preferences import (
@@ -22,6 +23,7 @@ from .notification_preferences import (
 )
 from .prompt_config import PromptConfig
 from .scene_change import SceneChange, SceneChangeType
+from .user_calibration import UserCalibration
 from .zone import Zone, ZoneShape, ZoneType
 
 __all__ = [
@@ -44,6 +46,8 @@ __all__ = [
     "Event",
     "EventAudit",
     "EventDetection",
+    "EventFeedback",
+    "FeedbackType",
     "GPUStats",
     "Log",
     "NotificationPreferences",
@@ -54,6 +58,7 @@ __all__ = [
     "SceneChange",
     "SceneChangeType",
     "Severity",
+    "UserCalibration",
     "Zone",
     "ZoneShape",
     "ZoneType",

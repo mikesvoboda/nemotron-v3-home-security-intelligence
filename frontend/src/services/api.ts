@@ -794,6 +794,78 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return fetchApi<HealthResponse>('/api/system/health');
 }
 
+// ============================================================================
+// Full Health Check Types (NEM-1582)
+// These types should be moved to generated types after running generate-types.sh
+// ============================================================================
+
+/** Health state for a service */
+export type ServiceHealthState = 'healthy' | 'unhealthy' | 'degraded' | 'unknown';
+
+/** Circuit breaker state */
+export type CircuitStateEnum = 'closed' | 'open' | 'half_open';
+
+/** Health status for an individual AI service */
+export interface AIServiceHealthStatus {
+  name: string;
+  display_name: string;
+  status: ServiceHealthState;
+  url: string;
+  response_time_ms: number | null;
+  error: string | null;
+  circuit_state: CircuitStateEnum;
+  last_check: string | null;
+}
+
+/** Health status for infrastructure services (database, redis) */
+export interface InfrastructureHealthStatus {
+  name: string;
+  status: ServiceHealthState;
+  message: string | null;
+  details: Record<string, unknown> | null;
+}
+
+/** Summary of circuit breaker states */
+export interface CircuitBreakerSummary {
+  total: number;
+  open: number;
+  half_open: number;
+  closed: number;
+  breakers: Record<string, CircuitStateEnum>;
+}
+
+/** Health status for a background worker */
+export interface WorkerHealthStatusFull {
+  name: string;
+  running: boolean;
+  critical: boolean;
+  message: string | null;
+}
+
+/** Comprehensive health status for all system components */
+export interface FullHealthResponse {
+  status: ServiceHealthState;
+  ready: boolean;
+  message: string;
+  postgres: InfrastructureHealthStatus;
+  redis: InfrastructureHealthStatus;
+  ai_services: AIServiceHealthStatus[];
+  circuit_breakers: CircuitBreakerSummary;
+  workers: WorkerHealthStatusFull[];
+  timestamp: string;
+  version: string;
+}
+
+/**
+ * Fetch comprehensive system health including all AI services and circuit breakers.
+ * Returns 503 if critical services are unhealthy.
+ *
+ * @returns FullHealthResponse with detailed status of all services
+ */
+export async function fetchFullHealth(): Promise<FullHealthResponse> {
+  return fetchApi<FullHealthResponse>('/api/system/health/full');
+}
+
 export async function fetchGPUStats(): Promise<GPUStats> {
   return fetchApi<GPUStats>('/api/system/gpu');
 }

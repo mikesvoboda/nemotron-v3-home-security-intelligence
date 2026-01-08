@@ -735,8 +735,11 @@ jobs:
       - name: Install frontend dependencies
         run: cd frontend && npm ci
 
-      - name: Check API types are current
+      - name: Generate types from OpenAPI and check for diffs
         run: ./scripts/generate-types.sh --check
+
+      - name: Validate API type contract consistency
+        run: ./scripts/validate-api-types.sh --verbose
 
   frontend-lint:
     name: Frontend Lint (ESLint)
