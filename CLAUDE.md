@@ -96,6 +96,36 @@ uv run mypy backend        # Run type checker
 - `uv.lock` - Locked dependency versions (commit this)
 - `.python-version` - Python version (3.14)
 
+### UV Version Management (CI/CD)
+
+CI workflows pin **uv version `0.9.18`** for reproducibility across all runners. This version is centrally defined in each workflow's `env` block:
+
+```yaml
+env:
+  UV_VERSION: '0.9.18' # Centralized version for all workflow steps
+```
+
+**How to update uv version across all CI workflows:**
+
+1. Identify the new uv version to use (check [astral-sh/setup-uv releases](https://github.com/astral-sh/setup-uv/releases))
+2. Update the version in all `.github/workflows/*.yml` files:
+
+```bash
+# Replace old version with new version in all workflow files
+find .github/workflows -name "*.yml" -exec sed -i "s/UV_VERSION: '0.9.18'/UV_VERSION: '0.10.0'/g" {} \;
+```
+
+3. Test locally with the new version:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Install latest
+uv self update --to 0.10.0                        # Install specific version
+```
+
+4. Commit and create a PR with the update
+
+**Note:** Dependabot automatically monitors GitHub Actions versions (including `astral-sh/setup-uv`) and creates update PRs weekly. However, the hardcoded `UV_VERSION` must be manually updated.
+
 ## Issue Tracking
 
 This project uses **Linear** for issue tracking:
@@ -248,6 +278,8 @@ review `docs/ROADMAP.md` to identify post-MVP enhancements and create new Linear
 ## TDD Approach
 
 This project follows **Test-Driven Development (TDD)** for all feature implementation. Tests are not an afterthought; they drive the design and ensure correctness from the start.
+
+**For comprehensive testing patterns, fixtures, and examples, see [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md).**
 
 ### The TDD Cycle: RED-GREEN-REFACTOR
 
