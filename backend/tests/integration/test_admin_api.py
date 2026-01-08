@@ -16,6 +16,7 @@ from sqlalchemy import select
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.tests.integration.test_helpers import get_error_message
 
 # Mark all tests in this module for serial execution to avoid parallel conflicts
 # Admin seed tests use fixed camera IDs and DELETE operations that affect global state
@@ -191,7 +192,7 @@ async def test_seed_cameras_requires_debug_mode(client):
     response = await client.post("/api/admin/seed/cameras", json={"count": 2})
 
     assert response.status_code == 403
-    assert "DEBUG=true" in response.json()["error"]["message"]
+    assert "DEBUG=true" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -200,7 +201,7 @@ async def test_seed_events_requires_debug_mode(client):
     response = await client.post("/api/admin/seed/events", json={"count": 5})
 
     assert response.status_code == 403
-    assert "DEBUG=true" in response.json()["error"]["message"]
+    assert "DEBUG=true" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -213,7 +214,7 @@ async def test_clear_data_requires_debug_mode(client):
     )
 
     assert response.status_code == 403
-    assert "DEBUG=true" in response.json()["error"]["message"]
+    assert "DEBUG=true" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -223,7 +224,7 @@ async def test_seed_cameras_requires_admin_enabled(debug_only_client):
     response = await debug_only_client.post("/api/admin/seed/cameras", json={"count": 2})
 
     assert response.status_code == 403
-    assert "ADMIN_ENABLED=true" in response.json()["error"]["message"]
+    assert "ADMIN_ENABLED=true" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -233,7 +234,7 @@ async def test_seed_events_requires_admin_enabled(debug_only_client):
     response = await debug_only_client.post("/api/admin/seed/events", json={"count": 5})
 
     assert response.status_code == 403
-    assert "ADMIN_ENABLED=true" in response.json()["error"]["message"]
+    assert "ADMIN_ENABLED=true" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -243,7 +244,7 @@ async def test_clear_data_requires_admin_enabled(debug_only_client):
     response = await debug_only_client.delete("/api/admin/seed/clear")
 
     assert response.status_code == 403
-    assert "ADMIN_ENABLED=true" in response.json()["error"]["message"]
+    assert "ADMIN_ENABLED=true" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -254,7 +255,7 @@ async def test_admin_api_key_required_when_configured(admin_api_key_client):
     response = await admin_api_key_client.post("/api/admin/seed/cameras", json={"count": 2})
 
     assert response.status_code == 401
-    assert "Admin API key required" in response.json()["error"]["message"]
+    assert "Admin API key required" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -269,7 +270,7 @@ async def test_admin_api_key_invalid(admin_api_key_client):
     )
 
     assert response.status_code == 401
-    assert "Invalid admin API key" in response.json()["error"]["message"]
+    assert "Invalid admin API key" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -408,7 +409,7 @@ async def test_seed_events_requires_cameras(debug_client, clean_seed_data):
     response = await debug_client.post("/api/admin/seed/events", json={"count": 5})
 
     assert response.status_code == 400
-    assert "No cameras found" in response.json()["error"]["message"]
+    assert "No cameras found" in get_error_message(response.json())
 
 
 @pytest.mark.asyncio
@@ -561,7 +562,7 @@ async def test_clear_data_requires_confirmation(debug_client, clean_seed_data):
     )
 
     assert response.status_code == 400
-    assert "Confirmation required" in response.json()["error"]["message"]
+    assert "Confirmation required" in get_error_message(response.json())
 
     # Verify data is NOT deleted
     cameras_response = await debug_client.get("/api/cameras")
@@ -739,7 +740,7 @@ class TestAdminDebugModeRequirementCI:
         )
 
         assert response.status_code == 403, "Admin seed/cameras should return 403 when DEBUG=false"
-        assert "DEBUG=true" in response.json()["error"]["message"], (
+        assert "DEBUG=true" in get_error_message(response.json()), (
             "Error message should mention DEBUG=true requirement"
         )
 
@@ -752,7 +753,7 @@ class TestAdminDebugModeRequirementCI:
         )
 
         assert response.status_code == 403, "Admin seed/events should return 403 when DEBUG=false"
-        assert "DEBUG=true" in response.json()["error"]["message"], (
+        assert "DEBUG=true" in get_error_message(response.json()), (
             "Error message should mention DEBUG=true requirement"
         )
 
@@ -766,7 +767,7 @@ class TestAdminDebugModeRequirementCI:
         )
 
         assert response.status_code == 403, "Admin seed/clear should return 403 when DEBUG=false"
-        assert "DEBUG=true" in response.json()["error"]["message"], (
+        assert "DEBUG=true" in get_error_message(response.json()), (
             "Error message should mention DEBUG=true requirement"
         )
 
@@ -778,7 +779,7 @@ class TestAdminDebugModeRequirementCI:
             json={"count": 1},
         )
 
-        error_message = response.json()["error"]["message"]
+        error_message = get_error_message(response.json())
 
         # Error message should be clear and actionable
         assert "DEBUG" in error_message, "Error should mention DEBUG"
@@ -803,7 +804,7 @@ class TestAdminDebugModeRequirementCI:
         assert response.status_code == 403, (
             "Admin endpoint should return 403 when ADMIN_ENABLED=false"
         )
-        assert "ADMIN_ENABLED" in response.json()["error"]["message"], (
+        assert "ADMIN_ENABLED" in get_error_message(response.json()), (
             "Error message should mention ADMIN_ENABLED requirement"
         )
 
@@ -838,7 +839,7 @@ class TestAdminDebugModeRequirementCI:
             json={"count": 1},
         )
 
-        error_message = response.json()["error"]["message"]
+        error_message = get_error_message(response.json())
 
         # Should not leak internal paths, versions, or implementation details
         assert "/export" not in error_message.lower(), "Should not leak file paths"
