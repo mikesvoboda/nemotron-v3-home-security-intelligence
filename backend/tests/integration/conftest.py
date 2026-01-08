@@ -783,9 +783,26 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(ModelsBase.metadata.create_all)
+
+        # Add missing columns that create_all doesn't handle
+        # This handles schema drift without dropping data
+        from sqlalchemy import text
+
+        # Add any missing columns (using IF NOT EXISTS for idempotency)
+        await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+        await conn.execute(
+            text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+        )
+        # NEM-1652: Add soft delete columns
+        await conn.execute(
+            text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE")
+        )
+        await conn.execute(
+            text("ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE")
+        )
+
         # Add unique indexes for cameras table (migration adds these for production)
         # First, clean up any duplicate cameras that might prevent index creation
-        from sqlalchemy import text
 
         # Delete duplicate cameras by name (keep oldest)
         await conn.execute(
@@ -983,6 +1000,10 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
         "connected": True,
         "redis_version": "7.0.0",
     }
+
+    # Set _client to None by default - tests that need _client behavior
+    # should configure it explicitly
+    mock_redis_client._client = None
 
     # Patch the shared singleton, initializer, and closer.
     with (

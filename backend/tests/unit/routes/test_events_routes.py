@@ -246,6 +246,35 @@ def create_mock_event(
     mock.notes = notes
     mock.detection_ids = detection_ids
     mock.object_types = object_types
+
+    # Mock the detections relationship for detection_id_list and detection_count properties
+    if detection_ids:
+        # Parse detection_ids to create mock detection objects
+        id_list = []
+        if isinstance(detection_ids, str):
+            # Handle JSON array format
+            if detection_ids.startswith("["):
+                import json
+
+                id_list = json.loads(detection_ids)
+            else:
+                # Handle comma-separated format
+                id_list = [int(x.strip()) for x in detection_ids.split(",") if x.strip()]
+        elif isinstance(detection_ids, list):
+            # Already a list
+            id_list = detection_ids
+
+        # Create minimal mock detection objects with just id attribute
+        mock.detections = [MagicMock(id=det_id) for det_id in id_list]
+        # Mock the detection_id_list property (used by Event model)
+        mock.detection_id_list = id_list
+        # Mock the detection_count property (used by Event model)
+        mock.detection_count = len(id_list)
+    else:
+        mock.detections = []
+        mock.detection_id_list = []
+        mock.detection_count = 0
+
     return mock
 
 

@@ -521,10 +521,6 @@ class TestSecurityEdgeCases:
         # The key is that we don't serve sensitive files
         assert response.status_code in [400, 403, 404]
 
-    @pytest.mark.skip(
-        reason="BUG: Server returns 500 instead of client error for very long paths. "
-        "Filed as NEM-1750. Test is correct - server should handle gracefully."
-    )
     def test_very_long_path_handled(self, security_client):
         """Test that extremely long paths are handled gracefully."""
         # Create a very long path (potential buffer overflow attack)

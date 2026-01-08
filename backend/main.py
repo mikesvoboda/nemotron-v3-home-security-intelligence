@@ -598,7 +598,8 @@ app.add_middleware(
 )
 
 # Add security headers middleware for defense-in-depth
-app.add_middleware(SecurityHeadersMiddleware)
+# HSTS preload can be enabled via HSTS_PRELOAD env var for public deployments
+app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_preload)
 
 # Add body size limit middleware to prevent DoS attacks (NEM-1614)
 # Default: 10MB limit for request bodies

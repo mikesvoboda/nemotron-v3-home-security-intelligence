@@ -613,6 +613,8 @@ class TestRowToSearchResult:
         mock_event.reviewed = False
         mock_event.detection_ids = "[1, 2, 3]"
         mock_event.object_types = "person, vehicle"
+        # NEM-1592: Set detections to empty to use fallback to detection_ids column
+        mock_event.detections = []
 
         # Create row tuple (event, relevance_score, camera_name)
         row = (mock_event, 0.85, "Front Door Camera")
@@ -648,6 +650,8 @@ class TestRowToSearchResult:
         mock_event.reviewed = True
         mock_event.detection_ids = None
         mock_event.object_types = None
+        # NEM-1592: Set detections to empty to use fallback to detection_ids column
+        mock_event.detections = []
 
         row = (mock_event, None, None)
 

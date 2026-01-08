@@ -1205,7 +1205,7 @@ class TestEvaluateEvent:
         engine = AlertRuleEngine(mock_session)
 
         # Patch _evaluate_rule to raise an exception
-        with patch.object(engine, "_evaluate_rule", side_effect=Exception("Test error")):
+        with patch.object(engine, "_evaluate_rule", side_effect=ValueError("Test error")):
             result = await engine.evaluate_event(sample_event, sample_detections)
 
         assert len(result.triggered_rules) == 0

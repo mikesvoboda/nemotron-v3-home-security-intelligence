@@ -12,11 +12,13 @@ monitoring/
   prometheus.yml               # Prometheus scrape configuration
   prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
   json-exporter-config.yml     # JSON Exporter module definitions
+  blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
     dashboards/                # Dashboard JSON definitions
       AGENTS.md                # Dashboards guide
       pipeline.json            # Main AI pipeline monitoring dashboard
+      synthetic-monitoring.json # Synthetic monitoring dashboard (NEM-1637)
     provisioning/              # Auto-provisioning configs
       AGENTS.md                # Provisioning guide
       dashboards/
@@ -99,6 +101,42 @@ cat monitoring/prometheus_rules.yml | podman run --rm -i --entrypoint sh \
   docker.io/prom/prometheus:v2.48.0 -c "cat > /tmp/rules.yml && promtool check rules /tmp/rules.yml"
 ```
 
+### blackbox-exporter.yml
+
+**Purpose:** Blackbox Exporter configuration for synthetic monitoring (NEM-1637).
+
+**Probe Modules:**
+
+| Module      | Prober | Timeout | Description                                              |
+| ----------- | ------ | ------- | -------------------------------------------------------- |
+| http_2xx    | http   | 5s      | Basic HTTP probe - checks for 200 OK response            |
+| http_health | http   | 10s     | Health endpoint - validates JSON health response body    |
+| http_ready  | http   | 15s     | Readiness probe - strict check for "ready" status        |
+| http_live   | http   | 5s      | Liveness probe - simple availability check               |
+| http_api    | http   | 10s     | API endpoint - accepts 200/201/204 responses             |
+| tcp_connect | tcp    | 5s      | TCP connectivity - validates service accepts connections |
+| tcp_tls     | tcp    | 10s     | TCP with TLS - for encrypted connections                 |
+| dns_resolve | dns    | 5s      | DNS resolution validation                                |
+| icmp_ping   | icmp   | 5s      | ICMP ping (requires NET_RAW capability)                  |
+
+**Prometheus Scrape Jobs:**
+
+| Job Name             | Module      | Targets                              | Interval |
+| -------------------- | ----------- | ------------------------------------ | -------- |
+| blackbox-http-health | http_health | Backend health endpoint              | 15s      |
+| blackbox-http-ready  | http_ready  | Backend readiness endpoint           | 10s      |
+| blackbox-http-live   | http_live   | Backend/Frontend liveness endpoints  | 10s      |
+| blackbox-http-2xx    | http_2xx    | AI service health endpoints (5 svcs) | 30s      |
+| blackbox-tcp         | tcp_connect | PostgreSQL, Redis                    | 15s      |
+
+**Validation:**
+
+```bash
+# Test blackbox exporter config
+podman run --rm -v $(pwd)/monitoring/blackbox-exporter.yml:/config.yml:ro,z \
+  docker.io/prom/blackbox-exporter:v0.24.0 --config.check --config.file=/config.yml
+```
+
 ### json-exporter-config.yml
 
 **Purpose:** Defines how JSON API responses are converted to Prometheus metrics.
@@ -136,13 +174,14 @@ cat monitoring/prometheus_rules.yml | podman run --rm -i --entrypoint sh \
 
 ## Service Ports
 
-| Service        | Port | URL                   |
-| -------------- | ---- | --------------------- |
-| Prometheus     | 9090 | http://localhost:9090 |
-| Grafana        | 3002 | http://localhost:3002 |
-| JSON Exporter  | 7979 | http://localhost:7979 |
-| Redis Exporter | 9121 | http://localhost:9121 |
-| Backend API    | 8000 | http://localhost:8000 |
+| Service           | Port | URL                   |
+| ----------------- | ---- | --------------------- |
+| Prometheus        | 9090 | http://localhost:9090 |
+| Grafana           | 3002 | http://localhost:3002 |
+| JSON Exporter     | 7979 | http://localhost:7979 |
+| Redis Exporter    | 9121 | http://localhost:9121 |
+| Blackbox Exporter | 9115 | http://localhost:9115 |
+| Backend API       | 8000 | http://localhost:8000 |
 
 ## Usage
 

@@ -26,8 +26,13 @@ from .request_id import (
     get_correlation_id,
     set_correlation_id,
 )
+from .request_logging import (
+    RequestLoggingMiddleware,
+    format_request_log,
+)
 from .request_timing import RequestTimingMiddleware
 from .security_headers import SecurityHeadersMiddleware
+from .websocket_auth import validate_websocket_token
 
 __all__ = [
     "MAGIC_SIGNATURES",
@@ -37,12 +42,14 @@ __all__ = [
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",
+    "RequestLoggingMiddleware",
     "RequestTimingMiddleware",
     "SecurityHeadersMiddleware",
     "ValidatedUploadFile",
     "authenticate_websocket",
     "check_websocket_rate_limit",
     "detect_mime_type",
+    "format_request_log",
     "get_client_ip",
     "get_correlation_headers",
     "get_correlation_id",
@@ -55,4 +62,5 @@ __all__ = [
     "validate_file_magic_sync",
     "validate_upload_file",
     "validate_websocket_api_key",
+    "validate_websocket_token",
 ]

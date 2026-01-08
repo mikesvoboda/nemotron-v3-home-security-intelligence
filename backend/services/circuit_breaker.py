@@ -386,23 +386,25 @@ class CircuitBreaker:
         Internal method that performs the actual allow_call logic without
         acquiring the lock. Used by __aenter__ which already holds the lock.
 
+        Uses Python 3.10+ structural pattern matching for clear state machine
+        transition logic, improving readability of circuit breaker behavior.
+
         Returns:
             True if call should proceed, False if it should be rejected
         """
-        if self._state == CircuitState.CLOSED:
-            return True
-
-        if self._state == CircuitState.OPEN:
-            if self._should_attempt_recovery():
-                self._transition_to_half_open()
+        match self._state:
+            case CircuitState.CLOSED:
                 return True
-            return False
-
-        if self._state == CircuitState.HALF_OPEN:
-            # Limit concurrent calls in half-open state
-            return self._half_open_calls < self._config.half_open_max_calls
-
-        return False
+            case CircuitState.OPEN:
+                if self._should_attempt_recovery():
+                    self._transition_to_half_open()
+                    return True
+                return False
+            case CircuitState.HALF_OPEN:
+                # Limit concurrent calls in half-open state
+                return self._half_open_calls < self._config.half_open_max_calls
+            case _:
+                return False
 
     async def call(
         self,

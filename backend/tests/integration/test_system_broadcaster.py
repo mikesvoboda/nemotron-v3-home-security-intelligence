@@ -190,7 +190,7 @@ async def test_system_broadcaster_get_health_status_degraded(isolated_db):
     """Test health status when Redis is down."""
     # Mock Redis to fail
     mock_redis = AsyncMock()
-    mock_redis.health_check.side_effect = Exception("Redis connection failed")
+    mock_redis.health_check.side_effect = ConnectionError("Redis connection failed")
 
     # Use dependency injection
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
@@ -215,8 +215,8 @@ async def test_system_broadcaster_connect_handles_error(isolated_db):
     broadcaster = SystemBroadcaster()
     mock_websocket = AsyncMock()
 
-    # Mock send_json to fail
-    mock_websocket.send_json.side_effect = Exception("Send failed")
+    # Mock send_json to fail with a specific exception that the production code catches
+    mock_websocket.send_json.side_effect = ConnectionError("Send failed")
 
     # Mock the system status gathering
     with patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}):
@@ -232,9 +232,9 @@ async def test_system_broadcaster_get_latest_gpu_stats_error():
     """Test GPU stats getter handles database errors gracefully."""
     broadcaster = SystemBroadcaster()
 
-    # Mock get_session to raise error
+    # Mock get_session to raise error with specific exception type
     with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Database error")
+        mock_session.side_effect = ConnectionError("Database error")
 
         gpu_stats = await broadcaster._get_latest_gpu_stats()
 
@@ -249,9 +249,9 @@ async def test_system_broadcaster_get_camera_stats_error():
     """Test camera stats getter handles database errors gracefully."""
     broadcaster = SystemBroadcaster()
 
-    # Mock get_session to raise error
+    # Mock get_session to raise error with specific exception type
     with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Database error")
+        mock_session.side_effect = ConnectionError("Database error")
 
         camera_stats = await broadcaster._get_camera_stats()
 
@@ -300,7 +300,7 @@ async def test_system_broadcaster_reset_pubsub_handles_unsubscribe_error():
     mock_redis.subscribe_dedicated.return_value = mock_pubsub
 
     old_pubsub = AsyncMock()
-    old_pubsub.unsubscribe.side_effect = Exception("Unsubscribe failed")
+    old_pubsub.unsubscribe.side_effect = ConnectionError("Unsubscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = old_pubsub
@@ -316,7 +316,7 @@ async def test_system_broadcaster_reset_pubsub_handles_unsubscribe_error():
 async def test_system_broadcaster_reset_pubsub_handles_subscribe_error():
     """Test reset_pubsub_connection handles subscribe errors gracefully."""
     mock_redis = AsyncMock()
-    mock_redis.subscribe_dedicated.side_effect = Exception("Subscribe failed")
+    mock_redis.subscribe_dedicated.side_effect = ConnectionError("Subscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = AsyncMock()
@@ -340,7 +340,8 @@ async def test_system_broadcaster_listen_restarts_with_fresh_connection():
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise Exception("readuntil() called while another coroutine is waiting")
+            # Use RuntimeError which is caught by the production code
+            raise RuntimeError("readuntil() called while another coroutine is waiting")
         # Return empty generator for subsequent calls - empty generator pattern
         for _ in []:
             yield
@@ -394,7 +395,7 @@ async def test_system_broadcaster_broadcast_status_redis_publish_failure():
     import json
 
     mock_redis = AsyncMock()
-    mock_redis.publish.side_effect = Exception("Redis publish failed")
+    mock_redis.publish.side_effect = ConnectionError("Redis publish failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     mock_ws = AsyncMock()
@@ -426,7 +427,7 @@ async def test_system_broadcaster_start_pubsub_listener_already_running():
 async def test_system_broadcaster_start_pubsub_listener_subscribe_error():
     """Test _start_pubsub_listener handles subscription errors."""
     mock_redis = AsyncMock()
-    mock_redis.subscribe_dedicated.side_effect = Exception("Subscription failed")
+    mock_redis.subscribe_dedicated.side_effect = ConnectionError("Subscription failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -499,7 +500,7 @@ async def test_system_broadcaster_stop_pubsub_listener_unsubscribe_error():
     """Test _stop_pubsub_listener handles unsubscribe errors."""
     mock_redis = AsyncMock()
     mock_pubsub = AsyncMock()
-    mock_pubsub.unsubscribe.side_effect = Exception("Unsubscribe failed")
+    mock_pubsub.unsubscribe.side_effect = ConnectionError("Unsubscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = mock_pubsub
@@ -606,7 +607,7 @@ async def test_system_broadcaster_listen_for_updates_reconnection_failure():
     async def mock_listen(pubsub):
         for _ in []:
             yield
-        raise Exception("Connection error")
+        raise ConnectionError("Connection error")
 
     mock_redis.listen = mock_listen
     mock_redis.subscribe.return_value = None  # Reconnection will fail
@@ -632,9 +633,9 @@ async def test_system_broadcaster_get_health_status_unhealthy(isolated_db):
     """Test health status when database is down."""
     broadcaster = SystemBroadcaster()
 
-    # Mock get_session to raise error (database down)
+    # Mock get_session to raise error (database down) with specific exception type
     with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Database connection failed")
+        mock_session.side_effect = ConnectionError("Database connection failed")
 
         health_status = await broadcaster._get_health_status()
 

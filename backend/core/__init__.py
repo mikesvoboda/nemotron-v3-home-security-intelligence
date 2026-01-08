@@ -1,6 +1,15 @@
 """Core infrastructure components."""
 
 from backend.core.config import Settings, get_settings
+from backend.core.container import (
+    CircularDependencyError,
+    Container,
+    ServiceAlreadyRegisteredError,
+    ServiceNotFoundError,
+    get_container,
+    reset_container,
+    wire_services,
+)
 from backend.core.database import (
     Base,
     close_db,
@@ -56,6 +65,21 @@ from backend.core.profiling import (
     profile_if_enabled,
     reset_profiling_manager,
 )
+from backend.core.protocols import (
+    AIServiceProtocol,
+    AIServiceWithLifecycle,
+    BroadcasterProtocol,
+    BroadcasterWithMetrics,
+    CacheProtocol,
+    HealthCheckableProtocol,
+    InputT,
+    LifecycleProtocol,
+    MetricsProviderProtocol,
+    ModelLoaderProtocol,
+    OutputT,
+    QueueProcessorProtocol,
+    SubscribableProtocol,
+)
 from backend.core.query_explain import (
     QueryExplainLogger,
     setup_explain_logging,
@@ -88,22 +112,43 @@ from backend.core.tls import (
 )
 
 __all__ = [
+    # Constants
     "DEFAULT_IMAGE_MIME",
     "DEFAULT_VIDEO_MIME",
     "EXTENSION_TO_MIME",
     "SENSITIVE_FIELD_NAMES",
+    # Protocols
+    "AIServiceProtocol",
+    "AIServiceWithLifecycle",
+    # Classes
     "Base",
+    "BroadcasterProtocol",
+    "BroadcasterWithMetrics",
+    "CacheProtocol",
     "CertificateNotFoundError",
     "CertificateValidationError",
+    "CircularDependencyError",
+    "Container",
+    "HealthCheckableProtocol",
+    "InputT",
+    "LifecycleProtocol",
+    "MetricsProviderProtocol",
+    "ModelLoaderProtocol",
+    "OutputT",
     "ProfilingManager",
     "QueryExplainLogger",
     "QueueAddResult",
+    "QueueProcessorProtocol",
     "RedisClient",
+    "ServiceAlreadyRegisteredError",
+    "ServiceNotFoundError",
     "Settings",
+    "SubscribableProtocol",
     "TLSConfig",
     "TLSConfigurationError",
     "TLSError",
     "TLSMode",
+    # Functions
     "close_db",
     "close_redis",
     "create_ssl_context",
@@ -113,6 +158,7 @@ __all__ = [
     "generate_self_signed_cert",
     "generate_self_signed_certificate",
     "get_cert_info",
+    "get_container",
     "get_db",
     "get_engine",
     "get_log_context",
@@ -148,6 +194,7 @@ __all__ = [
     "record_pipeline_error",
     "redact_sensitive_value",
     "redact_url",
+    "reset_container",
     "reset_profiling_manager",
     "sanitize_error",
     "set_queue_depth",
@@ -156,5 +203,6 @@ __all__ = [
     "setup_logging",
     "validate_certificate",
     "validate_certificate_files",
+    "wire_services",
     "with_session",
 ]
