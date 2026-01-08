@@ -1,0 +1,350 @@
+# Alerting Rules for Home Security Intelligence
+# Defines critical, warning, and info alerts for pipeline health and anomaly detection
+
+groups:
+  # Pipeline Health Alerts
+  - name: pipeline_health_alerts
+    rules:
+      # Critical: Pipeline is completely down
+      - alert: HSIPipelineDown
+        expr: up{job="backend-liveness"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "HSI Pipeline is down"
+          description: "The HSI backend service has been unreachable for more than 1 minute."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/pipeline-down"
+
+      # Critical: Pipeline health check failing
+      - alert: HSIPipelineUnhealthy
+        expr: hsi_health_status != 1
+        for: 2m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "HSI Pipeline health check failing"
+          description: "The HSI pipeline health check has been failing for more than 2 minutes."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/pipeline-unhealthy"
+
+  # Database Alerts
+  - name: database_alerts
+    rules:
+      # Critical: Database connection failures
+      - alert: HSIDatabaseUnhealthy
+        expr: hsi_database_connection_pool_available == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "HSI Database connection pool exhausted"
+          description: "No database connections available in the pool for more than 2 minutes."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/database-unhealthy"
+
+      # Warning: Database connection pool low
+      - alert: HSIDatabaseConnectionPoolLow
+        expr: |
+          hsi_database_connection_pool_available
+          /
+          hsi_database_connection_pool_size
+          < 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "HSI Database connection pool running low"
+          description: "Less than 20% of database connections available for more than 5 minutes."
+
+  # Redis Alerts
+  - name: redis_alerts
+    rules:
+      # Critical: Redis unavailable
+      - alert: HSIRedisUnhealthy
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "HSI Redis is unhealthy"
+          description: "Redis has been unreachable for more than 2 minutes."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/redis-unhealthy"
+
+      # Warning: Redis memory high
+      - alert: HSIRedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "HSI Redis memory usage high"
+          description: "Redis memory usage is above 80% for more than 5 minutes."
+
+  # GPU Alerts
+  - name: gpu_alerts
+    rules:
+      # Critical: GPU memory critically high
+      - alert: HSIGPUMemoryHigh
+        expr: hsi:gpu:memory_utilization > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: "HSI GPU memory usage critically high"
+          description: "GPU memory utilization is above 90% for more than 5 minutes. Risk of OOM errors."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-memory-high"
+
+      # Warning: GPU memory elevated
+      - alert: HSIGPUMemoryElevated
+        expr: hsi:gpu:memory_utilization > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "HSI GPU memory usage elevated"
+          description: "GPU memory utilization is above 75% for more than 10 minutes."
+
+      # Warning: GPU utilization low (potential issue)
+      - alert: HSIGPUUtilizationLow
+        expr: hsi:gpu:utilization < 10 and hsi_detection_total > 0
+        for: 15m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "HSI GPU utilization unexpectedly low"
+          description: "GPU utilization is below 10% while detections are happening. May indicate processing issues."
+
+  # Queue Alerts
+  - name: queue_alerts
+    rules:
+      # Warning: Detection queue backing up
+      - alert: HSIDetectionQueueHigh
+        expr: hsi_detection_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: detection
+        annotations:
+          summary: "HSI Detection queue is backing up"
+          description: "More than 100 items in the detection queue for more than 5 minutes."
+
+      # Warning: Analysis queue backing up
+      - alert: HSIAnalysisQueueHigh
+        expr: hsi_analysis_queue_size > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: analysis
+        annotations:
+          summary: "HSI Analysis queue is backing up"
+          description: "More than 50 items in the analysis queue for more than 5 minutes."
+
+      # Critical: Queues severely backed up
+      - alert: HSIQueueCritical
+        expr: hsi_detection_queue_size > 500 or hsi_analysis_queue_size > 200
+        for: 2m
+        labels:
+          severity: critical
+          component: queue
+        annotations:
+          summary: "HSI Processing queues critically backed up"
+          description: "Detection or analysis queue has reached critical levels. Processing may be stalled."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/queue-critical"
+
+  # Latency Alerts
+  - name: latency_alerts
+    rules:
+      # Warning: Detection latency exceeding SLO
+      - alert: HSISlowDetection
+        expr: hsi:detection_latency:p95_5m > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: detection
+        annotations:
+          summary: "HSI Detection latency exceeding SLO"
+          description: "P95 detection latency is above 2 seconds for more than 10 minutes. SLO at risk."
+
+      # Warning: Analysis latency exceeding SLO
+      - alert: HSISlowAnalysis
+        expr: hsi:analysis_latency:p95_5m > 30
+        for: 10m
+        labels:
+          severity: warning
+          component: analysis
+        annotations:
+          summary: "HSI Analysis latency exceeding SLO"
+          description: "P95 analysis latency is above 30 seconds for more than 10 minutes. SLO at risk."
+
+      # Critical: Extreme latency
+      - alert: HSIExtremeLatency
+        expr: hsi:detection_latency:p95_5m > 10 or hsi:analysis_latency:p95_5m > 120
+        for: 5m
+        labels:
+          severity: critical
+          component: latency
+        annotations:
+          summary: "HSI Extreme latency detected"
+          description: "Detection or analysis latency is extremely high. System may be overloaded."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/extreme-latency"
+
+  # Error Rate Alerts
+  - name: error_rate_alerts
+    rules:
+      # Warning: Elevated error rate
+      - alert: HSIHighErrorRate
+        expr: |
+          1 - hsi:api_requests:success_rate_5m > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "HSI API error rate elevated"
+          description: "API error rate is above 5% for more than 5 minutes."
+
+      # Critical: High error rate
+      - alert: HSICriticalErrorRate
+        expr: |
+          1 - hsi:api_requests:success_rate_5m > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "HSI API error rate critical"
+          description: "API error rate is above 10% for more than 2 minutes."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/high-error-rate"
+
+      # Warning: Detection failures
+      - alert: HSIDetectionFailureRate
+        expr: |
+          1 - hsi:detection:success_rate_5m > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: detection
+        annotations:
+          summary: "HSI Detection failure rate elevated"
+          description: "More than 10% of detections are failing for more than 5 minutes."
+
+      # Warning: Analysis failures
+      - alert: HSIAnalysisFailureRate
+        expr: |
+          1 - hsi:analysis:success_rate_5m > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: analysis
+        annotations:
+          summary: "HSI Analysis failure rate elevated"
+          description: "More than 10% of analyses are failing for more than 5 minutes."
+
+  # SLO Burn Rate Alerts (Multi-window)
+  - name: slo_burn_rate_alerts
+    rules:
+      # Critical: Fast burn on API availability (14.4x burn rate over 1h)
+      - alert: HSIAPIAvailabilityFastBurn
+        expr: |
+          hsi:burn_rate:api_availability_1h > 14.4
+          and
+          hsi:burn_rate:api_availability_6h > 6
+        for: 2m
+        labels:
+          severity: critical
+          component: slo
+          slo: api_availability
+        annotations:
+          summary: "HSI API Availability SLO fast burn detected"
+          description: "API availability is burning through error budget at 14.4x rate. Will exhaust 30-day budget in ~2 hours."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/slo-fast-burn"
+
+      # Warning: Slow burn on API availability (3x burn rate over 1d)
+      - alert: HSIAPIAvailabilitySlowBurn
+        expr: |
+          hsi:burn_rate:api_availability_1d > 3
+        for: 1h
+        labels:
+          severity: warning
+          component: slo
+          slo: api_availability
+        annotations:
+          summary: "HSI API Availability SLO slow burn detected"
+          description: "API availability is burning through error budget at 3x rate. Will exhaust 30-day budget in ~10 days."
+
+      # Critical: Fast burn on detection latency
+      - alert: HSIDetectionLatencyFastBurn
+        expr: |
+          hsi:burn_rate:detection_latency_1h > 14.4
+          and
+          hsi:burn_rate:detection_latency_6h > 6
+        for: 2m
+        labels:
+          severity: critical
+          component: slo
+          slo: detection_latency
+        annotations:
+          summary: "HSI Detection Latency SLO fast burn detected"
+          description: "Detection latency is burning through error budget at 14.4x rate."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/slo-fast-burn"
+
+      # Critical: Fast burn on analysis latency
+      - alert: HSIAnalysisLatencyFastBurn
+        expr: |
+          hsi:burn_rate:analysis_latency_1h > 14.4
+          and
+          hsi:burn_rate:analysis_latency_6h > 6
+        for: 2m
+        labels:
+          severity: critical
+          component: slo
+          slo: analysis_latency
+        annotations:
+          summary: "HSI Analysis Latency SLO fast burn detected"
+          description: "Analysis latency is burning through error budget at 14.4x rate."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/slo-fast-burn"
+
+  # WebSocket Alerts
+  - name: websocket_alerts
+    rules:
+      # Warning: WebSocket connection failures
+      - alert: HSIWebSocketConnectionFailures
+        expr: hsi:websocket:connection_success_rate_5m < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "HSI WebSocket connection failures elevated"
+          description: "WebSocket connection success rate is below 95% for more than 5 minutes."
+
+      # Critical: WebSocket completely failing
+      - alert: HSIWebSocketDown
+        expr: hsi:websocket:connection_success_rate_5m < 0.5
+        for: 2m
+        labels:
+          severity: critical
+          component: websocket
+        annotations:
+          summary: "HSI WebSocket service degraded"
+          description: "More than 50% of WebSocket connections are failing."
+          runbook_url: "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/websocket-down"
+
+      # Info: No active WebSocket connections
+      - alert: HSINoWebSocketConnections
+        expr: hsi:websocket:active_connections == 0
+        for: 30m
+        labels:
+          severity: info
+          component: websocket
+        annotations:
+          summary: "HSI No active WebSocket connections"
+          description: "No clients have been connected via WebSocket for 30 minutes. This may be expected during low-traffic periods."
