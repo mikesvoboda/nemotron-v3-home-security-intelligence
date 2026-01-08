@@ -170,6 +170,7 @@ class TestPartitionManager:
         assert "events" in table_names
         assert "logs" in table_names
         assert "gpu_stats" in table_names
+        assert "audit_logs" in table_names
 
     def test_generate_partition_name_monthly(self) -> None:
         """Test generating partition names for monthly intervals."""
@@ -519,6 +520,57 @@ class TestPartitionManager:
 # =============================================================================
 
 
+class TestAuditLogsPartitioning:
+    """Tests specific to audit_logs partitioning."""
+
+    def test_audit_logs_config_in_defaults(self) -> None:
+        """Test that audit_logs is included in default configurations."""
+        from backend.services.partition_manager import DEFAULT_PARTITION_CONFIGS
+
+        table_names = [c.table_name for c in DEFAULT_PARTITION_CONFIGS]
+        assert "audit_logs" in table_names
+
+    def test_audit_logs_config_properties(self) -> None:
+        """Test audit_logs partition configuration properties."""
+        from backend.services.partition_manager import DEFAULT_PARTITION_CONFIGS
+
+        audit_config = None
+        for config in DEFAULT_PARTITION_CONFIGS:
+            if config.table_name == "audit_logs":
+                audit_config = config
+                break
+
+        assert audit_config is not None
+        assert audit_config.partition_column == "timestamp"
+        assert audit_config.partition_interval == "monthly"
+        assert audit_config.retention_months == 12  # Longer retention for compliance
+
+    def test_audit_logs_partition_name_generation(self) -> None:
+        """Test partition name generation for audit_logs."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("audit_logs", "timestamp", "monthly")
+
+        date = datetime(2026, 1, 15, tzinfo=UTC)
+        name = manager._generate_partition_name(config, date)
+
+        assert name == "audit_logs_y2026m01"
+
+    def test_audit_logs_partition_bounds(self) -> None:
+        """Test partition bounds calculation for audit_logs."""
+        from backend.services.partition_manager import PartitionConfig, PartitionManager
+
+        manager = PartitionManager()
+        config = PartitionConfig("audit_logs", "timestamp", "monthly")
+
+        date = datetime(2026, 3, 15, tzinfo=UTC)
+        start, end = manager._calculate_partition_bounds(config, date)
+
+        assert start == datetime(2026, 3, 1, 0, 0, 0, tzinfo=UTC)
+        assert end == datetime(2026, 4, 1, 0, 0, 0, tzinfo=UTC)
+
+
 class TestPartitionNameGeneration:
     """Tests for partition name generation edge cases."""
 
@@ -553,7 +605,7 @@ class TestPartitionNameGeneration:
         manager = PartitionManager()
         date = datetime(2026, 6, 15, tzinfo=UTC)
 
-        tables = ["detections", "events", "logs", "gpu_stats"]
+        tables = ["detections", "events", "logs", "gpu_stats", "audit_logs"]
         for table in tables:
             config = PartitionConfig(table, "timestamp", "monthly")
             name = manager._generate_partition_name(config, date)

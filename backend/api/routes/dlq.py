@@ -131,10 +131,18 @@ async def get_dlq_jobs(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of jobs to return"),
     redis: RedisClient = Depends(get_redis),
 ) -> DLQJobsResponse:
-    """List jobs in a specific dead-letter queue.
+    """List jobs in a specific dead-letter queue with enriched error context.
 
     Returns jobs in the specified DLQ without removing them.
     Use pagination parameters to control the result set.
+
+    Each job includes enriched error context (NEM-1474):
+    - error_type: Exception class name for categorization
+    - stack_trace: Truncated stack trace for debugging
+    - http_status: HTTP status code (for network errors)
+    - response_body: Truncated AI service response
+    - retry_delays: Delays applied between retry attempts
+    - context: System state snapshot at failure time
 
     Args:
         queue_name: Name of the DLQ (detection or analysis)
@@ -143,7 +151,7 @@ async def get_dlq_jobs(
         redis: Redis client
 
     Returns:
-        DLQJobsResponse with list of jobs
+        DLQJobsResponse with list of jobs including error context
     """
     handler = get_retry_handler(redis)
     end = start + limit - 1 if limit > 0 else -1
@@ -160,6 +168,13 @@ async def get_dlq_jobs(
                 "first_failed_at": job.first_failed_at,
                 "last_failed_at": job.last_failed_at,
                 "queue_name": job.queue_name,
+                # Error context enrichment (NEM-1474)
+                "error_type": job.error_type,
+                "stack_trace": job.stack_trace,
+                "http_status": job.http_status,
+                "response_body": job.response_body,
+                "retry_delays": job.retry_delays,
+                "context": job.context,
             }
             for job in jobs
         ],
