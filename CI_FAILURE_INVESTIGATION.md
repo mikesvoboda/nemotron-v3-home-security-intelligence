@@ -20,7 +20,6 @@ Investigation of three categories of CI failures has revealed:
 ## 1. TruffleHog Secrets Detection Analysis
 
 ### Current Status
-
 - **Workflow:** `.github/workflows/gitleaks.yml` (lines 39-75)
 - **Trigger:** On push to main and all PRs
 - **Findings:** NO VERIFIED SECRETS CURRENTLY DETECTED
@@ -38,7 +37,6 @@ The workflow creates a new Linear issue **every time it runs and fails**, withou
 ```
 
 **Issue:** The mutation always creates a NEW issue, leading to duplicates when:
-
 - Multiple PRs trigger the workflow simultaneously
 - The same failure occurs across multiple runs
 - The workflow runs on main after a merge
@@ -53,10 +51,9 @@ The workflow creates a new Linear issue **every time it runs and fails**, withou
 ### Configuration Review
 
 **Allowlist Coverage:** `.gitleaks.toml` is well-configured with:
-
-- Test fixture patterns (test*\*, fake*\_, mock\_\_, dummy\_\*)
+- Test fixture patterns (test_*, fake_*, mock_*, dummy_*)
 - Common placeholder passwords (password123, testpassword)
-- Documentation patterns (docs/\*)
+- Documentation patterns (docs/*)
 - Lock files (package-lock.json, uv.lock)
 - Base64-encoded test strings
 
@@ -87,7 +84,6 @@ backend/tests/unit/api/middleware/test_file_validator.py:492: unused variable 'p
 **Status:** REAL ISSUES - 3 unused test variables in one file
 
 **Root Cause:** Test unpacking variable that's not used:
-
 ```python
 # Line 368, 470, 492 - likely pattern like:
 pos, _ = some_tuple  # 'pos' is unused, should use _ directly
@@ -101,7 +97,6 @@ pos, _ = some_tuple  # 'pos' is unused, should use _ directly
 **Current Findings:**
 
 #### Critical Issues (2 unused files):
-
 ```
 Unused files (2):
   src/components/entities/index.ts
@@ -109,24 +104,20 @@ Unused files (2):
 ```
 
 #### Unused Dependencies (1):
-
 ```
 Unused devDependencies (1):
   openapi-typescript  package.json:85:6
 ```
 
 #### Unlisted Dependencies (1):
-
 ```
 Unlisted dependencies (1):
   @stryker-mutator/api  stryker.config.mjs:1:2
 ```
 
 #### Unused Exports (156):
-
 Over 150 unused exports across component indices and contexts, including:
-
-- **Component index exports** (src/components/\*/index.ts) - Many components exported but not imported anywhere
+- **Component index exports** (src/components/*/index.ts) - Many components exported but not imported anywhere
 - **Utility functions** (resetEnvCache, isTourCompleted, isTourSkipped, resetTourStatus, etc.)
 - **Animation variants** (springTransition, pageTransitionVariants, etc.)
 - **Context exports** (SystemDataContext, ToastContext)
@@ -141,7 +132,6 @@ The unused exports issue is a **design pattern, not necessarily dead code**:
 - **Trade-off:** Knip flags exports that aren't used within the project
 
 Many of these are legitimate:
-
 - Part of public API for the component library
 - Reserved for future use
 - Part of architectural organization
@@ -149,10 +139,9 @@ Many of these are legitimate:
 ### Workflow Configuration Issue
 
 **Current Configuration in CI:**
-
 ```yaml
 - name: Dead code detection (Knip)
-  continue-on-error: true # <-- Non-blocking!
+  continue-on-error: true  # <-- Non-blocking!
   run: cd frontend && npx knip
 ```
 
@@ -161,24 +150,21 @@ Many of these are legitimate:
 ### Recommendations
 
 1. **Backend:** Fix 3 unused variables in test_file_validator.py:
-
    ```python
    # Change: pos, _ = something
    # To:     _, _ = something
    # Or:     use 'pos' if it should be used
    ```
-
    **STATUS:** FIXED - Changed `pos` to `_pos` to indicate intentional non-use
 
 2. **Frontend:** Update Knip configuration to ignore index file exports:
-
    - Add `.kniprc.json` with ignoring patterns for index files
    - Or document which exports are intentional API surface
 
 3. **Dead Code CI Step:** Consider blocking behavior:
    ```yaml
    - name: Dead code detection (Knip)
-     continue-on-error: false # Fail on new dead code
+     continue-on-error: false  # Fail on new dead code
    ```
 
 ---
@@ -192,9 +178,8 @@ Many of these are legitimate:
 **Configuration:** Downloads test results from all parallel jobs
 
 #### Performance Thresholds:
-
-| Test Category     | Max Duration | Baseline Path                         |
-| ----------------- | ------------ | ------------------------------------- |
+| Test Category     | Max Duration | Baseline Path |
+| ----------------- | ------------ | ------------- |
 | Unit tests        | 1.0s         | `scripts/audit-test-durations.py:172` |
 | Integration tests | 5.0s         | `scripts/audit-test-durations.py:173` |
 | E2E tests         | 5.0s         | `scripts/audit-test-durations.py:174` |
@@ -205,7 +190,6 @@ Many of these are legitimate:
 **GOOD NEWS:** Currently NO TESTS exceed thresholds
 
 **Script Features (Excellent):**
-
 - 150+ known slow test patterns defined in `SLOW_TEST_PATTERNS` list
 - Excludes benchmark tests from audit
 - Warns at 80% threshold before failing
@@ -235,13 +219,11 @@ The test performance audit job also creates Linear issues without deduplication:
 ### Root Cause: No Deduplication Logic
 
 All three CI jobs follow this pattern:
-
 1. Job runs and fails
 2. **Immediately creates a new Linear issue** ← NO CHECK FOR EXISTING OPEN ISSUES
 3. Duplicate issues accumulate
 
 ### Current GitHub Workflows Creating Duplicates:
-
 - `.github/workflows/gitleaks.yml:56-75` - TruffleHog
 - `.github/workflows/ci.yml:683-701` - Dead Code
 - `.github/workflows/ci.yml:1280-1298` - Test Performance
@@ -250,13 +232,11 @@ All three CI jobs follow this pattern:
 ### Solution: Deduplication Pattern
 
 Implement a reusable pattern that:
-
 1. **Searches** for existing open issues with matching title
 2. **Updates** the existing issue if found (add comment, update run URL)
 3. **Creates** new issue only if no match found
 
 **Benefits:**
-
 - Single issue per problem
 - Issue automatically stays updated with latest failure info
 - Cleaner Linear backlog
@@ -272,23 +252,20 @@ Implement a reusable pattern that:
    - Files: `/backend/tests/unit/api/middleware/test_file_validator.py` lines 368, 470, 492
    - Change: `pos` → `_pos`
    - PR: 1 commit, no test changes needed
-     **STATUS:** COMPLETED - Changed in this investigation
+   **STATUS:** COMPLETED - Changed in this investigation
 
 ### Phase 2: Implement Deduplication (This Week)
 
 1. **Create reusable GraphQL helper script** (`scripts/get-or-create-linear-issue.sh`)
-
    - Search for existing open issue by title
    - Append comment to existing issue (with workflow run info)
    - Create new issue only if not found
 
 2. **Update three workflows:**
-
    - `.github/workflows/gitleaks.yml` - TruffleHog
    - `.github/workflows/ci.yml` - Dead Code + Test Performance (+ others)
 
 3. **Example implementation:**
-
    ```bash
    # Search for existing open issue
    EXISTING_ISSUE=$(curl -s -X POST https://api.linear.app/graphql \
@@ -306,7 +283,6 @@ Implement a reusable pattern that:
 ### Phase 3: Close Duplicate Issues (Manual, Once)
 
 1. Query Linear for duplicates:
-
    ```bash
    linear list issues --title "TruffleHog detected" --status open
    linear list issues --title "Dead Code Detection" --status open
@@ -323,14 +299,12 @@ Implement a reusable pattern that:
 ## Files Requiring Changes
 
 ### Backend (Dead Code Fix)
-
 - **File:** `/backend/tests/unit/api/middleware/test_file_validator.py`
 - **Lines:** 368, 470, 492
 - **Change:** Remove unused `pos` variable from tuple unpacking
 - **STATUS:** COMPLETED
 
 ### Configuration (Deduplication)
-
 - **Files:**
   - `.github/workflows/gitleaks.yml`
   - `.github/workflows/ci.yml`
@@ -338,7 +312,6 @@ Implement a reusable pattern that:
 - **Status:** Pending Phase 2 implementation
 
 ### Frontend (Optional - Index Files)
-
 - **Files:** `src/components/*/index.ts`, `src/contexts/index.ts`
 - **Status:** Not required for CI to pass (Knip is non-blocking)
 - **Note:** Consider documenting these as intentional API surface
@@ -363,12 +336,12 @@ Before considering this investigation complete:
 
 ## Summary Table
 
-| Issue Category       | Root Cause                    | Actual Problem               | Severity | Fix Effort |
-| -------------------- | ----------------------------- | ---------------------------- | -------- | ---------- |
-| TruffleHog           | No deduplication in CI        | Duplicate issues only        | Low      | Medium     |
-| Dead Code (Backend)  | Unused test variable          | 3 real issues                | Very Low | 5 min      |
-| Dead Code (Frontend) | High number of unused exports | Design pattern, not critical | Low      | Medium     |
-| Test Performance     | No deduplication in CI        | Duplicate issues only        | Low      | Medium     |
+| Issue Category      | Root Cause                  | Actual Problem              | Severity | Fix Effort |
+| ------------------- | --------------------------- | --------------------------- | -------- | ---------- |
+| TruffleHog          | No deduplication in CI      | Duplicate issues only       | Low      | Medium     |
+| Dead Code (Backend) | Unused test variable        | 3 real issues               | Very Low | 5 min      |
+| Dead Code (Frontend)| High number of unused exports | Design pattern, not critical| Low      | Medium     |
+| Test Performance    | No deduplication in CI      | Duplicate issues only       | Low      | Medium     |
 
 ---
 
