@@ -124,23 +124,46 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run unit tests with coverage
+      - name: Run unit tests with coverage (parallelized)
         # Unit tests coverage threshold - 85% for unit tests alone
         # Combined coverage (unit + integration) should reach 95%
         # -n auto enables xdist parallelization with worksteal scheduler
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
+        # Repository tests excluded - they run serially in next step
         run: |
           uv run pytest backend/tests/unit/ \
+            --ignore=backend/tests/unit/repositories/ \
             -n auto --dist=worksteal \
             --timeout=0 \
             --cov=backend \
             --cov-config=pyproject.toml \
-            --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            --cov-fail-under=85 \
-            --junit-xml=test-results-unit.xml \
+            --junit-xml=test-results-unit-parallel.xml \
             --durations=20 \
             -v
+
+      - name: Run repository unit tests with coverage (serial)
+        # Repository tests share database state and cannot be parallelized
+        # They must run serially (-n0) to avoid database deadlocks
+        # These tests use the test_db fixture which does not provide
+        # per-worker database isolation like integration tests
+        run: |
+          uv run pytest backend/tests/unit/repositories/ \
+            -n0 \
+            --timeout=0 \
+            --cov=backend \
+            --cov-config=pyproject.toml \
+            --cov-append \
+            --cov-report=term-missing \
+            --junit-xml=test-results-unit-serial.xml \
+            --durations=20 \
+            -v
+
+      - name: Generate combined coverage report
+        # Generate XML and check 85% threshold for unit tests
+        run: |
+          uv run coverage xml -o coverage-unit.xml
+          uv run coverage report --fail-under=85
 
       - name: Upload unit test results
         if: always()
