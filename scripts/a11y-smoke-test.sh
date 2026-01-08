@@ -51,6 +51,15 @@ fi
 # Runs only chromium for speed (cross-browser a11y is consistent)
 echo -e "${YELLOW}[a11y-smoke-test]${NC} Testing key pages for WCAG violations..."
 
+# Backup storage-state.json to prevent pre-commit from detecting modified files
+# Playwright modifies this file during test runs (trailing newline changes)
+# Use /tmp to avoid creating backup files in the repo
+STORAGE_STATE="tests/e2e/.auth/storage-state.json"
+STORAGE_STATE_BAK="/tmp/storage-state.json.bak"
+if [ -f "$STORAGE_STATE" ]; then
+    cp "$STORAGE_STATE" "$STORAGE_STATE_BAK"
+fi
+
 # Run a subset of accessibility tests (pages most likely to have color issues)
 # These tests use axe-core which checks for color contrast automatically
 if npx playwright test tests/e2e/specs/accessibility.spec.ts \
@@ -59,9 +68,19 @@ if npx playwright test tests/e2e/specs/accessibility.spec.ts \
     --reporter=line \
     --timeout=30000 \
     --retries=0 2>&1 | tee /tmp/a11y-smoke-test.log; then
+    # Restore storage-state.json to prevent pre-commit file modification detection
+    if [ -f "$STORAGE_STATE_BAK" ]; then
+        cp "$STORAGE_STATE_BAK" "$STORAGE_STATE"
+        rm "$STORAGE_STATE_BAK"
+    fi
     echo -e "${GREEN}[a11y-smoke-test]${NC} All accessibility tests passed!"
     exit 0
 else
+    # Restore storage-state.json even on failure
+    if [ -f "$STORAGE_STATE_BAK" ]; then
+        cp "$STORAGE_STATE_BAK" "$STORAGE_STATE"
+        rm "$STORAGE_STATE_BAK"
+    fi
     echo -e "${RED}[a11y-smoke-test]${NC} Accessibility violations detected!"
     echo ""
     echo -e "${YELLOW}Common fixes:${NC}"
