@@ -285,7 +285,7 @@ export default function AlertsPage({ onConfigureRules, className = '' }: AlertsP
   const hasUnacknowledged = filterCounts.unread > 0;
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div data-testid="alerts-page" className={`flex flex-col ${className}`}>
       {/* Header with Statistics */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
