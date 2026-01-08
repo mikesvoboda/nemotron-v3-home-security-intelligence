@@ -4,6 +4,8 @@
 
 This directory contains all automated tests for the backend Python application. Tests are organized into five levels: unit tests (isolated component testing), integration tests (multi-component workflows), end-to-end tests (complete pipeline validation), GPU tests (AI service integration), and benchmarks (performance regression detection).
 
+**For comprehensive testing patterns, fixtures, and best practices, see [`/docs/TESTING_GUIDE.md`](/docs/TESTING_GUIDE.md).**
+
 ## Directory Structure
 
 ```
@@ -312,6 +314,109 @@ Timeouts are applied automatically based on test location:
 | Integration tests | 5s      | Auto-assigned in pytest_collection_modifyitems |
 | Slow-marked tests | 30s     | `@pytest.mark.slow`                            |
 | CLI override      | varies  | `--timeout=N` (0 disables)                     |
+
+## When to Use Parametrize vs Hypothesis
+
+Choosing the right testing approach ensures maintainability and comprehensive coverage:
+
+### Use @pytest.mark.parametrize for:
+
+- **Known edge cases**: Specific boundary conditions you've identified (e.g., empty strings, None, -1)
+- **Fixed test cases**: Predetermined inputs with expected outputs
+- **Regression tests**: Specific bugs you've fixed and want to prevent
+- **Exhaustive small sets**: All valid enum values, small finite sets
+- **Documentation value**: When each case tells a story about requirements
+
+**Example:**
+
+```python
+@pytest.mark.parametrize("invalid_input,reason", [
+    ("", "empty string"),
+    (None, "null value"),
+    ("   ", "whitespace only"),
+    (-1, "negative number"),
+])
+def test_validation_rejects_invalid_input(invalid_input, reason):
+    assert validate(invalid_input) is False, f"Should reject: {reason}"
+```
+
+**Benefits:**
+
+- Clear failure messages with the `reason` parameter
+- Easy to add new edge cases as you discover them
+- Test output shows exactly which case failed
+- Great for code review: each case is visible and reviewable
+
+### Use Hypothesis for:
+
+- **Property-based testing**: Testing invariants that should hold for all inputs
+- **Random input generation**: Finding edge cases you haven't thought of
+- **Fuzzing**: Discovering unexpected behaviors with random data
+- **Large input spaces**: When exhaustive testing isn't feasible
+- **Mathematical properties**: Commutativity, associativity, idempotence, etc.
+
+**Example:**
+
+```python
+from hypothesis import given
+from hypothesis import strategies as st
+
+@given(bbox=valid_bbox_xyxy_strategy())
+def test_valid_bbox_always_passes_validation(bbox):
+    """Property: Valid bboxes (x1 < x2, y1 < y2) are always valid."""
+    assert is_valid_bbox(bbox) is True
+```
+
+**Benefits:**
+
+- Discovers edge cases you didn't anticipate
+- Tests hold for entire input domains, not just examples
+- Hypothesis shrinks failing inputs to minimal reproducible cases
+- Great for mathematical invariants and data structure properties
+
+### Decision Guide
+
+Ask yourself:
+
+1. **Do I know the specific cases I want to test?** → Use parametrize
+2. **Am I testing a property that should hold for all inputs?** → Use Hypothesis
+3. **Am I testing a fixed set of values (enum, status codes)?** → Use parametrize
+4. **Do I want to explore the input space for unknown edge cases?** → Use Hypothesis
+5. **Is this a regression test for a specific bug?** → Use parametrize
+6. **Am I validating mathematical properties?** → Use Hypothesis
+
+### Combining Both Approaches
+
+You can use both in the same test file:
+
+```python
+# Parametrize for known edge cases
+@pytest.mark.parametrize("bbox", [
+    (0, 0, 0, 0),      # Zero-size box
+    (100, 100, 50, 50), # Inverted coordinates
+])
+def test_invalid_bbox_edge_cases(bbox):
+    assert is_valid_bbox(bbox) is False
+
+# Hypothesis for property-based testing
+@given(bbox=valid_bbox_xyxy_strategy())
+def test_valid_bbox_property(bbox):
+    """Property: Valid construction always passes validation."""
+    assert is_valid_bbox(bbox) is True
+```
+
+### When NOT to Use Parametrize
+
+Avoid parametrize when:
+
+- You have only 1-2 similar test cases (just write separate tests)
+- The test logic changes significantly between cases (separate tests are clearer)
+- Test setup differs for each case (use separate tests or fixtures instead)
+
+### Related Issues
+
+- **NEM-1450**: Expanded parametrize usage for edge cases in validation tests
+- **NEM-1698**: Property-based tests for bbox validation mathematical properties
 
 ## Test Markers
 
