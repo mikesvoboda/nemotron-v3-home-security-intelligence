@@ -27,6 +27,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.14'
+  UV_VERSION: '0.9.18'
 
 jobs:
   # ============================================================================
@@ -80,7 +81,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
-          version: '0.9.18'
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
 
       - name: Set up Python
