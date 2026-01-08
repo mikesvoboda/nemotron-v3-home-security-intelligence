@@ -2,6 +2,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import ErrorBoundary, { clearErrorCache } from './ErrorBoundary';
+import * as sentryModule from '../../services/sentry';
+
+// Mock the Sentry module
+vi.mock('../../services/sentry', () => ({
+  captureError: vi.fn(),
+  isSentryEnabled: vi.fn(() => false),
+}));
 
 // Component that throws an error when rendered
 const ThrowingComponent = ({ shouldThrow = true }: { shouldThrow?: boolean }) => {
@@ -467,6 +474,67 @@ describe('ErrorBoundary', () => {
           'An unexpected error occurred. You can try to recover by clicking the button below, or refresh the page.'
         )
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('Sentry integration', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('reports error to Sentry when Sentry is enabled', () => {
+      vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(true);
+
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      expect(sentryModule.captureError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Test error message',
+        }),
+        expect.objectContaining({
+          tags: {
+            component: 'ErrorBoundary',
+          },
+          extra: expect.objectContaining({
+            componentStack: expect.any(String),
+          }),
+        })
+      );
+    });
+
+    it('does not report error to Sentry when Sentry is disabled', () => {
+      vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(false);
+
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      expect(sentryModule.captureError).not.toHaveBeenCalled();
+    });
+
+    it('reports error with custom boundary name in tags', () => {
+      vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(true);
+
+      render(
+        <ErrorBoundary boundaryName="DashboardBoundary">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      expect(sentryModule.captureError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: {
+            component: 'DashboardBoundary',
+          },
+        })
+      );
     });
   });
 });

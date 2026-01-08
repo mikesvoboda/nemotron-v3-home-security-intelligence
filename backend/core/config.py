@@ -162,6 +162,12 @@ class Settings(BaseSettings):
         default="security_events",
         description="Redis pub/sub channel for security events",
     )
+    redis_key_prefix: str = Field(
+        default="hsi",
+        description="Global prefix for all Redis keys. Enables key isolation for "
+        "multi-instance deployments and blue-green deployments. All cache keys, "
+        "queue names, and other Redis keys will be prefixed with '{prefix}:'.",
+    )
 
     # Redis SSL/TLS settings
     redis_ssl_enabled: bool = Field(
@@ -402,6 +408,25 @@ class Settings(BaseSettings):
         default="cl100k_base",
         description="Tiktoken encoding to use for token counting. Options: 'cl100k_base' (GPT-4/ChatGPT), "
         "'p50k_base' (Codex), 'r50k_base' (GPT-2). cl100k_base is a reasonable default for most LLMs.",
+    )
+
+    # AI Model Cold Start and Warmup Settings (NEM-1670)
+    ai_warmup_enabled: bool = Field(
+        default=True,
+        description="Enable model warmup on service startup. Sends test inference to preload "
+        "model weights into GPU memory, reducing first-request latency. Default: enabled.",
+    )
+    ai_cold_start_threshold_seconds: float = Field(
+        default=300.0,
+        ge=60.0,
+        le=3600.0,
+        description="Seconds since last inference before model is considered 'cold'. "
+        "Cold models may have slower first inference due to GPU memory paging. "
+        "Default: 300 seconds (5 minutes).",
+    )
+    nemotron_warmup_prompt: str = Field(
+        default="Hello, please respond with 'ready' to confirm you are operational.",
+        description="Test prompt used for Nemotron warmup. Should be simple and quick to process.",
     )
 
     @field_validator("rtdetr_url", "nemotron_url", mode="before")

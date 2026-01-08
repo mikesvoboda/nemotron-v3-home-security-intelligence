@@ -38,7 +38,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
 from backend.core.logging import get_logger
 from backend.services.clip_loader import load_clip_model
@@ -60,6 +60,18 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
 logger = get_logger(__name__)
+
+# TypeVar for generic model type (models can be YOLO, PaddleOCR, etc.)
+ModelT = TypeVar("ModelT")
+
+
+class ModelManagerStatus(TypedDict):
+    """Type for ModelManager status dictionary."""
+
+    loaded_models: list[str]
+    total_loaded_vram_mb: int
+    load_counts: dict[str, int]
+
 
 # Vehicle classes from COCO that should trigger license plate detection
 VEHICLE_CLASSES = frozenset(
@@ -729,7 +741,7 @@ class ModelManager:
 
         logger.info("All models unloaded")
 
-    def get_status(self) -> dict[str, Any]:
+    def get_status(self) -> ModelManagerStatus:
         """Get current status of the ModelManager.
 
         Returns:

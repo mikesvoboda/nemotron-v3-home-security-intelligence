@@ -102,6 +102,8 @@ export type {
   LatencyHistorySnapshot,
 } from '../types/generated';
 
+import { addApiBreadcrumb, isSentryEnabled } from './sentry';
+
 // Import concrete types for use in this module
 import type {
   AiAuditEventAuditResponse,
@@ -414,6 +416,21 @@ export function getApiKey(): string | undefined {
 // Helper Functions
 // ============================================================================
 
+/**
+ * Adds a Sentry breadcrumb for an API request if Sentry is enabled.
+ * This provides request tracking for debugging errors.
+ *
+ * @param method - HTTP method (GET, POST, etc.)
+ * @param url - Full request URL
+ * @param status - Response status code
+ * @param duration - Request duration in milliseconds
+ */
+function addSentryBreadcrumb(method: string, url: string, status: number, duration: number): void {
+  if (isSentryEnabled()) {
+    addApiBreadcrumb(method, url, status, duration);
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -451,6 +468,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 /**
  * Performs a fetch request with automatic retry on failure.
  * Uses exponential backoff for retry delays.
+ * Adds Sentry breadcrumbs for request tracking.
  * @param url - Full URL to fetch
  * @param options - Fetch options
  * @param retriesLeft - Number of retries remaining
@@ -460,8 +478,15 @@ async function fetchWithRetry<T>(
   options: RequestInit,
   retriesLeft: number = MAX_RETRIES
 ): Promise<T> {
+  const startTime = Date.now();
+  const method = options.method || 'GET';
+
   try {
     const response = await fetch(url, options);
+    const duration = Date.now() - startTime;
+
+    // Add Sentry breadcrumb for the request
+    addSentryBreadcrumb(method, url, response.status, duration);
 
     // Check if we should retry based on status code
     if (!response.ok && shouldRetry(response.status) && retriesLeft > 0) {
@@ -472,6 +497,8 @@ async function fetchWithRetry<T>(
 
     return handleResponse<T>(response);
   } catch (error) {
+    const duration = Date.now() - startTime;
+
     // Re-throw AbortError without wrapping - request was intentionally cancelled
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw error;
@@ -482,6 +509,9 @@ async function fetchWithRetry<T>(
 
     // For ApiErrors that are retryable, retry
     if (error instanceof ApiError) {
+      // Add breadcrumb for the failed request
+      addSentryBreadcrumb(method, url, error.status, duration);
+
       if (shouldRetry(error.status) && retriesLeft > 0) {
         const delay = getRetryDelay(MAX_RETRIES - retriesLeft);
         await sleep(delay);
@@ -489,6 +519,9 @@ async function fetchWithRetry<T>(
       }
       throw error;
     }
+
+    // Network errors - add breadcrumb with status 0
+    addSentryBreadcrumb(method, url, 0, duration);
 
     // Network errors - retry if we have retries left
     if (retriesLeft > 0) {

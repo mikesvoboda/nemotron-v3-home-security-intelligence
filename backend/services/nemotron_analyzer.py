@@ -192,6 +192,12 @@ class NemotronAnalyzer:
         self._max_retries = (
             max_retries if max_retries is not None else settings.nemotron_max_retries
         )
+        # Cold start and warmup tracking (NEM-1670)
+        self._last_inference_time: float | None = None
+        self._is_warming: bool = False
+        self._warmup_enabled = settings.ai_warmup_enabled
+        self._cold_start_threshold = settings.ai_cold_start_threshold_seconds
+        self._warmup_prompt = settings.nemotron_warmup_prompt
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
             f"timeout={settings.nemotron_read_timeout}s"
@@ -216,6 +222,157 @@ class NemotronAnalyzer:
         if self._enrichment_pipeline is None:
             self._enrichment_pipeline = get_enrichment_pipeline()
         return self._enrichment_pipeline
+
+    # =========================================================================
+    # Cold Start Detection and Warmup (NEM-1670)
+    # =========================================================================
+
+    def _track_inference(self) -> None:
+        """Record the timestamp of an inference operation.
+
+        Called after each successful LLM inference to track model warmth.
+        """
+        self._last_inference_time = time.monotonic()
+
+    def is_cold(self) -> bool:
+        """Check if the model is considered cold (not recently used).
+
+        A model is cold if:
+        - It has never been used (_last_inference_time is None)
+        - The time since last inference exceeds cold_start_threshold
+
+        Returns:
+            True if model is cold, False if warm
+        """
+        if self._last_inference_time is None:
+            return True
+        seconds_since_last = time.monotonic() - self._last_inference_time
+        return seconds_since_last > self._cold_start_threshold
+
+    def get_warmth_state(self) -> dict[str, Any]:
+        """Get the current warmth state of the model.
+
+        Returns:
+            Dictionary containing:
+            - state: 'cold', 'warming', or 'warm'
+            - last_inference_seconds_ago: Seconds since last inference, or None
+        """
+        if self._is_warming:
+            return {
+                "state": "warming",
+                "last_inference_seconds_ago": None,
+            }
+
+        if self._last_inference_time is None:
+            return {
+                "state": "cold",
+                "last_inference_seconds_ago": None,
+            }
+
+        seconds_ago = time.monotonic() - self._last_inference_time
+        is_cold = seconds_ago > self._cold_start_threshold
+        return {
+            "state": "cold" if is_cold else "warm",
+            "last_inference_seconds_ago": seconds_ago,
+        }
+
+    async def model_readiness_probe(self) -> bool:
+        """Perform model readiness probe with actual inference.
+
+        Unlike health_check which only checks HTTP availability,
+        this method sends a test prompt to verify the model can
+        actually perform inference. This is used for warmup and
+        to detect if the model is loaded and ready.
+
+        Returns:
+            True if model completed inference successfully, False otherwise
+        """
+
+        try:
+            start_time = time.monotonic()
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                # Send a simple completion request
+                response = await client.post(
+                    f"{self._llm_url}/v1/completions",
+                    headers=self._get_auth_headers(),
+                    json={
+                        "prompt": self._warmup_prompt,
+                        "max_tokens": 50,
+                        "temperature": 0.1,
+                    },
+                )
+                response.raise_for_status()
+                duration = time.monotonic() - start_time
+                logger.debug(
+                    f"Nemotron readiness probe completed in {duration:.2f}s",
+                    extra={"duration": duration},
+                )
+                return True
+        except httpx.ConnectError as e:
+            logger.warning(f"Nemotron readiness probe connection error: {e}")
+            return False
+        except httpx.TimeoutException as e:
+            logger.warning(f"Nemotron readiness probe timeout: {e}")
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Nemotron readiness probe HTTP error: {e}")
+            return False
+        except Exception as e:
+            logger.warning(f"Nemotron readiness probe failed: {e}")
+            return False
+
+    async def warmup(self) -> bool:
+        """Perform model warmup by running a test inference.
+
+        Called on service startup to preload model weights into GPU memory.
+        This reduces first-request latency for production traffic.
+
+        Records metrics:
+        - hsi_model_warmup_duration_seconds{model="nemotron"}
+        - hsi_model_cold_start_total{model="nemotron"} (if model was cold)
+
+        Returns:
+            True if warmup succeeded, False otherwise
+        """
+        from backend.core.metrics import (
+            observe_model_warmup_duration,
+            record_model_cold_start,
+            set_model_warmth_state,
+        )
+
+        if not self._warmup_enabled:
+            logger.debug("Nemotron warmup disabled by configuration")
+            return True
+
+        was_cold = self.is_cold()
+        self._is_warming = True
+        set_model_warmth_state("nemotron", "warming")
+
+        try:
+            logger.info("Starting Nemotron model warmup...")
+            start_time = time.monotonic()
+
+            result = await self.model_readiness_probe()
+
+            duration = time.monotonic() - start_time
+            observe_model_warmup_duration("nemotron", duration)
+
+            if result:
+                self._track_inference()
+                if was_cold:
+                    record_model_cold_start("nemotron")
+                set_model_warmth_state("nemotron", "warm")
+                logger.info(
+                    f"Nemotron warmup completed in {duration:.2f}s",
+                    extra={"duration": duration, "was_cold": was_cold},
+                )
+                return True
+            else:
+                set_model_warmth_state("nemotron", "cold")
+                logger.warning("Nemotron warmup failed - model not ready")
+                return False
+        finally:
+            self._is_warming = False
 
     # =========================================================================
     # Idempotency Handling (NEM-1725)

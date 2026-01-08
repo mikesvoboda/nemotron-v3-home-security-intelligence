@@ -30,7 +30,7 @@ from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
 
 import httpx
 from sqlalchemy import select
@@ -40,7 +40,43 @@ from backend.core.database import get_session
 from backend.core.logging import get_logger, sanitize_error  # noqa: F401
 from backend.models.gpu_stats import GPUStats
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 logger = get_logger(__name__)
+
+
+class GPUStatsDict(TypedDict):
+    """Type for GPU statistics dictionary returned by get_current_stats methods."""
+
+    gpu_name: str | None
+    gpu_utilization: float | None
+    memory_used: int | None
+    memory_total: int | None
+    temperature: float | None
+    power_usage: float | None
+    recorded_at: datetime
+
+
+class MemoryPressureMetrics(TypedDict):
+    """Type for memory pressure monitoring metrics."""
+
+    current_level: str
+    warning_threshold: float
+    critical_threshold: float
+    total_warning_events: int
+    total_critical_events: int
+    last_warning_event_at: str | None
+    last_critical_event_at: str | None
+
+
+class Broadcaster(Protocol):
+    """Protocol for WebSocket broadcasters that can send GPU stats."""
+
+    async def broadcast_gpu_stats(self, stats: dict[str, Any]) -> None:
+        """Broadcast GPU statistics via WebSocket."""
+        ...
+
 
 # Memory pressure thresholds (NEM-1727)
 MEMORY_PRESSURE_WARNING_THRESHOLD = 85.0  # Percentage
@@ -85,7 +121,7 @@ class GPUMonitor:
         self,
         poll_interval: float | None = None,
         history_minutes: int | None = None,
-        broadcaster: Any | None = None,
+        broadcaster: Broadcaster | None = None,
         http_timeout: float | None = None,
     ):
         """Initialize GPU monitor.
@@ -107,7 +143,7 @@ class GPUMonitor:
         self._poll_task: asyncio.Task | None = None
 
         # In-memory circular buffer for stats history
-        self._stats_history: deque[dict[str, Any]] = deque(maxlen=1000)
+        self._stats_history: deque[GPUStatsDict] = deque(maxlen=1000)
 
         # GPU state
         self._gpu_available = False
@@ -203,7 +239,7 @@ class GPUMonitor:
         else:
             logger.debug("nvidia-smi not found in PATH")
 
-    def _get_gpu_stats_nvidia_smi(self) -> dict[str, Any]:
+    def _get_gpu_stats_nvidia_smi(self) -> GPUStatsDict:
         """Get GPU statistics using nvidia-smi subprocess.
 
         This is a fallback for when pynvml is not available but nvidia-smi is.
@@ -287,7 +323,7 @@ class GPUMonitor:
         except Exception as e:
             raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
 
-    async def _get_gpu_stats_nvidia_smi_async(self) -> dict[str, Any]:
+    async def _get_gpu_stats_nvidia_smi_async(self) -> GPUStatsDict:
         """Get GPU statistics using nvidia-smi subprocess asynchronously.
 
         This is the async version that doesn't block the event loop.
@@ -375,7 +411,7 @@ class GPUMonitor:
         except Exception as e:
             raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
 
-    def _get_gpu_stats_real(self) -> dict[str, Any]:
+    def _get_gpu_stats_real(self) -> GPUStatsDict:
         """Get real GPU statistics from pynvml.
 
         Returns:
@@ -446,7 +482,7 @@ class GPUMonitor:
             )
             raise
 
-    def _get_gpu_stats_mock(self) -> dict[str, Any]:
+    def _get_gpu_stats_mock(self) -> GPUStatsDict:
         """Get mock GPU statistics when real GPU is unavailable.
 
         Provides simulated values for development environments without a GPU.
@@ -544,7 +580,7 @@ class GPUMonitor:
         # Assume MB if unit unclear
         return value
 
-    async def _get_gpu_stats_from_ai_containers(self) -> dict[str, Any] | None:
+    async def _get_gpu_stats_from_ai_containers(self) -> GPUStatsDict | None:
         """Query AI containers for GPU statistics.
 
         Queries RT-DETRv2 health endpoint for GPU usage information.
@@ -611,7 +647,7 @@ class GPUMonitor:
 
         return None
 
-    async def get_current_stats_async(self) -> dict[str, Any]:
+    async def get_current_stats_async(self) -> GPUStatsDict:
         """Get current GPU statistics asynchronously.
 
         Tries in order:
@@ -657,7 +693,7 @@ class GPUMonitor:
             )
             return self._get_gpu_stats_mock()
 
-    def get_current_stats(self) -> dict[str, Any]:
+    def get_current_stats(self) -> GPUStatsDict:
         """Get current GPU statistics (sync version).
 
         Note: This sync version cannot query AI containers. Use get_current_stats_async()
@@ -698,7 +734,7 @@ class GPUMonitor:
             )
             return self._get_gpu_stats_mock()
 
-    def get_stats_history(self, minutes: int | None = None) -> list[dict[str, Any]]:
+    def get_stats_history(self, minutes: int | None = None) -> list[GPUStatsDict]:
         """Get GPU statistics history from memory.
 
         Args:
@@ -716,7 +752,7 @@ class GPUMonitor:
         filtered = [stats for stats in self._stats_history if stats["recorded_at"] >= cutoff_time]
         return list(reversed(filtered))
 
-    async def _calculate_inference_fps(self, session: Any) -> float | None:
+    async def _calculate_inference_fps(self, session: AsyncSession) -> float | None:
         """Calculate inference FPS from recent detection throughput.
 
         Counts detections processed in the last 60 seconds and calculates
@@ -744,7 +780,7 @@ class GPUMonitor:
             logger.warning(f"Failed to calculate inference FPS: {e}")
             return None
 
-    async def _store_stats(self, stats: dict[str, Any]) -> None:
+    async def _store_stats(self, stats: GPUStatsDict) -> None:
         """Store GPU statistics in database.
 
         Args:
@@ -780,7 +816,7 @@ class GPUMonitor:
                 },
             )
 
-    async def _broadcast_stats(self, stats: dict[str, Any]) -> None:
+    async def _broadcast_stats(self, stats: GPUStatsDict) -> None:
         """Broadcast GPU statistics via WebSocket.
 
         Args:
@@ -791,8 +827,15 @@ class GPUMonitor:
 
         try:
             # Convert datetime to ISO format for JSON serialization
-            broadcast_stats = stats.copy()
-            broadcast_stats["recorded_at"] = stats["recorded_at"].isoformat()
+            broadcast_stats: dict[str, Any] = {
+                "gpu_name": stats["gpu_name"],
+                "gpu_utilization": stats["gpu_utilization"],
+                "memory_used": stats["memory_used"],
+                "memory_total": stats["memory_total"],
+                "temperature": stats["temperature"],
+                "power_usage": stats["power_usage"],
+                "recorded_at": stats["recorded_at"].isoformat(),
+            }
 
             await self.broadcaster.broadcast_gpu_stats(broadcast_stats)
             logger.debug("Broadcasted GPU stats via WebSocket")
@@ -1084,7 +1127,7 @@ class GPUMonitor:
                     exc_info=True,
                 )
 
-    def get_memory_pressure_metrics(self) -> dict[str, Any]:
+    def get_memory_pressure_metrics(self) -> MemoryPressureMetrics:
         """Get memory pressure monitoring metrics.
 
         Returns:
