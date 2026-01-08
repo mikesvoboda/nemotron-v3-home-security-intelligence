@@ -13,6 +13,8 @@ Features:
 
 import asyncio
 import contextlib
+from collections import deque
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from backend.core.logging import get_logger
@@ -20,6 +22,23 @@ from backend.services.event_broadcaster import EventBroadcaster
 from backend.services.service_managers import ServiceConfig, ServiceManager
 
 logger = get_logger(__name__)
+
+
+@dataclass(slots=True)
+class HealthEvent:
+    """Represents a health-related event for tracking failure history.
+
+    Attributes:
+        timestamp: When the event occurred (UTC)
+        service: Name of the service this event relates to
+        event_type: Type of event - "failure", "recovery", or "restart"
+        message: Optional descriptive message about the event
+    """
+
+    timestamp: datetime
+    service: str
+    event_type: str  # "failure", "recovery", "restart"
+    message: str | None = None
 
 
 class ServiceHealthMonitor:
@@ -43,6 +62,7 @@ class ServiceHealthMonitor:
         services: list[ServiceConfig],
         broadcaster: EventBroadcaster | None = None,
         check_interval: float = 15.0,
+        max_events: int = 100,
     ) -> None:
         """Initialize the health monitor.
 
@@ -51,6 +71,7 @@ class ServiceHealthMonitor:
             services: List of service configurations to monitor
             broadcaster: Optional EventBroadcaster for WebSocket status updates
             check_interval: Seconds between health check cycles (default: 15.0)
+            max_events: Maximum number of health events to track (default: 100)
         """
         self._manager = manager
         self._services = services
@@ -59,6 +80,7 @@ class ServiceHealthMonitor:
         self._failure_counts: dict[str, int] = {}
         self._running = False
         self._task: asyncio.Task[None] | None = None
+        self._health_events: deque[HealthEvent] = deque(maxlen=max_events)
 
         logger.info(
             f"ServiceHealthMonitor initialized: "
@@ -264,6 +286,27 @@ class ServiceHealthMonitor:
                 f"Restart error: {e}",
             )
 
+    def _record_event(
+        self,
+        service: str,
+        event_type: str,
+        message: str | None = None,
+    ) -> None:
+        """Record a health event in the event history.
+
+        Args:
+            service: Name of the service
+            event_type: Type of event ("failure", "recovery", "restart")
+            message: Optional descriptive message
+        """
+        event = HealthEvent(
+            timestamp=datetime.now(UTC),
+            service=service,
+            event_type=event_type,
+            message=message,
+        )
+        self._health_events.append(event)
+
     async def _broadcast_status(
         self,
         service: ServiceConfig,
@@ -271,6 +314,8 @@ class ServiceHealthMonitor:
         message: str | None = None,
     ) -> None:
         """Broadcast service status via WebSocket and log.
+
+        Also records significant events (failure, recovery, restart) to the event history.
 
         Args:
             service: Service configuration
@@ -283,6 +328,20 @@ class ServiceHealthMonitor:
         if message:
             log_msg += f" - {message}"
         getattr(logger, log_level)(log_msg)
+
+        # Record significant events to history
+        # Map status to event_type for tracking
+        event_type_map = {
+            "unhealthy": "failure",
+            "restart_failed": "failure",
+            "failed": "failure",
+            "restart_disabled": "failure",
+            "healthy": "recovery",
+            "restarting": "restart",
+        }
+        event_type = event_type_map.get(status)
+        if event_type:
+            self._record_event(service.name, event_type, message)
 
         # Broadcast via WebSocket if broadcaster available
         if self._broadcaster is None:
@@ -321,6 +380,20 @@ class ServiceHealthMonitor:
             }
             for service in self._services
         }
+
+    def get_recent_events(self, limit: int = 50) -> list[HealthEvent]:
+        """Get recent health events.
+
+        Args:
+            limit: Maximum number of events to return (default: 50)
+
+        Returns:
+            List of recent HealthEvent objects, most recent first
+        """
+        # Return events in reverse order (most recent first)
+        events = list(self._health_events)
+        events.reverse()
+        return events[:limit]
 
     @property
     def is_running(self) -> bool:

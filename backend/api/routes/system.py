@@ -41,6 +41,7 @@ from backend.api.schemas.system import (
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthCheckServiceStatus,
+    HealthEventResponse,
     HealthResponse,
     LatencyHistorySnapshot,
     LatencyHistoryStageStats,
@@ -252,6 +253,7 @@ _file_watcher: FileWatcher | None = None
 _pipeline_manager: PipelineWorkerManager | None = None
 _batch_aggregator: BatchAggregator | None = None
 _degradation_manager: DegradationManager | None = None
+_service_health_monitor: ServiceHealthMonitor | None = None
 
 
 def register_workers(
@@ -262,6 +264,7 @@ def register_workers(
     pipeline_manager: PipelineWorkerManager | None = None,
     batch_aggregator: BatchAggregator | None = None,
     degradation_manager: DegradationManager | None = None,
+    service_health_monitor: ServiceHealthMonitor | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
 
@@ -276,8 +279,9 @@ def register_workers(
         pipeline_manager: PipelineWorkerManager instance (critical for readiness)
         batch_aggregator: BatchAggregator instance for pipeline status
         degradation_manager: DegradationManager instance for degradation status
+        service_health_monitor: ServiceHealthMonitor instance for health event history
     """
-    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager  # noqa: PLW0603
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager, _service_health_monitor  # noqa: PLW0603
     _gpu_monitor = gpu_monitor
     _cleanup_service = cleanup_service
     _system_broadcaster = system_broadcaster
@@ -285,6 +289,7 @@ def register_workers(
     _pipeline_manager = pipeline_manager
     _batch_aggregator = batch_aggregator
     _degradation_manager = degradation_manager
+    _service_health_monitor = service_health_monitor
 
 
 def _get_worker_statuses() -> list[WorkerStatus]:
@@ -436,6 +441,7 @@ if TYPE_CHECKING:
     from backend.services.degradation_manager import DegradationManager
     from backend.services.file_watcher import FileWatcher
     from backend.services.gpu_monitor import GPUMonitor
+    from backend.services.health_monitor import ServiceHealthMonitor
     from backend.services.pipeline_workers import PipelineWorkerManager
     from backend.services.system_broadcaster import SystemBroadcaster
 
@@ -855,10 +861,25 @@ async def get_health(
     if overall_status != "healthy":
         response.status_code = 503
 
+    # Collect recent health events for debugging intermittent issues
+    recent_events: list[HealthEventResponse] = []
+    if _service_health_monitor is not None:
+        events = _service_health_monitor.get_recent_events(limit=20)
+        recent_events = [
+            HealthEventResponse(
+                timestamp=event.timestamp,
+                service=event.service,
+                event_type=event.event_type,
+                message=event.message,
+            )
+            for event in events
+        ]
+
     return HealthResponse(
         status=overall_status,
         services=services,
         timestamp=datetime.now(UTC),
+        recent_events=recent_events,
     )
 
 

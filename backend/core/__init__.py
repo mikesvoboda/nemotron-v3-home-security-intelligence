@@ -11,6 +11,7 @@ from backend.core.database import (
     get_session,
     get_session_factory,
     init_db,
+    with_session,
 )
 from backend.core.json_utils import (
     extract_json_field,
@@ -155,4 +156,5 @@ __all__ = [
     "setup_logging",
     "validate_certificate",
     "validate_certificate_files",
+    "with_session",
 ]

@@ -255,3 +255,150 @@ class TestHealthSchemaConsistency:
         simple_fields = set(SimpleReadinessResponse.model_fields.keys())
         # Simple response should have exactly ready and status
         assert simple_fields == {"ready", "status"}
+
+
+class TestHealthEventResponse:
+    """Tests for HealthEventResponse schema."""
+
+    def test_health_event_valid_creation(self) -> None:
+        """HealthEventResponse should accept valid data."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import HealthEventResponse
+
+        timestamp = datetime.now(UTC)
+        event = HealthEventResponse(
+            timestamp=timestamp,
+            service="redis",
+            event_type="failure",
+            message="Connection refused",
+        )
+
+        assert event.timestamp == timestamp
+        assert event.service == "redis"
+        assert event.event_type == "failure"
+        assert event.message == "Connection refused"
+
+    def test_health_event_optional_message(self) -> None:
+        """HealthEventResponse should accept None message."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import HealthEventResponse
+
+        timestamp = datetime.now(UTC)
+        event = HealthEventResponse(
+            timestamp=timestamp,
+            service="postgres",
+            event_type="recovery",
+            message=None,
+        )
+
+        assert event.message is None
+
+    def test_health_event_without_message(self) -> None:
+        """HealthEventResponse should work without message field."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import HealthEventResponse
+
+        timestamp = datetime.now(UTC)
+        event = HealthEventResponse(
+            timestamp=timestamp,
+            service="postgres",
+            event_type="restart",
+        )
+
+        assert event.message is None
+
+    def test_health_event_serialization(self) -> None:
+        """HealthEventResponse should serialize to expected JSON format."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import HealthEventResponse
+
+        timestamp = datetime(2025, 12, 23, 10, 30, 0, tzinfo=UTC)
+        event = HealthEventResponse(
+            timestamp=timestamp,
+            service="redis",
+            event_type="failure",
+            message="Health check failed",
+        )
+
+        data = event.model_dump()
+        assert data["service"] == "redis"
+        assert data["event_type"] == "failure"
+        assert data["message"] == "Health check failed"
+
+    def test_health_event_json_schema_has_example(self) -> None:
+        """HealthEventResponse should have a valid JSON schema example."""
+        from backend.api.schemas.system import HealthEventResponse
+
+        schema = HealthEventResponse.model_json_schema()
+        assert "example" in schema
+        assert schema["example"]["service"] == "redis"
+        assert schema["example"]["event_type"] == "failure"
+
+    def test_health_response_includes_recent_events(self) -> None:
+        """HealthResponse should include recent_events field."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import (
+            HealthCheckServiceStatus,
+            HealthEventResponse,
+            HealthResponse,
+        )
+
+        events = [
+            HealthEventResponse(
+                timestamp=datetime.now(UTC),
+                service="redis",
+                event_type="failure",
+                message="Connection refused",
+            ),
+        ]
+
+        response = HealthResponse(
+            status="healthy",
+            services={
+                "database": HealthCheckServiceStatus(status="healthy"),
+                "redis": HealthCheckServiceStatus(status="healthy"),
+            },
+            timestamp=datetime.now(UTC),
+            recent_events=events,
+        )
+
+        assert len(response.recent_events) == 1
+        assert response.recent_events[0].service == "redis"
+
+    def test_health_response_empty_events(self) -> None:
+        """HealthResponse should allow empty recent_events."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import HealthCheckServiceStatus, HealthResponse
+
+        response = HealthResponse(
+            status="healthy",
+            services={
+                "database": HealthCheckServiceStatus(status="healthy"),
+            },
+            timestamp=datetime.now(UTC),
+            recent_events=[],
+        )
+
+        assert response.recent_events == []
+
+    def test_health_response_default_empty_events(self) -> None:
+        """HealthResponse should default to empty recent_events."""
+        from datetime import UTC, datetime
+
+        from backend.api.schemas.system import HealthCheckServiceStatus, HealthResponse
+
+        response = HealthResponse(
+            status="healthy",
+            services={
+                "database": HealthCheckServiceStatus(status="healthy"),
+            },
+            timestamp=datetime.now(UTC),
+        )
+
+        assert response.recent_events == []
