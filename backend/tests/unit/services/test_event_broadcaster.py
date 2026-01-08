@@ -494,8 +494,13 @@ async def test_listen_for_events_skips_empty_data() -> None:
     await broadcaster._listen_for_events()
 
     # Only the valid message should have been sent
+    # NEM-1688: Messages now include sequence and requires_ack fields
     assert len(send_calls) == 1
-    assert send_calls[0] == {"type": "event", "data": {"id": 1}}
+    sent_msg = send_calls[0]
+    assert sent_msg["type"] == "event"
+    assert sent_msg["data"] == {"id": 1}
+    assert sent_msg["sequence"] == 1
+    assert sent_msg["requires_ack"] is False
 
 
 # ==============================================================================
