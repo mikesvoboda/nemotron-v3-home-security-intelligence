@@ -204,10 +204,10 @@ test.describe('Dashboard High Alert State', () => {
 });
 
 test.describe('Dashboard Page Title', () => {
-  test('page title contains Home Security', async ({ page }) => {
+  test('page title contains Security Dashboard', async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(page).toHaveTitle(/Home Security/i);
+    await expect(page).toHaveTitle(/Security Dashboard/i);
   });
 });
