@@ -48,6 +48,13 @@ export const test = base.extend<{
   // Auto-setup mocks before each test
   autoMock: [
     async ({ page, mockConfig }, use) => {
+      // Disable the product tour to prevent overlay from blocking interactions
+      // The Joyride overlay intercepts pointer events and causes tests to fail
+      await page.addInitScript(() => {
+        localStorage.setItem('nemotron-tour-completed', 'true');
+        localStorage.setItem('nemotron-tour-skipped', 'true');
+      });
+
       await setupApiMocks(page, mockConfig);
       await use();
     },
