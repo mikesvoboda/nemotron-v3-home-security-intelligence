@@ -126,9 +126,7 @@ class TestEventBroadcasterSequencing:
         assert result["type"] == "event"
         assert result["data"]["risk_score"] == 50
 
-    def test_add_sequence_and_buffer_adds_requires_ack(
-        self, broadcaster: EventBroadcaster
-    ) -> None:
+    def test_add_sequence_and_buffer_adds_requires_ack(self, broadcaster: EventBroadcaster) -> None:
         """_add_sequence_and_buffer should add requires_ack flag."""
         low_risk = {"type": "event", "data": {"risk_score": 50, "risk_level": "medium"}}
         high_risk = {"type": "event", "data": {"risk_score": 85, "risk_level": "high"}}
@@ -139,9 +137,7 @@ class TestEventBroadcasterSequencing:
         assert low_result["requires_ack"] is False
         assert high_result["requires_ack"] is True
 
-    def test_add_sequence_and_buffer_stores_in_buffer(
-        self, broadcaster: EventBroadcaster
-    ) -> None:
+    def test_add_sequence_and_buffer_stores_in_buffer(self, broadcaster: EventBroadcaster) -> None:
         """_add_sequence_and_buffer should store message in buffer."""
         message = {"type": "event", "data": {"risk_score": 50}}
         broadcaster._add_sequence_and_buffer(message)
@@ -223,9 +219,7 @@ class TestEventBroadcasterBuffer:
         messages = broadcaster.get_messages_since(5)
         assert messages == []
 
-    def test_get_messages_since_with_mark_as_replay(
-        self, broadcaster: EventBroadcaster
-    ) -> None:
+    def test_get_messages_since_with_mark_as_replay(self, broadcaster: EventBroadcaster) -> None:
         """get_messages_since should add replay=True when mark_as_replay is True."""
         for i in range(5):
             broadcaster._add_sequence_and_buffer({"type": "event", "data": {"id": i}})
@@ -234,9 +228,7 @@ class TestEventBroadcasterBuffer:
 
         assert all(msg["replay"] is True for msg in messages)
 
-    def test_get_messages_since_without_mark_as_replay(
-        self, broadcaster: EventBroadcaster
-    ) -> None:
+    def test_get_messages_since_without_mark_as_replay(self, broadcaster: EventBroadcaster) -> None:
         """get_messages_since should not add replay field when mark_as_replay is False."""
         for i in range(5):
             broadcaster._add_sequence_and_buffer({"type": "event", "data": {"id": i}})
