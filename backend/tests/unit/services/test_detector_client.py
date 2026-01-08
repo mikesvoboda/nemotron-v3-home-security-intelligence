@@ -604,7 +604,7 @@ async def test_detect_objects_detection_processing_exception(detector_client, mo
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
-        patch("backend.services.detector_client.Detection", side_effect=Exception("DB error")),
+        patch("backend.services.detector_client.Detection", side_effect=ValueError("DB error")),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200

@@ -214,7 +214,7 @@ async def test_get_telemetry_handles_redis_error() -> None:
     from backend.api.routes import system as system_routes
 
     redis = AsyncMock()
-    redis.get_queue_length = AsyncMock(side_effect=RuntimeError("Redis error"))
+    redis.get_queue_length = AsyncMock(side_effect=ConnectionError("Redis error"))
 
     response = await system_routes.get_telemetry(redis)
 

@@ -117,6 +117,9 @@ class SeverityService:
     def risk_score_to_severity(self, score: int) -> Severity:
         """Map a risk score (0-100) to a severity level.
 
+        Uses Python 3.10+ structural pattern matching with guard clauses
+        for clear, readable threshold-based classification.
+
         Args:
             score: Risk score from 0 to 100
 
@@ -129,14 +132,15 @@ class SeverityService:
         if not 0 <= score <= 100:
             raise ValueError(f"Risk score must be between 0 and 100, got {score}")
 
-        if score <= self.low_max:
-            return Severity.LOW
-        elif score <= self.medium_max:
-            return Severity.MEDIUM
-        elif score <= self.high_max:
-            return Severity.HIGH
-        else:
-            return Severity.CRITICAL
+        match score:
+            case _ if score <= self.low_max:
+                return Severity.LOW
+            case _ if score <= self.medium_max:
+                return Severity.MEDIUM
+            case _ if score <= self.high_max:
+                return Severity.HIGH
+            case _:
+                return Severity.CRITICAL
 
     def get_severity_definitions(self) -> list[SeverityDefinition]:
         """Get all severity definitions with current thresholds.

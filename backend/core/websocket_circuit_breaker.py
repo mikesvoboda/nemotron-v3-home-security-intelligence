@@ -611,10 +611,12 @@ class WebSocketCircuitBreaker:
                 f"WebSocketCircuitBreaker '{self._name}' state persisted to Redis: "
                 f"state={self._state.value}"
             )
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
             # Log but don't raise - persistence failure shouldn't break circuit breaker
+            # These exceptions cover Redis connection failures and network issues
             logger.warning(
-                f"WebSocketCircuitBreaker '{self._name}' failed to persist state to Redis: {e}"
+                f"WebSocketCircuitBreaker '{self._name}' failed to persist state to Redis: {e}",
+                exc_info=True,
             )
 
     async def restore_state_from_redis(self) -> bool:
@@ -685,12 +687,15 @@ class WebSocketCircuitBreaker:
 
         except json.JSONDecodeError as e:
             logger.warning(
-                f"WebSocketCircuitBreaker '{self._name}' failed to decode state from Redis: {e}"
+                f"WebSocketCircuitBreaker '{self._name}' failed to decode state from Redis: {e}",
+                exc_info=True,
             )
             return False
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
+            # Redis connection failures and network issues
             logger.warning(
-                f"WebSocketCircuitBreaker '{self._name}' failed to restore state from Redis: {e}"
+                f"WebSocketCircuitBreaker '{self._name}' failed to restore state from Redis: {e}",
+                exc_info=True,
             )
             return False
 
@@ -711,8 +716,10 @@ class WebSocketCircuitBreaker:
                 f"WebSocketCircuitBreaker '{self._name}' cleared persisted state from Redis"
             )
             return True
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
+            # Redis connection failures and network issues
             logger.warning(
-                f"WebSocketCircuitBreaker '{self._name}' failed to clear state from Redis: {e}"
+                f"WebSocketCircuitBreaker '{self._name}' failed to clear state from Redis: {e}",
+                exc_info=True,
             )
             return False
