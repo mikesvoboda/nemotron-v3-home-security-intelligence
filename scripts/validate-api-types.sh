@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Validate API Type Contract Consistency
 #
