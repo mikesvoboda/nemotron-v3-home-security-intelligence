@@ -2329,6 +2329,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/analyze/{batch_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Analyze Batch Streaming
+         * @description Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).
+         *
+         *     This endpoint provides progressive LLM response updates during long inference
+         *     times, allowing the frontend to display partial results and show typing
+         *     indicators while the analysis is in progress.
+         *
+         *     Event Types:
+         *     - progress: Partial LLM response chunk with accumulated_text
+         *     - complete: Final event with risk assessment and event_id
+         *     - error: Error information with error_code and recoverable flag
+         *
+         *     Args:
+         *         batch_id: Batch identifier to analyze
+         *         camera_id: Optional camera ID (uses Redis lookup if not provided)
+         *         detection_ids: Optional comma-separated detection IDs
+         *
+         *     Returns:
+         *         StreamingResponse with SSE event stream (text/event-stream)
+         *
+         *     Example SSE output:
+         *         data: {"event_type": "progress", "content": "Based on", "accumulated_text": "Based on"}
+         *
+         *         data: {"event_type": "progress", "content": " the", "accumulated_text": "Based on the"}
+         *
+         *         data: {"event_type": "complete", "event_id": 123, "risk_score": 75, ...}
+         */
+        get: operations["analyze_batch_streaming_api_events_analyze__batch_id__stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/export": {
         parameters: {
             query?: never;
@@ -14684,6 +14728,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_batch_streaming_api_events_analyze__batch_id__stream_get: {
+        parameters: {
+            query?: {
+                /** @description Camera ID for the batch */
+                camera_id?: string | null;
+                /** @description Comma-separated detection IDs (optional) */
+                detection_ids?: string | null;
+            };
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
