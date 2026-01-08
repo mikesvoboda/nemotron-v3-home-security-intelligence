@@ -30,6 +30,7 @@ Circuit Breaker for DLQ:
 from __future__ import annotations
 
 import asyncio
+import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -97,7 +98,16 @@ class RetryConfig:
 
 @dataclass(slots=True)
 class JobFailure:
-    """Record of a failed job."""
+    """Record of a failed job with enriched error context.
+
+    Error context fields (NEM-1474):
+    - error_type: Exception class name for categorization
+    - stack_trace: Truncated stack trace for debugging
+    - http_status: HTTP status code (for network errors)
+    - response_body: Truncated AI service response (for debugging)
+    - retry_delays: Delays applied between retry attempts
+    - context: System state snapshot at failure time (queue depths, circuit breaker states)
+    """
 
     original_job: dict[str, Any]
     error: str
@@ -105,6 +115,13 @@ class JobFailure:
     first_failed_at: str
     last_failed_at: str
     queue_name: str
+    # Error context enrichment fields (NEM-1474)
+    error_type: str | None = None
+    stack_trace: str | None = None
+    http_status: int | None = None
+    response_body: str | None = None
+    retry_delays: list[float] | None = None
+    context: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
@@ -115,6 +132,13 @@ class JobFailure:
             "first_failed_at": self.first_failed_at,
             "last_failed_at": self.last_failed_at,
             "queue_name": self.queue_name,
+            # Error context fields
+            "error_type": self.error_type,
+            "stack_trace": self.stack_trace,
+            "http_status": self.http_status,
+            "response_body": self.response_body,
+            "retry_delays": self.retry_delays,
+            "context": self.context,
         }
 
     @classmethod
@@ -127,6 +151,13 @@ class JobFailure:
             first_failed_at=data["first_failed_at"],
             last_failed_at=data["last_failed_at"],
             queue_name=data["queue_name"],
+            # Error context fields (with defaults for backward compatibility)
+            error_type=data.get("error_type"),
+            stack_trace=data.get("stack_trace"),
+            http_status=data.get("http_status"),
+            response_body=data.get("response_body"),
+            retry_delays=data.get("retry_delays"),
+            context=data.get("context"),
         )
 
 
@@ -241,7 +272,7 @@ class RetryHandler:
         """Execute an operation with retry logic.
 
         Retries the operation with exponential backoff. If all retries fail,
-        the job is moved to the dead-letter queue.
+        the job is moved to the dead-letter queue with enriched error context.
 
         Args:
             operation: Async callable to execute
@@ -254,7 +285,9 @@ class RetryHandler:
             RetryResult with success status and result or error info
         """
         last_error: str | None = None
+        last_exception: BaseException | None = None
         first_failed_at: str | None = None
+        retry_delays: list[float] = []
 
         for attempt in range(1, self._config.max_retries + 1):
             try:
@@ -285,6 +318,7 @@ class RetryHandler:
 
             except Exception as e:
                 last_error = str(e)
+                last_exception = e
                 if first_failed_at is None:
                     first_failed_at = datetime.now(UTC).isoformat()
 
@@ -300,6 +334,7 @@ class RetryHandler:
 
                 if attempt < self._config.max_retries:
                     delay = self._config.get_delay(attempt)
+                    retry_delays.append(delay)
                     logger.debug(
                         f"Waiting {delay:.2f}s before retry {attempt + 1}",
                         extra={
@@ -309,15 +344,23 @@ class RetryHandler:
                     )
                     await asyncio.sleep(delay)
 
-        # All retries exhausted - move to DLQ
+        # All retries exhausted - move to DLQ with enriched error context
         moved_to_dlq = False
         if self._redis and first_failed_at:
+            # Extract error context from the last exception
+            error_context = self._extract_error_context(last_exception)
+
             moved_to_dlq = await self._move_to_dlq(
                 job_data=job_data,
                 error=last_error or "Unknown error",
                 attempt_count=self._config.max_retries,
                 first_failed_at=first_failed_at,
                 queue_name=queue_name,
+                error_type=error_context.get("error_type"),
+                stack_trace=error_context.get("stack_trace"),
+                http_status=error_context.get("http_status"),
+                response_body=error_context.get("response_body"),
+                retry_delays=retry_delays if retry_delays else None,
             )
 
         logger.error(
@@ -336,6 +379,92 @@ class RetryHandler:
             moved_to_dlq=moved_to_dlq,
         )
 
+    def _extract_error_context(self, exc: BaseException | None) -> dict[str, Any]:
+        """Extract error context from an exception for DLQ enrichment.
+
+        Args:
+            exc: The exception to extract context from
+
+        Returns:
+            Dictionary containing error context fields
+        """
+        if exc is None:
+            return {}
+
+        # Maximum lengths for truncation
+        max_stack_trace_length = 4096
+        max_response_body_length = 2048
+
+        context: dict[str, Any] = {}
+
+        # Extract error type (exception class name)
+        context["error_type"] = type(exc).__name__
+
+        # Truncation suffixes
+        stack_trace_suffix = "\n... [truncated]"
+        response_body_suffix = "... [truncated]"
+
+        # Extract stack trace
+        try:
+            stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            if len(stack_trace) > max_stack_trace_length:
+                # Truncate, accounting for suffix length
+                truncate_at = max_stack_trace_length - len(stack_trace_suffix)
+                stack_trace = stack_trace[:truncate_at] + stack_trace_suffix
+            context["stack_trace"] = stack_trace
+        except Exception:
+            context["stack_trace"] = None
+
+        # Extract HTTP status and response body from httpx errors
+        try:
+            import httpx
+
+            if isinstance(exc, httpx.HTTPStatusError):
+                context["http_status"] = exc.response.status_code
+                response_text = exc.response.text
+                if len(response_text) > max_response_body_length:
+                    # Truncate, accounting for suffix length
+                    truncate_at = max_response_body_length - len(response_body_suffix)
+                    response_text = response_text[:truncate_at] + response_body_suffix
+                context["response_body"] = response_text
+        except ImportError:
+            pass  # httpx not installed, HTTP context not available
+        except Exception as e:
+            logger.debug(f"Failed to extract HTTP context from exception: {e}")
+
+        return context
+
+    async def _capture_system_context(self) -> dict[str, Any]:
+        """Capture system state at failure time for debugging.
+
+        Returns:
+            Dictionary containing system state snapshot:
+            - detection_queue_depth: Number of jobs in detection queue
+            - analysis_queue_depth: Number of jobs in analysis queue
+            - dlq_circuit_breaker_state: Current circuit breaker state
+        """
+        context: dict[str, Any] = {}
+
+        # Capture queue depths
+        try:
+            if self._redis:
+                from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
+
+                detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
+                analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
+                context["detection_queue_depth"] = detection_depth
+                context["analysis_queue_depth"] = analysis_depth
+        except Exception as e:
+            logger.debug(f"Failed to capture queue depths for error context: {e}")
+
+        # Capture circuit breaker state
+        try:
+            context["dlq_circuit_breaker_state"] = self._dlq_circuit_breaker.state.value
+        except Exception as e:
+            logger.debug(f"Failed to capture circuit breaker state for error context: {e}")
+
+        return context
+
     async def _move_to_dlq(
         self,
         job_data: dict[str, Any],
@@ -343,8 +472,13 @@ class RetryHandler:
         attempt_count: int,
         first_failed_at: str,
         queue_name: str,
+        error_type: str | None = None,
+        stack_trace: str | None = None,
+        http_status: int | None = None,
+        response_body: str | None = None,
+        retry_delays: list[float] | None = None,
     ) -> bool:
-        """Move a failed job to the dead-letter queue.
+        """Move a failed job to the dead-letter queue with enriched error context.
 
         Uses a circuit breaker to prevent cascading failures when the DLQ
         is unavailable or overflowing. When the circuit is open, DLQ writes
@@ -356,6 +490,11 @@ class RetryHandler:
             attempt_count: Number of attempts made
             first_failed_at: ISO timestamp of first failure
             queue_name: Original queue name
+            error_type: Exception class name (for categorization)
+            stack_trace: Truncated stack trace (for debugging)
+            http_status: HTTP status code (for network errors)
+            response_body: Truncated AI service response (for debugging)
+            retry_delays: Delays applied between retry attempts
 
         Returns:
             True if job was moved successfully
@@ -390,6 +529,10 @@ class RetryHandler:
 
         try:
             dlq_name = self._get_dlq_name(queue_name)
+
+            # Capture system context at failure time
+            system_context = await self._capture_system_context()
+
             failure = JobFailure(
                 original_job=job_data,
                 error=error,
@@ -397,6 +540,13 @@ class RetryHandler:
                 first_failed_at=first_failed_at,
                 last_failed_at=datetime.now(UTC).isoformat(),
                 queue_name=queue_name,
+                # Error context enrichment (NEM-1474)
+                error_type=error_type,
+                stack_trace=stack_trace,
+                http_status=http_status,
+                response_body=response_body,
+                retry_delays=retry_delays,
+                context=system_context,
             )
 
             # Use add_to_queue_safe to prevent silent data loss

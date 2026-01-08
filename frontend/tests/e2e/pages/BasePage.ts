@@ -162,14 +162,20 @@ export class BasePage {
    * Navigate to System via sidebar
    */
   async navigateToSystem(): Promise<void> {
-    await this.page.goto('/system');
+    // Use longer timeout for Firefox/WebKit (NEM-1486)
+    const browserName = this.page.context().browser()?.browserType().name();
+    const timeout = (browserName === 'firefox' || browserName === 'webkit') ? 30000 : undefined;
+    await this.page.goto('/system', { timeout });
   }
 
   /**
    * Navigate to Settings via sidebar
    */
   async navigateToSettings(): Promise<void> {
-    await this.page.goto('/settings');
+    // Use longer timeout for Firefox/WebKit (NEM-1486)
+    const browserName = this.page.context().browser()?.browserType().name();
+    const timeout = (browserName === 'firefox' || browserName === 'webkit') ? 30000 : undefined;
+    await this.page.goto('/settings', { timeout });
   }
 
   /**

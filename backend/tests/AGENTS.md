@@ -133,6 +133,55 @@ All shared fixtures are defined in `backend/tests/conftest.py`. DO NOT duplicate
 | `event_factory`     | function | EventFactory for creating Event instances         |
 | `zone_factory`      | function | ZoneFactory for creating Zone instances           |
 
+### Consolidated Mock Fixtures (NEM-1448)
+
+These fixtures provide pre-configured mocks to reduce boilerplate in tests. Use them instead of creating inline mocks.
+
+| Fixture                   | Type      | Description                                                    |
+| ------------------------- | --------- | -------------------------------------------------------------- |
+| `mock_db_session`         | AsyncMock | Mock AsyncSession with add/commit/refresh/execute configured   |
+| `mock_db_session_context` | AsyncMock | Async context manager wrapping mock_db_session for get_session |
+| `mock_http_response`      | MagicMock | Mock httpx.Response with status_code/json/text configured      |
+| `mock_http_client`        | AsyncMock | Mock httpx.AsyncClient with all HTTP methods and context mgr   |
+| `mock_detector_client`    | AsyncMock | Mock DetectorClient with detect_objects/health_check           |
+| `mock_nemotron_client`    | AsyncMock | Mock NemotronAnalyzer with analyze/health_check                |
+| `mock_redis_client`       | AsyncMock | Comprehensive Redis mock with get/set/publish/queue operations |
+| `mock_settings`           | MagicMock | Mock Settings with database/redis/ai_host defaults             |
+| `mock_baseline_service`   | MagicMock | Mock BaselineService for avoiding database in unit tests       |
+
+**Usage Examples:**
+
+```python
+# Database session mock
+@pytest.mark.asyncio
+async def test_with_db(mock_db_session):
+    mock_db_session.execute.return_value.scalars.return_value.all.return_value = [camera]
+    await service.do_something(mock_db_session)
+    mock_db_session.commit.assert_called_once()
+
+# HTTP client mock
+@pytest.mark.asyncio
+async def test_api_call(mock_http_client, mock_http_response):
+    mock_http_response.json.return_value = {"detections": []}
+    mock_http_client.post.return_value = mock_http_response
+    with patch("httpx.AsyncClient", return_value=mock_http_client):
+        result = await detector.detect(image_path)
+
+# Database context manager mock
+@pytest.mark.asyncio
+async def test_with_context(mock_db_session, mock_db_session_context):
+    with patch("backend.core.database.get_session", return_value=mock_db_session_context):
+        await my_function()  # Uses async with get_session() as session:
+        mock_db_session.commit.assert_called()
+
+# Redis mock
+@pytest.mark.asyncio
+async def test_caching(mock_redis_client):
+    mock_redis_client.get.return_value = '{"cached": "data"}'
+    service = CacheService(redis=mock_redis_client)
+    result = await service.get_cached("key")
+```
+
 ## Test Data Factories (factory_boy)
 
 Test fixtures use **factory_boy** for generating consistent test data. Factories are defined in `backend/tests/factories.py`.
