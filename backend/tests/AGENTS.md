@@ -264,6 +264,89 @@ Timeouts are applied automatically based on test location:
 | Slow-marked tests | 30s     | `@pytest.mark.slow`                            |
 | CLI override      | varies  | `--timeout=N` (0 disables)                     |
 
+## Test Markers
+
+Tests are organized using pytest markers for selective execution. Markers are auto-applied based on directory location and can also be explicitly set using decorators.
+
+### Available Markers
+
+| Marker        | Description                                   | Auto-applied             |
+| ------------- | --------------------------------------------- | ------------------------ |
+| `unit`        | Unit test (isolated component testing)        | Yes (`/unit/` directory) |
+| `integration` | Integration test (multi-component workflows)  | Yes (`/integration/`)    |
+| `e2e`         | End-to-end pipeline test                      | No                       |
+| `gpu`         | GPU test (requires RTX A5500)                 | No                       |
+| `slow`        | Legitimately slow test (30s timeout)          | No                       |
+| `benchmark`   | Benchmark test (requires pytest-benchmark)    | No                       |
+| `serial`      | Requires serial execution (no parallel)       | No                       |
+| `flaky`       | Known to fail intermittently (quarantined)    | No                       |
+| `network`     | Requires network access (for isolation in CI) | No                       |
+| `db`          | Requires database access                      | No                       |
+| `redis`       | Requires Redis access                         | No                       |
+
+### Running Tests by Marker
+
+```bash
+# Run only unit tests
+pytest -m unit backend/tests/
+
+# Run only integration tests
+pytest -m integration backend/tests/
+
+# Exclude slow tests (faster CI runs)
+pytest -m "not slow" backend/tests/
+
+# Exclude network-dependent tests (offline development)
+pytest -m "not network" backend/tests/
+
+# Combine marker expressions
+pytest -m "unit and not slow" backend/tests/
+pytest -m "integration and not flaky" backend/tests/
+
+# Run GPU tests only
+pytest -m gpu backend/tests/gpu/
+
+# Run everything except GPU and slow tests
+pytest -m "not gpu and not slow" backend/tests/
+```
+
+### Auto-Applied Markers
+
+The `pytest_collection_modifyitems` hook in `conftest.py` automatically applies markers:
+
+- Tests in `backend/tests/unit/` receive the `unit` marker
+- Tests in `backend/tests/integration/` receive the `integration` marker
+
+This means you can run `pytest -m unit` without manually marking every test file.
+
+### Explicit Marker Usage
+
+For markers that are not auto-applied, use decorators:
+
+```python
+import pytest
+
+@pytest.mark.slow
+def test_large_batch_processing():
+    """Test that processes 10,000 records."""
+    ...
+
+@pytest.mark.network
+async def test_external_api_call():
+    """Test that makes real HTTP requests."""
+    ...
+
+@pytest.mark.gpu
+async def test_rtdetr_inference():
+    """Test that requires GPU for object detection."""
+    ...
+
+@pytest.mark.flaky
+def test_timing_sensitive_operation():
+    """Test known to fail intermittently."""
+    ...
+```
+
 ## Coverage Requirements
 
 - **Unit Tests**: 85%+ coverage (CI unit test job)

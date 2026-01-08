@@ -574,4 +574,82 @@ describe('ThumbnailStrip', () => {
       expect(screen.getByText('Detection Sequence (50)')).toBeInTheDocument();
     });
   });
+
+  describe('snapshots', () => {
+    it('renders loading state skeleton', () => {
+      const { container } = render(<ThumbnailStrip detections={[]} loading={true} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with three detections', () => {
+      const { container } = render(<ThumbnailStrip detections={mockDetections} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with selected detection', () => {
+      const { container } = render(
+        <ThumbnailStrip detections={mockDetections} selectedDetectionId={2} />
+      );
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders single detection', () => {
+      const { container } = render(<ThumbnailStrip detections={[mockDetections[0]]} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders detection without object type or confidence', () => {
+      const minimalDetection: DetectionThumbnail[] = [
+        {
+          id: 1,
+          detected_at: '2024-01-15T10:30:00Z',
+          thumbnail_url: 'https://example.com/thumb1.jpg',
+        },
+      ];
+      const { container } = render(<ThumbnailStrip detections={minimalDetection} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with pagination (show more button)', () => {
+      const manyDetections = Array.from({ length: 30 }, (_, i) => ({
+        id: i + 1,
+        detected_at: `2024-01-15T10:30:${i.toString().padStart(2, '0')}Z`,
+        thumbnail_url: `https://example.com/thumb${i + 1}.jpg`,
+        object_type: `object-${i + 1}`,
+        confidence: 0.5 + i * 0.01,
+      }));
+      const { container } = render(
+        <ThumbnailStrip detections={manyDetections} initialDisplayCount={10} />
+      );
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with high confidence detection', () => {
+      const highConfidenceDetection: DetectionThumbnail[] = [
+        {
+          id: 1,
+          detected_at: '2024-01-15T10:30:00Z',
+          thumbnail_url: 'https://example.com/thumb1.jpg',
+          object_type: 'person',
+          confidence: 0.99,
+        },
+      ];
+      const { container } = render(<ThumbnailStrip detections={highConfidenceDetection} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with low confidence detection', () => {
+      const lowConfidenceDetection: DetectionThumbnail[] = [
+        {
+          id: 1,
+          detected_at: '2024-01-15T10:30:00Z',
+          thumbnail_url: 'https://example.com/thumb1.jpg',
+          object_type: 'person',
+          confidence: 0.15,
+        },
+      ];
+      const { container } = render(<ThumbnailStrip detections={lowConfidenceDetection} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+  });
 });

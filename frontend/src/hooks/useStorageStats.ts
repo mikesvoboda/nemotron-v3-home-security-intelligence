@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
+import { usePolling } from './usePolling';
 import {
   fetchStorageStats,
   previewCleanup,
@@ -66,35 +67,32 @@ export interface UseStorageStatsOptions {
 export function useStorageStats(options: UseStorageStatsOptions = {}): UseStorageStatsReturn {
   const { pollInterval = 60000, enablePolling = true } = options;
 
-  const [stats, setStats] = useState<StorageStatsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [cleanupPreview, setCleanupPreview] = useState<CleanupResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
-  /**
-   * Fetch storage stats from the API.
-   */
-  const fetchStats = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await fetchStorageStats();
-      setStats(data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch storage stats';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Use the generic polling hook for fetching storage stats
+  const {
+    data: stats,
+    loading,
+    error: pollingError,
+    refetch,
+  } = usePolling<StorageStatsResponse>({
+    fetcher: fetchStorageStats,
+    interval: pollInterval,
+    enabled: enablePolling,
+  });
+
+  // Convert Error to string for backward compatibility
+  const error = previewError ?? (pollingError?.message ?? null);
 
   /**
    * Manually trigger a refresh of storage stats.
+   * Sets loading state before refetch for backward compatibility.
    */
   const refresh = useCallback(async () => {
-    setLoading(true);
-    await fetchStats();
-  }, [fetchStats]);
+    await refetch();
+  }, [refetch]);
 
   /**
    * Preview what would be deleted by a cleanup operation.
@@ -102,37 +100,18 @@ export function useStorageStats(options: UseStorageStatsOptions = {}): UseStorag
   const handlePreviewCleanup = useCallback(async (): Promise<CleanupResponse | null> => {
     try {
       setPreviewLoading(true);
+      setPreviewError(null);
       const result = await previewCleanup();
       setCleanupPreview(result);
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to preview cleanup';
-      setError(message);
+      setPreviewError(message);
       return null;
     } finally {
       setPreviewLoading(false);
     }
   }, []);
-
-  // Initial fetch
-  useEffect(() => {
-    void fetchStats();
-  }, [fetchStats]);
-
-  // Set up polling
-  useEffect(() => {
-    if (!enablePolling || pollInterval <= 0) {
-      return;
-    }
-
-    const intervalId = setInterval(() => {
-      void fetchStats();
-    }, pollInterval);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [enablePolling, pollInterval, fetchStats]);
 
   return {
     stats,

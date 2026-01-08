@@ -421,3 +421,188 @@ describe('LoggerConfig type export', () => {
     expect(config).toBeDefined();
   });
 });
+
+describe('Promise.allSettled partial failure handling (NEM-1411)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let consoleSpy: {
+    log: ReturnType<typeof vi.spyOn>;
+    warn: ReturnType<typeof vi.spyOn>;
+    error: ReturnType<typeof vi.spyOn>;
+  };
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    consoleSpy = {
+      log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+      warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+      error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+    };
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('only re-queues failed entries when some requests fail (partial failure)', async () => {
+    // Configure fetch to fail for specific calls
+    let callCount = 0;
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- mock fetch returns Promise
+    fetchMock.mockImplementation(function mockFetch(): Promise<{ ok: boolean }> {
+      callCount++;
+      if (callCount === 2) {
+        // Second call fails
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.resolve({ ok: true });
+    });
+
+    const testLogger = new Logger({
+      batchSize: 100, // High batch size to prevent auto-flush
+      flushIntervalMs: 60000, // Long interval to prevent timer flush
+      endpoint: '/api/logs/frontend',
+      batchEndpoint: undefined, // Force individual requests (fallback path)
+      enabled: true,
+    });
+
+    // Add 3 log entries
+    testLogger.info('Message 1');
+    testLogger.info('Message 2');
+    testLogger.info('Message 3');
+
+    expect(testLogger.getQueueSize()).toBe(3);
+
+    // Flush - should use Promise.allSettled
+    await testLogger.flush();
+
+    // Should have called fetch 3 times
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    // Only the failed entry (2nd) should be re-queued
+    expect(testLogger.getQueueSize()).toBe(1);
+
+    // Error message should show partial failure count
+    expect(consoleSpy.error).toHaveBeenCalledWith('Failed to flush 1/3 logs');
+
+    testLogger.destroy();
+  });
+
+  it('does not re-queue any entries when all requests succeed', async () => {
+    fetchMock.mockResolvedValue({ ok: true });
+
+    const testLogger = new Logger({
+      batchSize: 100,
+      flushIntervalMs: 60000,
+      endpoint: '/api/logs/frontend',
+      batchEndpoint: undefined, // Force individual requests
+      enabled: true,
+    });
+
+    testLogger.info('Message 1');
+    testLogger.info('Message 2');
+
+    await testLogger.flush();
+
+    expect(testLogger.getQueueSize()).toBe(0);
+    expect(consoleSpy.error).not.toHaveBeenCalled();
+
+    testLogger.destroy();
+  });
+
+  it('re-queues all entries when all requests fail', async () => {
+    fetchMock.mockRejectedValue(new Error('Network error'));
+
+    const testLogger = new Logger({
+      batchSize: 100,
+      flushIntervalMs: 60000,
+      endpoint: '/api/logs/frontend',
+      batchEndpoint: undefined,
+      enabled: true,
+    });
+
+    testLogger.info('Message 1');
+    testLogger.info('Message 2');
+    testLogger.info('Message 3');
+
+    await testLogger.flush();
+
+    // All 3 entries should be re-queued
+    expect(testLogger.getQueueSize()).toBe(3);
+    expect(consoleSpy.error).toHaveBeenCalledWith('Failed to flush 3/3 logs');
+
+    testLogger.destroy();
+  });
+
+  it('respects maxQueueSize when re-queueing failed entries', async () => {
+    // All requests fail
+    fetchMock.mockRejectedValue(new Error('Network error'));
+
+    const testLogger = new Logger({
+      batchSize: 100,
+      flushIntervalMs: 60000,
+      endpoint: '/api/logs/frontend',
+      batchEndpoint: undefined,
+      maxQueueSize: 2, // Small max size
+      enabled: true,
+    });
+
+    testLogger.info('Message 1');
+    testLogger.info('Message 2');
+    testLogger.info('Message 3'); // Drops Message 1 due to maxQueueSize
+
+    expect(testLogger.getQueueSize()).toBe(2); // Only 2 due to maxQueueSize
+
+    await testLogger.flush();
+
+    // Cannot re-queue 2 entries when maxQueueSize is 2 and queue is empty
+    // Wait, queue is empty after flush starts, so 0 + 2 <= 2, should re-queue
+    expect(testLogger.getQueueSize()).toBe(2);
+
+    testLogger.destroy();
+  });
+
+  it('does not re-queue failed entries if it would exceed maxQueueSize', async () => {
+    let callCount = 0;
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- mock fetch returns Promise
+    fetchMock.mockImplementation(function mockFetch(): Promise<{ ok: boolean }> {
+      callCount++;
+      if (callCount === 2) {
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.resolve({ ok: true });
+    });
+
+    const testLogger = new Logger({
+      batchSize: 100,
+      flushIntervalMs: 60000,
+      endpoint: '/api/logs/frontend',
+      batchEndpoint: undefined,
+      maxQueueSize: 3,
+      enabled: true,
+    });
+
+    testLogger.info('Message 1');
+    testLogger.info('Message 2');
+    testLogger.info('Message 3');
+
+    // Start flush - this clears the queue and stores entries locally
+    const flushPromise = testLogger.flush();
+
+    // While flush is in progress, add more entries to fill the queue
+    testLogger.info('Message 4');
+    testLogger.info('Message 5');
+    testLogger.info('Message 6');
+
+    await flushPromise;
+
+    // Queue has 3 entries from new logs, and 1 failed entry cannot be re-queued
+    // because 3 + 1 > maxQueueSize (3)
+    expect(testLogger.getQueueSize()).toBe(3);
+    // Error should not be logged because we skipped re-queueing
+    expect(consoleSpy.error).not.toHaveBeenCalled();
+
+    testLogger.destroy();
+  });
+});
