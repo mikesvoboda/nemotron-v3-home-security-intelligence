@@ -239,7 +239,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
   };
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div data-testid="alerts-page" className={`flex flex-col ${className}`}>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3">
@@ -315,7 +315,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       ) : error ? (
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
           <div className="text-center">
-            <p className="mb-2 text-lg font-semibold text-red-500">Error Loading Alerts</p>
+            <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Alerts</p>
             <p className="text-sm text-gray-400">{error}</p>
           </div>
         </div>
