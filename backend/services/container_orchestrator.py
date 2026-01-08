@@ -304,6 +304,11 @@ class ContainerOrchestrator:
         # Use lifecycle manager (operates on shared registry)
         if self._lifecycle_manager:
             await self._lifecycle_manager.enable_service(name)
+        else:
+            # Fallback when lifecycle manager isn't available (e.g., in tests)
+            self._registry.reset_failures(name)
+            self._registry.set_enabled(name, True)
+            self._registry.update_status(name, ContainerServiceStatus.STOPPED)
 
         # Broadcast status change
         updated_service = self._registry.get(name)
@@ -332,6 +337,10 @@ class ContainerOrchestrator:
         # Use lifecycle manager (operates on shared registry)
         if self._lifecycle_manager:
             await self._lifecycle_manager.disable_service(name)
+        else:
+            # Fallback when lifecycle manager isn't available (e.g., in tests)
+            self._registry.set_enabled(name, False)
+            self._registry.update_status(name, ContainerServiceStatus.DISABLED)
 
         # Broadcast status change
         updated_service = self._registry.get(name)

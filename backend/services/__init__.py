@@ -8,8 +8,6 @@ from .audit import (
     get_db_audit_service,
     reset_db_audit_service,
 )
-from .audit_service import AuditService as AIAuditService
-from .audit_service import get_audit_service, reset_audit_service
 from .background_evaluator import (
     BackgroundEvaluator,
     get_background_evaluator,
