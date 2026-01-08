@@ -7,6 +7,11 @@ Includes event loop tracking to handle pytest-asyncio's per-test event loops.
 When the engine is bound to a different event loop than the current one,
 it is automatically disposed and recreated to prevent "Future attached to
 a different loop" errors.
+
+Slow Query Logging (NEM-1475):
+    Queries exceeding SLOW_QUERY_THRESHOLD_MS are logged at WARNING level with
+    query text (truncated) and duration. Optionally records Prometheus metrics
+    for query duration distribution.
 """
 
 __all__ = [
@@ -14,6 +19,7 @@ __all__ = [
     "Base",
     # Functions
     "close_db",
+    "disable_slow_query_logging",
     "escape_ilike_pattern",
     "get_db",
     "get_engine",
@@ -21,15 +27,18 @@ __all__ = [
     "get_session",
     "get_session_factory",
     "init_db",
+    "reset_slow_query_logging_state",
+    "setup_slow_query_logging",
 ]
 
 import asyncio
 import hashlib
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -39,6 +48,10 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
+
+# Module logger for slow query logging
+_logger = get_logger(__name__)
 
 # Advisory lock key for database schema initialization
 # This is a stable key derived from a namespace string to ensure all workers
@@ -402,3 +415,195 @@ async def get_pool_status() -> dict[str, Any]:
             "total_connections": 0,
             "pooling_disabled": True,
         }
+
+
+# =============================================================================
+# Slow Query Logging (NEM-1475)
+# =============================================================================
+
+# Track whether slow query logging has been set up to avoid duplicate listeners
+_slow_query_logging_enabled = False
+
+
+def _before_cursor_execute(
+    conn: Any,
+    _cursor: Any,
+    _statement: str,
+    _parameters: Any,
+    _context: Any,
+    _executemany: bool,
+) -> None:
+    """SQLAlchemy event listener called before query execution.
+
+    Records the query start time in the connection's info dict for later
+    duration calculation.
+
+    Args:
+        conn: The database connection
+        _cursor: The database cursor (unused, required by SQLAlchemy event signature)
+        _statement: The SQL statement (unused here, used in after_cursor_execute)
+        _parameters: Query parameters (unused, required by SQLAlchemy event signature)
+        _context: Execution context (unused, required by SQLAlchemy event signature)
+        _executemany: Whether this is an executemany call (unused, required by event signature)
+    """
+    conn.info["query_start_time"] = time.perf_counter()
+
+
+def _after_cursor_execute(
+    conn: Any,
+    _cursor: Any,
+    statement: str,
+    _parameters: Any,
+    _context: Any,
+    executemany: bool,
+) -> None:
+    """SQLAlchemy event listener called after query execution.
+
+    Calculates query duration and logs a warning if it exceeds the configured
+    threshold. Also records metrics for all queries.
+
+    Args:
+        conn: The database connection
+        _cursor: The database cursor (unused, required by SQLAlchemy event signature)
+        statement: The SQL statement that was executed
+        _parameters: Query parameters (unused, required by SQLAlchemy event signature)
+        _context: Execution context (unused, required by SQLAlchemy event signature)
+        executemany: Whether this was an executemany call
+    """
+    start_time = conn.info.get("query_start_time")
+    if start_time is None:
+        return
+
+    duration_seconds = time.perf_counter() - start_time
+    duration_ms = duration_seconds * 1000
+
+    # Record metrics for all queries
+    try:
+        from backend.core.metrics import observe_db_query_duration, record_slow_query
+
+        observe_db_query_duration(duration_seconds)
+    except ImportError:
+        # Metrics module not available (e.g., during testing without full setup)
+        pass
+
+    # Check if query exceeds slow query threshold
+    settings = get_settings()
+    threshold_ms = settings.slow_query_threshold_ms
+
+    if duration_ms > threshold_ms:
+        # Record slow query metric
+        try:
+            record_slow_query()
+        except (ImportError, NameError):
+            pass
+
+        # Truncate query for logging (max 500 chars)
+        truncated_query = statement[:500]
+        if len(statement) > 500:
+            truncated_query += "..."
+
+        _logger.warning(
+            "Slow query detected",
+            extra={
+                "query": truncated_query,
+                "duration_ms": round(duration_ms, 2),
+                "threshold_ms": threshold_ms,
+                "executemany": executemany,
+            },
+        )
+
+
+def setup_slow_query_logging(engine: AsyncEngine | None = None) -> bool:
+    """Set up SQLAlchemy event listeners for slow query logging.
+
+    Attaches before_cursor_execute and after_cursor_execute event listeners
+    to the engine's sync_engine to track query durations and log slow queries.
+
+    Args:
+        engine: Optional AsyncEngine to attach listeners to. If None, uses
+            the global engine from get_engine().
+
+    Returns:
+        True if listeners were successfully attached, False otherwise.
+
+    Note:
+        This function is idempotent - calling it multiple times will not
+        attach duplicate listeners. The listeners are attached to the
+        sync_engine underlying the AsyncEngine.
+
+    Example:
+        >>> await init_db()
+        >>> setup_slow_query_logging()
+        True
+    """
+    global _slow_query_logging_enabled  # noqa: PLW0603
+
+    if _slow_query_logging_enabled:
+        _logger.debug("Slow query logging already enabled")
+        return True
+
+    target_engine = engine or _engine
+    if target_engine is None:
+        _logger.warning("Cannot setup slow query logging: no engine available")
+        return False
+
+    try:
+        # Get the underlying sync engine from the async engine
+        sync_engine = target_engine.sync_engine
+
+        # Attach event listeners
+        event.listen(sync_engine, "before_cursor_execute", _before_cursor_execute)
+        event.listen(sync_engine, "after_cursor_execute", _after_cursor_execute)
+
+        _slow_query_logging_enabled = True
+        _logger.info(
+            "Slow query logging enabled",
+            extra={"threshold_ms": get_settings().slow_query_threshold_ms},
+        )
+        return True
+    except Exception as e:
+        _logger.error(f"Failed to setup slow query logging: {e}")
+        return False
+
+
+def disable_slow_query_logging(engine: AsyncEngine | None = None) -> bool:
+    """Remove slow query logging event listeners.
+
+    Args:
+        engine: Optional AsyncEngine to remove listeners from. If None, uses
+            the global engine from get_engine().
+
+    Returns:
+        True if listeners were successfully removed, False otherwise.
+    """
+    global _slow_query_logging_enabled  # noqa: PLW0603
+
+    if not _slow_query_logging_enabled:
+        return True
+
+    target_engine = engine or _engine
+    if target_engine is None:
+        _slow_query_logging_enabled = False
+        return True
+
+    try:
+        sync_engine = target_engine.sync_engine
+
+        event.remove(sync_engine, "before_cursor_execute", _before_cursor_execute)
+        event.remove(sync_engine, "after_cursor_execute", _after_cursor_execute)
+
+        _slow_query_logging_enabled = False
+        _logger.info("Slow query logging disabled")
+        return True
+    except Exception as e:
+        _logger.error(f"Failed to disable slow query logging: {e}")
+        return False
+
+
+def reset_slow_query_logging_state() -> None:
+    """Reset the slow query logging state flag.
+
+    This is primarily used for testing to reset state between tests.
+    """
+    global _slow_query_logging_enabled  # noqa: PLW0603
+    _slow_query_logging_enabled = False

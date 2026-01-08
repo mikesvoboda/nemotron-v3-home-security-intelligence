@@ -484,3 +484,222 @@ export function createWsGpuStatsMessage(stats: Partial<GpuStats> = {}) {
     timestamp: new Date().toISOString(),
   };
 }
+
+// ============================================================================
+// API Response Types and Factories
+// ============================================================================
+
+/**
+ * Health response service status.
+ */
+export interface HealthServiceStatus {
+  status: string;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Health check API response.
+ */
+export interface HealthResponse {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  services: {
+    database: HealthServiceStatus;
+    redis: HealthServiceStatus;
+    ai: HealthServiceStatus;
+    [key: string]: HealthServiceStatus;
+  };
+}
+
+/**
+ * Paginated event list API response.
+ */
+export interface EventListResponse {
+  events: Event[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+/**
+ * Camera list API response.
+ */
+export interface CameraListResponse {
+  cameras: Camera[];
+  count: number;
+}
+
+/**
+ * GPU stats API response.
+ * Matches the backend GPUStatsResponse schema.
+ */
+export interface GPUStatsResponse {
+  gpu_name?: string | null;
+  utilization?: number | null;
+  memory_used?: number | null;
+  memory_total?: number | null;
+  temperature?: number | null;
+  power_usage?: number | null;
+  inference_fps?: number | null;
+}
+
+/**
+ * API error response.
+ */
+export interface ErrorResponse {
+  detail: string;
+  status: number;
+}
+
+/**
+ * Creates a camera response for API mocking.
+ * Wrapper around createCamera for semantic clarity in tests.
+ *
+ * @param overrides - Partial camera to override defaults
+ * @returns Complete camera object
+ *
+ * @example
+ * const response = createCameraResponse({ name: 'Back Door', status: 'offline' });
+ */
+export function createCameraResponse(overrides?: Partial<Camera>): Camera {
+  return createCamera(overrides);
+}
+
+/**
+ * Creates a camera list response for API mocking.
+ *
+ * @param count - Number of cameras to include (default: 3)
+ * @returns Camera list API response
+ *
+ * @example
+ * const response = createCamerasResponse(5);
+ * // Returns: { cameras: [...], count: 5 }
+ */
+export function createCamerasResponse(count: number = 3): CameraListResponse {
+  const cameras = Array.from({ length: count }, (_, i) =>
+    createCamera({ id: `camera-${i}`, name: `Camera ${i}` })
+  );
+  return {
+    cameras,
+    count: cameras.length,
+  };
+}
+
+/**
+ * Creates a health check API response.
+ *
+ * @param status - Overall health status (default: 'healthy')
+ * @returns Health response with service statuses
+ *
+ * @example
+ * const healthy = createHealthResponse();
+ * const degraded = createHealthResponse('degraded');
+ */
+export function createHealthResponse(
+  status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
+): HealthResponse {
+  const serviceStatus = status === 'healthy' ? 'healthy' : 'unhealthy';
+  const serviceMessage =
+    status === 'healthy' ? 'Service operational' : 'Service unavailable';
+
+  return {
+    status,
+    timestamp: new Date().toISOString(),
+    services: {
+      database: {
+        status: serviceStatus,
+        message: status === 'healthy' ? 'Database operational' : 'Database connection failed',
+      },
+      redis: {
+        status: serviceStatus,
+        message: status === 'healthy' ? 'Redis connected' : 'Redis connection failed',
+        details: status === 'healthy' ? { redis_version: '7.0.0' } : undefined,
+      },
+      ai: {
+        status: serviceStatus,
+        message: status === 'healthy' ? 'AI services operational' : serviceMessage,
+      },
+    },
+  };
+}
+
+/**
+ * Creates a paginated event list API response.
+ *
+ * @param events - Events to include (defaults to single event)
+ * @param pagination - Pagination parameters
+ * @returns Event list response with pagination metadata
+ *
+ * @example
+ * const response = createEventListResponse(createEvents(10), { total: 100, page: 1, pageSize: 10 });
+ */
+export function createEventListResponse(
+  events?: Event[],
+  pagination?: { total: number; page: number; pageSize: number }
+): EventListResponse {
+  const eventList = events ?? [createEvent()];
+  const total = pagination?.total ?? eventList.length;
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? 20;
+
+  return {
+    events: eventList,
+    total,
+    page,
+    page_size: pageSize,
+    pages: Math.ceil(total / pageSize),
+  };
+}
+
+/**
+ * Creates an API error response.
+ *
+ * @param status - HTTP status code
+ * @param message - Error detail message
+ * @returns Error response object
+ *
+ * @example
+ * const notFound = createErrorResponse(404, 'Camera not found');
+ * const serverError = createErrorResponse(500, 'Internal server error');
+ */
+export function createErrorResponse(status: number, message: string): ErrorResponse {
+  return { detail: message, status };
+}
+
+/**
+ * Creates a GPU stats API response.
+ *
+ * @param overrides - Partial stats to override defaults
+ * @returns GPU stats response matching backend schema
+ *
+ * @example
+ * const stats = createGPUStatsResponse({ utilization: 95, temperature: 80 });
+ */
+export function createGPUStatsResponse(overrides?: Partial<GPUStatsResponse>): GPUStatsResponse {
+  return {
+    gpu_name: 'NVIDIA RTX A5500',
+    utilization: 45,
+    memory_used: 8192,
+    memory_total: 24576,
+    temperature: 65,
+    power_usage: 150,
+    inference_fps: 30.5,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates an event response for API mocking.
+ * Wrapper around createEvent for semantic clarity in tests.
+ *
+ * @param overrides - Partial event to override defaults
+ * @returns Complete event object
+ *
+ * @example
+ * const response = createEventResponse({ risk_score: 85 });
+ */
+export function createEventResponse(overrides?: Partial<Event>): Event {
+  return createEvent(overrides);
+}

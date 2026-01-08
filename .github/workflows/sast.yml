@@ -14,17 +14,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Set up Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: '3.14'
+          enable-cache: true
 
-      - name: Install Bandit
-        run: pip install bandit
+      - name: Set up Python
+        run: uv python install 3.14
 
       - name: Run Bandit
         run: |
-          bandit -r backend/ \
+          uv tool run bandit -r backend/ \
             -c .bandit.yml \
             -b .bandit.baseline \
             -x "backend/tests/*" \

@@ -1609,6 +1609,52 @@ def record_batch_max_reached(camera_id: str) -> None:
 
 
 # =============================================================================
+# Database Query Duration Metrics (NEM-1475)
+# =============================================================================
+
+# Buckets for database query durations (in seconds)
+# Covers range from 10ms to 10s with finer granularity at lower values
+DB_QUERY_DURATION_BUCKETS = (
+    0.01,  # 10ms
+    0.05,  # 50ms
+    0.1,  # 100ms
+    0.25,  # 250ms
+    0.5,  # 500ms
+    1.0,  # 1s
+    2.5,  # 2.5s
+    5.0,  # 5s
+    10.0,  # 10s
+)
+
+DB_QUERY_DURATION_SECONDS = Histogram(
+    "hsi_db_query_duration_seconds",
+    "Database query duration in seconds",
+    buckets=DB_QUERY_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+SLOW_QUERIES_TOTAL = Counter(
+    "hsi_slow_queries_total",
+    "Total number of slow database queries detected",
+    registry=_registry,
+)
+
+
+def observe_db_query_duration(duration_seconds: float) -> None:
+    """Record a database query duration to the histogram.
+
+    Args:
+        duration_seconds: Query duration in seconds
+    """
+    DB_QUERY_DURATION_SECONDS.observe(duration_seconds)
+
+
+def record_slow_query() -> None:
+    """Increment the counter for slow database queries."""
+    SLOW_QUERIES_TOTAL.inc()
+
+
+# =============================================================================
 # Token Counting Metrics (NEM-1723)
 # =============================================================================
 
