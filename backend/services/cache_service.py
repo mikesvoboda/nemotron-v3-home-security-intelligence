@@ -37,6 +37,7 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import Any, ParamSpec, TypeVar
 
+from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.metrics import record_cache_hit, record_cache_invalidation, record_cache_miss
 from backend.core.redis import RedisClient, init_redis
@@ -51,8 +52,26 @@ DEFAULT_TTL = 300  # 5 minutes
 SHORT_TTL = 60  # 1 minute
 LONG_TTL = 3600  # 1 hour
 
+
+def _get_global_prefix() -> str:
+    """Get the global Redis key prefix from settings.
+
+    Returns:
+        The global Redis key prefix (default: "hsi")
+    """
+    return get_settings().redis_key_prefix
+
+
 # Cache key prefixes for different data types
-CACHE_PREFIX = "cache:"
+# Now include the global prefix for multi-instance/blue-green deployments (NEM-1621)
+def _get_cache_prefix() -> str:
+    """Get the full cache prefix including global prefix."""
+    return f"{_get_global_prefix()}:cache:"
+
+
+# Note: CACHE_PREFIX is now a function call result for backward compatibility
+# with existing tests. In production, use CacheKeys methods for proper prefixing.
+CACHE_PREFIX = "cache:"  # Keep for backward compatibility in CacheService internals
 CAMERAS_PREFIX = f"{CACHE_PREFIX}cameras:"
 EVENTS_PREFIX = f"{CACHE_PREFIX}events:"
 STATS_PREFIX = f"{CACHE_PREFIX}stats:"
@@ -349,34 +368,102 @@ class CacheService:
             return False
 
 
+# Create a singleton-like accessor for CacheKeys.PREFIX as a class attribute
+# This is needed because the tests expect CacheKeys.PREFIX (not instance.PREFIX)
+# NEM-1621: Redis key prefix namespacing for multi-instance/blue-green deployments
+class _CacheKeysMeta(type):
+    """Metaclass to make CacheKeys.PREFIX work as a class attribute."""
+
+    @property
+    def PREFIX(cls) -> str:
+        """Get the global prefix from settings."""
+        return _get_global_prefix()
+
+
 # Cache keys for commonly accessed data
-class CacheKeys:
-    """Standard cache key generators for commonly cached data."""
+class CacheKeys(metaclass=_CacheKeysMeta):
+    """Standard cache key generators for commonly cached data.
+
+    All cache keys include a global prefix from settings (default: "hsi")
+    to enable key isolation for multi-instance and blue-green deployments
+    (NEM-1621).
+
+    Key format: {PREFIX}:cache:{key_type}:{key_details}
+    Queue format: {PREFIX}:queue:{queue_name}
+    """
 
     @staticmethod
     def cameras_list() -> str:
-        """Cache key for full camera list."""
-        return "cameras:list"
+        """Cache key for full camera list.
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:cameras:list
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:cameras:list"
 
     @staticmethod
     def cameras_list_by_status(status: str | None) -> str:
-        """Cache key for camera list filtered by status."""
-        return f"cameras:list:{status or 'all'}"
+        """Cache key for camera list filtered by status.
+
+        Args:
+            status: Camera status filter or None for all
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:cameras:list:{status}
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:cameras:list:{status or 'all'}"
 
     @staticmethod
     def camera(camera_id: str) -> str:
-        """Cache key for a single camera."""
-        return f"cameras:{camera_id}"
+        """Cache key for a single camera.
+
+        Args:
+            camera_id: Camera identifier
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:cameras:{camera_id}
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:cameras:{camera_id}"
 
     @staticmethod
     def event_stats(start_date: str | None = None, end_date: str | None = None) -> str:
-        """Cache key for event statistics."""
-        return f"stats:events:{start_date or 'none'}:{end_date or 'none'}"
+        """Cache key for event statistics.
+
+        Args:
+            start_date: Start date for stats range
+            end_date: End date for stats range
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:event_stats:{start}:{end}
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:event_stats:{start_date or 'none'}:{end_date or 'none'}"
 
     @staticmethod
     def system_status() -> str:
-        """Cache key for system status."""
-        return "system:status"
+        """Cache key for system status.
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:system:status
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:system:status"
+
+    @staticmethod
+    def queue(queue_name: str) -> str:
+        """Cache key for queue operations.
+
+        Args:
+            queue_name: Name of the queue (e.g., "detection_queue")
+
+        Returns:
+            Prefixed queue key: {PREFIX}:queue:{queue_name}
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:queue:{queue_name}"
 
 
 # Singleton instance

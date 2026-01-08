@@ -7,6 +7,7 @@ import hashlib
 import os
 import shutil
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -1187,6 +1188,7 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
     content = "\n".join(f"{k}={v}" for k, v in sorted(existing.items())) + "\n"
 
     # Write with explicit flush and fsync to ensure persistence
+    # nosemgrep: path-traversal-open -- path is from env var/hardcoded default, not user input
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
         f.flush()
@@ -1634,7 +1636,7 @@ async def get_telemetry(
 # =============================================================================
 
 
-def _stats_to_schema(stats: dict[str, float | int | None]) -> PipelineStageLatency | None:
+def _stats_to_schema(stats: Mapping[str, Any]) -> PipelineStageLatency | None:
     """Convert latency stats dict to PipelineStageLatency schema.
 
     Args:
