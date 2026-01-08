@@ -1,20 +1,20 @@
 /**
  * Typed WebSocket Event Emitter
  *
- * A type-safe event emitter for WebSocket messages that provides compile-time
- * type checking for event subscriptions and emissions. This ensures that event
- * handlers receive correctly typed payloads.
+ * A type-safe event emitter for WebSocket message handling. Provides compile-time
+ * type checking for event names and their associated payload types.
  *
  * @example
  * ```ts
  * const emitter = new TypedWebSocketEmitter();
  *
- * // Type-safe subscription - TypeScript knows `data` is SecurityEventData
- * emitter.on('event', (data) => {
+ * // Type-safe subscription
+ * const unsubscribe = emitter.on('event', (data) => {
+ *   // data is typed as SecurityEventData
  *   console.log(data.risk_score);
  * });
  *
- * // Type-safe emission - TypeScript enforces correct payload type
+ * // Type-safe emission
  * emitter.emit('event', {
  *   id: '123',
  *   camera_id: 'front_door',
@@ -22,98 +22,108 @@
  *   risk_level: 'high',
  *   summary: 'Person detected',
  * });
+ *
+ * // Cleanup
+ * unsubscribe();
  * ```
  */
 
-import { logger } from '../services/logger';
-import { isWebSocketEventKey } from '../types/websocket-events';
+import { extractEventType, isWebSocketEventKey } from '../types/websocket-events';
 
 import type {
-  WebSocketEventMap,
-  WebSocketEventKey,
   WebSocketEventHandler,
+  WebSocketEventKey,
+  WebSocketEventMap,
 } from '../types/websocket-events';
 
 /**
- * TypedWebSocketEmitter - A type-safe event emitter for WebSocket messages.
+ * Generic handler type for internal storage.
+ * Uses unknown payload to allow storing handlers for different event types.
+ */
+type AnyHandler = (data: unknown) => void;
+
+/**
+ * TypedWebSocketEmitter class
  *
- * Features:
- * - Full TypeScript type safety for event keys and payloads
- * - Prevents duplicate handlers for the same event
- * - Graceful error handling (handlers that throw don't break other handlers)
- * - One-time subscriptions via `once()`
- * - Handles raw WebSocket messages via `handleMessage()`
+ * Provides a type-safe event emitter API for WebSocket messages. Handlers
+ * are strongly typed based on the event key, ensuring compile-time safety
+ * for both subscription and emission.
  */
 export class TypedWebSocketEmitter {
   /**
-   * Internal storage for event handlers.
-   * Uses Set to prevent duplicate handlers and provide O(1) add/remove.
+   * Internal handler storage. Maps event keys to sets of handlers.
+   * Using Set ensures O(1) add/remove and prevents duplicate handlers.
    */
-  private handlers: Map<WebSocketEventKey, Set<WebSocketEventHandler<WebSocketEventKey>>> =
-    new Map();
+  private handlers: Map<WebSocketEventKey, Set<AnyHandler>> = new Map();
 
   /**
-   * Subscribe to an event type.
+   * Subscribe to an event with a type-safe handler.
    *
    * @param event - The event key to subscribe to
-   * @param handler - The handler function to call when the event is emitted
-   * @returns An unsubscribe function
+   * @param handler - Handler function that receives the typed payload
+   * @returns Unsubscribe function to remove the handler
    *
    * @example
    * ```ts
    * const unsubscribe = emitter.on('event', (data) => {
-   *   console.log(data.risk_score);
+   *   console.log(data.risk_score); // TypeScript knows this is SecurityEventData
    * });
    *
    * // Later, to unsubscribe:
    * unsubscribe();
    * ```
    */
-  on<K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>): () => void {
-    let handlers = this.handlers.get(event);
-    if (!handlers) {
-      handlers = new Set();
-      this.handlers.set(event, handlers);
+  on<K extends WebSocketEventKey>(
+    event: K,
+    handler: WebSocketEventHandler<K>
+  ): () => void {
+    let eventHandlers = this.handlers.get(event);
+
+    if (!eventHandlers) {
+      eventHandlers = new Set();
+      this.handlers.set(event, eventHandlers);
     }
 
-    // Cast is safe because we're adding to the correct event key's set
-    handlers.add(handler as WebSocketEventHandler<WebSocketEventKey>);
+    eventHandlers.add(handler as AnyHandler);
 
     // Return unsubscribe function
     return () => this.off(event, handler);
   }
 
   /**
-   * Unsubscribe a handler from an event type.
+   * Unsubscribe a handler from an event.
    *
    * @param event - The event key to unsubscribe from
    * @param handler - The handler function to remove
    *
    * @example
    * ```ts
-   * const handler = (data) => console.log(data);
+   * const handler = (data: SecurityEventData) => console.log(data);
    * emitter.on('event', handler);
-   *
-   * // Later, to unsubscribe:
    * emitter.off('event', handler);
    * ```
    */
-  off<K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>): void {
-    const handlers = this.handlers.get(event);
-    if (handlers) {
-      handlers.delete(handler as WebSocketEventHandler<WebSocketEventKey>);
+  off<K extends WebSocketEventKey>(
+    event: K,
+    handler: WebSocketEventHandler<K>
+  ): void {
+    const eventHandlers = this.handlers.get(event);
+
+    if (eventHandlers) {
+      eventHandlers.delete(handler as AnyHandler);
+
       // Clean up empty sets
-      if (handlers.size === 0) {
+      if (eventHandlers.size === 0) {
         this.handlers.delete(event);
       }
     }
   }
 
   /**
-   * Emit an event to all subscribed handlers.
+   * Emit an event with a typed payload.
    *
    * @param event - The event key to emit
-   * @param data - The payload to pass to handlers (must match the event's type)
+   * @param data - The payload data (must match the event's payload type)
    *
    * @example
    * ```ts
@@ -127,49 +137,42 @@ export class TypedWebSocketEmitter {
    * ```
    */
   emit<K extends WebSocketEventKey>(event: K, data: WebSocketEventMap[K]): void {
-    const handlers = this.handlers.get(event);
-    if (!handlers) {
-      return;
-    }
+    const eventHandlers = this.handlers.get(event);
 
-    // Create a copy of handlers to allow safe modification during iteration
-    const handlersCopy = Array.from(handlers);
+    if (eventHandlers) {
+      // Create a copy to avoid issues if handlers modify the set
+      const handlersToCall = Array.from(eventHandlers);
 
-    for (const handler of handlersCopy) {
-      try {
-        // Cast is safe because we stored with the correct type
-        (handler as WebSocketEventHandler<K>)(data);
-      } catch (error) {
-        // Log error but don't break other handlers
-        logger.error('Error in WebSocket event handler', {
-          component: 'TypedWebSocketEmitter',
-          event,
-          error,
-        });
+      for (const handler of handlersToCall) {
+        try {
+          handler(data);
+        } catch (error) {
+          // Log but don't throw to prevent one handler from breaking others
+          console.error(`Error in ${event} handler:`, error);
+        }
       }
     }
   }
 
   /**
-   * Subscribe to an event type for one-time delivery.
-   * The handler will be automatically unsubscribed after the first event.
+   * Subscribe to an event that will only fire once.
    *
    * @param event - The event key to subscribe to
-   * @param handler - The handler function to call once
-   * @returns An unsubscribe function (can be called to cancel before event fires)
+   * @param handler - Handler function that receives the typed payload
+   * @returns Unsubscribe function to remove the handler before it fires
    *
    * @example
    * ```ts
-   * // Handler will only be called once
-   * emitter.once('event', (data) => {
-   *   console.log('First event:', data);
+   * emitter.once('system_status', (data) => {
+   *   console.log('First status received:', data.health);
    * });
    * ```
    */
-  once<K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>): () => void {
+  once<K extends WebSocketEventKey>(
+    event: K,
+    handler: WebSocketEventHandler<K>
+  ): () => void {
     const wrappedHandler: WebSocketEventHandler<K> = (data) => {
-      // Remove the handler first to ensure it's only called once
-      // even if the handler itself triggers another emit
       this.off(event, wrappedHandler);
       handler(data);
     };
@@ -178,111 +181,118 @@ export class TypedWebSocketEmitter {
   }
 
   /**
-   * Check if an event has any listeners.
+   * Handle an incoming WebSocket message by extracting its type and emitting.
    *
-   * @param event - The event key to check
-   * @returns True if the event has at least one listener
+   * @param message - The raw WebSocket message (parsed JSON)
+   * @returns true if the message was handled, false if type was unknown
+   *
+   * @example
+   * ```ts
+   * ws.onmessage = (event) => {
+   *   const message = JSON.parse(event.data);
+   *   const handled = emitter.handleMessage(message);
+   *   if (!handled) {
+   *     console.warn('Unknown message type:', message);
+   *   }
+   * };
+   * ```
    */
-  has<K extends WebSocketEventKey>(event: K): boolean {
-    const handlers = this.handlers.get(event);
-    return handlers !== undefined && handlers.size > 0;
+  handleMessage(message: unknown): boolean {
+    const eventType = extractEventType(message);
+
+    if (!eventType) {
+      return false;
+    }
+
+    // Extract payload - for messages with data field, use data; otherwise use message
+    const msg = message as Record<string, unknown>;
+    const payload = 'data' in msg && msg.data !== undefined ? msg.data : message;
+
+    this.emit(eventType, payload as WebSocketEventMap[typeof eventType]);
+
+    return true;
   }
 
   /**
-   * Get the number of listeners for an event.
+   * Check if there are any handlers for an event.
    *
    * @param event - The event key to check
-   * @returns The number of listeners for the event
+   * @returns true if there are handlers registered
    */
-  listenerCount<K extends WebSocketEventKey>(event: K): number {
+  has(event: WebSocketEventKey): boolean {
+    const eventHandlers = this.handlers.get(event);
+    return eventHandlers !== undefined && eventHandlers.size > 0;
+  }
+
+  /**
+   * Get the number of handlers for an event.
+   *
+   * @param event - The event key to check
+   * @returns Number of registered handlers
+   */
+  listenerCount(event: WebSocketEventKey): number {
     return this.handlers.get(event)?.size ?? 0;
   }
 
   /**
-   * Remove all listeners for a specific event.
+   * Remove all handlers for a specific event.
    *
-   * @param event - The event key to clear
+   * @param event - The event key to clear handlers for
    */
-  removeAllListeners<K extends WebSocketEventKey>(event: K): void {
+  removeAllListeners(event: WebSocketEventKey): void {
     this.handlers.delete(event);
   }
 
   /**
-   * Remove all listeners for all events.
+   * Remove all handlers for all events.
    */
   clear(): void {
     this.handlers.clear();
   }
 
   /**
-   * Get all event keys that have listeners.
+   * Get all event keys that have registered handlers.
    *
-   * @returns Array of event keys with at least one listener
+   * @returns Array of event keys with handlers
    */
   events(): WebSocketEventKey[] {
     return Array.from(this.handlers.keys());
   }
-
-  /**
-   * Handle a raw WebSocket message.
-   * Parses the message type and emits to the appropriate handlers.
-   *
-   * This method supports two message formats:
-   * 1. Envelope format: `{ type: 'event', data: { ... } }`
-   * 2. Direct format: `{ type: 'ping' }` (for messages without data payload)
-   *
-   * @param message - The raw message to handle (already parsed from JSON)
-   * @returns True if the message was handled, false if it was invalid or unknown
-   *
-   * @example
-   * ```ts
-   * ws.onmessage = (event) => {
-   *   const data = JSON.parse(event.data);
-   *   if (emitter.handleMessage(data)) {
-   *     console.log('Message handled');
-   *   } else {
-   *     console.log('Unknown message type');
-   *   }
-   * };
-   * ```
-   */
-  handleMessage(message: unknown): boolean {
-    // Validate message is an object
-    if (typeof message !== 'object' || message === null) {
-      return false;
-    }
-
-    // Extract type from message
-    const msgObj = message as Record<string, unknown>;
-    const eventType = msgObj.type;
-
-    // Validate type is a known event key
-    if (!isWebSocketEventKey(eventType)) {
-      return false;
-    }
-
-    // Determine the payload to emit
-    // Messages with a 'data' field use envelope format
-    // Messages without 'data' (like ping/pong) use the entire message as payload
-    const payload = 'data' in msgObj ? msgObj.data : message;
-
-    // Emit the event (cast is safe because we validated the event type)
-    this.emit(eventType, payload as WebSocketEventMap[typeof eventType]);
-
-    return true;
-  }
 }
 
 /**
- * Default singleton instance for shared use.
- * Applications can import this for simple cases or create their own instances
- * for isolated event handling.
+ * Type guard to validate an event key at runtime before emitting.
+ *
+ * @param emitter - The typed emitter instance
+ * @param event - The event key to validate
+ * @param data - The payload data
+ * @returns true if the event was emitted successfully
+ *
+ * @example
+ * ```ts
+ * const type = messageObj.type;
+ * if (safeEmit(emitter, type, data)) {
+ *   // Event was emitted
+ * }
+ * ```
  */
-export const typedEventEmitter = new TypedWebSocketEmitter();
+export function safeEmit(
+  emitter: TypedWebSocketEmitter,
+  event: unknown,
+  data: unknown
+): boolean {
+  if (!isWebSocketEventKey(event)) {
+    return false;
+  }
 
-// Re-export types for convenience
-export type {
-  WebSocketEventMap,
-  WebSocketEventKey,
-  WebSocketEventHandler,
-} from '../types/websocket-events';
+  emitter.emit(event, data as WebSocketEventMap[typeof event]);
+  return true;
+}
+
+/**
+ * Create a typed emitter instance.
+ * Factory function for cleaner instantiation.
+ */
+export function createTypedEmitter(): TypedWebSocketEmitter {
+  return new TypedWebSocketEmitter();
+}
