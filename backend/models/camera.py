@@ -144,13 +144,13 @@ class Camera(Base):
         """Restore a soft-deleted camera by clearing deleted_at timestamp."""
         self.deleted_at = None
 
-    def hard_delete(self, session: object) -> None:
+    async def hard_delete(self, session: object) -> None:
         """Hard delete this camera, permanently removing it from the database.
 
         Args:
-            session: SQLAlchemy session to use for deletion
+            session: SQLAlchemy async session to use for deletion
         """
-        session.delete(self)  # type: ignore[attr-defined]
+        await session.delete(self)  # type: ignore[attr-defined]
 
     @classmethod
     def from_folder_name(cls, folder_name: str, folder_path: str) -> Camera:

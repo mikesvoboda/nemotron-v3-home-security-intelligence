@@ -147,7 +147,7 @@ class TestCameraSoftDeleteMethods:
             await session.refresh(camera)
 
             # Perform hard delete
-            camera.hard_delete(session)
+            await camera.hard_delete(session)
             await session.commit()
 
         # Verify camera is completely removed (in new session)
@@ -449,7 +449,7 @@ class TestEventSoftDeleteMethods:
             await session.refresh(event)
 
             # Perform hard delete
-            event.hard_delete(session)
+            await event.hard_delete(session)
             await session.commit()
 
         # Verify event is completely removed (in new session)
