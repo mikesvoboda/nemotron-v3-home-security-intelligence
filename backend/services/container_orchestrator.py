@@ -309,6 +309,7 @@ class ContainerOrchestrator:
         """Enable a disabled service.
 
         Resets failure count and sets enabled flag to True.
+        Uses the lifecycle manager which operates on the shared registry.
 
         Args:
             name: Service name
@@ -321,16 +322,14 @@ class ContainerOrchestrator:
             logger.warning(f"Cannot enable unknown service: {name}")
             return False
 
-        # Update main registry
-        self._registry.reset_failures(name)
-        self._registry.set_enabled(name, True)
-        self._registry.update_status(name, ContainerServiceStatus.STOPPED)
-        await self._registry.persist_state(name)
-
-        # Update lifecycle registry if available
+        # Use lifecycle manager (operates on shared registry)
         if self._lifecycle_manager:
             await self._lifecycle_manager.enable_service(name)
-            self._sync_lm_state(name)
+        else:
+            # Fallback when lifecycle manager isn't available (e.g., in tests)
+            self._registry.reset_failures(name)
+            self._registry.set_enabled(name, True)
+            self._registry.update_status(name, ContainerServiceStatus.STOPPED)
 
         # Broadcast status change
         updated_service = self._registry.get(name)
@@ -343,6 +342,7 @@ class ContainerOrchestrator:
         """Disable a service.
 
         Sets enabled flag to False and status to DISABLED.
+        Uses the lifecycle manager which operates on the shared registry.
 
         Args:
             name: Service name
@@ -355,15 +355,13 @@ class ContainerOrchestrator:
             logger.warning(f"Cannot disable unknown service: {name}")
             return False
 
-        # Update main registry
-        self._registry.set_enabled(name, False)
-        self._registry.update_status(name, ContainerServiceStatus.DISABLED)
-        await self._registry.persist_state(name)
-
-        # Update lifecycle registry if available
+        # Use lifecycle manager (operates on shared registry)
         if self._lifecycle_manager:
             await self._lifecycle_manager.disable_service(name)
-            self._sync_lm_state(name)
+        else:
+            # Fallback when lifecycle manager isn't available (e.g., in tests)
+            self._registry.set_enabled(name, False)
+            self._registry.update_status(name, ContainerServiceStatus.DISABLED)
 
         # Broadcast status change
         updated_service = self._registry.get(name)

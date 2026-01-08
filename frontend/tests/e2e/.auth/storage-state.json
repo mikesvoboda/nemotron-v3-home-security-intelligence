@@ -1,0 +1,18 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "nemotron-tour-completed",
+          "value": "true"
+        },
+        {
+          "name": "nemotron-tour-skipped",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}
