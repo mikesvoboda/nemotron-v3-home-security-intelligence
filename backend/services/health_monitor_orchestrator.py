@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections import deque
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -44,6 +45,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from backend.core.logging import get_logger
+from backend.services.health_monitor import HealthEvent
 from backend.services.orchestrator import (
     ContainerServiceStatus,
     ManagedService,
@@ -148,6 +150,7 @@ class HealthMonitor:
         docker_client: DockerClient,
         settings: OrchestratorSettings,
         on_health_change: Callable[[ManagedService, bool], Awaitable[None]] | None = None,
+        max_events: int = 100,
     ) -> None:
         """Initialize the health monitor.
 
@@ -157,6 +160,7 @@ class HealthMonitor:
             settings: OrchestratorSettings with health check configuration
             on_health_change: Optional callback invoked when health status changes.
                               Called with (service, is_healthy).
+            max_events: Maximum number of health events to track (default: 100)
         """
         self._registry = registry
         self._docker_client = docker_client
@@ -164,6 +168,7 @@ class HealthMonitor:
         self._on_health_change = on_health_change
         self._running = False
         self._task: asyncio.Task[None] | None = None
+        self._health_events: deque[HealthEvent] = deque(maxlen=max_events)
 
         logger.info(
             "HealthMonitor initialized",
@@ -307,6 +312,7 @@ class HealthMonitor:
                         # Service recovered
                         self._registry.reset_failures(service.name)
                         self._registry.update_status(service.name, ContainerServiceStatus.RUNNING)
+                        self._record_event(service.name, "recovery", "Service recovered")
                         logger.info(f"Service {service.name} recovered")
                         if self._on_health_change:
                             await self._on_health_change(service, True)
@@ -342,6 +348,7 @@ class HealthMonitor:
         logger.warning(f"Container not found for {service.name}")
         self._registry.update_status(service.name, ContainerServiceStatus.NOT_FOUND)
         self._registry.increment_failures(service.name)
+        self._record_event(service.name, "failure", "Container not found")
 
         if self._on_health_change:
             await self._on_health_change(service, False)
@@ -355,6 +362,7 @@ class HealthMonitor:
         logger.warning(f"Container stopped for {service.name}")
         self._registry.update_status(service.name, ContainerServiceStatus.STOPPED)
         self._registry.increment_failures(service.name)
+        self._record_event(service.name, "failure", "Container stopped")
 
         if self._on_health_change:
             await self._on_health_change(service, False)
@@ -368,6 +376,7 @@ class HealthMonitor:
         logger.warning(f"Health check failed for {service.name}")
         self._registry.update_status(service.name, ContainerServiceStatus.UNHEALTHY)
         self._registry.increment_failures(service.name)
+        self._record_event(service.name, "failure", "Health check failed")
 
         if self._on_health_change:
             await self._on_health_change(service, False)
@@ -393,3 +402,38 @@ class HealthMonitor:
                 await asyncio.sleep(self._settings.health_check_interval)
 
         logger.info("Health check loop stopped")
+
+    def _record_event(
+        self,
+        service: str,
+        event_type: str,
+        message: str | None = None,
+    ) -> None:
+        """Record a health event in the event history.
+
+        Args:
+            service: Name of the service
+            event_type: Type of event ("failure", "recovery", "restart")
+            message: Optional descriptive message
+        """
+        event = HealthEvent(
+            timestamp=datetime.now(UTC),
+            service=service,
+            event_type=event_type,
+            message=message,
+        )
+        self._health_events.append(event)
+
+    def get_recent_events(self, limit: int = 50) -> list[HealthEvent]:
+        """Get recent health events.
+
+        Args:
+            limit: Maximum number of events to return (default: 50)
+
+        Returns:
+            List of recent HealthEvent objects, most recent first
+        """
+        # Return events in reverse order (most recent first)
+        events = list(self._health_events)
+        events.reverse()
+        return events[:limit]

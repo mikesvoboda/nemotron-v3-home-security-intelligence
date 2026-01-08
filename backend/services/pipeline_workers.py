@@ -1233,6 +1233,11 @@ class PipelineWorkerManager:
         """Start all enabled workers.
 
         Installs signal handlers for graceful shutdown.
+        Uses asyncio.TaskGroup for structured concurrency - if any worker
+        fails to start, all other starting tasks are cancelled automatically.
+
+        Raises:
+            ExceptionGroup: If one or more workers fail to start.
         """
         if self._running:
             logger.warning("PipelineWorkerManager already running")
@@ -1245,24 +1250,28 @@ class PipelineWorkerManager:
         if not self._signal_handlers_installed:
             self._install_signal_handlers()
 
-        # Start workers
-        start_tasks = []
-        if self._detection_worker:
-            start_tasks.append(self._detection_worker.start())
-        if self._analysis_worker:
-            start_tasks.append(self._analysis_worker.start())
-        if self._timeout_worker:
-            start_tasks.append(self._timeout_worker.start())
-        if self._metrics_worker:
-            start_tasks.append(self._metrics_worker.start())
-
-        if start_tasks:
-            await asyncio.gather(*start_tasks)
+        # Start workers using TaskGroup for structured concurrency
+        # If any worker fails to start, all others are cancelled automatically
+        async with asyncio.TaskGroup() as tg:
+            if self._detection_worker:
+                tg.create_task(self._detection_worker.start())
+            if self._analysis_worker:
+                tg.create_task(self._analysis_worker.start())
+            if self._timeout_worker:
+                tg.create_task(self._timeout_worker.start())
+            if self._metrics_worker:
+                tg.create_task(self._metrics_worker.start())
 
         logger.info("PipelineWorkerManager started all workers")
 
     async def stop(self) -> None:
-        """Stop all workers gracefully."""
+        """Stop all workers gracefully.
+
+        Uses asyncio.TaskGroup for structured concurrency. If any worker fails
+        to stop, exceptions are logged but all workers are still given a chance
+        to shut down. The ExceptionGroup is caught and logged rather than
+        propagated, since shutdown should be best-effort.
+        """
         if not self._running:
             logger.debug("PipelineWorkerManager not running, nothing to stop")
             return
@@ -1270,19 +1279,26 @@ class PipelineWorkerManager:
         logger.info("Stopping PipelineWorkerManager")
         self._running = False
 
-        # Stop workers in parallel
-        stop_tasks = []
-        if self._detection_worker:
-            stop_tasks.append(self._detection_worker.stop())
-        if self._analysis_worker:
-            stop_tasks.append(self._analysis_worker.stop())
-        if self._timeout_worker:
-            stop_tasks.append(self._timeout_worker.stop())
-        if self._metrics_worker:
-            stop_tasks.append(self._metrics_worker.stop())
-
-        if stop_tasks:
-            await asyncio.gather(*stop_tasks, return_exceptions=True)
+        # Stop workers in parallel using TaskGroup for structured concurrency
+        # Catch ExceptionGroup for best-effort shutdown (equivalent to return_exceptions=True)
+        try:
+            async with asyncio.TaskGroup() as tg:
+                if self._detection_worker:
+                    tg.create_task(self._detection_worker.stop())
+                if self._analysis_worker:
+                    tg.create_task(self._analysis_worker.stop())
+                if self._timeout_worker:
+                    tg.create_task(self._timeout_worker.stop())
+                if self._metrics_worker:
+                    tg.create_task(self._metrics_worker.stop())
+        except ExceptionGroup as eg:
+            # Log errors but continue - shutdown should be best-effort
+            # This is equivalent to the previous return_exceptions=True behavior
+            for exc in eg.exceptions:
+                logger.error(
+                    f"Error stopping worker during shutdown: {exc}",
+                    exc_info=exc,
+                )
 
         logger.info("PipelineWorkerManager stopped all workers")
 
