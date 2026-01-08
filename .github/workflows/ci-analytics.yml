@@ -31,6 +31,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.14'
+  UV_VERSION: '0.9.18'
 
 jobs:
   collect-metrics:
@@ -46,7 +47,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: '0.9.18'
+          version: ${{ env.UV_VERSION }}
           cache: true
 
       - name: Set up Python
@@ -126,7 +127,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: '0.9.18'
+          version: ${{ env.UV_VERSION }}
           cache: true
 
       - name: Set up Python
@@ -175,7 +176,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: '0.9.18'
+          version: ${{ env.UV_VERSION }}
           cache: true
 
       - name: Set up Python
