@@ -73,7 +73,7 @@ const AlertFilters = memo(function AlertFilters({
         disabled={counts.critical === 0}
         aria-pressed={activeFilter === 'critical'}
         aria-label="Filter by critical severity"
-        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${getButtonClasses('critical', 'bg-red-600 hover:bg-red-700')}`}
+        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${getButtonClasses('critical', 'bg-red-700 hover:bg-red-800')}`}
       >
         <AlertTriangle className="h-4 w-4" />
         <span>Critical</span>

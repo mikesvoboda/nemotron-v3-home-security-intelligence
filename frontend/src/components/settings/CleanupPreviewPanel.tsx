@@ -256,7 +256,7 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
                 <Button
                   onClick={() => void handleCleanup()}
                   disabled={cleaning}
-                  className="flex-1 bg-red-500 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 bg-red-700 text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {cleaning ? 'Deleting...' : 'Yes, Delete Data'}
                 </Button>

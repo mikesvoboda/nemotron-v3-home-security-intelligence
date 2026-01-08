@@ -754,14 +754,6 @@ dev = [
     { name = "wily" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "pytest-clarity" },
-    { name = "pytest-deadfixtures" },
-    { name = "pytest-randomly" },
-    { name = "pytest-sugar" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "accelerate", specifier = ">=1.12.0" },
@@ -832,14 +824,6 @@ requires-dist = [
     { name = "wily", marker = "extra == 'dev'", specifier = ">=1.25.0" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest-clarity", specifier = ">=1.0.1" },
-    { name = "pytest-deadfixtures", specifier = ">=3.0.0" },
-    { name = "pytest-randomly", specifier = ">=4.0.1" },
-    { name = "pytest-sugar", specifier = ">=1.1.1" },
-]
 
 [[package]]
 name = "httpcore"
