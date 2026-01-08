@@ -51,6 +51,7 @@ from backend.core.metrics import (
     set_queue_depth,
 )
 from backend.core.redis import RedisClient
+from backend.core.telemetry import add_span_attributes, get_tracer, record_exception
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.nemotron_analyzer import NemotronAnalyzer
@@ -58,6 +59,10 @@ from backend.services.retry_handler import RetryConfig, RetryHandler
 from backend.services.video_processor import VideoProcessor
 
 logger = get_logger(__name__)
+
+# OpenTelemetry tracer for pipeline stage instrumentation (NEM-1467)
+# Returns a no-op tracer if OTEL is not enabled
+tracer = get_tracer(__name__)
 
 
 def categorize_exception(e: Exception, worker_name: str) -> str:
@@ -346,7 +351,17 @@ class DetectionQueueWorker:
 
         # Use log_context to enrich all logs within this scope with consistent context
         # This ensures camera_id, file_path, and media_type are included in all logs
-        with log_context(camera_id=camera_id, file_path=file_path, media_type=media_type):
+        # OpenTelemetry span for detection processing (NEM-1467)
+        with (
+            log_context(camera_id=camera_id, file_path=file_path, media_type=media_type),
+            tracer.start_as_current_span("detection_processing"),
+        ):
+            add_span_attributes(
+                camera_id=camera_id,
+                file_path=file_path,
+                media_type=media_type,
+                pipeline_stage="detection",
+            )
             logger.debug(f"Processing detection item: {file_path}")
 
             try:
@@ -374,12 +389,14 @@ class DetectionQueueWorker:
                 # This is expected when detector is down and retries exhausted
                 # The retry handler already moved the job to DLQ
                 self._stats.errors += 1
+                record_exception(e)
                 logger.warning(f"Detection unavailable, job sent to DLQ: {e}")
                 # Don't record as generic error - already recorded by retry handler
 
             except Exception as e:
                 self._stats.errors += 1
                 record_pipeline_error("detection_processing_error")
+                record_exception(e)
                 logger.error(
                     f"Failed to process detection item: {e}",
                     exc_info=True,
@@ -761,7 +778,20 @@ class AnalysisQueueWorker:
 
         # Use log_context to enrich all logs within this scope with batch context
         # This ensures batch_id, camera_id are included in all logs including downstream calls
-        with log_context(batch_id=batch_id, camera_id=camera_id, operation="analysis"):
+        # OpenTelemetry span for analysis processing (NEM-1467)
+        with (
+            log_context(batch_id=batch_id, camera_id=camera_id, operation="analysis"),
+            tracer.start_as_current_span("analysis_processing"),
+        ):
+            # Build span attributes, excluding None values
+            span_attrs: dict[str, str | int | float | bool] = {
+                "batch_id": batch_id,
+                "detection_count": len(detection_ids) if detection_ids else 0,
+                "pipeline_stage": "analysis",
+            }
+            if camera_id is not None:
+                span_attrs["camera_id"] = camera_id
+            add_span_attributes(**span_attrs)
             logger.info(f"Processing analysis for batch {batch_id}")
 
             try:
@@ -819,10 +849,12 @@ class AnalysisQueueWorker:
 
             except ValueError as e:
                 # Batch not found or no detections - log warning but don't count as error
+                record_exception(e)
                 logger.warning(f"Skipping batch: {e}")
             except Exception as e:
                 self._stats.errors += 1
                 record_pipeline_error("analysis_batch_error")
+                record_exception(e)
                 logger.error(
                     f"Failed to analyze batch: {e}",
                     exc_info=True,
