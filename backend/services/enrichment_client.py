@@ -648,7 +648,7 @@ class EnrichmentClient:
         health = await self.check_health()
         return health.get("status") in ("healthy", "degraded")
 
-    async def classify_vehicle(
+    async def classify_vehicle(  # noqa: PLR0912
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -657,6 +657,9 @@ class EnrichmentClient:
 
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
+
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
         Args:
             image: PIL Image containing vehicle
@@ -679,6 +682,9 @@ class EnrichmentClient:
         endpoint = "vehicle-classify"
         endpoint_name = "vehicle"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        settings = get_settings()
+        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
 
         logger.debug("Sending vehicle classification request")
 
@@ -697,11 +703,13 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -780,6 +788,30 @@ class EnrichmentClient:
                         exc_info=True,
                     )
 
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_vehicle_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
             except Exception as e:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
@@ -801,7 +833,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def classify_pet(
+    async def classify_pet(  # noqa: PLR0912
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -810,6 +842,9 @@ class EnrichmentClient:
 
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
+
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
         Args:
             image: PIL Image containing pet
@@ -832,6 +867,9 @@ class EnrichmentClient:
         endpoint = "pet-classify"
         endpoint_name = "pet"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        settings = get_settings()
+        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
 
         logger.debug("Sending pet classification request")
 
@@ -850,11 +888,13 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -932,6 +972,30 @@ class EnrichmentClient:
                         exc_info=True,
                     )
 
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_pet_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
             except Exception as e:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
@@ -953,12 +1017,15 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def classify_clothing(
+    async def classify_clothing(  # noqa: PLR0912
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
     ) -> ClothingClassificationResult | None:
         """Classify clothing attributes from a person image using FashionCLIP.
+
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
         Args:
             image: PIL Image containing person
@@ -981,6 +1048,9 @@ class EnrichmentClient:
         endpoint = "clothing-classify"
         endpoint_name = "clothing"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        settings = get_settings()
+        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
 
         logger.debug("Sending clothing classification request")
 
@@ -999,11 +1069,13 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -1085,6 +1157,30 @@ class EnrichmentClient:
                         exc_info=True,
                     )
 
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_clothing_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
             except Exception as e:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
@@ -1106,7 +1202,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def estimate_depth(
+    async def estimate_depth(  # noqa: PLR0912
         self,
         image: Image.Image,
     ) -> DepthEstimationResult | None:
@@ -1114,6 +1210,9 @@ class EnrichmentClient:
 
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
+
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
         Args:
             image: PIL Image to estimate depth for
@@ -1135,6 +1234,9 @@ class EnrichmentClient:
         endpoint = "depth-estimate"
         endpoint_name = "depth"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        settings = get_settings()
+        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
 
         logger.debug("Sending depth estimation request")
 
@@ -1151,11 +1253,13 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -1233,6 +1337,30 @@ class EnrichmentClient:
                         exc_info=True,
                     )
 
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_depth_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
             except Exception as e:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
@@ -1269,6 +1397,9 @@ class EnrichmentClient:
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
 
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
+
         Args:
             image: PIL Image
             bbox: Bounding box (x1, y1, x2, y2) of object to measure
@@ -1291,6 +1422,9 @@ class EnrichmentClient:
         endpoint = "object-distance"
         endpoint_name = "distance"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        settings = get_settings()
+        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
 
         # Validate and clamp bounding box (NEM-1102, NEM-1122)
         image_width, image_height = image.size
@@ -1338,11 +1472,13 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -1419,6 +1555,30 @@ class EnrichmentClient:
                         exc_info=True,
                     )
 
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_distance_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
             except Exception as e:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
@@ -1440,7 +1600,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def analyze_pose(
+    async def analyze_pose(  # noqa: PLR0912
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -1450,6 +1610,9 @@ class EnrichmentClient:
 
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
+
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
         Args:
             image: PIL Image containing person
@@ -1473,6 +1636,9 @@ class EnrichmentClient:
         endpoint = "pose-analyze"
         endpoint_name = "pose"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        settings = get_settings()
+        explicit_timeout = ENRICHMENT_READ_TIMEOUT + settings.ai_connect_timeout
 
         logger.debug("Sending pose analysis request")
 
@@ -1494,11 +1660,13 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -1586,6 +1754,30 @@ class EnrichmentClient:
                         exc_info=True,
                     )
 
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_pose_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
             except Exception as e:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
@@ -1607,7 +1799,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def classify_action(
+    async def classify_action(  # noqa: PLR0912
         self,
         frames: list[Image.Image],
         labels: list[str] | None = None,
@@ -1619,6 +1811,9 @@ class EnrichmentClient:
 
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
+
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
         Args:
             frames: List of PIL Images representing video frames (8 is optimal)
@@ -1641,6 +1836,11 @@ class EnrichmentClient:
         endpoint = "action-classify"
         endpoint_name = "action"
         last_error: Exception | None = None
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        # Use longer timeout for multi-frame video processing (60s read + connect timeout)
+        settings = get_settings()
+        action_read_timeout = 60.0  # Longer timeout for video processing
+        explicit_timeout = action_read_timeout + settings.ai_connect_timeout
 
         logger.debug(f"Sending action classification request with {len(frames)} frames")
 
@@ -1655,7 +1855,7 @@ class EnrichmentClient:
         # Use longer timeout for multi-frame video processing (override default)
         action_timeout = httpx.Timeout(
             connect=self._timeout.connect,
-            read=60.0,  # Longer timeout for video processing
+            read=action_read_timeout,  # Longer timeout for video processing
             write=self._timeout.write,
             pool=self._timeout.pool,
         )
@@ -1667,12 +1867,14 @@ class EnrichmentClient:
                 ai_start_time = time.time()
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
-                response = await self._http_client.post(
-                    f"{self._base_url}/{endpoint}",
-                    json=payload,
-                    timeout=action_timeout,  # Override default timeout for this request
-                )
-                response.raise_for_status()
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{self._base_url}/{endpoint}",
+                        json=payload,
+                        timeout=action_timeout,  # Override default timeout for this request
+                    )
+                    response.raise_for_status()
 
                 # Record AI request duration
                 ai_duration = time.time() - ai_start_time
@@ -1748,6 +1950,30 @@ class EnrichmentClient:
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_action_asyncio_timeout")
+                    self._circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
                         exc_info=True,
                     )
 

@@ -24,6 +24,7 @@ __all__ = [
     "get_logger",
     "get_request_id",
     "log_context",
+    "log_error",
     "log_exception_with_context",
     "mask_ip",
     "redact_sensitive_value",
@@ -288,7 +289,8 @@ class ContextFilter(logging.Filter):
         3. All fields from the current log_context (for structured error context)
 
         Log context fields are set as attributes on the record, making them
-        available to formatters and handlers.
+        available to formatters and handlers. Explicit extra= values passed to
+        the log call take precedence over context values.
 
         Args:
             record: The log record to enrich
@@ -296,18 +298,21 @@ class ContextFilter(logging.Filter):
         Returns:
             True (always allows the record through)
         """
-        # Add request_id from context
-        record.request_id = get_request_id()  # type: ignore[attr-defined]
+        # Add request_id from context (only if not explicitly provided via extra=)
+        if not hasattr(record, "request_id"):
+            record.request_id = get_request_id()  # type: ignore[attr-defined]
 
         # Add connection_id from async_context module (NEM-1640)
         # Imported lazily to avoid circular imports during startup
-        try:
-            from backend.core.async_context import get_connection_id
+        # Only set if not explicitly provided via extra=
+        if not hasattr(record, "connection_id"):
+            try:
+                from backend.core.async_context import get_connection_id
 
-            record.connection_id = get_connection_id()  # type: ignore[attr-defined]
-        except ImportError:
-            # Module not yet available during startup
-            record.connection_id = None  # type: ignore[attr-defined]
+                record.connection_id = get_connection_id()  # type: ignore[attr-defined]
+            except ImportError:
+                # Module not yet available during startup
+                record.connection_id = None  # type: ignore[attr-defined]
 
         # Add log_context fields (NEM-1645)
         # These are set via the log_context context manager
@@ -703,3 +708,73 @@ def log_exception_with_context(
         extra=extra,
         exc_info=include_traceback,
     )
+
+
+def log_error(
+    logger: logging.Logger,
+    message: str,
+    *,
+    error: Exception | None = None,
+    request_id: str | None = None,
+    extra: dict[str, Any] | None = None,
+    exc_info: bool = False,
+) -> None:
+    """Log an error with consistent structure and automatic request context.
+
+    This is a simplified error logging helper that automatically includes
+    the request ID from context (if not explicitly provided) and structures
+    error information consistently. It's designed for cases where you want
+    to log an error with optional exception details, without requiring an
+    exception object.
+
+    The function builds a structured extra dict containing:
+    - request_id: From context or explicitly provided
+    - error_type: Exception class name (if error provided)
+    - Any additional fields from the extra parameter
+
+    Args:
+        logger: The logger instance to use
+        message: Human-readable description of the error
+        error: Optional exception that caused the error (default: None)
+        request_id: Optional explicit request ID, defaults to context value
+        extra: Optional dict of additional fields to include in the log
+        exc_info: Whether to include traceback info (default: False)
+
+    Example:
+        # Log error without exception
+        log_error(logger, "Database connection pool exhausted")
+
+        # Log error with exception
+        try:
+            await process_image(path)
+        except TimeoutError as e:
+            log_error(
+                logger,
+                "Image processing timed out",
+                error=e,
+                extra={"camera_id": "front_door", "timeout_ms": 5000},
+            )
+
+        # Log error with explicit request ID
+        log_error(
+            logger,
+            "Failed to validate token",
+            request_id="req-abc123",
+            extra={"user_agent": "Mozilla/5.0..."},
+        )
+    """
+    # Build structured extra dict
+    log_extra: dict[str, Any] = {
+        "request_id": request_id if request_id is not None else get_request_id(),
+        "error_type": type(error).__name__ if error else None,
+    }
+
+    # Merge any additional extra fields
+    if extra:
+        log_extra.update(extra)
+
+    # Add sanitized error message if exception provided
+    if error:
+        log_extra["error_message_sanitized"] = sanitize_error(error)
+
+    logger.error(message, extra=log_extra, exc_info=exc_info)

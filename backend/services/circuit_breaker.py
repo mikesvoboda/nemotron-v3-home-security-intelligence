@@ -213,6 +213,30 @@ class CircuitBreakerError(Exception):
 CircuitBreakerOpenError = CircuitBreakerError
 
 
+class CircuitOpenError(Exception):
+    """Raised when circuit breaker prevents the call proactively.
+
+    This is distinct from CircuitBreakerError - it indicates that the service
+    wasn't even called because the circuit is open. This allows callers to
+    differentiate between actual service failures and proactive rejections.
+
+    Attributes:
+        service_name: Name of the service with open circuit
+        recovery_time_remaining: Seconds until the circuit will attempt recovery
+    """
+
+    def __init__(self, service_name: str, recovery_time_remaining: float) -> None:
+        """Initialize circuit open error.
+
+        Args:
+            service_name: Name of the service with open circuit
+            recovery_time_remaining: Seconds remaining until recovery attempt
+        """
+        super().__init__(f"Circuit open for {service_name}")
+        self.service_name = service_name
+        self.recovery_time_remaining = recovery_time_remaining
+
+
 class CircuitBreaker:
     """Circuit breaker for protecting external service calls.
 
@@ -791,6 +815,10 @@ class CircuitBreaker:
         Provides a scoped way to protect code blocks with the circuit breaker.
         Automatically records success or failure when exiting the context.
 
+        This method raises CircuitOpenError (instead of CircuitBreakerError)
+        when the circuit is open, providing recovery_time_remaining for clients
+        to use in Retry-After headers or backoff strategies.
+
         Args:
             record_on: Exception types that should be recorded as failures
 
@@ -798,20 +826,38 @@ class CircuitBreaker:
             None
 
         Raises:
-            CircuitBreakerError: If the circuit is open when entering
+            CircuitOpenError: If the circuit is open when entering (provides
+                recovery_time_remaining for retry logic)
 
         Example:
             async with circuit_breaker.protect():
                 result = await risky_operation()
                 return result
+
+            # Handle circuit open with retry information
+            try:
+                async with circuit_breaker.protect():
+                    result = await risky_operation()
+            except CircuitOpenError as e:
+                # Return 503 with Retry-After header
+                raise HTTPException(
+                    status_code=503,
+                    headers={"Retry-After": str(int(e.recovery_time_remaining))}
+                )
         """
-        await self.check_and_raise_async()
+        if not self.allow_request():
+            # Calculate remaining time until recovery attempt
+            recovery_time_remaining = 0.0
+            if self._opened_at is not None:
+                elapsed = time.monotonic() - self._opened_at
+                recovery_time_remaining = max(0.0, self._config.recovery_timeout - elapsed)
+            raise CircuitOpenError(self._name, recovery_time_remaining)
 
         try:
             yield
-            await self.record_success_async()
+            self.record_success()
         except record_on:
-            await self.record_failure_async()
+            self.record_failure()
             raise
 
     def get_state_info(self) -> dict[str, Any]:

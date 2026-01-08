@@ -1509,19 +1509,24 @@ class NemotronAnalyzer:
         last_exception: Exception | None = None
         completion_text: str = ""
         llm_result: dict[str, Any] = {}  # Store full result for token metrics
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        # Use nemotron_read_timeout from settings (default 120s) + connect timeout
+        explicit_timeout = settings.nemotron_read_timeout + settings.ai_connect_timeout
 
         async with inference_semaphore:
             for attempt in range(self._max_retries):
                 try:
                     llm_call_start = time.monotonic()
-                    async with httpx.AsyncClient(timeout=self._timeout) as client:
-                        response = await client.post(
-                            f"{self._llm_url}/completion",
-                            json=payload,
-                            headers=headers,
-                        )
-                        response.raise_for_status()
-                        llm_result = response.json()
+                    # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                    async with asyncio.timeout(explicit_timeout):
+                        async with httpx.AsyncClient(timeout=self._timeout) as client:
+                            response = await client.post(
+                                f"{self._llm_url}/completion",
+                                json=payload,
+                                headers=headers,
+                            )
+                            response.raise_for_status()
+                            llm_result = response.json()
                     llm_call_duration = time.monotonic() - llm_call_start
 
                     # Extract completion text
@@ -1585,6 +1590,34 @@ class NemotronAnalyzer:
                         logger.error(
                             "Nemotron timeout after all attempts",
                             extra={"attempts": self._max_retries, "error": str(e)},
+                            exc_info=True,
+                        )
+
+                except TimeoutError as e:
+                    # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)  # Cap at 30 seconds
+                        logger.warning(
+                            f"Nemotron asyncio timeout (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s: request timed out after {explicit_timeout}s",
+                            extra={
+                                "attempt": attempt + 1,
+                                "max_retries": self._max_retries,
+                                "retry_delay": delay,
+                                "explicit_timeout": explicit_timeout,
+                            },
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error("nemotron_asyncio_timeout")
+                        logger.error(
+                            f"Nemotron asyncio timeout after {self._max_retries} attempts: "
+                            f"request timed out after {explicit_timeout}s",
+                            extra={
+                                "attempts": self._max_retries,
+                                "explicit_timeout": explicit_timeout,
+                            },
                             exc_info=True,
                         )
 
