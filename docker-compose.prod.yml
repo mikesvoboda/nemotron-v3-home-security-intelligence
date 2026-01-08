@@ -259,11 +259,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # ai-detector:
-      #   condition: service_healthy
-      # ai-llm:
-      #   condition: service_healthy
+      # AI services have health-based startup ordering (NEM-1582)
+      # Backend will start after critical AI services are healthy
+      # Expected startup times:
+      #   - ai-detector (RT-DETR): ~60s (model loading)
+      #   - ai-llm (Nemotron): ~120s (LLM loading, largest model)
+      #   - ai-florence: ~60s (Florence-2 model loading)
+      #   - ai-clip: ~60s (CLIP model loading)
+      #   - ai-enrichment: ~180s (multiple models: vehicle, pet, clothing, depth)
+      ai-detector:
+        condition: service_healthy
+      ai-llm:
+        condition: service_healthy
+      # Non-critical AI services - backend can start without these (graceful degradation)
       # ai-florence:
+      #   condition: service_healthy
+      # ai-clip:
+      #   condition: service_healthy
+      # ai-enrichment:
       #   condition: service_healthy
     healthcheck:
       test:

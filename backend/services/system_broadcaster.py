@@ -358,6 +358,97 @@ class SystemBroadcaster:
             # WebSocket broadcast failures
             logger.warning(f"Failed to broadcast degraded state: {e}", exc_info=True)
 
+    async def broadcast_circuit_breaker_states(self) -> None:
+        """Broadcast all circuit breaker states to connected clients (NEM-1582).
+
+        This method collects the state of all registered circuit breakers and
+        broadcasts them to WebSocket clients. It's useful for frontend dashboards
+        to display service degradation status.
+
+        The message format:
+        {
+            "type": "circuit_breaker_update",
+            "data": {
+                "timestamp": "2026-01-08T10:30:00Z",
+                "summary": {
+                    "total": 5,
+                    "open": 0,
+                    "half_open": 0,
+                    "closed": 5
+                },
+                "breakers": {
+                    "rtdetr": {"state": "closed", "failure_count": 0},
+                    "nemotron": {"state": "closed", "failure_count": 0},
+                    ...
+                }
+            }
+        }
+        """
+        from backend.services.circuit_breaker import _get_registry
+
+        try:
+            registry = _get_registry()
+            all_status = registry.get_all_status()
+
+            # Calculate summary counts
+            open_count = 0
+            half_open_count = 0
+            closed_count = 0
+            breakers_data = {}
+
+            for name, status in all_status.items():
+                state_value = status.get("state", "closed")
+                if state_value == "open":
+                    open_count += 1
+                elif state_value == "half_open":
+                    half_open_count += 1
+                else:
+                    closed_count += 1
+
+                breakers_data[name] = {
+                    "state": state_value,
+                    "failure_count": status.get("failure_count", 0),
+                    "success_count": status.get("success_count", 0),
+                    "last_failure_time": status.get("last_failure_time"),
+                }
+
+            circuit_breaker_message = {
+                "type": "circuit_breaker_update",
+                "data": {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "summary": {
+                        "total": len(all_status),
+                        "open": open_count,
+                        "half_open": half_open_count,
+                        "closed": closed_count,
+                    },
+                    "breakers": breakers_data,
+                },
+            }
+
+            # Send to local clients
+            await self._send_to_local_clients(circuit_breaker_message)
+
+            # Publish via Redis for multi-instance support
+            redis_client = self._get_redis()
+            if redis_client is not None:
+                try:
+                    pubsub_message = {
+                        "_origin_instance": self._instance_id,
+                        "payload": circuit_breaker_message,
+                    }
+                    await redis_client.publish(SYSTEM_STATUS_CHANNEL, pubsub_message)
+                except Exception as e:
+                    logger.warning(f"Failed to publish circuit breaker update via Redis: {e}")
+
+            logger.debug(
+                f"Broadcast circuit breaker update: "
+                f"{closed_count} closed, {open_count} open, {half_open_count} half-open"
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to broadcast circuit breaker states: {e}")
+
     async def _start_pubsub_listener(self) -> None:
         """Start the Redis pub/sub listener for receiving system status updates.
 

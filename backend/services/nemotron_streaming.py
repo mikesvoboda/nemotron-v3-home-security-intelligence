@@ -29,6 +29,7 @@ from backend.core.metrics import (
 )
 from backend.models.camera import Camera
 from backend.models.event import Event
+from backend.models.event_detection import EventDetection
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.enrichment_pipeline import EnrichmentResult
 from backend.services.inference_semaphore import get_inference_semaphore
@@ -267,6 +268,15 @@ async def analyze_batch_streaming(  # noqa: PLR0911, PLR0912
         session.add(event)
         await session.commit()
         await session.refresh(event)
+
+        # Populate event_detections junction table (NEM-1592)
+        for detection_id in int_detection_ids:
+            event_detection = EventDetection(
+                event_id=event.id,
+                detection_id=detection_id,
+            )
+            session.add(event_detection)
+        await session.commit()
 
         await analyzer._set_idempotency(batch_id, event.id)
         observe_stage_duration("analyze", time.time() - analysis_start)

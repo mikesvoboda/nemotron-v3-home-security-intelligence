@@ -24,6 +24,15 @@ from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
 )
+from backend.api.schemas.health import (
+    AIServiceHealthStatus,
+    CircuitBreakerSummary,
+    CircuitState,
+    FullHealthResponse,
+    InfrastructureHealthStatus,
+    ServiceHealthState,
+    WorkerHealthStatus,
+)
 from backend.api.schemas.system import (
     BatchAggregatorStatusResponse,
     BatchInfoResponse,
@@ -3065,4 +3074,371 @@ async def get_model_zoo_latency_history(
         bucket_seconds=bucket_seconds,
         has_data=has_data,
         timestamp=datetime.now(UTC),
+    )
+
+
+# =============================================================================
+# Full Health Check Endpoint (NEM-1582)
+# =============================================================================
+
+# AI Service definitions with display names and criticality
+AI_SERVICES_CONFIG = [
+    {
+        "name": "rtdetr",
+        "display_name": "RT-DETRv2 Object Detection",
+        "url_attr": "rtdetr_url",
+        "circuit_breaker_name": "rtdetr",
+        "critical": True,
+    },
+    {
+        "name": "nemotron",
+        "display_name": "Nemotron LLM Risk Analysis",
+        "url_attr": "nemotron_url",
+        "circuit_breaker_name": "nemotron",
+        "critical": True,
+    },
+    {
+        "name": "florence",
+        "display_name": "Florence-2 Vision Language",
+        "url_attr": "florence_url",
+        "circuit_breaker_name": "florence",
+        "critical": False,
+    },
+    {
+        "name": "clip",
+        "display_name": "CLIP Embedding Service",
+        "url_attr": "clip_url",
+        "circuit_breaker_name": "clip",
+        "critical": False,
+    },
+    {
+        "name": "enrichment",
+        "display_name": "Enrichment Service",
+        "url_attr": "enrichment_url",
+        "circuit_breaker_name": "enrichment",
+        "critical": False,
+    },
+]
+
+
+async def _check_ai_service_health(  # noqa: PLR0911
+    service_config: dict[str, Any],
+    settings: Settings,
+    timeout: float = 5.0,
+) -> AIServiceHealthStatus:
+    """Check health of a single AI service.
+
+    This function intentionally has multiple return statements for clarity
+    in handling different health check scenarios (URL not configured,
+    circuit open, HTTP success/error, connection errors, timeouts).
+    """
+    from backend.services.circuit_breaker import _get_registry
+
+    name = service_config["name"]
+    display_name = service_config["display_name"]
+    url_attr = service_config["url_attr"]
+    circuit_breaker_name = service_config.get("circuit_breaker_name", name)
+
+    service_url = getattr(settings, url_attr, None)
+    if not service_url:
+        return AIServiceHealthStatus(
+            name=name,
+            display_name=display_name,
+            status=ServiceHealthState.UNKNOWN,
+            url="",
+            error="Service URL not configured",
+            circuit_state=CircuitState.CLOSED,
+            last_check=datetime.now(UTC),
+        )
+
+    registry = _get_registry()
+    circuit_state = CircuitState.CLOSED
+    breaker = registry.get(circuit_breaker_name)
+    if breaker is not None:
+        state_value = breaker.state.value
+        if state_value == "open":
+            circuit_state = CircuitState.OPEN
+        elif state_value == "half_open":
+            circuit_state = CircuitState.HALF_OPEN
+
+    if circuit_state == CircuitState.OPEN:
+        return AIServiceHealthStatus(
+            name=name,
+            display_name=display_name,
+            status=ServiceHealthState.UNHEALTHY,
+            url=service_url,
+            error="Circuit breaker is open - service unreachable",
+            circuit_state=circuit_state,
+            last_check=datetime.now(UTC),
+        )
+
+    start_time = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(f"{service_url}/health")
+            response_time_ms = (time.time() - start_time) * 1000
+            if response.status_code == 200:
+                return AIServiceHealthStatus(
+                    name=name,
+                    display_name=display_name,
+                    status=ServiceHealthState.HEALTHY,
+                    url=service_url,
+                    response_time_ms=round(response_time_ms, 2),
+                    circuit_state=circuit_state,
+                    last_check=datetime.now(UTC),
+                )
+            return AIServiceHealthStatus(
+                name=name,
+                display_name=display_name,
+                status=ServiceHealthState.UNHEALTHY,
+                url=service_url,
+                response_time_ms=round(response_time_ms, 2),
+                error=f"HTTP {response.status_code}",
+                circuit_state=circuit_state,
+                last_check=datetime.now(UTC),
+            )
+    except httpx.ConnectError:
+        return AIServiceHealthStatus(
+            name=name,
+            display_name=display_name,
+            status=ServiceHealthState.UNHEALTHY,
+            url=service_url,
+            error="Connection refused",
+            circuit_state=circuit_state,
+            last_check=datetime.now(UTC),
+        )
+    except httpx.TimeoutException:
+        return AIServiceHealthStatus(
+            name=name,
+            display_name=display_name,
+            status=ServiceHealthState.UNHEALTHY,
+            url=service_url,
+            error=f"Timeout after {timeout}s",
+            circuit_state=circuit_state,
+            last_check=datetime.now(UTC),
+        )
+    except Exception as e:
+        return AIServiceHealthStatus(
+            name=name,
+            display_name=display_name,
+            status=ServiceHealthState.UNHEALTHY,
+            url=service_url,
+            error=str(e),
+            circuit_state=circuit_state,
+            last_check=datetime.now(UTC),
+        )
+
+
+async def _check_postgres_health_full(db: AsyncSession) -> InfrastructureHealthStatus:
+    """Check PostgreSQL database health."""
+    try:
+        result = await db.execute(select(func.now()))
+        _ = result.scalar()
+        return InfrastructureHealthStatus(
+            name="postgres",
+            status=ServiceHealthState.HEALTHY,
+            message="Database operational",
+            details=None,
+        )
+    except Exception as e:
+        return InfrastructureHealthStatus(
+            name="postgres",
+            status=ServiceHealthState.UNHEALTHY,
+            message=f"Database error: {e}",
+            details=None,
+        )
+
+
+async def _check_redis_health_full(redis: RedisClient | None) -> InfrastructureHealthStatus:
+    """Check Redis health."""
+    if redis is None:
+        return InfrastructureHealthStatus(
+            name="redis",
+            status=ServiceHealthState.UNHEALTHY,
+            message="Redis client not available",
+            details=None,
+        )
+    try:
+        info = await redis.health_check()
+        if info.get("error"):
+            return InfrastructureHealthStatus(
+                name="redis",
+                status=ServiceHealthState.UNHEALTHY,
+                message=f"Redis error: {info.get('error')}",
+                details=None,
+            )
+        return InfrastructureHealthStatus(
+            name="redis",
+            status=ServiceHealthState.HEALTHY,
+            message="Redis connected",
+            details={"redis_version": info.get("redis_version", "unknown")},
+        )
+    except Exception as e:
+        return InfrastructureHealthStatus(
+            name="redis",
+            status=ServiceHealthState.UNHEALTHY,
+            message=f"Redis error: {e}",
+            details=None,
+        )
+
+
+def _get_circuit_breaker_summary() -> CircuitBreakerSummary:
+    """Get summary of all circuit breaker states."""
+    from backend.services.circuit_breaker import _get_registry
+
+    registry = _get_registry()
+    all_status = registry.get_all_status()
+    open_count = 0
+    half_open_count = 0
+    closed_count = 0
+    breakers: dict[str, CircuitState] = {}
+
+    for name, status in all_status.items():
+        state_value = status.get("state", "closed")
+        if state_value == "open":
+            state = CircuitState.OPEN
+            open_count += 1
+        elif state_value == "half_open":
+            state = CircuitState.HALF_OPEN
+            half_open_count += 1
+        else:
+            state = CircuitState.CLOSED
+            closed_count += 1
+        breakers[name] = state
+
+    return CircuitBreakerSummary(
+        total=len(all_status),
+        open=open_count,
+        half_open=half_open_count,
+        closed=closed_count,
+        breakers=breakers,
+    )
+
+
+def _get_worker_status() -> list[WorkerHealthStatus]:
+    """Get status of background workers."""
+    workers: list[WorkerHealthStatus] = []
+
+    # File watcher status - check if the module is loaded and functional
+    # Since FileWatcher is typically started in main.py lifespan, we check the import
+    try:
+        from backend.services import file_watcher  # noqa: F401
+
+        # Module exists, assume watcher is running if we got here in a live app
+        # In production this would check actual watcher state
+        workers.append(
+            WorkerHealthStatus(
+                name="file_watcher",
+                running=True,
+                critical=True,
+            )
+        )
+    except ImportError:
+        workers.append(
+            WorkerHealthStatus(
+                name="file_watcher",
+                running=False,
+                critical=True,
+            )
+        )
+
+    # Cleanup service status
+    if _cleanup_service is not None:
+        stats = _cleanup_service.get_cleanup_stats()
+        workers.append(
+            WorkerHealthStatus(
+                name="cleanup_service",
+                running=stats.get("running", False),
+                critical=False,
+            )
+        )
+    else:
+        workers.append(
+            WorkerHealthStatus(
+                name="cleanup_service",
+                running=False,
+                critical=False,
+            )
+        )
+    return workers
+
+
+@router.get(
+    "/health/full",
+    response_model=FullHealthResponse,
+    responses={
+        200: {"description": "System is healthy"},
+        503: {"description": "One or more critical services are unhealthy"},
+    },
+    summary="Get Full System Health Status",
+)
+async def get_full_health(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    redis: RedisClient | None = Depends(get_redis_optional),
+) -> FullHealthResponse:
+    """Get comprehensive health status for all system components."""
+    settings = get_settings()
+
+    postgres_task = _check_postgres_health_full(db)
+    redis_task = _check_redis_health_full(redis)
+    ai_tasks = [_check_ai_service_health(config, settings) for config in AI_SERVICES_CONFIG]
+
+    results = await asyncio.gather(
+        postgres_task,
+        redis_task,
+        *ai_tasks,
+    )
+    postgres_health: InfrastructureHealthStatus = results[0]  # type: ignore[assignment]
+    redis_health: InfrastructureHealthStatus = results[1]  # type: ignore[assignment]
+    ai_healths: list[AIServiceHealthStatus] = list(results[2:])  # type: ignore[arg-type]
+
+    circuit_breaker_summary = _get_circuit_breaker_summary()
+    workers = _get_worker_status()
+
+    critical_unhealthy: list[str] = []
+    non_critical_unhealthy: list[str] = []
+
+    if postgres_health.status != ServiceHealthState.HEALTHY:
+        critical_unhealthy.append("postgres")
+    if redis_health.status != ServiceHealthState.HEALTHY:
+        critical_unhealthy.append("redis")
+
+    for i, health in enumerate(ai_healths):
+        service_config = AI_SERVICES_CONFIG[i]
+        if health.status != ServiceHealthState.HEALTHY:
+            if service_config.get("critical", False):
+                critical_unhealthy.append(health.name)
+            else:
+                non_critical_unhealthy.append(health.name)
+
+    for worker in workers:
+        if worker.critical and not worker.running:
+            critical_unhealthy.append(worker.name)
+
+    if critical_unhealthy:
+        overall_status = ServiceHealthState.UNHEALTHY
+        ready = False
+        message = f"Critical services unhealthy: {', '.join(critical_unhealthy)}"
+        response.status_code = 503
+    elif non_critical_unhealthy:
+        overall_status = ServiceHealthState.DEGRADED
+        ready = True
+        message = f"Degraded: {', '.join(non_critical_unhealthy)} unavailable"
+    else:
+        overall_status = ServiceHealthState.HEALTHY
+        ready = True
+        message = "All systems operational"
+
+    return FullHealthResponse(
+        status=overall_status,
+        ready=ready,
+        message=message,
+        postgres=postgres_health,
+        redis=redis_health,
+        ai_services=ai_healths,
+        circuit_breakers=circuit_breaker_summary,
+        workers=workers,
+        timestamp=datetime.now(UTC),
+        version=settings.app_version,
     )

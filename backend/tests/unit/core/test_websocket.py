@@ -406,6 +406,24 @@ class MockSystemBroadcaster:
         """
         self._running = False
 
+    async def broadcast_circuit_breaker_states(self, states: dict[str, Any]) -> None:
+        """Broadcast circuit breaker states to all connected clients.
+
+        Args:
+            states: Circuit breaker states data to broadcast
+        """
+        self.messages.append({"type": "circuit_breaker_states", "data": states})
+        failed_connections = set()
+
+        for websocket in self.connections:
+            try:
+                await websocket.send_json({"type": "circuit_breaker_states", "data": states})
+            except Exception:
+                failed_connections.add(websocket)
+
+        # Remove failed connections
+        self.connections -= failed_connections
+
     # ==========================================================================
     # Test-only methods below - NOT part of the real SystemBroadcaster interface
     # These are convenience methods for tests in this file only.
