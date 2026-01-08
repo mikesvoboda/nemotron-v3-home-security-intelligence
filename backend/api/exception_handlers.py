@@ -31,6 +31,7 @@ Usage:
 
 from __future__ import annotations
 
+import html
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
@@ -169,12 +170,15 @@ async def problem_details_exception_handler(
         logger.info(f"Client error: {detail}", extra=log_context)
 
     # Create RFC 7807 Problem Detail object
+    # Sanitize the instance path to prevent XSS attacks
+    # The path could contain user-supplied input (e.g., /api/cameras/<script>alert('XSS')</script>)
+    sanitized_instance = html.escape(str(request.url.path))
     problem = ProblemDetail(
         type="about:blank",
         title=title,
         status=exc.status_code,
         detail=detail,
-        instance=str(request.url.path),
+        instance=sanitized_instance,
     )
 
     # Build response with proper media type
