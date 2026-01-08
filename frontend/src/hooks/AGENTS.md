@@ -9,6 +9,7 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 | File                        | Purpose                                                          | Exported |
 | --------------------------- | ---------------------------------------------------------------- | -------- |
 | `index.ts`                  | Central export point for hooks and types                         | N/A      |
+| `usePolling.ts`             | Generic polling hook for REST endpoints with interval fetching   | Yes      |
 | `useWebSocket.ts`           | Low-level WebSocket connection manager                           | Yes      |
 | `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                  | Yes      |
 | `useConnectionStatus.ts`    | Unified connection status for all WS channels                    | Yes      |
@@ -23,7 +24,7 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 | `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                 | Yes      |
 | `useModelZooStatus.ts`      | Fetches and polls Model Zoo status with VRAM stats               | Yes      |
 | `useSavedSearches.ts`       | Manages saved searches in localStorage                           | Yes      |
-| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview                  | No       |
+| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview (uses usePolling)| No       |
 | `useServiceStatus.ts`       | Per-service status tracking                                      | No       |
 | `useSidebarContext.ts`      | Context hook for mobile sidebar state                            | No       |
 | `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication        | No       |
@@ -32,6 +33,7 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 
 | File                              | Coverage                                                 |
 | --------------------------------- | -------------------------------------------------------- |
+| `usePolling.test.ts`              | Generic polling, callbacks, error handling, interval     |
 | `useWebSocket.test.ts`            | Connection lifecycle, message handling, reconnects       |
 | `useWebSocketStatus.test.ts`      | Channel status tracking, reconnect state                 |
 | `useConnectionStatus.test.ts`     | Multi-channel status aggregation                         |
@@ -52,6 +54,56 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 | `webSocketManager.test.ts`        | Connection deduplication, ref counting, subscribers      |
 
 ## Hook Details
+
+### `usePolling.ts`
+
+Generic reusable hook for polling REST endpoints at a configurable interval.
+
+**Features:**
+
+- Fetches data on mount and at regular intervals
+- Configurable polling interval
+- Enable/disable polling dynamically
+- Success and error callbacks
+- Manual refetch capability
+- Type-safe with generics
+
+**Options Interface:**
+
+```typescript
+interface UsePollingOptions<T> {
+  fetcher: () => Promise<T>;     // Async function to fetch data
+  interval: number;               // Polling interval in milliseconds
+  enabled?: boolean;              // Enable polling (default: true)
+  onSuccess?: (data: T) => void;  // Called on successful fetch
+  onError?: (error: Error) => void; // Called on fetch error
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UsePollingReturn<T> {
+  data: T | null;                 // Fetched data
+  loading: boolean;               // Initial loading state only
+  error: Error | null;            // Error from last fetch
+  refetch: () => Promise<void>;   // Manual refetch function
+}
+```
+
+**Usage Example:**
+
+```typescript
+const { data, loading, error, refetch } = usePolling({
+  fetcher: () => fetchStorageStats(),
+  interval: 60000,        // Poll every minute
+  enabled: true,
+  onSuccess: (data) => console.log('Fetched:', data),
+  onError: (error) => console.error('Error:', error),
+});
+```
+
+**Note:** The `loading` state is `true` only during the initial fetch. This follows the pattern used by TanStack Query's `isLoading` vs `isFetching`. Use `refetch` for manual refresh without loading state changes.
 
 ### `useWebSocket.ts`
 

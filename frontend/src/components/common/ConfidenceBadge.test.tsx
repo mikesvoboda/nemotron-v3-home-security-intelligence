@@ -188,4 +188,48 @@ describe('ConfidenceBadge', () => {
       expect(badge).toHaveClass('text-green-400'); // high
     });
   });
+
+  describe('snapshots', () => {
+    it('renders low confidence level (< 70%)', () => {
+      const { container } = render(<ConfidenceBadge confidence={0.5} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders medium confidence level (70-85%)', () => {
+      const { container } = render(<ConfidenceBadge confidence={0.75} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders high confidence level (>= 85%)', () => {
+      const { container } = render(<ConfidenceBadge confidence={0.95} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it.each(['sm', 'md', 'lg'] as const)('renders %s size variant correctly', (size) => {
+      const { container } = render(<ConfidenceBadge confidence={0.88} size={size} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with confidence bar visible', () => {
+      const { container } = render(<ConfidenceBadge confidence={0.82} showBar={true} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with custom className', () => {
+      const { container } = render(
+        <ConfidenceBadge confidence={0.9} className="custom-spacing mx-2" />
+      );
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders edge case at boundary 0.7', () => {
+      const { container } = render(<ConfidenceBadge confidence={0.7} showBar={true} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders edge case at boundary 0.85', () => {
+      const { container } = render(<ConfidenceBadge confidence={0.85} showBar={true} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+  });
 });

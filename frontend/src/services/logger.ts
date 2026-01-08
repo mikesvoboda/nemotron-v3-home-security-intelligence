@@ -79,7 +79,7 @@ class Logger {
     // Capture unhandled errors
     window.onerror = (message, source, lineno, colno, error) => {
       this.error('Unhandled error', {
-        message: typeof message === 'string' ? message : message?.type ?? 'Unknown error',
+        message: typeof message === 'string' ? message : (message?.type ?? 'Unknown error'),
         source,
         lineno,
         colno,
@@ -158,6 +158,9 @@ class Logger {
   /**
    * Flushes the log queue by sending all entries in a single batched request.
    * This is more efficient than sending individual requests.
+   *
+   * NEM-1411: Uses Promise.allSettled() for individual requests to handle
+   * partial failures gracefully - only re-queues entries that actually failed.
    */
   async flush(): Promise<void> {
     if (this.queue.length === 0 || this.isDestroyed) return;
@@ -182,8 +185,9 @@ class Logger {
           }),
         });
       } else {
-        // Fallback to individual requests (legacy behavior)
-        await Promise.all(
+        // Fallback to individual requests using Promise.allSettled for resilience
+        // NEM-1411: Only re-queue entries that actually failed, not entire batch
+        const results = await Promise.allSettled(
           entries.map((entry) =>
             fetch(this.config.endpoint, {
               method: 'POST',
@@ -197,9 +201,19 @@ class Logger {
             })
           )
         );
+
+        // Only re-queue failed entries
+        const failedEntries = entries.filter((_, i) => results[i].status === 'rejected');
+        if (
+          failedEntries.length > 0 &&
+          this.queue.length + failedEntries.length <= this.config.maxQueueSize
+        ) {
+          this.queue.unshift(...failedEntries);
+          console.error(`Failed to flush ${failedEntries.length}/${entries.length} logs`);
+        }
       }
     } catch (err) {
-      // On failure, preserve entries if queue isn't full
+      // On failure (e.g., batch endpoint fails), preserve entries if queue isn't full
       if (this.queue.length + entries.length <= this.config.maxQueueSize) {
         this.queue.unshift(...entries);
       }

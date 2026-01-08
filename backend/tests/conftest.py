@@ -174,7 +174,12 @@ def _check_redis_connection(host: str = "localhost", port: int = 6379) -> bool:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Assign timeouts based on test location and markers.
+    """Auto-apply markers and timeouts based on test location.
+
+    This hook automatically:
+    1. Applies 'unit' marker to tests in /unit/ directory
+    2. Applies 'integration' marker to tests in /integration/ directory
+    3. Assigns timeouts based on test location and markers
 
     Timeout hierarchy (highest priority first):
     1. CLI --timeout=0 disables all timeouts (for CI)
@@ -188,11 +193,21 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     # Check if timeouts are disabled via CLI (--timeout=0)
     # This is used in CI where environment is slower
     cli_timeout = config.getoption("timeout", default=None)
-    if cli_timeout == 0:
-        # Don't add any timeout markers - let pytest-timeout handle it
-        return
+    timeouts_disabled = cli_timeout == 0
 
     for item in items:
+        fspath_str = str(item.fspath)
+
+        # Auto-apply test type markers based on directory
+        if "/integration/" in fspath_str and not item.get_closest_marker("integration"):
+            item.add_marker(pytest.mark.integration)
+        elif "/unit/" in fspath_str and not item.get_closest_marker("unit"):
+            item.add_marker(pytest.mark.unit)
+
+        # Skip timeout assignment if disabled via CLI
+        if timeouts_disabled:
+            continue
+
         # Skip if test has explicit timeout marker
         if item.get_closest_marker("timeout"):
             continue
@@ -203,7 +218,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             continue
 
         # Integration tests get 5s
-        if "/integration/" in str(item.fspath):
+        if "/integration/" in fspath_str:
             item.add_marker(pytest.mark.timeout(5))
             continue
 

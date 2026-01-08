@@ -576,3 +576,143 @@ describe('BoundingBoxOverlay memoization', () => {
     expect(BoundingBoxOverlay).toHaveProperty('compare', arePropsEqual);
   });
 });
+
+// =============================================================================
+// Snapshot Tests (NEM-1428)
+// =============================================================================
+
+describe('BoundingBoxOverlay snapshots', () => {
+  const mockBoxes: BoundingBox[] = [
+    {
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 300,
+      label: 'person',
+      confidence: 0.95,
+    },
+    {
+      x: 400,
+      y: 200,
+      width: 150,
+      height: 100,
+      label: 'car',
+      confidence: 0.87,
+    },
+  ];
+
+  it('renders with single bounding box', () => {
+    const { container } = render(
+      <BoundingBoxOverlay boxes={[mockBoxes[0]]} imageWidth={800} imageHeight={600} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with multiple bounding boxes', () => {
+    const { container } = render(
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with labels hidden', () => {
+    const { container } = render(
+      <BoundingBoxOverlay
+        boxes={mockBoxes}
+        imageWidth={800}
+        imageHeight={600}
+        showLabels={false}
+      />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with confidence hidden', () => {
+    const { container } = render(
+      <BoundingBoxOverlay
+        boxes={mockBoxes}
+        imageWidth={800}
+        imageHeight={600}
+        showConfidence={false}
+      />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with custom colors', () => {
+    const customBoxes: BoundingBox[] = [
+      {
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 200,
+        label: 'custom',
+        confidence: 0.9,
+        color: '#ff00ff',
+      },
+      {
+        x: 400,
+        y: 400,
+        width: 150,
+        height: 150,
+        label: 'another',
+        confidence: 0.85,
+        color: '#00ffff',
+      },
+    ];
+
+    const { container } = render(
+      <BoundingBoxOverlay boxes={customBoxes} imageWidth={800} imageHeight={600} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with different image dimensions', () => {
+    const { container } = render(
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={1920} imageHeight={1080} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with minConfidence filter', () => {
+    const { container } = render(
+      <BoundingBoxOverlay
+        boxes={mockBoxes}
+        imageWidth={800}
+        imageHeight={600}
+        minConfidence={0.9}
+      />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with various object types', () => {
+    const diverseBoxes: BoundingBox[] = [
+      { x: 10, y: 10, width: 50, height: 50, label: 'person', confidence: 0.99 },
+      { x: 100, y: 100, width: 100, height: 100, label: 'car', confidence: 0.85 },
+      { x: 300, y: 300, width: 75, height: 75, label: 'cat', confidence: 0.72 },
+      { x: 500, y: 200, width: 120, height: 80, label: 'package', confidence: 0.91 },
+    ];
+
+    const { container } = render(
+      <BoundingBoxOverlay boxes={diverseBoxes} imageWidth={1920} imageHeight={1080} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+
+  it('renders with unknown object type (default color)', () => {
+    const unknownBox: BoundingBox = {
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 200,
+      label: 'unknown_object',
+      confidence: 0.85,
+    };
+
+    const { container } = render(
+      <BoundingBoxOverlay boxes={[unknownBox]} imageWidth={800} imageHeight={600} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
+});
