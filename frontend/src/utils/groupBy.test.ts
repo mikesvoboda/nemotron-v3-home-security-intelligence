@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { countBy, groupBy } from './groupBy';
 
@@ -128,61 +128,79 @@ describe('groupBy', () => {
   });
 
   describe('native Object.groupBy detection', () => {
-    const originalGroupBy = (Object as { groupBy?: unknown }).groupBy;
-
-    beforeEach(() => {
-      // Clean up any existing groupBy to test both paths
-      if ('groupBy' in Object) {
-        delete (Object as { groupBy?: unknown }).groupBy;
-      }
-    });
-
-    afterEach(() => {
-      // Restore original groupBy if it existed
-      if (originalGroupBy !== undefined) {
-        (Object as { groupBy?: unknown }).groupBy = originalGroupBy;
-      }
-    });
-
+    // Each test saves/restores Object.groupBy to avoid leaking mocks across shards
     it('uses fallback when Object.groupBy is not available', () => {
-      // Ensure native is not available
-      expect('groupBy' in Object).toBe(false);
+      const originalGroupBy = (Object as { groupBy?: unknown }).groupBy;
+      try {
+        // Remove native to test fallback
+        if ('groupBy' in Object) {
+          delete (Object as { groupBy?: unknown }).groupBy;
+        }
 
-      const items = [
-        { id: 1, type: 'a' },
-        { id: 2, type: 'b' },
-      ];
+        // Ensure native is not available
+        expect('groupBy' in Object).toBe(false);
 
-      const result = groupBy(items, (item) => item.type);
+        const items = [
+          { id: 1, type: 'a' },
+          { id: 2, type: 'b' },
+        ];
 
-      expect(result).toEqual({
-        a: [{ id: 1, type: 'a' }],
-        b: [{ id: 2, type: 'b' }],
-      });
+        const result = groupBy(items, (item) => item.type);
+
+        expect(result).toEqual({
+          a: [{ id: 1, type: 'a' }],
+          b: [{ id: 2, type: 'b' }],
+        });
+      } finally {
+        // Restore original groupBy
+        if (originalGroupBy !== undefined) {
+          (Object as { groupBy?: unknown }).groupBy = originalGroupBy;
+        }
+      }
     });
 
     it('uses native Object.groupBy when available', () => {
-      // Mock native Object.groupBy
-      const mockGroupBy = vi.fn().mockReturnValue({ a: [{ id: 1 }] });
-      (Object as { groupBy?: unknown }).groupBy = mockGroupBy;
+      const originalGroupBy = (Object as { groupBy?: unknown }).groupBy;
+      try {
+        // Mock native Object.groupBy
+        const mockGroupBy = vi.fn().mockReturnValue({ a: [{ id: 1 }] });
+        (Object as { groupBy?: unknown }).groupBy = mockGroupBy;
 
-      const items = [{ id: 1, type: 'a' }];
-      const keySelector = (item: { id: number; type: string }) => item.type;
+        const items = [{ id: 1, type: 'a' }];
+        const keySelector = (item: { id: number; type: string }) => item.type;
 
-      groupBy(items, keySelector);
+        groupBy(items, keySelector);
 
-      expect(mockGroupBy).toHaveBeenCalledWith(items, keySelector);
+        expect(mockGroupBy).toHaveBeenCalledWith(items, keySelector);
+      } finally {
+        // Restore original groupBy
+        if (originalGroupBy !== undefined) {
+          (Object as { groupBy?: unknown }).groupBy = originalGroupBy;
+        } else if ('groupBy' in Object) {
+          delete (Object as { groupBy?: unknown }).groupBy;
+        }
+      }
     });
 
     it('returns native result when Object.groupBy is available', () => {
-      // Mock native Object.groupBy with specific return value
-      const nativeResult = { native: [{ id: 1 }] };
-      (Object as { groupBy?: unknown }).groupBy = vi.fn().mockReturnValue(nativeResult);
+      const originalGroupBy = (Object as { groupBy?: unknown }).groupBy;
+      try {
+        // Mock native Object.groupBy with specific return value
+        const nativeResult = { native: [{ id: 1 }] };
+        (Object as { groupBy?: unknown }).groupBy = vi.fn().mockReturnValue(nativeResult);
 
-      const items = [{ id: 1, type: 'native' }];
-      const result = groupBy(items, (item) => item.type);
+        const items = [{ id: 1, type: 'native' }];
+        const result = groupBy(items, (item) => item.type);
 
-      expect(result).toBe(nativeResult);
+        expect(result).toBe(nativeResult);
+      } finally {
+        // Restore original groupBy
+        if (originalGroupBy !== undefined) {
+          (Object as { groupBy?: unknown }).groupBy = originalGroupBy;
+        } else if ('groupBy' in Object) {
+          delete (Object as { groupBy?: unknown }).groupBy;
+        }
+      }
     });
   });
 
