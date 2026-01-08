@@ -47,20 +47,24 @@ DEFAULT_HIGH_MAX = 84
 def infer_risk_level_from_score(score: int) -> RiskLevel:
     """Infer risk level from score using default thresholds.
 
+    Uses Python 3.10+ structural pattern matching with guard clauses
+    for clear, readable threshold-based classification.
+
     Args:
         score: Risk score (0-100)
 
     Returns:
         Inferred RiskLevel based on score thresholds
     """
-    if score <= DEFAULT_LOW_MAX:
-        return RiskLevel.LOW
-    elif score <= DEFAULT_MEDIUM_MAX:
-        return RiskLevel.MEDIUM
-    elif score <= DEFAULT_HIGH_MAX:
-        return RiskLevel.HIGH
-    else:
-        return RiskLevel.CRITICAL
+    match score:
+        case _ if score <= DEFAULT_LOW_MAX:
+            return RiskLevel.LOW
+        case _ if score <= DEFAULT_MEDIUM_MAX:
+            return RiskLevel.MEDIUM
+        case _ if score <= DEFAULT_HIGH_MAX:
+            return RiskLevel.HIGH
+        case _:
+            return RiskLevel.CRITICAL
 
 
 class LLMRiskResponse(BaseModel):

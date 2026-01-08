@@ -129,7 +129,7 @@ async def test_system_broadcaster_broadcast_status_removes_failed():
     broadcaster = SystemBroadcaster()
     mock_ws_good = AsyncMock()
     mock_ws_bad = AsyncMock()
-    mock_ws_bad.send_text.side_effect = Exception("Connection failed")
+    mock_ws_bad.send_text.side_effect = ConnectionError("Connection failed")
 
     broadcaster.connections.add(mock_ws_good)
     broadcaster.connections.add(mock_ws_bad)
@@ -189,7 +189,7 @@ async def test_system_broadcaster_get_queue_stats_redis_error():
     """Test getting queue stats when Redis raises an error."""
     # Mock Redis to raise an exception
     mock_redis = AsyncMock()
-    mock_redis.get_queue_length.side_effect = Exception("Redis error")
+    mock_redis.get_queue_length.side_effect = ConnectionError("Redis error")
 
     # Use dependency injection
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
@@ -322,9 +322,9 @@ async def test_system_broadcaster_get_latest_gpu_stats_error():
     """Test GPU stats getter handles database errors gracefully."""
     broadcaster = SystemBroadcaster()
 
-    # Mock get_session to raise error
+    # Mock get_session to raise error (ConnectionError is caught)
     with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Database error")
+        mock_session.side_effect = ConnectionError("Database error")
 
         gpu_stats = await broadcaster._get_latest_gpu_stats()
 
@@ -339,9 +339,9 @@ async def test_system_broadcaster_get_camera_stats_error():
     """Test camera stats getter handles database errors gracefully."""
     broadcaster = SystemBroadcaster()
 
-    # Mock get_session to raise error
+    # Mock get_session to raise error (ConnectionError is caught)
     with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Database error")
+        mock_session.side_effect = ConnectionError("Database error")
 
         camera_stats = await broadcaster._get_camera_stats()
 
@@ -390,7 +390,7 @@ async def test_system_broadcaster_reset_pubsub_handles_unsubscribe_error():
     mock_redis.subscribe_dedicated.return_value = mock_pubsub
 
     old_pubsub = AsyncMock()
-    old_pubsub.unsubscribe.side_effect = Exception("Unsubscribe failed")
+    old_pubsub.unsubscribe.side_effect = ConnectionError("Unsubscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = old_pubsub
@@ -406,7 +406,7 @@ async def test_system_broadcaster_reset_pubsub_handles_unsubscribe_error():
 async def test_system_broadcaster_reset_pubsub_handles_subscribe_error():
     """Test reset_pubsub_connection handles subscribe errors gracefully."""
     mock_redis = AsyncMock()
-    mock_redis.subscribe_dedicated.side_effect = Exception("Subscribe failed")
+    mock_redis.subscribe_dedicated.side_effect = ConnectionError("Subscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = AsyncMock()
@@ -430,7 +430,7 @@ async def test_system_broadcaster_listen_restarts_with_fresh_connection():
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise Exception("readuntil() called while another coroutine is waiting")
+            raise ConnectionError("readuntil() called while another coroutine is waiting")
         # Return empty generator for subsequent calls
         for _ in []:
             yield
@@ -482,7 +482,7 @@ async def test_system_broadcaster_broadcast_status_via_redis():
 async def test_system_broadcaster_broadcast_status_redis_publish_failure():
     """Test broadcast_status falls back to direct when Redis publish fails."""
     mock_redis = AsyncMock()
-    mock_redis.publish.side_effect = Exception("Redis publish failed")
+    mock_redis.publish.side_effect = ConnectionError("Redis publish failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     mock_ws = AsyncMock()
@@ -514,7 +514,7 @@ async def test_system_broadcaster_start_pubsub_listener_already_running():
 async def test_system_broadcaster_start_pubsub_listener_subscribe_error():
     """Test _start_pubsub_listener handles subscription errors."""
     mock_redis = AsyncMock()
-    mock_redis.subscribe_dedicated.side_effect = Exception("Subscription failed")
+    mock_redis.subscribe_dedicated.side_effect = ConnectionError("Subscription failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -587,7 +587,7 @@ async def test_system_broadcaster_stop_pubsub_listener_unsubscribe_error():
     """Test _stop_pubsub_listener handles unsubscribe errors."""
     mock_redis = AsyncMock()
     mock_pubsub = AsyncMock()
-    mock_pubsub.unsubscribe.side_effect = Exception("Unsubscribe failed")
+    mock_pubsub.unsubscribe.side_effect = ConnectionError("Unsubscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = mock_pubsub
@@ -694,7 +694,7 @@ async def test_system_broadcaster_listen_for_updates_reconnection_failure():
     async def mock_listen(pubsub):
         for _ in []:
             yield
-        raise Exception("Connection error")
+        raise ConnectionError("Connection error")
 
     mock_redis.listen = mock_listen
     mock_redis.subscribe.return_value = None  # Reconnection will fail
@@ -765,7 +765,7 @@ async def test_system_broadcaster_broadcast_loop_handles_error():
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise Exception("Status error")
+            raise ConnectionError("Status error")
         broadcaster._running = False
         return {"test": "data"}
 
@@ -948,7 +948,7 @@ async def test_system_broadcaster_broadcast_performance_with_collector():
 async def test_system_broadcaster_broadcast_performance_fallback_to_direct():
     """Test broadcast_performance falls back to direct send when Redis publish fails."""
     mock_redis = AsyncMock()
-    mock_redis.publish.side_effect = Exception("Redis publish failed")
+    mock_redis.publish.side_effect = ConnectionError("Redis publish failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -1014,7 +1014,7 @@ async def test_system_broadcaster_broadcast_performance_collector_error():
     broadcaster = SystemBroadcaster()
 
     mock_collector = AsyncMock()
-    mock_collector.collect_all.side_effect = Exception("Collector error")
+    mock_collector.collect_all.side_effect = RuntimeError("Collector error")
 
     broadcaster.set_performance_collector(mock_collector)
 
@@ -1218,7 +1218,7 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
     async def failing_session():
         for _ in []:  # Make it a generator for asynccontextmanager
             yield
-        raise Exception("Database connection error")
+        raise ConnectionError("Database connection error")
 
     with (
         patch("backend.services.system_broadcaster.get_session", failing_session),
@@ -1262,7 +1262,7 @@ async def test_system_broadcaster_check_redis_health_success():
 async def test_system_broadcaster_check_redis_health_failure():
     """Test _check_redis_health returns False when Redis health check fails."""
     mock_redis = AsyncMock()
-    mock_redis.health_check.side_effect = Exception("Redis not available")
+    mock_redis.health_check.side_effect = ConnectionError("Redis not available")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -1350,7 +1350,7 @@ async def test_system_broadcaster_check_ai_health_both_unhealthy():
 
     with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
-        mock_client.get.side_effect = Exception("Connection refused")
+        mock_client.get.side_effect = OSError("Connection refused")
         mock_client_cls.return_value.__aenter__.return_value = mock_client
         mock_client_cls.return_value.__aexit__.return_value = None
 
@@ -1618,7 +1618,7 @@ async def test_system_broadcaster_is_degraded_after_reestablish_failure():
     """Test that is_degraded() returns True when re-establishing connection fails."""
     mock_redis = AsyncMock()
     # Make subscribe_dedicated return None to simulate failure
-    mock_redis.subscribe_dedicated.side_effect = Exception("Connection failed")
+    mock_redis.subscribe_dedicated.side_effect = ConnectionError("Connection failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub_listening = True
@@ -1691,8 +1691,10 @@ async def test_system_broadcaster_connect_send_initial_status_failure():
     broadcaster = SystemBroadcaster()
     mock_websocket = AsyncMock()
 
-    # Mock _get_system_status to raise an error
-    with patch.object(broadcaster, "_get_system_status", side_effect=Exception("Status error")):
+    # Mock _get_system_status to raise a connection error (specific exception)
+    with patch.object(
+        broadcaster, "_get_system_status", side_effect=ConnectionError("Status error")
+    ):
         # Should not raise - error is caught and logged
         await broadcaster.connect(mock_websocket)
 
@@ -1742,7 +1744,9 @@ async def test_system_broadcaster_broadcast_degraded_state_send_failure():
     broadcaster = SystemBroadcaster()
 
     # Mock _send_to_local_clients to raise an error
-    with patch.object(broadcaster, "_send_to_local_clients", side_effect=Exception("Send error")):
+    with patch.object(
+        broadcaster, "_send_to_local_clients", side_effect=ConnectionError("Send error")
+    ):
         # Should not raise - error is caught
         await broadcaster._broadcast_degraded_state()
 
@@ -1758,7 +1762,7 @@ async def test_system_broadcaster_stop_pubsub_listener_close_error():
     mock_redis = AsyncMock()
     mock_pubsub = AsyncMock()
     mock_pubsub.unsubscribe.return_value = None
-    mock_pubsub.close.side_effect = Exception("Close failed")
+    mock_pubsub.close.side_effect = ConnectionError("Close failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = mock_pubsub
@@ -1781,7 +1785,7 @@ async def test_system_broadcaster_reset_pubsub_handles_close_error():
 
     old_pubsub = AsyncMock()
     old_pubsub.unsubscribe.return_value = None
-    old_pubsub.close.side_effect = Exception("Close failed")
+    old_pubsub.close.side_effect = ConnectionError("Close failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = old_pubsub
@@ -1915,7 +1919,7 @@ async def test_system_broadcaster_get_gpu_stats_with_session_error():
     """Test _get_latest_gpu_stats_with_session handles errors gracefully (line 693-695)."""
     broadcaster = SystemBroadcaster()
     mock_session = AsyncMock()
-    mock_session.execute.side_effect = Exception("Database error")
+    mock_session.execute.side_effect = ConnectionError("Database error")
 
     gpu_stats = await broadcaster._get_latest_gpu_stats_with_session(mock_session)
 
@@ -1932,7 +1936,7 @@ async def test_system_broadcaster_get_camera_stats_with_session_error():
     """Test _get_camera_stats_with_session handles errors gracefully (line 749-751)."""
     broadcaster = SystemBroadcaster()
     mock_session = AsyncMock()
-    mock_session.execute.side_effect = Exception("Database error")
+    mock_session.execute.side_effect = ConnectionError("Database error")
 
     camera_stats = await broadcaster._get_camera_stats_with_session(mock_session)
 
@@ -1947,7 +1951,7 @@ async def test_system_broadcaster_get_camera_stats_deprecated_method():
     broadcaster = SystemBroadcaster()
 
     with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Session error")
+        mock_session.side_effect = ConnectionError("Session error")
 
         camera_stats = await broadcaster._get_camera_stats()
 
@@ -1968,7 +1972,7 @@ async def test_system_broadcaster_check_ai_health_gather_error():
 
     # Mock httpx.AsyncClient to cause gather to fail
     with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
-        mock_client_cls.side_effect = Exception("Client creation failed")
+        mock_client_cls.side_effect = RuntimeError("Client creation failed")
 
         result = await broadcaster._check_ai_health()
 
@@ -2039,7 +2043,7 @@ async def test_system_broadcaster_get_health_status_unhealthy():
     async def failing_session():
         for _ in []:
             yield
-        raise Exception("Database error")
+        raise ConnectionError("Database error")
 
     with patch("backend.services.system_broadcaster.get_session", failing_session):
         health = await broadcaster._get_health_status()
@@ -2085,8 +2089,17 @@ async def test_get_system_broadcaster_async_fast_path():
 
     reset_broadcaster_state()
 
-    # Create and start broadcaster
+    # Create mock Redis with proper async generator for listen
     mock_redis = AsyncMock()
+
+    async def empty_listen(pubsub):
+        """Empty async generator for mocking Redis listen."""
+        for _ in []:
+            yield
+
+    mock_redis.listen = empty_listen
+
+    # Create and start broadcaster
     broadcaster1 = await get_system_broadcaster_async(redis_client=mock_redis, interval=5.0)
 
     # Second call should hit fast path

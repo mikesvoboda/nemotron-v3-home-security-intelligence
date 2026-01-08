@@ -46,6 +46,7 @@ __all__ = [
 ]
 
 import asyncio
+import json
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -262,7 +263,9 @@ class DetectorClient:
                 exc_info=True,
             )
             return False
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
+            # OSError: network-level failures, RuntimeError: HTTP client issues
+            # ValueError: unexpected response parsing errors
             logger.error(
                 "Unexpected error during detector health check",
                 extra={"error": sanitize_error(e)},
@@ -599,7 +602,8 @@ class DetectorClient:
                         try:
                             error_response = e.response.json()
                             error_detail = error_response.get("detail", str(e))
-                        except Exception:
+                        except (json.JSONDecodeError, ValueError, AttributeError):
+                            # JSON parsing failures - fall back to raw text
                             error_detail = e.response.text[:500] if e.response.text else str(e)
 
                     record_pipeline_error("rtdetr_client_error")
@@ -617,7 +621,40 @@ class DetectorClient:
                         f"Detector client error {status_code}: {error_detail or e}"
                     ) from e
 
-            except Exception as e:
+            except (json.JSONDecodeError, ValueError) as e:
+                # json.JSONDecodeError: malformed JSON response from detector
+                # ValueError: invalid response data or JSON decode errors (JSONDecodeError is a ValueError)
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: {sanitize_error(e)}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("rtdetr_json_error")
+                    logger.error(
+                        f"Detector JSON/value error after {self._max_retries} attempts: "
+                        f"{sanitize_error(e)}",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempts": self._max_retries,
+                        },
+                        exc_info=True,
+                    )
+
+            except (OSError, RuntimeError) as e:
+                # OSError: network-level failures, file I/O issues
+                # RuntimeError: HTTP client/asyncio issues
                 last_exception = e
                 if attempt < self._max_retries - 1:
                     delay = min(2**attempt, 30)  # Cap at 30 seconds
@@ -703,7 +740,8 @@ class DetectorClient:
                 extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
             )
             return False
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
+            # ValueError: invalid image format, RuntimeError: PIL/decoder issues
             logger.warning(
                 "Image validation failed",
                 extra={"camera_id": camera_id, "file_path": image_path, "error": sanitize_error(e)},
@@ -918,7 +956,10 @@ class DetectorClient:
                         f"(confidence: {confidence:.2f}, bbox: {bbox})"
                     )
 
-                except Exception as e:
+                except (ValueError, TypeError, KeyError) as e:
+                    # ValueError: invalid data values (confidence, coordinates)
+                    # TypeError: unexpected data types in detection response
+                    # KeyError: missing required fields in detection data
                     logger.error(
                         "Error processing detection data",
                         extra={"error": sanitize_error(e)},
@@ -1011,7 +1052,9 @@ class DetectorClient:
         except DetectorUnavailableError:
             # Transient errors after retry exhaustion - propagate for caller to handle
             raise
-        except Exception as e:
+        except (OSError, RuntimeError) as e:
+            # OSError/IOError: file system errors, file read failures
+            # RuntimeError: asyncio/event loop issues
             # Catch any other unexpected errors (e.g., file read errors)
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("rtdetr_unexpected_error")

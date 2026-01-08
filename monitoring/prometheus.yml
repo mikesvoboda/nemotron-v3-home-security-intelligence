@@ -145,3 +145,139 @@ scrape_configs:
     static_configs:
       - targets:
           - 'json-exporter:7979'
+
+  # =============================================================================
+  # Blackbox Exporter - Synthetic Monitoring (NEM-1637)
+  # =============================================================================
+  # External endpoint probing for availability, latency, and health validation
+  # Access probe UI at http://blackbox-exporter:9115
+
+  # Blackbox exporter self-monitoring
+  - job_name: 'blackbox-exporter'
+    static_configs:
+      - targets:
+          - 'blackbox-exporter:9115'
+
+  # HTTP Health probes - validates JSON health response body
+  - job_name: 'blackbox-http-health'
+    metrics_path: /probe
+    params:
+      module: [http_health]
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - http://backend:8000/api/system/health
+        labels:
+          probe_type: health
+          service: backend
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # HTTP Readiness probes - stricter check for load balancing decisions
+  - job_name: 'blackbox-http-ready'
+    metrics_path: /probe
+    params:
+      module: [http_ready]
+    scrape_interval: 10s
+    scrape_timeout: 15s
+    static_configs:
+      - targets:
+          - http://backend:8000/api/system/health/ready
+        labels:
+          probe_type: readiness
+          service: backend
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # HTTP Liveness probes - simple availability checks
+  - job_name: 'blackbox-http-live'
+    metrics_path: /probe
+    params:
+      module: [http_live]
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - http://backend:8000/health
+          - http://frontend:8080
+        labels:
+          probe_type: liveness
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      # Extract service name from URL for labeling
+      - source_labels: [__param_target]
+        regex: 'http://([^:]+):.*'
+        target_label: service
+        replacement: '${1}'
+
+  # HTTP 2xx probes - basic availability for AI services
+  - job_name: 'blackbox-http-2xx'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    scrape_interval: 30s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - http://ai-detector:8090/health
+          - http://ai-llm:8091/health
+          - http://ai-florence:8092/health
+          - http://ai-clip:8093/health
+          - http://ai-enrichment:8094/health
+        labels:
+          probe_type: availability
+          service_type: ai
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      # Extract AI service name from URL
+      - source_labels: [__param_target]
+        regex: 'http://([^:]+):.*'
+        target_label: ai_service
+        replacement: '${1}'
+
+  # TCP connectivity probes - database and cache connections
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - postgres:5432
+          - redis:6379
+        labels:
+          probe_type: tcp
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      # Extract service name from target
+      - source_labels: [__param_target]
+        regex: '([^:]+):.*'
+        target_label: service
+        replacement: '${1}'

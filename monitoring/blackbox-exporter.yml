@@ -1,0 +1,110 @@
+# Blackbox Exporter Configuration for Synthetic Monitoring
+#
+# This configuration defines probe modules for external endpoint monitoring.
+# Use with Prometheus scrape configs to measure endpoint availability and latency.
+#
+# Reference: https://github.com/prometheus/blackbox_exporter
+#
+# Test this configuration:
+#   docker run --rm -v $(pwd)/monitoring/blackbox-exporter.yml:/config.yml \
+#     prom/blackbox-exporter:latest --config.check --config.file=/config.yml
+
+modules:
+  # Basic HTTP 2xx probe - checks that endpoint returns 200 OK
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200]
+      method: GET
+      follow_redirects: true
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: false
+
+  # Health endpoint probe - validates JSON health response body
+  # Expects response containing "status": "healthy" or "status": "ready"
+  http_health:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200]
+      method: GET
+      follow_redirects: true
+      preferred_ip_protocol: 'ip4'
+      fail_if_body_not_matches_regexp:
+        - '"status":\s*"(healthy|ready)"'
+
+  # Readiness probe - stricter health check for load balancer decisions
+  # Only succeeds if all dependencies are healthy
+  http_ready:
+    prober: http
+    timeout: 15s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200]
+      method: GET
+      follow_redirects: false
+      preferred_ip_protocol: 'ip4'
+      fail_if_body_not_matches_regexp:
+        - '"status":\s*"ready"'
+
+  # Liveness probe - simple check that service is responding
+  # Less strict than readiness, allows degraded state
+  http_live:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200]
+      method: GET
+      follow_redirects: false
+      preferred_ip_protocol: 'ip4'
+
+  # API endpoint probe - for checking API availability without body validation
+  http_api:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200, 201, 204]
+      method: GET
+      follow_redirects: true
+      preferred_ip_protocol: 'ip4'
+
+  # TCP connection probe - validates service is accepting connections
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: false
+
+  # TCP with TLS probe - for services requiring encrypted connections
+  tcp_tls:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      preferred_ip_protocol: 'ip4'
+      tls: true
+      tls_config:
+        insecure_skip_verify: false
+
+  # DNS probe - validates DNS resolution works
+  dns_resolve:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: 'localhost'
+      query_type: 'A'
+      preferred_ip_protocol: 'ip4'
+
+  # ICMP ping probe - basic network reachability test
+  # Note: Requires NET_RAW capability or running as root
+  icmp_ping:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: 'ip4'
+      dont_fragment: false
