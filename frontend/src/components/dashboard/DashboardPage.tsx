@@ -231,7 +231,7 @@ export default function DashboardPage() {
   // Loading state with skeleton loaders
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] p-4 md:p-8">
+      <div data-testid="dashboard-container" className="min-h-screen bg-[#121212] p-4 md:p-8">
         <div className="mx-auto max-w-[1920px]">
           {/* Header skeleton */}
           <div className="mb-6 md:mb-8">
@@ -273,7 +273,7 @@ export default function DashboardPage() {
 
   // Main dashboard
   return (
-    <div className="min-h-screen bg-[#121212] p-4 md:p-8">
+    <div data-testid="dashboard-container" className="min-h-screen bg-[#121212] p-4 md:p-8">
       <div className="mx-auto max-w-[1920px]">
         {/* Header */}
         <div className="mb-6 md:mb-8">

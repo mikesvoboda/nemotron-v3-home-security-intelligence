@@ -210,6 +210,189 @@ export function isAbortError(error: unknown): boolean {
 export interface FetchOptions extends Omit<RequestInit, 'signal'> {
   /** AbortSignal for request cancellation */
   signal?: AbortSignal;
+  /** Optional timeout in milliseconds. Defaults to DEFAULT_TIMEOUT_MS */
+  timeout?: number;
+}
+
+// ============================================================================
+// Timeout Error Handling
+// ============================================================================
+
+/**
+ * Default timeout for fetch requests in milliseconds.
+ * 30 seconds is a reasonable default for most API calls.
+ */
+export const DEFAULT_TIMEOUT_MS = 30000;
+
+/**
+ * Error class for request timeouts.
+ * Thrown when a fetch request exceeds the specified timeout duration.
+ */
+export class TimeoutError extends Error {
+  /** The timeout duration in milliseconds */
+  public readonly timeout: number;
+
+  constructor(timeout: number) {
+    super(`Request timed out after ${timeout}ms`);
+    this.name = 'TimeoutError';
+    this.timeout = timeout;
+  }
+}
+
+/**
+ * Check if an error is a TimeoutError (request exceeded timeout).
+ * Used to distinguish timeouts from other errors for specific handling.
+ *
+ * @param error - The error to check
+ * @returns true if the error is a TimeoutError
+ */
+export function isTimeoutError(error: unknown): boolean {
+  if (error instanceof TimeoutError) {
+    return true;
+  }
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Combines multiple AbortSignals into a single signal that aborts
+ * when any of the input signals abort.
+ *
+ * This is useful for combining user-provided abort signals with
+ * internal timeout signals, ensuring both cancellation methods work.
+ *
+ * @param signals - Array of AbortSignals to combine
+ * @returns A new AbortSignal that aborts when any input signal aborts
+ *
+ * @example
+ * ```typescript
+ * const userController = new AbortController();
+ * const timeoutController = new AbortController();
+ *
+ * // This signal will abort if either the user cancels or timeout occurs
+ * const combined = anySignal([userController.signal, timeoutController.signal]);
+ *
+ * fetch('/api/data', { signal: combined });
+ * ```
+ */
+export function anySignal(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+
+  // Check if any signal is already aborted
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      return controller.signal;
+    }
+  }
+
+  // Listen for abort on each signal
+  for (const signal of signals) {
+    signal.addEventListener(
+      'abort',
+      () => {
+        if (!controller.signal.aborted) {
+          controller.abort(signal.reason);
+        }
+      },
+      { once: true }
+    );
+  }
+
+  return controller.signal;
+}
+
+/**
+ * Extended fetch options that include timeout configuration.
+ */
+export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
+  /**
+   * Timeout in milliseconds. After this duration, the request will be aborted
+   * and a TimeoutError will be thrown. Defaults to DEFAULT_TIMEOUT_MS (30000ms).
+   * Set to 0 to use the default timeout.
+   */
+  timeout?: number;
+
+  /**
+   * External AbortSignal for user-controlled cancellation.
+   * This signal is combined with the internal timeout signal.
+   */
+  signal?: AbortSignal;
+}
+
+/**
+ * Performs a fetch request with automatic timeout support using AbortController.
+ *
+ * This function wraps the native fetch API to add timeout functionality. When
+ * the timeout is reached, the request is aborted and a TimeoutError is thrown.
+ *
+ * If an external signal is provided, it is combined with the timeout signal
+ * using anySignal, allowing both user cancellation and timeout to work.
+ *
+ * @param url - The URL to fetch
+ * @param options - Fetch options including timeout and optional external signal
+ * @returns Promise resolving to the Response
+ * @throws TimeoutError if the request exceeds the timeout
+ * @throws DOMException (AbortError) if the external signal is aborted
+ *
+ * @example
+ * ```typescript
+ * // Basic usage with timeout
+ * const response = await fetchWithTimeout('/api/data', { timeout: 5000 });
+ *
+ * // With external abort controller (e.g., for React cleanup)
+ * const controller = new AbortController();
+ * const response = await fetchWithTimeout('/api/data', {
+ *   timeout: 5000,
+ *   signal: controller.signal,
+ * });
+ *
+ * // In cleanup: controller.abort();
+ * ```
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options: FetchWithTimeoutOptions = {}
+): Promise<Response> {
+  const { timeout = DEFAULT_TIMEOUT_MS, signal: externalSignal, ...fetchOptions } = options;
+
+  // Use default timeout if 0 is passed (treat 0 as "use default")
+  const effectiveTimeout = timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
+
+  const timeoutController = new AbortController();
+  let timedOut = false;
+
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    // Don't pass an error to abort() to avoid unhandled rejections
+    // We'll check timedOut flag and throw TimeoutError from the catch block
+    timeoutController.abort();
+  }, effectiveTimeout);
+
+  // Combine external signal with timeout signal if provided
+  const combinedSignal = externalSignal
+    ? anySignal([externalSignal, timeoutController.signal])
+    : timeoutController.signal;
+
+  try {
+    const response = await fetch(url, { ...fetchOptions, signal: combinedSignal });
+    return response;
+  } catch (error) {
+    // Check if this was a timeout abort
+    if (
+      error instanceof DOMException &&
+      error.name === 'AbortError' &&
+      timedOut
+    ) {
+      throw new TimeoutError(effectiveTimeout);
+    }
+    // Re-throw other errors (including user-initiated AbortErrors)
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // ============================================================================

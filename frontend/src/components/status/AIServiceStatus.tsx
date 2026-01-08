@@ -67,7 +67,7 @@ const DEGRADATION_CONFIG: Record<DegradationLevel, DegradationConfig> = {
     textColor: 'text-green-800',
     borderColor: 'border-green-200',
     icon: CheckCircle,
-    iconClassName: 'h-5 w-5 text-green-600',
+    iconClassName: 'h-5 w-5 text-emerald-500',
     label: 'All Systems Operational',
     description: 'All AI services are healthy and functioning normally.',
   },
@@ -195,7 +195,7 @@ function ServiceStatusRow({ service, state }: { service: AIServiceName; state: A
 
   const statusIcon =
     state.status === 'healthy' ? (
-      <CheckCircle className="h-4 w-4 text-green-600" />
+      <CheckCircle className="h-4 w-4 text-emerald-500" />
     ) : state.status === 'degraded' ? (
       <AlertTriangle className="h-4 w-4 text-yellow-600" />
     ) : (
