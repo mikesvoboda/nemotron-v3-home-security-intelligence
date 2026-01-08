@@ -430,6 +430,9 @@ class DetectorClient:
         Also implements concurrency limiting via semaphore (NEM-1500) to prevent
         overwhelming the GPU service with too many parallel requests.
 
+        Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
+        HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
+
         Args:
             image_data: Raw image bytes to send
             image_name: Filename for the multipart upload
@@ -445,21 +448,27 @@ class DetectorClient:
         """
         last_exception: Exception | None = None
         semaphore = self._get_semaphore()
+        settings = get_settings()
+        # Explicit timeout as defense-in-depth (NEM-1465)
+        # Use rtdetr_read_timeout from settings (default 60s)
+        explicit_timeout = settings.rtdetr_read_timeout + settings.ai_connect_timeout
 
         for attempt in range(self._max_retries):
             try:
                 # Use semaphore to limit concurrent GPU requests (NEM-1500)
                 # Use persistent HTTP client (NEM-1721)
+                # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
                 async with semaphore:
-                    files = {"file": (image_name, image_data, "image/jpeg")}
-                    response = await self._http_client.post(
-                        f"{self._detector_url}/detect",
-                        files=files,
-                        headers=self._get_auth_headers(),
-                    )
-                    response.raise_for_status()
-                    result: dict[str, Any] = response.json()
-                    return result
+                    async with asyncio.timeout(explicit_timeout):
+                        files = {"file": (image_name, image_data, "image/jpeg")}
+                        response = await self._http_client.post(
+                            f"{self._detector_url}/detect",
+                            files=files,
+                            headers=self._get_auth_headers(),
+                        )
+                        response.raise_for_status()
+                        result: dict[str, Any] = response.json()
+                        return result
 
             except httpx.ConnectError as e:
                 last_exception = e
@@ -515,6 +524,38 @@ class DetectorClient:
                             "file_path": image_path,
                             "attempts": self._max_retries,
                             "error": str(e),
+                        },
+                        exc_info=True,
+                    )
+
+            except TimeoutError as e:
+                # asyncio.timeout() raises TimeoutError (NEM-1465 defense-in-depth)
+                last_exception = e
+                if attempt < self._max_retries - 1:
+                    delay = min(2**attempt, 30)  # Cap at 30 seconds
+                    logger.warning(
+                        f"Detector asyncio timeout (attempt {attempt + 1}/{self._max_retries}), "
+                        f"retrying in {delay}s: request timed out after {explicit_timeout}s",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries,
+                            "retry_delay": delay,
+                            "explicit_timeout": explicit_timeout,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    record_pipeline_error("rtdetr_asyncio_timeout")
+                    logger.error(
+                        f"Detector asyncio timeout after {self._max_retries} attempts: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": image_path,
+                            "attempts": self._max_retries,
+                            "explicit_timeout": explicit_timeout,
                         },
                         exc_info=True,
                     )

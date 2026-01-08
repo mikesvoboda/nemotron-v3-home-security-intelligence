@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitState
+from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError, CircuitState
 from backend.core.exceptions import (
     CircuitBreakerOpenError,
     ExternalServiceError,
@@ -180,16 +180,25 @@ class TestCircuitBreakerContextManager:
 
     @pytest.mark.asyncio
     async def test_context_manager_raises_when_open(self) -> None:
-        """Test that context manager raises when circuit is open."""
+        """Test that protect() raises CircuitOpenError when circuit is open.
+
+        The protect() context manager raises CircuitOpenError (not CircuitBreakerOpenError)
+        which provides recovery_time_remaining for Retry-After headers.
+        """
         cb = CircuitBreaker(name="ctx_service", failure_threshold=2)
 
         # Open the circuit
         cb.record_failure()
         cb.record_failure()
 
-        with pytest.raises(CircuitBreakerOpenError):
+        with pytest.raises(CircuitOpenError) as exc_info:
             async with cb.protect():
                 pass  # Should never reach here
+
+        # Verify the exception has the expected attributes
+        assert exc_info.value.service_name == "ctx_service"
+        assert hasattr(exc_info.value, "recovery_time_remaining")
+        assert exc_info.value.recovery_time_remaining >= 0.0
 
 
 # =============================================================================
