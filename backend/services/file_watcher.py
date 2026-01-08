@@ -127,6 +127,34 @@ def get_media_type(file_path: str) -> str | None:
 MIN_IMAGE_FILE_SIZE = 10 * 1024  # 10KB
 
 
+def _validate_image_sync(file_path: str) -> bool:
+    """Synchronous image validation helper.
+
+    This performs the blocking PIL operations for image validation.
+    Should be called via asyncio.to_thread() in async contexts.
+
+    Args:
+        file_path: Path to the image file
+
+    Returns:
+        True if file is a valid, complete image
+    """
+    # Try to open and verify image header
+    with Image.open(file_path) as img:
+        # verify() checks image header but doesn't load pixel data
+        img.verify()
+
+    # Re-open and fully load the image to catch truncation
+    # verify() only checks headers - truncated files can pass verify() but fail load()
+    # Note: We need to re-open because verify() invalidates the image object
+    with Image.open(file_path) as img:
+        # load() forces PIL to read and decompress all image data
+        # This will raise an exception for truncated/corrupt images
+        img.load()
+
+    return True
+
+
 def is_valid_image(file_path: str) -> bool:
     """Validate that file is a valid, non-corrupted image.
 
@@ -136,6 +164,9 @@ def is_valid_image(file_path: str) -> bool:
     2. File size is non-zero and above minimum threshold
     3. PIL can verify the image header (basic structure check)
     4. PIL can fully load the image data (catches truncated images)
+
+    Note: This is a synchronous function that blocks on PIL operations.
+    For async contexts, use is_valid_image_async() instead.
 
     Args:
         file_path: Path to the image file
@@ -162,20 +193,57 @@ def is_valid_image(file_path: str) -> bool:
             )
             return False
 
-        # Try to open and verify image header
-        with Image.open(file_path) as img:
-            # verify() checks image header but doesn't load pixel data
-            img.verify()
+        return _validate_image_sync(file_path)
+    except OSError as e:
+        # OSError covers most PIL image errors (truncated, corrupt, etc.)
+        logger.warning(f"Image validation failed (corrupt/truncated) {file_path}: {e}")
+        return False
+    except Exception as e:
+        logger.warning(f"Invalid image file {file_path}: {e}")
+        return False
 
-        # Re-open and fully load the image to catch truncation
-        # verify() only checks headers - truncated files can pass verify() but fail load()
-        # Note: We need to re-open because verify() invalidates the image object
-        with Image.open(file_path) as img:
-            # load() forces PIL to read and decompress all image data
-            # This will raise an exception for truncated/corrupt images
-            img.load()
 
-        return True
+async def is_valid_image_async(file_path: str) -> bool:
+    """Validate that file is a valid, non-corrupted image asynchronously.
+
+    This is the async version that runs PIL operations in a thread pool
+    to avoid blocking the event loop. Use this in async contexts instead
+    of is_valid_image().
+
+    Performs comprehensive validation to catch truncated/corrupt images
+    from incomplete FTP uploads:
+    1. File exists and is readable
+    2. File size is non-zero and above minimum threshold
+    3. PIL can verify the image header (basic structure check)
+    4. PIL can fully load the image data (catches truncated images)
+
+    Args:
+        file_path: Path to the image file
+
+    Returns:
+        True if file is a valid, complete image
+    """
+    try:
+        # Check file exists and has content (non-blocking stat operations)
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            return False
+
+        file_size = file_path_obj.stat().st_size
+
+        if file_size == 0:
+            logger.warning(f"Empty image file detected: {file_path}")
+            return False
+
+        # Check minimum file size - very small images are likely truncated
+        if file_size < MIN_IMAGE_FILE_SIZE:
+            logger.warning(
+                f"Image file too small ({file_size} bytes, minimum {MIN_IMAGE_FILE_SIZE}): {file_path}"
+            )
+            return False
+
+        # Run blocking PIL operations in thread pool to avoid blocking event loop
+        return await asyncio.to_thread(_validate_image_sync, file_path)
     except OSError as e:
         # OSError covers most PIL image errors (truncated, corrupt, etc.)
         logger.warning(f"Image validation failed (corrupt/truncated) {file_path}: {e}")
@@ -222,6 +290,9 @@ def is_valid_video(file_path: str) -> bool:
 def is_valid_media_file(file_path: str) -> bool:
     """Validate that file is a valid image or video.
 
+    Note: This is a synchronous function that may block on PIL operations.
+    For async contexts, use is_valid_media_file_async() instead.
+
     Args:
         file_path: Path to the media file
 
@@ -230,6 +301,26 @@ def is_valid_media_file(file_path: str) -> bool:
     """
     if is_image_file(file_path):
         return is_valid_image(file_path)
+    elif is_video_file(file_path):
+        return is_valid_video(file_path)
+    return False
+
+
+async def is_valid_media_file_async(file_path: str) -> bool:
+    """Validate that file is a valid image or video asynchronously.
+
+    This is the async version that runs PIL operations in a thread pool
+    to avoid blocking the event loop. Use this in async contexts instead
+    of is_valid_media_file().
+
+    Args:
+        file_path: Path to the media file
+
+    Returns:
+        True if file is valid
+    """
+    if is_image_file(file_path):
+        return await is_valid_image_async(file_path)
     elif is_video_file(file_path):
         return is_valid_video(file_path)
     return False
@@ -639,8 +730,8 @@ class FileWatcher:
             )
             return
 
-        # Validate media file integrity
-        if not is_valid_media_file(file_path):
+        # Validate media file integrity (async to avoid blocking event loop)
+        if not await is_valid_media_file_async(file_path):
             logger.warning(
                 f"Skipping invalid/corrupted {media_type} file: {file_path}",
                 extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
