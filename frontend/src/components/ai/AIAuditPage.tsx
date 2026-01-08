@@ -21,6 +21,7 @@ import {
   fetchAiAuditStats,
   fetchAuditRecommendations,
 } from '../../services/api';
+import { ModelContributionChart } from '../ai-audit';
 
 import type {
   AiAuditStatsResponse,
@@ -28,6 +29,28 @@ import type {
   AiAuditRecommendationItem,
 } from '../../services/api';
 import type { BatchAuditResponse } from '../../services/auditApi';
+import type { ModelContribution } from '../ai-audit';
+
+/**
+ * Format model names for display
+ */
+function formatModelName(name: string): string {
+  const nameMap: Record<string, string> = {
+    rtdetr: 'RT-DETRv2',
+    florence: 'Florence-2',
+    clip: 'X-CLIP',
+    violence: 'Violence Detection',
+    clothing: 'Clothing Analysis',
+    vehicle: 'Vehicle Detection',
+    pet: 'Pet Detection',
+    weather: 'Weather Analysis',
+    image_quality: 'Image Quality',
+    zones: 'Zone Analysis',
+    baseline: 'Baseline Comparison',
+    cross_camera: 'Cross-Camera',
+  };
+  return nameMap[name] || name;
+}
 
 /**
  * AIAuditPage - Main AI audit dashboard
@@ -184,7 +207,16 @@ export default function AIAuditPage() {
     );
   }
 
-  const hasData = stats !== null;
+  const hasData = stats !== null && stats.audited_events > 0;
+
+  // Transform model contribution rates to ModelContribution format
+  const modelContributions: ModelContribution[] = stats
+    ? Object.entries(stats.model_contribution_rates).map(([modelName, rate]) => ({
+        modelName: formatModelName(modelName),
+        rate,
+        eventCount: Math.round(rate * stats.audited_events),
+      }))
+    : [];
 
   return (
     <div className="min-h-screen bg-[#121212] p-8" data-testid="ai-audit-page">
@@ -280,7 +312,26 @@ export default function AIAuditPage() {
         )}
 
         {/* Main Content */}
-        {hasData && (
+        {!hasData && (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F] p-12 text-center">
+            <ClipboardCheck className="mb-4 h-16 w-16 text-gray-600" />
+            <h2 className="mb-2 text-2xl font-bold text-white">No Events Have Been Audited Yet</h2>
+            <p className="mb-6 max-w-md text-sm text-gray-400">
+              Start by triggering a batch audit to evaluate your AI pipeline&apos;s performance.
+              The audit will analyze model contributions, quality scores, and provide prompt
+              improvement recommendations.
+            </p>
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#8ACE00]"
+            >
+              <Play className="h-5 w-5" />
+              Trigger Batch Audit
+            </button>
+          </div>
+        )}
+
+        {hasData && stats && (
           <div className="space-y-6">
             {/* Quality Score Metrics */}
             <QualityScoreTrends
@@ -290,6 +341,11 @@ export default function AIAuditPage() {
               totalEvents={stats.total_events}
               fullyEvaluatedEvents={stats.fully_evaluated_events}
             />
+
+            {/* Model Contribution Breakdown */}
+            {modelContributions.length > 0 && (
+              <ModelContributionChart contributions={modelContributions} />
+            )}
 
             {/* Recommendations Panel (full width) */}
             {recommendations && (

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
@@ -61,6 +61,11 @@ class Event(Base):
     # This column is auto-populated by a database trigger on INSERT/UPDATE
     # Combines: summary, reasoning, object_types, and camera_name (via join)
     search_vector: Mapped[Any] = mapped_column(TSVECTOR, nullable=True)
+
+    # Soft delete timestamp for preserving referential integrity
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="events")
@@ -132,6 +137,35 @@ class Event(Base):
             postgresql_using="brin",
         ),
     )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if this event is soft-deleted.
+
+        Returns:
+            True if deleted_at is set, False otherwise
+        """
+        return self.deleted_at is not None
+
+    def soft_delete(self) -> None:
+        """Soft delete this event by setting deleted_at timestamp.
+
+        This marks the event as deleted without removing it from the database,
+        preserving referential integrity with related records.
+        """
+        self.deleted_at = datetime.now(UTC)
+
+    def restore(self) -> None:
+        """Restore a soft-deleted event by clearing deleted_at timestamp."""
+        self.deleted_at = None
+
+    async def hard_delete(self, session: object) -> None:
+        """Hard delete this event, permanently removing it from the database.
+
+        Args:
+            session: SQLAlchemy async session to use for deletion
+        """
+        await session.delete(self)  # type: ignore[attr-defined]
 
     def __repr__(self) -> str:
         return (

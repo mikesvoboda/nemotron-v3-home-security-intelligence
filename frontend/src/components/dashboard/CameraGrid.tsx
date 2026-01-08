@@ -328,8 +328,9 @@ export default function CameraGrid({
     <div
       className={clsx(
         'grid gap-4',
-        // Responsive grid: 1 column on mobile, 2 on tablet, 4 on desktop
-        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+        // Responsive grid: 1 column on mobile, 2 on tablet, 3 on large screens
+        // This provides better space utilization in the 2-column dashboard layout
+        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
         // Center items to handle uneven camera counts gracefully
         'justify-items-center',
         className

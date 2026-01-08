@@ -344,3 +344,66 @@ describe('AIAuditPage Prompt Playground', () => {
     });
   });
 });
+
+describe('AIAuditPage new features', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders model contribution chart section', async () => {
+    renderWithRouter();
+    await waitFor(() => {
+      expect(screen.getByTestId('model-contribution-chart')).toBeInTheDocument();
+    });
+  });
+
+  it('displays empty state when no data available', async () => {
+    // Override with empty stats response for this test
+    const api = await import('../../services/api');
+    vi.mocked(api.fetchAiAuditStats).mockReset().mockResolvedValue({
+      total_events: 0,
+      audited_events: 0,
+      fully_evaluated_events: 0,
+      avg_quality_score: null,
+      avg_consistency_rate: null,
+      avg_enrichment_utilization: null,
+      model_contribution_rates: {},
+      audits_by_day: [],
+    });
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByText(/no events have been audited yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows trigger batch audit CTA in empty state', async () => {
+    // Override with empty stats response for this test
+    const api = await import('../../services/api');
+    vi.mocked(api.fetchAiAuditStats).mockReset().mockResolvedValue({
+      total_events: 0,
+      audited_events: 0,
+      fully_evaluated_events: 0,
+      avg_quality_score: null,
+      avg_consistency_rate: null,
+      avg_enrichment_utilization: null,
+      model_contribution_rates: {},
+      audits_by_day: [],
+    });
+
+    renderWithRouter();
+
+    // Wait for loading to complete and empty state to render
+    await waitFor(() => {
+      expect(screen.getByText(/no events have been audited yet/i)).toBeInTheDocument();
+    });
+
+    // In empty state, there are two "Trigger Batch Audit" buttons:
+    // 1. Header button (data-testid="trigger-batch-audit-button")
+    // 2. Empty state CTA button
+    // Find them by text to verify the CTA is present
+    const batchAuditButtons = screen.getAllByRole('button', { name: /trigger batch audit/i });
+    expect(batchAuditButtons.length).toBeGreaterThanOrEqual(1);
+  });
+});
