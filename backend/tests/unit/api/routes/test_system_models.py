@@ -157,11 +157,9 @@ class TestGetModelByNameEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        # Support both old format (detail) and new standardized format (error.message)
-        if "error" in data:
-            assert "not found" in data["error"]["message"].lower()
-        else:
-            assert "not found" in data["detail"].lower()
+        # RFC 7807 Problem Details format
+        assert "detail" in data
+        assert "not found" in data["detail"].lower()
 
     @pytest.mark.asyncio
     async def test_get_model_shows_load_stats(self) -> None:
@@ -502,11 +500,9 @@ class TestModelZooLatencyHistoryEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        # Support both old format (detail) and new standardized format (error.message)
-        if "error" in data:
-            assert "not found" in data["error"]["message"].lower()
-        else:
-            assert "not found" in data["detail"].lower()
+        # RFC 7807 Problem Details format
+        assert "detail" in data
+        assert "not found" in data["detail"].lower()
 
     @pytest.mark.asyncio
     async def test_get_latency_history_respects_since_param(self) -> None:
