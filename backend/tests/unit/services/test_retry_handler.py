@@ -1243,3 +1243,452 @@ class TestDLQConstants:
     def test_dlq_analysis_queue_constant(self) -> None:
         """Test DLQ_ANALYSIS_QUEUE constant is exported."""
         assert RetryHandler.DLQ_ANALYSIS_QUEUE == "dlq:analysis_queue"
+
+
+# =============================================================================
+# Error Context Enrichment Tests (NEM-1474)
+# =============================================================================
+
+
+class TestJobFailureErrorContext:
+    """Tests for JobFailure error context enrichment (NEM-1474)."""
+
+    def test_job_failure_includes_error_type(self) -> None:
+        """Test JobFailure stores the exception class name."""
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Connection refused",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            error_type="ConnectionRefusedError",
+        )
+        assert failure.error_type == "ConnectionRefusedError"
+
+    def test_job_failure_includes_stack_trace(self) -> None:
+        """Test JobFailure stores truncated stack trace."""
+        stack_trace = (
+            "Traceback (most recent call last):\n"
+            '  File "detector.py", line 42, in detect\n'
+            "    response = await client.post(url, data=data)\n"
+            "ConnectionRefusedError: Connection refused"
+        )
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Connection refused",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            stack_trace=stack_trace,
+        )
+        assert failure.stack_trace == stack_trace
+        assert "detector.py" in failure.stack_trace
+
+    def test_job_failure_includes_http_status(self) -> None:
+        """Test JobFailure stores HTTP status code for network errors."""
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Service unavailable",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            http_status=503,
+        )
+        assert failure.http_status == 503
+
+    def test_job_failure_includes_response_body(self) -> None:
+        """Test JobFailure stores truncated AI service response."""
+        response_body = '{"error": "Model overloaded", "retry_after": 60}'
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Service overloaded",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            response_body=response_body,
+        )
+        assert failure.response_body == response_body
+
+    def test_job_failure_includes_retry_delays(self) -> None:
+        """Test JobFailure stores delays between retry attempts."""
+        retry_delays = [1.0, 2.0, 4.0]
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Timeout",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            retry_delays=retry_delays,
+        )
+        assert failure.retry_delays == [1.0, 2.0, 4.0]
+        assert len(failure.retry_delays) == 3
+
+    def test_job_failure_includes_system_context(self) -> None:
+        """Test JobFailure stores system state snapshot at failure time."""
+        context = {
+            "detection_queue_depth": 150,
+            "analysis_queue_depth": 25,
+            "circuit_breaker_states": {"rtdetr": "closed", "nemotron": "half_open"},
+            "gpu_utilization": 85.5,
+        }
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="GPU OOM",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            context=context,
+        )
+        assert failure.context is not None
+        assert failure.context["detection_queue_depth"] == 150
+        assert failure.context["circuit_breaker_states"]["nemotron"] == "half_open"
+
+    def test_job_failure_default_values_for_new_fields(self) -> None:
+        """Test new error context fields have None defaults for backward compatibility."""
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Error",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+        )
+        assert failure.error_type is None
+        assert failure.stack_trace is None
+        assert failure.http_status is None
+        assert failure.response_body is None
+        assert failure.retry_delays is None
+        assert failure.context is None
+
+    def test_job_failure_to_dict_includes_error_context(self) -> None:
+        """Test to_dict() includes all error context fields."""
+        failure = JobFailure(
+            original_job={"camera_id": "cam1"},
+            error="Connection refused",
+            attempt_count=3,
+            first_failed_at="2025-12-23T10:00:00",
+            last_failed_at="2025-12-23T10:00:15",
+            queue_name="detection_queue",
+            error_type="ConnectionRefusedError",
+            stack_trace="Traceback...",
+            http_status=503,
+            response_body='{"error": "overloaded"}',
+            retry_delays=[1.0, 2.0],
+            context={"queue_depth": 100},
+        )
+        result = failure.to_dict()
+
+        assert result["error_type"] == "ConnectionRefusedError"
+        assert result["stack_trace"] == "Traceback..."
+        assert result["http_status"] == 503
+        assert result["response_body"] == '{"error": "overloaded"}'
+        assert result["retry_delays"] == [1.0, 2.0]
+        assert result["context"] == {"queue_depth": 100}
+
+    def test_job_failure_from_dict_parses_error_context(self) -> None:
+        """Test from_dict() correctly parses error context fields."""
+        data = {
+            "original_job": {"camera_id": "cam1"},
+            "error": "Timeout",
+            "attempt_count": 2,
+            "first_failed_at": "2025-12-23T10:00:00",
+            "last_failed_at": "2025-12-23T10:00:10",
+            "queue_name": "analysis_queue",
+            "error_type": "TimeoutError",
+            "stack_trace": "Traceback (most recent call)...",
+            "http_status": 504,
+            "response_body": '{"status": "timeout"}',
+            "retry_delays": [1.0, 2.5],
+            "context": {"gpu_utilization": 90},
+        }
+        failure = JobFailure.from_dict(data)
+
+        assert failure.error_type == "TimeoutError"
+        assert failure.stack_trace == "Traceback (most recent call)..."
+        assert failure.http_status == 504
+        assert failure.response_body == '{"status": "timeout"}'
+        assert failure.retry_delays == [1.0, 2.5]
+        assert failure.context == {"gpu_utilization": 90}
+
+    def test_job_failure_from_dict_handles_missing_context_fields(self) -> None:
+        """Test from_dict() handles missing error context fields (backward compatibility)."""
+        data = {
+            "original_job": {"camera_id": "cam1"},
+            "error": "Error",
+            "attempt_count": 2,
+            "first_failed_at": "2025-12-23T10:00:00",
+            "last_failed_at": "2025-12-23T10:00:10",
+            "queue_name": "detection_queue",
+            # No error context fields
+        }
+        failure = JobFailure.from_dict(data)
+
+        assert failure.error_type is None
+        assert failure.stack_trace is None
+        assert failure.http_status is None
+        assert failure.response_body is None
+        assert failure.retry_delays is None
+        assert failure.context is None
+
+
+class TestRetryHandlerErrorContextCapture:
+    """Tests for RetryHandler capturing error context during failures."""
+
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        """Create a mock Redis client."""
+        redis = MagicMock()
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
+        redis.get_queue_length = AsyncMock(return_value=50)
+        return redis
+
+    @pytest.fixture
+    def handler(self, mock_redis: MagicMock) -> RetryHandler:
+        """Create a retry handler with mock Redis."""
+        config = RetryConfig(
+            max_retries=2,
+            base_delay_seconds=0.01,
+            jitter=False,
+        )
+        return RetryHandler(redis_client=mock_redis, config=config)
+
+    @pytest.mark.asyncio
+    async def test_captures_error_type_from_exception(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that error_type is captured from the exception class name."""
+
+        async def raise_connection_error() -> str:
+            raise ConnectionRefusedError("Connection to AI service refused")
+
+        await handler.with_retry(
+            operation=raise_connection_error,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        # Verify the failure was stored with error_type
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+        assert job_failure_dict["error_type"] == "ConnectionRefusedError"
+
+    @pytest.mark.asyncio
+    async def test_captures_stack_trace_on_failure(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that stack trace is captured when job fails."""
+
+        async def raise_with_traceback() -> str:
+            raise ValueError("Invalid detection data")
+
+        await handler.with_retry(
+            operation=raise_with_traceback,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        # Stack trace should be captured
+        assert job_failure_dict["stack_trace"] is not None
+        assert "ValueError" in job_failure_dict["stack_trace"]
+        assert "Invalid detection data" in job_failure_dict["stack_trace"]
+
+    @pytest.mark.asyncio
+    async def test_stack_trace_is_truncated(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that very long stack traces are truncated."""
+
+        async def deeply_nested_error() -> str:
+            def level_10() -> None:
+                raise RuntimeError("Deep error " + "x" * 10000)
+
+            def level_9() -> None:
+                level_10()
+
+            def level_8() -> None:
+                level_9()
+
+            def level_7() -> None:
+                level_8()
+
+            def level_6() -> None:
+                level_7()
+
+            def level_5() -> None:
+                level_6()
+
+            def level_4() -> None:
+                level_5()
+
+            def level_3() -> None:
+                level_4()
+
+            def level_2() -> None:
+                level_3()
+
+            def level_1() -> None:
+                level_2()
+
+            level_1()
+            return "never reached"
+
+        await handler.with_retry(
+            operation=deeply_nested_error,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        # Stack trace should be truncated to reasonable length
+        stack_trace = job_failure_dict["stack_trace"]
+        assert stack_trace is not None
+        assert len(stack_trace) <= 4096  # Max 4KB for stack traces
+
+    @pytest.mark.asyncio
+    async def test_captures_retry_delays(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that retry delays are recorded."""
+
+        async def always_fail() -> str:
+            raise RuntimeError("Always fails")
+
+        await handler.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        # Should have recorded the delays between attempts
+        retry_delays = job_failure_dict["retry_delays"]
+        assert retry_delays is not None
+        # With max_retries=2 and jitter=False, we should have 1 delay recorded
+        # (delay before attempt 2)
+        assert len(retry_delays) == 1
+        # Base delay is 0.01s, first attempt delay is 0.01 * 2^0 = 0.01
+        assert retry_delays[0] >= 0.01
+
+    @pytest.mark.asyncio
+    async def test_captures_system_context_on_failure(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that system context (queue depths, circuit breaker states) is captured."""
+
+        async def always_fail() -> str:
+            raise RuntimeError("Service unavailable")
+
+        await handler.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        # Context should include queue depths
+        context = job_failure_dict["context"]
+        assert context is not None
+        assert "detection_queue_depth" in context
+        assert "analysis_queue_depth" in context
+        assert "dlq_circuit_breaker_state" in context
+
+    @pytest.mark.asyncio
+    async def test_captures_http_status_from_httpx_error(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that HTTP status code is captured from httpx response errors."""
+        import httpx
+
+        async def raise_http_error() -> str:
+            response = httpx.Response(503, text="Service unavailable")
+            raise httpx.HTTPStatusError(
+                "Service unavailable", request=MagicMock(), response=response
+            )
+
+        await handler.with_retry(
+            operation=raise_http_error,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        assert job_failure_dict["http_status"] == 503
+
+    @pytest.mark.asyncio
+    async def test_captures_response_body_from_httpx_error(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that response body is captured from httpx response errors."""
+        import httpx
+
+        async def raise_http_error() -> str:
+            response = httpx.Response(
+                500,
+                text='{"error": "Internal server error", "details": "GPU OOM"}',
+            )
+            raise httpx.HTTPStatusError("Server error", request=MagicMock(), response=response)
+
+        await handler.with_retry(
+            operation=raise_http_error,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        assert job_failure_dict["response_body"] is not None
+        assert "GPU OOM" in job_failure_dict["response_body"]
+
+    @pytest.mark.asyncio
+    async def test_response_body_is_truncated(
+        self, handler: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that very long response bodies are truncated."""
+        import httpx
+
+        async def raise_http_error_with_long_body() -> str:
+            long_body = '{"error": "' + "x" * 20000 + '"}'
+            response = httpx.Response(500, text=long_body)
+            raise httpx.HTTPStatusError("Server error", request=MagicMock(), response=response)
+
+        await handler.with_retry(
+            operation=raise_http_error_with_long_body,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
+        job_failure_dict = call_args[0][1]
+
+        # Response body should be truncated to reasonable length
+        response_body = job_failure_dict["response_body"]
+        assert response_body is not None
+        assert len(response_body) <= 2048  # Max 2KB for response bodies

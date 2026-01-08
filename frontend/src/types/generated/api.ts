@@ -2049,10 +2049,18 @@ export interface paths {
         };
         /**
          * Get Dlq Jobs
-         * @description List jobs in a specific dead-letter queue.
+         * @description List jobs in a specific dead-letter queue with enriched error context.
          *
          *     Returns jobs in the specified DLQ without removing them.
          *     Use pagination parameters to control the result set.
+         *
+         *     Each job includes enriched error context (NEM-1474):
+         *     - error_type: Exception class name for categorization
+         *     - stack_trace: Truncated stack trace for debugging
+         *     - http_status: HTTP status code (for network errors)
+         *     - response_body: Truncated AI service response
+         *     - retry_delays: Delays applied between retry attempts
+         *     - context: System state snapshot at failure time
          *
          *     Args:
          *         queue_name: Name of the DLQ (detection or analysis)
@@ -2061,7 +2069,7 @@ export interface paths {
          *         redis: Redis client
          *
          *     Returns:
-         *         DLQJobsResponse with list of jobs
+         *         DLQJobsResponse with list of jobs including error context
          */
         get: operations["get_dlq_jobs_api_dlq_jobs__queue_name__get"];
         put?: never;
@@ -6461,9 +6469,23 @@ export interface components {
         /**
          * DLQJobResponse
          * @description Response schema for a single job in the dead-letter queue.
+         *
+         *     Includes enriched error context (NEM-1474) for faster debugging:
+         *     - error_type: Exception class name for categorization
+         *     - stack_trace: Truncated stack trace for debugging
+         *     - http_status: HTTP status code (for network errors)
+         *     - response_body: Truncated AI service response (for debugging)
+         *     - retry_delays: Delays applied between retry attempts
+         *     - context: System state snapshot at failure time
          * @example {
          *       "attempt_count": 3,
+         *       "context": {
+         *         "analysis_queue_depth": 25,
+         *         "detection_queue_depth": 150,
+         *         "dlq_circuit_breaker_state": "closed"
+         *       },
          *       "error": "Connection refused: detector service unavailable",
+         *       "error_type": "ConnectionRefusedError",
          *       "first_failed_at": "2025-12-23T10:30:05.000000",
          *       "last_failed_at": "2025-12-23T10:30:15.000000",
          *       "original_job": {
@@ -6471,7 +6493,12 @@ export interface components {
          *         "file_path": "/export/foscam/front_door/image_001.jpg",
          *         "timestamp": "2025-12-23T10:30:00.000000"
          *       },
-         *       "queue_name": "detection_queue"
+         *       "queue_name": "detection_queue",
+         *       "retry_delays": [
+         *         1,
+         *         2
+         *       ],
+         *       "stack_trace": "Traceback (most recent call last):\n  ..."
          *     }
          */
         DLQJobResponse: {
@@ -6481,15 +6508,32 @@ export interface components {
              */
             attempt_count: number;
             /**
+             * Context
+             * @description System state snapshot at failure time (queue depths, circuit breaker states)
+             */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Error
              * @description Error message from the last failure attempt
              */
             error: string;
             /**
+             * Error Type
+             * @description Exception class name (e.g., 'ConnectionRefusedError')
+             */
+            error_type?: string | null;
+            /**
              * First Failed At
              * @description ISO timestamp of the first failure
              */
             first_failed_at: string;
+            /**
+             * Http Status
+             * @description HTTP status code if the error was from a network request
+             */
+            http_status?: number | null;
             /**
              * Last Failed At
              * @description ISO timestamp of the last failure
@@ -6507,6 +6551,21 @@ export interface components {
              * @description Name of the original queue where the job came from
              */
             queue_name: string;
+            /**
+             * Response Body
+             * @description Truncated response body (max 2KB) from AI service
+             */
+            response_body?: string | null;
+            /**
+             * Retry Delays
+             * @description Delays (in seconds) applied between retry attempts
+             */
+            retry_delays?: number[] | null;
+            /**
+             * Stack Trace
+             * @description Truncated stack trace (max 4KB) for debugging
+             */
+            stack_trace?: string | null;
         };
         /**
          * DLQJobsResponse
