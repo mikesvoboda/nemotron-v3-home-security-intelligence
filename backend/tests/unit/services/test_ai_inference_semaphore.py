@@ -369,11 +369,13 @@ class TestNemotronAnalyzerConcurrencyLimits:
             # Check initial semaphore value
             initial_value = semaphore._value
 
+            from backend.core.exceptions import AnalyzerUnavailableError
+
             with (
                 patch(
                     "httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")
                 ),
-                pytest.raises(RuntimeError),
+                pytest.raises(AnalyzerUnavailableError),
             ):
                 await analyzer._call_llm(
                     camera_name="test_camera",

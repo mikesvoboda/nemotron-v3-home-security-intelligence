@@ -376,6 +376,7 @@ class TestHealthMonitorOrchestratorWarmingState:
         registry.register(
             ManagedService(
                 name="ai-detector",
+                display_name="AI Detector",
                 container_id="abc123",
                 image="rtdetr:latest",
                 port=8090,
@@ -386,6 +387,7 @@ class TestHealthMonitorOrchestratorWarmingState:
         registry.register(
             ManagedService(
                 name="ai-nemotron",
+                display_name="AI Nemotron",
                 container_id="def456",
                 image="nemotron:latest",
                 port=8091,
@@ -402,6 +404,7 @@ class TestHealthMonitorOrchestratorWarmingState:
 
         service = ManagedService(
             name="ai-detector",
+            display_name="AI Detector",
             container_id="abc123",
             image="rtdetr:latest",
             port=8090,

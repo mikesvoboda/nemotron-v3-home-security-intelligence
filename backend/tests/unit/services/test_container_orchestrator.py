@@ -582,12 +582,20 @@ class TestEnableService:
 
     @pytest.mark.asyncio
     async def test_enable_service_enables_disabled(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
     ) -> None:
         """Test enable_service enables a disabled service."""
         managed_service.enabled = False
         managed_service.status = ContainerServiceStatus.DISABLED
         orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager so enable_service can delegate to it
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
 
         result = await orchestrator.enable_service("ai-detector")
 
@@ -599,12 +607,20 @@ class TestEnableService:
 
     @pytest.mark.asyncio
     async def test_enable_service_resets_failures(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
     ) -> None:
         """Test enable_service resets failure count."""
         managed_service.enabled = False
         managed_service.failure_count = 5
         orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager so enable_service can delegate to it
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
 
         await orchestrator.enable_service("ai-detector")
 
@@ -618,10 +634,16 @@ class TestEnableService:
         orchestrator: ContainerOrchestrator,
         managed_service: ManagedService,
         mock_broadcast_fn: AsyncMock,
+        mock_docker_client: AsyncMock,
     ) -> None:
         """Test enable_service broadcasts status change."""
         managed_service.enabled = False
         orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager so enable_service can delegate to it
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
 
         await orchestrator.enable_service("ai-detector")
 
@@ -644,10 +666,18 @@ class TestDisableService:
 
     @pytest.mark.asyncio
     async def test_disable_service_disables_enabled(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
     ) -> None:
         """Test disable_service disables an enabled service."""
         orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager so disable_service can delegate to it
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
 
         result = await orchestrator.disable_service("ai-detector")
 
@@ -663,9 +693,15 @@ class TestDisableService:
         orchestrator: ContainerOrchestrator,
         managed_service: ManagedService,
         mock_broadcast_fn: AsyncMock,
+        mock_docker_client: AsyncMock,
     ) -> None:
         """Test disable_service broadcasts status change."""
         orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager so disable_service can delegate to it
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
 
         await orchestrator.disable_service("ai-detector")
 
@@ -745,14 +781,8 @@ class TestHealthChangeCallback:
     ) -> None:
         """Test health change callback broadcasts recovery."""
         orchestrator._registry.register(managed_service)
-        # Initialize hm_registry
-        orchestrator._hm_registry = MagicMock()
-        hm_service = MagicMock()
-        hm_service.name = "ai-detector"
-        hm_service.status = ContainerServiceStatus.RUNNING
-        orchestrator._hm_registry.get.return_value = hm_service
 
-        await orchestrator._on_health_change(hm_service, True)
+        await orchestrator._on_health_change(managed_service, True)
 
         # Should broadcast "Service recovered"
         mock_broadcast_fn.assert_called()
@@ -765,17 +795,17 @@ class TestHealthChangeCallback:
         orchestrator: ContainerOrchestrator,
         mock_broadcast_fn: AsyncMock,
         managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
     ) -> None:
         """Test health change callback broadcasts failure."""
         orchestrator._registry.register(managed_service)
-        # Initialize hm_registry
-        orchestrator._hm_registry = MagicMock()
-        hm_service = MagicMock()
-        hm_service.name = "ai-detector"
-        hm_service.status = ContainerServiceStatus.UNHEALTHY
-        orchestrator._hm_registry.get.return_value = hm_service
 
-        await orchestrator._on_health_change(hm_service, False)
+        # Create lifecycle manager so health change handler can delegate to it
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        await orchestrator._on_health_change(managed_service, False)
 
         # Should broadcast health check failed
         mock_broadcast_fn.assert_called()
@@ -824,100 +854,12 @@ class TestBroadcastHandling:
         await orchestrator._broadcast_status(managed_service, "Test")
 
 
-# =============================================================================
-# State Sync Tests
-# =============================================================================
-
-
-class TestStateSync:
-    """Tests for state synchronization between registries."""
-
-    def test_sync_hm_state_when_no_registry(self, orchestrator: ContainerOrchestrator) -> None:
-        """Test _sync_hm_state does nothing when no hm_registry."""
-        orchestrator._hm_registry = None
-        # Should not raise
-        orchestrator._sync_hm_state("ai-detector")
-
-    def test_sync_lm_state_when_no_registry(self, orchestrator: ContainerOrchestrator) -> None:
-        """Test _sync_lm_state does nothing when no lm_registry."""
-        orchestrator._lm_registry = None
-        # Should not raise
-        orchestrator._sync_lm_state("ai-detector")
-
-    def test_sync_hm_state_updates_main_registry(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
-    ) -> None:
-        """Test _sync_hm_state updates main registry from hm_registry."""
-        orchestrator._registry.register(managed_service)
-
-        orchestrator._hm_registry = MagicMock()
-        hm_service = MagicMock()
-        hm_service.status = ContainerServiceStatus.UNHEALTHY
-        hm_service.failure_count = 3
-        hm_service.last_failure_at = datetime.now(UTC)
-        hm_service.last_restart_at = None
-        hm_service.restart_count = 1
-        orchestrator._hm_registry.get.return_value = hm_service
-
-        orchestrator._sync_hm_state("ai-detector")
-
-        service = orchestrator.get_service("ai-detector")
-        assert service is not None
-        assert service.status == ContainerServiceStatus.UNHEALTHY
-        assert service.failure_count == 3
-
-
-# =============================================================================
-# Conversion Tests
-# =============================================================================
-
-
-class TestServiceConversion:
-    """Tests for service type conversion methods."""
-
-    def test_convert_discovered_to_managed(
-        self, orchestrator: ContainerOrchestrator, discovered_service: DiscoveredService
-    ) -> None:
-        """Test converting discovered service to managed service."""
-        managed = orchestrator._convert_discovered_to_managed(discovered_service)
-
-        assert managed.name == discovered_service.name
-        assert managed.display_name == discovered_service.display_name
-        assert managed.container_id == discovered_service.container_id
-        assert managed.port == discovered_service.port
-        assert managed.category == discovered_service.category
-        assert managed.status == ContainerServiceStatus.RUNNING
-        assert managed.enabled is True
-
-    def test_convert_to_hm_service(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
-    ) -> None:
-        """Test converting managed service to health monitor service."""
-        hm_service = orchestrator._convert_to_hm_service(managed_service)
-
-        assert hm_service.name == managed_service.name
-        assert hm_service.container_id == managed_service.container_id
-        assert hm_service.port == managed_service.port
-
-    def test_convert_to_lm_service(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
-    ) -> None:
-        """Test converting managed service to lifecycle manager service."""
-        lm_service = orchestrator._convert_to_lm_service(managed_service)
-
-        assert lm_service.name == managed_service.name
-        assert lm_service.display_name == managed_service.display_name
-        assert lm_service.container_id == managed_service.container_id
-
-    def test_convert_to_lm_service_with_timestamp(
-        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
-    ) -> None:
-        """Test converting managed service preserves timestamp as float."""
-        managed_service.last_failure_at = datetime.now(UTC)
-        lm_service = orchestrator._convert_to_lm_service(managed_service)
-
-        assert lm_service.last_failure_at is not None
-        assert isinstance(lm_service.last_failure_at, float)
+# Note: TestStateSync and TestServiceConversion classes removed.
+# The refactored ContainerOrchestrator no longer has internal methods for:
+# - _sync_hm_state() and _sync_lm_state() (state sync between registries)
+# - _convert_discovered_to_managed(), _convert_to_hm_service(), _convert_to_lm_service()
+# All modules now use the shared ManagedService and ServiceRegistry types from
+# backend.services.orchestrator, eliminating the need for type conversion.
 
 
 # =============================================================================

@@ -372,8 +372,10 @@ class TestClearData:
         mock_result.scalars.return_value.all.return_value = []
         mock_db_session.execute.return_value = mock_result
 
-        with patch("backend.api.routes.admin.audit_service") as mock_audit:
+        with patch("backend.api.routes.admin.get_db_audit_service") as mock_get_audit:
+            mock_audit = MagicMock()
             mock_audit.log_action = AsyncMock()
+            mock_get_audit.return_value = mock_audit
             response = client.request(
                 "DELETE",
                 "/api/admin/seed/clear",

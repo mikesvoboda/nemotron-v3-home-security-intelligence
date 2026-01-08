@@ -330,6 +330,40 @@ class EventBroadcaster:
 
         logger.info("Event broadcaster stopped")
 
+    async def __aenter__(self) -> EventBroadcaster:
+        """Async context manager entry.
+
+        Starts the event broadcaster and returns self for use in async with statements.
+
+        Returns:
+            Self for use in the context manager block.
+
+        Example:
+            async with EventBroadcaster(redis_client) as broadcaster:
+                # broadcaster is started and listening for events
+                await broadcaster.broadcast_event(event_data)
+            # broadcaster is automatically stopped when exiting the block
+        """
+        await self.start()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit.
+
+        Stops the event broadcaster, ensuring cleanup even if an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised, None otherwise.
+            exc_val: Exception value if an exception was raised, None otherwise.
+            exc_tb: Exception traceback if an exception was raised, None otherwise.
+        """
+        await self.stop()
+
     async def connect(self, websocket: WebSocket) -> None:
         """Register a new WebSocket connection.
 

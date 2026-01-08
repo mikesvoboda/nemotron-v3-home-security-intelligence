@@ -105,6 +105,7 @@ def hm_running_service() -> HealthMonitorService:
     """Create a HealthMonitorService for testing callbacks."""
     return HealthMonitorService(
         name="ai-detector",
+        display_name="RT-DETRv2",
         container_id="abcdef123456789",
         image="ghcr.io/example/rtdetr:latest",
         port=8090,
