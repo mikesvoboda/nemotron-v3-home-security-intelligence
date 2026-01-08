@@ -75,9 +75,12 @@ function formatLatency(ms: number | null | undefined): string {
 /**
  * Gets badge color based on queue depth
  */
-function getQueueBadgeColor(depth: number, threshold: number): 'gray' | 'green' | 'yellow' | 'red' {
+function getQueueBadgeColor(
+  depth: number,
+  threshold: number
+): 'gray' | 'emerald' | 'yellow' | 'red' {
   if (depth === 0) return 'gray';
-  if (depth <= threshold / 2) return 'green';
+  if (depth <= threshold / 2) return 'emerald'; // Changed from 'green' for WCAG 4.5:1 contrast
   if (depth <= threshold) return 'yellow';
   return 'red';
 }
@@ -88,9 +91,9 @@ function getQueueBadgeColor(depth: number, threshold: number): 'gray' | 'green' 
 function getLatencyColor(
   ms: number | null | undefined,
   threshold: number
-): 'gray' | 'green' | 'yellow' | 'red' {
+): 'gray' | 'emerald' | 'yellow' | 'red' {
   if (ms === null || ms === undefined) return 'gray';
-  if (ms < threshold / 2) return 'green';
+  if (ms < threshold / 2) return 'emerald'; // Changed from 'green' for WCAG 4.5:1 contrast
   if (ms < threshold) return 'yellow';
   return 'red';
 }
