@@ -285,28 +285,6 @@ class SystemStatsResponse(BaseModel):
     )
 
 
-class LivenessResponse(BaseModel):
-    """Response schema for liveness probe endpoint.
-
-    Liveness probes indicate whether the process is running and able to
-    respond to HTTP requests. This is a minimal check that always returns
-    200 if the process is up.
-    """
-
-    status: str = Field(
-        default="alive",
-        description="Liveness status: always 'alive' if process is responding",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "status": "alive",
-            }
-        }
-    )
-
-
 class WorkerStatus(BaseModel):
     """Status information for a background worker/service."""
 
@@ -354,6 +332,11 @@ class ReadinessResponse(BaseModel):
     timestamp: datetime = Field(
         ...,
         description="Timestamp of readiness check",
+    )
+    ai_warmth_status: dict[str, str] | None = Field(
+        default=None,
+        description="Warmth status of AI models (NEM-1670). Keys are model names "
+        "(e.g., 'rtdetr', 'nemotron'), values are states: 'cold', 'warming', 'warm'",
     )
 
     model_config = ConfigDict(

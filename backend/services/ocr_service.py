@@ -167,11 +167,63 @@ def _run_ocr_sync(
         return None, 0.0
 
 
+def _load_image_sync(path_obj: Path) -> PILImage:
+    """Synchronously load an image file.
+
+    This is a helper function that should be called via asyncio.to_thread()
+    to avoid blocking the event loop.
+
+    Args:
+        path_obj: Path object to the image file
+
+    Returns:
+        PIL Image in RGB format
+    """
+    return Image.open(path_obj).convert("RGB")
+
+
+async def _find_image_for_plate_async(
+    image_paths: list[str] | None,
+    loaded_images: dict[str, PILImage],
+) -> PILImage | None:
+    """Find an image for plate OCR from available sources asynchronously.
+
+    This is the async version that loads images in a thread pool
+    to avoid blocking the event loop.
+
+    Args:
+        image_paths: List of potential image paths to search
+        loaded_images: Dict of already loaded images
+
+    Returns:
+        PIL Image if found, None otherwise
+    """
+    # Try image_paths first
+    if image_paths:
+        for path in image_paths:
+            if path in loaded_images:
+                return loaded_images[path]
+            path_obj = Path(path)
+            if path_obj.exists():
+                # Load image in thread pool to avoid blocking event loop
+                loaded_images[path] = await asyncio.to_thread(_load_image_sync, path_obj)
+                return loaded_images[path]
+
+    # Fall back to any pre-loaded image
+    if loaded_images:
+        return next(iter(loaded_images.values()))
+
+    return None
+
+
 def _find_image_for_plate(
     image_paths: list[str] | None,
     loaded_images: dict[str, PILImage],
 ) -> PILImage | None:
     """Find an image for plate OCR from available sources.
+
+    Note: This is a synchronous function that may block on PIL operations.
+    For async contexts, use _find_image_for_plate_async() instead.
 
     Args:
         image_paths: List of potential image paths to search
@@ -235,6 +287,8 @@ async def read_plates(
     for plate in plate_detections:
         try:
             # Find the image for this plate
+            # Note: Image loading is synchronous here as it's typically fast (cached files)
+            # and the OCR inference is already run in a thread pool via asyncio.to_thread.
             image = _find_image_for_plate(image_paths, loaded_images)
             if image is None:
                 logger.warning(

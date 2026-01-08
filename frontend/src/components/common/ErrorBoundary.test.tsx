@@ -1,7 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import ErrorBoundary from './ErrorBoundary';
+import ErrorBoundary, { clearErrorCache } from './ErrorBoundary';
+import * as sentryModule from '../../services/sentry';
+
+// Mock the Sentry module
+vi.mock('../../services/sentry', () => ({
+  captureError: vi.fn(),
+  isSentryEnabled: vi.fn(() => false),
+}));
 
 // Component that throws an error when rendered
 const ThrowingComponent = ({ shouldThrow = true }: { shouldThrow?: boolean }) => {
@@ -16,6 +23,8 @@ describe('ErrorBoundary', () => {
   const originalError = console.error;
   beforeEach(() => {
     console.error = vi.fn();
+    // Clear error cache before each test to ensure test isolation
+    clearErrorCache();
   });
   afterEach(() => {
     console.error = originalError;
@@ -89,6 +98,7 @@ describe('ErrorBoundary', () => {
           stack: expect.any(String),
           componentStack: expect.any(String),
           name: 'Error',
+          url: expect.any(String),
         })
       );
     });
@@ -384,6 +394,63 @@ describe('ErrorBoundary', () => {
       expect(errorInfo).toHaveProperty('componentStack');
       expect(typeof errorInfo.componentStack).toBe('string');
     });
+
+    it('logs componentName when provided', () => {
+      render(
+        <ErrorBoundary componentName="TestComponent">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+      // The logger.error call includes componentName in extra data
+      expect(console.error).toHaveBeenCalledWith(
+        '[ERROR] frontend: React component error',
+        expect.objectContaining({
+          error: 'Test error message',
+          component: 'TestComponent',
+        })
+      );
+    });
+
+    it('deduplicates identical errors and only logs once', () => {
+      // Clear error cache to ensure clean state
+      clearErrorCache();
+      // Clear any previous mock calls
+      vi.clearAllMocks();
+
+      // Component that always throws the same error
+      const DuplicateThrowingComponent = () => {
+        throw new Error('Duplicate error for dedup test');
+      };
+
+      // Render first boundary
+      render(
+        <ErrorBoundary>
+          <DuplicateThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      // Count how many times the error was logged
+      const firstCallCount = (console.error as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (call) => call[0] === '[ERROR] frontend: React component error'
+      ).length;
+
+      expect(firstCallCount).toBe(1);
+
+      // Render second boundary with same error (same message and stack location)
+      render(
+        <ErrorBoundary>
+          <DuplicateThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      // Should still be 1 due to deduplication
+      const secondCallCount = (console.error as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (call) => call[0] === '[ERROR] frontend: React component error'
+      ).length;
+
+      // With deduplication, the second identical error should not be logged
+      expect(secondCallCount).toBe(1);
+    });
   });
 
   describe('default messages', () => {
@@ -407,6 +474,67 @@ describe('ErrorBoundary', () => {
           'An unexpected error occurred. You can try to recover by clicking the button below, or refresh the page.'
         )
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('Sentry integration', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('reports error to Sentry when Sentry is enabled', () => {
+      vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(true);
+
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      expect(sentryModule.captureError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Test error message',
+        }),
+        expect.objectContaining({
+          tags: {
+            component: 'ErrorBoundary',
+          },
+          extra: expect.objectContaining({
+            componentStack: expect.any(String),
+          }),
+        })
+      );
+    });
+
+    it('does not report error to Sentry when Sentry is disabled', () => {
+      vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(false);
+
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      expect(sentryModule.captureError).not.toHaveBeenCalled();
+    });
+
+    it('reports error with custom boundary name in tags', () => {
+      vi.mocked(sentryModule.isSentryEnabled).mockReturnValue(true);
+
+      render(
+        <ErrorBoundary boundaryName="DashboardBoundary">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      expect(sentryModule.captureError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: {
+            component: 'DashboardBoundary',
+          },
+        })
+      );
     });
   });
 });
