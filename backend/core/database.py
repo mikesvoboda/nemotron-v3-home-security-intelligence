@@ -29,12 +29,13 @@ __all__ = [
     "init_db",
     "reset_slow_query_logging_state",
     "setup_slow_query_logging",
+    "with_session",
 ]
 
 import asyncio
 import hashlib
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -327,6 +328,53 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
         except Exception:
             await session.rollback()
             raise
+
+
+async def with_session[T](
+    operation: Callable[[AsyncSession], Awaitable[T]],
+) -> T:
+    """Execute an async operation with a managed database session.
+
+    This is a convenience helper that wraps an async operation in a database
+    session context. It handles session lifecycle management including:
+    - Automatic session creation and cleanup
+    - Transaction commit on success
+    - Transaction rollback on failure
+    - Event loop mismatch detection and re-initialization
+
+    Args:
+        operation: An async callable that takes an AsyncSession and returns
+            a value of type T. This is typically a lambda or async function
+            that performs database operations.
+
+    Returns:
+        The result of the operation.
+
+    Raises:
+        RuntimeError: If database has not been initialized.
+        Any exception raised by the operation (after rollback).
+
+    Example:
+        >>> # Simple usage with a lambda
+        >>> result = await with_session(
+        ...     lambda s: detector.detect_objects(image, session=s)
+        ... )
+
+        >>> # Usage with an async function
+        >>> async def fetch_camera(session: AsyncSession) -> Camera:
+        ...     result = await session.execute(
+        ...         select(Camera).where(Camera.name == "front_door")
+        ...     )
+        ...     return result.scalar_one()
+        >>> camera = await with_session(fetch_camera)
+
+        >>> # Usage with a partial application
+        >>> from functools import partial
+        >>> get_user = partial(get_user_by_id, user_id=123)
+        >>> user = await with_session(get_user)
+    """
+    async with get_session() as session:
+        return await operation(session)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession]:

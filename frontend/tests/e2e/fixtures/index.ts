@@ -11,6 +11,7 @@ import { setupApiMocks, defaultMockConfig, type ApiMockConfig } from './api-mock
 export * from './test-data';
 export * from './api-mocks';
 export * from './websocket-mock';
+export * from './performance';
 
 /**
  * Custom test fixture with auto-mocking.

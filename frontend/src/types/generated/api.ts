@@ -8279,9 +8279,58 @@ export interface components {
             status: string;
         };
         /**
+         * HealthEventResponse
+         * @description Schema for a health event in the failure history.
+         *
+         *     Represents a single health-related event such as a failure, recovery, or restart.
+         * @example {
+         *       "event_type": "failure",
+         *       "message": "Health check failed: connection refused",
+         *       "service": "redis",
+         *       "timestamp": "2025-12-23T10:30:00Z"
+         *     }
+         */
+        HealthEventResponse: {
+            /**
+             * Event Type
+             * @description Type of event: 'failure', 'recovery', or 'restart'
+             */
+            event_type: string;
+            /**
+             * Message
+             * @description Optional descriptive message about the event
+             */
+            message?: string | null;
+            /**
+             * Service
+             * @description Name of the service this event relates to
+             */
+            service: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the event occurred (UTC)
+             */
+            timestamp: string;
+        };
+        /**
          * HealthResponse
          * @description Response schema for health check endpoint.
          * @example {
+         *       "recent_events": [
+         *         {
+         *           "event_type": "recovery",
+         *           "message": "Service recovered",
+         *           "service": "redis",
+         *           "timestamp": "2025-12-23T10:25:00Z"
+         *         },
+         *         {
+         *           "event_type": "failure",
+         *           "message": "Health check failed",
+         *           "service": "redis",
+         *           "timestamp": "2025-12-23T10:20:00Z"
+         *         }
+         *       ],
          *       "services": {
          *         "ai": {
          *           "message": "AI services operational",
@@ -8304,6 +8353,11 @@ export interface components {
          *     }
          */
         HealthResponse: {
+            /**
+             * Recent Events
+             * @description Recent health events for debugging intermittent issues
+             */
+            recent_events?: components["schemas"]["HealthEventResponse"][];
             /**
              * Services
              * @description Status of individual services (database, redis, ai)

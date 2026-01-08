@@ -1195,3 +1195,216 @@ def test_health_monitor_service_config_restart_cmd_can_be_set():
         restart_cmd="echo test",
     )
     assert config.restart_cmd == "echo test"
+
+
+# Test: HealthEvent Dataclass
+
+
+def test_health_event_creation():
+    """Test that HealthEvent dataclass can be created with all fields."""
+    from datetime import UTC, datetime
+
+    from backend.services.health_monitor import HealthEvent
+
+    timestamp = datetime.now(UTC)
+    event = HealthEvent(
+        timestamp=timestamp,
+        service="test_service",
+        event_type="failure",
+        message="Health check failed",
+    )
+
+    assert event.timestamp == timestamp
+    assert event.service == "test_service"
+    assert event.event_type == "failure"
+    assert event.message == "Health check failed"
+
+
+def test_health_event_creation_without_message():
+    """Test that HealthEvent can be created without a message."""
+    from datetime import UTC, datetime
+
+    from backend.services.health_monitor import HealthEvent
+
+    timestamp = datetime.now(UTC)
+    event = HealthEvent(
+        timestamp=timestamp,
+        service="test_service",
+        event_type="recovery",
+    )
+
+    assert event.timestamp == timestamp
+    assert event.service == "test_service"
+    assert event.event_type == "recovery"
+    assert event.message is None
+
+
+# Test: Health Event Tracking
+
+
+def test_health_monitor_tracks_events_on_failure(mock_manager, sample_config, mock_broadcaster):
+    """Test that health events are tracked when failures occur."""
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[sample_config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    # Initially no events
+    events = monitor.get_recent_events()
+    assert len(events) == 0
+
+
+@pytest.mark.asyncio
+async def test_health_monitor_records_failure_events(
+    mock_manager, sample_config, mock_broadcaster, fast_sleep
+):
+    """Test that failure events are recorded during health check failures."""
+    mock_manager.check_health.return_value = False
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[sample_config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+    await asyncio.sleep(0.15)
+    await monitor.stop()
+
+    # Should have at least one failure event
+    events = monitor.get_recent_events()
+    failure_events = [e for e in events if e.event_type == "failure"]
+    assert len(failure_events) > 0
+
+
+@pytest.mark.asyncio
+async def test_health_monitor_records_recovery_events(mock_manager, mock_broadcaster, fast_sleep):
+    """Test that recovery events are recorded when services recover."""
+    health_check_count = 0
+
+    async def health_check_varying(_config):
+        nonlocal health_check_count
+        health_check_count += 1
+        # First check fails, subsequent checks succeed
+        return health_check_count > 1
+
+    mock_manager.check_health.side_effect = health_check_varying
+    mock_manager.restart.return_value = True
+
+    config = ServiceConfig(
+        name="test_service",
+        health_url="http://localhost:9999/health",
+        restart_cmd="echo test",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.02,
+    )
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.02,
+    )
+
+    await monitor.start()
+    await asyncio.sleep(0.5)
+    await monitor.stop()
+
+    # Should have recovery event
+    events = monitor.get_recent_events()
+    recovery_events = [e for e in events if e.event_type == "recovery"]
+    assert len(recovery_events) > 0
+
+
+@pytest.mark.asyncio
+async def test_health_monitor_records_restart_events(
+    health_monitor, mock_manager, mock_broadcaster, fast_sleep
+):
+    """Test that restart events are recorded during restart attempts."""
+    mock_manager.check_health.return_value = False
+
+    await health_monitor.start()
+    await asyncio.sleep(0.3)
+    await health_monitor.stop()
+
+    # Should have restart event
+    events = health_monitor.get_recent_events()
+    restart_events = [e for e in events if e.event_type == "restart"]
+    assert len(restart_events) > 0
+
+
+def test_get_recent_events_returns_most_recent_first(mock_manager, sample_config, mock_broadcaster):
+    """Test that get_recent_events returns events in reverse chronological order."""
+    import time
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[sample_config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    # Manually add events
+
+    monitor._record_event("service1", "failure", "First event")
+    time.sleep(0.01)  # Small delay to ensure different timestamps
+    monitor._record_event("service2", "recovery", "Second event")
+    time.sleep(0.01)
+    monitor._record_event("service3", "restart", "Third event")
+
+    events = monitor.get_recent_events()
+
+    # Most recent should be first
+    assert len(events) == 3
+    assert events[0].service == "service3"  # Most recent
+    assert events[1].service == "service2"
+    assert events[2].service == "service1"  # Oldest
+
+
+def test_get_recent_events_respects_limit(mock_manager, sample_config, mock_broadcaster):
+    """Test that get_recent_events respects the limit parameter."""
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[sample_config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    # Add 10 events
+    for i in range(10):
+        monitor._record_event(f"service{i}", "failure", f"Event {i}")
+
+    # Get only 5 events
+    events = monitor.get_recent_events(limit=5)
+    assert len(events) == 5
+
+    # Most recent 5 should be returned
+    assert events[0].service == "service9"
+    assert events[4].service == "service5"
+
+
+def test_health_events_deque_max_length(mock_manager, sample_config, mock_broadcaster):
+    """Test that health events deque respects max_events limit."""
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[sample_config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+        max_events=5,  # Only keep 5 events
+    )
+
+    # Add 10 events
+    for i in range(10):
+        monitor._record_event(f"service{i}", "failure", f"Event {i}")
+
+    # Should only have 5 events (oldest dropped)
+    events = monitor.get_recent_events()
+    assert len(events) == 5
+
+    # Should have the 5 most recent events
+    assert events[0].service == "service9"
+    assert events[4].service == "service5"

@@ -16,6 +16,41 @@ class SeverityEnum(str, Enum):
     CRITICAL = "critical"
 
 
+class HealthEventResponse(BaseModel):
+    """Schema for a health event in the failure history.
+
+    Represents a single health-related event such as a failure, recovery, or restart.
+    """
+
+    timestamp: datetime = Field(
+        ...,
+        description="When the event occurred (UTC)",
+    )
+    service: str = Field(
+        ...,
+        description="Name of the service this event relates to",
+    )
+    event_type: str = Field(
+        ...,
+        description="Type of event: 'failure', 'recovery', or 'restart'",
+    )
+    message: str | None = Field(
+        None,
+        description="Optional descriptive message about the event",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "timestamp": "2025-12-23T10:30:00Z",
+                "service": "redis",
+                "event_type": "failure",
+                "message": "Health check failed: connection refused",
+            }
+        }
+    )
+
+
 class HealthCheckServiceStatus(BaseModel):
     """Status information for a service component in health checks.
 
@@ -52,6 +87,10 @@ class HealthResponse(BaseModel):
         ...,
         description="Timestamp of health check",
     )
+    recent_events: list[HealthEventResponse] = Field(
+        default_factory=list,
+        description="Recent health events for debugging intermittent issues",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -75,6 +114,20 @@ class HealthResponse(BaseModel):
                     },
                 },
                 "timestamp": "2025-12-23T10:30:00",
+                "recent_events": [
+                    {
+                        "timestamp": "2025-12-23T10:25:00Z",
+                        "service": "redis",
+                        "event_type": "recovery",
+                        "message": "Service recovered",
+                    },
+                    {
+                        "timestamp": "2025-12-23T10:20:00Z",
+                        "service": "redis",
+                        "event_type": "failure",
+                        "message": "Health check failed",
+                    },
+                ],
             }
         }
     )

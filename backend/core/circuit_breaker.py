@@ -8,6 +8,7 @@ The canonical implementation is in backend.services.circuit_breaker which provid
 - CircuitBreakerConfig: Configuration dataclass
 - CircuitBreakerError: Exception for open circuit
 - CircuitBreakerOpenError: Alias for CircuitBreakerError
+- CircuitOpenError: Exception raised by protect() with recovery_time_remaining
 - CircuitBreakerRegistry: Registry for managing multiple circuit breakers
 - CircuitState: Enum of circuit states (CLOSED, OPEN, HALF_OPEN)
 
@@ -39,6 +40,7 @@ from backend.services.circuit_breaker import (
     CircuitBreakerMetrics,
     CircuitBreakerOpenError,
     CircuitBreakerRegistry,
+    CircuitOpenError,
     CircuitState,
     get_circuit_breaker,
     reset_circuit_breaker_registry,
@@ -52,6 +54,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "CircuitBreakerMetrics",
     "CircuitBreakerOpenError",
     "CircuitBreakerRegistry",
+    "CircuitOpenError",
     "CircuitState",
     # Prometheus metrics
     "CIRCUIT_BREAKER_CALLS_TOTAL",
