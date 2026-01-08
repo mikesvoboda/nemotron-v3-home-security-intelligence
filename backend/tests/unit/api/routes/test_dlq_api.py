@@ -760,3 +760,267 @@ class TestRequeueInvalidQueueName:
         response = client.post("/api/dlq/requeue-all/invalid_queue")
 
         assert response.status_code == 422
+
+
+class TestEnrichedErrorContext:
+    """Tests for enriched error context in DLQ job responses (NEM-1474)."""
+
+    def test_get_jobs_includes_error_type(self, client: TestClient, mock_redis: MagicMock) -> None:
+        """Test that DLQ jobs include error_type field."""
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "Connection refused",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    "error_type": "ConnectionRefusedError",
+                    "stack_trace": None,
+                    "http_status": None,
+                    "response_body": None,
+                    "retry_delays": None,
+                    "context": None,
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["jobs"]) == 1
+        assert data["jobs"][0]["error_type"] == "ConnectionRefusedError"
+
+    def test_get_jobs_includes_stack_trace(self, client: TestClient, mock_redis: MagicMock) -> None:
+        """Test that DLQ jobs include stack_trace field."""
+        stack_trace = "Traceback (most recent call last):\n  File ..."
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "ValueError",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    "error_type": "ValueError",
+                    "stack_trace": stack_trace,
+                    "http_status": None,
+                    "response_body": None,
+                    "retry_delays": None,
+                    "context": None,
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["jobs"][0]["stack_trace"] == stack_trace
+
+    def test_get_jobs_includes_http_status(self, client: TestClient, mock_redis: MagicMock) -> None:
+        """Test that DLQ jobs include http_status field for network errors."""
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "Service unavailable",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    "error_type": "HTTPStatusError",
+                    "stack_trace": None,
+                    "http_status": 503,
+                    "response_body": '{"error": "Service unavailable"}',
+                    "retry_delays": [1.0, 2.0],
+                    "context": None,
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["jobs"][0]["http_status"] == 503
+        assert data["jobs"][0]["response_body"] == '{"error": "Service unavailable"}'
+
+    def test_get_jobs_includes_retry_delays(
+        self, client: TestClient, mock_redis: MagicMock
+    ) -> None:
+        """Test that DLQ jobs include retry_delays field."""
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "Timeout",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    "error_type": "TimeoutError",
+                    "stack_trace": None,
+                    "http_status": None,
+                    "response_body": None,
+                    "retry_delays": [1.0, 2.5, 5.0],
+                    "context": None,
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["jobs"][0]["retry_delays"] == [1.0, 2.5, 5.0]
+
+    def test_get_jobs_includes_system_context(
+        self, client: TestClient, mock_redis: MagicMock
+    ) -> None:
+        """Test that DLQ jobs include context field with system state."""
+        system_context = {
+            "detection_queue_depth": 150,
+            "analysis_queue_depth": 25,
+            "dlq_circuit_breaker_state": "closed",
+        }
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "GPU OOM",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    "error_type": "RuntimeError",
+                    "stack_trace": None,
+                    "http_status": None,
+                    "response_body": None,
+                    "retry_delays": None,
+                    "context": system_context,
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["jobs"][0]["context"] == system_context
+        assert data["jobs"][0]["context"]["detection_queue_depth"] == 150
+
+    def test_get_jobs_handles_null_context_fields(
+        self, client: TestClient, mock_redis: MagicMock
+    ) -> None:
+        """Test that DLQ jobs handle null error context fields (backward compat)."""
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "Error",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    # All error context fields are None (backward compatibility)
+                    "error_type": None,
+                    "stack_trace": None,
+                    "http_status": None,
+                    "response_body": None,
+                    "retry_delays": None,
+                    "context": None,
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["jobs"][0]["error_type"] is None
+        assert data["jobs"][0]["stack_trace"] is None
+        assert data["jobs"][0]["http_status"] is None
+        assert data["jobs"][0]["response_body"] is None
+        assert data["jobs"][0]["retry_delays"] is None
+        assert data["jobs"][0]["context"] is None
+
+    def test_get_jobs_handles_missing_context_fields(
+        self, client: TestClient, mock_redis: MagicMock
+    ) -> None:
+        """Test that DLQ jobs handle missing error context fields (old data)."""
+        # Simulates old DLQ entries without error context fields
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1"},
+                    "error": "Error",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    # No error context fields - old format
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        # JobFailure.from_dict() handles missing fields with defaults
+        assert data["jobs"][0]["error_type"] is None
+        assert data["jobs"][0]["stack_trace"] is None
+        assert data["jobs"][0]["http_status"] is None
+        assert data["jobs"][0]["response_body"] is None
+        assert data["jobs"][0]["retry_delays"] is None
+        assert data["jobs"][0]["context"] is None
+
+    def test_get_jobs_full_error_context(self, client: TestClient, mock_redis: MagicMock) -> None:
+        """Test retrieving a DLQ job with full error context."""
+        mock_redis.peek_queue = AsyncMock(
+            return_value=[
+                {
+                    "original_job": {"camera_id": "cam1", "file_path": "/path/img.jpg"},
+                    "error": "Internal server error: GPU OOM",
+                    "attempt_count": 3,
+                    "first_failed_at": "2025-12-23T10:00:00",
+                    "last_failed_at": "2025-12-23T10:00:15",
+                    "queue_name": "detection_queue",
+                    "error_type": "HTTPStatusError",
+                    "stack_trace": "Traceback (most recent call last):\n  File ...",
+                    "http_status": 500,
+                    "response_body": '{"error": "GPU out of memory", "details": "..."}',
+                    "retry_delays": [1.0, 2.5],
+                    "context": {
+                        "detection_queue_depth": 100,
+                        "analysis_queue_depth": 50,
+                        "dlq_circuit_breaker_state": "closed",
+                    },
+                }
+            ]
+        )
+
+        response = client.get("/api/dlq/jobs/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        job = data["jobs"][0]
+
+        # Verify all original fields
+        assert job["original_job"]["camera_id"] == "cam1"
+        assert job["error"] == "Internal server error: GPU OOM"
+        assert job["attempt_count"] == 3
+        assert job["queue_name"] == "detection_queue"
+
+        # Verify all error context fields
+        assert job["error_type"] == "HTTPStatusError"
+        assert "Traceback" in job["stack_trace"]
+        assert job["http_status"] == 500
+        assert "GPU out of memory" in job["response_body"]
+        assert job["retry_delays"] == [1.0, 2.5]
+        assert job["context"]["detection_queue_depth"] == 100
+        assert job["context"]["dlq_circuit_breaker_state"] == "closed"
