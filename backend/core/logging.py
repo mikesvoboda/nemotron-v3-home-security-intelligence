@@ -20,6 +20,7 @@ __all__ = [
     "DatabaseHandler",
     "SQLiteHandler",  # Backwards compatibility alias
     # Functions
+    "get_current_trace_context",
     "get_log_context",
     "get_logger",
     "get_request_id",
@@ -100,6 +101,74 @@ def get_log_context() -> dict[str, Any]:
     """
     ctx = _log_context.get()
     return dict(ctx) if ctx is not None else {}
+
+
+def _get_otel_current_span() -> Any:
+    """Get the current OpenTelemetry span from context.
+
+    This is a helper function that safely attempts to get the current span
+    from OpenTelemetry's trace context. Returns None if OpenTelemetry is
+    not installed or if no span is currently active.
+
+    Returns:
+        The current span object if available, None otherwise.
+    """
+    try:
+        from opentelemetry import trace
+
+        return trace.get_current_span()
+    except ImportError:
+        return None
+    except Exception:
+        return None
+
+
+def get_current_trace_context() -> dict[str, str | None]:
+    """Get the current OpenTelemetry trace context for log correlation.
+
+    This function extracts trace_id and span_id from the active OpenTelemetry
+    span context, enabling log-to-trace correlation in observability platforms
+    like Grafana, Jaeger, or Tempo.
+
+    The trace IDs are formatted as lowercase hexadecimal strings (32 chars for
+    trace_id, 16 chars for span_id), which is the standard W3C Trace Context format.
+
+    Returns:
+        Dict with 'trace_id' and 'span_id' keys. Values are hex strings if a
+        valid span is active, None otherwise.
+
+    Example:
+        ctx = get_current_trace_context()
+        # If OTel is active: {'trace_id': '1234...', 'span_id': 'abcd...'}
+        # If OTel is not active: {'trace_id': None, 'span_id': None}
+
+    NEM-1638: Enhanced structured logging with trace context.
+    """
+    result: dict[str, str | None] = {"trace_id": None, "span_id": None}
+
+    try:
+        span = _get_otel_current_span()
+        if span is None:
+            return result
+
+        # Get span context
+        span_context = span.get_span_context()
+        if not span_context or not span_context.is_valid:
+            return result
+
+        # Format trace_id and span_id as lowercase hex strings
+        # trace_id is 128-bit (32 hex chars), span_id is 64-bit (16 hex chars)
+        result["trace_id"] = format(span_context.trace_id, "032x")
+        result["span_id"] = format(span_context.span_id, "016x")
+
+    except (ImportError, AttributeError, TypeError):
+        # OpenTelemetry not installed or span context not valid
+        pass
+    except Exception:  # noqa: S110 - Intentionally silent to not break logging
+        # Any other error - don't let tracing break logging
+        pass
+
+    return result
 
 
 @contextmanager
@@ -273,6 +342,9 @@ class ContextFilter(logging.Filter):
 
     This filter automatically injects:
     - request_id: From the request context (set by middleware)
+    - correlation_id: From the correlation context (set by middleware) (NEM-1638)
+    - trace_id: From OpenTelemetry span context (NEM-1638)
+    - span_id: From OpenTelemetry span context (NEM-1638)
     - connection_id: From WebSocket connection context (NEM-1640)
     - log_context fields: From the log_context context manager (NEM-1645)
 
@@ -281,12 +353,14 @@ class ContextFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """Add request_id, connection_id, and log_context fields to the log record.
+        """Add contextual fields to the log record for observability.
 
         This method enriches every log record with:
         1. request_id from the request context (for request correlation)
-        2. connection_id from WebSocket context (for WebSocket connection tracing)
-        3. All fields from the current log_context (for structured error context)
+        2. correlation_id from correlation context (for cross-service tracing)
+        3. trace_id and span_id from OpenTelemetry (for log-to-trace correlation)
+        4. connection_id from WebSocket context (for WebSocket connection tracing)
+        5. All fields from the current log_context (for structured error context)
 
         Log context fields are set as attributes on the record, making them
         available to formatters and handlers. Explicit extra= values passed to
@@ -297,10 +371,36 @@ class ContextFilter(logging.Filter):
 
         Returns:
             True (always allows the record through)
+
+        NEM-1638: Enhanced structured logging with trace context.
         """
         # Add request_id from context (only if not explicitly provided via extra=)
         if not hasattr(record, "request_id"):
             record.request_id = get_request_id()  # type: ignore[attr-defined]
+
+        # Add correlation_id from middleware context (NEM-1638)
+        # Only set if not explicitly provided via extra=
+        if not hasattr(record, "correlation_id"):
+            try:
+                from backend.api.middleware.request_id import get_correlation_id
+
+                record.correlation_id = get_correlation_id()  # type: ignore[attr-defined]
+            except ImportError:
+                # Module not yet available during startup
+                record.correlation_id = None  # type: ignore[attr-defined]
+
+        # Add OpenTelemetry trace context (NEM-1638)
+        # Only set trace_id if not explicitly provided via extra=
+        if not hasattr(record, "trace_id"):
+            trace_ctx = get_current_trace_context()
+            record.trace_id = trace_ctx["trace_id"]  # type: ignore[attr-defined]
+            # span_id only set if trace_id was set from context
+            if not hasattr(record, "span_id"):
+                record.span_id = trace_ctx["span_id"]  # type: ignore[attr-defined]
+        elif not hasattr(record, "span_id"):
+            # trace_id was explicit, but span_id might not be
+            trace_ctx = get_current_trace_context()
+            record.span_id = trace_ctx["span_id"]  # type: ignore[attr-defined]
 
         # Add connection_id from async_context module (NEM-1640)
         # Imported lazily to avoid circular imports during startup
@@ -326,7 +426,11 @@ class ContextFilter(logging.Filter):
 
 
 class CustomJsonFormatter(JsonFormatter):
-    """Custom JSON formatter with ISO timestamp and extra fields."""
+    """Custom JSON formatter with ISO timestamp, trace context, and extra fields.
+
+    NEM-1638: Enhanced to include trace_id, span_id, and correlation_id for
+    log aggregation and log-to-trace correlation in observability platforms.
+    """
 
     def add_fields(
         self,
@@ -334,17 +438,55 @@ class CustomJsonFormatter(JsonFormatter):
         record: logging.LogRecord,
         message_dict: dict[str, Any],
     ) -> None:
-        """Add custom fields to the JSON log record."""
+        """Add custom fields to the JSON log record.
+
+        Fields added:
+        - timestamp: ISO 8601 formatted timestamp with timezone
+        - level: Log level name (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        - component: Logger name (typically module path)
+        - request_id: Request correlation ID (if present)
+        - correlation_id: Cross-service correlation ID (if present) (NEM-1638)
+        - trace_id: OpenTelemetry trace ID for log-to-trace correlation (NEM-1638)
+        - span_id: OpenTelemetry span ID for log-to-trace correlation (NEM-1638)
+        - Structured context fields: camera_id, event_id, detection_id, etc.
+        """
         super().add_fields(log_record, record, message_dict)
 
-        # ISO timestamp
+        # ISO timestamp for log aggregation (Loki, ELK, etc.)
         log_record["timestamp"] = datetime.now(UTC).isoformat()
         log_record["level"] = record.levelname
         log_record["component"] = record.name
 
-        # Add request_id if present
+        # Add request_id if present (for request correlation)
         if hasattr(record, "request_id") and record.request_id:
             log_record["request_id"] = record.request_id
+
+        # Add correlation_id if present (for cross-service tracing) (NEM-1638)
+        if hasattr(record, "correlation_id") and record.correlation_id:
+            log_record["correlation_id"] = record.correlation_id
+
+        # Add OpenTelemetry trace context if present (NEM-1638)
+        # These fields enable log-to-trace correlation in Grafana/Tempo/Jaeger
+        if hasattr(record, "trace_id") and record.trace_id:
+            log_record["trace_id"] = record.trace_id
+        if hasattr(record, "span_id") and record.span_id:
+            log_record["span_id"] = record.span_id
+
+        # Add structured context fields commonly used in this application
+        # These support filtering and aggregation in log management systems
+        context_fields = [
+            "camera_id",
+            "event_id",
+            "detection_id",
+            "duration_ms",
+            "connection_id",
+            "detection_count",
+        ]
+        for field in context_fields:
+            if hasattr(record, field):
+                value = getattr(record, field)
+                if value is not None:
+                    log_record[field] = value
 
 
 class DatabaseHandler(logging.Handler):

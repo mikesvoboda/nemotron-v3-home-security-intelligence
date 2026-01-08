@@ -1,10 +1,21 @@
 """Pydantic schemas for dead-letter queue (DLQ) API endpoints."""
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class DLQJobResponse(BaseModel):
-    """Response schema for a single job in the dead-letter queue."""
+    """Response schema for a single job in the dead-letter queue.
+
+    Includes enriched error context (NEM-1474) for faster debugging:
+    - error_type: Exception class name for categorization
+    - stack_trace: Truncated stack trace for debugging
+    - http_status: HTTP status code (for network errors)
+    - response_body: Truncated AI service response (for debugging)
+    - retry_delays: Delays applied between retry attempts
+    - context: System state snapshot at failure time
+    """
 
     original_job: dict = Field(
         ...,
@@ -31,6 +42,31 @@ class DLQJobResponse(BaseModel):
         ...,
         description="Name of the original queue where the job came from",
     )
+    # Error context enrichment fields (NEM-1474)
+    error_type: str | None = Field(
+        None,
+        description="Exception class name (e.g., 'ConnectionRefusedError')",
+    )
+    stack_trace: str | None = Field(
+        None,
+        description="Truncated stack trace (max 4KB) for debugging",
+    )
+    http_status: int | None = Field(
+        None,
+        description="HTTP status code if the error was from a network request",
+    )
+    response_body: str | None = Field(
+        None,
+        description="Truncated response body (max 2KB) from AI service",
+    )
+    retry_delays: list[float] | None = Field(
+        None,
+        description="Delays (in seconds) applied between retry attempts",
+    )
+    context: dict[str, Any] | None = Field(
+        None,
+        description="System state snapshot at failure time (queue depths, circuit breaker states)",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -45,6 +81,16 @@ class DLQJobResponse(BaseModel):
                 "first_failed_at": "2025-12-23T10:30:05.000000",
                 "last_failed_at": "2025-12-23T10:30:15.000000",
                 "queue_name": "detection_queue",
+                "error_type": "ConnectionRefusedError",
+                "stack_trace": "Traceback (most recent call last):\n  ...",
+                "http_status": None,
+                "response_body": None,
+                "retry_delays": [1.0, 2.0],
+                "context": {
+                    "detection_queue_depth": 150,
+                    "analysis_queue_depth": 25,
+                    "dlq_circuit_breaker_state": "closed",
+                },
             }
         }
     )

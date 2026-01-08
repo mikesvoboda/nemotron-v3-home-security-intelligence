@@ -15,14 +15,16 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard first
     await page.goto('/');
 
-    // Wait for initial load
-    await page.waitForSelector('[data-testid="ws-status"]', {
+    // Wait for initial load - WebSocket status indicator
+    // Firefox/WebKit need longer timeout for WebSocket connection establishment
+    const timeout = browserName === 'chromium' ? 10000 : 20000;
+    await page.waitForSelector('[data-testid="websocket-status"]', {
       state: 'visible',
-      timeout: 10000
+      timeout
     });
   });
 

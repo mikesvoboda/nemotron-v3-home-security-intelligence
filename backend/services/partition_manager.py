@@ -114,6 +114,12 @@ DEFAULT_PARTITION_CONFIGS: list[PartitionConfig] = [
         partition_interval="weekly",
         retention_months=3,
     ),
+    PartitionConfig(
+        table_name="audit_logs",
+        partition_column="timestamp",
+        partition_interval="monthly",
+        retention_months=12,  # Keep audit logs longer for compliance
+    ),
 ]
 
 
@@ -353,13 +359,14 @@ class PartitionManager:
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
 
+        # DDL for partition creation requires dynamic SQL - table names are sanitized, not user input
         sql = f"""
             CREATE TABLE IF NOT EXISTS {safe_partition_name}
             PARTITION OF {table_name}
             FOR VALUES FROM ('{start_str}') TO ('{end_str}')
         """
 
-        await session.execute(text(sql))
+        await session.execute(text(sql))  # nosemgrep: avoid-sqlalchemy-text
 
         logger.info(
             f"Created partition {safe_partition_name}",
@@ -379,9 +386,10 @@ class PartitionManager:
             partition_name: Name of partition to drop
         """
         safe_name = self._sanitize_table_name(partition_name)
+        # DDL for partition drop requires dynamic SQL - table name is sanitized, not user input
         sql = f"DROP TABLE IF EXISTS {safe_name}"
 
-        await session.execute(text(sql))
+        await session.execute(text(sql))  # nosemgrep: avoid-sqlalchemy-text
 
         logger.info(f"Dropped partition {safe_name}")
 

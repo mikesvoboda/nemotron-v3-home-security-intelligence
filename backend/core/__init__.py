@@ -1,6 +1,15 @@
 """Core infrastructure components."""
 
 from backend.core.config import Settings, get_settings
+from backend.core.container import (
+    CircularDependencyError,
+    Container,
+    ServiceAlreadyRegisteredError,
+    ServiceNotFoundError,
+    get_container,
+    reset_container,
+    wire_services,
+)
 from backend.core.database import (
     Base,
     close_db,
@@ -95,10 +104,14 @@ __all__ = [
     "Base",
     "CertificateNotFoundError",
     "CertificateValidationError",
+    "CircularDependencyError",
+    "Container",
     "ProfilingManager",
     "QueryExplainLogger",
     "QueueAddResult",
     "RedisClient",
+    "ServiceAlreadyRegisteredError",
+    "ServiceNotFoundError",
     "Settings",
     "TLSConfig",
     "TLSConfigurationError",
@@ -113,6 +126,7 @@ __all__ = [
     "generate_self_signed_cert",
     "generate_self_signed_certificate",
     "get_cert_info",
+    "get_container",
     "get_db",
     "get_engine",
     "get_log_context",
@@ -148,6 +162,7 @@ __all__ = [
     "record_pipeline_error",
     "redact_sensitive_value",
     "redact_url",
+    "reset_container",
     "reset_profiling_manager",
     "sanitize_error",
     "set_queue_depth",
@@ -156,5 +171,6 @@ __all__ = [
     "setup_logging",
     "validate_certificate",
     "validate_certificate_files",
+    "wire_services",
     "with_session",
 ]

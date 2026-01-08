@@ -33,7 +33,7 @@ import socket
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from hypothesis import HealthCheck, Phase, Verbosity
@@ -916,6 +916,422 @@ def unique_id(prefix: str = "test") -> str:
     import uuid
 
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
+# =============================================================================
+# Consolidated Mock Fixtures (NEM-1448)
+# =============================================================================
+# These fixtures consolidate common mock patterns to reduce duplication across tests.
+# See backend/tests/mock_utils.py for factory functions that can be used directly.
+
+
+@pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Create a mock database session with all common operations configured.
+
+    This fixture provides a mock AsyncSession with the following pre-configured:
+    - add: MagicMock (synchronous)
+    - commit: AsyncMock
+    - refresh: AsyncMock
+    - flush: AsyncMock
+    - rollback: AsyncMock
+    - execute: AsyncMock (returns empty result by default)
+    - close: AsyncMock
+    - delete: AsyncMock
+    - get: AsyncMock (returns None by default)
+    - scalar: AsyncMock (returns None by default)
+    - scalars: MagicMock (returns empty list by default)
+    - begin_nested: AsyncMock context manager
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_something(mock_db_session):
+            # Configure specific return values
+            mock_db_session.execute.return_value.scalars.return_value.all.return_value = [camera]
+
+            # Use in test
+            service = MyService(session=mock_db_session)
+            await service.do_something()
+
+            # Verify interactions
+            mock_db_session.commit.assert_called_once()
+    """
+    from unittest.mock import MagicMock
+
+    session = AsyncMock()
+
+    # Synchronous operations
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.expunge = MagicMock()
+    session.expunge_all = MagicMock()
+
+    # Async operations
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    session.flush = AsyncMock()
+    session.rollback = AsyncMock()
+    session.close = AsyncMock()
+    session.delete = AsyncMock()
+    session.get = AsyncMock(return_value=None)
+    session.scalar = AsyncMock(return_value=None)
+    session.execute = AsyncMock()
+
+    # Configure execute to return a result object with common patterns
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_scalars.first.return_value = None
+    mock_scalars.one_or_none.return_value = None
+    mock_result.scalars.return_value = mock_scalars
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.first.return_value = None
+    mock_result.all.return_value = []
+    mock_result.fetchone.return_value = None
+    mock_result.fetchall.return_value = []
+    session.execute.return_value = mock_result
+
+    # Configure begin_nested for savepoint support
+    mock_nested = AsyncMock()
+    mock_nested.__aenter__ = AsyncMock(return_value=mock_nested)
+    mock_nested.__aexit__ = AsyncMock(return_value=None)
+    session.begin_nested = MagicMock(return_value=mock_nested)
+
+    return session
+
+
+@pytest.fixture
+def mock_db_session_context(mock_db_session: AsyncMock) -> AsyncMock:
+    """Create a mock database context manager that yields mock_db_session.
+
+    This fixture wraps mock_db_session in an async context manager for use
+    with `async with get_session() as session:` patterns.
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_something(mock_db_session, mock_db_session_context):
+            with patch("backend.core.database.get_session", return_value=mock_db_session_context):
+                # Code that uses async with get_session() as session:
+                await my_function()
+                mock_db_session.commit.assert_called()
+    """
+    mock_context = AsyncMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_db_session)
+    mock_context.__aexit__ = AsyncMock(return_value=None)
+    return mock_context
+
+
+@pytest.fixture
+def mock_http_response() -> MagicMock:
+    """Create a mock HTTP response object with common attributes.
+
+    Returns a MagicMock configured as httpx.Response with:
+    - status_code: 200
+    - json(): Returns empty dict
+    - text: Empty string
+    - content: Empty bytes
+    - raise_for_status(): No-op by default
+
+    Usage:
+        def test_http_call(mock_http_response):
+            mock_http_response.status_code = 200
+            mock_http_response.json.return_value = {"status": "healthy"}
+
+            with patch("httpx.AsyncClient.get", return_value=mock_http_response):
+                result = await client.get("/health")
+    """
+    from unittest.mock import MagicMock
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {}
+    response.text = ""
+    response.content = b""
+    response.headers = {}
+    response.raise_for_status = MagicMock()
+    response.is_success = True
+    response.is_error = False
+    return response
+
+
+@pytest.fixture
+def mock_http_client() -> AsyncMock:
+    """Create a mock httpx.AsyncClient with common HTTP methods.
+
+    Returns an AsyncMock configured as httpx.AsyncClient with:
+    - get: AsyncMock
+    - post: AsyncMock
+    - put: AsyncMock
+    - delete: AsyncMock
+    - patch: AsyncMock
+    - Async context manager support (__aenter__/__aexit__)
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_api_call(mock_http_client, mock_http_response):
+            mock_http_response.json.return_value = {"detections": []}
+            mock_http_client.post.return_value = mock_http_response
+
+            with patch("httpx.AsyncClient", return_value=mock_http_client):
+                result = await detector.detect(image_path)
+                mock_http_client.post.assert_called_once()
+    """
+    client = AsyncMock()
+
+    # Configure async context manager support
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+
+    # All HTTP methods are already AsyncMock by default
+    # but we ensure they're properly typed
+    client.get = AsyncMock()
+    client.post = AsyncMock()
+    client.put = AsyncMock()
+    client.delete = AsyncMock()
+    client.patch = AsyncMock()
+    client.head = AsyncMock()
+    client.options = AsyncMock()
+
+    # Common httpx.AsyncClient properties
+    client.is_closed = False
+
+    return client
+
+
+@pytest.fixture
+def mock_detector_client() -> AsyncMock:
+    """Create a mock RT-DETR detector client.
+
+    Returns an AsyncMock configured as DetectorClient with:
+    - detect_objects: Returns empty list by default
+    - health_check: Returns True
+    - check_health: Returns {"status": "healthy"}
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_detection(mock_detector_client, mock_db_session):
+            mock_detector_client.detect_objects.return_value = [
+                Detection(object_type="person", confidence=0.95, ...)
+            ]
+
+            with patch("backend.services.detector_client.DetectorClient", return_value=mock_detector_client):
+                detections = await process_image(image_path, mock_db_session)
+    """
+    client = AsyncMock()
+    client.detect_objects = AsyncMock(return_value=[])
+    client.health_check = AsyncMock(return_value=True)
+    client.check_health = AsyncMock(return_value={"status": "healthy"})
+    client._validate_image_for_detection_async = AsyncMock(return_value=True)
+    return client
+
+
+@pytest.fixture
+def mock_nemotron_client() -> AsyncMock:
+    """Create a mock Nemotron LLM client.
+
+    Returns an AsyncMock configured as NemotronAnalyzer with:
+    - analyze: Returns default risk assessment
+    - health_check: Returns True
+    - check_health: Returns {"status": "healthy"}
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_risk_analysis(mock_nemotron_client):
+            mock_nemotron_client.analyze.return_value = {
+                "risk_score": 75,
+                "risk_level": "high",
+                "summary": "Person detected at entry point",
+                "reasoning": "High risk due to proximity to entry",
+            }
+
+            with patch("backend.services.nemotron_analyzer.NemotronAnalyzer", return_value=mock_nemotron_client):
+                result = await analyze_detections(detections)
+    """
+    client = AsyncMock()
+    client.analyze = AsyncMock(
+        return_value={
+            "risk_score": 25,
+            "risk_level": "low",
+            "summary": "Normal activity detected",
+            "reasoning": "No concerning patterns observed",
+        }
+    )
+    client.health_check = AsyncMock(return_value=True)
+    client.check_health = AsyncMock(return_value={"status": "healthy"})
+    return client
+
+
+@pytest.fixture
+def mock_redis_client() -> AsyncMock:
+    """Create a comprehensive mock Redis client.
+
+    Returns an AsyncMock configured with all common Redis operations:
+    - get/set/delete: Basic key-value operations
+    - publish: Pub/sub support
+    - lpush/rpush/lpop/rpop: List operations
+    - sadd/smembers: Set operations
+    - hget/hset/hgetall: Hash operations
+    - expire/ttl: Key expiration
+    - health_check: Returns healthy status
+    - add_to_queue_safe: Queue with backpressure support
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_caching(mock_redis_client):
+            mock_redis_client.get.return_value = '{"cached": "data"}'
+
+            service = CacheService(redis=mock_redis_client)
+            result = await service.get_cached("key")
+
+            mock_redis_client.get.assert_called_with("key")
+    """
+    from backend.core.redis import QueueAddResult
+
+    client = AsyncMock()
+
+    # Basic operations
+    client.get = AsyncMock(return_value=None)
+    client.set = AsyncMock(return_value=True)
+    client.delete = AsyncMock(return_value=1)
+    client.exists = AsyncMock(return_value=0)
+    client.keys = AsyncMock(return_value=[])
+
+    # Pub/sub
+    client.publish = AsyncMock(return_value=1)
+    client.subscribe = AsyncMock()
+    client.unsubscribe = AsyncMock()
+
+    # List operations
+    client.lpush = AsyncMock(return_value=1)
+    client.rpush = AsyncMock(return_value=1)
+    client.lpop = AsyncMock(return_value=None)
+    client.rpop = AsyncMock(return_value=None)
+    client.llen = AsyncMock(return_value=0)
+    client.lrange = AsyncMock(return_value=[])
+
+    # Set operations
+    client.sadd = AsyncMock(return_value=1)
+    client.smembers = AsyncMock(return_value=set())
+    client.sismember = AsyncMock(return_value=False)
+    client.srem = AsyncMock(return_value=1)
+
+    # Hash operations
+    client.hget = AsyncMock(return_value=None)
+    client.hset = AsyncMock(return_value=1)
+    client.hgetall = AsyncMock(return_value={})
+    client.hdel = AsyncMock(return_value=1)
+
+    # Expiration
+    client.expire = AsyncMock(return_value=True)
+    client.ttl = AsyncMock(return_value=-2)  # Key doesn't exist
+    client.setex = AsyncMock(return_value=True)
+
+    # Health check
+    client.health_check = AsyncMock(
+        return_value={
+            "status": "healthy",
+            "connected": True,
+            "redis_version": "7.0.0",
+        }
+    )
+
+    # Queue operations with backpressure
+    client.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
+
+    # Ping for health checks
+    client.ping = AsyncMock(return_value=True)
+
+    # Pipeline support
+    mock_pipeline = AsyncMock()
+    mock_pipeline.__aenter__ = AsyncMock(return_value=mock_pipeline)
+    mock_pipeline.__aexit__ = AsyncMock(return_value=None)
+    mock_pipeline.execute = AsyncMock(return_value=[])
+    client.pipeline = MagicMock(return_value=mock_pipeline)
+
+    return client
+
+
+@pytest.fixture
+def mock_settings():
+    """Create a mock Settings object with common defaults.
+
+    Returns a MagicMock configured with typical application settings:
+    - database_url: Test PostgreSQL URL
+    - redis_url: Test Redis URL
+    - ai_host: localhost
+    - detector_port: 8001
+    - nemotron_port: 8002
+    - camera_root: /export/foscam
+
+    Usage:
+        def test_with_settings(mock_settings):
+            mock_settings.detector_port = 9000  # Override specific setting
+
+            with patch("backend.core.config.get_settings", return_value=mock_settings):
+                client = DetectorClient()
+                # client uses mock_settings.detector_port
+    """
+    from unittest.mock import MagicMock
+
+    settings = MagicMock()
+
+    # Database settings
+    settings.database_url = "postgresql+asyncpg://security:test@localhost:5432/security_test"  # pragma: allowlist secret
+    settings.database_pool_size = 5
+    settings.database_max_overflow = 10
+
+    # Redis settings
+    settings.redis_url = "redis://localhost:6379/15"
+
+    # AI service settings
+    settings.ai_host = "localhost"
+    settings.detector_port = 8001
+    settings.detector_url = "http://localhost:8001"
+    settings.nemotron_port = 8002
+    settings.nemotron_url = "http://localhost:8002"
+    settings.florence_port = 8003
+    settings.florence_url = "http://localhost:8003"
+
+    # Camera settings
+    settings.camera_root = "/export/foscam"
+
+    # Detection settings
+    settings.confidence_threshold = 0.5
+    settings.batch_timeout_seconds = 90
+    settings.batch_idle_timeout_seconds = 30
+
+    # Application settings
+    settings.debug = False
+    settings.environment = "test"
+    settings.log_level = "INFO"
+
+    # API settings
+    settings.api_host = "0.0.0.0"  # noqa: S104
+    settings.api_port = 8000
+
+    return settings
+
+
+@pytest.fixture
+def mock_baseline_service() -> AsyncMock:
+    """Create a mock BaselineService for tests.
+
+    Returns an AsyncMock with update_baseline configured.
+    This is commonly needed to avoid database interactions in unit tests.
+
+    Usage:
+        @pytest.fixture(autouse=True)
+        def patch_baseline(mock_baseline_service):
+            with patch("backend.services.detector_client.get_baseline_service", return_value=mock_baseline_service):
+                yield
+    """
+    from unittest.mock import MagicMock
+
+    service = MagicMock()
+    service.update_baseline = AsyncMock()
+    service.get_baseline = AsyncMock(return_value=None)
+    service.check_anomaly = AsyncMock(return_value=False)
+    return service
 
 
 # =============================================================================
