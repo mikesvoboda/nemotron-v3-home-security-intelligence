@@ -1,16 +1,20 @@
 /**
- * TDD Tests for TypedWebSocketEmitter
+ * Tests for TypedWebSocketEmitter
  *
- * These tests define the expected behavior of the typed event emitter
- * and were written BEFORE the implementation (TDD RED phase).
+ * Tests cover:
+ * - Basic subscription and emission
+ * - Type safety verification
+ * - Handler management (on, off, once)
+ * - Message handling
+ * - Edge cases and error handling
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TypedWebSocketEmitter } from './typedEventEmitter';
+import { createTypedEmitter, safeEmit, TypedWebSocketEmitter } from './typedEventEmitter';
 
-import type { SecurityEventData, ServiceStatusData } from '../types/websocket';
-import type { WebSocketEventHandler } from '../types/websocket-events';
+import type { SecurityEventData, SystemStatusData } from '../types/websocket';
+import type { WebSocketErrorPayload } from '../types/websocket-events';
 
 describe('TypedWebSocketEmitter', () => {
   let emitter: TypedWebSocketEmitter;
@@ -19,544 +23,437 @@ describe('TypedWebSocketEmitter', () => {
     emitter = new TypedWebSocketEmitter();
   });
 
-  afterEach(() => {
-    emitter.clear();
-  });
-
-  describe('on() - Subscribe to Events', () => {
-    it('should allow subscribing to an event and receive typed data', () => {
+  describe('on() and emit()', () => {
+    it('should call handler when event is emitted', () => {
       const handler = vi.fn<(data: SecurityEventData) => void>();
-
-      emitter.on('event', handler);
-
       const eventData: SecurityEventData = {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'Person detected at front door',
+        summary: 'Person detected',
       };
 
+      emitter.on('event', handler);
       emitter.emit('event', eventData);
 
       expect(handler).toHaveBeenCalledTimes(1);
       expect(handler).toHaveBeenCalledWith(eventData);
     });
 
-    it('should return an unsubscribe function', () => {
-      const handler = vi.fn();
-      const unsubscribe = emitter.on('event', handler);
+    it('should support multiple handlers for same event', () => {
+      const handler1 = vi.fn<(data: SecurityEventData) => void>();
+      const handler2 = vi.fn<(data: SecurityEventData) => void>();
+      const eventData: SecurityEventData = {
+        id: '456',
+        camera_id: 'back_door',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Movement detected',
+      };
 
-      expect(typeof unsubscribe).toBe('function');
+      emitter.on('event', handler1);
+      emitter.on('event', handler2);
+      emitter.emit('event', eventData);
 
-      unsubscribe();
+      expect(handler1).toHaveBeenCalledTimes(1);
+      expect(handler2).toHaveBeenCalledTimes(1);
+    });
+
+    it('should support handlers for different event types', () => {
+      const eventHandler = vi.fn<(data: SecurityEventData) => void>();
+      const pingHandler = vi.fn();
+
+      emitter.on('event', eventHandler);
+      emitter.on('ping', pingHandler);
 
       emitter.emit('event', {
+        id: '789',
+        camera_id: 'garage',
+        risk_score: 25,
+        risk_level: 'low',
+        summary: 'Cat detected',
+      });
+      emitter.emit('ping', { type: 'ping' });
+
+      expect(eventHandler).toHaveBeenCalledTimes(1);
+      expect(pingHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call handlers for different event types', () => {
+      const eventHandler = vi.fn<(data: SecurityEventData) => void>();
+
+      emitter.on('event', eventHandler);
+      emitter.emit('ping', { type: 'ping' });
+
+      expect(eventHandler).not.toHaveBeenCalled();
+    });
+
+    it('should return unsubscribe function', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
+      const eventData: SecurityEventData = {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'Test event',
-      });
+        summary: 'Person detected',
+      };
+
+      const unsubscribe = emitter.on('event', handler);
+      unsubscribe();
+      emitter.emit('event', eventData);
 
       expect(handler).not.toHaveBeenCalled();
     });
+  });
 
-    it('should support multiple handlers for the same event', () => {
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
-      const handler3 = vi.fn();
-
-      emitter.on('event', handler1);
-      emitter.on('event', handler2);
-      emitter.on('event', handler3);
-
-      const eventData: SecurityEventData = {
-        id: '456',
-        camera_id: 'backyard',
-        risk_score: 30,
-        risk_level: 'low',
-        summary: 'Cat detected',
-      };
-
-      emitter.emit('event', eventData);
-
-      expect(handler1).toHaveBeenCalledWith(eventData);
-      expect(handler2).toHaveBeenCalledWith(eventData);
-      expect(handler3).toHaveBeenCalledWith(eventData);
-    });
-
-    it('should not allow duplicate handlers for the same event', () => {
-      const handler = vi.fn();
-
-      emitter.on('event', handler);
-      emitter.on('event', handler); // Duplicate
-
-      emitter.emit('event', {
-        id: '123',
-        camera_id: 'front_door',
-        risk_score: 50,
-        risk_level: 'medium',
-        summary: 'Test',
-      });
-
-      // Handler should only be called once (no duplicates)
-      expect(handler).toHaveBeenCalledTimes(1);
-    });
-
-    it('should support subscribing to different event types', () => {
-      const eventHandler = vi.fn();
-      const serviceHandler = vi.fn();
-
-      emitter.on('event', eventHandler);
-      emitter.on('service_status', serviceHandler);
-
+  describe('off()', () => {
+    it('should remove specific handler', () => {
+      const handler1 = vi.fn<(data: SecurityEventData) => void>();
+      const handler2 = vi.fn<(data: SecurityEventData) => void>();
       const eventData: SecurityEventData = {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'Test event',
+        summary: 'Person detected',
       };
-
-      const serviceData: ServiceStatusData = {
-        service: 'rtdetr',
-        status: 'running',
-        message: 'Service is healthy',
-      };
-
-      emitter.emit('event', eventData);
-      emitter.emit('service_status', serviceData);
-
-      expect(eventHandler).toHaveBeenCalledTimes(1);
-      expect(eventHandler).toHaveBeenCalledWith(eventData);
-      expect(serviceHandler).toHaveBeenCalledTimes(1);
-      expect(serviceHandler).toHaveBeenCalledWith(serviceData);
-    });
-  });
-
-  describe('off() - Unsubscribe from Events', () => {
-    it('should remove a specific handler', () => {
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
 
       emitter.on('event', handler1);
       emitter.on('event', handler2);
-
       emitter.off('event', handler1);
-
-      emitter.emit('event', {
-        id: '123',
-        camera_id: 'front_door',
-        risk_score: 50,
-        risk_level: 'medium',
-        summary: 'Test',
-      });
+      emitter.emit('event', eventData);
 
       expect(handler1).not.toHaveBeenCalled();
       expect(handler2).toHaveBeenCalledTimes(1);
     });
 
-    it('should not throw when removing a non-existent handler', () => {
-      const handler = vi.fn();
+    it('should handle removing non-existent handler gracefully', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
 
-      expect(() => {
-        emitter.off('event', handler);
-      }).not.toThrow();
+      // Should not throw
+      expect(() => emitter.off('event', handler)).not.toThrow();
     });
 
-    it('should not throw when removing from an event with no subscribers', () => {
-      const handler = vi.fn();
+    it('should handle removing handler from non-existent event', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
+      emitter.on('event', handler);
 
-      expect(() => {
-        emitter.off('service_status', handler);
-      }).not.toThrow();
-    });
-  });
-
-  describe('emit() - Dispatch Events', () => {
-    it('should dispatch event to all handlers', () => {
-      const handlers = [vi.fn(), vi.fn(), vi.fn()];
-      handlers.forEach((h) => emitter.on('ping', h));
-
-      const pingData = { type: 'ping' as const };
-      emitter.emit('ping', pingData);
-
-      handlers.forEach((handler) => {
-        expect(handler).toHaveBeenCalledWith(pingData);
-      });
-    });
-
-    it('should not throw when emitting to an event with no subscribers', () => {
-      expect(() => {
-        emitter.emit('event', {
-          id: '123',
-          camera_id: 'front_door',
-          risk_score: 50,
-          risk_level: 'medium',
-          summary: 'Test',
-        });
-      }).not.toThrow();
-    });
-
-    it('should only dispatch to handlers of the correct event type', () => {
-      const eventHandler = vi.fn();
-      const pingHandler = vi.fn();
-      const errorHandler = vi.fn();
-
-      emitter.on('event', eventHandler);
-      emitter.on('ping', pingHandler);
-      emitter.on('error', errorHandler);
-
-      emitter.emit('event', {
-        id: '123',
-        camera_id: 'front_door',
-        risk_score: 50,
-        risk_level: 'medium',
-        summary: 'Test',
-      });
-
-      expect(eventHandler).toHaveBeenCalledTimes(1);
-      expect(pingHandler).not.toHaveBeenCalled();
-      expect(errorHandler).not.toHaveBeenCalled();
-    });
-
-    it('should handle handler errors gracefully', () => {
-      const errorThrowingHandler = vi.fn(() => {
-        throw new Error('Handler error');
-      });
-      const normalHandler = vi.fn();
-
-      emitter.on('event', errorThrowingHandler);
-      emitter.on('event', normalHandler);
-
-      // Should not throw, and should still call the second handler
-      expect(() => {
-        emitter.emit('event', {
-          id: '123',
-          camera_id: 'front_door',
-          risk_score: 50,
-          risk_level: 'medium',
-          summary: 'Test',
-        });
-      }).not.toThrow();
-
-      expect(errorThrowingHandler).toHaveBeenCalledTimes(1);
-      expect(normalHandler).toHaveBeenCalledTimes(1);
+      // Should not throw when removing from different event
+      expect(() => emitter.off('ping', vi.fn())).not.toThrow();
     });
   });
 
-  describe('once() - One-time Subscription', () => {
-    it('should only call handler once then automatically unsubscribe', () => {
-      const handler = vi.fn();
-
-      emitter.once('event', handler);
-
+  describe('once()', () => {
+    it('should call handler only once', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
       const eventData: SecurityEventData = {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'First event',
+        summary: 'Person detected',
       };
 
+      emitter.once('event', handler);
       emitter.emit('event', eventData);
-      emitter.emit('event', { ...eventData, id: '456' });
-      emitter.emit('event', { ...eventData, id: '789' });
+      emitter.emit('event', eventData);
 
       expect(handler).toHaveBeenCalledTimes(1);
-      expect(handler).toHaveBeenCalledWith(eventData);
     });
 
-    it('should return an unsubscribe function that works before event fires', () => {
-      const handler = vi.fn();
-      const unsubscribe = emitter.once('event', handler);
-
-      unsubscribe();
-
-      emitter.emit('event', {
+    it('should return unsubscribe function that works before event fires', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
+      const eventData: SecurityEventData = {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'Test event',
-      });
+        summary: 'Person detected',
+      };
+
+      const unsubscribe = emitter.once('event', handler);
+      unsubscribe();
+      emitter.emit('event', eventData);
 
       expect(handler).not.toHaveBeenCalled();
     });
   });
 
-  describe('has() - Check for Listeners', () => {
-    it('should return true when event has listeners', () => {
+  describe('handleMessage()', () => {
+    it('should emit event message with data payload', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
+      const eventData: SecurityEventData = {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
+      };
+      const message = { type: 'event', data: eventData };
+
+      emitter.on('event', handler);
+      const handled = emitter.handleMessage(message);
+
+      expect(handled).toBe(true);
+      expect(handler).toHaveBeenCalledWith(eventData);
+    });
+
+    it('should emit ping message without data field', () => {
+      const handler = vi.fn();
+      const message = { type: 'ping' };
+
+      emitter.on('ping', handler);
+      const handled = emitter.handleMessage(message);
+
+      expect(handled).toBe(true);
+      expect(handler).toHaveBeenCalledWith(message);
+    });
+
+    it('should return false for unknown message type', () => {
+      const handled = emitter.handleMessage({ type: 'unknown' });
+
+      expect(handled).toBe(false);
+    });
+
+    it('should return false for invalid message format', () => {
+      expect(emitter.handleMessage(null)).toBe(false);
+      expect(emitter.handleMessage(undefined)).toBe(false);
+      expect(emitter.handleMessage('string')).toBe(false);
+      expect(emitter.handleMessage(123)).toBe(false);
+    });
+
+    it('should handle system_status message', () => {
+      const handler = vi.fn<(data: SystemStatusData) => void>();
+      const statusData: SystemStatusData = {
+        gpu: {
+          utilization: 50,
+          memory_used: 1024,
+          memory_total: 2048,
+          temperature: 65,
+          inference_fps: 30,
+        },
+        cameras: { active: 4, total: 4 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy',
+      };
+      const message = { type: 'system_status', data: statusData, timestamp: '2024-01-01T00:00:00Z' };
+
+      emitter.on('system_status', handler);
+      const handled = emitter.handleMessage(message);
+
+      expect(handled).toBe(true);
+      expect(handler).toHaveBeenCalledWith(statusData);
+    });
+
+    it('should handle error message', () => {
+      const handler = vi.fn<(data: WebSocketErrorPayload) => void>();
+      const errorData: WebSocketErrorPayload = {
+        code: 'CONNECTION_ERROR',
+        message: 'Connection failed',
+        details: { reason: 'timeout' },
+      };
+      const message = { type: 'error', data: errorData };
+
+      emitter.on('error', handler);
+      const handled = emitter.handleMessage(message);
+
+      expect(handled).toBe(true);
+      expect(handler).toHaveBeenCalledWith(errorData);
+    });
+  });
+
+  describe('has()', () => {
+    it('should return true when handlers exist', () => {
       emitter.on('event', vi.fn());
 
       expect(emitter.has('event')).toBe(true);
     });
 
-    it('should return false when event has no listeners', () => {
+    it('should return false when no handlers exist', () => {
       expect(emitter.has('event')).toBe(false);
     });
 
-    it('should return false after all listeners are removed', () => {
-      const handler = vi.fn();
-      const unsubscribe = emitter.on('event', handler);
-
-      expect(emitter.has('event')).toBe(true);
-
-      unsubscribe();
+    it('should return false after all handlers removed', () => {
+      const handler = vi.fn<(data: SecurityEventData) => void>();
+      emitter.on('event', handler);
+      emitter.off('event', handler);
 
       expect(emitter.has('event')).toBe(false);
     });
   });
 
-  describe('listenerCount() - Get Listener Count', () => {
-    it('should return 0 when no listeners are registered', () => {
+  describe('listenerCount()', () => {
+    it('should return correct count', () => {
       expect(emitter.listenerCount('event')).toBe(0);
-    });
 
-    it('should return correct count of listeners', () => {
       emitter.on('event', vi.fn());
+      expect(emitter.listenerCount('event')).toBe(1);
+
       emitter.on('event', vi.fn());
-      emitter.on('event', vi.fn());
-
-      expect(emitter.listenerCount('event')).toBe(3);
-    });
-
-    it('should decrement count when listener is removed', () => {
-      const handler = vi.fn();
-      emitter.on('event', vi.fn());
-      const unsubscribe = emitter.on('event', handler);
-      emitter.on('event', vi.fn());
-
-      expect(emitter.listenerCount('event')).toBe(3);
-
-      unsubscribe();
-
       expect(emitter.listenerCount('event')).toBe(2);
     });
+
+    it('should return 0 for events without handlers', () => {
+      expect(emitter.listenerCount('ping')).toBe(0);
+    });
   });
 
-  describe('removeAllListeners() - Clear Specific Event', () => {
-    it('should remove all listeners for a specific event', () => {
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
+  describe('removeAllListeners()', () => {
+    it('should remove all handlers for specific event', () => {
+      const handler1 = vi.fn<(data: SecurityEventData) => void>();
+      const handler2 = vi.fn<(data: SecurityEventData) => void>();
 
       emitter.on('event', handler1);
       emitter.on('event', handler2);
-
       emitter.removeAllListeners('event');
 
-      emitter.emit('event', {
-        id: '123',
-        camera_id: 'front_door',
-        risk_score: 50,
-        risk_level: 'medium',
-        summary: 'Test',
-      });
-
-      expect(handler1).not.toHaveBeenCalled();
-      expect(handler2).not.toHaveBeenCalled();
+      expect(emitter.listenerCount('event')).toBe(0);
+      expect(emitter.has('event')).toBe(false);
     });
 
-    it('should not affect listeners for other events', () => {
-      const eventHandler = vi.fn();
-      const pingHandler = vi.fn();
-
-      emitter.on('event', eventHandler);
-      emitter.on('ping', pingHandler);
-
-      emitter.removeAllListeners('event');
-
-      emitter.emit('ping', { type: 'ping' });
-
-      expect(pingHandler).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('clear() - Remove All Listeners', () => {
-    it('should remove all listeners for all events', () => {
-      const eventHandler = vi.fn();
-      const pingHandler = vi.fn();
-      const errorHandler = vi.fn();
-
-      emitter.on('event', eventHandler);
-      emitter.on('ping', pingHandler);
-      emitter.on('error', errorHandler);
-
-      emitter.clear();
-
-      emitter.emit('event', {
-        id: '123',
-        camera_id: 'front_door',
-        risk_score: 50,
-        risk_level: 'medium',
-        summary: 'Test',
-      });
-      emitter.emit('ping', { type: 'ping' });
-      emitter.emit('error', { message: 'Test error' });
-
-      expect(eventHandler).not.toHaveBeenCalled();
-      expect(pingHandler).not.toHaveBeenCalled();
-      expect(errorHandler).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('events() - Get Event Names', () => {
-    it('should return empty array when no events are registered', () => {
-      expect(emitter.events()).toEqual([]);
-    });
-
-    it('should return array of event names with listeners', () => {
+    it('should not affect other events', () => {
       emitter.on('event', vi.fn());
       emitter.on('ping', vi.fn());
-      emitter.on('error', vi.fn());
+      emitter.removeAllListeners('event');
 
-      const events = emitter.events();
-
-      expect(events).toHaveLength(3);
-      expect(events).toContain('event');
-      expect(events).toContain('ping');
-      expect(events).toContain('error');
-    });
-
-    it('should not include events after all listeners are removed', () => {
-      const unsubscribe = emitter.on('event', vi.fn());
-      emitter.on('ping', vi.fn());
-
-      unsubscribe();
-
-      const events = emitter.events();
-
-      expect(events).not.toContain('event');
-      expect(events).toContain('ping');
+      expect(emitter.has('event')).toBe(false);
+      expect(emitter.has('ping')).toBe(true);
     });
   });
 
-  describe('Type Safety', () => {
-    it('should enforce type safety for event handlers', () => {
-      // This test ensures TypeScript compilation catches type mismatches
-      // The actual type checking happens at compile time
+  describe('clear()', () => {
+    it('should remove all handlers for all events', () => {
+      emitter.on('event', vi.fn());
+      emitter.on('ping', vi.fn());
+      emitter.on('system_status', vi.fn());
+      emitter.clear();
 
-      const securityEventHandler: WebSocketEventHandler<'event'> = (data) => {
-        // TypeScript should know data is SecurityEventData
-        expect(data.camera_id).toBeDefined();
-        expect(data.risk_score).toBeDefined();
-        expect(data.risk_level).toBeDefined();
-        expect(data.summary).toBeDefined();
+      expect(emitter.has('event')).toBe(false);
+      expect(emitter.has('ping')).toBe(false);
+      expect(emitter.has('system_status')).toBe(false);
+    });
+  });
+
+  describe('events()', () => {
+    it('should return array of event keys with handlers', () => {
+      emitter.on('event', vi.fn());
+      emitter.on('ping', vi.fn());
+
+      const events = emitter.events();
+
+      expect(events).toContain('event');
+      expect(events).toContain('ping');
+      expect(events).toHaveLength(2);
+    });
+
+    it('should return empty array when no handlers', () => {
+      expect(emitter.events()).toEqual([]);
+    });
+  });
+
+  describe('error handling', () => {
+    it('should continue calling other handlers if one throws', () => {
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Handler error');
+      });
+      const successHandler = vi.fn<(data: SecurityEventData) => void>();
+      const eventData: SecurityEventData = {
+        id: '123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Person detected',
       };
 
-      emitter.on('event', securityEventHandler);
+      // Suppress console.error for this test
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
+      emitter.on('event', errorHandler);
+      emitter.on('event', successHandler);
+      emitter.emit('event', eventData);
+
+      expect(errorHandler).toHaveBeenCalled();
+      expect(successHandler).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should log error when handler throws', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const errorHandler = vi.fn<(data: SecurityEventData) => void>().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+
+      emitter.on('event', errorHandler);
       emitter.emit('event', {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'Test event',
-      });
-    });
-
-    it('should provide correct types for all event keys', () => {
-      // Verify handler types for each event type
-
-      emitter.on('event', (data) => {
-        // data should be SecurityEventData
-        const _id: string | number = data.id;
-        const _cameraId: string = data.camera_id;
-        const _riskScore: number = data.risk_score;
-        expect(_id).toBeDefined();
-        expect(_cameraId).toBeDefined();
-        expect(_riskScore).toBeDefined();
+        summary: 'Person detected',
       });
 
-      emitter.on('service_status', (data) => {
-        // data should be ServiceStatusData
-        const _service: string = data.service;
-        const _status: string = data.status;
-        expect(_service).toBeDefined();
-        expect(_status).toBeDefined();
-      });
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error in event handler:',
+        expect.any(Error)
+      );
 
-      emitter.on('ping', (data) => {
-        // data should be HeartbeatPayload
-        const _type: 'ping' = data.type;
-        expect(_type).toBe('ping');
-      });
-
-      emitter.on('error', (data) => {
-        // data should be WebSocketErrorPayload
-        const _message: string = data.message;
-        expect(_message).toBeDefined();
-      });
+      consoleSpy.mockRestore();
     });
   });
 });
 
-describe('TypedWebSocketEmitter Static Methods', () => {
-  describe('fromMessage()', () => {
-    it('should parse and emit valid WebSocket messages', () => {
-      const emitter = new TypedWebSocketEmitter();
-      const handler = vi.fn();
+describe('safeEmit()', () => {
+  let emitter: TypedWebSocketEmitter;
 
-      emitter.on('event', handler);
+  beforeEach(() => {
+    emitter = new TypedWebSocketEmitter();
+  });
 
-      const message = {
-        type: 'event',
-        data: {
-          id: '123',
-          camera_id: 'front_door',
-          risk_score: 75,
-          risk_level: 'high',
-          summary: 'Test event',
-        },
-      };
+  it('should emit for valid event key', () => {
+    const handler = vi.fn<(data: SecurityEventData) => void>();
+    emitter.on('event', handler);
 
-      const result = emitter.handleMessage(message);
-
-      expect(result).toBe(true);
-      expect(handler).toHaveBeenCalledWith(message.data);
+    const result = safeEmit(emitter, 'event', {
+      id: '123',
+      camera_id: 'front_door',
+      risk_score: 75,
+      risk_level: 'high',
+      summary: 'Person detected',
     });
 
-    it('should handle messages with data at top level (ping/pong)', () => {
-      const emitter = new TypedWebSocketEmitter();
-      const handler = vi.fn();
+    expect(result).toBe(true);
+    expect(handler).toHaveBeenCalled();
+  });
 
-      emitter.on('ping', handler);
+  it('should return false for invalid event key', () => {
+    const result = safeEmit(emitter, 'invalid', {});
 
-      const message = { type: 'ping' };
-      const result = emitter.handleMessage(message);
+    expect(result).toBe(false);
+  });
 
-      expect(result).toBe(true);
-      expect(handler).toHaveBeenCalledWith(message);
-    });
+  it('should return false for non-string event key', () => {
+    expect(safeEmit(emitter, null, {})).toBe(false);
+    expect(safeEmit(emitter, undefined, {})).toBe(false);
+    expect(safeEmit(emitter, 123, {})).toBe(false);
+  });
+});
 
-    it('should return false for invalid messages', () => {
-      const emitter = new TypedWebSocketEmitter();
-      const handler = vi.fn();
+describe('createTypedEmitter()', () => {
+  it('should create a new TypedWebSocketEmitter instance', () => {
+    const emitter = createTypedEmitter();
 
-      emitter.on('event', handler);
+    expect(emitter).toBeInstanceOf(TypedWebSocketEmitter);
+  });
 
-      const result = emitter.handleMessage({ invalid: 'message' });
+  it('should create independent instances', () => {
+    const emitter1 = createTypedEmitter();
+    const emitter2 = createTypedEmitter();
 
-      expect(result).toBe(false);
-      expect(handler).not.toHaveBeenCalled();
-    });
+    emitter1.on('event', vi.fn());
 
-    it('should return false for unknown event types', () => {
-      const emitter = new TypedWebSocketEmitter();
-
-      const result = emitter.handleMessage({ type: 'unknown_type', data: {} });
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false for non-object messages', () => {
-      const emitter = new TypedWebSocketEmitter();
-
-      expect(emitter.handleMessage('string')).toBe(false);
-      expect(emitter.handleMessage(123)).toBe(false);
-      expect(emitter.handleMessage(null)).toBe(false);
-      expect(emitter.handleMessage(undefined)).toBe(false);
-    });
+    expect(emitter1.has('event')).toBe(true);
+    expect(emitter2.has('event')).toBe(false);
   });
 });

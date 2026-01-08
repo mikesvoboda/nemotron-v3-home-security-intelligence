@@ -6,7 +6,10 @@
  * underlying connection. The connection is only closed when all subscribers disconnect.
  */
 
+import { TypedWebSocketEmitter } from './typedEventEmitter';
 import { logger } from '../services/logger';
+
+import type { WebSocketEventHandler, WebSocketEventKey } from '../types/websocket-events';
 
 export type MessageHandler = (data: unknown) => void;
 export type OpenHandler = () => void;
@@ -432,3 +435,132 @@ class WebSocketManager {
 export const webSocketManager = new WebSocketManager();
 
 export { WebSocketManager, isHeartbeatMessage, calculateBackoffDelay };
+
+// ============================================================================
+// Typed Event Emitter Integration
+// ============================================================================
+
+/**
+ * Options for creating a typed subscription.
+ */
+export interface TypedSubscriberOptions {
+  /** Called when the connection is established */
+  onOpen?: OpenHandler;
+  /** Called when the connection is closed */
+  onClose?: CloseHandler;
+  /** Called when an error occurs */
+  onError?: ErrorHandler;
+  /** Called when a heartbeat (ping) message is received */
+  onHeartbeat?: HeartbeatHandler;
+  /** Called when max reconnection attempts are exhausted */
+  onMaxRetriesExhausted?: MaxRetriesHandler;
+}
+
+/**
+ * Typed subscription wrapper that combines WebSocketManager's connection
+ * management with TypedWebSocketEmitter's type-safe event handling.
+ */
+export interface TypedSubscription {
+  /** Unsubscribe from the WebSocket connection */
+  unsubscribe: () => void;
+  /** The typed event emitter for this subscription */
+  emitter: TypedWebSocketEmitter;
+  /** Subscribe to a specific event type with type safety */
+  on: <K extends WebSocketEventKey>(
+    event: K,
+    handler: WebSocketEventHandler<K>
+  ) => () => void;
+  /** Unsubscribe from a specific event type */
+  off: <K extends WebSocketEventKey>(
+    event: K,
+    handler: WebSocketEventHandler<K>
+  ) => void;
+  /** Subscribe to an event that fires only once */
+  once: <K extends WebSocketEventKey>(
+    event: K,
+    handler: WebSocketEventHandler<K>
+  ) => () => void;
+  /** Send data through the WebSocket connection */
+  send: (data: unknown) => boolean;
+  /** Get the current connection state */
+  getState: () => {
+    isConnected: boolean;
+    reconnectCount: number;
+    hasExhaustedRetries: boolean;
+    lastHeartbeat: Date | null;
+  };
+}
+
+/**
+ * Create a typed subscription to a WebSocket URL.
+ *
+ * This function wraps WebSocketManager's subscribe method with a TypedWebSocketEmitter,
+ * providing type-safe event handling while benefiting from connection deduplication
+ * and automatic reconnection.
+ *
+ * @param url - The WebSocket URL to connect to
+ * @param config - Connection configuration (reconnect behavior, timeouts, etc.)
+ * @param options - Optional callbacks for connection lifecycle events
+ * @returns A TypedSubscription object with type-safe event methods
+ *
+ * @example
+ * ```ts
+ * const subscription = createTypedSubscription(
+ *   'ws://localhost:8000/ws/events',
+ *   { reconnect: true, reconnectInterval: 1000, maxReconnectAttempts: 5, connectionTimeout: 5000, autoRespondToHeartbeat: true },
+ *   { onOpen: () => console.log('Connected') }
+ * );
+ *
+ * // Type-safe event subscription
+ * subscription.on('event', (data) => {
+ *   // data is typed as SecurityEventData
+ *   console.log(data.risk_score);
+ * });
+ *
+ * // Cleanup
+ * subscription.unsubscribe();
+ * ```
+ */
+export function createTypedSubscription(
+  url: string,
+  config: ConnectionConfig,
+  options: TypedSubscriberOptions = {}
+): TypedSubscription {
+  const emitter = new TypedWebSocketEmitter();
+  const subscriberId = generateSubscriberId();
+
+  const subscriber: Subscriber = {
+    id: subscriberId,
+    onMessage: (data: unknown) => {
+      emitter.handleMessage(data);
+    },
+    onOpen: options.onOpen,
+    onClose: options.onClose,
+    onError: options.onError,
+    onHeartbeat: () => {
+      // Emit ping event to typed emitter
+      emitter.emit('ping', { type: 'ping' });
+      // Also call the user's heartbeat handler if provided
+      options.onHeartbeat?.();
+    },
+    onMaxRetriesExhausted: options.onMaxRetriesExhausted,
+  };
+
+  const unsubscribe = webSocketManager.subscribe(url, subscriber, config);
+
+  return {
+    unsubscribe: () => {
+      emitter.clear();
+      unsubscribe();
+    },
+    emitter,
+    on: <K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>) =>
+      emitter.on(event, handler),
+    off: <K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>) =>
+      emitter.off(event, handler),
+    once: <K extends WebSocketEventKey>(event: K, handler: WebSocketEventHandler<K>) =>
+      emitter.once(event, handler),
+    send: (data: unknown) => webSocketManager.send(url, data),
+    getState: () => webSocketManager.getConnectionState(url),
+  };
+}
