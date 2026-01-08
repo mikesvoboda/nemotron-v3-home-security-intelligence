@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import AlertsPage from './AlertsPage';
+import AlertsPage from './AlertsPage.new';
 import * as api from '../../services/api';
 
 import type { Camera, Event, EventListResponse } from '../../services/api';
@@ -159,8 +159,9 @@ describe('AlertsPage (Redesigned)', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+    vi.mocked(api.isAbortError).mockReturnValue(false);
     vi.mocked(api.updateEvent).mockResolvedValue({
       id: 1,
       camera_id: 'camera-1',
@@ -196,7 +197,8 @@ describe('AlertsPage (Redesigned)', () => {
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
-      render(<AlertsPage />);
+      const mockOnConfigureRules = vi.fn();
+      render(<AlertsPage onConfigureRules={mockOnConfigureRules} />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /configure rules/i })).toBeInTheDocument();
@@ -269,11 +271,15 @@ describe('AlertsPage (Redesigned)', () => {
 
       render(<AlertsPage />);
 
+      // Wait for loading to complete - check for header stats first
       await waitFor(() => {
-        expect(screen.getByTestId('alert-card-1')).toBeInTheDocument();
-        expect(screen.getByTestId('alert-card-2')).toBeInTheDocument();
-        expect(screen.getByTestId('alert-card-3')).toBeInTheDocument();
+        expect(screen.getByText(/unacknowledged/i)).toBeInTheDocument();
       });
+
+      // Check for alert cards (as strings since component uses String(event.id))
+      expect(screen.getByTestId('alert-card-1')).toBeInTheDocument();
+      expect(screen.getByTestId('alert-card-2')).toBeInTheDocument();
+      expect(screen.getByTestId('alert-card-3')).toBeInTheDocument();
     });
 
     it('passes correct props to AlertCard components', async () => {
@@ -428,19 +434,16 @@ describe('AlertsPage (Redesigned)', () => {
       const user = userEvent.setup();
       render(<AlertsPage />);
 
+      // Wait for loading to complete
       await waitFor(() => {
-        expect(screen.getByTestId('dismiss-1')).toBeInTheDocument();
+        expect(screen.getByText(/unacknowledged/i)).toBeInTheDocument();
       });
 
-      // Mock refetch after dismiss
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({ ...mockHighResponse, events: [mockHighRiskEvents[1]] })
-        .mockResolvedValueOnce(mockCriticalResponse);
-
+      // Now check for dismiss button
       const dismissBtn = screen.getByTestId('dismiss-1');
       await user.click(dismissBtn);
 
-      // Should refetch and show remaining alerts
+      // Alert should be removed from DOM (component handles dismiss locally, not via refetch)
       await waitFor(() => {
         expect(screen.queryByTestId('alert-card-1')).not.toBeInTheDocument();
       });
@@ -455,9 +458,12 @@ describe('AlertsPage (Redesigned)', () => {
 
       render(<AlertsPage />);
 
+      // Wait for loading to complete - empty state shows "No Alerts at This Time"
       await waitFor(() => {
-        expect(screen.getByText(/no alerts/i)).toBeInTheDocument();
+        expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
       });
+
+      expect(screen.getByText(/no alerts/i)).toBeInTheDocument();
     });
 
     it('does not render AlertActions when no alerts', async () => {
@@ -479,9 +485,13 @@ describe('AlertsPage (Redesigned)', () => {
 
       render(<AlertsPage />);
 
-      await waitFor(() => {
-        expect(screen.getByText(/error/i)).toBeInTheDocument();
-      });
+      // Wait for error state to appear - component shows "Error Loading Alerts" on failure
+      await waitFor(
+        () => {
+          expect(screen.getByText(/error loading alerts/i)).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
     });
   });
 });

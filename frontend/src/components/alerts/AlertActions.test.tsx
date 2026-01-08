@@ -136,17 +136,12 @@ describe('AlertActions', () => {
       expect(mockOnDismissSelected).toHaveBeenCalledTimes(1);
     });
 
-    it('disables batch actions when no items selected', () => {
+    it('hides batch actions when no items selected', () => {
       render(<AlertActions {...defaultProps} selectedCount={0} />);
 
-      const acknowledgeBtn = screen.queryByRole('button', { name: /acknowledge selected/i });
-      const dismissBtn = screen.getByRole('button', { name: /dismiss selected/i });
-
-      // Acknowledge button should not be shown when count is 0
-      if (acknowledgeBtn) {
-        expect(acknowledgeBtn).toBeDisabled();
-      }
-      expect(dismissBtn).toBeDisabled();
+      // Batch action buttons are not rendered when nothing is selected
+      expect(screen.queryByRole('button', { name: /acknowledge selected/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /dismiss selected/i })).not.toBeInTheDocument();
     });
 
     it('enables batch actions when items are selected', () => {
@@ -192,11 +187,11 @@ describe('AlertActions', () => {
       expect(screen.getByRole('button', { name: /dismiss selected/i })).toBeInTheDocument();
     });
 
-    it('disables buttons appropriately with disabled attribute', () => {
+    it('hides action buttons when no items are selected', () => {
       render(<AlertActions {...defaultProps} selectedCount={0} />);
 
-      const dismissBtn = screen.getByRole('button', { name: /dismiss selected/i });
-      expect(dismissBtn).toHaveAttribute('disabled');
+      // Batch actions are hidden when nothing is selected (not just disabled)
+      expect(screen.queryByRole('button', { name: /dismiss selected/i })).not.toBeInTheDocument();
     });
   });
 
