@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import ErrorBoundary from './ErrorBoundary';
+import ErrorBoundary, { clearErrorCache } from './ErrorBoundary';
 
 // Component that throws an error when rendered
 const ThrowingComponent = ({ shouldThrow = true }: { shouldThrow?: boolean }) => {
@@ -16,6 +16,8 @@ describe('ErrorBoundary', () => {
   const originalError = console.error;
   beforeEach(() => {
     console.error = vi.fn();
+    // Clear error cache before each test to ensure test isolation
+    clearErrorCache();
   });
   afterEach(() => {
     console.error = originalError;
@@ -89,6 +91,7 @@ describe('ErrorBoundary', () => {
           stack: expect.any(String),
           componentStack: expect.any(String),
           name: 'Error',
+          url: expect.any(String),
         })
       );
     });
@@ -383,6 +386,63 @@ describe('ErrorBoundary', () => {
       expect(error.message).toBe('Test error message');
       expect(errorInfo).toHaveProperty('componentStack');
       expect(typeof errorInfo.componentStack).toBe('string');
+    });
+
+    it('logs componentName when provided', () => {
+      render(
+        <ErrorBoundary componentName="TestComponent">
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+      // The logger.error call includes componentName in extra data
+      expect(console.error).toHaveBeenCalledWith(
+        '[ERROR] frontend: React component error',
+        expect.objectContaining({
+          error: 'Test error message',
+          component: 'TestComponent',
+        })
+      );
+    });
+
+    it('deduplicates identical errors and only logs once', () => {
+      // Clear error cache to ensure clean state
+      clearErrorCache();
+      // Clear any previous mock calls
+      vi.clearAllMocks();
+
+      // Component that always throws the same error
+      const DuplicateThrowingComponent = () => {
+        throw new Error('Duplicate error for dedup test');
+      };
+
+      // Render first boundary
+      render(
+        <ErrorBoundary>
+          <DuplicateThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      // Count how many times the error was logged
+      const firstCallCount = (console.error as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (call) => call[0] === '[ERROR] frontend: React component error'
+      ).length;
+
+      expect(firstCallCount).toBe(1);
+
+      // Render second boundary with same error (same message and stack location)
+      render(
+        <ErrorBoundary>
+          <DuplicateThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      // Should still be 1 due to deduplication
+      const secondCallCount = (console.error as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (call) => call[0] === '[ERROR] frontend: React component error'
+      ).length;
+
+      // With deduplication, the second identical error should not be logged
+      expect(secondCallCount).toBe(1);
     });
   });
 

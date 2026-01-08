@@ -3,6 +3,26 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { logger } from '../../services/logger';
 
+/**
+ * Generates a fingerprint for an error to enable deduplication.
+ * Uses the error message and first line of stack trace.
+ */
+function getErrorFingerprint(error: Error): string {
+  const firstStackLine = error.stack?.split('\n')[1]?.trim() || '';
+  return `${error.message}:${firstStackLine}`;
+}
+
+/** Set of logged error fingerprints to prevent duplicate logs */
+const loggedErrors = new Set<string>();
+
+/**
+ * Clear the error fingerprint cache.
+ * Useful for testing and long-running sessions.
+ */
+export function clearErrorCache(): void {
+  loggedErrors.clear();
+}
+
 export interface ErrorBoundaryProps {
   /** Child components to wrap */
   children: ReactNode;
@@ -14,6 +34,8 @@ export interface ErrorBoundaryProps {
   title?: string;
   /** Optional description for the error message */
   description?: string;
+  /** Optional component name for better error context in logs */
+  componentName?: string;
 }
 
 export interface ErrorBoundaryState {
@@ -64,15 +86,26 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
    * Log error information for debugging.
    * Uses the centralized logger service to capture errors in both
    * development and production environments for debugging via source maps.
+   * Implements error deduplication to prevent flooding logs with repeated errors.
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Log to centralized logger for production debugging (supports source map lookup)
-    logger.error('React component error', {
-      error: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-      name: error.name,
-    });
+    // Generate fingerprint for deduplication
+    const fingerprint = getErrorFingerprint(error);
+
+    // Only log if this error hasn't been logged before
+    if (!loggedErrors.has(fingerprint)) {
+      loggedErrors.add(fingerprint);
+
+      // Log to centralized logger for production debugging (supports source map lookup)
+      logger.error('React component error', {
+        error: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+        name: error.name,
+        component: this.props.componentName,
+        url: window.location.href,
+      });
+    }
 
     // Update state with error info
     this.setState({ errorInfo });

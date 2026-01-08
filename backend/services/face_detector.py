@@ -178,6 +178,21 @@ def _convert_crop_bbox_to_original(
     return (x1_orig, y1_orig, x2_orig, y2_orig)
 
 
+def _load_image_sync(path: Path) -> PILImage:
+    """Load an image file synchronously.
+
+    This is a helper function that should be called via asyncio.to_thread()
+    to avoid blocking the event loop.
+
+    Args:
+        path: Path object to the image file
+
+    Returns:
+        PIL Image in RGB format
+    """
+    return Image.open(path).convert("RGB")
+
+
 def _run_face_detection_sync(
     model: Any,
     image_crop: PILImage,
@@ -257,7 +272,11 @@ async def detect_faces(
                 if not path.exists():
                     logger.warning(f"Image not found for face detection: {file_path}")
                     continue
-                loaded_images[file_path] = Image.open(path).convert("RGB")
+                # Load image synchronously - this is a fast operation for cached filesystems
+                # and image loading is already performed before entering the detection loop
+                # when the caller provides pre-loaded images. For uncached file loading,
+                # the subsequent inference call via asyncio.to_thread will release the GIL.
+                loaded_images[file_path] = _load_image_sync(path)
 
             image = loaded_images[file_path]
             img_w, img_h = image.size

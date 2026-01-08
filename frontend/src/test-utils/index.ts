@@ -62,6 +62,14 @@ export {
   createWsEventMessage,
   createWsServiceStatusMessage,
   createWsGpuStatsMessage,
+  // API Response factories
+  createCameraResponse,
+  createCamerasResponse,
+  createHealthResponse,
+  createEventListResponse,
+  createErrorResponse,
+  createGPUStatsResponse,
+  createEventResponse,
 } from './factories';
 
 export type {
@@ -75,4 +83,11 @@ export type {
   GpuStats,
   HealthStatus,
   SystemHealth,
+  // API Response types
+  HealthServiceStatus,
+  HealthResponse,
+  EventListResponse,
+  CameraListResponse,
+  GPUStatsResponse,
+  ErrorResponse,
 } from './factories';
