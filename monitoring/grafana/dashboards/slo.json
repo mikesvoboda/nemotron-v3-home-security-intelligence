@@ -375,39 +375,14 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "id": 8,
       "options": {
-        "legend": {
-          "calcs": ["mean", "lastNotNull"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:api_availability:ratio_rate1h * 100",
-          "legendFormat": "1h",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:api_availability:ratio_rate6h * 100",
-          "legendFormat": "6h",
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:api_availability:ratio_rate1d * 100",
-          "legendFormat": "1d",
-          "refId": "C"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:api_availability:ratio_rate30d * 100",
-          "legendFormat": "30d",
-          "refId": "D"
-        }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:api_availability:ratio_rate1h * 100", "legendFormat": "1h", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:api_availability:ratio_rate6h * 100", "legendFormat": "6h", "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:api_availability:ratio_rate1d * 100", "legendFormat": "1d", "refId": "C" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:api_availability:ratio_rate30d * 100", "legendFormat": "30d", "refId": "D" }
       ],
       "title": "API Availability Over Time",
       "description": "Target: 99.5%",
@@ -454,33 +429,13 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "id": 9,
       "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:burn_rate:api_availability_1h",
-          "legendFormat": "1h Burn Rate",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:burn_rate:api_availability_6h",
-          "legendFormat": "6h Burn Rate",
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:burn_rate:api_availability_1d",
-          "legendFormat": "1d Burn Rate",
-          "refId": "C"
-        }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:burn_rate:api_availability_1h", "legendFormat": "1h Burn Rate", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:burn_rate:api_availability_6h", "legendFormat": "6h Burn Rate", "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:burn_rate:api_availability_1d", "legendFormat": "1d Burn Rate", "refId": "C" }
       ],
       "title": "API Availability Burn Rate",
       "description": "Burn rate > 1 means consuming error budget faster than planned",
@@ -527,27 +482,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "id": 10,
       "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:detection_latency:p95_5m",
-          "legendFormat": "P95",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:detection_latency:p99_5m",
-          "legendFormat": "P99",
-          "refId": "B"
-        }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:detection_latency:p95_5m", "legendFormat": "P95", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:detection_latency:p99_5m", "legendFormat": "P99", "refId": "B" }
       ],
       "title": "Detection Latency",
       "description": "Target: P95 < 2s",
@@ -594,27 +534,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "id": 11,
       "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:analysis_latency:p95_5m",
-          "legendFormat": "P95",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:analysis_latency:p99_5m",
-          "legendFormat": "P99",
-          "refId": "B"
-        }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:analysis_latency:p95_5m", "legendFormat": "P95", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:analysis_latency:p99_5m", "legendFormat": "P99", "refId": "B" }
       ],
       "title": "Analysis Latency",
       "description": "Target: P95 < 30s",
@@ -658,27 +583,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "id": 12,
       "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi_detection_queue_size",
-          "legendFormat": "Detection Queue",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi_analysis_queue_size",
-          "legendFormat": "Analysis Queue",
-          "refId": "B"
-        }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi_detection_queue_size", "legendFormat": "Detection Queue", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi_analysis_queue_size", "legendFormat": "Analysis Queue", "refId": "B" }
       ],
       "title": "Queue Sizes",
       "type": "timeseries"
@@ -723,27 +633,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "id": 13,
       "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:gpu:memory_utilization * 100",
-          "legendFormat": "Memory",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hsi:gpu:utilization",
-          "legendFormat": "Compute",
-          "refId": "B"
-        }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:gpu:memory_utilization * 100", "legendFormat": "Memory", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hsi:gpu:utilization", "legendFormat": "Compute", "refId": "B" }
       ],
       "title": "GPU Utilization",
       "type": "timeseries"

@@ -16,15 +16,15 @@ global:
 
 # Templates for notification formatting
 templates:
-  - '/etc/alertmanager/templates/*.tmpl'
+  - "/etc/alertmanager/templates/*.tmpl"
 
 # Alert routing tree
 route:
   # Default receiver
-  receiver: 'default-receiver'
+  receiver: "default-receiver"
 
   # Group alerts by these labels
-  group_by: ['alertname', 'component', 'severity']
+  group_by: ["alertname", "component", "severity"]
 
   # Wait before sending first notification for a group
   group_wait: 30s
@@ -40,7 +40,7 @@ route:
     # Critical alerts - immediate notification
     - match:
         severity: critical
-      receiver: 'critical-receiver'
+      receiver: "critical-receiver"
       group_wait: 10s
       group_interval: 1m
       repeat_interval: 1h
@@ -49,36 +49,36 @@ route:
     # SLO burn rate alerts - high priority
     - match:
         component: slo
-      receiver: 'slo-receiver'
-      group_by: ['alertname', 'slo']
+      receiver: "slo-receiver"
+      group_by: ["alertname", "slo"]
       group_wait: 30s
       repeat_interval: 2h
 
     # Pipeline health alerts
     - match:
         component: pipeline
-      receiver: 'pipeline-receiver'
+      receiver: "pipeline-receiver"
       group_wait: 15s
 
     # Database alerts
     - match:
         component: database
-      receiver: 'infrastructure-receiver'
+      receiver: "infrastructure-receiver"
 
     # Redis alerts
     - match:
         component: redis
-      receiver: 'infrastructure-receiver'
+      receiver: "infrastructure-receiver"
 
     # GPU alerts
     - match:
         component: gpu
-      receiver: 'gpu-receiver'
+      receiver: "gpu-receiver"
 
     # Warning alerts - batched
     - match:
         severity: warning
-      receiver: 'warning-receiver'
+      receiver: "warning-receiver"
       group_wait: 2m
       group_interval: 10m
       repeat_interval: 6h
@@ -86,7 +86,7 @@ route:
     # Info alerts - low priority
     - match:
         severity: info
-      receiver: 'info-receiver'
+      receiver: "info-receiver"
       group_wait: 5m
       group_interval: 30m
       repeat_interval: 24h
@@ -119,7 +119,7 @@ inhibit_rules:
       alertname: HSIGPUMemoryHigh
     target_match:
       alertname: HSIGPUMemoryElevated
-    equal: ['component']
+    equal: ["component"]
 
   # If critical error rate, suppress high error rate warning
   - source_match:
@@ -147,20 +147,20 @@ inhibit_rules:
       alertname: HSI.*FastBurn
     target_match_re:
       alertname: HSI.*SlowBurn
-    equal: ['slo']
+    equal: ["slo"]
 
 # Receivers define how alerts are delivered
 receivers:
   # Default receiver - webhook or logging
-  - name: 'default-receiver'
+  - name: "default-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
 
   # Critical alerts - all channels
-  - name: 'critical-receiver'
+  - name: "critical-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
     # Uncomment and configure for production:
     # slack_configs:
@@ -174,9 +174,9 @@ receivers:
     #     send_resolved: true
 
   # SLO burn rate alerts
-  - name: 'slo-receiver'
+  - name: "slo-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
@@ -185,31 +185,31 @@ receivers:
     #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
 
   # Pipeline health alerts
-  - name: 'pipeline-receiver'
+  - name: "pipeline-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
 
   # Infrastructure alerts (database, Redis)
-  - name: 'infrastructure-receiver'
+  - name: "infrastructure-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
 
   # GPU alerts
-  - name: 'gpu-receiver'
+  - name: "gpu-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
 
   # Warning alerts
-  - name: 'warning-receiver'
+  - name: "warning-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: true
 
   # Info alerts - logging only
-  - name: 'info-receiver'
+  - name: "info-receiver"
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: "http://backend:8000/api/webhooks/alerts"
         send_resolved: false
