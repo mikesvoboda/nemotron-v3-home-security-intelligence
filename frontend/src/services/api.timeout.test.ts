@@ -203,16 +203,14 @@ describe('fetchWithTimeout', () => {
       timeout: 1000,
     });
 
+    // Attach error handler before advancing timers to prevent unhandled rejection
+    const errorPromise = promise.catch((error) => error);
+
     // Fast-forward past the timeout
     await vi.advanceTimersByTimeAsync(1001);
 
-    // Handle the promise rejection properly
-    let caughtError: unknown;
-    try {
-      await promise;
-    } catch (error) {
-      caughtError = error;
-    }
+    // Now await the result
+    const caughtError = await errorPromise;
 
     expect(caughtError).toBeInstanceOf(TimeoutError);
     expect(caughtError).toMatchObject({
@@ -236,16 +234,14 @@ describe('fetchWithTimeout', () => {
 
     const promise = fetchWithTimeout('https://api.example.com/slow', {});
 
+    // Attach error handler before advancing timers to prevent unhandled rejection
+    const errorPromise = promise.catch((error) => error);
+
     // Fast-forward past the default timeout
     await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
 
-    // Handle the promise rejection properly
-    let caughtError: unknown;
-    try {
-      await promise;
-    } catch (error) {
-      caughtError = error;
-    }
+    // Now await the result
+    const caughtError = await errorPromise;
 
     expect(caughtError).toBeInstanceOf(TimeoutError);
   });
@@ -364,16 +360,14 @@ describe('fetchWithTimeout', () => {
     expect(capturedSignal).toBeDefined();
     expect(capturedSignal!.aborted).toBe(false);
 
+    // Attach error handler before advancing timers to prevent unhandled rejection
+    const errorPromise = promise.catch((error) => error);
+
     // Timeout should abort the combined signal
     await vi.advanceTimersByTimeAsync(5001);
 
-    // Handle the promise rejection properly
-    let caughtError: unknown;
-    try {
-      await promise;
-    } catch (error) {
-      caughtError = error;
-    }
+    // Now await the result
+    const caughtError = await errorPromise;
 
     expect(caughtError).toBeDefined();
   });

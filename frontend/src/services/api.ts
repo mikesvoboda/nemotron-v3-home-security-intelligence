@@ -362,8 +362,13 @@ export async function fetchWithTimeout(
   const effectiveTimeout = timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
 
   const timeoutController = new AbortController();
+  let timedOut = false;
+
   const timeoutId = setTimeout(() => {
-    timeoutController.abort(new TimeoutError(effectiveTimeout));
+    timedOut = true;
+    // Don't pass an error to abort() to avoid unhandled rejections
+    // We'll check timedOut flag and throw TimeoutError from the catch block
+    timeoutController.abort();
   }, effectiveTimeout);
 
   // Combine external signal with timeout signal if provided
@@ -379,14 +384,8 @@ export async function fetchWithTimeout(
     if (
       error instanceof DOMException &&
       error.name === 'AbortError' &&
-      timeoutController.signal.aborted
+      timedOut
     ) {
-      // Check if the timeout controller's abort reason is a TimeoutError
-      const reason: unknown = timeoutController.signal.reason;
-      if (reason instanceof TimeoutError) {
-        throw reason;
-      }
-      // Fallback: create a new TimeoutError
       throw new TimeoutError(effectiveTimeout);
     }
     // Re-throw other errors (including user-initiated AbortErrors)

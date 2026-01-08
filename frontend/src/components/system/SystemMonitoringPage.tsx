@@ -82,10 +82,10 @@ function formatUptime(seconds: number): string {
 /**
  * Gets the badge color for service status
  */
-function getServiceStatusColor(status: string): 'green' | 'yellow' | 'red' | 'gray' {
+function getServiceStatusColor(status: string): 'emerald' | 'yellow' | 'red' | 'gray' {
   switch (status) {
     case 'healthy':
-      return 'green';
+      return 'emerald';
     case 'degraded':
       return 'yellow';
     case 'unhealthy':
