@@ -207,29 +207,6 @@ class EventBroadcaster:
 
         return sequenced
 
-    def _sequence_event_data(self, event_data: Any) -> Any:
-        """Add sequence number to event data (NEM-1688).
-
-        This is a helper method that handles the different types of event data
-        that can come from Redis pub/sub.
-
-        Args:
-            event_data: The event data from Redis, can be dict, str, or other.
-
-        Returns:
-            The sequenced event data if it could be parsed, otherwise original data.
-        """
-        if isinstance(event_data, dict):
-            return self._add_sequence_and_buffer(event_data)
-        if isinstance(event_data, str):
-            try:
-                parsed = json.loads(event_data)
-                return self._add_sequence_and_buffer(parsed)
-            except json.JSONDecodeError:
-                # Can't sequence non-JSON string messages
-                return event_data
-        return event_data
-
     def get_messages_since(
         self, last_sequence: int, mark_as_replay: bool = False
     ) -> list[dict[str, Any]]:
@@ -595,13 +572,10 @@ class EventBroadcaster:
 
                 logger.debug(f"Received event from Redis: {event_data}")
 
-                # NEM-1688: Add sequence number and buffer the message
-                broadcast_data = self._sequence_event_data(event_data)
-
                 # Broadcast to all connected WebSocket clients
                 # Wrapped in try/except to prevent message loss from broadcast failures
                 try:
-                    await self._send_to_all_clients(broadcast_data)
+                    await self._send_to_all_clients(event_data)
                 except Exception as broadcast_error:
                     # Log error but continue processing - don't lose future messages
                     logger.error(
