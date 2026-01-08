@@ -439,6 +439,224 @@ class TestCameraRepositorySpecificMethods:
             assert result is None
 
 
+class TestCameraRepositoryPagination:
+    """Test pagination operations from Repository base class."""
+
+    @pytest.mark.asyncio
+    async def test_list_paginated_default(self, test_db):
+        """Test list_paginated with default parameters."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            # Create cameras
+            for i in range(5):
+                camera = Camera(
+                    id=unique_id(f"camera{i}"),
+                    name=f"Camera {i}",
+                    folder_path=f"/export/foscam/{unique_id(f'path{i}')}",
+                )
+                await repo.create(camera)
+
+            # Get paginated (default limit=100, skip=0)
+            cameras = await repo.list_paginated()
+
+            # Should have at least our 5 cameras
+            assert len(cameras) >= 5
+
+    @pytest.mark.asyncio
+    async def test_list_paginated_with_limit(self, test_db):
+        """Test list_paginated respects limit parameter."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            # Create cameras
+            for i in range(10):
+                camera = Camera(
+                    id=unique_id(f"camera{i}"),
+                    name=f"Camera {i}",
+                    folder_path=f"/export/foscam/{unique_id(f'path{i}')}",
+                )
+                await repo.create(camera)
+
+            # Get with limit
+            cameras = await repo.list_paginated(limit=3)
+
+            assert len(cameras) == 3
+
+    @pytest.mark.asyncio
+    async def test_list_paginated_with_skip(self, test_db):
+        """Test list_paginated respects skip parameter."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            # Get initial count to know how many exist
+            initial_count = await repo.count()
+
+            # Create cameras in known order
+            created_ids = []
+            for i in range(5):
+                camera = Camera(
+                    id=unique_id(f"camera{i}"),
+                    name=f"Camera {i}",
+                    folder_path=f"/export/foscam/{unique_id(f'path{i}')}",
+                )
+                await repo.create(camera)
+                created_ids.append(camera.id)
+
+            # Skip past initial cameras and our first 2
+            cameras = await repo.list_paginated(skip=initial_count + 2, limit=10)
+
+            # Should have at most 3 (5 created - 2 skipped)
+            assert len(cameras) <= 3
+
+    @pytest.mark.asyncio
+    async def test_list_paginated_empty_result(self, test_db):
+        """Test list_paginated with skip beyond data returns empty."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            # Skip past all possible data
+            cameras = await repo.list_paginated(skip=999999)
+
+            assert len(cameras) == 0
+
+
+class TestCameraRepositoryMerge:
+    """Test merge operation for detached entities."""
+
+    @pytest.mark.asyncio
+    async def test_merge_detached_entity(self, test_db):
+        """Test merging a detached entity back into session."""
+        camera_id = unique_id("camera")
+
+        # Create camera in one session
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera = Camera(
+                id=camera_id,
+                name="Original Name",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="online",
+            )
+            await repo.create(camera)
+
+        # Now camera is detached - modify and merge in new session
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            # Create a new instance with same ID (simulating detached entity)
+            detached = Camera(
+                id=camera_id,
+                name="Updated via Merge",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="offline",
+            )
+
+            merged = await repo.merge(detached)
+
+            assert merged.id == camera_id
+            assert merged.name == "Updated via Merge"
+            assert merged.status == "offline"
+
+        # Verify persistence in another session
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            retrieved = await repo.get_by_id(camera_id)
+
+            assert retrieved.name == "Updated via Merge"
+            assert retrieved.status == "offline"
+
+
+class TestCameraRepositorySave:
+    """Test save (upsert) operation from Repository base class."""
+
+    @pytest.mark.asyncio
+    async def test_save_creates_new_entity(self, test_db):
+        """Test save creates a new entity when it doesn't exist."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            camera = Camera(
+                id=camera_id,
+                name="New Camera",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="online",
+            )
+
+            saved = await repo.save(camera)
+
+            assert saved.id == camera_id
+            assert saved.name == "New Camera"
+
+            # Verify it was created
+            retrieved = await repo.get_by_id(camera_id)
+            assert retrieved is not None
+
+    @pytest.mark.asyncio
+    async def test_save_updates_existing_entity(self, test_db):
+        """Test save updates an existing entity."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            # Create initial entity
+            camera = Camera(
+                id=camera_id,
+                name="Original Name",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="online",
+            )
+            await repo.create(camera)
+
+        # Save with updated values in new session
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            updated_camera = Camera(
+                id=camera_id,
+                name="Updated Name",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="offline",
+            )
+
+            saved = await repo.save(updated_camera)
+
+            assert saved.id == camera_id
+            assert saved.name == "Updated Name"
+            assert saved.status == "offline"
+
+        # Verify persistence
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            retrieved = await repo.get_by_id(camera_id)
+
+            assert retrieved.name == "Updated Name"
+            assert retrieved.status == "offline"
+
+    @pytest.mark.asyncio
+    async def test_save_with_none_id_creates(self, test_db):
+        """Test save with None ID creates new entity."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            # Camera with explicit ID (since Camera requires ID)
+            camera_id = unique_id("camera")
+            camera = Camera(
+                id=camera_id,
+                name="New Camera",
+                folder_path=f"/export/foscam/{camera_id}",
+            )
+
+            # First check it doesn't exist
+            assert await repo.exists(camera_id) is False
+
+            saved = await repo.save(camera)
+
+            assert saved.id == camera_id
+            assert await repo.exists(camera_id) is True
+
+
 class TestCameraRepositoryGetMany:
     """Test get_many batch retrieval operations."""
 
