@@ -3507,6 +3507,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/health/full": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Full System Health Status
+         * @description Get comprehensive health status for all system components.
+         */
+        get: operations["get_full_health_api_system_health_full_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/health/ready": {
         parameters: {
             query?: never;
@@ -4227,6 +4247,61 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AIServiceHealthStatus
+         * @description Health status for an AI service.
+         *
+         *     Includes service identification, health state, circuit breaker state,
+         *     and response time metrics.
+         * @example {
+         *       "circuit_state": "closed",
+         *       "display_name": "RT-DETRv2 Object Detection",
+         *       "last_check": "2026-01-08T10:30:00Z",
+         *       "name": "rtdetr",
+         *       "response_time_ms": 45.2,
+         *       "status": "healthy",
+         *       "url": "http://ai-detector:8090"
+         *     }
+         */
+        AIServiceHealthStatus: {
+            /**
+             * @description Circuit breaker state
+             * @default closed
+             */
+            circuit_state: components["schemas"]["CircuitState"];
+            /**
+             * Display Name
+             * @description Human-readable service name
+             */
+            display_name: string;
+            /**
+             * Error
+             * @description Error message if unhealthy
+             */
+            error?: string | null;
+            /**
+             * Last Check
+             * @description Timestamp of last health check
+             */
+            last_check?: string | null;
+            /**
+             * Name
+             * @description Service identifier (e.g., 'rtdetr', 'nemotron')
+             */
+            name: string;
+            /**
+             * Response Time Ms
+             * @description Health check response time in milliseconds
+             */
+            response_time_ms?: number | null;
+            /** @description Current health state */
+            status: components["schemas"]["ServiceHealthState"];
+            /**
+             * Url
+             * @description Service URL if configured
+             */
+            url?: string | null;
+        };
         /**
          * ActivityBaselineEntry
          * @description A single activity baseline entry for a specific hour and day combination.
@@ -5779,6 +5854,54 @@ export interface components {
             total_calls: number;
         };
         /**
+         * CircuitBreakerSummary
+         * @description Summary of all circuit breakers in the system.
+         *
+         *     Provides counts by state and individual breaker states for monitoring.
+         * @example {
+         *       "breakers": {
+         *         "clip": "closed",
+         *         "enrichment": "closed",
+         *         "florence": "open",
+         *         "nemotron": "closed",
+         *         "rtdetr": "closed"
+         *       },
+         *       "closed": 4,
+         *       "half_open": 0,
+         *       "open": 1,
+         *       "total": 5
+         *     }
+         */
+        CircuitBreakerSummary: {
+            /**
+             * Breakers
+             * @description Individual circuit breaker states keyed by service name
+             */
+            breakers: {
+                [key: string]: components["schemas"]["CircuitState"];
+            };
+            /**
+             * Closed
+             * @description Number of breakers in closed state
+             */
+            closed: number;
+            /**
+             * Half Open
+             * @description Number of breakers in half-open state
+             */
+            half_open: number;
+            /**
+             * Open
+             * @description Number of breakers in open state
+             */
+            open: number;
+            /**
+             * Total
+             * @description Total number of circuit breakers
+             */
+            total: number;
+        };
+        /**
          * CircuitBreakersResponse
          * @description Response schema for circuit breakers status endpoint.
          * @example {
@@ -5828,6 +5951,17 @@ export interface components {
              */
             total_count: number;
         };
+        /**
+         * CircuitState
+         * @description Circuit breaker state for a service.
+         *
+         *     States:
+         *     - closed: Normal operation, requests pass through
+         *     - open: Service failing, requests fail immediately
+         *     - half_open: Testing recovery, limited requests allowed
+         * @enum {string}
+         */
+        CircuitState: "closed" | "open" | "half_open";
         /**
          * ClassBaselineEntry
          * @description Baseline entry for a specific object class at a specific hour.
@@ -8189,6 +8323,109 @@ export interface components {
             user_agent?: string | null;
         };
         /**
+         * FullHealthResponse
+         * @description Comprehensive health check response for GET /api/system/health/full.
+         *
+         *     Aggregates health status from all services:
+         *     - Infrastructure (postgres, redis)
+         *     - AI services (rtdetr, nemotron, florence, clip, enrichment)
+         *     - Circuit breakers
+         *     - Background workers
+         *
+         *     HTTP Status Codes:
+         *     - 200: System is healthy or degraded (can still serve traffic)
+         *     - 503: Critical services are unhealthy (should not receive traffic)
+         * @example {
+         *       "ai_services": [
+         *         {
+         *           "circuit_state": "closed",
+         *           "display_name": "RT-DETRv2 Object Detection",
+         *           "last_check": "2026-01-08T10:30:00Z",
+         *           "name": "rtdetr",
+         *           "response_time_ms": 45.2,
+         *           "status": "healthy",
+         *           "url": "http://ai-detector:8090"
+         *         }
+         *       ],
+         *       "circuit_breakers": {
+         *         "breakers": {
+         *           "nemotron": "closed",
+         *           "rtdetr": "closed"
+         *         },
+         *         "closed": 5,
+         *         "half_open": 0,
+         *         "open": 0,
+         *         "total": 5
+         *       },
+         *       "message": "All systems operational",
+         *       "postgres": {
+         *         "message": "Database operational",
+         *         "name": "postgres",
+         *         "status": "healthy"
+         *       },
+         *       "ready": true,
+         *       "redis": {
+         *         "details": {
+         *           "redis_version": "7.4.0"
+         *         },
+         *         "message": "Redis connected",
+         *         "name": "redis",
+         *         "status": "healthy"
+         *       },
+         *       "status": "healthy",
+         *       "timestamp": "2026-01-08T10:30:00Z",
+         *       "version": "0.1.0",
+         *       "workers": [
+         *         {
+         *           "critical": true,
+         *           "name": "file_watcher",
+         *           "running": true
+         *         }
+         *       ]
+         *     }
+         */
+        FullHealthResponse: {
+            /**
+             * Ai Services
+             * @description Health status of all AI services
+             */
+            ai_services: components["schemas"]["AIServiceHealthStatus"][];
+            /** @description Circuit breaker summary */
+            circuit_breakers: components["schemas"]["CircuitBreakerSummary"];
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /** @description PostgreSQL health status */
+            postgres: components["schemas"]["InfrastructureHealthStatus"];
+            /**
+             * Ready
+             * @description Whether system is ready to receive traffic
+             */
+            ready: boolean;
+            /** @description Redis health status */
+            redis: components["schemas"]["InfrastructureHealthStatus"];
+            /** @description Overall system health status */
+            status: components["schemas"]["ServiceHealthState"];
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Response timestamp
+             */
+            timestamp: string;
+            /**
+             * Version
+             * @description Application version
+             */
+            version: string;
+            /**
+             * Workers
+             * @description Background worker statuses
+             */
+            workers: components["schemas"]["WorkerHealthStatus"][];
+        };
+        /**
          * GPUStatsHistoryResponse
          * @description Response schema for GPU stats history endpoint.
          */
@@ -8498,6 +8735,38 @@ export interface components {
              * @description Quality score (0-100)
              */
             score?: number | null;
+        };
+        /**
+         * InfrastructureHealthStatus
+         * @description Health status for infrastructure services (postgres, redis).
+         *
+         *     Provides detailed status including connection info and any error details.
+         * @example {
+         *       "message": "Database operational",
+         *       "name": "postgres",
+         *       "status": "healthy"
+         *     }
+         */
+        InfrastructureHealthStatus: {
+            /**
+             * Details
+             * @description Additional details (e.g., redis version)
+             */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Message
+             * @description Status message or error description
+             */
+            message: string;
+            /**
+             * Name
+             * @description Service name (e.g., 'postgres', 'redis')
+             */
+            name: string;
+            /** @description Current health state */
+            status: components["schemas"]["ServiceHealthState"];
         };
         /**
          * LatencyHistorySnapshot
@@ -11430,6 +11699,18 @@ export interface components {
          */
         ServiceCategory: "infrastructure" | "ai" | "monitoring";
         /**
+         * ServiceHealthState
+         * @description Health state for a service in the full health check.
+         *
+         *     States:
+         *     - healthy: Service is fully operational
+         *     - unhealthy: Service is down or experiencing critical issues
+         *     - degraded: Service is partially operational
+         *     - unknown: Service status cannot be determined
+         * @enum {string}
+         */
+        ServiceHealthState: "healthy" | "unhealthy" | "degraded" | "unknown";
+        /**
          * ServiceHealthStatusResponse
          * @description Health status of a registered service.
          */
@@ -12316,6 +12597,34 @@ export interface components {
              * @description Webhook URL for webhook test. Must be HTTPS and not point to private IPs.
              */
             webhook_url?: string | null;
+        };
+        /**
+         * WorkerHealthStatus
+         * @description Health status for a background worker.
+         *
+         *     Workers are background processes that perform periodic or event-driven tasks.
+         * @example {
+         *       "critical": true,
+         *       "name": "file_watcher",
+         *       "running": true
+         *     }
+         */
+        WorkerHealthStatus: {
+            /**
+             * Critical
+             * @description Whether this worker is critical for system operation
+             */
+            critical: boolean;
+            /**
+             * Name
+             * @description Worker name (e.g., 'file_watcher')
+             */
+            name: string;
+            /**
+             * Running
+             * @description Whether the worker is currently running
+             */
+            running: boolean;
         };
         /**
          * WorkerStatus
@@ -16488,6 +16797,33 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
+            };
+        };
+    };
+    get_full_health_api_system_health_full_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description System is healthy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullHealthResponse"];
+                };
+            };
+            /** @description One or more critical services are unhealthy */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

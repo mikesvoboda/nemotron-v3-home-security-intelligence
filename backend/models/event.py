@@ -15,8 +15,10 @@ from .enums import Severity
 if TYPE_CHECKING:
     from .alert import Alert
     from .camera import Camera
+    from .detection import Detection
     from .event_audit import EventAudit
     from .event_detection import EventDetection
+    from .event_feedback import EventFeedback
 
 
 class Event(Base):
@@ -79,6 +81,18 @@ class Event(Base):
     # This provides access to EventDetection records for this event
     detection_records: Mapped[list[EventDetection]] = relationship(
         "EventDetection", back_populates="event", cascade="all, delete-orphan"
+    )
+    # User feedback relationship (NEM-1794)
+    feedback: Mapped[EventFeedback | None] = relationship(
+        "EventFeedback", back_populates="event", uselist=False, cascade="all, delete-orphan"
+    )
+    # Many-to-many relationship to Detection via junction table
+    # This is the primary way to access detections - use this instead of parsing detection_ids
+    detections: Mapped[list[Detection]] = relationship(
+        "Detection",
+        secondary="event_detections",
+        viewonly=True,  # Managed via detection_records
+        lazy="selectin",  # Eager load to avoid N+1 queries
     )
 
     # Indexes for common queries
@@ -190,3 +204,24 @@ class Event(Base):
 
         service = get_severity_service()
         return service.risk_score_to_severity(self.risk_score)
+
+    @property
+    def detection_id_list(self) -> list[int]:
+        """Get list of detection IDs from the relationship.
+
+        This replaces the need to parse the legacy detection_ids JSON column.
+        Uses the normalized event_detections junction table.
+
+        Returns:
+            List of detection IDs associated with this event
+        """
+        return [d.id for d in self.detections]
+
+    @property
+    def detection_count(self) -> int:
+        """Get count of detections associated with this event.
+
+        Returns:
+            Number of detections linked to this event
+        """
+        return len(self.detections)

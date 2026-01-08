@@ -331,12 +331,29 @@ def _build_filter_conditions(filters: SearchFilters) -> list:
     return conditions
 
 
+def _get_detection_ids_from_event(event: Any) -> list[int]:
+    """Get detection IDs from event using relationship or fallback to legacy column.
+
+    Args:
+        event: Event model instance
+
+    Returns:
+        List of detection IDs
+    """
+    # Try the relationship first (normalized data from event_detections table)
+    if event.detections:
+        return [d.id for d in event.detections]
+
+    # Fallback to legacy column
+    return _parse_detection_ids(event.detection_ids)
+
+
 def _row_to_search_result(row: Any) -> SearchResult:
     """Convert a database row to SearchResult."""
     event = row[0]
     relevance_score = row[1]
     camera_name = row[2]
-    detection_ids = _parse_detection_ids(event.detection_ids)
+    detection_ids = _get_detection_ids_from_event(event)
 
     return SearchResult(
         id=event.id,

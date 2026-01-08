@@ -33,18 +33,76 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from fastapi import FastAPI
 
     from backend.core.config import Settings
 
+logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class SpanProtocol(Protocol):
+    """Protocol for OpenTelemetry-compatible spans.
+
+    This protocol defines the minimal interface needed for span operations,
+    allowing both real OpenTelemetry spans and no-op spans to be used
+    interchangeably with proper type checking.
+    """
+
+    def set_attribute(self, key: str, value: object) -> None:
+        """Set an attribute on the span."""
+        ...
+
+    def record_exception(
+        self, exception: Exception, attributes: dict[str, object] | None = None
+    ) -> None:
+        """Record an exception on the span."""
+        ...
+
+    def set_status(self, status: object, description: str | None = None) -> None:
+        """Set the status of the span."""
+        ...
+
+    def __enter__(self) -> SpanProtocol:
+        """Enter context manager."""
+        ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit context manager."""
+        ...
+
+
+@runtime_checkable
+class TracerProtocol(Protocol):
+    """Protocol for OpenTelemetry-compatible tracers.
+
+    This protocol defines the minimal interface needed for tracer operations,
+    allowing both real OpenTelemetry tracers and no-op tracers to be used
+    interchangeably with proper type checking.
+    """
+
+    def start_as_current_span(self, name: str, **kwargs: object) -> SpanProtocol:
+        """Start a new span as the current span in context."""
+        ...
+
+    def start_span(self, name: str, **kwargs: object) -> SpanProtocol:
+        """Start a new span without setting it as current."""
+        ...
+
+
 # Module-level state for telemetry
 _tracer_provider: object | None = None
 _is_initialized: bool = False
-
-logger = logging.getLogger(__name__)
 
 
 def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
@@ -185,7 +243,7 @@ def shutdown_telemetry() -> None:
         logger.error(f"Error shutting down OpenTelemetry: {e}")
 
 
-def get_tracer(name: str) -> object:
+def get_tracer(name: str) -> TracerProtocol:
     """Get a tracer instance for creating custom spans.
 
     This function returns a tracer that can be used to create custom spans
@@ -196,7 +254,7 @@ def get_tracer(name: str) -> object:
         name: Name for the tracer, typically __name__ of the calling module
 
     Returns:
-        Tracer instance for creating spans
+        Tracer instance for creating spans (TracerProtocol compatible)
 
     Example:
         tracer = get_tracer(__name__)
@@ -207,22 +265,24 @@ def get_tracer(name: str) -> object:
     try:
         from opentelemetry import trace
 
-        return trace.get_tracer(name)
+        # cast() is not needed since both real Tracer and _NoOpTracer
+        # conform to TracerProtocol at runtime
+        return trace.get_tracer(name)  # type: ignore[return-value,no-any-return]
     except ImportError:
         # Return a no-op tracer if OpenTelemetry is not installed
         return _NoOpTracer()
 
 
-def get_current_span() -> object:
+def get_current_span() -> SpanProtocol:
     """Get the current active span from context.
 
     Returns:
-        Current span if one is active, or a no-op span otherwise
+        Current span if one is active, or a no-op span otherwise (SpanProtocol compatible)
     """
     try:
         from opentelemetry import trace
 
-        return trace.get_current_span()
+        return trace.get_current_span()  # type: ignore[return-value,no-any-return]
     except ImportError:
         return _NoOpSpan()
 
@@ -242,9 +302,7 @@ def add_span_attributes(**attributes: str | int | float | bool) -> None:
             span.set_attribute(key, value)
 
 
-def record_exception(
-    exception: Exception, attributes: dict[str, str | int | float | bool] | None = None
-) -> None:
+def record_exception(exception: Exception, attributes: dict[str, object] | None = None) -> None:
     """Record an exception on the current span.
 
     This marks the span as having an error and records exception details
@@ -289,8 +347,13 @@ class _NoOpSpan:
     def __enter__(self) -> _NoOpSpan:
         return self
 
-    def __exit__(self, *args: object) -> None:
-        pass
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
+        """No-op exit context manager."""
 
 
 class _NoOpTracer:
