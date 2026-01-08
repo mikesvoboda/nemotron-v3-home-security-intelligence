@@ -78,9 +78,9 @@ export default defineConfig({
   // Global timeout for each test
   timeout: 15000,
 
-  // Global setup script to optimize test startup (future optimization)
-  // This runs once before all tests, reducing per-test overhead
-  // globalSetup: './tests/e2e/global-setup.ts',  // Uncomment when created
+  // Global setup script - disables product tour and sets up shared state
+  // This runs once before all tests, preventing Joyride overlay from blocking interactions
+  globalSetup: './tests/e2e/global-setup.ts',
 
   // Expect timeout - keep short for fast feedback
   // Error state tests use explicit longer timeouts where needed
@@ -120,6 +120,10 @@ export default defineConfig({
 
     // Action timeout (clicks, fills, etc.)
     actionTimeout: 5000,
+
+    // Use storage state from global setup to have product tour disabled
+    // This prevents Joyride overlay from blocking pointer events in tests
+    storageState: 'tests/e2e/.auth/storage-state.json',
 
     // NOTE: launchOptions with --disable-gpu moved to Chromium-specific projects
     // WebKit doesn't support these Chromium-specific flags
