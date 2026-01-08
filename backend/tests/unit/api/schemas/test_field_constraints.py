@@ -55,17 +55,17 @@ class TestLogEntryConstraints:
             )
         assert "level" in str(exc_info.value)
 
-    def test_log_entry_valid_levels(self) -> None:
+    @pytest.mark.parametrize("level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+    def test_log_entry_valid_levels(self, level: str) -> None:
         """Test all valid log levels."""
-        for level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-            entry = LogEntry(
-                id=1,
-                timestamp=datetime.now(),
-                level=level,
-                component="test",
-                message="test",
-            )
-            assert entry.level == level
+        entry = LogEntry(
+            id=1,
+            timestamp=datetime.now(),
+            level=level,
+            component="test",
+            message="test",
+        )
+        assert entry.level == level
 
     def test_log_entry_component_max_length(self) -> None:
         """Test that component has max length constraint."""
@@ -106,19 +106,25 @@ class TestLogEntryConstraints:
             )
         assert "camera_id" in str(exc_info.value)
 
-    def test_log_entry_valid_camera_id(self) -> None:
+    @pytest.mark.parametrize(
+        "camera_id,reason",
+        [
+            ("front_door", "with underscores"),
+            ("camera-123", "with hyphens and numbers"),
+            ("CAM_1", "uppercase with underscore"),
+        ],
+    )
+    def test_log_entry_valid_camera_id(self, camera_id: str, reason: str) -> None:
         """Test valid camera_id formats."""
-        valid_camera_ids = ["front_door", "camera-123", "CAM_1"]
-        for camera_id in valid_camera_ids:
-            entry = LogEntry(
-                id=1,
-                timestamp=datetime.now(),
-                level="INFO",
-                component="test",
-                message="test",
-                camera_id=camera_id,
-            )
-            assert entry.camera_id == camera_id
+        entry = LogEntry(
+            id=1,
+            timestamp=datetime.now(),
+            level="INFO",
+            component="test",
+            message="test",
+            camera_id=camera_id,
+        )
+        assert entry.camera_id == camera_id, f"Should accept: {reason}"
 
     def test_log_entry_duration_ms_non_negative(self) -> None:
         """Test that duration_ms must be >= 0."""
@@ -268,18 +274,18 @@ class TestAuditLogResponseConstraints:
             )
         assert "status" in str(exc_info.value)
 
-    def test_audit_log_valid_statuses(self) -> None:
+    @pytest.mark.parametrize("status", ["success", "failure"])
+    def test_audit_log_valid_statuses(self, status: str) -> None:
         """Test valid status values."""
-        for status in ["success", "failure"]:
-            log = AuditLogResponse(
-                id=1,
-                timestamp=datetime.now(),
-                action="test",
-                resource_type="event",
-                actor="admin",
-                status=status,
-            )
-            assert log.status == status
+        log = AuditLogResponse(
+            id=1,
+            timestamp=datetime.now(),
+            action="test",
+            resource_type="event",
+            actor="admin",
+            status=status,
+        )
+        assert log.status == status
 
     def test_audit_log_ip_address_max_length(self) -> None:
         """Test that ip_address has max length constraint."""

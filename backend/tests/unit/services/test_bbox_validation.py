@@ -74,37 +74,77 @@ class TestIsValidBbox:
         """Test that negative-height boxes return False."""
         assert is_valid_bbox((0, 100, 100, 50)) is False
 
-    def test_negative_coordinates_default_invalid(self) -> None:
+    @pytest.mark.parametrize(
+        "bbox,reason",
+        [
+            ((-10, 0, 100, 100), "negative x1"),
+            ((0, -10, 100, 100), "negative y1"),
+            ((-10, -10, 100, 100), "negative x1 and y1"),
+        ],
+    )
+    def test_negative_coordinates_default_invalid(
+        self, bbox: tuple[float, float, float, float], reason: str
+    ) -> None:
         """Test that negative coordinates are invalid by default."""
-        assert is_valid_bbox((-10, 0, 100, 100)) is False
-        assert is_valid_bbox((0, -10, 100, 100)) is False
-        assert is_valid_bbox((-10, -10, 100, 100)) is False
+        assert is_valid_bbox(bbox) is False, f"Should reject by default: {reason}"
 
-    def test_negative_coordinates_allowed_when_enabled(self) -> None:
+    @pytest.mark.parametrize(
+        "bbox,reason",
+        [
+            ((-10, 0, 100, 100), "negative x1"),
+            ((0, -10, 100, 100), "negative y1"),
+            ((-10, -10, 100, 100), "negative x1 and y1"),
+        ],
+    )
+    def test_negative_coordinates_allowed_when_enabled(
+        self, bbox: tuple[float, float, float, float], reason: str
+    ) -> None:
         """Test that negative coordinates can be allowed."""
-        assert is_valid_bbox((-10, 0, 100, 100), allow_negative=True) is True
-        assert is_valid_bbox((0, -10, 100, 100), allow_negative=True) is True
-        assert is_valid_bbox((-10, -10, 100, 100), allow_negative=True) is True
+        assert is_valid_bbox(bbox, allow_negative=True) is True, (
+            f"Should allow when enabled: {reason}"
+        )
 
-    def test_nan_values_return_false(self) -> None:
+    @pytest.mark.parametrize(
+        "invalid_bbox,reason",
+        [
+            ((float("nan"), 0, 100, 100), "NaN in x1"),
+            ((0, float("nan"), 100, 100), "NaN in y1"),
+            ((0, 0, float("nan"), 100), "NaN in x2"),
+            ((0, 0, 100, float("nan")), "NaN in y2"),
+        ],
+    )
+    def test_nan_values_return_false(
+        self, invalid_bbox: tuple[float, float, float, float], reason: str
+    ) -> None:
         """Test that NaN values return False."""
-        assert is_valid_bbox((float("nan"), 0, 100, 100)) is False
-        assert is_valid_bbox((0, float("nan"), 100, 100)) is False
-        assert is_valid_bbox((0, 0, float("nan"), 100)) is False
-        assert is_valid_bbox((0, 0, 100, float("nan"))) is False
+        assert is_valid_bbox(invalid_bbox) is False, f"Should reject: {reason}"
 
-    def test_infinite_values_return_false(self) -> None:
+    @pytest.mark.parametrize(
+        "invalid_bbox,reason",
+        [
+            ((float("inf"), 0, 100, 100), "inf in x1"),
+            ((float("-inf"), 0, 100, 100), "-inf in x1"),
+            ((0, 0, float("inf"), 100), "inf in x2"),
+        ],
+    )
+    def test_infinite_values_return_false(
+        self, invalid_bbox: tuple[float, float, float, float], reason: str
+    ) -> None:
         """Test that infinite values return False."""
-        assert is_valid_bbox((float("inf"), 0, 100, 100)) is False
-        assert is_valid_bbox((float("-inf"), 0, 100, 100)) is False
-        assert is_valid_bbox((0, 0, float("inf"), 100)) is False
+        assert is_valid_bbox(invalid_bbox) is False, f"Should reject: {reason}"
 
-    def test_invalid_type_returns_false(self) -> None:
+    @pytest.mark.parametrize(
+        "invalid_input,reason",
+        [
+            (None, "None value"),
+            ((1, 2, 3), "3-tuple"),
+            ("invalid", "string value"),
+            ((1, 2, 3, 4, 5), "5-tuple"),
+        ],
+    )
+    def test_invalid_type_returns_false(self, invalid_input: object, reason: str) -> None:
         """Test that invalid types return False."""
-        assert is_valid_bbox(None) is False  # type: ignore[arg-type]
-        assert is_valid_bbox((1, 2, 3)) is False  # type: ignore[arg-type]
-        assert is_valid_bbox("invalid") is False  # type: ignore[arg-type]
-        assert is_valid_bbox((1, 2, 3, 4, 5)) is False  # type: ignore[arg-type]
+        assert is_valid_bbox(invalid_input) is False, f"Should reject: {reason}"  # type: ignore[arg-type]
 
 
 # =============================================================================
