@@ -61,6 +61,7 @@ class CameraFactory(factory.Factory):
     status: str = "online"
     created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
     last_seen_at: datetime | None = None
+    deleted_at: datetime | None = None
 
     class Params:
         """Traits for common camera configurations."""
@@ -166,6 +167,7 @@ class EventFactory(factory.Factory):
     object_types: str = "person"
     clip_path: str | None = None
     search_vector = None
+    deleted_at: datetime | None = None
 
     class Params:
         """Traits for common event configurations."""
