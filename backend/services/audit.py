@@ -204,5 +204,27 @@ class AuditService:
         return cast("AuditLog | None", result.scalar_one_or_none())
 
 
-# Singleton instance for convenience
+# Singleton pattern
+_db_audit_service: AuditService | None = None
+
+
+def get_db_audit_service() -> AuditService:
+    """Get or create the database audit service singleton.
+
+    Returns:
+        AuditService instance for database audit logging.
+    """
+    global _db_audit_service  # noqa: PLW0603
+    if _db_audit_service is None:
+        _db_audit_service = AuditService()
+    return _db_audit_service
+
+
+def reset_db_audit_service() -> None:
+    """Reset the database audit service singleton (for testing)."""
+    global _db_audit_service  # noqa: PLW0603
+    _db_audit_service = None
+
+
+# Legacy alias for backward compatibility - deprecated, use get_db_audit_service()
 audit_service = AuditService()

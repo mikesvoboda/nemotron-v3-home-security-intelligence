@@ -26,7 +26,7 @@ from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
-from backend.services.audit import audit_service
+from backend.services.audit import get_db_audit_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -507,7 +507,7 @@ async def clear_seeded_data(
     await db.execute(delete(Camera))
 
     # Log deletion to audit log
-    await audit_service.log_action(
+    await get_db_audit_service().log_action(
         db=db,
         action=AuditAction.DATA_CLEARED,
         resource_type="admin",

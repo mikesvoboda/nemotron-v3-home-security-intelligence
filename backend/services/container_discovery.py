@@ -6,8 +6,8 @@ The service is used by the container orchestrator to discover and manage
 deployment containers including AI services, infrastructure, and monitoring.
 
 Key Components:
-- ServiceConfig: Configuration dataclass for service patterns
-- ManagedService: Represents a discovered and managed container
+- ServiceConfig: Configuration dataclass for service patterns (from orchestrator.models)
+- ManagedService: Represents a discovered and managed container (from orchestrator.models)
 - ContainerDiscoveryService: Main service for container discovery
 
 Pre-configured Service Categories:
@@ -24,83 +24,15 @@ Usage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from backend.api.schemas.services import ServiceCategory
 from backend.core.logging import get_logger
+from backend.services.orchestrator import ManagedService, ServiceCategory, ServiceConfig
 
 if TYPE_CHECKING:
     from backend.core.docker_client import DockerClient
 
 logger = get_logger(__name__)
-
-
-@dataclass(slots=True)
-class ServiceConfig:
-    """Configuration for a service pattern used in container discovery.
-
-    Defines how to identify and manage containers matching a specific service
-    pattern. Includes health check configuration and self-healing parameters.
-
-    Attributes:
-        display_name: Human-readable name for the service (e.g., "PostgreSQL")
-        category: Service category (infrastructure, ai, monitoring)
-        port: Primary service port
-        health_endpoint: HTTP health check endpoint (e.g., "/health")
-        health_cmd: Docker exec health command (e.g., "pg_isready -U security")
-        startup_grace_period: Seconds to wait before health checks after startup
-        max_failures: Consecutive failures before disabling the service
-        restart_backoff_base: Initial backoff delay in seconds
-        restart_backoff_max: Maximum backoff delay in seconds
-    """
-
-    display_name: str
-    category: ServiceCategory
-    port: int
-    health_endpoint: str | None = None
-    health_cmd: str | None = None
-    startup_grace_period: int = 60
-    max_failures: int = 5
-    restart_backoff_base: float = 5.0
-    restart_backoff_max: float = 300.0
-
-
-@dataclass(slots=True)
-class ManagedService:
-    """Represents a discovered container that is managed by the orchestrator.
-
-    Contains identity, configuration, and self-healing settings for a container.
-    This is created by the discovery service and used by the orchestrator for
-    health monitoring and lifecycle management.
-
-    Attributes:
-        name: Service identifier from config (e.g., "ai-detector", "postgres")
-        display_name: Human-readable display name
-        container_id: Docker container ID
-        image: Container image with tag
-        port: Primary service port
-        health_endpoint: HTTP health check endpoint (optional)
-        health_cmd: Docker exec health command (optional)
-        category: Service category for restart policy
-        max_failures: Consecutive failures before disabling
-        restart_backoff_base: Initial backoff delay in seconds
-        restart_backoff_max: Maximum backoff delay in seconds
-        startup_grace_period: Seconds to wait before health checks
-    """
-
-    name: str
-    display_name: str
-    container_id: str
-    image: str
-    port: int
-    category: ServiceCategory
-    health_endpoint: str | None = None
-    health_cmd: str | None = None
-    max_failures: int = 5
-    restart_backoff_base: float = 5.0
-    restart_backoff_max: float = 300.0
-    startup_grace_period: int = 60
 
 
 # =============================================================================

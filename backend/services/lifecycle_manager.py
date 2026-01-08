@@ -38,12 +38,15 @@ Usage:
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.core.logging import get_logger
+from backend.services.orchestrator import (
+    ContainerServiceStatus,
+    ManagedService,
+    ServiceRegistry,
+)
 
 if TYPE_CHECKING:
     from backend.core.docker_client import DockerClient
@@ -76,280 +79,6 @@ def calculate_backoff(
     """
     calculated: float = base * (2**failure_count)
     return min(calculated, max_backoff)
-
-
-@dataclass(slots=True)
-class ManagedService:
-    """Represents a managed container service with lifecycle tracking.
-
-    Attributes:
-        name: Service identifier (e.g., 'postgres', 'ai-detector', 'grafana').
-        display_name: Human-readable name (e.g., 'PostgreSQL', 'RT-DETRv2').
-        container_id: Docker container ID (short form), or None if not found.
-        image: Container image (e.g., 'postgres:16-alpine').
-        port: Primary service port.
-        health_endpoint: HTTP health endpoint (e.g., '/health') or None.
-        health_cmd: Docker exec health command (e.g., 'pg_isready -U security').
-        category: Service category (INFRASTRUCTURE, AI, MONITORING).
-        status: Current service status.
-        enabled: Whether auto-restart is enabled for this service.
-        failure_count: Consecutive failure count.
-        restart_count: Total restarts since backend boot.
-        last_failure_at: Unix timestamp of last failure, or None.
-        last_restart_at: datetime of last restart, or None.
-        max_failures: Maximum failures before disabling (varies by category).
-        restart_backoff_base: Base backoff in seconds (varies by category).
-        restart_backoff_max: Maximum backoff in seconds (varies by category).
-    """
-
-    # Identity
-    name: str
-    display_name: str
-    container_id: str | None
-    image: str
-    port: int
-
-    # Health checking
-    health_endpoint: str | None = None
-    health_cmd: str | None = None
-
-    # Classification
-    category: ServiceCategory = ServiceCategory.AI
-
-    # State
-    status: ContainerServiceStatus = ContainerServiceStatus.NOT_FOUND
-    enabled: bool = True
-
-    # Self-healing tracking
-    failure_count: int = 0
-    restart_count: int = 0
-    last_failure_at: float | None = None  # Unix timestamp
-    last_restart_at: datetime | None = None
-
-    # Limits (defaults are AI category defaults)
-    max_failures: int = 5
-    restart_backoff_base: float = 5.0
-    restart_backoff_max: float = 300.0
-
-
-class ServiceRegistry:
-    """Registry for managing ManagedService instances.
-
-    Provides CRUD operations for services, tracking state updates,
-    and persistence to Redis for durability across backend restarts.
-
-    Attributes:
-        _services: Dictionary mapping service name to ManagedService.
-        _redis: Optional Redis client for state persistence.
-    """
-
-    def __init__(self, redis_client: object | None = None) -> None:
-        """Initialize the service registry.
-
-        Args:
-            redis_client: Optional Redis client for state persistence.
-        """
-        self._services: dict[str, ManagedService] = {}
-        self._redis = redis_client
-
-    def register(self, service: ManagedService) -> None:
-        """Register a service in the registry.
-
-        Args:
-            service: The ManagedService to register.
-        """
-        self._services[service.name] = service
-        logger.debug(f"Registered service: {service.name}")
-
-    def get(self, name: str) -> ManagedService | None:
-        """Get a service by name.
-
-        Args:
-            name: Service name.
-
-        Returns:
-            The ManagedService if found, None otherwise.
-        """
-        return self._services.get(name)
-
-    def get_all(self) -> list[ManagedService]:
-        """Get all registered services.
-
-        Returns:
-            List of all ManagedService instances.
-        """
-        return list(self._services.values())
-
-    def get_enabled_services(self) -> list[ManagedService]:
-        """Get all enabled services.
-
-        Returns:
-            List of ManagedService instances with enabled=True.
-        """
-        return [s for s in self._services.values() if s.enabled]
-
-    def record_restart(self, name: str) -> None:
-        """Record a restart event for a service.
-
-        Updates restart_count and last_restart_at timestamp.
-
-        Args:
-            name: Service name.
-        """
-        service = self._services.get(name)
-        if service:
-            service.restart_count += 1
-            service.last_restart_at = datetime.now(UTC)
-            logger.info(
-                f"Recorded restart for {name}",
-                extra={
-                    "service": name,
-                    "restart_count": service.restart_count,
-                },
-            )
-
-    def increment_failure(self, name: str) -> int:
-        """Increment the failure count for a service.
-
-        Also updates last_failure_at timestamp.
-
-        Args:
-            name: Service name.
-
-        Returns:
-            The new failure count.
-        """
-        service = self._services.get(name)
-        if service:
-            service.failure_count += 1
-            service.last_failure_at = datetime.now(UTC).timestamp()
-            logger.warning(
-                f"Incremented failure count for {name}",
-                extra={
-                    "service": name,
-                    "failure_count": service.failure_count,
-                },
-            )
-            return service.failure_count
-        return 0
-
-    def reset_failures(self, name: str) -> None:
-        """Reset failure tracking for a service.
-
-        Clears failure_count and last_failure_at.
-
-        Args:
-            name: Service name.
-        """
-        service = self._services.get(name)
-        if service:
-            service.failure_count = 0
-            service.last_failure_at = None
-            logger.info(f"Reset failures for {name}")
-
-    def update_status(self, name: str, status: ContainerServiceStatus) -> None:
-        """Update the status of a service.
-
-        Args:
-            name: Service name.
-            status: New ContainerServiceStatus value.
-        """
-        service = self._services.get(name)
-        if service:
-            old_status = service.status
-            service.status = status
-            logger.info(
-                f"Updated status for {name}: {old_status.value} -> {status.value}",
-                extra={
-                    "service": name,
-                    "old_status": old_status.value,
-                    "new_status": status.value,
-                },
-            )
-
-    def set_enabled(self, name: str, enabled: bool) -> None:
-        """Set the enabled flag for a service.
-
-        Args:
-            name: Service name.
-            enabled: Whether auto-restart is enabled.
-        """
-        service = self._services.get(name)
-        if service:
-            service.enabled = enabled
-            logger.info(f"Set enabled={enabled} for {name}")
-
-    def update_container_id(self, name: str, container_id: str | None) -> None:
-        """Update the container ID for a service.
-
-        Args:
-            name: Service name.
-            container_id: New container ID or None.
-        """
-        service = self._services.get(name)
-        if service:
-            service.container_id = container_id
-            logger.debug(f"Updated container_id for {name}: {container_id}")
-
-    async def persist_state(self, name: str) -> None:
-        """Persist service state to Redis.
-
-        Args:
-            name: Service name to persist.
-        """
-        service = self._services.get(name)
-        if not service:
-            return
-
-        if self._redis is None:
-            logger.debug(f"No Redis client, skipping persist for {name}")
-            return
-
-        key = f"orchestrator:service:{name}:state"
-        state = {
-            "failure_count": service.failure_count,
-            "restart_count": service.restart_count,
-            "last_failure_at": service.last_failure_at,
-            "last_restart_at": (
-                service.last_restart_at.isoformat() if service.last_restart_at else None
-            ),
-            "enabled": service.enabled,
-            "status": service.status.value,
-        }
-
-        try:
-            # Async Redis client
-            if hasattr(self._redis, "hset"):
-                await self._redis.hset(key, mapping=state)
-                logger.debug(f"Persisted state for {name} to Redis")
-        except Exception as e:
-            logger.warning(f"Failed to persist state for {name}: {e}")
-
-    async def load_state(self) -> None:
-        """Load all service state from Redis.
-
-        Restores failure counts, restart counts, and enabled status
-        from persisted Redis state.
-        """
-        if self._redis is None:
-            logger.debug("No Redis client, skipping load_state")
-            return
-
-        for name, service in self._services.items():
-            key = f"orchestrator:service:{name}:state"
-            try:
-                if hasattr(self._redis, "hgetall"):
-                    state = await self._redis.hgetall(key)
-                    if state:
-                        service.failure_count = int(state.get("failure_count", 0))
-                        service.restart_count = int(state.get("restart_count", 0))
-                        service.enabled = state.get("enabled", "True") == "True"
-                        last_failure = state.get("last_failure_at")
-                        if last_failure:
-                            service.last_failure_at = float(last_failure)
-                        logger.debug(f"Loaded state for {name} from Redis")
-            except Exception as e:
-                logger.warning(f"Failed to load state for {name}: {e}")
 
 
 class LifecycleManager:
@@ -444,7 +173,7 @@ class LifecycleManager:
             return 0.0
 
         backoff = self.calculate_backoff(service)
-        elapsed = datetime.now(UTC).timestamp() - service.last_failure_at
+        elapsed = (datetime.now(UTC) - service.last_failure_at).total_seconds()
         remaining = backoff - elapsed
 
         return max(0.0, remaining)
@@ -619,7 +348,7 @@ class LifecycleManager:
 
         # Update service's failure_count and timestamp AFTER checking restart
         service.failure_count = new_count
-        service.last_failure_at = datetime.now(UTC).timestamp()
+        service.last_failure_at = datetime.now(UTC)
 
         if can_restart:
             await self.restart_service(service)

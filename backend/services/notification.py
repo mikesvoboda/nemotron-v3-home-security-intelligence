@@ -634,43 +634,26 @@ class NotificationService:
             )
 
 
-class _NotificationServiceSingleton:
-    """Singleton holder for NotificationService instance."""
-
-    _instance: NotificationService | None = None
-
-    @classmethod
-    def get(cls, settings: Settings) -> NotificationService:
-        """Get or create a NotificationService instance.
-
-        Args:
-            settings: Application settings
-
-        Returns:
-            NotificationService instance
-        """
-        if cls._instance is None:
-            cls._instance = NotificationService(settings)
-        return cls._instance
-
-    @classmethod
-    def reset(cls) -> None:
-        """Reset the singleton instance (for testing)."""
-        cls._instance = None
+# Singleton pattern
+_notification_service: NotificationService | None = None
 
 
 def get_notification_service(settings: Settings) -> NotificationService:
-    """Get or create a NotificationService instance.
+    """Get or create the notification service singleton.
 
     Args:
-        settings: Application settings
+        settings: Application settings for notification configuration.
 
     Returns:
-        NotificationService instance
+        NotificationService instance.
     """
-    return _NotificationServiceSingleton.get(settings)
+    global _notification_service  # noqa: PLW0603
+    if _notification_service is None:
+        _notification_service = NotificationService(settings)
+    return _notification_service
 
 
 def reset_notification_service() -> None:
     """Reset the notification service singleton (for testing)."""
-    _NotificationServiceSingleton.reset()
+    global _notification_service  # noqa: PLW0603
+    _notification_service = None
