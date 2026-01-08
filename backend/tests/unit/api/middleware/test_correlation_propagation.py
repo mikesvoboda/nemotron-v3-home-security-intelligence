@@ -252,6 +252,10 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         mock.context_utilization_warning_threshold = 0.80
         mock.context_truncation_enabled = True
         mock.llm_tokenizer_encoding = "cl100k_base"
+        # Cold start and warmup settings (NEM-1670)
+        mock.ai_warmup_enabled = True
+        mock.ai_cold_start_threshold_seconds = 300.0
+        mock.nemotron_warmup_prompt = "Test warmup prompt"
         return mock
 
     @pytest.fixture

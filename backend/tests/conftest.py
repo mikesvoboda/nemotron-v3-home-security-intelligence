@@ -333,8 +333,8 @@ def get_test_db_url() -> str:
     Raises:
         RuntimeError: If no PostgreSQL instance is available
     """
-    # 1. Check for explicit environment variable override
-    env_url = os.environ.get("TEST_DATABASE_URL")
+    # 1. Check for explicit environment variable override (CI sets both)
+    env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if env_url:
         # Ensure asyncpg driver
         if "postgresql://" in env_url and "asyncpg" not in env_url:
