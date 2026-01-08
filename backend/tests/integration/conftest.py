@@ -984,16 +984,9 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
         "redis_version": "7.0.0",
     }
 
-    # Mock the underlying Redis client's scan_iter to return an async iterator
-    # This is needed because code accesses redis._client.scan_iter() directly
-    async def empty_async_iter(*args, **kwargs):
-        """Async generator that yields nothing (empty scan result)."""
-        return
-        yield  # Makes this an async generator
-
-    mock_redis_client._client = AsyncMock()
-    mock_redis_client._client.scan_iter = empty_async_iter
-    mock_redis_client._client.pipeline.return_value = AsyncMock()
+    # Set _client to None by default - tests that need _client behavior
+    # should configure it explicitly
+    mock_redis_client._client = None
 
     # Patch the shared singleton, initializer, and closer.
     with (
