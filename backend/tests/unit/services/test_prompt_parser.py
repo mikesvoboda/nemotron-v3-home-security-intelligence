@@ -708,7 +708,8 @@ class TestGenerateInsertionTextProperties:
         assert ": " in result
 
     @given(
-        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip()),
+        # Filter out labels that contain ": " since we're testing the separator, not label content
+        label=st.text(min_size=1, max_size=20).filter(lambda x: x.strip() and ": " not in x),
         variable=variable_names,
     )
     @hypothesis_settings(max_examples=50)

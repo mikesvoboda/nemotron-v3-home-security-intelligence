@@ -75,6 +75,31 @@ vi.mock('./CameraGrid', () => ({
   ),
 }));
 
+vi.mock('./ActivityFeed', () => ({
+  default: ({
+    events,
+    maxItems,
+    onEventClick,
+  }: {
+    events: Array<{ id: string; camera_name: string }>;
+    maxItems?: number;
+    onEventClick?: (eventId: string) => void;
+  }) => (
+    <div
+      data-testid="activity-feed"
+      data-event-count={events.length}
+      data-max-items={maxItems}
+      data-has-click-handler={onEventClick ? 'true' : 'false'}
+    >
+      {events.slice(0, maxItems || 10).map((event) => (
+        <button key={event.id} onClick={() => onEventClick?.(event.id)}>
+          {event.camera_name}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 describe('DashboardPage', () => {
   const mockCameras = [
     {
@@ -302,13 +327,26 @@ describe('DashboardPage', () => {
       });
     });
 
-    it('renders all child components', async () => {
+    it('renders all child components including activity feed', async () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
         expect(screen.getByTestId('stats-row')).toBeInTheDocument();
         expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
+        expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
       });
+    });
+
+    it('renders dashboard with 2-column grid layout', async () => {
+      const { container } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stats-row')).toBeInTheDocument();
+      });
+
+      // Check for grid layout container
+      const gridContainer = container.querySelector('[class*="grid-cols"]');
+      expect(gridContainer).toBeInTheDocument();
     });
 
     it('passes correct props to StatsRow', async () => {
@@ -352,8 +390,11 @@ describe('DashboardPage', () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
-        expect(screen.getByText('Back Yard')).toBeInTheDocument();
+        const cameraGrid = screen.getByTestId('camera-grid');
+        expect(cameraGrid).toBeInTheDocument();
+        // Cameras should be in the grid
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Back Yard').length).toBeGreaterThan(0);
       });
     });
 
@@ -361,12 +402,23 @@ describe('DashboardPage', () => {
       renderWithProviders(<DashboardPage />);
 
       await waitFor(() => {
-        const frontDoor = screen.getByText('Front Door');
-        const backYard = screen.getByText('Back Yard');
+        const cameraGrid = screen.getByTestId('camera-grid');
+        expect(cameraGrid).toBeInTheDocument();
 
-        // Verify thumbnail URLs are generated using getCameraSnapshotUrl pattern
-        expect(frontDoor).toHaveAttribute('data-thumbnail-url', '/api/cameras/cam1/snapshot');
-        expect(backYard).toHaveAttribute('data-thumbnail-url', '/api/cameras/cam2/snapshot');
+        // Get all buttons with these names (could be in camera grid or activity feed)
+        const frontDoorButtons = screen.getAllByRole('button', { name: 'Front Door' });
+        const backYardButtons = screen.getAllByRole('button', { name: 'Back Yard' });
+
+        // At least one should have the thumbnail URL attribute (from camera grid)
+        const frontDoorWithThumbnail = frontDoorButtons.find(btn =>
+          btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam1/snapshot'
+        );
+        const backYardWithThumbnail = backYardButtons.find(btn =>
+          btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam2/snapshot'
+        );
+
+        expect(frontDoorWithThumbnail).toBeDefined();
+        expect(backYardWithThumbnail).toBeDefined();
       });
     });
 
@@ -395,9 +447,14 @@ describe('DashboardPage', () => {
         expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
       });
 
-      // Click on the Front Door camera card
-      const frontDoorButton = screen.getByRole('button', { name: 'Front Door' });
-      await user.click(frontDoorButton);
+      // Get all Front Door buttons and find the one in the camera grid (has thumbnail URL)
+      const frontDoorButtons = screen.getAllByRole('button', { name: 'Front Door' });
+      const cameraGridButton = frontDoorButtons.find(btn =>
+        btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam1/snapshot'
+      );
+
+      expect(cameraGridButton).toBeDefined();
+      await user.click(cameraGridButton!);
 
       // Check that navigate was called with the correct path
       expect(mockNavigate).toHaveBeenCalledWith('/timeline?camera=cam1');
@@ -410,9 +467,14 @@ describe('DashboardPage', () => {
         expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
       });
 
-      // Click on the Back Yard camera card
-      const backYardButton = screen.getByRole('button', { name: 'Back Yard' });
-      await user.click(backYardButton);
+      // Get all Back Yard buttons and find the one in the camera grid (has thumbnail URL)
+      const backYardButtons = screen.getAllByRole('button', { name: 'Back Yard' });
+      const cameraGridButton = backYardButtons.find(btn =>
+        btn.getAttribute('data-thumbnail-url') === '/api/cameras/cam2/snapshot'
+      );
+
+      expect(cameraGridButton).toBeDefined();
+      await user.click(cameraGridButton!);
 
       // Check that navigate was called with the correct camera ID
       expect(mockNavigate).toHaveBeenCalledWith('/timeline?camera=cam2');
@@ -615,6 +677,61 @@ describe('DashboardPage', () => {
         // Latest WS event has risk_score 75
         expect(statsRow).toHaveAttribute('data-risk-score', '75');
       });
+    });
+  });
+
+  describe('Activity Feed Integration', () => {
+    it('renders ActivityFeed with recent events', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        expect(activityFeed).toBeInTheDocument();
+      });
+    });
+
+    it('passes maxItems=10 to ActivityFeed', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        expect(activityFeed).toHaveAttribute('data-max-items', '10');
+      });
+    });
+
+    it('passes merged events to ActivityFeed', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        // Should have WS events + initial events (deduplicated)
+        const eventCount = activityFeed.getAttribute('data-event-count');
+        expect(Number(eventCount)).toBeGreaterThan(0);
+      });
+    });
+
+    it('passes onEventClick handler to ActivityFeed', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        expect(activityFeed).toHaveAttribute('data-has-click-handler', 'true');
+      });
+    });
+
+    it('navigates to timeline with event when activity item is clicked', async () => {
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
+      });
+
+      // Click on an activity item (Front Door event)
+      const frontDoorEvent = screen.getAllByRole('button', { name: 'Front Door' })[0];
+      await user.click(frontDoorEvent);
+
+      // Check that navigate was called (to timeline or event detail)
+      expect(mockNavigate).toHaveBeenCalled();
     });
   });
 
