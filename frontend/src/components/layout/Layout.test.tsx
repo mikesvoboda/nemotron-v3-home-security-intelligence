@@ -15,9 +15,26 @@ vi.mock('./Sidebar', () => ({
   default: () => <div data-testid="mock-sidebar">Sidebar</div>,
 }));
 
+vi.mock('./MobileBottomNav', () => ({
+  default: () => <div data-testid="mock-mobile-nav">MobileBottomNav</div>,
+}));
+
+vi.mock('../common/CommandPalette', () => ({
+  default: () => null,
+}));
+
+vi.mock('../common/ShortcutsHelpModal', () => ({
+  default: () => null,
+}));
+
 // Mock the useServiceStatus hook
 vi.mock('../../hooks/useServiceStatus', () => ({
   useServiceStatus: vi.fn(),
+}));
+
+// Mock the useKeyboardShortcuts hook (which uses useNavigate internally)
+vi.mock('../../hooks/useKeyboardShortcuts', () => ({
+  useKeyboardShortcuts: vi.fn(),
 }));
 
 // Helper to create service status

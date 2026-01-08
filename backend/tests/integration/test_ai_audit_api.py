@@ -797,7 +797,10 @@ class TestEvaluateEventWithMockedLLM:
             call_count += 1
             return result
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm,
+        ):
             response = await async_client.post(
                 f"/api/ai-audit/events/{event_with_llm_prompt.id}/evaluate"
             )
@@ -834,7 +837,10 @@ class TestEvaluateEventWithMockedLLM:
             call_count += 1
             return result
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm,
+        ):
             response = await async_client.post(
                 f"/api/ai-audit/events/{sample_event_for_audit.id}/evaluate?force=true"
             )
@@ -873,7 +879,10 @@ class TestEvaluateEventWithMockedLLM:
         async def mock_call_llm_error(self, prompt: str) -> str:
             raise Exception("LLM service unavailable")
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm_error):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm_error,
+        ):
             response = await async_client.post(
                 f"/api/ai-audit/events/{event_with_llm_prompt.id}/evaluate"
             )
@@ -1094,7 +1103,10 @@ class TestBatchAuditAdvanced:
         async def mock_call_llm(self, prompt: str) -> str:
             return '{"context_usage": 4.0}'
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm,
+        ):
             response = await async_client.post(
                 "/api/ai-audit/batch",
                 json={"limit": 10, "force_reevaluate": False},
@@ -1117,7 +1129,10 @@ class TestBatchAuditAdvanced:
         async def mock_call_llm(self, prompt: str) -> str:
             return "{}"
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm,
+        ):
             response = await async_client.post(
                 "/api/ai-audit/batch",
                 json={"limit": 10, "min_risk_score": 60},
@@ -1140,7 +1155,10 @@ class TestBatchAuditAdvanced:
         async def mock_call_llm(self, prompt: str) -> str:
             return '{"context_usage": 3.5}'
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm,
+        ):
             response = await async_client.post(
                 "/api/ai-audit/batch",
                 json={"limit": 10, "force_reevaluate": True},
@@ -1162,7 +1180,10 @@ class TestBatchAuditAdvanced:
         async def mock_call_llm(self, prompt: str) -> str:
             return "{}"
 
-        with patch("backend.services.audit_service.AuditService._call_llm", mock_call_llm):
+        with patch(
+            "backend.services.pipeline_quality_audit_service.PipelineQualityAuditService._call_llm",
+            mock_call_llm,
+        ):
             response = await async_client.post(
                 "/api/ai-audit/batch",
                 json={"limit": 2, "force_reevaluate": True},
