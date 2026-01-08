@@ -417,8 +417,9 @@ describe('PipelineLatencyPanel', () => {
 
     render(<PipelineLatencyPanel />);
 
+    // Wait for content to load (Stage Breakdown is inside the content section, not the header)
     await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
+      expect(screen.getByText('Stage Breakdown')).toBeInTheDocument();
     });
 
     expect(screen.getByText('No historical data available yet')).toBeInTheDocument();
