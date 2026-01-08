@@ -37,6 +37,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         hsts_enabled: Whether to add HSTS header (only on HTTPS)
         hsts_max_age: HSTS max-age in seconds (default: 1 year)
         hsts_include_subdomains: Whether HSTS includes subdomains
+        hsts_preload: Whether to add HSTS preload directive (for hstspreload.org registration)
         csp_report_only: Use Content-Security-Policy-Report-Only instead
         cross_origin_opener_policy: Cross-Origin-Opener-Policy value
         cross_origin_resource_policy: Cross-Origin-Resource-Policy value
@@ -55,6 +56,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         hsts_enabled: bool = True,
         hsts_max_age: int = 31536000,
         hsts_include_subdomains: bool = True,
+        hsts_preload: bool = False,
         csp_report_only: bool = False,
         cross_origin_opener_policy: str = "same-origin",
         cross_origin_resource_policy: str = "same-origin",
@@ -72,6 +74,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             hsts_enabled: Add HSTS header when request is HTTPS (default: True)
             hsts_max_age: HSTS max-age in seconds (default: 31536000 = 1 year)
             hsts_include_subdomains: Include subdomains in HSTS (default: True)
+            hsts_preload: Add preload directive for hstspreload.org (default: False)
             csp_report_only: Use report-only mode for CSP testing (default: False)
             cross_origin_opener_policy: COOP value (default: "same-origin")
             cross_origin_resource_policy: CORP value (default: "same-origin")
@@ -86,6 +89,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.hsts_enabled = hsts_enabled
         self.hsts_max_age = hsts_max_age
         self.hsts_include_subdomains = hsts_include_subdomains
+        self.hsts_preload = hsts_preload
 
         # CSP settings
         self.csp_report_only = csp_report_only
@@ -165,6 +169,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             hsts_value = f"max-age={self.hsts_max_age}"
             if self.hsts_include_subdomains:
                 hsts_value += "; includeSubDomains"
+            if self.hsts_preload:
+                hsts_value += "; preload"
             response.headers["Strict-Transport-Security"] = hsts_value
 
         return response

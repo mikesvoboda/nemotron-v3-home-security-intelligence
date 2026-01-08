@@ -835,7 +835,7 @@ class TestRedisPersistence:
         self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
     ) -> None:
         """Test that persist_state handles Redis errors gracefully."""
-        mock_redis.set.side_effect = Exception("Redis connection error")
+        mock_redis.set.side_effect = OSError("Redis connection error")
 
         # Should not raise, just log warning
         await breaker_with_redis._persist_state()
@@ -926,7 +926,7 @@ class TestRedisPersistence:
         self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
     ) -> None:
         """Test that restore_state handles Redis errors gracefully."""
-        mock_redis.get.side_effect = Exception("Redis connection error")
+        mock_redis.get.side_effect = OSError("Redis connection error")
 
         result = await breaker_with_redis.restore_state_from_redis()
 
@@ -956,7 +956,7 @@ class TestRedisPersistence:
         self, breaker_with_redis: WebSocketCircuitBreaker, mock_redis: Any
     ) -> None:
         """Test that clear_persisted_state handles Redis errors gracefully."""
-        mock_redis.delete.side_effect = Exception("Redis connection error")
+        mock_redis.delete.side_effect = OSError("Redis connection error")
 
         result = await breaker_with_redis.clear_persisted_state()
 

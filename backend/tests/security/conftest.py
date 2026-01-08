@@ -78,6 +78,10 @@ def security_client() -> Generator[TestClient]:
             "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
         )
 
+    # Disable database logging for tests (no logs table in test DB)
+    original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
+    os.environ["LOG_DB_ENABLED"] = "false"
+
     # Clear settings cache before creating app
     from backend.core.config import get_settings
 
@@ -122,8 +126,13 @@ def security_client() -> Generator[TestClient]:
     ):
         yield client
 
-    # Restore original DATABASE_URL
+    # Restore original environment
     if original_db_url:
         os.environ["DATABASE_URL"] = original_db_url
+
+    if original_log_db_enabled is not None:
+        os.environ["LOG_DB_ENABLED"] = original_log_db_enabled
+    else:
+        os.environ.pop("LOG_DB_ENABLED", None)
 
     get_settings.cache_clear()

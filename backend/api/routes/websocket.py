@@ -37,7 +37,11 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 from pydantic import ValidationError
 
-from backend.api.middleware import authenticate_websocket, check_websocket_rate_limit
+from backend.api.middleware import (
+    authenticate_websocket,
+    check_websocket_rate_limit,
+    validate_websocket_token,
+)
 from backend.api.schemas.websocket import (
     WebSocketErrorCode,
     WebSocketErrorResponse,
@@ -105,6 +109,7 @@ async def handle_validated_message(websocket: WebSocket, message: WebSocketMessa
     """Handle a validated WebSocket message.
 
     Dispatches the message to the appropriate handler based on its type.
+    Uses Python 3.10+ structural pattern matching for clear message routing.
     Unknown message types receive an error response.
 
     Args:
@@ -113,36 +118,37 @@ async def handle_validated_message(websocket: WebSocket, message: WebSocketMessa
     """
     message_type = message.type.lower()
 
-    if message_type == WebSocketMessageType.PING.value:
-        # Respond with pong
-        pong_response = WebSocketPongResponse()
-        await websocket.send_text(pong_response.model_dump_json())
-        logger.debug("Sent pong response to WebSocket client")
+    match message_type:
+        case WebSocketMessageType.PING.value:
+            # Respond with pong
+            pong_response = WebSocketPongResponse()
+            await websocket.send_text(pong_response.model_dump_json())
+            logger.debug("Sent pong response to WebSocket client")
 
-    elif message_type == WebSocketMessageType.SUBSCRIBE.value:
-        # Future: handle subscription
-        logger.debug(f"Received subscribe message: {message.data}")
-        # For now, just acknowledge (subscription logic TBD)
+        case WebSocketMessageType.SUBSCRIBE.value:
+            # Future: handle subscription
+            logger.debug(f"Received subscribe message: {message.data}")
+            # For now, just acknowledge (subscription logic TBD)
 
-    elif message_type == WebSocketMessageType.UNSUBSCRIBE.value:
-        # Future: handle unsubscription
-        logger.debug(f"Received unsubscribe message: {message.data}")
-        # For now, just acknowledge (unsubscription logic TBD)
+        case WebSocketMessageType.UNSUBSCRIBE.value:
+            # Future: handle unsubscription
+            logger.debug(f"Received unsubscribe message: {message.data}")
+            # For now, just acknowledge (unsubscription logic TBD)
 
-    elif message_type == WebSocketMessageType.PONG.value:
-        # Pong is a standard keepalive response from client to server-initiated ping
-        # Just acknowledge silently - no response needed
-        logger.debug("Received pong response from WebSocket client")
+        case WebSocketMessageType.PONG.value:
+            # Pong is a standard keepalive response from client to server-initiated ping
+            # Just acknowledge silently - no response needed
+            logger.debug("Received pong response from WebSocket client")
 
-    else:
-        # Unknown message type
-        logger.warning(f"WebSocket received unknown message type: {message_type}")
-        error_response = WebSocketErrorResponse(
-            error=WebSocketErrorCode.UNKNOWN_MESSAGE_TYPE,
-            message=f"Unknown message type: {message_type}",
-            details={"supported_types": [t.value for t in WebSocketMessageType]},
-        )
-        await websocket.send_text(error_response.model_dump_json())
+        case _:
+            # Unknown message type
+            logger.warning(f"WebSocket received unknown message type: {message_type}")
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.UNKNOWN_MESSAGE_TYPE,
+                message=f"Unknown message type: {message_type}",
+                details={"supported_types": [t.value for t in WebSocketMessageType]},
+            )
+            await websocket.send_text(error_response.model_dump_json())
 
 
 async def send_heartbeat(
@@ -182,6 +188,7 @@ async def send_heartbeat(
 async def websocket_events_endpoint(  # noqa: PLR0912
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
 ) -> None:
     """WebSocket endpoint for streaming security events in real-time.
 
@@ -189,9 +196,14 @@ async def websocket_events_endpoint(  # noqa: PLR0912
     about security events as they are detected and analyzed.
 
     Authentication:
-        When API key authentication is enabled, provide the key via:
-        - Query parameter: ws://host/ws/events?api_key=YOUR_KEY
-        - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+        Two authentication methods are available (both optional, can be used together):
+
+        1. API Key Authentication (when api_key_enabled=true):
+           - Query parameter: ws://host/ws/events?api_key=YOUR_KEY
+           - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+        2. Token Authentication (when WEBSOCKET_TOKEN is configured):
+           - Query parameter: ws://host/ws/events?token=YOUR_TOKEN
 
     The connection lifecycle:
     1. Client connects and is authenticated (if auth enabled)
@@ -231,7 +243,10 @@ async def websocket_events_endpoint(  # noqa: PLR0912
 
     Example JavaScript client:
         ```javascript
-        const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
+        // With token authentication:
+        const ws = new WebSocket('ws://localhost:8000/ws/events?token=YOUR_TOKEN');
+        // Or with API key authentication:
+        // const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log('New event:', data);
@@ -336,13 +351,19 @@ async def websocket_events_endpoint(  # noqa: PLR0912
 async def websocket_system_status(  # noqa: PLR0912
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
 ) -> None:
     """WebSocket endpoint for real-time system status updates.
 
     Authentication:
-        When API key authentication is enabled, provide the key via:
-        - Query parameter: ws://host/ws/system?api_key=YOUR_KEY
-        - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+        Two authentication methods are available (both optional, can be used together):
+
+        1. API Key Authentication (when api_key_enabled=true):
+           - Query parameter: ws://host/ws/system?api_key=YOUR_KEY
+           - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+        2. Token Authentication (when WEBSOCKET_TOKEN is configured):
+           - Query parameter: ws://host/ws/system?token=YOUR_TOKEN
 
     Sends periodic system status updates including:
     - GPU utilization and memory stats
@@ -387,7 +408,10 @@ async def websocket_system_status(  # noqa: PLR0912
 
     Example JavaScript client:
         ```javascript
-        const ws = new WebSocket('ws://localhost:8000/ws/system?api_key=YOUR_KEY');
+        // With token authentication:
+        const ws = new WebSocket('ws://localhost:8000/ws/system?token=YOUR_TOKEN');
+        // Or with API key authentication:
+        // const ws = new WebSocket('ws://localhost:8000/ws/system?api_key=YOUR_KEY');
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log('System status:', data);

@@ -47,7 +47,7 @@ async def test_health_endpoint_degraded_services(client, integration_db):
     """Test health check endpoint with degraded services (Redis down)."""
     # Mock Redis to raise an exception (simulating unhealthy Redis)
     mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.side_effect = Exception("Redis connection failed")
+    mock_redis_client.health_check.side_effect = ConnectionError("Redis connection failed")
 
     with patch("backend.core.redis._redis_client", mock_redis_client):
         response = await client.get("/api/system/health")

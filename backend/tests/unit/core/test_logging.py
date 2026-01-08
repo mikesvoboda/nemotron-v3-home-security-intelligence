@@ -315,7 +315,7 @@ class TestSQLiteHandlerGetSession:
 
         # Patch get_settings to raise an exception during engine creation
         with patch("backend.core.logging.get_settings") as mock_settings:
-            mock_settings.side_effect = Exception("Config error")
+            mock_settings.side_effect = RuntimeError("Config error")
 
             # _get_session should catch the exception and set _db_available to False
             session = handler._get_session()
@@ -522,7 +522,7 @@ class TestSQLiteHandlerEmit:
         handler.setFormatter(logging.Formatter("%(message)s"))
 
         mock_session = MagicMock()
-        mock_session.add.side_effect = Exception("Database error")
+        mock_session.add.side_effect = RuntimeError("Database error")
         handler._get_session = MagicMock(return_value=mock_session)
 
         with patch("backend.models.log.Log") as MockLog:
@@ -552,7 +552,7 @@ class TestSQLiteHandlerEmit:
         handler.setFormatter(logging.Formatter("%(message)s"))
 
         mock_session = MagicMock()
-        mock_session.commit.side_effect = Exception("Commit failed")
+        mock_session.commit.side_effect = RuntimeError("Commit failed")
         handler._get_session = MagicMock(return_value=mock_session)
 
         with patch("backend.models.log.Log") as MockLog:
@@ -710,7 +710,7 @@ class TestSetupLoggingSQLiteHandler:
                 root.level = original_level
 
     def test_setup_logging_handles_sqlite_handler_exception(self):
-        """Test that setup_logging handles SQLite handler creation failure."""
+        """Test that setup_logging handles DatabaseHandler creation failure."""
         with patch("backend.core.logging.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="INFO",
@@ -721,8 +721,8 @@ class TestSetupLoggingSQLiteHandler:
                 log_db_min_level="INFO",
             )
 
-            with patch("backend.core.logging.SQLiteHandler") as mock_sqlite_handler:
-                mock_sqlite_handler.side_effect = Exception("SQLite initialization failed")
+            with patch("backend.core.logging.DatabaseHandler") as mock_db_handler:
+                mock_db_handler.side_effect = RuntimeError("Database handler initialization failed")
 
                 root = logging.getLogger()
                 original_handlers = root.handlers.copy()

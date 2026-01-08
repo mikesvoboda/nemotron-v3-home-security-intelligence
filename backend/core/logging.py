@@ -281,8 +281,10 @@ def redact_url(url: str) -> str:
             )
         )
         return redacted
-    except Exception:
-        # If parsing fails, return a safe fallback
+    except (ValueError, AttributeError) as e:
+        # ValueError: malformed URL, AttributeError: unexpected None values
+        # Use contextlib.suppress if we need to ignore without logging
+        logging.getLogger(__name__).debug(f"URL redaction failed: {e}")
         return "[URL REDACTED - PARSE ERROR]"
 
 
@@ -516,7 +518,11 @@ class DatabaseHandler(logging.Handler):
 
                 self._engine = create_engine(sync_url)
                 self._session_factory = sessionmaker(bind=self._engine)
-            except Exception:
+            except (ImportError, OSError, RuntimeError) as e:
+                # ImportError: SQLAlchemy not installed
+                # OSError: DB connection issues
+                # RuntimeError: configuration errors
+                logging.getLogger(__name__).debug(f"DB session factory init failed: {e}")
                 self._db_available = False
                 return None
 
@@ -570,9 +576,13 @@ class DatabaseHandler(logging.Handler):
             finally:
                 session.close()
 
-        except Exception:
+        except (OSError, RuntimeError, ImportError) as e:
+            # OSError: database connection failures
+            # RuntimeError: session/transaction issues
+            # ImportError: module not available
             # Don't let logging failures crash the application
             # Disable DB logging if it fails repeatedly
+            logging.getLogger(__name__).debug(f"DB log emit failed, disabling: {e}")
             self._db_available = False
 
 
@@ -626,8 +636,9 @@ def setup_logging() -> None:
         file_formatter = logging.Formatter(FILE_FORMAT)
         file_handler.setFormatter(file_formatter)
         root_logger.addHandler(file_handler)
-    except Exception as e:
-        root_logger.warning(f"Could not set up file logging: {e}")
+    except (OSError, PermissionError) as e:
+        # OSError: file system issues, PermissionError: access denied
+        root_logger.warning(f"Could not set up file logging: {e}", exc_info=True)
 
     # Database handler (if enabled)
     if settings.log_db_enabled:
@@ -636,8 +647,9 @@ def setup_logging() -> None:
             db_handler.setLevel(log_level)
             db_handler.setFormatter(logging.Formatter("%(message)s"))
             root_logger.addHandler(db_handler)
-        except Exception as e:
-            root_logger.warning(f"Could not set up database logging: {e}")
+        except (OSError, ImportError, RuntimeError) as e:
+            # OSError: connection failures, ImportError: missing deps, RuntimeError: config errors
+            root_logger.warning(f"Could not set up database logging: {e}", exc_info=True)
 
     # Reduce noise from third-party libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

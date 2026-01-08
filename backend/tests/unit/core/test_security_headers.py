@@ -374,3 +374,216 @@ class TestSecurityHeadersMiddlewareInit:
         assert middleware.referrer_policy == "strict-origin-when-cross-origin"
         assert "default-src 'self'" in middleware.content_security_policy
         assert "camera=()" in middleware.permissions_policy
+
+
+class TestHSTSHeaders:
+    """Test HSTS (HTTP Strict Transport Security) header functionality."""
+
+    @pytest.fixture
+    def https_app(self):
+        """Create a test app with HSTS enabled and simulated HTTPS request."""
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=31536000,
+            hsts_include_subdomains=True,
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        return app
+
+    def test_hsts_header_not_added_on_http(self, https_app):
+        """Test that HSTS header is NOT added for plain HTTP requests."""
+        client = TestClient(https_app)
+        response = client.get("/test")
+
+        # Default test client uses HTTP, so HSTS should not be present
+        assert response.status_code == 200
+        assert "Strict-Transport-Security" not in response.headers
+
+    def test_hsts_header_added_on_https(self, https_app):
+        """Test that HSTS header IS added when X-Forwarded-Proto is https."""
+        client = TestClient(https_app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        assert "Strict-Transport-Security" in response.headers
+        hsts = response.headers["Strict-Transport-Security"]
+        assert "max-age=31536000" in hsts
+        assert "includeSubDomains" in hsts
+
+    def test_hsts_with_include_subdomains_disabled(self):
+        """Test HSTS header without includeSubDomains directive."""
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=31536000,
+            hsts_include_subdomains=False,
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        hsts = response.headers["Strict-Transport-Security"]
+        assert "max-age=31536000" in hsts
+        assert "includeSubDomains" not in hsts
+
+    def test_hsts_with_custom_max_age(self):
+        """Test HSTS header with custom max-age value."""
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=86400,  # 1 day
+            hsts_include_subdomains=True,
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        hsts = response.headers["Strict-Transport-Security"]
+        assert "max-age=86400" in hsts
+
+    def test_hsts_disabled(self):
+        """Test that HSTS header is not added when disabled."""
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware, hsts_enabled=False)
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        assert "Strict-Transport-Security" not in response.headers
+
+    def test_hsts_preload_disabled_by_default(self):
+        """Test that HSTS preload directive is NOT included by default."""
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=31536000,
+            hsts_include_subdomains=True,
+            # hsts_preload defaults to False
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        hsts = response.headers["Strict-Transport-Security"]
+        assert "preload" not in hsts
+
+    def test_hsts_preload_enabled(self):
+        """Test that HSTS preload directive IS included when enabled."""
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=31536000,
+            hsts_include_subdomains=True,
+            hsts_preload=True,
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        hsts = response.headers["Strict-Transport-Security"]
+        assert "max-age=31536000" in hsts
+        assert "includeSubDomains" in hsts
+        assert "preload" in hsts
+
+    def test_hsts_preload_requires_include_subdomains(self):
+        """Test HSTS preload can be enabled independently of includeSubDomains.
+
+        Note: While hstspreload.org requires includeSubDomains, the middleware
+        allows setting preload without it for flexibility. The validator at
+        hstspreload.org will reject submissions without includeSubDomains.
+        """
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=31536000,
+            hsts_include_subdomains=False,
+            hsts_preload=True,
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        hsts = response.headers["Strict-Transport-Security"]
+        assert "max-age=31536000" in hsts
+        assert "includeSubDomains" not in hsts
+        assert "preload" in hsts
+
+    def test_hsts_full_preload_header_format(self):
+        """Test full HSTS header format with all directives for preload submission."""
+        app = FastAPI()
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            hsts_enabled=True,
+            hsts_max_age=31536000,
+            hsts_include_subdomains=True,
+            hsts_preload=True,
+        )
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        client = TestClient(app)
+        response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
+
+        assert response.status_code == 200
+        hsts = response.headers["Strict-Transport-Security"]
+        # Verify complete format: max-age=31536000; includeSubDomains; preload
+        assert hsts == "max-age=31536000; includeSubDomains; preload"
+
+    def test_hsts_preload_middleware_stores_value(self):
+        """Test that middleware correctly stores hsts_preload parameter."""
+        app = FastAPI()
+        middleware_false = SecurityHeadersMiddleware(app, hsts_preload=False)
+        middleware_true = SecurityHeadersMiddleware(app, hsts_preload=True)
+
+        assert middleware_false.hsts_preload is False
+        assert middleware_true.hsts_preload is True
+
+    def test_hsts_preload_default_value(self):
+        """Test that hsts_preload defaults to False for safety."""
+        app = FastAPI()
+        middleware = SecurityHeadersMiddleware(app)
+
+        assert middleware.hsts_preload is False

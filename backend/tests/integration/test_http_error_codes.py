@@ -482,7 +482,7 @@ class TestServiceErrors:
     @pytest.mark.asyncio
     async def test_telemetry_redis_error_returns_zeros(self, client, mock_redis):
         """Test telemetry returns zero queue depths on Redis error."""
-        mock_redis.get_queue_length.side_effect = Exception("Redis error")
+        mock_redis.get_queue_length.side_effect = ConnectionError("Redis error")
 
         response = await client.get("/api/system/telemetry")
         # Should still return response with zero queue depths

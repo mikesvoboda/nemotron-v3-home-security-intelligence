@@ -550,6 +550,34 @@ services:
           cpus: '0.5'
           memory: 128M
 
+  # Blackbox Exporter for synthetic monitoring (NEM-1637)
+  # Probes endpoints for availability, latency, and health status
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    profiles:
+      - monitoring
+    ports:
+      - '9115:9115'
+    volumes:
+      - ./monitoring/blackbox-exporter.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+      - '--log.level=info'
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9115/metrics']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 64M
+
 volumes:
   postgres_data:
     driver: local
