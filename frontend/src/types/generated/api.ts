@@ -1320,6 +1320,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Heatmap
+         * @description Get detection density heatmap for a camera.
+         *
+         *     This endpoint aggregates detection bounding box centers into an NxN grid
+         *     and returns cells with their detection counts and normalized intensities.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         grid_size: Size of the grid (default: 10, produces 10x10 grid)
+         *         minutes: Time window in minutes (default: 30, max: 1440/24 hours)
+         *         db: Database session
+         *
+         *     Returns:
+         *         CameraHeatmapResponse with grid cells and detection counts
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_heatmap_api_cameras__camera_id__heatmap_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/scene-changes": {
         parameters: {
             query?: never;
@@ -5451,6 +5486,57 @@ export interface components {
             status: components["schemas"]["CameraStatus"];
         };
         /**
+         * CameraHeatmapResponse
+         * @description Schema for camera detection heatmap response.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "cells": [
+         *         {
+         *           "count": 15,
+         *           "grid_x": 5,
+         *           "grid_y": 3,
+         *           "intensity": 0.75
+         *         },
+         *         {
+         *           "count": 10,
+         *           "grid_x": 2,
+         *           "grid_y": 7,
+         *           "intensity": 0.5
+         *         }
+         *       ],
+         *       "grid_size": 10,
+         *       "time_window_minutes": 30,
+         *       "total_detections": 42
+         *     }
+         */
+        CameraHeatmapResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Cells
+             * @description List of grid cells with detection counts
+             */
+            cells: components["schemas"]["HeatmapCell"][];
+            /**
+             * Grid Size
+             * @description Size of the grid (NxN)
+             */
+            grid_size: number;
+            /**
+             * Time Window Minutes
+             * @description Time window in minutes for the heatmap
+             */
+            time_window_minutes: number;
+            /**
+             * Total Detections
+             * @description Total number of detections
+             */
+            total_detections: number;
+        };
+        /**
          * CameraListResponse
          * @description Schema for camera list response.
          * @example {
@@ -8672,6 +8758,38 @@ export interface components {
              * @description Timestamp of health check
              */
             timestamp: string;
+        };
+        /**
+         * HeatmapCell
+         * @description Schema for a single heatmap grid cell.
+         * @example {
+         *       "count": 15,
+         *       "grid_x": 5,
+         *       "grid_y": 3,
+         *       "intensity": 0.75
+         *     }
+         */
+        HeatmapCell: {
+            /**
+             * Count
+             * @description Number of detections in this cell
+             */
+            count: number;
+            /**
+             * Grid X
+             * @description Grid X coordinate (0-based)
+             */
+            grid_x: number;
+            /**
+             * Grid Y
+             * @description Grid Y coordinate (0-based)
+             */
+            grid_y: number;
+            /**
+             * Intensity
+             * @description Normalized intensity (0.0-1.0)
+             */
+            intensity: number;
         };
         /**
          * HourlyPattern
@@ -14349,6 +14467,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassBaselineResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_camera_heatmap_api_cameras__camera_id__heatmap_get: {
+        parameters: {
+            query?: {
+                /** @description Size of grid (NxN) */
+                grid_size?: number;
+                /** @description Time window in minutes (default: 30, max: 24 hours) */
+                minutes?: number;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraHeatmapResponse"];
                 };
             };
             /** @description Validation Error */
