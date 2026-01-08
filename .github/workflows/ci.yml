@@ -165,9 +165,11 @@ jobs:
 
       - name: Generate combined coverage report
         # Generate XML and check 85% threshold for unit tests
+        # Note: --rcfile=/dev/null ignores pyproject.toml's fail_under=95 setting
+        # We use 85% for unit tests alone; combined coverage (unit+integration) should reach 95%
         run: |
           uv run coverage xml -o coverage-unit.xml
-          uv run coverage report --fail-under=85
+          uv run coverage report --fail-under=85 --rcfile=/dev/null
 
       - name: Upload unit test results
         if: always()
