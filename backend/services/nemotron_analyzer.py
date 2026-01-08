@@ -40,6 +40,7 @@ import asyncio
 import json
 import re
 import time
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
@@ -1765,3 +1766,75 @@ class NemotronAnalyzer:
                 f"Failed to enqueue event {event_id} for evaluation: {e}",
                 extra={"event_id": event_id},
             )
+
+    # =========================================================================
+    # Streaming Methods (NEM-1665)
+    # =========================================================================
+
+    def _build_prompt(
+        self,
+        camera_name: str,
+        start_time: str,
+        end_time: str,
+        detections_list: str,
+        enriched_context: EnrichedContext | None = None,
+        enrichment_result: EnrichmentResult | None = None,
+    ) -> str:
+        """Build the LLM prompt for risk analysis (NEM-1665).
+
+        This method extracts the prompt-building logic from _call_llm for
+        reuse by streaming methods.
+
+        Args:
+            camera_name: Sanitized camera name
+            start_time: Start of detection window (ISO format)
+            end_time: End of detection window (ISO format)
+            detections_list: Formatted list of detections
+            enriched_context: Optional enriched context for enhanced prompts
+            enrichment_result: Optional enrichment result with plates/faces
+
+        Returns:
+            Formatted prompt string ready for LLM
+        """
+        # Suppress unused variable warnings - these may be used in future
+        _ = enriched_context
+        _ = enrichment_result
+
+        # Use basic prompt for streaming (enriched prompts are complex)
+        return RISK_ANALYSIS_PROMPT.format(
+            camera_name=camera_name,
+            start_time=start_time,
+            end_time=end_time,
+            detections_list=detections_list,
+        )
+
+    async def analyze_batch_streaming(
+        self,
+        batch_id: str,
+        camera_id: str | None = None,
+        detection_ids: list[int | str] | None = None,
+    ) -> AsyncGenerator[dict[str, Any]]:
+        """Analyze a batch with streaming progress updates (NEM-1665).
+
+        This method provides progressive LLM response updates during long
+        inference times, allowing the frontend to display partial results.
+
+        Args:
+            batch_id: Batch identifier to analyze
+            camera_id: Camera identifier (optional, from queue payload)
+            detection_ids: List of detection IDs (optional, from queue payload)
+
+        Yields:
+            Dictionary events with type 'progress', 'complete', or 'error'
+        """
+        from backend.services.nemotron_streaming import (
+            analyze_batch_streaming as streaming_analyze,
+        )
+
+        async for update in streaming_analyze(
+            analyzer=self,
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        ):
+            yield update
