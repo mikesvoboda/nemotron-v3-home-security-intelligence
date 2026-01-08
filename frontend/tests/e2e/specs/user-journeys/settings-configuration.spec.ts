@@ -12,19 +12,24 @@
  * - User receives feedback on save success/failure
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 
 test.describe('Settings Configuration Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard first
     await page.goto('/');
 
-    // Wait for initial load
-    // Firefox/WebKit need longer timeout for WebSocket connection establishment
+    // Wait for dashboard to load first (more reliable than WebSocket status)
     const timeout = browserName === 'chromium' ? 10000 : 20000;
-    await page.waitForSelector('[data-testid="websocket-status"]', {
+    await page.waitForSelector('[data-testid="dashboard-container"]', {
       state: 'visible',
       timeout
+    });
+
+    // WebSocket status should be visible after dashboard loads
+    await page.waitForSelector('[data-testid="websocket-status"]', {
+      state: 'attached',
+      timeout: 5000
     });
   });
 
