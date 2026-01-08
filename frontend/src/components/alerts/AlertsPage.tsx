@@ -239,7 +239,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
   };
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div data-testid="alerts-page" className={`flex flex-col ${className}`}>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3">
