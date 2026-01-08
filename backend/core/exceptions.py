@@ -492,6 +492,347 @@ class ResourceExhaustedError(SecurityIntelligenceError):
         super().__init__(message, details=details, **kwargs)
 
 
+# =============================================================================
+# Consolidated Exceptions (NEM-1441)
+# =============================================================================
+
+
+# BoundingBox Validation Errors
+class InvalidBoundingBoxError(BoundingBoxValidationError):
+    """Raised when bounding box has invalid format or dimensions."""
+
+    default_message = "Invalid bounding box format or dimensions"
+    default_error_code = "INVALID_BOUNDING_BOX_FORMAT"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        bbox: tuple[float, float, float, float] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.bbox = bbox
+        details = kwargs.pop("details", {}) or {}
+        if bbox is not None:
+            details["bbox"] = list(bbox)
+        super().__init__(message, details=details, **kwargs)
+
+
+class BoundingBoxOutOfBoundsError(BoundingBoxValidationError):
+    """Raised when bounding box extends beyond image boundaries."""
+
+    default_message = "Bounding box extends beyond image boundaries"
+    default_error_code = "BOUNDING_BOX_OUT_OF_BOUNDS"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        bbox: tuple[float, float, float, float] | None = None,
+        image_size: tuple[int, int] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.bbox = bbox
+        self.image_size = image_size
+        details = kwargs.pop("details", {}) or {}
+        if bbox is not None:
+            details["bbox"] = list(bbox)
+        if image_size is not None:
+            details["image_size"] = list(image_size)
+        super().__init__(message, details=details, **kwargs)
+
+
+# URL/Security Validation Errors
+class URLValidationError(ValidationError):
+    """Raised when URL validation fails."""
+
+    default_message = "Invalid URL"
+    default_error_code = "INVALID_URL"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        url: str | None = None,
+        reason: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.url = url
+        self.reason = reason
+        details = kwargs.pop("details", {}) or {}
+        if url is not None:
+            # Truncate URL for safety
+            details["url"] = url[:200] if len(url) > 200 else url
+        if reason is not None:
+            details["reason"] = reason
+        super().__init__(message, details=details, **kwargs)
+
+
+class SSRFValidationError(URLValidationError):
+    """Raised when URL fails SSRF (Server-Side Request Forgery) validation."""
+
+    default_message = "URL blocked due to security policy"
+    default_error_code = "SSRF_BLOCKED"
+
+
+# Additional AI Service Errors
+class FlorenceUnavailableError(AIServiceError):
+    """Raised when the Florence scene analysis service is unavailable."""
+
+    default_message = "Florence scene analysis service temporarily unavailable"
+    default_error_code = "FLORENCE_UNAVAILABLE"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        original_error: Exception | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.original_error = original_error
+        super().__init__(message, service_name="florence", **kwargs)
+
+
+class CLIPUnavailableError(AIServiceError):
+    """Raised when the CLIP embedding service is unavailable."""
+
+    default_message = "CLIP embedding service temporarily unavailable"
+    default_error_code = "CLIP_UNAVAILABLE"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        original_error: Exception | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.original_error = original_error
+        super().__init__(message, service_name="clip", **kwargs)
+
+
+# TLS/Certificate Errors
+class TLSError(ConfigurationError):
+    """Base class for TLS-related errors."""
+
+    default_message = "TLS error"
+    default_error_code = "TLS_ERROR"
+
+
+class TLSConfigurationError(TLSError):
+    """Raised when TLS configuration is invalid."""
+
+    default_message = "TLS configuration error"
+    default_error_code = "TLS_CONFIGURATION_ERROR"
+
+
+class CertificateNotFoundError(TLSError):
+    """Raised when a required certificate file is not found."""
+
+    default_message = "Certificate file not found"
+    default_error_code = "CERTIFICATE_NOT_FOUND"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        cert_path: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.cert_path = cert_path
+        details = kwargs.pop("details", {}) or {}
+        if cert_path is not None:
+            details["cert_path"] = cert_path
+        super().__init__(message, details=details, **kwargs)
+
+
+class CertificateValidationError(TLSError):
+    """Raised when certificate validation fails."""
+
+    default_message = "Certificate validation failed"
+    default_error_code = "CERTIFICATE_VALIDATION_ERROR"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        reason: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.reason = reason
+        details = kwargs.pop("details", {}) or {}
+        if reason is not None:
+            details["reason"] = reason
+        super().__init__(message, details=details, **kwargs)
+
+
+# Scene Baseline Errors
+class SceneBaselineError(ProcessingError):
+    """Base class for scene baseline errors."""
+
+    default_message = "Scene baseline error"
+    default_error_code = "SCENE_BASELINE_ERROR"
+
+
+class BaselineNotFoundError(SceneBaselineError):
+    """Raised when a required scene baseline is not found."""
+
+    default_message = "Scene baseline not found"
+    default_error_code = "BASELINE_NOT_FOUND"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        camera_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.camera_id = camera_id
+        details = kwargs.pop("details", {}) or {}
+        if camera_id is not None:
+            details["camera_id"] = camera_id
+        super().__init__(message, details=details, **kwargs)
+
+
+class InvalidEmbeddingError(SceneBaselineError):
+    """Raised when an embedding is invalid or corrupted."""
+
+    default_message = "Invalid embedding data"
+    default_error_code = "INVALID_EMBEDDING"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        expected_dim: int | None = None,
+        actual_dim: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.expected_dim = expected_dim
+        self.actual_dim = actual_dim
+        details = kwargs.pop("details", {}) or {}
+        if expected_dim is not None:
+            details["expected_dim"] = expected_dim
+        if actual_dim is not None:
+            details["actual_dim"] = actual_dim
+        super().__init__(message, details=details, **kwargs)
+
+
+# Media Processing Errors
+class VideoProcessingError(ProcessingError):
+    """Raised when video processing fails."""
+
+    default_message = "Video processing error"
+    default_error_code = "VIDEO_PROCESSING_ERROR"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        video_path: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.video_path = video_path
+        details = kwargs.pop("details", {}) or {}
+        if video_path is not None:
+            from pathlib import Path
+
+            details["filename"] = Path(video_path).name
+        super().__init__(message, details=details, **kwargs)
+
+
+class ClipGenerationError(ProcessingError):
+    """Raised when video clip generation fails."""
+
+    default_message = "Clip generation error"
+    default_error_code = "CLIP_GENERATION_ERROR"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        event_id: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.event_id = event_id
+        details = kwargs.pop("details", {}) or {}
+        if event_id is not None:
+            details["event_id"] = event_id
+        super().__init__(message, details=details, **kwargs)
+
+
+# Alert Errors
+class AlertCreationError(ProcessingError):
+    """Raised when alert creation fails."""
+
+    default_message = "Alert creation error"
+    default_error_code = "ALERT_CREATION_ERROR"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        event_id: int | None = None,
+        reason: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.event_id = event_id
+        self.reason = reason
+        details = kwargs.pop("details", {}) or {}
+        if event_id is not None:
+            details["event_id"] = event_id
+        if reason is not None:
+            details["reason"] = reason
+        super().__init__(message, details=details, **kwargs)
+
+
+# LLM Response Errors
+class LLMResponseParseError(ProcessingError):
+    """Raised when LLM response parsing fails."""
+
+    default_message = "Failed to parse LLM response"
+    default_error_code = "LLM_RESPONSE_PARSE_ERROR"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        raw_response: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.raw_response = raw_response
+        details = kwargs.pop("details", {}) or {}
+        if raw_response is not None:
+            # Truncate raw response for safety
+            truncated = raw_response[:500] if len(raw_response) > 500 else raw_response
+            details["raw_response_preview"] = truncated
+        super().__init__(message, details=details, **kwargs)
+
+
+# Conflict Errors
+class PromptVersionConflictError(ConflictError):
+    """Raised when prompt version conflicts with stored version."""
+
+    default_message = "Prompt version conflict"
+    default_error_code = "PROMPT_VERSION_CONFLICT"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        expected_version: int | None = None,
+        actual_version: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.expected_version = expected_version
+        self.actual_version = actual_version
+        details = kwargs.pop("details", {}) or {}
+        if expected_version is not None:
+            details["expected_version"] = expected_version
+        if actual_version is not None:
+            details["actual_version"] = actual_version
+        super().__init__(message, details=details, **kwargs)
+
+
 # Utility functions
 def get_exception_status_code(exc: Exception) -> int:
     if isinstance(exc, SecurityIntelligenceError):
