@@ -198,6 +198,9 @@ class EnrichmentTrackingResult:
     def compute_status(cls, successful: list[str], failed: list[str]) -> EnrichmentStatus:
         """Compute the appropriate status based on model results.
 
+        Uses Python 3.10+ structural pattern matching with tuple unpacking
+        for clear, exhaustive status determination based on list emptiness.
+
         Args:
             successful: List of models that succeeded
             failed: List of models that failed
@@ -205,13 +208,18 @@ class EnrichmentTrackingResult:
         Returns:
             EnrichmentStatus enum value
         """
-        if not successful and not failed:
-            return EnrichmentStatus.SKIPPED
-        if not failed:
-            return EnrichmentStatus.FULL
-        if not successful:
-            return EnrichmentStatus.FAILED
-        return EnrichmentStatus.PARTIAL
+        match (bool(successful), bool(failed)):
+            case (False, False):
+                return EnrichmentStatus.SKIPPED
+            case (True, False):
+                return EnrichmentStatus.FULL
+            case (False, True):
+                return EnrichmentStatus.FAILED
+            case (True, True):
+                return EnrichmentStatus.PARTIAL
+            case _:
+                # Unreachable but required for exhaustiveness
+                return EnrichmentStatus.SKIPPED
 
 
 @dataclass(slots=True)
@@ -1496,10 +1504,16 @@ class EnrichmentPipeline:
         async with self.model_manager.load("clip-vit-l"):
             for i, det in enumerate(detections):
                 det_id = str(det.id) if det.id else str(i)
-                entity_type = "person" if det.class_name == PERSON_CLASS else "vehicle"
 
-                if det.class_name not in VEHICLE_CLASSES and det.class_name != PERSON_CLASS:
-                    continue
+                # Use pattern matching for entity type classification
+                # Only process person and vehicle detections for re-identification
+                match det.class_name:
+                    case _ if det.class_name == PERSON_CLASS:
+                        entity_type = "person"
+                    case _ if det.class_name in VEHICLE_CLASSES:
+                        entity_type = "vehicle"
+                    case _:
+                        continue  # Skip non-person/vehicle detections
 
                 try:
                     # Generate embedding using ai-clip HTTP service
@@ -1515,10 +1529,12 @@ class EnrichmentPipeline:
                     )
 
                     if matches:
-                        if entity_type == "person":
-                            result.person_reid_matches[det_id] = matches
-                        else:
-                            result.vehicle_reid_matches[det_id] = matches
+                        # Use pattern matching to route matches to appropriate storage
+                        match entity_type:
+                            case "person":
+                                result.person_reid_matches[det_id] = matches
+                            case "vehicle":
+                                result.vehicle_reid_matches[det_id] = matches
 
                     # Store this embedding for future matching
                     attrs = {}

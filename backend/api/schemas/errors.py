@@ -17,27 +17,243 @@ Standard Error Response Format:
     }
 
 Usage in routes:
+    from backend.api.schemas.errors import ErrorCode, raise_http_error
+
     @router.get("/{id}")
     async def get_item(id: int) -> Item:
-        '''
-        responses={
-            404: {"model": ErrorResponse, "description": "Item not found"},
-            500: {"model": ErrorResponse, "description": "Internal server error"}
-        }
-        '''
-        ...
+        if not item:
+            raise_http_error(
+                status_code=404,
+                error_code=ErrorCode.ITEM_NOT_FOUND,
+                message=f"Item with id {id} not found",
+                details={"item_id": id},
+            )
+        return item
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, NoReturn
 
+from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 
-class ErrorDetail(BaseModel):
-    """Detailed error information.
+class ErrorCode:
+    """Machine-readable error codes for consistent API error handling.
 
-    This is the inner error object that contains the actual error data.
+    These codes are designed to be used by clients for programmatic error handling.
+    They follow the pattern: RESOURCE_ACTION or CATEGORY_DESCRIPTION.
+
+    Usage:
+        from backend.api.schemas.errors import ErrorCode, raise_http_error
+
+        raise_http_error(
+            status_code=404,
+            error_code=ErrorCode.CAMERA_NOT_FOUND,
+            message="Camera 'front_door' not found",
+        )
+    """
+
+    # Resource not found errors (404)
+    CAMERA_NOT_FOUND = "CAMERA_NOT_FOUND"
+    EVENT_NOT_FOUND = "EVENT_NOT_FOUND"
+    DETECTION_NOT_FOUND = "DETECTION_NOT_FOUND"
+    ZONE_NOT_FOUND = "ZONE_NOT_FOUND"
+    ALERT_NOT_FOUND = "ALERT_NOT_FOUND"
+    ALERT_RULE_NOT_FOUND = "ALERT_RULE_NOT_FOUND"
+    SCENE_CHANGE_NOT_FOUND = "SCENE_CHANGE_NOT_FOUND"
+    LOG_NOT_FOUND = "LOG_NOT_FOUND"
+    AUDIT_LOG_NOT_FOUND = "AUDIT_LOG_NOT_FOUND"
+    ENTITY_NOT_FOUND = "ENTITY_NOT_FOUND"
+    CLIP_NOT_FOUND = "CLIP_NOT_FOUND"
+    PROMPT_NOT_FOUND = "PROMPT_NOT_FOUND"
+    RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"  # Generic fallback
+
+    # Validation errors (400, 422)
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    INVALID_DATE_RANGE = "INVALID_DATE_RANGE"
+    INVALID_PAGINATION = "INVALID_PAGINATION"
+    INVALID_FILTER = "INVALID_FILTER"
+    INVALID_REQUEST_BODY = "INVALID_REQUEST_BODY"
+    INVALID_QUERY_PARAMETER = "INVALID_QUERY_PARAMETER"
+    INVALID_PATH_PARAMETER = "INVALID_PATH_PARAMETER"
+    INVALID_CAMERA_ID = "INVALID_CAMERA_ID"
+    INVALID_COORDINATES = "INVALID_COORDINATES"
+    INVALID_CONFIDENCE_THRESHOLD = "INVALID_CONFIDENCE_THRESHOLD"
+
+    # Conflict errors (409)
+    RESOURCE_ALREADY_EXISTS = "RESOURCE_ALREADY_EXISTS"
+    CAMERA_ALREADY_EXISTS = "CAMERA_ALREADY_EXISTS"
+    ZONE_ALREADY_EXISTS = "ZONE_ALREADY_EXISTS"
+    ALERT_RULE_ALREADY_EXISTS = "ALERT_RULE_ALREADY_EXISTS"
+    DUPLICATE_ENTRY = "DUPLICATE_ENTRY"
+
+    # Authentication/Authorization errors (401, 403)
+    AUTHENTICATION_REQUIRED = "AUTHENTICATION_REQUIRED"
+    INVALID_API_KEY = "INVALID_API_KEY"  # pragma: allowlist secret
+    EXPIRED_TOKEN = "EXPIRED_TOKEN"  # noqa: S105  # pragma: allowlist secret
+    ACCESS_DENIED = "ACCESS_DENIED"
+    INSUFFICIENT_PERMISSIONS = "INSUFFICIENT_PERMISSIONS"
+
+    # Rate limiting errors (429)
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
+
+    # Service/Infrastructure errors (500, 502, 503)
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+    DATABASE_ERROR = "DATABASE_ERROR"
+    CACHE_ERROR = "CACHE_ERROR"
+    QUEUE_ERROR = "QUEUE_ERROR"
+
+    # AI/ML Service errors (502, 503)
+    DETECTOR_UNAVAILABLE = "DETECTOR_UNAVAILABLE"
+    RTDETR_UNAVAILABLE = "RTDETR_UNAVAILABLE"
+    NEMOTRON_UNAVAILABLE = "NEMOTRON_UNAVAILABLE"
+    FLORENCE_UNAVAILABLE = "FLORENCE_UNAVAILABLE"
+    ENRICHMENT_SERVICE_UNAVAILABLE = "ENRICHMENT_SERVICE_UNAVAILABLE"
+    AI_SERVICE_TIMEOUT = "AI_SERVICE_TIMEOUT"
+    MODEL_LOAD_FAILED = "MODEL_LOAD_FAILED"
+    INFERENCE_FAILED = "INFERENCE_FAILED"
+
+    # File/Media errors
+    FILE_NOT_FOUND = "FILE_NOT_FOUND"
+    FILE_ACCESS_DENIED = "FILE_ACCESS_DENIED"
+    INVALID_FILE_TYPE = "INVALID_FILE_TYPE"
+    FILE_TOO_LARGE = "FILE_TOO_LARGE"
+    MEDIA_PROCESSING_FAILED = "MEDIA_PROCESSING_FAILED"
+    THUMBNAIL_GENERATION_FAILED = "THUMBNAIL_GENERATION_FAILED"
+    CLIP_GENERATION_FAILED = "CLIP_GENERATION_FAILED"
+
+    # WebSocket errors
+    WEBSOCKET_CONNECTION_FAILED = "WEBSOCKET_CONNECTION_FAILED"
+    INVALID_WEBSOCKET_MESSAGE = "INVALID_WEBSOCKET_MESSAGE"
+    SUBSCRIPTION_FAILED = "SUBSCRIPTION_FAILED"
+
+    # Configuration errors
+    INVALID_CONFIGURATION = "INVALID_CONFIGURATION"
+    CONFIGURATION_UPDATE_FAILED = "CONFIGURATION_UPDATE_FAILED"
+
+    # Operation errors
+    OPERATION_FAILED = "OPERATION_FAILED"
+    OPERATION_TIMEOUT = "OPERATION_TIMEOUT"
+    OPERATION_CANCELLED = "OPERATION_CANCELLED"
+
+
+def raise_http_error(
+    status_code: int,
+    error_code: str,
+    message: str,
+    details: dict[str, Any] | None = None,
+    request_id: str | None = None,
+) -> NoReturn:
+    """Raise an HTTPException with a standardized error response format.
+
+    This helper function ensures consistent error responses across all API endpoints.
+    It constructs an ErrorResponse-compatible detail payload and raises HTTPException.
+
+    Args:
+        status_code: HTTP status code (e.g., 400, 404, 500)
+        error_code: Machine-readable error code from ErrorCode class
+        message: Human-readable error description
+        details: Optional dict with additional context about the error
+        request_id: Optional request correlation ID for debugging
+
+    Raises:
+        HTTPException: Always raises with the provided status code and error details
+
+    Example:
+        from backend.api.schemas.errors import ErrorCode, raise_http_error
+
+        # Simple 404 error
+        raise_http_error(
+            status_code=404,
+            error_code=ErrorCode.CAMERA_NOT_FOUND,
+            message="Camera 'front_door' not found in database",
+        )
+
+        # Error with details and request_id
+        raise_http_error(
+            status_code=400,
+            error_code=ErrorCode.INVALID_DATE_RANGE,
+            message="Start date must be before end date",
+            details={"start_date": "2024-01-15", "end_date": "2024-01-10"},
+            request_id="req-123-456",
+        )
+    """
+    error_response: dict[str, Any] = {
+        "error_code": error_code,
+        "message": message,
+    }
+    if details is not None:
+        error_response["details"] = details
+    if request_id is not None:
+        error_response["request_id"] = request_id
+
+    raise HTTPException(status_code=status_code, detail=error_response)
+
+
+class FlatErrorResponse(BaseModel):
+    """Flat error response schema for use with raise_http_error helper.
+
+    This schema matches the flat format produced by raise_http_error() and is
+    suitable for OpenAPI documentation of endpoints using standardized errors.
+
+    Note: This differs from ErrorResponse which uses a nested {"error": {...}} format.
+    Use FlatErrorResponse when documenting endpoints that use raise_http_error().
+
+    Attributes:
+        error_code: Machine-readable error code from ErrorCode class
+        message: Human-readable error description
+        details: Optional dict with additional context
+        request_id: Optional correlation ID for debugging
+
+    Example JSON response:
+        {
+            "error_code": "CAMERA_NOT_FOUND",
+            "message": "Camera 'front_door' not found in database",
+            "details": {"camera_id": "front_door"},
+            "request_id": "req-123-456"
+        }
+    """
+
+    error_code: str = Field(
+        ...,
+        description="Machine-readable error code (e.g., 'CAMERA_NOT_FOUND')",
+        examples=["CAMERA_NOT_FOUND", "VALIDATION_ERROR", "DETECTOR_UNAVAILABLE"],
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable error description",
+        examples=["Camera 'front_door' not found in database"],
+    )
+    details: dict[str, Any] | None = Field(
+        default=None,
+        description="Additional context about the error",
+        examples=[{"camera_id": "front_door"}],
+    )
+    request_id: str | None = Field(
+        default=None,
+        description="Correlation ID for debugging and log tracing",
+        examples=["req-123-456"],
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "error_code": "CAMERA_NOT_FOUND",
+                "message": "Camera 'front_door' not found in database",
+                "details": {"camera_id": "front_door"},
+                "request_id": "req-123-456",
+            }
+        }
+    }
+
+
+class ErrorDetail(BaseModel):
+    """Detailed error information (legacy nested format).
+
+    This is the inner error object used with the nested ErrorResponse format.
+    For new endpoints, prefer using FlatErrorResponse with raise_http_error().
 
     Attributes:
         code: Machine-readable error code for programmatic handling
@@ -85,9 +301,10 @@ class ErrorDetail(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """Standard error response wrapper.
+    """Standard error response wrapper (legacy nested format).
 
-    All API error responses should use this format for consistency.
+    This format uses a nested {"error": {...}} structure for backward compatibility.
+    For new endpoints using raise_http_error(), prefer FlatErrorResponse for OpenAPI docs.
 
     Attributes:
         error: The error detail object

@@ -1,0 +1,90 @@
+name: Dependency Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+
+jobs:
+  python-audit:
+    name: Python Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: '0.9.18'
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install pip-audit
+        run: uv tool install pip-audit
+
+      - name: Run pip-audit on dependencies
+        run: |
+          # Export dependencies to requirements format for pip-audit
+          uv export --no-hashes > requirements-audit.txt
+          pip-audit -r requirements-audit.txt --desc
+        continue-on-error: false
+
+  npm-audit:
+    name: NPM Dependency Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit for high severity vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: false
+
+  audit-summary:
+    name: Audit Summary
+    runs-on: ubuntu-latest
+    needs: [python-audit, npm-audit]
+    if: always()
+    steps:
+      - name: Generate audit summary
+        run: |
+          echo "## Dependency Audit Summary - $(date +'%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Audit | ${{ needs.python-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NPM Audit | ${{ needs.npm-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if ${{ needs.python-audit.result != 'success' || needs.npm-audit.result != 'success' }}; then
+            echo "### Action Required" >> $GITHUB_STEP_SUMMARY
+            echo "Dependency vulnerabilities detected. Review the job logs above for details and update dependencies." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -961,6 +961,12 @@ class Settings(BaseSettings):
         le=1048576,
         description="Maximum WebSocket message size in bytes (default: 64KB)",
     )
+    websocket_token: str | None = Field(
+        default=None,
+        description="Optional token for WebSocket authentication. When set, WebSocket "
+        "connections must include this token as a query parameter (?token=<value>). "
+        "Leave empty/unset to disable token authentication (single-user mode).",
+    )
 
     # Severity threshold settings (risk score 0-100)
     severity_low_max: int = Field(
@@ -1169,6 +1175,15 @@ class Settings(BaseSettings):
         default="data/profiles",
         description="Directory for storing profiling output files (.prof format). "
         "Files can be analyzed with 'snakeviz <file>.prof' or converted to flamegraphs.",
+    )
+
+    # HSTS (HTTP Strict Transport Security) settings
+    hsts_preload: bool = Field(
+        default=False,
+        description="Enable HSTS preload directive for inclusion in browser preload lists. "
+        "CAUTION: Only enable for public deployments registered at hstspreload.org. "
+        "Once registered, your domain will be hardcoded into browsers to always use HTTPS. "
+        "Requires: max-age >= 1 year, includeSubDomains, and serving valid HTTPS on all subdomains.",
     )
 
     # TLS/HTTPS settings (legacy - DEPRECATED, use TLS_MODE instead)

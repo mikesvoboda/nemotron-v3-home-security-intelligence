@@ -199,7 +199,10 @@ class SystemBroadcaster:
         try:
             status_data = await self._get_system_status()
             await websocket.send_json(status_data)
-        except Exception as e:
+        except (ConnectionError, RuntimeError, OSError) as e:
+            # ConnectionError: WebSocket connection issues
+            # RuntimeError: event loop or asyncio issues
+            # OSError: network-level failures
             logger.error(f"Failed to send initial status: {e}", exc_info=True)
 
     async def disconnect(self, websocket: WebSocket) -> None:
@@ -237,8 +240,9 @@ class SystemBroadcaster:
                 }
                 await redis_client.publish(SYSTEM_STATUS_CHANNEL, pubsub_message)
                 logger.debug("Published system status via Redis pub/sub")
-            except Exception as e:
-                logger.warning(f"Failed to publish via Redis: {e}")
+            except (ConnectionError, TimeoutError, OSError) as e:
+                # Redis connection failures and network issues
+                logger.warning(f"Failed to publish via Redis: {e}", exc_info=True)
 
     async def broadcast_performance(self) -> None:
         """Broadcast detailed performance metrics to all connected clients.
@@ -283,10 +287,12 @@ class SystemBroadcaster:
                     }
                     await redis_client.publish(PERFORMANCE_UPDATE_CHANNEL, pubsub_message)
                     logger.debug("Published performance update via Redis pub/sub")
-                except Exception as e:
-                    logger.warning(f"Failed to publish performance via Redis: {e}")
+                except (ConnectionError, TimeoutError, OSError) as e:
+                    # Redis connection failures and network issues
+                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=True)
 
-        except Exception as e:
+        except (ValueError, RuntimeError, OSError) as e:
+            # ValueError: serialization errors, RuntimeError: collector issues, OSError: IO errors
             logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
 
     async def _send_to_local_clients(self, status_data: dict | Any) -> None:
@@ -311,7 +317,9 @@ class SystemBroadcaster:
         for websocket in self.connections:
             try:
                 await websocket.send_text(message)
-            except Exception as e:
+            except (ConnectionError, RuntimeError, OSError) as e:
+                # ConnectionError: WebSocket closed/disconnected
+                # RuntimeError: asyncio issues, OSError: network failures
                 logger.warning(f"Failed to send to WebSocket: {e}")
                 failed_connections.add(websocket)
 
@@ -346,8 +354,9 @@ class SystemBroadcaster:
         try:
             await self._send_to_local_clients(degraded_message)
             logger.info("Broadcast degraded state notification to connected clients")
-        except Exception as e:
-            logger.warning(f"Failed to broadcast degraded state: {e}")
+        except (ConnectionError, RuntimeError, OSError) as e:
+            # WebSocket broadcast failures
+            logger.warning(f"Failed to broadcast degraded state: {e}", exc_info=True)
 
     async def _start_pubsub_listener(self) -> None:
         """Start the Redis pub/sub listener for receiving system status updates.
@@ -387,7 +396,8 @@ class SystemBroadcaster:
                 f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
                 f"{PERFORMANCE_UPDATE_CHANNEL}"
             )
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Redis connection failures and asyncio issues
             logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
             self._circuit_breaker.record_failure()
 
@@ -405,12 +415,14 @@ class SystemBroadcaster:
             try:
                 # Unsubscribe from both channels
                 await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
+                # Redis connection issues during cleanup
                 logger.warning(f"Error unsubscribing: {e}")
             try:
                 # Close the dedicated pubsub connection
                 await self._pubsub.close()
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
+                # Redis connection issues during cleanup
                 logger.warning(f"Error closing pubsub connection: {e}")
             self._pubsub = None
 
@@ -432,11 +444,13 @@ class SystemBroadcaster:
         if self._pubsub:
             try:
                 await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
+                # Redis connection issues during cleanup (expected during reset)
                 logger.debug(f"Error unsubscribing during reset (expected): {e}")
             try:
                 await self._pubsub.close()
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
+                # Redis connection issues during cleanup (expected during reset)
                 logger.debug(f"Error closing pubsub during reset (expected): {e}")
             self._pubsub = None
 
@@ -449,7 +463,8 @@ class SystemBroadcaster:
                 f"Re-established pub/sub subscription on channels: {SYSTEM_STATUS_CHANNEL}, "
                 f"{PERFORMANCE_UPDATE_CHANNEL}"
             )
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Redis connection failures and asyncio issues
             logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
             self._pubsub = None
 
@@ -510,7 +525,8 @@ class SystemBroadcaster:
 
         except asyncio.CancelledError:
             logger.info("Pub/sub listener cancelled")
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Redis connection failures and asyncio issues
             logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
             # Record failure in circuit breaker
             self._circuit_breaker.record_failure()
@@ -606,7 +622,8 @@ class SystemBroadcaster:
                 gpu_stats = await self._get_latest_gpu_stats_with_session(session)
                 camera_stats = await self._get_camera_stats_with_session(session)
                 health_status = "healthy"  # Database is healthy if we got here
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database connection failures and query errors
             logger.error(f"Failed to get system status from database: {e}", exc_info=True)
             gpu_stats = {
                 "utilization": None,
@@ -690,7 +707,8 @@ class SystemBroadcaster:
                 "temperature": gpu_stat.temperature,
                 "inference_fps": gpu_stat.inference_fps,
             }
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database query failures
             logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
             return {
                 "utilization": None,
@@ -712,7 +730,8 @@ class SystemBroadcaster:
         try:
             async with get_session() as session:
                 return await self._get_latest_gpu_stats_with_session(session)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database connection failures
             logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
             return {
                 "utilization": None,
@@ -746,7 +765,8 @@ class SystemBroadcaster:
                 "active": active_cameras,
                 "total": total_cameras,
             }
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database query failures
             logger.error(f"Failed to get camera stats: {e}", exc_info=True)
             return {
                 "active": 0,
@@ -764,7 +784,8 @@ class SystemBroadcaster:
         try:
             async with get_session() as session:
                 return await self._get_camera_stats_with_session(session)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database connection failures
             logger.error(f"Failed to get camera stats: {e}", exc_info=True)
             return {
                 "active": 0,
@@ -792,7 +813,8 @@ class SystemBroadcaster:
                 "pending": detection_queue_len,
                 "processing": analysis_queue_len,
             }
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
+            # Redis connection failures
             logger.error(f"Failed to get queue stats: {e}", exc_info=True)
             return {
                 "pending": 0,
@@ -810,7 +832,8 @@ class SystemBroadcaster:
             if redis_client:
                 await redis_client.health_check()
                 return True
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
+            # Redis connection failures
             logger.debug(f"Redis health check failed: {e}")
         return False
 
@@ -836,7 +859,8 @@ class SystemBroadcaster:
                 async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
                     response = await client.get(f"{settings.rtdetr_url}/health")
                     return bool(response.status_code == 200)
-            except Exception:
+            except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError):
+                # Network errors, timeouts, HTTP errors, and OS-level socket errors
                 return False
 
         async def check_nemotron() -> bool:
@@ -844,7 +868,8 @@ class SystemBroadcaster:
                 async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
                     response = await client.get(f"{settings.nemotron_url}/health")
                     return bool(response.status_code == 200)
-            except Exception:
+            except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError):
+                # Network errors, timeouts, HTTP errors, and OS-level socket errors
                 return False
 
         # Check both services concurrently for efficiency (NEM-1656)
@@ -857,8 +882,10 @@ class SystemBroadcaster:
                 check_rtdetr(),
                 check_nemotron(),
             )
-        except Exception as e:
-            logger.warning(f"Error during AI health check: {e}")
+        except (asyncio.CancelledError, RuntimeError) as e:
+            # asyncio.CancelledError: task cancellation during shutdown
+            # RuntimeError: event loop issues
+            logger.warning(f"Error during AI health check: {e}", exc_info=True)
 
         return {
             "rtdetr": rtdetr_healthy,
@@ -890,7 +917,8 @@ class SystemBroadcaster:
             else:
                 return "degraded"
 
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database/Redis connection failures
             logger.error(f"Failed to check health status: {e}", exc_info=True)
             return "unhealthy"
 
@@ -1012,7 +1040,8 @@ class SystemBroadcaster:
                 await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+                # Broadcast failures - continue after sleep
                 logger.error(f"Error in broadcast loop: {e}", exc_info=True)
                 await asyncio.sleep(interval)
 

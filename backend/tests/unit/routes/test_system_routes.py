@@ -1802,7 +1802,7 @@ async def test_record_stage_latency_invalid_stage() -> None:
 async def test_record_stage_latency_exception_handling() -> None:
     """Test record_stage_latency handles Redis exceptions gracefully."""
     redis = AsyncMock()
-    redis.add_to_queue_safe = AsyncMock(side_effect=RuntimeError("redis error"))
+    redis.add_to_queue_safe = AsyncMock(side_effect=ConnectionError("redis error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
         await system_routes.record_stage_latency(redis, "detect", 15.0)  # type: ignore[arg-type]
@@ -1961,7 +1961,7 @@ async def test_get_latency_stats_invalid_values_filtered() -> None:
 async def test_get_latency_stats_exception_handling() -> None:
     """Test get_latency_stats returns None on exception."""
     redis = AsyncMock()
-    redis.peek_queue = AsyncMock(side_effect=RuntimeError("redis error"))
+    redis.peek_queue = AsyncMock(side_effect=ConnectionError("redis error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
         result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
@@ -1998,7 +1998,7 @@ async def test_get_telemetry_returns_queue_depths_and_latencies() -> None:
 async def test_get_telemetry_queue_depth_exception() -> None:
     """Test get_telemetry handles queue depth errors gracefully."""
     redis = AsyncMock()
-    redis.get_queue_length = AsyncMock(side_effect=RuntimeError("redis error"))
+    redis.get_queue_length = AsyncMock(side_effect=ConnectionError("redis error"))
     redis.peek_queue = AsyncMock(return_value=[])
 
     with patch.object(system_routes.logger, "warning"):
@@ -2253,7 +2253,7 @@ async def test_record_stage_latency_expire_failure_logs_warning() -> None:
 
     redis = AsyncMock()
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
-    redis.expire = AsyncMock(side_effect=RuntimeError("redis expire error"))
+    redis.expire = AsyncMock(side_effect=ConnectionError("redis expire error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
         await system_routes.record_stage_latency(redis, "analyze", 200.0)  # type: ignore[arg-type]
@@ -2573,7 +2573,7 @@ async def test_check_rtdetr_health_http_error() -> None:
 @pytest.mark.asyncio
 async def test_check_rtdetr_health_unexpected_error() -> None:
     """Test RT-DETR health check handles unexpected error."""
-    with patch("httpx.AsyncClient.get", side_effect=ValueError("Unexpected")):
+    with patch("httpx.AsyncClient.get", side_effect=OSError("Unexpected network error")):
         is_healthy, error = await system_routes._check_rtdetr_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False

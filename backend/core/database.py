@@ -183,11 +183,15 @@ async def init_db() -> None:
             _bound_loop_id = None
             # Try to dispose - this may fail if loop is already closed
             await old_engine.dispose()
-        except Exception:  # noqa: S110
+        except (RuntimeError, OSError) as e:
+            # RuntimeError: event loop issues (old loop closed, etc.)
+            # OSError: connection cleanup failures
             # If disposal fails, that's okay - we've already cleared the globals
             # This can happen when the old loop is closed or when there are
             # pending async operations that can't complete
-            pass
+            import logging
+
+            logging.getLogger(__name__).debug(f"Engine disposal failed (expected): {e}")
 
     settings = get_settings()
     db_url = settings.database_url

@@ -62,6 +62,18 @@ from .enrichment import (
     ViolenceEnrichment,
     WeatherEnrichment,
 )
+from .errors import (
+    COMMON_ERROR_RESPONSES,
+    ErrorCode,
+    ErrorDetail,
+    ErrorResponse,
+    FlatErrorResponse,
+    RateLimitErrorResponse,
+    ServiceUnavailableResponse,
+    ValidationErrorDetail,
+    ValidationErrorResponse,
+    raise_http_error,
+)
 from .health import (
     CheckResult,
     LivenessResponse,
@@ -125,6 +137,8 @@ from .websocket import (
 from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
 
 __all__ = [
+    # Constants (sorted separately)
+    "COMMON_ERROR_RESPONSES",
     "ActivityBaselineEntry",
     "ActivityBaselineResponse",
     "AlertCreate",
@@ -168,9 +182,13 @@ __all__ = [
     "EnrichedSuggestion",
     "EnrichmentDataSchema",
     "EnrichmentResponse",
+    "ErrorCode",
+    "ErrorDetail",
+    "ErrorResponse",
     "EventEnrichmentsResponse",
     "ExampleImprovement",
     "FaceEnrichment",
+    "FlatErrorResponse",
     "HealthReadinessResponse",
     "HourlyPattern",
     "ImageQualityEnrichment",
@@ -189,6 +207,7 @@ __all__ = [
     "PetEnrichment",
     "PetEnrichmentData",
     "PoseEnrichment",
+    "RateLimitErrorResponse",
     "RiskLevel",
     "SceneChangeAcknowledgeResponse",
     "SceneChangeListResponse",
@@ -202,10 +221,13 @@ __all__ = [
     "ServiceCategory",
     "ServiceInfo",
     "ServiceStatusEvent",
+    "ServiceUnavailableResponse",
     "ServicesResponse",
     "SimpleReadinessResponse",
     "TestNotificationRequest",
     "TestNotificationResponse",
+    "ValidationErrorDetail",
+    "ValidationErrorResponse",
     "VehicleEnrichment",
     "VehicleEnrichmentData",
     "ViolenceEnrichment",
@@ -229,4 +251,6 @@ __all__ = [
     "ZoneListResponse",
     "ZoneResponse",
     "ZoneUpdate",
+    # Functions and utilities (sorted separately)
+    "raise_http_error",
 ]
