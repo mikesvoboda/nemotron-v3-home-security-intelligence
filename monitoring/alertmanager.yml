@@ -1,0 +1,215 @@
+# Alertmanager Configuration for Home Security Intelligence
+# Routes alerts to appropriate receivers based on severity and component
+
+global:
+  # Default settings
+  resolve_timeout: 5m
+
+  # SMTP settings (configure for email notifications)
+  # smtp_smarthost: 'smtp.example.com:587'
+  # smtp_from: 'alertmanager@hsi.local'
+  # smtp_auth_username: 'alertmanager'
+  # smtp_auth_password: 'password'
+
+  # Slack settings (configure for Slack notifications)
+  # slack_api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
+
+# Templates for notification formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Alert routing tree
+route:
+  # Default receiver
+  receiver: 'default-receiver'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'component', 'severity']
+
+  # Wait before sending first notification for a group
+  group_wait: 30s
+
+  # Wait before sending notification about new alerts in existing group
+  group_interval: 5m
+
+  # Wait before resending notification for resolved alert
+  repeat_interval: 4h
+
+  # Child routes for specific routing
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 1h
+      continue: true
+
+    # SLO burn rate alerts - high priority
+    - match:
+        component: slo
+      receiver: 'slo-receiver'
+      group_by: ['alertname', 'slo']
+      group_wait: 30s
+      repeat_interval: 2h
+
+    # Pipeline health alerts
+    - match:
+        component: pipeline
+      receiver: 'pipeline-receiver'
+      group_wait: 15s
+
+    # Database alerts
+    - match:
+        component: database
+      receiver: 'infrastructure-receiver'
+
+    # Redis alerts
+    - match:
+        component: redis
+      receiver: 'infrastructure-receiver'
+
+    # GPU alerts
+    - match:
+        component: gpu
+      receiver: 'gpu-receiver'
+
+    # Warning alerts - batched
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 6h
+
+    # Info alerts - low priority
+    - match:
+        severity: info
+      receiver: 'info-receiver'
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
+
+# Inhibition rules - suppress alerts based on other alerts
+inhibit_rules:
+  # If pipeline is down, suppress all other alerts
+  - source_match:
+      alertname: HSIPipelineDown
+    target_match_re:
+      alertname: HSI.*
+    equal: []
+
+  # If database is unhealthy, suppress queue and latency alerts
+  - source_match:
+      alertname: HSIDatabaseUnhealthy
+    target_match_re:
+      alertname: (HSIDetectionQueueHigh|HSIAnalysisQueueHigh|HSISlowDetection|HSISlowAnalysis)
+    equal: []
+
+  # If Redis is unhealthy, suppress queue alerts
+  - source_match:
+      alertname: HSIRedisUnhealthy
+    target_match_re:
+      alertname: (HSIDetectionQueueHigh|HSIAnalysisQueueHigh)
+    equal: []
+
+  # If GPU memory is critical, suppress GPU elevated warning
+  - source_match:
+      alertname: HSIGPUMemoryHigh
+    target_match:
+      alertname: HSIGPUMemoryElevated
+    equal: ['component']
+
+  # If critical error rate, suppress high error rate warning
+  - source_match:
+      alertname: HSICriticalErrorRate
+    target_match:
+      alertname: HSIHighErrorRate
+    equal: []
+
+  # If extreme latency, suppress slow detection/analysis warnings
+  - source_match:
+      alertname: HSIExtremeLatency
+    target_match_re:
+      alertname: (HSISlowDetection|HSISlowAnalysis)
+    equal: []
+
+  # If queue is critical, suppress queue high warnings
+  - source_match:
+      alertname: HSIQueueCritical
+    target_match_re:
+      alertname: (HSIDetectionQueueHigh|HSIAnalysisQueueHigh)
+    equal: []
+
+  # If fast burn, suppress slow burn
+  - source_match_re:
+      alertname: HSI.*FastBurn
+    target_match_re:
+      alertname: HSI.*SlowBurn
+    equal: ['slo']
+
+# Receivers define how alerts are delivered
+receivers:
+  # Default receiver - webhook or logging
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+
+  # Critical alerts - all channels
+  - name: 'critical-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+    # Uncomment and configure for production:
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
+    #     channel: '#hsi-critical'
+    #     title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    #     send_resolved: true
+    # email_configs:
+    #   - to: 'oncall@example.com'
+    #     send_resolved: true
+
+  # SLO burn rate alerts
+  - name: 'slo-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
+    #     channel: '#hsi-slo'
+    #     title: 'SLO Alert: {{ .GroupLabels.slo }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  # Pipeline health alerts
+  - name: 'pipeline-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+
+  # Infrastructure alerts (database, Redis)
+  - name: 'infrastructure-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+
+  # GPU alerts
+  - name: 'gpu-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+
+  # Warning alerts
+  - name: 'warning-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: true
+
+  # Info alerts - logging only
+  - name: 'info-receiver'
+    webhook_configs:
+      - url: 'http://backend:8000/api/webhooks/alerts'
+        send_resolved: false
