@@ -1,0 +1,746 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BoundingBoxOverlay snapshots > renders with confidence hidden 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="300"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#ef4444"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="64"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        person
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="100"
+      stroke="#3b82f6"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="150"
+      x="400"
+      y="200"
+    />
+    <g>
+      <rect
+        fill="#3b82f6"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="40"
+        x="400"
+        y="172"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="408"
+        y="190"
+      >
+        car
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with custom colors 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="200"
+      stroke="#ff00ff"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#ff00ff"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="88"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        custom
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          90%
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="150"
+      stroke="#00ffff"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="150"
+      x="400"
+      y="400"
+    />
+    <g>
+      <rect
+        fill="#00ffff"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="96"
+        x="400"
+        y="372"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="408"
+        y="390"
+      >
+        another
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          85%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with different image dimensions 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 1920 1080"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="300"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#ef4444"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="88"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        person
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          95%
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="100"
+      stroke="#3b82f6"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="150"
+      x="400"
+      y="200"
+    />
+    <g>
+      <rect
+        fill="#3b82f6"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="64"
+        x="400"
+        y="172"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="408"
+        y="190"
+      >
+        car
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          87%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with labels hidden 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="300"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="100"
+      stroke="#3b82f6"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="150"
+      x="400"
+      y="200"
+    />
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with minConfidence filter 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="300"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#ef4444"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="88"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        person
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          95%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with multiple bounding boxes 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="300"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#ef4444"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="88"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        person
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          95%
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="100"
+      stroke="#3b82f6"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="150"
+      x="400"
+      y="200"
+    />
+    <g>
+      <rect
+        fill="#3b82f6"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="64"
+        x="400"
+        y="172"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="408"
+        y="190"
+      >
+        car
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          87%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with single bounding box 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="300"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#ef4444"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="88"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        person
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          95%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with unknown object type (default color) 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 800 600"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="200"
+      stroke="#6b7280"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="200"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#6b7280"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="152"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        unknown_object
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          85%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`BoundingBoxOverlay snapshots > renders with various object types 1`] = `
+<svg
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  preserveAspectRatio="none"
+  style="z-index: 10;"
+  viewBox="0 0 1920 1080"
+>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="50"
+      stroke="#ef4444"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="50"
+      x="10"
+      y="10"
+    />
+    <g>
+      <rect
+        fill="#ef4444"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="88"
+        x="10"
+        y="-18"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="18"
+        y="0"
+      >
+        person
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          99%
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="100"
+      stroke="#3b82f6"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="100"
+      x="100"
+      y="100"
+    />
+    <g>
+      <rect
+        fill="#3b82f6"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="64"
+        x="100"
+        y="72"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="108"
+        y="90"
+      >
+        car
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          85%
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="75"
+      stroke="#8b5cf6"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="75"
+      x="300"
+      y="300"
+    />
+    <g>
+      <rect
+        fill="#8b5cf6"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="64"
+        x="300"
+        y="272"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="308"
+        y="290"
+      >
+        cat
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          72%
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <rect
+      class=""
+      fill="none"
+      height="80"
+      stroke="#10b981"
+      stroke-width="3"
+      style="transition: stroke-width 0.2s ease;"
+      width="120"
+      x="500"
+      y="200"
+    />
+    <g>
+      <rect
+        fill="#10b981"
+        height="24"
+        opacity="0.9"
+        rx="4"
+        width="96"
+        x="500"
+        y="172"
+      />
+      <text
+        class="pointer-events-none select-none"
+        fill="white"
+        font-family="Inter, system-ui, sans-serif"
+        font-size="14"
+        font-weight="600"
+        x="508"
+        y="190"
+      >
+        package
+        <tspan
+          fill="white"
+          font-weight="500"
+          opacity="0.9"
+        >
+
+          91%
+        </tspan>
+      </text>
+    </g>
+  </g>
+</svg>
+`;

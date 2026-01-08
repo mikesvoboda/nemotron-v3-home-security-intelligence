@@ -88,8 +88,8 @@ export default function SettingsPage() {
                         'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
                         'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
                         selected
-                          ? 'bg-[#76B900] text-black shadow-md'
-                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                          ? 'bg-[#76B900] text-gray-950 shadow-md'
+                          : 'text-gray-200 hover:bg-gray-800 hover:text-white'
                       )}
                       data-selected={selected}
                     >

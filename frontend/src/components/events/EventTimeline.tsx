@@ -26,6 +26,7 @@ import {
   searchEvents,
   updateEvent,
 } from '../../services/api';
+import { countBy } from '../../utils/groupBy';
 import { getRiskLevel } from '../../utils/risk';
 import { EmptyState, EventCardSkeleton } from '../common';
 import RiskBadge from '../common/RiskBadge';
@@ -451,14 +452,15 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   });
 
   // Calculate risk level counts for the currently displayed events
-  const riskCounts = filteredEvents.reduce(
-    (acc, event) => {
-      const level = event.risk_level || getRiskLevel(event.risk_score || 0);
-      acc[level as RiskLevel] = (acc[level as RiskLevel] || 0) + 1;
-      return acc;
-    },
-    { critical: 0, high: 0, medium: 0, low: 0 } as Record<RiskLevel, number>
+  const riskCountsPartial = countBy(filteredEvents, (event) =>
+    (event.risk_level || getRiskLevel(event.risk_score || 0)) as RiskLevel
   );
+  const riskCounts: Record<RiskLevel, number> = {
+    critical: riskCountsPartial.critical ?? 0,
+    high: riskCountsPartial.high ?? 0,
+    medium: riskCountsPartial.medium ?? 0,
+    low: riskCountsPartial.low ?? 0,
+  };
 
   // Calculate pagination info
   const limit = filters.limit || 20;

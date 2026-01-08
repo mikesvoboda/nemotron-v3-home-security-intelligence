@@ -437,7 +437,7 @@ export default function ZoneEditor({ camera, isOpen, onClose }: ZoneEditorProps)
                         <button
                           onClick={() => void handleDelete()}
                           disabled={isSubmitting}
-                          className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-all hover:bg-red-700 focus:outline-none disabled:opacity-50"
+                          className="rounded-lg bg-red-700 px-3 py-1.5 text-sm font-medium text-white transition-all hover:bg-red-800 focus:outline-none disabled:opacity-50"
                         >
                           {isSubmitting ? 'Deleting...' : 'Delete'}
                         </button>
