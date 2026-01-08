@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from backend.api.dependencies import get_cache_service_dep, get_event_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
@@ -201,8 +202,8 @@ async def list_events(  # noqa: PLR0912
                 detail=f"Invalid cursor: {e}",
             ) from e
 
-    # Build base query
-    query = select(Event)
+    # Build base query with eager loading for camera relationship (NEM-1619)
+    query = select(Event).options(joinedload(Event.camera))
 
     # Apply filters
     if camera_id:

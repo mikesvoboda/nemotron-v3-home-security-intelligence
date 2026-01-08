@@ -14,6 +14,7 @@ import {
   type EventStatsResponse,
 } from '../../services/api';
 import { CameraCardSkeleton, StatsCardSkeleton, Skeleton } from '../common';
+import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import StatsRow from './StatsRow';
 
@@ -180,10 +181,31 @@ export default function DashboardPage() {
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
 
-// Handle camera card click - navigate to timeline with camera filter
+  // Convert merged events to ActivityEvent format for ActivityFeed
+  const activityEvents: ActivityEvent[] = mergedEvents.map((event) => {
+    const timestamp = event.timestamp ?? event.started_at;
+    return {
+      id: String(event.id),
+      timestamp: timestamp || new Date().toISOString(), // Fallback to current time if both are undefined
+      camera_name: cameras.find((c) => c.id === event.camera_id)?.name ?? event.camera_id,
+      risk_score: event.risk_score,
+      summary: event.summary,
+      thumbnail_url: getCameraSnapshotUrl(event.camera_id),
+    };
+  });
+
+  // Handle camera card click - navigate to timeline with camera filter
   const handleCameraClick = useCallback(
     (cameraId: string) => {
       void navigate(`/timeline?camera=${cameraId}`);
+    },
+    [navigate]
+  );
+
+  // Handle activity event click - navigate to timeline
+  const handleEventClick = useCallback(
+    (_eventId: string) => {
+      void navigate('/timeline');
     },
     [navigate]
   );
@@ -226,13 +248,22 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Camera grid skeleton */}
-          <div className="mb-6 md:mb-8">
-            <Skeleton variant="text" width={192} height={32} className="mb-4" />
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 4 }, (_, i) => (
-                <CameraCardSkeleton key={i} />
-              ))}
+          {/* 2-Column Layout skeleton */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
+            {/* Camera grid skeleton */}
+            <div>
+              <Skeleton variant="text" width={192} height={32} className="mb-4" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <CameraCardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+
+            {/* Activity feed skeleton */}
+            <div>
+              <Skeleton variant="text" width={192} height={32} className="mb-4" />
+              <Skeleton variant="rectangular" width="100%" height={600} className="rounded-lg" />
             </div>
           </div>
         </div>
@@ -266,10 +297,24 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Camera Grid */}
-        <div className="mb-6 md:mb-8">
-          <h2 className="text-section-title mb-3 md:mb-4">Camera Status</h2>
-          <CameraGrid cameras={cameraStatuses} onCameraClick={handleCameraClick} />
+        {/* 2-Column Layout: Camera Grid + Activity Feed */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]">
+          {/* Left Column: Camera Grid */}
+          <div>
+            <h2 className="text-section-title mb-3 md:mb-4">Camera Status</h2>
+            <CameraGrid cameras={cameraStatuses} onCameraClick={handleCameraClick} />
+          </div>
+
+          {/* Right Column: Live Activity Feed */}
+          <div>
+            <h2 className="text-section-title mb-3 md:mb-4">Live Activity</h2>
+            <ActivityFeed
+              events={activityEvents}
+              maxItems={10}
+              onEventClick={handleEventClick}
+              className="h-[600px] lg:h-[700px]"
+            />
+          </div>
         </div>
       </div>
     </div>

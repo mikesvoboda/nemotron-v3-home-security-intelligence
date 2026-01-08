@@ -462,6 +462,17 @@ async def _reset_db_schema() -> None:
             await conn.execute(
                 text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
             )
+            # NEM-1652: Add soft delete columns
+            await conn.execute(
+                text(
+                    "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
 
             # Add unique indexes for cameras table (migration adds these for production)
             # First, clean up any duplicate cameras that might prevent index creation
