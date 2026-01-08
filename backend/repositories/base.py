@@ -88,10 +88,30 @@ class Repository(Generic[T]):  # noqa: UP046
             A sequence of all entities. May be empty if no entities exist.
 
         Note:
-            For large tables, consider using pagination or filtering methods
-            instead to avoid loading all records into memory.
+            For large tables, consider using list_paginated() instead
+            to avoid loading all records into memory.
         """
         result = await self.session.execute(select(self.model_class))
+        return result.scalars().all()
+
+    async def list_paginated(self, *, skip: int = 0, limit: int = 100) -> Sequence[T]:
+        """Retrieve entities with pagination support.
+
+        Args:
+            skip: Number of records to skip (offset).
+            limit: Maximum number of records to return.
+
+        Returns:
+            A sequence of entities within the specified range.
+
+        Example:
+            # Get first page of 20 items
+            page1 = await repo.list_paginated(skip=0, limit=20)
+            # Get second page
+            page2 = await repo.list_paginated(skip=20, limit=20)
+        """
+        stmt = select(self.model_class).offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
         return result.scalars().all()
 
     async def get_many(self, entity_ids: Sequence[Any]) -> Sequence[T]:
@@ -183,10 +203,62 @@ class Repository(Generic[T]):  # noqa: UP046
             The entity should already be attached to the session
             (e.g., retrieved via get_by_id). Changes are detected
             automatically by SQLAlchemy's unit of work.
+            For detached entities, use merge() instead.
         """
         await self.session.flush()
         await self.session.refresh(entity)
         return entity
+
+    async def merge(self, entity: T) -> T:
+        """Merge a detached entity into the session.
+
+        This is useful when you have an entity that was loaded in a different
+        session or has been detached, and you want to update it.
+
+        Args:
+            entity: The entity instance to merge. Can be detached from the session.
+
+        Returns:
+            The merged entity, now attached to the current session.
+
+        Note:
+            Unlike update(), this works with detached entities by copying
+            their state into a new or existing persistent instance.
+        """
+        merged = await self.session.merge(entity)
+        await self.session.flush()
+        return merged
+
+    async def save(self, entity: T) -> T:
+        """Save an entity, creating or updating as needed (upsert pattern).
+
+        This method checks if the entity exists and performs an update if so,
+        otherwise creates a new entity.
+
+        Args:
+            entity: The entity to save.
+
+        Returns:
+            The saved entity.
+
+        Note:
+            This performs an existence check, so for bulk operations
+            use create_many() or explicit create()/update() calls instead.
+        """
+        # Get the primary key value from the entity
+        pk = self.model_class.__table__.primary_key
+        pk_columns = list(pk.columns)  # type: ignore[attr-defined]
+
+        if len(pk_columns) == 1:
+            pk_attr = pk_columns[0].name
+            entity_id = getattr(entity, pk_attr, None)
+        else:
+            # For composite PKs, build a tuple
+            entity_id = tuple(getattr(entity, col.name, None) for col in pk_columns)
+
+        if entity_id is not None and await self.exists(entity_id):
+            return await self.merge(entity)
+        return await self.create(entity)
 
     async def delete(self, entity: T) -> None:
         """Delete an entity from the database.
