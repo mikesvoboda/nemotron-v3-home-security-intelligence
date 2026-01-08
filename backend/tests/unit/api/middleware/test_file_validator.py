@@ -365,7 +365,7 @@ class TestValidatedUploadFile:
             async def mock_read():
                 return content
 
-            async def mock_seek(pos):
+            async def mock_seek(_pos):
                 pass
 
             mock.read = mock_read
@@ -467,7 +467,7 @@ class TestValidateUploadFileFunction:
         async def mock_read():
             return JPEG_HEADER + b"\x00" * 100
 
-        async def mock_seek(pos):
+        async def mock_seek(_pos):
             pass
 
         mock.read = mock_read
@@ -489,7 +489,7 @@ class TestValidateUploadFileFunction:
         async def mock_read():
             return JPEG_HEADER + b"\x00" * 100  # But actually JPEG
 
-        async def mock_seek(pos):
+        async def mock_seek(_pos):
             pass
 
         mock.read = mock_read
