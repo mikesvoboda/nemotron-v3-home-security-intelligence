@@ -47,6 +47,7 @@ async def test_list_logs_empty_database() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -98,6 +99,7 @@ async def test_list_logs_with_results() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -132,6 +134,7 @@ async def test_list_logs_filter_by_level() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -166,6 +169,7 @@ async def test_list_logs_filter_by_component() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -199,6 +203,7 @@ async def test_list_logs_filter_by_camera_id() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -232,6 +237,7 @@ async def test_list_logs_filter_by_source() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -265,6 +271,7 @@ async def test_list_logs_filter_by_search() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -300,6 +307,7 @@ async def test_list_logs_filter_by_start_date() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -335,6 +343,7 @@ async def test_list_logs_filter_by_end_date() -> None:
         end_date=end_date,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -370,6 +379,7 @@ async def test_list_logs_filter_by_date_range() -> None:
         end_date=end_date,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 
@@ -407,6 +417,7 @@ async def test_list_logs_with_all_filters() -> None:
         end_date=datetime.now(UTC),
         limit=50,
         offset=10,
+        cursor=None,
         db=db,
     )
 
@@ -443,6 +454,7 @@ async def test_list_logs_pagination() -> None:
         end_date=None,
         limit=5,
         offset=10,
+        cursor=None,
         db=db,
     )
 
@@ -475,6 +487,7 @@ async def test_list_logs_null_count() -> None:
         end_date=None,
         limit=100,
         offset=0,
+        cursor=None,
         db=db,
     )
 

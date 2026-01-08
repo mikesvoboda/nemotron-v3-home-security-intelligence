@@ -175,7 +175,8 @@ check_hooks() {
         local uv_version=$(uv --version 2>&1 | head -1)
         echo -e "${GREEN}[OK]${NC} uv: $uv_version"
     else
-        echo -e "${YELLOW}[WARN]${NC} uv not installed (pip will be used as fallback)"
+        echo -e "${RED}[MISSING]${NC} uv (required)"
+        all_ok=false
     fi
 
     if command_exists node; then
@@ -262,27 +263,26 @@ echo ""
 
 echo -e "${YELLOW}Setting up Python environment...${NC}"
 
+# Check for uv (mandatory)
+if ! command_exists uv; then
+    echo -e "${RED}Error: uv is required but not installed.${NC}"
+    echo "Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    echo "Or with Homebrew: brew install uv"
+    exit 1
+fi
+
 # Create virtual environment if it doesn't exist
 if [ ! -d ".venv" ]; then
     echo "Creating Python virtual environment..."
-    if command_exists uv; then
-        uv venv .venv
-    else
-        python3 -m venv .venv
-    fi
+    uv venv .venv
 fi
 
 # Activate virtual environment
 source .venv/bin/activate
 
-# Install backend dependencies
+# Install backend dependencies using uv sync
 echo "Installing backend dependencies..."
-if command_exists uv; then
-    uv sync --extra dev
-else
-    pip install -r backend/requirements.txt
-    pip install pre-commit ruff mypy
-fi
+uv sync --extra dev
 
 echo -e "${GREEN}Python environment ready${NC}"
 echo ""

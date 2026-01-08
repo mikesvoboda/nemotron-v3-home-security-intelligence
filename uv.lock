@@ -754,6 +754,74 @@ dev = [
     { name = "wily" },
 ]
 
+[package.dev-dependencies]
+benchmark = [
+    { name = "big-o" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-memray" },
+    { name = "snakeviz" },
+]
+dev = [
+    { name = "bandit" },
+    { name = "big-o" },
+    { name = "defusedxml" },
+    { name = "factory-boy" },
+    { name = "fakeredis" },
+    { name = "ffmpeg-python" },
+    { name = "hypothesis" },
+    { name = "mutmut" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-clarity" },
+    { name = "pytest-cov" },
+    { name = "pytest-deadfixtures" },
+    { name = "pytest-memray" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-sugar" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+    { name = "snakeviz" },
+    { name = "testcontainers" },
+    { name = "vulture" },
+    { name = "wily" },
+]
+lint = [
+    { name = "mypy" },
+    { name = "ruff" },
+]
+mutation = [
+    { name = "mutmut" },
+]
+quality = [
+    { name = "vulture" },
+    { name = "wily" },
+]
+security = [
+    { name = "bandit" },
+]
+test = [
+    { name = "defusedxml" },
+    { name = "factory-boy" },
+    { name = "fakeredis" },
+    { name = "ffmpeg-python" },
+    { name = "hypothesis" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-clarity" },
+    { name = "pytest-cov" },
+    { name = "pytest-deadfixtures" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-sugar" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "testcontainers" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "accelerate", specifier = ">=1.12.0" },
@@ -824,6 +892,70 @@ requires-dist = [
     { name = "wily", marker = "extra == 'dev'", specifier = ">=1.25.0" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+benchmark = [
+    { name = "big-o", specifier = ">=0.11.0" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-memray", specifier = ">=1.5.0" },
+    { name = "snakeviz", specifier = ">=2.2.0" },
+]
+dev = [
+    { name = "bandit", specifier = ">=1.7.0" },
+    { name = "big-o", specifier = ">=0.11.0" },
+    { name = "defusedxml", specifier = ">=0.7.0" },
+    { name = "factory-boy", specifier = ">=3.3.0" },
+    { name = "fakeredis", specifier = ">=2.20.0" },
+    { name = "ffmpeg-python", specifier = ">=0.2.0" },
+    { name = "hypothesis", specifier = ">=6.100.0" },
+    { name = "mutmut", specifier = ">=3.2.0" },
+    { name = "mypy", specifier = ">=1.13.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-clarity", specifier = ">=1.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-deadfixtures", specifier = ">=3.0.0" },
+    { name = "pytest-memray", specifier = ">=1.5.0" },
+    { name = "pytest-randomly", specifier = ">=4.0.0" },
+    { name = "pytest-rerunfailures", specifier = ">=14.0" },
+    { name = "pytest-sugar", specifier = ">=1.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.3.0" },
+    { name = "pytest-xdist", specifier = ">=3.5.0" },
+    { name = "ruff", specifier = ">=0.8.0" },
+    { name = "snakeviz", specifier = ">=2.2.0" },
+    { name = "testcontainers", specifier = ">=4.0.0" },
+    { name = "vulture", specifier = ">=2.11" },
+    { name = "wily", specifier = ">=1.25.0" },
+]
+lint = [
+    { name = "mypy", specifier = ">=1.13.0" },
+    { name = "ruff", specifier = ">=0.8.0" },
+]
+mutation = [{ name = "mutmut", specifier = ">=3.2.0" }]
+quality = [
+    { name = "vulture", specifier = ">=2.11" },
+    { name = "wily", specifier = ">=1.25.0" },
+]
+security = [{ name = "bandit", specifier = ">=1.7.0" }]
+test = [
+    { name = "defusedxml", specifier = ">=0.7.0" },
+    { name = "factory-boy", specifier = ">=3.3.0" },
+    { name = "fakeredis", specifier = ">=2.20.0" },
+    { name = "ffmpeg-python", specifier = ">=0.2.0" },
+    { name = "hypothesis", specifier = ">=6.100.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-clarity", specifier = ">=1.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-deadfixtures", specifier = ">=3.0.0" },
+    { name = "pytest-randomly", specifier = ">=4.0.0" },
+    { name = "pytest-rerunfailures", specifier = ">=14.0" },
+    { name = "pytest-sugar", specifier = ">=1.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.3.0" },
+    { name = "pytest-xdist", specifier = ">=3.5.0" },
+    { name = "testcontainers", specifier = ">=4.0.0" },
+]
 
 [[package]]
 name = "httpcore"

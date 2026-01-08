@@ -100,6 +100,11 @@ from .notification import (
     TestNotificationRequest,
     TestNotificationResponse,
 )
+from .problem_details import (
+    HTTP_STATUS_PHRASES,
+    ProblemDetail,
+    get_status_phrase,
+)
 from .scene_change import (
     SceneChangeAcknowledgeResponse,
     SceneChangeListResponse,
@@ -139,6 +144,7 @@ from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
 __all__ = [
     # Constants (sorted separately)
     "COMMON_ERROR_RESPONSES",
+    "HTTP_STATUS_PHRASES",
     "ActivityBaselineEntry",
     "ActivityBaselineResponse",
     "AlertCreate",
@@ -207,6 +213,7 @@ __all__ = [
     "PetEnrichment",
     "PetEnrichmentData",
     "PoseEnrichment",
+    "ProblemDetail",
     "RateLimitErrorResponse",
     "RiskLevel",
     "SceneChangeAcknowledgeResponse",
@@ -252,5 +259,6 @@ __all__ = [
     "ZoneResponse",
     "ZoneUpdate",
     # Functions and utilities (sorted separately)
+    "get_status_phrase",
     "raise_http_error",
 ]

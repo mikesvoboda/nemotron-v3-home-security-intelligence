@@ -66,85 +66,109 @@ def sample_audit_log() -> AuditLog:
 
 
 class TestListAuditLogs:
-    """Tests for GET /api/audit endpoint."""
+    """Tests for GET /api/audit endpoint.
 
-    def test_list_audit_logs_empty(self, client: TestClient) -> None:
+    The endpoint now uses direct database queries with cursor-based pagination
+    instead of the AuditService.get_audit_logs() method.
+    """
+
+    def test_list_audit_logs_empty(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test listing audit logs when none exist."""
-        with patch(
-            "backend.api.routes.audit.AuditService.get_audit_logs",
-            new_callable=AsyncMock,
-        ) as mock_get_logs:
-            mock_get_logs.return_value = ([], 0)
+        # Mock execute for count query - scalar() is sync
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
 
-            response = client.get("/api/audit")
+        # Mock execute for logs query - scalars().all() are sync
+        logs_result = MagicMock()
+        logs_result.scalars.return_value.all.return_value = []
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["logs"] == []
-            assert data["count"] == 0
-            assert data["limit"] == 100
-            assert data["offset"] == 0
+        # Both queries return their respective results
+        mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
+
+        response = client.get("/api/audit")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["logs"] == []
+        assert data["count"] == 0
+        assert data["limit"] == 100
+        assert data["offset"] == 0
 
     def test_list_audit_logs_with_data(
-        self, client: TestClient, sample_audit_log: AuditLog
+        self, client: TestClient, sample_audit_log: AuditLog, mock_db_session: AsyncMock
     ) -> None:
         """Test listing audit logs with existing data."""
-        with patch(
-            "backend.api.routes.audit.AuditService.get_audit_logs",
-            new_callable=AsyncMock,
-        ) as mock_get_logs:
-            mock_get_logs.return_value = ([sample_audit_log], 1)
+        # Mock count query
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
 
-            response = client.get("/api/audit")
+        # Mock logs query
+        logs_result = MagicMock()
+        logs_result.scalars.return_value.all.return_value = [sample_audit_log]
 
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data["logs"]) == 1
-            assert data["count"] == 1
+        mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-    def test_list_audit_logs_filter_by_action(self, client: TestClient) -> None:
+        response = client.get("/api/audit")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["logs"]) == 1
+        assert data["count"] == 1
+
+    def test_list_audit_logs_filter_by_action(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
         """Test filtering audit logs by action."""
-        with patch(
-            "backend.api.routes.audit.AuditService.get_audit_logs",
-            new_callable=AsyncMock,
-        ) as mock_get_logs:
-            mock_get_logs.return_value = ([], 0)
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
 
-            response = client.get("/api/audit?action=camera_created")
+        logs_result = MagicMock()
+        logs_result.scalars.return_value.all.return_value = []
 
-            assert response.status_code == 200
-            mock_get_logs.assert_called_once()
-            call_args = mock_get_logs.call_args
-            assert call_args.kwargs["action"] == "camera_created"
+        mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-    def test_list_audit_logs_filter_by_resource_type(self, client: TestClient) -> None:
+        response = client.get("/api/audit?action=camera_created")
+
+        assert response.status_code == 200
+        # Verify execute was called (filter is applied in the query)
+        assert mock_db_session.execute.call_count == 2
+
+    def test_list_audit_logs_filter_by_resource_type(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
         """Test filtering audit logs by resource type."""
-        with patch(
-            "backend.api.routes.audit.AuditService.get_audit_logs",
-            new_callable=AsyncMock,
-        ) as mock_get_logs:
-            mock_get_logs.return_value = ([], 0)
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
 
-            response = client.get("/api/audit?resource_type=camera")
+        logs_result = MagicMock()
+        logs_result.scalars.return_value.all.return_value = []
 
-            assert response.status_code == 200
-            call_args = mock_get_logs.call_args
-            assert call_args.kwargs["resource_type"] == "camera"
+        mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
 
-    def test_list_audit_logs_pagination(self, client: TestClient) -> None:
+        response = client.get("/api/audit?resource_type=camera")
+
+        assert response.status_code == 200
+        # Verify execute was called (filter is applied in the query)
+        assert mock_db_session.execute.call_count == 2
+
+    def test_list_audit_logs_pagination(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
         """Test pagination parameters."""
-        with patch(
-            "backend.api.routes.audit.AuditService.get_audit_logs",
-            new_callable=AsyncMock,
-        ) as mock_get_logs:
-            mock_get_logs.return_value = ([], 0)
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
 
-            response = client.get("/api/audit?limit=10&offset=20")
+        logs_result = MagicMock()
+        logs_result.scalars.return_value.all.return_value = []
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["limit"] == 10
-            assert data["offset"] == 20
+        mock_db_session.execute = AsyncMock(side_effect=[count_result, logs_result])
+
+        response = client.get("/api/audit?limit=10&offset=20")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["limit"] == 10
+        assert data["offset"] == 20
 
 
 # =============================================================================

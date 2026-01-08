@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.logs import (
     FrontendLogCreate,
     LogEntry,
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/api/logs", tags=["logs"])
 
 
 @router.get("", response_model=LogsResponse)
-async def list_logs(
+async def list_logs(  # noqa: PLR0912
     level: str | None = Query(None, description="Filter by log level"),
     component: str | None = Query(None, description="Filter by component name"),
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -30,16 +31,48 @@ async def list_logs(
     start_date: datetime | None = Query(None, description="Filter from date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter to date (ISO format)"),
     limit: int = Query(100, ge=1, le=1000, description="Page size"),
-    offset: int = Query(0, ge=0, description="Page offset"),
+    offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
+    cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """List logs with optional filtering and pagination.
+    """List logs with optional filtering and cursor-based pagination.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Cursor-based pagination offers better performance for large datasets.
+
+    Args:
+        level: Optional log level to filter by (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        component: Optional component name to filter by
+        camera_id: Optional camera ID to filter by
+        source: Optional source to filter by (backend, frontend)
+        search: Optional search term for message text
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        limit: Maximum number of results to return (1-1000, default 100)
+        offset: Number of results to skip (deprecated, use cursor instead)
+        cursor: Pagination cursor from previous response's next_cursor field
+        db: Database session
+
+    Returns:
+        LogsResponse containing filtered logs and pagination info
 
     Raises:
         HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if cursor is invalid
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Decode cursor if provided
+    cursor_data: CursorData | None = None
+    if cursor:
+        try:
+            cursor_data = decode_cursor(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor: {e}",
+            ) from e
 
     query = select(Log)
 
@@ -60,22 +93,62 @@ async def list_logs(
     if end_date:
         query = query.where(Log.timestamp <= end_date)
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
-    count_result = await db.execute(count_query)
-    total_count = count_result.scalar() or 0
+    # Apply cursor-based pagination filter (takes precedence over offset)
+    if cursor_data:
+        # For descending order by timestamp, we want records where:
+        # - timestamp < cursor's created_at, OR
+        # - timestamp == cursor's created_at AND id < cursor's id (tie-breaker)
+        query = query.where(
+            (Log.timestamp < cursor_data.created_at)
+            | ((Log.timestamp == cursor_data.created_at) & (Log.id < cursor_data.id))
+        )
 
-    # Sort and paginate
-    query = query.order_by(Log.timestamp.desc()).limit(limit).offset(offset)
+    # Get total count (before pagination) - only when not using cursor
+    # With cursor pagination, total count becomes expensive and less meaningful
+    total_count: int = 0
+    if not cursor_data:
+        count_query = select(func.count()).select_from(query.subquery())
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
 
+    # Sort by timestamp descending (newest first), then by id descending for consistency
+    query = query.order_by(Log.timestamp.desc(), Log.id.desc())
+
+    # Apply pagination - fetch one extra to determine if there are more results
+    if cursor_data:  # noqa: SIM108
+        # Cursor-based: fetch limit + 1 to check for more
+        query = query.limit(limit + 1)
+    else:
+        # Offset-based (deprecated): apply offset
+        query = query.limit(limit + 1).offset(offset)
+
+    # Execute query
     result = await db.execute(query)
-    logs = result.scalars().all()
+    logs = list(result.scalars().all())
+
+    # Determine if there are more results
+    has_more = len(logs) > limit
+    if has_more:
+        logs = logs[:limit]  # Trim to requested limit
+
+    # Generate next cursor from the last log
+    next_cursor: str | None = None
+    if has_more and logs:
+        last_log = logs[-1]
+        cursor_data_next = CursorData(id=last_log.id, created_at=last_log.timestamp)
+        next_cursor = encode_cursor(cursor_data_next)
+
+    # Get deprecation warning if using offset without cursor
+    deprecation_warning = get_deprecation_warning(cursor, offset)
 
     return {
         "logs": logs,
         "count": total_count,
         "limit": limit,
         "offset": offset,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "deprecation_warning": deprecation_warning,
     }
 
 

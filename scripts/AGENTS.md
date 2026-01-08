@@ -102,9 +102,9 @@ scripts/
 **What it does:**
 
 1. Checks prerequisites (Python 3.14+, Node.js 20.19+/22.12+, Docker, NVIDIA drivers)
-2. Creates Python virtual environment (`.venv`)
-3. Installs backend dependencies from `backend/requirements.txt`
-4. Installs dev tools (pre-commit, ruff, mypy)
+2. Checks for uv package manager (mandatory)
+3. Creates Python virtual environment (`.venv`) using uv
+4. Installs backend dependencies from `pyproject.toml` using `uv sync --extra dev`
 5. Creates `.env` file from `.env.example`
 6. Creates data directory and prepares database
 7. Installs frontend dependencies (`npm install`)
