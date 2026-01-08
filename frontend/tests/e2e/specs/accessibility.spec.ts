@@ -556,35 +556,31 @@ test.describe('Keyboard Navigation', () => {
 /**
  * Color Contrast Tests
  *
- * The NVIDIA dark theme design system has been updated for WCAG 2 AA compliance.
- * See tailwind.config.js for updated color values ensuring 4.5:1 contrast ratio.
+ * WCAG 2.1 AA compliance requires 4.5:1 contrast ratio for normal text and 3:1 for large text.
+ * The NVIDIA dark theme design system has been updated for full WCAG 2.1 AA compliance.
+ * See tailwind.config.js for updated color values ensuring proper contrast ratios.
  *
- * Note: Some dynamic color assignments may still need attention.
+ * NEM-1404: Color contrast violations are now strictly enforced (all violations fail, not just critical).
  */
 test.describe('Color Contrast', () => {
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
   });
 
-  test('dashboard has sufficient color contrast', async ({ page }) => {
+  test('dashboard has sufficient color contrast', async ({ page, browserName }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     // Wait for page content to render
     await page.waitForTimeout(1000);
 
-    // Run specifically color-contrast check
+    // Run color-contrast check - WCAG 2.1 AA requires 4.5:1 for normal text, 3:1 for large text
     const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
 
-    // Log any contrast issues for review but allow the test to pass
-    // as long as there are no critical violations
-    if (results.violations.length > 0) {
-      console.log('Color contrast issues found:', formatViolations(results.violations));
-      // Only fail if there are critical violations (not just serious)
-      const criticalViolations = results.violations.filter(
-        (v: { impact?: string }) => v.impact === 'critical'
-      );
-      expect(criticalViolations, formatViolations(criticalViolations)).toEqual([]);
-    }
+    // Filter Firefox-specific contrast rendering differences (NEM-1807)
+    const filteredViolations = filterFirefoxContrastViolations(results.violations, browserName);
+
+    // Fail on ANY color contrast violation (NEM-1404: strict enforcement)
+    expect(filteredViolations, formatViolations(filteredViolations)).toEqual([]);
   });
 });
 

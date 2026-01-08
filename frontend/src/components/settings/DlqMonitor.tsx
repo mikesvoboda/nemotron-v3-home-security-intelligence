@@ -339,7 +339,7 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
                             </Text>
                             <Button
                               size="xs"
-                              className="bg-red-600 hover:bg-red-700"
+                              className="bg-red-700 hover:bg-red-800"
                               onClick={() => void handleClear(queueName)}
                               disabled={actionLoading}
                             >

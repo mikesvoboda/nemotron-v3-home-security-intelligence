@@ -343,4 +343,53 @@ describe('ObjectTypeBadge', () => {
       expect(screen.getByText('Verylongobjecttypename')).toBeInTheDocument();
     });
   });
+
+  describe('snapshots', () => {
+    it('renders person type with icon and styling', () => {
+      const { container } = render(<ObjectTypeBadge type="person" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders vehicle type (car) with icon and styling', () => {
+      const { container } = render(<ObjectTypeBadge type="car" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders bicycle type with icon and styling', () => {
+      const { container } = render(<ObjectTypeBadge type="bicycle" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders animal type (dog) with icon and styling', () => {
+      const { container } = render(<ObjectTypeBadge type="dog" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders package type with icon and styling', () => {
+      const { container } = render(<ObjectTypeBadge type="package" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders unknown type with icon and styling', () => {
+      const { container } = render(<ObjectTypeBadge type="unknown_object" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it.each(['sm', 'md', 'lg'] as const)('renders %s size variant correctly', (size) => {
+      const { container } = render(<ObjectTypeBadge type="person" size={size} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with custom className', () => {
+      const { container } = render(
+        <ObjectTypeBadge type="car" className="custom-badge ml-2" />
+      );
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders case-insensitive input (PERSON)', () => {
+      const { container } = render(<ObjectTypeBadge type="PERSON" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+  });
 });

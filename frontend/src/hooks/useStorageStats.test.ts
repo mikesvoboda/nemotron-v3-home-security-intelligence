@@ -93,7 +93,8 @@ describe('useStorageStats', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBe('Failed to fetch storage stats');
+    // usePolling converts non-Error rejections to their string representation
+    expect(result.current.error).toBe('Unknown error');
   });
 
   it('polls at the specified interval', async () => {
@@ -187,7 +188,7 @@ describe('useStorageStats', () => {
     expect(api.fetchStorageStats).toHaveBeenCalledTimes(2);
   });
 
-  it('sets loading state during refresh', async () => {
+  it('does not reset loading state during refresh (loading is for initial load only)', async () => {
     vi.mocked(api.fetchStorageStats).mockResolvedValue(mockStorageStats);
 
     const { result } = renderHook(() => useStorageStats({ enablePolling: false }));
@@ -202,8 +203,8 @@ describe('useStorageStats', () => {
       refreshPromise = result.current.refresh();
     });
 
-    // Loading should be true
-    expect(result.current.loading).toBe(true);
+    // Loading should remain false (loading is for initial load only, similar to TanStack Query's isLoading)
+    expect(result.current.loading).toBe(false);
 
     // Wait for refresh to complete
     await act(async () => {

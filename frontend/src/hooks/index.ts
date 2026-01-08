@@ -108,6 +108,9 @@ export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSav
 
 export { useLocalStorage } from './useLocalStorage';
 
+export { usePolling } from './usePolling';
+export type { UsePollingOptions, UsePollingReturn } from './usePolling';
+
 export { useThrottledValue } from './useThrottledValue';
 export type { UseThrottledValueOptions } from './useThrottledValue';
 

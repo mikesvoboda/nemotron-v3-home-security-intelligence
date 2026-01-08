@@ -82,7 +82,7 @@ export default function AuditProgressBar({
         {!isComplete && (
           <button
             onClick={onCancel}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            className="rounded-lg bg-red-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-800"
             aria-label="Cancel batch audit"
           >
             <X className="inline h-4 w-4 mr-1" />
