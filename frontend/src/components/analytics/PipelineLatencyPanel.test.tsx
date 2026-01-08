@@ -203,8 +203,9 @@ describe('PipelineLatencyPanel', () => {
   it('calculates percentage of total correctly', async () => {
     render(<PipelineLatencyPanel />);
 
+    // Wait for all stage bars to be rendered (data fully loaded)
     await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
+      expect(screen.getByTestId('stage-bar-watch_to_detect')).toBeInTheDocument();
     });
 
     // watch_to_detect: 50ms / 280ms = 17.9%
