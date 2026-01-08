@@ -250,8 +250,7 @@ class BatchAggregator:
         # Check if detection meets fast path criteria
         if self._should_use_fast_path(confidence, object_type):
             logger.info(
-                f"Fast path triggered for detection {detection_id_int}: "
-                f"confidence={confidence}, object_type={object_type}",
+                "Fast path triggered for detection",
                 extra={
                     "camera_id": camera_id,
                     "detection_id": detection_id_int,
@@ -281,7 +280,7 @@ class BatchAggregator:
                 if current_size >= self._batch_max_detections:
                     # Batch at max size - close it and create new batch
                     logger.info(
-                        f"Batch {batch_id} reached max size {self._batch_max_detections}, closing",
+                        "Batch reached max size, closing",
                         extra={
                             "camera_id": camera_id,
                             "batch_id": batch_id,
@@ -303,7 +302,7 @@ class BatchAggregator:
                 # Create new batch
                 batch_id = uuid.uuid4().hex
                 logger.info(
-                    f"Creating new batch {batch_id} for camera {camera_id}",
+                    "Creating new batch for camera",
                     extra={"camera_id": camera_id, "batch_id": batch_id},
                 )
 
@@ -452,7 +451,8 @@ class BatchAggregator:
 
                 if not started_at_raw:
                     logger.warning(
-                        f"Batch {sanitize_log_value(batch_id)} missing started_at timestamp, skipping"
+                        "Batch missing started_at timestamp, skipping",
+                        extra={"batch_id": sanitize_log_value(batch_id)},
                     )
                     continue
 
@@ -500,7 +500,7 @@ class BatchAggregator:
                     # Fetch camera_id for logging (single call, not in critical path)
                     camera_id_for_log = await self._redis.get(f"batch:{batch_id}:camera_id")
                     logger.info(
-                        f"Closing batch {batch_id}: {close_reason}",
+                        "Closing batch",
                         extra={
                             "camera_id": camera_id_for_log,
                             "batch_id": batch_id,
@@ -512,13 +512,15 @@ class BatchAggregator:
 
             except Exception as e:
                 logger.error(
-                    f"Error checking timeout for batch key {batch_key}: {e}", exc_info=True
+                    "Error checking timeout for batch key",
+                    extra={"batch_key": batch_key, "error": str(e)},
+                    exc_info=True,
                 )
                 continue
 
         if closed_batches:
             logger.info(
-                f"Closed {len(closed_batches)} timed-out batches",
+                "Closed timed-out batches",
                 extra={"batch_count": len(closed_batches)},
             )
 
@@ -652,20 +654,21 @@ class BatchAggregator:
 
                     if not result.success:
                         logger.error(
-                            f"Failed to push batch {batch_id} to analysis queue: {result.error}",
+                            "Failed to push batch to analysis queue",
                             extra={
                                 "camera_id": camera_id,
                                 "batch_id": batch_id,
                                 "detection_count": len(detections),
                                 "queue_name": self._analysis_queue,
                                 "queue_length": result.queue_length,
+                                "error": result.error,
                             },
                         )
                         raise RuntimeError(f"Queue operation failed: {result.error}")
 
                     if result.had_backpressure:
                         logger.warning(
-                            f"Queue backpressure detected while pushing batch {batch_id}",
+                            "Queue backpressure detected while pushing batch",
                             extra={
                                 "camera_id": camera_id,
                                 "batch_id": batch_id,
@@ -678,8 +681,7 @@ class BatchAggregator:
                         )
 
                     logger.info(
-                        f"Pushed batch {batch_id} to analysis queue "
-                        f"(camera: {camera_id}, detections: {len(detections)})",
+                        "Pushed batch to analysis queue",
                         extra={
                             "camera_id": camera_id,
                             "batch_id": batch_id,
@@ -731,7 +733,7 @@ class BatchAggregator:
         camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
         if not camera_id:
             logger.warning(
-                f"Cannot close batch {batch_id}: camera_id not found",
+                "Cannot close batch: camera_id not found",
                 extra={"batch_id": batch_id},
             )
             return None
@@ -780,7 +782,7 @@ class BatchAggregator:
             )
             if result.warning:
                 logger.warning(
-                    f"Queue overflow handling triggered for batch {batch_id}",
+                    "Queue overflow handling triggered for batch",
                     extra={
                         "camera_id": camera_id,
                         "batch_id": batch_id,
@@ -793,8 +795,7 @@ class BatchAggregator:
                 )
 
             logger.info(
-                f"Pushed batch {batch_id} to analysis queue "
-                f"(camera: {camera_id}, detections: {len(detections)}, reason: max_size)",
+                "Pushed batch to analysis queue",
                 extra={
                     "camera_id": camera_id,
                     "batch_id": batch_id,
@@ -870,13 +871,13 @@ class BatchAggregator:
                 detection_id=detection_id,
             )
             logger.info(
-                f"Fast path analysis completed for detection {detection_id}",
+                "Fast path analysis completed for detection",
                 extra={"camera_id": camera_id, "detection_id": detection_id},
             )
         except Exception as e:
             logger.error(
-                f"Fast path analysis failed for detection {detection_id}: {e}",
-                extra={"camera_id": camera_id, "detection_id": detection_id},
+                "Fast path analysis failed for detection",
+                extra={"camera_id": camera_id, "detection_id": detection_id, "error": str(e)},
                 exc_info=True,
             )
 

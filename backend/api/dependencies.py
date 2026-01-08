@@ -2,11 +2,23 @@
 
 This module provides:
 
-1. Entity existence checks - Utility functions that abstract the repeated pattern of
+1. FastAPI Depends() functions - Dependency injection functions for services
+   and resources that can be used with FastAPI's Depends() mechanism.
+
+2. Entity existence checks - Utility functions that abstract the repeated pattern of
    querying for an entity by ID and raising a 404 if not found.
 
-2. Service dependencies - FastAPI dependency injection functions for services,
+3. Service dependencies - FastAPI dependency injection functions for services,
    enabling proper DI patterns and easier testing through dependency overrides.
+
+Usage (Orchestrator DI):
+    from backend.api.dependencies import get_orchestrator
+
+    @router.get("/services")
+    async def list_services(
+        orchestrator: ContainerOrchestrator = Depends(get_orchestrator),
+    ):
+        return orchestrator.get_all_services()
 
 Usage (Entity Existence):
     from backend.api.dependencies import get_camera_or_404
@@ -36,9 +48,12 @@ These patterns simplify the common patterns and enable:
 - Consistent error handling
 """
 
-from collections.abc import AsyncGenerator
+from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, cast
+
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +62,53 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.cache_service import CacheService
+
+if TYPE_CHECKING:
+    from backend.services.container_orchestrator import ContainerOrchestrator
+
+
+# =============================================================================
+# FastAPI Depends() Functions
+# =============================================================================
+#
+# These functions can be used with FastAPI's Depends() mechanism to inject
+# common services and resources into route handlers.
+# =============================================================================
+
+
+async def get_orchestrator(request: Request) -> ContainerOrchestrator:
+    """Get the container orchestrator from app state.
+
+    This dependency retrieves the ContainerOrchestrator instance that was
+    initialized during application startup and stored in app.state.
+
+    Args:
+        request: FastAPI Request object containing app state
+
+    Returns:
+        ContainerOrchestrator instance
+
+    Raises:
+        HTTPException: 503 Service Unavailable if orchestrator is not available
+    """
+    orchestrator = getattr(request.app.state, "orchestrator", None)
+    if orchestrator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Container orchestrator not available",
+        )
+    # Import at runtime to avoid circular imports
+
+    return cast("ContainerOrchestrator", orchestrator)
+
+
+# =============================================================================
+# Entity Lookup Utilities
+# =============================================================================
+#
+# These utility functions abstract the repeated pattern of querying for an
+# entity by ID and raising a 404 if not found.
+# =============================================================================
 
 
 async def get_camera_or_404(

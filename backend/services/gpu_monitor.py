@@ -939,6 +939,40 @@ class GPUMonitor:
 
         logger.info("GPU monitoring stopped")
 
+    async def __aenter__(self) -> GPUMonitor:
+        """Async context manager entry.
+
+        Starts GPU monitoring and returns self for use in async with statements.
+
+        Returns:
+            Self for use in the context manager block.
+
+        Example:
+            async with GPUMonitor() as monitor:
+                # monitor is started and polling GPU stats
+                stats = await monitor.get_current_stats_async()
+            # monitor is automatically stopped when exiting the block
+        """
+        await self.start()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit.
+
+        Stops GPU monitoring, ensuring cleanup even if an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised, None otherwise.
+            exc_val: Exception value if an exception was raised, None otherwise.
+            exc_tb: Exception traceback if an exception was raised, None otherwise.
+        """
+        await self.stop()
+
     async def get_stats_from_db(
         self,
         minutes: int | None = None,

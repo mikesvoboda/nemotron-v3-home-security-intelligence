@@ -38,14 +38,17 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import httpx
 
-from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.core.logging import get_logger
+from backend.services.orchestrator import (
+    ContainerServiceStatus,
+    ManagedService,
+    ServiceRegistry,
+)
 
 if TYPE_CHECKING:
     from backend.core.config import OrchestratorSettings
@@ -111,190 +114,10 @@ async def check_cmd_health(
         return False
 
 
-# =============================================================================
-# ManagedService Dataclass
-# =============================================================================
-
-
-@dataclass(slots=True)
-class ManagedService:
-    """Represents a container managed by the orchestrator.
-
-    This dataclass holds all state and configuration for a single managed
-    container including health check settings, failure tracking, and
-    restart configuration.
-
-    Attributes:
-        name: Service identifier (e.g., 'ai-detector', 'postgres')
-        container_id: Docker container ID (may be None if not yet discovered)
-        image: Container image (e.g., 'postgres:16-alpine')
-        port: Primary service port
-        health_endpoint: HTTP health endpoint (e.g., '/health') or None
-        health_cmd: Health check command (e.g., 'pg_isready') or None
-        category: Service category (infrastructure, ai, monitoring)
-        status: Current service status
-        enabled: Whether auto-restart is enabled
-        failure_count: Consecutive failure count
-        last_failure_at: Timestamp of last failure
-        last_restart_at: Timestamp of last restart
-        restart_count: Total restarts since registration
-        max_failures: Max failures before disabling service
-        restart_backoff_base: Base backoff time in seconds
-        restart_backoff_max: Maximum backoff time in seconds
-        startup_grace_period: Seconds to wait after restart before health checks
-    """
-
-    name: str
-    container_id: str | None
-    image: str
-    port: int
-    category: ServiceCategory
-
-    # Health check configuration
-    health_endpoint: str | None = None
-    health_cmd: str | None = None
-
-    # State
-    status: ContainerServiceStatus = ContainerServiceStatus.NOT_FOUND
-    enabled: bool = True
-
-    # Model warmth state (NEM-1670) - for AI services only
-    # Values: 'cold', 'warming', 'warm', 'unknown'
-    warmth_state: str = "unknown"
-
-    # Failure tracking
-    failure_count: int = 0
-    last_failure_at: datetime | None = None
-    last_restart_at: datetime | None = None
-    restart_count: int = 0
-
-    # Limits (defaults for AI services, override for infrastructure/monitoring)
-    max_failures: int = 5
-    restart_backoff_base: float = 5.0
-    restart_backoff_max: float = 300.0
-    startup_grace_period: int = 60
-
-
-# =============================================================================
-# ServiceRegistry Class
-# =============================================================================
-
-
-class ServiceRegistry:
-    """Registry for managed services.
-
-    Provides storage and lookup for ManagedService instances, along with
-    utility methods for querying and updating service state.
-
-    Thread-safety: This class is not thread-safe. Use appropriate locking
-    if accessed from multiple threads.
-    """
-
-    def __init__(self) -> None:
-        """Initialize an empty service registry."""
-        self._services: dict[str, ManagedService] = {}
-
-    def register(self, service: ManagedService) -> None:
-        """Register a service in the registry.
-
-        Args:
-            service: ManagedService instance to register
-        """
-        self._services[service.name] = service
-        logger.info(
-            f"Registered service: {service.name}",
-            extra={"service": service.name, "category": service.category.value},
-        )
-
-    def get(self, name: str) -> ManagedService | None:
-        """Get a service by name.
-
-        Args:
-            name: Service name to look up
-
-        Returns:
-            ManagedService if found, None otherwise
-        """
-        return self._services.get(name)
-
-    def get_enabled(self) -> list[ManagedService]:
-        """Get all enabled services.
-
-        Returns:
-            List of enabled ManagedService instances
-        """
-        return [s for s in self._services.values() if s.enabled]
-
-    def list_names(self) -> list[str]:
-        """Get all registered service names.
-
-        Returns:
-            List of service names
-        """
-        return list(self._services.keys())
-
-    def update_status(self, name: str, status: ContainerServiceStatus) -> None:
-        """Update a service's status.
-
-        Args:
-            name: Service name
-            status: New status to set
-        """
-        service = self._services.get(name)
-        if service:
-            service.status = status
-            logger.debug(f"Updated status for {name}: {status.value}")
-
-    def increment_failures(self, name: str) -> None:
-        """Increment a service's failure count.
-
-        Args:
-            name: Service name
-        """
-        service = self._services.get(name)
-        if service:
-            service.failure_count += 1
-            service.last_failure_at = datetime.now(UTC)
-            logger.debug(f"Incremented failure count for {name}: {service.failure_count}")
-
-    def reset_failures(self, name: str) -> None:
-        """Reset a service's failure count.
-
-        Args:
-            name: Service name
-        """
-        service = self._services.get(name)
-        if service:
-            service.failure_count = 0
-            logger.debug(f"Reset failure count for {name}")
-
-    # =========================================================================
-    # Warmth State Tracking (NEM-1670)
-    # =========================================================================
-
-    def update_warmth_state(self, name: str, state: str) -> None:
-        """Update a service's warmth state.
-
-        Args:
-            name: Service name
-            state: Warmth state ('cold', 'warming', 'warm', 'unknown')
-        """
-        service = self._services.get(name)
-        if service:
-            service.warmth_state = state
-            logger.debug(f"Updated warmth state for {name}: {state}")
-
-    def get_ai_warmth_states(self) -> dict[str, str]:
-        """Get warmth states for all AI services.
-
-        Returns:
-            Dictionary mapping service names to their warmth states
-        """
-        return {
-            name: service.warmth_state
-            for name, service in self._services.items()
-            if service.category == ServiceCategory.AI
-        }
+# Note: ManagedService and ServiceRegistry are imported from
+# backend.services.orchestrator - the shared domain models module.
+# The classes provide all the functionality needed for health monitoring,
+# including warmth state tracking (NEM-1670).
 
 
 # =============================================================================

@@ -67,6 +67,7 @@ def sample_service() -> ManagedService:
     """Create a sample ManagedService for testing."""
     return ManagedService(
         name="ai-detector",
+        display_name="RT-DETRv2",
         container_id="abc123",
         image="ghcr.io/example/rtdetr:latest",
         port=8090,
@@ -91,6 +92,7 @@ def sample_infrastructure_service() -> ManagedService:
     """Create a sample infrastructure ManagedService (uses health_cmd)."""
     return ManagedService(
         name="postgres",
+        display_name="PostgreSQL",
         container_id="def456",
         image="postgres:16-alpine",
         port=5432,
@@ -146,6 +148,7 @@ class TestManagedService:
         """Test default values for ManagedService."""
         service = ManagedService(
             name="test",
+            display_name="Test Service",
             container_id="test123",
             image="test:latest",
             port=8080,
@@ -459,6 +462,7 @@ class TestHealthMonitorCheckServiceHealth:
         """Test fallback to container running check when no health endpoint or cmd."""
         service = ManagedService(
             name="simple-service",
+            display_name="Simple Service",
             container_id="simple123",
             image="simple:latest",
             port=8080,
@@ -958,6 +962,7 @@ class TestHealthCheckDispatcher:
         """Test that dispatcher routes to HTTP health check when health_endpoint is set."""
         service = ManagedService(
             name="api-service",
+            display_name="API Service",
             container_id="abc123",
             image="api:latest",
             port=8080,
@@ -996,6 +1001,7 @@ class TestHealthCheckDispatcher:
         """Test that dispatcher routes to command check when only health_cmd is set."""
         service = ManagedService(
             name="postgres",
+            display_name="PostgreSQL",
             container_id="pg123",
             image="postgres:16",
             port=5432,
@@ -1032,6 +1038,7 @@ class TestHealthCheckDispatcher:
         """Test that dispatcher falls back to container running check."""
         service = ManagedService(
             name="simple-service",
+            display_name="Simple Service",
             container_id="simple123",
             image="simple:latest",
             port=8080,
@@ -1065,6 +1072,7 @@ class TestHealthCheckDispatcher:
         """Test that HTTP health check takes precedence when both are set."""
         service = ManagedService(
             name="dual-check-service",
+            display_name="Dual Check Service",
             container_id="dual123",
             image="dual:latest",
             port=8080,
@@ -1119,6 +1127,7 @@ class TestGracePeriodStartingStatus:
         """Test that STARTING service within grace period is skipped."""
         service = ManagedService(
             name="starting-service",
+            display_name="Starting Service",
             container_id="start123",
             image="test:latest",
             port=8080,
@@ -1149,6 +1158,7 @@ class TestGracePeriodStartingStatus:
         """Test that STARTING service past grace period is checked."""
         service = ManagedService(
             name="started-service",
+            display_name="Started Service",
             container_id="started123",
             image="test:latest",
             port=8080,
@@ -1179,6 +1189,7 @@ class TestGracePeriodStartingStatus:
         """Test that infrastructure services have shorter grace periods (10s)."""
         service = ManagedService(
             name="postgres",
+            display_name="PostgreSQL",
             container_id="pg123",
             image="postgres:16",
             port=5432,
@@ -1210,6 +1221,7 @@ class TestGracePeriodStartingStatus:
         """Test that AI services have longer grace periods (60s)."""
         service = ManagedService(
             name="ai-detector",
+            display_name="RT-DETRv2",
             container_id="det123",
             image="rtdetr:latest",
             port=8090,

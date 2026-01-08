@@ -28,11 +28,10 @@ Retry Logic (NEM-1343):
 """
 
 __all__ = [
-    # Constants
     "NEMOTRON_CONNECT_TIMEOUT",
     "NEMOTRON_HEALTH_TIMEOUT",
     "NEMOTRON_READ_TIMEOUT",
-    # Classes
+    "AnalyzerUnavailableError",
     "NemotronAnalyzer",
 ]
 
@@ -51,6 +50,7 @@ from backend.api.middleware.correlation import get_correlation_headers
 from backend.api.schemas.llm_response import LLMRawResponse, LLMRiskResponse
 from backend.core.config import get_settings
 from backend.core.database import get_session
+from backend.core.exceptions import AnalyzerUnavailableError
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
@@ -406,8 +406,8 @@ class NemotronAnalyzer:
         except Exception as e:
             # On Redis failure, proceed with creation (fail open)
             logger.warning(
-                f"Idempotency check failed for batch {batch_id}, proceeding: {e}",
-                extra={"batch_id": batch_id},
+                "Idempotency check failed, proceeding",
+                extra={"batch_id": batch_id, "error": str(e)},
             )
             return None
 
@@ -428,15 +428,12 @@ class NemotronAnalyzer:
         try:
             key = f"batch_event:{batch_id}"
             await self._redis.set(key, str(event_id), expire=3600)  # 1 hour TTL
-            logger.debug(
-                f"Idempotency key set: {key} -> {event_id}",
-                extra={"batch_id": batch_id, "event_id": event_id},
-            )
+            logger.debug(f"Idempotency key set: {key} -> {event_id}")
         except Exception as e:
             # On Redis failure, log warning but don't fail the request
             logger.warning(
-                f"Failed to set idempotency key for batch {batch_id}: {e}",
-                extra={"batch_id": batch_id, "event_id": event_id},
+                "Failed to set idempotency key for batch",
+                extra={"batch_id": batch_id, "event_id": event_id, "error": str(e)},
             )
 
     async def _get_existing_event(self, event_id: int) -> Event | None:
@@ -489,8 +486,8 @@ class NemotronAnalyzer:
             return context
         except Exception as e:
             logger.warning(
-                f"Context enrichment failed for batch {batch_id}, "
-                f"falling back to basic prompt: {e}",
+                "Context enrichment failed, falling back to basic prompt",
+                extra={"batch_id": batch_id, "error": str(e)},
                 exc_info=True,
             )
             return None
@@ -526,15 +523,21 @@ class NemotronAnalyzer:
                 # Log partial failures if any models failed
                 if tracking_result.is_partial:
                     logger.warning(
-                        f"Enrichment pipeline partial failure for batch {batch_id}: "
-                        f"succeeded={tracking_result.successful_models}, "
-                        f"failed={tracking_result.failed_models}, "
-                        f"success_rate={tracking_result.success_rate:.0%}"
+                        "Enrichment pipeline partial failure",
+                        extra={
+                            "batch_id": batch_id,
+                            "succeeded": tracking_result.successful_models,
+                            "failed": tracking_result.failed_models,
+                            "success_rate": f"{tracking_result.success_rate:.0%}",
+                        },
                     )
                 elif tracking_result.all_failed:
                     logger.warning(
-                        f"Enrichment pipeline failed for batch {batch_id}: "
-                        f"all models failed: {tracking_result.failed_models}"
+                        "Enrichment pipeline failed: all models failed",
+                        extra={
+                            "batch_id": batch_id,
+                            "failed_models": tracking_result.failed_models,
+                        },
                     )
                 elif tracking_result.has_data:
                     result = tracking_result.data
@@ -551,8 +554,8 @@ class NemotronAnalyzer:
 
         except Exception as e:
             logger.warning(
-                f"Enrichment pipeline failed for batch {batch_id}, "
-                f"continuing without enrichment: {e}",
+                "Enrichment pipeline failed, continuing without enrichment",
+                extra={"batch_id": batch_id, "error": str(e)},
                 exc_info=True,
             )
             # Return a failed tracking result instead of None
@@ -611,7 +614,7 @@ class NemotronAnalyzer:
         existing_event_id = await self._check_idempotency(batch_id)
         if existing_event_id is not None:
             logger.info(
-                f"Idempotency hit: batch {batch_id} already processed as event {existing_event_id}",
+                "Idempotency hit: batch already processed as event",
                 extra={"batch_id": batch_id, "event_id": existing_event_id},
             )
             existing_event = await self._get_existing_event(existing_event_id)
@@ -619,8 +622,7 @@ class NemotronAnalyzer:
                 return existing_event
             # If event not found in DB (deleted?), proceed with creation
             logger.warning(
-                f"Idempotency key exists but event {existing_event_id} not found, "
-                f"proceeding with new Event creation",
+                "Idempotency key exists but event not found, proceeding with new Event creation",
                 extra={"batch_id": batch_id, "event_id": existing_event_id},
             )
 
@@ -640,8 +642,7 @@ class NemotronAnalyzer:
         analysis_start = time.time()
 
         logger.info(
-            f"Analyzing batch {batch_id} for camera {camera_id} "
-            f"with {len(detection_ids)} detections",
+            "Analyzing batch for camera",
             extra={
                 "camera_id": camera_id,
                 "batch_id": batch_id,
@@ -656,7 +657,8 @@ class NemotronAnalyzer:
             camera = camera_result.scalar_one_or_none()
             if not camera:
                 logger.warning(
-                    f"Camera {camera_id} not found, using ID as name"
+                    "Camera not found, using ID as name",
+                    extra={"camera_id": camera_id},
                 )  # pragma: no cover
                 camera_name = camera_id  # pragma: no cover
             else:
@@ -676,8 +678,8 @@ class NemotronAnalyzer:
 
             if not detections:
                 logger.warning(
-                    f"No detections found in database for batch {batch_id}, "
-                    f"detection_ids: {detection_ids}"
+                    "No detections found in database for batch",
+                    extra={"batch_id": batch_id, "detection_ids": detection_ids},
                 )
                 raise ValueError(f"No detections found for batch {batch_id}")
 
@@ -750,11 +752,12 @@ class NemotronAnalyzer:
                 record_pipeline_error("nemotron_analysis_error")
                 sanitized_error = sanitize_error(e)
                 logger.error(
-                    f"LLM analysis failed for batch {batch_id}: {sanitized_error}",
+                    "LLM analysis failed for batch",
                     extra={
                         "camera_id": camera_id,
                         "batch_id": batch_id,
                         "duration_ms": llm_duration_ms,
+                        "error": sanitized_error,
                     },
                     exc_info=True,
                 )
@@ -820,8 +823,7 @@ class NemotronAnalyzer:
             record_event_by_camera(camera_id, camera_name)
 
             logger.info(
-                f"Created event {event.id} for batch {batch_id}: "
-                f"risk_score={event.risk_score}, risk_level={event.risk_level}",
+                "Created event for batch",
                 extra={
                     "camera_id": camera_id,
                     "event_id": event.id,
@@ -836,14 +838,21 @@ class NemotronAnalyzer:
             try:
                 await self._broadcast_event(event)
             except Exception as e:
-                logger.warning(f"Failed to broadcast event {event.id}: {e}", exc_info=True)
+                logger.warning(
+                    "Failed to broadcast event",
+                    extra={"event_id": event.id, "error": str(e)},
+                    exc_info=True,
+                )
 
             # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
             try:
                 cache = await get_cache_service()
                 await cache.invalidate_event_stats(reason="event_created")
             except Exception as e:
-                logger.warning(f"Failed to invalidate event stats cache: {e}")
+                logger.warning(
+                    "Failed to invalidate event stats cache",
+                    extra={"error": str(e)},
+                )
 
             return event
 
@@ -882,7 +891,7 @@ class NemotronAnalyzer:
         existing_event_id = await self._check_idempotency(batch_id)
         if existing_event_id is not None:
             logger.info(
-                f"Idempotency hit: fast path {batch_id} already processed as event {existing_event_id}",
+                "Idempotency hit: fast path already processed as event",
                 extra={"batch_id": batch_id, "event_id": existing_event_id},
             )
             existing_event = await self._get_existing_event(existing_event_id)
@@ -890,15 +899,14 @@ class NemotronAnalyzer:
                 return existing_event
             # If event not found in DB (deleted?), proceed with creation
             logger.warning(
-                f"Idempotency key exists but event {existing_event_id} not found, "
-                f"proceeding with new Event creation",
+                "Idempotency key exists but event not found, proceeding with new Event creation",
                 extra={"batch_id": batch_id, "event_id": existing_event_id},
             )
 
         analysis_start = time.time()
 
         logger.info(
-            f"Fast path analysis for detection {detection_id} on camera {camera_id}",
+            "Fast path analysis for detection on camera",
             extra={"camera_id": camera_id, "detection_id": detection_id_int},
         )
 
@@ -909,7 +917,8 @@ class NemotronAnalyzer:
             camera = camera_result.scalar_one_or_none()
             if not camera:
                 logger.warning(
-                    f"Camera {camera_id} not found, using ID as name"
+                    "Camera not found, using ID as name",
+                    extra={"camera_id": camera_id},
                 )  # pragma: no cover
                 camera_name = camera_id  # pragma: no cover
             else:
@@ -990,11 +999,12 @@ class NemotronAnalyzer:
                 record_pipeline_error("nemotron_fast_path_error")
                 sanitized_error = sanitize_error(e)
                 logger.error(
-                    f"LLM analysis failed for fast path detection {detection_id}: {sanitized_error}",
+                    "LLM analysis failed for fast path detection",
                     extra={
                         "camera_id": camera_id,
                         "detection_id": detection_id_int,
                         "duration_ms": llm_duration_ms,
+                        "error": sanitized_error,
                     },
                     exc_info=True,
                 )
@@ -1061,8 +1071,7 @@ class NemotronAnalyzer:
             record_event_by_camera(camera_id, camera_name)
 
             logger.info(
-                f"Created fast path event {event.id} for detection {detection_id}: "
-                f"risk_score={event.risk_score}, risk_level={event.risk_level}",
+                "Created fast path event for detection",
                 extra={
                     "camera_id": camera_id,
                     "event_id": event.id,
@@ -1078,7 +1087,9 @@ class NemotronAnalyzer:
                 await self._broadcast_event(event)
             except Exception as e:
                 logger.warning(
-                    f"Failed to broadcast fast path event {event.id}: {e}", exc_info=True
+                    "Failed to broadcast fast path event",
+                    extra={"event_id": event.id, "error": str(e)},
+                    exc_info=True,
                 )
 
             # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
@@ -1086,7 +1097,10 @@ class NemotronAnalyzer:
                 cache = await get_cache_service()
                 await cache.invalidate_event_stats(reason="event_created")
             except Exception as e:
-                logger.warning(f"Failed to invalidate event stats cache: {e}")
+                logger.warning(
+                    "Failed to invalidate event stats cache",
+                    extra={"error": str(e)},
+                )
 
             return event
 
@@ -1107,7 +1121,11 @@ class NemotronAnalyzer:
                 )
                 return bool(response.status_code == 200)
         except Exception as e:
-            logger.warning(f"LLM health check failed: {e}", exc_info=True)
+            logger.warning(
+                "LLM health check failed",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
             return False
 
     def _format_detections(self, detections: list[Detection]) -> str:
@@ -1531,20 +1549,20 @@ class NemotronAnalyzer:
                     if attempt < self._max_retries - 1:
                         delay = min(2**attempt, 30)  # Cap at 30 seconds
                         logger.warning(
-                            f"Nemotron connection error (attempt {attempt + 1}/{self._max_retries}), "
-                            f"retrying in {delay}s: {e}",
+                            "Nemotron connection error, retrying",
                             extra={
                                 "attempt": attempt + 1,
                                 "max_retries": self._max_retries,
                                 "retry_delay": delay,
+                                "error": str(e),
                             },
                         )
                         await asyncio.sleep(delay)
                     else:
                         record_pipeline_error("nemotron_connection_error")
                         logger.error(
-                            f"Nemotron connection error after {self._max_retries} attempts: {e}",
-                            extra={"attempts": self._max_retries},
+                            "Nemotron connection error after all attempts",
+                            extra={"attempts": self._max_retries, "error": str(e)},
                             exc_info=True,
                         )
 
@@ -1553,20 +1571,20 @@ class NemotronAnalyzer:
                     if attempt < self._max_retries - 1:
                         delay = min(2**attempt, 30)  # Cap at 30 seconds
                         logger.warning(
-                            f"Nemotron timeout (attempt {attempt + 1}/{self._max_retries}), "
-                            f"retrying in {delay}s: {e}",
+                            "Nemotron timeout, retrying",
                             extra={
                                 "attempt": attempt + 1,
                                 "max_retries": self._max_retries,
                                 "retry_delay": delay,
+                                "error": str(e),
                             },
                         )
                         await asyncio.sleep(delay)
                     else:
                         record_pipeline_error("nemotron_timeout")
                         logger.error(
-                            f"Nemotron timeout after {self._max_retries} attempts: {e}",
-                            extra={"attempts": self._max_retries},
+                            "Nemotron timeout after all attempts",
+                            extra={"attempts": self._max_retries, "error": str(e)},
                             exc_info=True,
                         )
 
@@ -1579,9 +1597,7 @@ class NemotronAnalyzer:
                         if attempt < self._max_retries - 1:
                             delay = min(2**attempt, 30)  # Cap at 30 seconds
                             logger.warning(
-                                f"Nemotron server error {status_code} "
-                                f"(attempt {attempt + 1}/{self._max_retries}), "
-                                f"retrying in {delay}s",
+                                "Nemotron server error, retrying",
                                 extra={
                                     "status_code": status_code,
                                     "attempt": attempt + 1,
@@ -1593,7 +1609,7 @@ class NemotronAnalyzer:
                         else:
                             record_pipeline_error("nemotron_server_error")
                             logger.error(
-                                f"Nemotron server error {status_code} after {self._max_retries} attempts",
+                                "Nemotron server error after all attempts",
                                 extra={
                                     "status_code": status_code,
                                     "attempts": self._max_retries,
@@ -1604,8 +1620,8 @@ class NemotronAnalyzer:
                         # 4xx errors are client errors - don't retry
                         record_pipeline_error("nemotron_client_error")
                         logger.error(
-                            f"Nemotron client error {status_code}: {e}",
-                            extra={"status_code": status_code},
+                            "Nemotron client error",
+                            extra={"status_code": status_code, "error": str(e)},
                         )
                         raise  # Re-raise immediately for client errors
 
@@ -1618,29 +1634,30 @@ class NemotronAnalyzer:
                     if attempt < self._max_retries - 1:
                         delay = min(2**attempt, 30)  # Cap at 30 seconds
                         logger.warning(
-                            f"Unexpected Nemotron error (attempt {attempt + 1}/{self._max_retries}), "
-                            f"retrying in {delay}s: {sanitize_error(e)}",
+                            "Unexpected Nemotron error, retrying",
                             extra={
                                 "attempt": attempt + 1,
                                 "max_retries": self._max_retries,
                                 "retry_delay": delay,
+                                "error": sanitize_error(e),
                             },
                         )
                         await asyncio.sleep(delay)
                     else:
                         record_pipeline_error("nemotron_unexpected_error")
                         logger.error(
-                            f"Unexpected Nemotron error after {self._max_retries} attempts: "
-                            f"{sanitize_error(e)}",
-                            extra={"attempts": self._max_retries},
+                            "Unexpected Nemotron error after all attempts",
+                            extra={"attempts": self._max_retries, "error": sanitize_error(e)},
                             exc_info=True,
                         )
             else:
                 # All retries exhausted without success
                 error_msg = f"Nemotron LLM call failed after {self._max_retries} attempts"
                 if last_exception:
-                    raise RuntimeError(error_msg) from last_exception
-                raise RuntimeError(error_msg)
+                    raise AnalyzerUnavailableError(
+                        error_msg, original_error=last_exception
+                    ) from last_exception
+                raise AnalyzerUnavailableError(error_msg)
 
         # Parse JSON from completion
         risk_data = self._parse_llm_response(completion_text)
@@ -1763,8 +1780,8 @@ class NemotronAnalyzer:
         except ValidationError as e:
             # If even lenient parsing fails, use defaults with any available data
             logger.warning(
-                f"Failed to validate LLM response, using defaults: {e}",
-                extra={"validation_errors": str(e.errors())},
+                "Failed to validate LLM response, using defaults",
+                extra={"validation_errors": str(e.errors()), "error": str(e)},
             )
 
             # Extract what we can from the raw data
@@ -1834,8 +1851,7 @@ class NemotronAnalyzer:
         if truncation_result.was_truncated:
             record_prompt_truncated()
             logger.warning(
-                f"Prompt truncated to fit context window: {truncation_result.original_tokens} -> "
-                f"{truncation_result.final_tokens} tokens",
+                "Prompt truncated to fit context window",
                 extra={
                     "original_tokens": truncation_result.original_tokens,
                     "final_tokens": truncation_result.final_tokens,
@@ -1914,14 +1930,13 @@ class NemotronAnalyzer:
             queue = get_evaluation_queue(self._redis)
             await queue.enqueue(event_id=event_id, priority=risk_score)
             logger.debug(
-                f"Enqueued event {event_id} for background evaluation (priority: {risk_score})",
-                extra={"event_id": event_id, "priority": risk_score},
+                f"Enqueued event {event_id} for background evaluation (priority: {risk_score})"
             )
         except Exception as e:
             # Non-critical: log warning but don't fail event creation
             logger.warning(
-                f"Failed to enqueue event {event_id} for evaluation: {e}",
-                extra={"event_id": event_id},
+                "Failed to enqueue event for evaluation",
+                extra={"event_id": event_id, "error": str(e)},
             )
 
     # =========================================================================

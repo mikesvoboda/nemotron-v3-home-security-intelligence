@@ -281,26 +281,101 @@ class AIServiceError(ExternalServiceError):
 
 
 class DetectorUnavailableError(AIServiceError):
+    """Raised when the RT-DETR object detection service is unavailable.
+
+    This exception is raised when the detector service cannot be reached due to:
+    - Connection errors (service down, network issues)
+    - Timeout errors (service overloaded, slow response)
+    - HTTP 5xx errors (server-side failures)
+
+    This exception signals that the operation should be retried later,
+    as the failure is transient and not due to invalid input.
+    """
+
     default_message = "Object detection service temporarily unavailable"
     default_error_code = "DETECTOR_UNAVAILABLE"
 
-    def __init__(self, message: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        original_error: Exception | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            original_error: The underlying exception that caused this error
+            **kwargs: Additional keyword arguments passed to parent
+        """
+        self.original_error = original_error
         super().__init__(message, service_name="rtdetr", **kwargs)
 
 
 class AnalyzerUnavailableError(AIServiceError):
+    """Raised when the Nemotron risk analysis service is unavailable.
+
+    This exception is raised when the LLM analyzer cannot be reached due to:
+    - Connection errors (service down, network issues)
+    - Timeout errors (LLM inference taking too long)
+    - HTTP 5xx errors (server-side failures)
+
+    This exception signals that the operation should be retried later,
+    as the failure is transient and not due to invalid input.
+    """
+
     default_message = "Risk analysis service temporarily unavailable"
     default_error_code = "ANALYZER_UNAVAILABLE"
 
-    def __init__(self, message: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        original_error: Exception | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            original_error: The underlying exception that caused this error
+            **kwargs: Additional keyword arguments passed to parent
+        """
+        self.original_error = original_error
         super().__init__(message, service_name="nemotron", **kwargs)
 
 
 class EnrichmentUnavailableError(AIServiceError):
+    """Raised when the enrichment service is unavailable.
+
+    This exception is raised when the enrichment service cannot be reached due to:
+    - Connection errors (service down, network issues)
+    - Timeout errors (service overloaded, slow response)
+    - HTTP 5xx errors (server-side failures)
+
+    This exception signals that the operation should be retried later,
+    as the failure is transient and not due to invalid input.
+    """
+
     default_message = "Enrichment service temporarily unavailable"
     default_error_code = "ENRICHMENT_UNAVAILABLE"
 
-    def __init__(self, message: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        original_error: Exception | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            original_error: The underlying exception that caused this error
+            **kwargs: Additional keyword arguments passed to parent
+        """
+        self.original_error = original_error
         super().__init__(message, service_name="enrichment", **kwargs)
 
 
@@ -368,6 +443,52 @@ class ProcessingError(InternalError):
         details = kwargs.pop("details", {}) or {}
         if operation:
             details["operation"] = operation
+        super().__init__(message, details=details, **kwargs)
+
+
+# Resource Exhaustion (503)
+class ResourceExhaustedError(SecurityIntelligenceError):
+    """Raised when system resources are exhausted.
+
+    This exception is raised when the system cannot process a request due to:
+    - GPU memory exhaustion
+    - CPU/memory limits reached
+    - Connection pool exhaustion
+    - Queue capacity exceeded
+
+    This exception signals that the operation should be retried later
+    after resources become available.
+    """
+
+    default_message = "Resource exhausted"
+    default_error_code = "RESOURCE_EXHAUSTED"
+    default_status_code = 503
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        resource_type: str | None = None,
+        limit: str | None = None,
+        current: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            resource_type: Type of resource that was exhausted (e.g., "gpu_memory")
+            limit: The resource limit that was reached
+            current: Current resource usage
+            **kwargs: Additional keyword arguments passed to parent
+        """
+        details = kwargs.pop("details", {}) or {}
+        if resource_type:
+            details["resource_type"] = resource_type
+        if limit:
+            details["limit"] = limit
+        if current:
+            details["current"] = current
         super().__init__(message, details=details, **kwargs)
 
 
