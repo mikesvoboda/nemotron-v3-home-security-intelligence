@@ -150,6 +150,6 @@ test.describe('AI Performance Page Title', () => {
     await setupApiMocks(page, defaultMockConfig);
     const aiPerformancePage = new AIPerformancePage(page);
     await aiPerformancePage.goto();
-    await expect(page).toHaveTitle(/Home Security/i);
+    await expect(page).toHaveTitle(/Security Dashboard/i);
   });
 });
