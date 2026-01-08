@@ -736,8 +736,12 @@ async def test_pipeline_status_batch_aggregator_no_redis(client):
     """Test pipeline status when Redis is not available."""
     from unittest.mock import patch
 
-    # Mock get_redis_optional to return None
-    with patch("backend.api.routes.system.get_redis_optional", return_value=None):
+    # Create an async generator that yields None (simulating Redis unavailable)
+    async def mock_get_redis_optional():
+        yield None
+
+    # Mock get_redis_optional to return None - must be an async generator
+    with patch("backend.api.routes.system.get_redis_optional", mock_get_redis_optional):
         response = await client.get("/api/system/pipeline")
 
         assert response.status_code == 200
