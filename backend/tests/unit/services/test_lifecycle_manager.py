@@ -17,7 +17,7 @@ TDD: These tests are written FIRST, before implementing the LifecycleManager.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -68,6 +68,7 @@ def infrastructure_service() -> ManagedService:
         container_id="abc123",
         image="postgres:16-alpine",
         port=5432,
+        health_endpoint=None,
         health_cmd="pg_isready -U security",
         category=ServiceCategory.INFRASTRUCTURE,
         status=ContainerServiceStatus.RUNNING,
@@ -90,6 +91,7 @@ def ai_service() -> ManagedService:
         image="ghcr.io/.../rtdetr:latest",
         port=8090,
         health_endpoint="/health",
+        health_cmd=None,
         category=ServiceCategory.AI,
         status=ContainerServiceStatus.RUNNING,
         enabled=True,
@@ -111,6 +113,7 @@ def monitoring_service() -> ManagedService:
         image="grafana/grafana:10.2.3",
         port=3000,
         health_endpoint="/api/health",
+        health_cmd=None,
         category=ServiceCategory.MONITORING,
         status=ContainerServiceStatus.RUNNING,
         enabled=True,
@@ -297,7 +300,7 @@ class TestShouldRestart:
         """Test should_restart returns True when backoff has elapsed."""
         ai_service.failure_count = 1
         # Set last failure to 30 seconds ago
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 30
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=30)
         # Backoff for 1 failure is 10s (5 * 2^1), so 30s > 10s
         assert lifecycle_manager.should_restart(ai_service) is True
 
@@ -307,7 +310,7 @@ class TestShouldRestart:
         """Test should_restart returns False during backoff period."""
         ai_service.failure_count = 5
         # Set last failure to 1 second ago
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 1
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=1)
         # Backoff for 5 failures is 160s (5 * 2^5), so 1s < 160s
         assert lifecycle_manager.should_restart(ai_service) is False
 
@@ -317,7 +320,7 @@ class TestShouldRestart:
         """Test should_restart uses service-specific backoff settings."""
         infrastructure_service.failure_count = 2
         # Set last failure to 5 seconds ago
-        infrastructure_service.last_failure_at = datetime.now(UTC).timestamp() - 5
+        infrastructure_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=5)
         # Backoff for 2 failures with base=2.0 is 8s (2 * 2^2), so 5s < 8s
         assert lifecycle_manager.should_restart(infrastructure_service) is False
 
@@ -357,7 +360,7 @@ class TestBackoffRemaining:
         """Test backoff_remaining returns positive value during backoff."""
         ai_service.failure_count = 1
         # Set last failure to 2 seconds ago
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 2
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=2)
         # Backoff for 1 failure is 10s, so remaining should be ~8s
         remaining = lifecycle_manager.backoff_remaining(ai_service)
         assert 7.0 <= remaining <= 9.0  # Allow some tolerance for timing
@@ -368,7 +371,7 @@ class TestBackoffRemaining:
         """Test backoff_remaining returns 0 after backoff elapsed."""
         ai_service.failure_count = 1
         # Set last failure to 30 seconds ago
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 30
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=30)
         # Backoff for 1 failure is 10s, so remaining should be 0
         assert lifecycle_manager.backoff_remaining(ai_service) == 0.0
 
@@ -778,7 +781,7 @@ class TestHandleUnhealthy:
         mock_registry.increment_failure.return_value = 3
         ai_service.failure_count = 3
         # Set last failure to 1 second ago (backoff for 3 failures is 40s)
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 1
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=1)
 
         await lifecycle_manager.handle_unhealthy(ai_service)
 
@@ -832,7 +835,7 @@ class TestHandleStopped:
     ) -> None:
         """Test handle_stopped skips during backoff."""
         ai_service.failure_count = 5
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 1
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=1)
 
         await lifecycle_manager.handle_stopped(ai_service)
 
@@ -891,6 +894,8 @@ class TestManagedService:
             container_id="abc123",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -908,6 +913,8 @@ class TestManagedService:
             container_id=None,
             image="test:latest",
             port=8080,
+            health_endpoint=None,
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.STOPPED,
         )
@@ -926,6 +933,8 @@ class TestManagedService:
             container_id=None,
             image="postgres:16",
             port=5432,
+            health_endpoint=None,
+            health_cmd="pg_isready -U security",
             category=ServiceCategory.INFRASTRUCTURE,
             status=ContainerServiceStatus.STOPPED,
             max_failures=10,
@@ -944,6 +953,8 @@ class TestManagedService:
             container_id=None,
             image="grafana/grafana:10",
             port=3000,
+            health_endpoint="/api/health",
+            health_cmd=None,
             category=ServiceCategory.MONITORING,
             status=ContainerServiceStatus.STOPPED,
             max_failures=3,
@@ -972,6 +983,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -994,6 +1007,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -1013,6 +1028,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -1032,6 +1049,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             failure_count=5,
@@ -1052,6 +1071,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -1070,6 +1091,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -1090,6 +1113,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             enabled=True,
@@ -1100,6 +1125,8 @@ class TestServiceRegistry:
             container_id="def",
             image="test:latest",
             port=8081,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.DISABLED,
             enabled=False,
@@ -1123,6 +1150,8 @@ class TestServiceRegistry:
             container_id="abc",
             image="test:latest",
             port=8080,
+            health_endpoint="/health",
+            health_cmd=None,
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
         )
@@ -1133,12 +1162,16 @@ class TestServiceRegistry:
 
     @pytest.mark.asyncio
     async def test_load_state(self) -> None:
-        """Test load_state restores service state from Redis."""
+        """Test load_state restores service state from Redis.
+
+        Note: The new shared ServiceRegistry.load_state requires a service name,
+        use load_all_state() to load all services.
+        """
         # This will need mocked Redis
         registry = ServiceRegistry()
 
-        # Should not raise
-        await registry.load_state()
+        # Should not raise (no-op without Redis client)
+        await registry.load_all_state()
 
 
 # =============================================================================
@@ -1187,7 +1220,7 @@ class TestManualRestart:
     ) -> None:
         """Test that manual restart properly resets failure count before restart."""
         ai_service.failure_count = 3
-        ai_service.last_failure_at = datetime.now(UTC).timestamp()
+        ai_service.last_failure_at = datetime.now(UTC)
 
         # Simulate a manual restart with reset
         mock_registry.reset_failures.return_value = None
@@ -1346,7 +1379,7 @@ class TestSelfHealingIntegration:
         """Test service is not restarted during backoff period."""
         # Set up service in backoff
         ai_service.failure_count = 3
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 1  # 1 second ago
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=1)  # 1 second ago
 
         mock_registry.increment_failure.return_value = 4
 
@@ -1364,7 +1397,7 @@ class TestSelfHealingIntegration:
     ) -> None:
         """Test backoff remaining is calculated correctly."""
         ai_service.failure_count = 2  # Backoff = 20s
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 5  # 5 seconds ago
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(seconds=5)  # 5 seconds ago
 
         remaining = lifecycle_manager.backoff_remaining(ai_service)
 
@@ -1401,6 +1434,8 @@ class TestSelfHealingIntegration:
     ) -> None:
         """Test should_restart returns True when backoff has elapsed."""
         ai_service.failure_count = 1
-        ai_service.last_failure_at = datetime.now(UTC).timestamp() - 60  # 60s ago, backoff is 10s
+        ai_service.last_failure_at = datetime.now(UTC) - timedelta(
+            seconds=60
+        )  # 60s ago, backoff is 10s
 
         assert lifecycle_manager.should_restart(ai_service) is True

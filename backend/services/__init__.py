@@ -2,7 +2,14 @@
 
 from .alert_dedup import AlertDeduplicationService, DedupResult, build_dedup_key
 from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_alert_engine
-from .audit import AuditService, audit_service
+from .audit import (
+    AuditService,
+    audit_service,
+    get_db_audit_service,
+    reset_db_audit_service,
+)
+from .audit_service import AuditService as AIAuditService
+from .audit_service import get_audit_service, reset_audit_service
 from .background_evaluator import (
     BackgroundEvaluator,
     get_background_evaluator,
@@ -329,6 +336,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_circuit_breaker",
     "get_clip_generator",
     "get_context_enricher",
+    "get_db_audit_service",
     "get_dedupe_service",
     "get_degradation_manager",
     "get_enabled_models",
@@ -366,6 +374,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_service_registry",
     "reset_clip_generator",
     "reset_context_enricher",
+    "reset_db_audit_service",
     "reset_dedupe_service",
     "reset_degradation_manager",
     "reset_enrichment_pipeline",

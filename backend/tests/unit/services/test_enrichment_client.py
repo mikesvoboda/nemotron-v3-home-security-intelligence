@@ -150,7 +150,9 @@ class TestEnrichmentUnavailableError:
     def test_raise_and_catch(self) -> None:
         """Test raising and catching the exception."""
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
-            raise EnrichmentUnavailableError("Service down", ConnectionError("Network error"))
+            raise EnrichmentUnavailableError(
+                "Service down", original_error=ConnectionError("Network error")
+            )
         assert "Service down" in str(exc_info.value)
         assert isinstance(exc_info.value.original_error, ConnectionError)
 

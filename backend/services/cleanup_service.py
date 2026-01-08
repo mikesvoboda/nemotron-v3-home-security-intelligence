@@ -533,3 +533,37 @@ class CleanupService:
 
         self._cleanup_task = None
         logger.info("CleanupService stopped")
+
+    async def __aenter__(self) -> CleanupService:
+        """Async context manager entry.
+
+        Starts the cleanup service and returns self for use in async with statements.
+
+        Returns:
+            Self for use in the context manager block.
+
+        Example:
+            async with CleanupService(retention_days=30) as cleanup:
+                # cleanup service is started and scheduling daily cleanups
+                stats = cleanup.get_cleanup_stats()
+            # cleanup service is automatically stopped when exiting the block
+        """
+        await self.start()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit.
+
+        Stops the cleanup service, ensuring cleanup even if an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised, None otherwise.
+            exc_val: Exception value if an exception was raised, None otherwise.
+            exc_tb: Exception traceback if an exception was raised, None otherwise.
+        """
+        await self.stop()

@@ -390,6 +390,22 @@ class MockSystemBroadcaster:
         """
         return False  # Mock always returns healthy state
 
+    async def start(self) -> None:
+        """Start the broadcaster (async context manager support).
+
+        Sets _running to True. Added in NEM-1599 to support
+        async context manager pattern.
+        """
+        self._running = True
+
+    async def stop(self) -> None:
+        """Stop the broadcaster (async context manager support).
+
+        Sets _running to False. Added in NEM-1599 to support
+        async context manager pattern.
+        """
+        self._running = False
+
     # ==========================================================================
     # Test-only methods below - NOT part of the real SystemBroadcaster interface
     # These are convenience methods for tests in this file only.

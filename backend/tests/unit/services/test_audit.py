@@ -12,7 +12,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from backend.models.audit import AuditAction, AuditLog, AuditStatus
-from backend.services.audit import AuditService, get_actor_from_request
+from backend.services.audit import (
+    AuditService,
+    get_actor_from_request,
+    get_db_audit_service,
+    reset_db_audit_service,
+)
 
 
 class TestGetActorFromRequest:
@@ -910,3 +915,37 @@ class TestAuditServiceErrorHandling:
 
         assert total == 0
         assert len(logs) == 0
+
+
+class TestDbAuditServiceSingleton:
+    """Tests for the get_db_audit_service() / reset_db_audit_service() singleton pattern."""
+
+    def test_get_db_audit_service_returns_instance(self):
+        """Test get_db_audit_service returns an AuditService instance."""
+        reset_db_audit_service()
+        try:
+            service = get_db_audit_service()
+            assert isinstance(service, AuditService)
+        finally:
+            reset_db_audit_service()
+
+    def test_get_db_audit_service_returns_same_instance(self):
+        """Test get_db_audit_service returns the same instance on repeated calls."""
+        reset_db_audit_service()
+        try:
+            service1 = get_db_audit_service()
+            service2 = get_db_audit_service()
+            assert service1 is service2
+        finally:
+            reset_db_audit_service()
+
+    def test_reset_db_audit_service(self):
+        """Test reset_db_audit_service creates a new instance on next call."""
+        reset_db_audit_service()
+        try:
+            service1 = get_db_audit_service()
+            reset_db_audit_service()
+            service2 = get_db_audit_service()
+            assert service1 is not service2
+        finally:
+            reset_db_audit_service()

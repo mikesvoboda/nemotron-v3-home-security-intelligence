@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any, cast
 import httpx
 
 from backend.core.config import get_settings
+from backend.core.exceptions import EnrichmentUnavailableError
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     increment_enrichment_retry,
@@ -57,29 +58,6 @@ ENRICHMENT_HEALTH_TIMEOUT = 5.0
 
 # Default Enrichment service URL
 DEFAULT_ENRICHMENT_URL = "http://ai-enrichment:8094"
-
-
-class EnrichmentUnavailableError(Exception):
-    """Raised when the Enrichment service is unavailable.
-
-    This exception is raised when the Enrichment service cannot be reached due to:
-    - Connection errors (service down, network issues)
-    - Timeout errors (service overloaded, slow response)
-    - HTTP 5xx errors (server-side failures)
-
-    This exception signals that the operation should be retried later,
-    as the failure is transient and not due to invalid input.
-    """
-
-    def __init__(self, message: str, original_error: Exception | None = None):
-        """Initialize the error.
-
-        Args:
-            message: Human-readable error description
-            original_error: The underlying exception that caused this error
-        """
-        super().__init__(message)
-        self.original_error = original_error
 
 
 @dataclass(slots=True)

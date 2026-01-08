@@ -37,3 +37,7 @@ _.exc_tb
 
 # Notification service placeholders (not yet implemented)
 _.device_tokens
+
+# Mock function parameters (required by interface signature but unused in mock body)
+# e.g., async def mock_seek(pos): pass - pos is required by UploadFile.seek signature
+_.pos

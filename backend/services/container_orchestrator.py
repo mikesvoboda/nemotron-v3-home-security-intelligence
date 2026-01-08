@@ -39,19 +39,16 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from backend.api.schemas.services import ContainerServiceStatus, ServiceInfo, ServiceStatusEvent
+from backend.api.schemas.services import ServiceInfo, ServiceStatusEvent
 from backend.core.logging import get_logger
 from backend.services.container_discovery import ContainerDiscoveryService
-from backend.services.container_discovery import ManagedService as DiscoveredService
 from backend.services.health_monitor_orchestrator import HealthMonitor
-from backend.services.health_monitor_orchestrator import (
-    ManagedService as HealthMonitorService,
-)
-from backend.services.health_monitor_orchestrator import ServiceRegistry as HMServiceRegistry
 from backend.services.lifecycle_manager import LifecycleManager
-from backend.services.lifecycle_manager import ManagedService as LifecycleService
-from backend.services.lifecycle_manager import ServiceRegistry as LMServiceRegistry
-from backend.services.service_registry import ManagedService, ServiceRegistry
+from backend.services.orchestrator import (
+    ContainerServiceStatus,
+    ManagedService,
+    ServiceRegistry,
+)
 
 if TYPE_CHECKING:
     from backend.core.config import OrchestratorSettings
@@ -163,16 +160,14 @@ class ContainerOrchestrator:
         self._running = False
 
         # Create components - registry needs Redis client
+        # All modules now use the same shared ManagedService and ServiceRegistry types
+        # from backend.services.orchestrator, so we use a single registry
         self._registry = ServiceRegistry(redis_client)
         self._discovery_service = ContainerDiscoveryService(docker_client)
 
         # These are created during start() after discovery
         self._health_monitor: HealthMonitor | None = None
         self._lifecycle_manager: LifecycleManager | None = None
-
-        # Internal registries for health monitor and lifecycle manager
-        self._hm_registry: HMServiceRegistry | None = None
-        self._lm_registry: LMServiceRegistry | None = None
 
         logger.info("ContainerOrchestrator initialized")
 
@@ -234,40 +229,30 @@ class ContainerOrchestrator:
     # Callbacks
     # =========================================================================
 
-    async def _on_health_change(self, service: HealthMonitorService, is_healthy: bool) -> None:
+    async def _on_health_change(self, service: ManagedService, is_healthy: bool) -> None:
         """Callback when health status changes.
 
         Called by HealthMonitor when a service health status changes.
+        Since all modules now use the shared ManagedService type from
+        backend.services.orchestrator, no type conversion is needed.
 
         Args:
             service: The service whose health changed
             is_healthy: True if service is now healthy, False if unhealthy
         """
-        # Sync state to main registry
-        self._sync_hm_state(service.name)
-
-        # Get the main registry service for broadcasting
-        main_service = self._registry.get(service.name)
-        if not main_service:
-            return
-
         if is_healthy:
-            await self._broadcast_status(main_service, "Service recovered")
+            await self._broadcast_status(service, "Service recovered")
         else:
             # Delegate to lifecycle manager for restart handling
-            if self._lifecycle_manager and self._lm_registry:
-                lm_service = self._lm_registry.get(service.name)
-                if lm_service:
-                    if service.status == ContainerServiceStatus.STOPPED:
-                        await self._lifecycle_manager.handle_stopped(lm_service)
-                    else:
-                        await self._lifecycle_manager.handle_unhealthy(lm_service)
-                    # Sync lifecycle state back
-                    self._sync_lm_state(service.name)
+            if self._lifecycle_manager:
+                if service.status == ContainerServiceStatus.STOPPED:
+                    await self._lifecycle_manager.handle_stopped(service)
+                else:
+                    await self._lifecycle_manager.handle_unhealthy(service)
 
-            await self._broadcast_status(main_service, "Health check failed")
+            await self._broadcast_status(service, "Health check failed")
 
-    async def _on_restart(self, service: LifecycleService) -> None:
+    async def _on_restart(self, service: ManagedService) -> None:
         """Callback after container restart.
 
         Called by LifecycleManager after a successful restart.
@@ -275,12 +260,9 @@ class ContainerOrchestrator:
         Args:
             service: The service that was restarted
         """
-        self._sync_lm_state(service.name)
-        main_service = self._registry.get(service.name)
-        if main_service:
-            await self._broadcast_status(main_service, "Restart completed")
+        await self._broadcast_status(service, "Restart completed")
 
-    async def _on_disabled(self, service: LifecycleService) -> None:
+    async def _on_disabled(self, service: ManagedService) -> None:
         """Callback when service is disabled due to max failures.
 
         Called by LifecycleManager when a service exceeds max_failures.
@@ -288,10 +270,7 @@ class ContainerOrchestrator:
         Args:
             service: The service that was disabled
         """
-        self._sync_lm_state(service.name)
-        main_service = self._registry.get(service.name)
-        if main_service:
-            await self._broadcast_status(main_service, "Service disabled - max failures reached")
+        await self._broadcast_status(service, "Service disabled - max failures reached")
 
     async def _on_service_discovered(self, service: ManagedService) -> None:
         """Callback when a service is discovered during startup.
@@ -309,6 +288,7 @@ class ContainerOrchestrator:
         """Enable a disabled service.
 
         Resets failure count and sets enabled flag to True.
+        Uses the lifecycle manager which operates on the shared registry.
 
         Args:
             name: Service name
@@ -321,16 +301,9 @@ class ContainerOrchestrator:
             logger.warning(f"Cannot enable unknown service: {name}")
             return False
 
-        # Update main registry
-        self._registry.reset_failures(name)
-        self._registry.set_enabled(name, True)
-        self._registry.update_status(name, ContainerServiceStatus.STOPPED)
-        await self._registry.persist_state(name)
-
-        # Update lifecycle registry if available
+        # Use lifecycle manager (operates on shared registry)
         if self._lifecycle_manager:
             await self._lifecycle_manager.enable_service(name)
-            self._sync_lm_state(name)
 
         # Broadcast status change
         updated_service = self._registry.get(name)
@@ -343,6 +316,7 @@ class ContainerOrchestrator:
         """Disable a service.
 
         Sets enabled flag to False and status to DISABLED.
+        Uses the lifecycle manager which operates on the shared registry.
 
         Args:
             name: Service name
@@ -355,15 +329,9 @@ class ContainerOrchestrator:
             logger.warning(f"Cannot disable unknown service: {name}")
             return False
 
-        # Update main registry
-        self._registry.set_enabled(name, False)
-        self._registry.update_status(name, ContainerServiceStatus.DISABLED)
-        await self._registry.persist_state(name)
-
-        # Update lifecycle registry if available
+        # Use lifecycle manager (operates on shared registry)
         if self._lifecycle_manager:
             await self._lifecycle_manager.disable_service(name)
-            self._sync_lm_state(name)
 
         # Broadcast status change
         updated_service = self._registry.get(name)
@@ -376,6 +344,7 @@ class ContainerOrchestrator:
         """Manually restart a service.
 
         Broadcasts restart initiated, then success/failure.
+        Uses the lifecycle manager which operates on the shared registry.
 
         Args:
             name: Service name
@@ -395,25 +364,20 @@ class ContainerOrchestrator:
 
         if reset_failures:
             self._registry.reset_failures(name)
-            if self._lm_registry:
-                self._lm_registry.reset_failures(name)
 
         # Broadcast restart initiated
         await self._broadcast_status(service, "Manual restart initiated")
 
-        # Use lifecycle manager if available
-        if self._lifecycle_manager and self._lm_registry:
-            lm_service = self._lm_registry.get(name)
-            if lm_service:
-                success = await self._lifecycle_manager.restart_service(lm_service)
-                if success:
-                    self._sync_lm_state(name)
-                    updated_service = self._registry.get(name)
-                    if updated_service:
-                        await self._broadcast_status(updated_service, "Restart succeeded")
-                else:
-                    await self._broadcast_status(service, "Restart failed")
-                return success
+        # Use lifecycle manager (operates on shared registry)
+        if self._lifecycle_manager:
+            success = await self._lifecycle_manager.restart_service(service)
+            if success:
+                updated_service = self._registry.get(name)
+                if updated_service:
+                    await self._broadcast_status(updated_service, "Restart succeeded")
+            else:
+                await self._broadcast_status(service, "Restart failed")
+            return success
 
         # Fallback: direct restart via docker client
         success = await self._docker_client.restart_container(service.container_id)
@@ -432,6 +396,8 @@ class ContainerOrchestrator:
     async def start_service(self, name: str) -> bool:
         """Start a stopped service.
 
+        Uses the lifecycle manager which operates on the shared registry.
+
         Args:
             name: Service name
 
@@ -447,17 +413,14 @@ class ContainerOrchestrator:
             logger.warning(f"Cannot start {name}: no container_id")
             return False
 
-        # Use lifecycle manager if available
-        if self._lifecycle_manager and self._lm_registry:
-            lm_service = self._lm_registry.get(name)
-            if lm_service:
-                success = await self._lifecycle_manager.start_service(lm_service)
-                if success:
-                    self._sync_lm_state(name)
-                    updated_service = self._registry.get(name)
-                    if updated_service:
-                        await self._broadcast_status(updated_service, "Service started")
-                return success
+        # Use lifecycle manager (operates on shared registry)
+        if self._lifecycle_manager:
+            success = await self._lifecycle_manager.start_service(service)
+            if success:
+                updated_service = self._registry.get(name)
+                if updated_service:
+                    await self._broadcast_status(updated_service, "Service started")
+            return success
 
         # Fallback: direct start via docker client
         success = await self._docker_client.start_container(service.container_id)
@@ -510,41 +473,32 @@ class ContainerOrchestrator:
         logger.info(f"Discovered {len(discovered)} containers")
 
         # 3. Register discovered services in our registry
-        for disc_svc in discovered:
-            managed = self._convert_discovered_to_managed(disc_svc)
-            self._registry.register(managed)
+        # ContainerDiscoveryService now returns ManagedService directly
+        # (from the shared orchestrator module), no conversion needed
+        for svc in discovered:
+            # Set initial status to RUNNING since we discovered it
+            svc.status = ContainerServiceStatus.RUNNING
+            self._registry.register(svc)
 
         # 4. Load persisted state from Redis
         await self._registry.load_all_state()
         logger.info("Loaded service state from Redis")
 
-        # 5. Create internal registries and populate them
-        self._hm_registry = HMServiceRegistry()
-        self._lm_registry = LMServiceRegistry(redis_client=self._redis_client)
-
+        # 5. Broadcast discovery for all services
         for svc in self._registry.get_all():
-            # Convert to health monitor service type
-            hm_service = self._convert_to_hm_service(svc)
-            self._hm_registry.register(hm_service)
-
-            # Convert to lifecycle manager service type
-            lm_service = self._convert_to_lm_service(svc)
-            self._lm_registry.register(lm_service)
-
-            # Broadcast discovery
             await self._on_service_discovered(svc)
 
-        # 6. Create lifecycle manager
+        # 6. Create lifecycle manager using the shared registry
         self._lifecycle_manager = LifecycleManager(
-            registry=self._lm_registry,
+            registry=self._registry,
             docker_client=self._docker_client,
             on_restart=self._on_restart,
             on_disabled=self._on_disabled,
         )
 
-        # 7. Create health monitor with callback
+        # 7. Create health monitor using the shared registry
         self._health_monitor = HealthMonitor(
-            registry=self._hm_registry,
+            registry=self._registry,
             docker_client=self._docker_client,
             settings=self._settings,
             on_health_change=self._on_health_change,
@@ -586,139 +540,9 @@ class ContainerOrchestrator:
         self._running = False
         logger.info("ContainerOrchestrator stopped")
 
-    # =========================================================================
-    # Helper Methods
-    # =========================================================================
-
-    def _convert_discovered_to_managed(self, discovered: DiscoveredService) -> ManagedService:
-        """Convert a DiscoveredService to ManagedService for our registry.
-
-        Args:
-            discovered: Service from ContainerDiscoveryService
-
-        Returns:
-            ManagedService for ServiceRegistry
-        """
-        return ManagedService(
-            name=discovered.name,
-            display_name=discovered.display_name,
-            container_id=discovered.container_id,
-            image=discovered.image,
-            port=discovered.port,
-            health_endpoint=discovered.health_endpoint,
-            health_cmd=discovered.health_cmd,
-            category=discovered.category,
-            status=ContainerServiceStatus.RUNNING,  # Assume running since we discovered it
-            enabled=True,
-            max_failures=discovered.max_failures,
-            restart_backoff_base=discovered.restart_backoff_base,
-            restart_backoff_max=discovered.restart_backoff_max,
-            startup_grace_period=discovered.startup_grace_period,
-        )
-
-    def _convert_to_hm_service(self, service: ManagedService) -> HealthMonitorService:
-        """Convert ManagedService to HealthMonitorService.
-
-        Args:
-            service: Service from our registry
-
-        Returns:
-            ManagedService for HealthMonitor registry
-        """
-        return HealthMonitorService(
-            name=service.name,
-            container_id=service.container_id,
-            image=service.image or "",
-            port=service.port,
-            category=service.category,
-            health_endpoint=service.health_endpoint,
-            health_cmd=service.health_cmd,
-            status=service.status,
-            enabled=service.enabled,
-            failure_count=service.failure_count,
-            last_failure_at=service.last_failure_at,
-            last_restart_at=service.last_restart_at,
-            restart_count=service.restart_count,
-            max_failures=service.max_failures,
-            restart_backoff_base=service.restart_backoff_base,
-            restart_backoff_max=service.restart_backoff_max,
-            startup_grace_period=service.startup_grace_period,
-        )
-
-    def _convert_to_lm_service(self, service: ManagedService) -> LifecycleService:
-        """Convert ManagedService to LifecycleService.
-
-        Args:
-            service: Service from our registry
-
-        Returns:
-            ManagedService for LifecycleManager registry
-        """
-        # LifecycleService uses Unix timestamp for last_failure_at
-        last_failure_ts = None
-        if service.last_failure_at:
-            last_failure_ts = service.last_failure_at.timestamp()
-
-        return LifecycleService(
-            name=service.name,
-            display_name=service.display_name,
-            container_id=service.container_id,
-            image=service.image or "",
-            port=service.port,
-            health_endpoint=service.health_endpoint,
-            health_cmd=service.health_cmd,
-            category=service.category,
-            status=service.status,
-            enabled=service.enabled,
-            failure_count=service.failure_count,
-            restart_count=service.restart_count,
-            last_failure_at=last_failure_ts,
-            last_restart_at=service.last_restart_at,
-            max_failures=service.max_failures,
-            restart_backoff_base=service.restart_backoff_base,
-            restart_backoff_max=service.restart_backoff_max,
-        )
-
-    def _sync_hm_state(self, name: str) -> None:
-        """Sync state from health monitor registry to main registry.
-
-        Args:
-            name: Service name to sync
-        """
-        if not self._hm_registry:
-            return
-
-        hm_service = self._hm_registry.get(name)
-        main_service = self._registry.get(name)
-
-        if not hm_service or not main_service:
-            return
-
-        # Update main registry state
-        main_service.status = hm_service.status
-        main_service.failure_count = hm_service.failure_count
-        main_service.last_failure_at = hm_service.last_failure_at
-        main_service.last_restart_at = hm_service.last_restart_at
-        main_service.restart_count = hm_service.restart_count
-
-    def _sync_lm_state(self, name: str) -> None:
-        """Sync state from lifecycle registry to main registry.
-
-        Args:
-            name: Service name to sync
-        """
-        if not self._lm_registry:
-            return
-
-        lm_service = self._lm_registry.get(name)
-        main_service = self._registry.get(name)
-
-        if not lm_service or not main_service:
-            return
-
-        # Update main registry state
-        main_service.status = lm_service.status
-        main_service.enabled = lm_service.enabled
-        main_service.failure_count = lm_service.failure_count
-        main_service.restart_count = lm_service.restart_count
-        main_service.last_restart_at = lm_service.last_restart_at
+    # Note: All modules (container_discovery, health_monitor_orchestrator,
+    # lifecycle_manager, service_registry) now use the shared ManagedService
+    # and ServiceRegistry types from backend.services.orchestrator.
+    # This eliminates the need for type conversion or state synchronization
+    # between multiple registries - all components operate on the same shared
+    # registry instance.

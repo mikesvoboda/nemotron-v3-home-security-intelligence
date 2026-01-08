@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from backend.core.exceptions import AnalyzerUnavailableError
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.nemotron_analyzer import NemotronAnalyzer
@@ -480,8 +481,10 @@ async def test_call_llm_http_error(analyzer):
         )
         mock_post.return_value = mock_resp
 
-        # After retry exhaustion, RuntimeError is raised wrapping the original exception
-        with pytest.raises(RuntimeError, match=r"Nemotron LLM call failed after \d+ attempts"):
+        # After retry exhaustion, AnalyzerUnavailableError is raised wrapping the original exception
+        with pytest.raises(
+            AnalyzerUnavailableError, match=r"Nemotron LLM call failed after \d+ attempts"
+        ):
             await analyzer._call_llm(
                 camera_name="Front Door",
                 start_time="2025-12-23T14:30:00",
@@ -1416,12 +1419,14 @@ async def test_call_llm_invalid_json_in_response(analyzer):
 
 @pytest.mark.asyncio
 async def test_call_llm_timeout(analyzer):
-    """Test _call_llm raises RuntimeError after retry exhaustion on timeout (NEM-1343)."""
+    """Test _call_llm raises AnalyzerUnavailableError after retry exhaustion on timeout (NEM-1343)."""
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_post.side_effect = httpx.ReadTimeout("Read timeout exceeded")
 
-        # After retry exhaustion, RuntimeError is raised wrapping the original exception
-        with pytest.raises(RuntimeError, match=r"Nemotron LLM call failed after \d+ attempts"):
+        # After retry exhaustion, AnalyzerUnavailableError is raised wrapping the original exception
+        with pytest.raises(
+            AnalyzerUnavailableError, match=r"Nemotron LLM call failed after \d+ attempts"
+        ):
             await analyzer._call_llm(
                 camera_name="Front Door",
                 start_time="2025-12-23T14:30:00",
@@ -1432,12 +1437,14 @@ async def test_call_llm_timeout(analyzer):
 
 @pytest.mark.asyncio
 async def test_call_llm_connection_error(analyzer):
-    """Test _call_llm raises RuntimeError after retry exhaustion on connection error (NEM-1343)."""
+    """Test _call_llm raises AnalyzerUnavailableError after retry exhaustion on connection error (NEM-1343)."""
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
 
-        # After retry exhaustion, RuntimeError is raised wrapping the original exception
-        with pytest.raises(RuntimeError, match=r"Nemotron LLM call failed after \d+ attempts"):
+        # After retry exhaustion, AnalyzerUnavailableError is raised wrapping the original exception
+        with pytest.raises(
+            AnalyzerUnavailableError, match=r"Nemotron LLM call failed after \d+ attempts"
+        ):
             await analyzer._call_llm(
                 camera_name="Front Door",
                 start_time="2025-12-23T14:30:00",
