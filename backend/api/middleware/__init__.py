@@ -12,6 +12,7 @@ from .file_validator import (
     validate_file_magic_sync,
     validate_upload_file,
 )
+from .logging import RequestLoggingMiddleware, mask_sensitive_params
 from .rate_limit import (
     RateLimiter,
     RateLimitTier,
@@ -37,6 +38,7 @@ __all__ = [
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",
+    "RequestLoggingMiddleware",
     "RequestTimingMiddleware",
     "SecurityHeadersMiddleware",
     "ValidatedUploadFile",
@@ -46,6 +48,7 @@ __all__ = [
     "get_client_ip",
     "get_correlation_headers",
     "get_correlation_id",
+    "mask_sensitive_params",
     "merge_headers_with_correlation",
     "rate_limit_default",
     "rate_limit_media",

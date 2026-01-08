@@ -537,3 +537,98 @@ class RetryContext:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> Literal[False]:
         """Exit sync context."""
         return False
+
+
+# =============================================================================
+# with_retry Decorator (NEM-1445 Specification)
+# =============================================================================
+
+
+def with_retry(
+    max_attempts: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0,
+    exponential_base: float = 2.0,
+    jitter: bool = True,
+    retryable_exceptions: tuple[type[BaseException], ...] = (Exception,),
+    on_retry: Callable[[int, BaseException], None] | None = None,
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+    """Async decorator with exponential backoff and jitter for transient failures.
+
+    This decorator follows the NEM-1445 specification for retry behavior:
+    - max_attempts is the total number of attempts (not retries)
+    - jitter uses the formula: delay * (0.5 + random()) when enabled
+    - on_retry callback receives attempt number and exception
+
+    Args:
+        max_attempts: Total number of attempts (default: 3). 1 means no retries.
+        base_delay: Initial delay in seconds before first retry (default: 1.0)
+        max_delay: Maximum delay cap in seconds (default: 30.0)
+        exponential_base: Base for exponential growth (default: 2.0)
+        jitter: Whether to add jitter to delays (default: True).
+            When True, delay is multiplied by (0.5 + random()) to spread out
+            retries and avoid thundering herd scenarios.
+        retryable_exceptions: Tuple of exception types that should trigger retry.
+            Non-retryable exceptions are raised immediately.
+        on_retry: Optional callback called before each retry with (attempt, exception).
+            Attempt is 1-indexed (1 means after first failure, before 2nd attempt).
+
+    Returns:
+        Decorated async function with retry logic
+
+    Example:
+        @with_retry(
+            max_attempts=3,
+            base_delay=1.0,
+            retryable_exceptions=(ConnectionError, TimeoutError),
+            on_retry=lambda attempt, exc: logger.warning(f"Retry {attempt}: {exc}")
+        )
+        async def fetch_data():
+            return await client.get(url)
+    """
+
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+        @functools.wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception: BaseException | None = None
+            attempt = 0
+
+            while attempt < max_attempts:
+                attempt += 1
+                try:
+                    return await func(*args, **kwargs)
+                except retryable_exceptions as e:
+                    last_exception = e
+
+                    # Check if we have more attempts
+                    if attempt >= max_attempts:
+                        # No more retries, raise the exception
+                        raise
+
+                    # Call on_retry callback before waiting
+                    if on_retry is not None:
+                        on_retry(attempt, e)
+
+                    # Calculate delay with exponential backoff
+                    delay = base_delay * (exponential_base ** (attempt - 1))
+
+                    # Cap at max_delay
+                    delay = min(delay, max_delay)
+
+                    # Apply jitter if enabled: delay * (0.5 + random())
+                    # Note: Using random.random() is intentional here - this is NOT for
+                    # cryptographic purposes, just adding timing variation to avoid
+                    # thundering herd scenarios.
+                    if jitter:
+                        delay = delay * (0.5 + random.random())  # noqa: S311  # nosemgrep: insecure-random
+
+                    await asyncio.sleep(delay)
+
+            # Should not reach here, but satisfy type checker
+            if last_exception:
+                raise last_exception
+            raise RuntimeError("Unexpected retry loop exit")
+
+        return wrapper
+
+    return decorator

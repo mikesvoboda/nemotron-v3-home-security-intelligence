@@ -21,6 +21,8 @@ Package initialization with public exports:
 - `SecurityHeadersMiddleware` - Security headers middleware (CSP, X-Frame-Options, etc.)
 - `RequestIDMiddleware` - Request ID generation and propagation middleware
 - `RequestTimingMiddleware` - Request timing and slow request logging middleware
+- `RequestLoggingMiddleware` - Request/response logging middleware for API debugging
+- `mask_sensitive_params` - Mask sensitive query parameters for safe logging
 - `get_correlation_headers` - Get correlation headers for outgoing requests
 - `merge_headers_with_correlation` - Merge headers with correlation IDs
 - `get_correlation_id` - Get current correlation ID from context
@@ -154,6 +156,75 @@ app.add_middleware(
   "client_ip": "127.0.0.1"
 }
 ```
+
+### `logging.py`
+
+Request/response logging middleware for API debugging (NEM-1431).
+
+**Purpose:**
+
+Provides structured logging of all HTTP requests for debugging and monitoring. Logs essential request details while ensuring security-sensitive data is never logged.
+
+**Classes:**
+
+| Class                      | Purpose                       |
+| -------------------------- | ----------------------------- |
+| `RequestLoggingMiddleware` | Logs request/response details |
+
+**Functions:**
+
+| Function                | Purpose                                     |
+| ----------------------- | ------------------------------------------- |
+| `mask_sensitive_params` | Mask sensitive query parameters for logging |
+| `get_client_ip`         | Extract client IP from request              |
+
+**Features:**
+
+- Logs HTTP method, path, status code, duration in milliseconds
+- Logs client IP, request ID (if set), user agent
+- Configurable verbosity (INFO or DEBUG)
+- At DEBUG level: includes query params and response size
+- Security: Never logs Authorization or X-API-Key headers
+- Security: Never logs request or response bodies
+- Security: Masks sensitive query parameters (api_key, password, token, etc.)
+
+**Configuration:**
+
+```python
+app.add_middleware(
+    RequestLoggingMiddleware,
+    verbosity="INFO",  # or "DEBUG" for more details
+)
+```
+
+**Log Format (INFO level):**
+
+```json
+{
+  "level": "INFO",
+  "message": "request_completed: GET /api/events - 200 - 12.34ms",
+  "method": "GET",
+  "path": "/api/events",
+  "status": 200,
+  "duration_ms": 12.34,
+  "client_ip": "192.168.1.100",
+  "user_agent": "Mozilla/5.0 ..."
+}
+```
+
+**Sensitive Parameter Masking:**
+
+The following query parameters are automatically masked with `[REDACTED]`:
+
+- `api_key`, `apikey`, `api-key`
+- `password`, `passwd`, `pwd`
+- `token`, `access_token`, `refresh_token`, `bearer`
+- `secret`, `key`, `auth`, `authorization`
+- `credential`, `credentials`
+- `session`, `session_id`, `sessionid`
+- `private_key`, `privatekey`
+
+---
 
 ### `security_headers.py`
 

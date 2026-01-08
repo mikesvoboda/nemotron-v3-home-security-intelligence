@@ -12,6 +12,7 @@ from backend.api.middleware import (
     AuthMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
+    RequestLoggingMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -582,6 +583,11 @@ app.add_middleware(RequestIDMiddleware)
 # Add request timing middleware for API latency tracking (NEM-1469)
 # Added early so it measures the full request lifecycle including other middleware
 app.add_middleware(RequestTimingMiddleware)
+
+# Add request/response logging middleware for API debugging (NEM-1431)
+# Logs: method, path, status, duration, client IP, request ID, user agent
+# Security: Never logs auth headers or request/response bodies
+app.add_middleware(RequestLoggingMiddleware)
 
 # Security: Restrict CORS methods to only what's needed
 # Using explicit methods instead of wildcard "*" to follow least-privilege principle
