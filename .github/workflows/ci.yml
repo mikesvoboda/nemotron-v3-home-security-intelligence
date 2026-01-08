@@ -1538,6 +1538,115 @@ jobs:
             --tb=short
 
   # ============================================================================
+  # TDD Compliance Tracking (PR-only, non-blocking)
+  # ============================================================================
+  # Analyzes commit patterns to detect TDD practice compliance
+  # Reports warnings for potential test-after-implementation patterns
+  tdd-compliance:
+    name: TDD Compliance Tracking
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyze TDD compliance
+        id: tdd-analysis
+        run: |
+          echo "## TDD Compliance Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get base and head commits for PR
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          # Count commits in PR
+          COMMIT_COUNT=$(git rev-list --count $BASE_SHA..$HEAD_SHA)
+          echo "**PR Commits:** $COMMIT_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Analyze each commit for test vs implementation file changes
+          echo "### Commit Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          TDD_COMPLIANT=0
+          TDD_WARNING=0
+          MIXED_COMMITS=0
+
+          for commit in $(git rev-list $BASE_SHA..$HEAD_SHA); do
+            COMMIT_MSG=$(git log -1 --pretty=format:"%s" $commit)
+            COMMIT_SHORT=$(git rev-parse --short $commit)
+
+            # Get changed files in commit
+            TEST_FILES=$(git diff-tree --no-commit-id --name-only -r $commit | grep -E "(test_|\.test\.|\.spec\.)" | wc -l)
+            IMPL_FILES=$(git diff-tree --no-commit-id --name-only -r $commit | grep -v -E "(test_|\.test\.|\.spec\.)" | grep -E "\.(py|ts|tsx)$" | wc -l)
+
+            # Determine pattern
+            if [ "$TEST_FILES" -gt 0 ] && [ "$IMPL_FILES" -eq 0 ]; then
+              echo "✅ **$COMMIT_SHORT**: Tests only - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
+              TDD_COMPLIANT=$((TDD_COMPLIANT + 1))
+            elif [ "$TEST_FILES" -gt 0 ] && [ "$IMPL_FILES" -gt 0 ]; then
+              echo "⚠️  **$COMMIT_SHORT**: Mixed (tests: $TEST_FILES, impl: $IMPL_FILES) - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
+              MIXED_COMMITS=$((MIXED_COMMITS + 1))
+            elif [ "$TEST_FILES" -eq 0 ] && [ "$IMPL_FILES" -gt 0 ]; then
+              echo "⚠️  **$COMMIT_SHORT**: Implementation only - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
+              TDD_WARNING=$((TDD_WARNING + 1))
+            else
+              echo "ℹ️  **$COMMIT_SHORT**: Other changes - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Test-only commits: $TDD_COMPLIANT" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️  Mixed commits: $MIXED_COMMITS" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️  Implementation-only commits: $TDD_WARNING" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Calculate test-to-implementation ratio
+          TOTAL_TEST_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA | grep -E "(test_|\.test\.|\.spec\.)" | wc -l)
+          TOTAL_IMPL_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA | grep -v -E "(test_|\.test\.|\.spec\.)" | grep -E "\.(py|ts|tsx)$" | wc -l)
+
+          echo "### PR File Changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Test files changed: $TOTAL_TEST_FILES" >> $GITHUB_STEP_SUMMARY
+          echo "- Implementation files changed: $TOTAL_IMPL_FILES" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TOTAL_IMPL_FILES" -gt 0 ]; then
+            RATIO=$(awk "BEGIN {printf \"%.2f\", $TOTAL_TEST_FILES / $TOTAL_IMPL_FILES}")
+            echo "- Test-to-implementation ratio: **${RATIO}:1**" >> $GITHUB_STEP_SUMMARY
+
+            if (( $(echo "$RATIO < 0.5" | bc -l) )); then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️  **Warning**: Low test-to-implementation ratio. Consider adding more test coverage." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### TDD Best Practices Reminder" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **RED**: Write failing tests first" >> $GITHUB_STEP_SUMMARY
+          echo "2. **GREEN**: Implement minimum code to pass tests" >> $GITHUB_STEP_SUMMARY
+          echo "3. **REFACTOR**: Improve code while keeping tests green" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Mixed commits (tests + implementation) may indicate test-after-implementation." >> $GITHUB_STEP_SUMMARY
+          echo "Consider separate commits for test creation and implementation phases." >> $GITHUB_STEP_SUMMARY
+
+          # Output for comment
+          echo "tdd_compliant=$TDD_COMPLIANT" >> $GITHUB_OUTPUT
+          echo "tdd_warning=$TDD_WARNING" >> $GITHUB_OUTPUT
+          echo "mixed_commits=$MIXED_COMMITS" >> $GITHUB_OUTPUT
+          echo "test_files=$TOTAL_TEST_FILES" >> $GITHUB_OUTPUT
+          echo "impl_files=$TOTAL_IMPL_FILES" >> $GITHUB_OUTPUT
+
+  # ============================================================================
   # CI Gate - Aggregates all required checks for branch protection
   # ============================================================================
   # This job provides a single status check that depends on all required jobs.
