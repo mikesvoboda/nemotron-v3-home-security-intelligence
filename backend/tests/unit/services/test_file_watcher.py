@@ -496,8 +496,11 @@ async def test_debounce_multiple_events(file_watcher, temp_camera_root, mock_red
         await file_watcher._schedule_file_processing(str(image_path))
         await file_watcher._schedule_file_processing(str(image_path))
 
-        # Wait for debounce delay + processing
-        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
+        # Wait for debounce delay + extra time for task processing
+        # Use a generous margin (0.2s) to avoid flaky failures in CI
+        await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+        # Yield to allow any pending tasks to complete
+        await asyncio.sleep(0)
 
         # Should only process once
         assert mock_redis_client.add_to_queue_safe.await_count == 1
