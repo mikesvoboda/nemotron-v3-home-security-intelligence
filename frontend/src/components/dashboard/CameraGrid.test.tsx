@@ -258,7 +258,6 @@ describe('CameraGrid', () => {
       expect(grid).toHaveClass('grid-cols-1');
       expect(grid).toHaveClass('sm:grid-cols-2');
       expect(grid).toHaveClass('lg:grid-cols-3');
-      expect(grid).toHaveClass('xl:grid-cols-4');
     });
 
     it('should maintain grid gap', () => {

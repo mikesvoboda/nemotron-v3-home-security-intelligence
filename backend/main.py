@@ -45,7 +45,6 @@ from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import setup_telemetry, shutdown_telemetry
 from backend.models.camera import Camera
-from backend.services.audit_service import get_audit_service
 from backend.services.background_evaluator import BackgroundEvaluator
 from backend.services.circuit_breaker import CircuitBreakerConfig, get_circuit_breaker
 from backend.services.cleanup_service import CleanupService
@@ -56,6 +55,7 @@ from backend.services.file_watcher import FileWatcher
 from backend.services.gpu_monitor import GPUMonitor
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.performance_collector import PerformanceCollector
+from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
