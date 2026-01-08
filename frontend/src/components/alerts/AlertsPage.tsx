@@ -315,7 +315,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       ) : error ? (
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
           <div className="text-center">
-            <p className="mb-2 text-lg font-semibold text-red-500">Error Loading Alerts</p>
+            <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Alerts</p>
             <p className="text-sm text-gray-400">{error}</p>
           </div>
         </div>
