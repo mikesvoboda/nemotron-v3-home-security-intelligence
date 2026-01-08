@@ -935,6 +935,60 @@ class SystemBroadcaster:
 
         logger.info("Stopped system status broadcasting")
 
+    # Aliases for context manager compatibility
+    async def start(self, interval: float = 5.0) -> None:
+        """Start the system broadcaster (alias for start_broadcasting).
+
+        This alias provides a consistent interface with other services
+        for use with async context managers.
+
+        Args:
+            interval: Seconds between broadcasts (default: 5.0)
+        """
+        await self.start_broadcasting(interval)
+
+    async def stop(self) -> None:
+        """Stop the system broadcaster (alias for stop_broadcasting).
+
+        This alias provides a consistent interface with other services
+        for use with async context managers.
+        """
+        await self.stop_broadcasting()
+
+    async def __aenter__(self) -> SystemBroadcaster:
+        """Async context manager entry.
+
+        Starts the system broadcaster and returns self for use in async with statements.
+
+        Returns:
+            Self for use in the context manager block.
+
+        Example:
+            async with SystemBroadcaster(redis_client=redis) as broadcaster:
+                # broadcaster is started and periodically broadcasting
+                await broadcaster.connect(websocket)
+            # broadcaster is automatically stopped when exiting the block
+        """
+        await self.start()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit.
+
+        Stops the system broadcaster, ensuring cleanup even if an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised, None otherwise.
+            exc_val: Exception value if an exception was raised, None otherwise.
+            exc_tb: Exception traceback if an exception was raised, None otherwise.
+        """
+        await self.stop()
+
     async def _broadcast_loop(self, interval: float) -> None:
         """Background task that periodically broadcasts system status and performance.
 

@@ -57,6 +57,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware.correlation import get_correlation_headers
 from backend.core.config import get_settings
+from backend.core.exceptions import DetectorUnavailableError
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
@@ -89,29 +90,6 @@ MIN_DETECTION_IMAGE_SIZE = 10 * 1024  # 10KB
 DETECTOR_CONNECT_TIMEOUT = 10.0
 DETECTOR_READ_TIMEOUT = 60.0
 DETECTOR_HEALTH_TIMEOUT = 5.0
-
-
-class DetectorUnavailableError(Exception):
-    """Raised when the RT-DETR detector service is unavailable.
-
-    This exception is raised when the detector cannot be reached due to:
-    - Connection errors (service down, network issues)
-    - Timeout errors (service overloaded, slow response)
-    - HTTP 5xx errors (server-side failures)
-
-    This exception signals that the operation should be retried later,
-    as the failure is transient and not due to invalid input.
-    """
-
-    def __init__(self, message: str, original_error: Exception | None = None):
-        """Initialize the error.
-
-        Args:
-            message: Human-readable error description
-            original_error: The underlying exception that caused this error
-        """
-        super().__init__(message)
-        self.original_error = original_error
 
 
 class DetectorClient:
@@ -271,14 +249,24 @@ class DetectorClient:
             response.raise_for_status()
             return True
         except (httpx.ConnectError, httpx.TimeoutException) as e:
-            logger.warning(f"Detector health check failed: {e}", exc_info=True)
+            logger.warning(
+                "Detector health check failed",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
             return False
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Detector health check returned error status: {e}", exc_info=True)
+            logger.warning(
+                "Detector health check returned error status",
+                extra={"error": str(e)},
+                exc_info=True,
+            )
             return False
         except Exception as e:
             logger.error(
-                f"Unexpected error during detector health check: {sanitize_error(e)}", exc_info=True
+                "Unexpected error during detector health check",
+                extra={"error": sanitize_error(e)},
+                exc_info=True,
             )
             return False
 
@@ -478,25 +466,26 @@ class DetectorClient:
                 if attempt < self._max_retries - 1:
                     delay = min(2**attempt, 30)  # Cap at 30 seconds
                     logger.warning(
-                        f"Detector connection error (attempt {attempt + 1}/{self._max_retries}), "
-                        f"retrying in {delay}s: {e}",
+                        "Detector connection error, retrying",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
                             "attempt": attempt + 1,
                             "max_retries": self._max_retries,
                             "retry_delay": delay,
+                            "error": str(e),
                         },
                     )
                     await asyncio.sleep(delay)
                 else:
                     record_pipeline_error("rtdetr_connection_error")
                     logger.error(
-                        f"Detector connection error after {self._max_retries} attempts: {e}",
+                        "Detector connection error after all attempts",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
                             "attempts": self._max_retries,
+                            "error": str(e),
                         },
                         exc_info=True,
                     )
@@ -506,25 +495,26 @@ class DetectorClient:
                 if attempt < self._max_retries - 1:
                     delay = min(2**attempt, 30)  # Cap at 30 seconds
                     logger.warning(
-                        f"Detector timeout (attempt {attempt + 1}/{self._max_retries}), "
-                        f"retrying in {delay}s: {e}",
+                        "Detector timeout, retrying",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
                             "attempt": attempt + 1,
                             "max_retries": self._max_retries,
                             "retry_delay": delay,
+                            "error": str(e),
                         },
                     )
                     await asyncio.sleep(delay)
                 else:
                     record_pipeline_error("rtdetr_timeout")
                     logger.error(
-                        f"Detector timeout after {self._max_retries} attempts: {e}",
+                        "Detector timeout after all attempts",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
                             "attempts": self._max_retries,
+                            "error": str(e),
                         },
                         exc_info=True,
                     )
@@ -538,9 +528,7 @@ class DetectorClient:
                     if attempt < self._max_retries - 1:
                         delay = min(2**attempt, 30)  # Cap at 30 seconds
                         logger.warning(
-                            f"Detector server error {status_code} "
-                            f"(attempt {attempt + 1}/{self._max_retries}), "
-                            f"retrying in {delay}s",
+                            "Detector server error, retrying",
                             extra={
                                 "camera_id": camera_id,
                                 "file_path": image_path,
@@ -554,7 +542,7 @@ class DetectorClient:
                     else:
                         record_pipeline_error("rtdetr_server_error")
                         logger.error(
-                            f"Detector server error {status_code} after {self._max_retries} attempts",
+                            "Detector server error after all attempts",
                             extra={
                                 "camera_id": camera_id,
                                 "file_path": image_path,
@@ -575,7 +563,7 @@ class DetectorClient:
 
                     record_pipeline_error("rtdetr_client_error")
                     logger.error(
-                        f"Detector client error {status_code}: {error_detail or e}",
+                        "Detector client error",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
@@ -593,26 +581,26 @@ class DetectorClient:
                 if attempt < self._max_retries - 1:
                     delay = min(2**attempt, 30)  # Cap at 30 seconds
                     logger.warning(
-                        f"Unexpected detector error (attempt {attempt + 1}/{self._max_retries}), "
-                        f"retrying in {delay}s: {sanitize_error(e)}",
+                        "Unexpected detector error, retrying",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
                             "attempt": attempt + 1,
                             "max_retries": self._max_retries,
                             "retry_delay": delay,
+                            "error": sanitize_error(e),
                         },
                     )
                     await asyncio.sleep(delay)
                 else:
                     record_pipeline_error("rtdetr_unexpected_error")
                     logger.error(
-                        f"Unexpected detector error after {self._max_retries} attempts: "
-                        f"{sanitize_error(e)}",
+                        "Unexpected detector error after all attempts",
                         extra={
                             "camera_id": camera_id,
                             "file_path": image_path,
                             "attempts": self._max_retries,
+                            "error": sanitize_error(e),
                         },
                         exc_info=True,
                     )
@@ -649,8 +637,7 @@ class DetectorClient:
             file_size = image_file.stat().st_size
             if file_size < MIN_DETECTION_IMAGE_SIZE:
                 logger.warning(
-                    f"Image too small for detection ({file_size} bytes, "
-                    f"minimum {MIN_DETECTION_IMAGE_SIZE}): {image_path}",
+                    "Image too small for detection",
                     extra={
                         "camera_id": camera_id,
                         "file_path": image_path,
@@ -671,14 +658,14 @@ class DetectorClient:
         except OSError as e:
             # OSError covers most PIL image errors (truncated, corrupt, etc.)
             logger.warning(
-                f"Image validation failed (corrupt/truncated) {image_path}: {e}",
+                "Image validation failed (corrupt/truncated)",
                 extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
             )
             return False
         except Exception as e:
             logger.warning(
-                f"Image validation failed {image_path}: {sanitize_error(e)}",
-                extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+                "Image validation failed",
+                extra={"camera_id": camera_id, "file_path": image_path, "error": sanitize_error(e)},
             )
             return False
 
@@ -739,7 +726,7 @@ class DetectorClient:
         image_file = Path(image_path)
         if not image_file.exists():
             logger.error(
-                f"Image file not found: {image_path}",
+                "Image file not found",
                 extra={"camera_id": camera_id, "file_path": image_path},
             )
             record_pipeline_error("file_not_found")
@@ -798,7 +785,10 @@ class DetectorClient:
             observe_ai_request_duration("rtdetr", ai_duration)
 
             if "detections" not in result:
-                logger.warning(f"Malformed response from detector (missing 'detections'): {result}")
+                logger.warning(
+                    "Malformed response from detector (missing 'detections')",
+                    extra={"response": str(result)[:500]},
+                )
                 record_pipeline_error("malformed_response")
                 return []
 
@@ -889,7 +879,9 @@ class DetectorClient:
 
                 except Exception as e:
                     logger.error(
-                        f"Error processing detection data: {sanitize_error(e)}", exc_info=True
+                        "Error processing detection data",
+                        extra={"error": sanitize_error(e)},
+                        exc_info=True,
                     )
                     record_pipeline_error("detection_processing_error")
                     continue
@@ -933,7 +925,7 @@ class DetectorClient:
                 # Record detection metrics
                 record_detection_processed(count=len(detections))
                 logger.info(
-                    f"Stored {len(detections)} detections for {camera_id} from {image_path}",
+                    "Stored detections",
                     extra={
                         "camera_id": camera_id,
                         "file_path": image_path,
@@ -962,12 +954,13 @@ class DetectorClient:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("circuit_breaker_open")
             logger.warning(
-                f"Circuit breaker open for RT-DETR: {e}",
+                "Circuit breaker open for RT-DETR",
                 extra={
                     "camera_id": camera_id,
                     "file_path": image_path,
                     "duration_ms": duration_ms,
                     "circuit_state": self._circuit_breaker.state.value,
+                    "error": str(e),
                 },
             )
             raise DetectorUnavailableError(
@@ -982,8 +975,12 @@ class DetectorClient:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("rtdetr_unexpected_error")
             logger.error(
-                f"Unexpected error during object detection: {sanitize_error(e)}",
-                extra={"camera_id": camera_id, "duration_ms": duration_ms},
+                "Unexpected error during object detection",
+                extra={
+                    "camera_id": camera_id,
+                    "duration_ms": duration_ms,
+                    "error": sanitize_error(e),
+                },
                 exc_info=True,
             )
             raise DetectorUnavailableError(

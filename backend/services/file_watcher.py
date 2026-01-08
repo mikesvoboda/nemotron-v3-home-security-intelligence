@@ -977,3 +977,37 @@ class FileWatcher:
 
         self.running = False
         logger.info("FileWatcher stopped")
+
+    async def __aenter__(self) -> FileWatcher:
+        """Async context manager entry.
+
+        Starts the file watcher and returns self for use in async with statements.
+
+        Returns:
+            Self for use in the context manager block.
+
+        Example:
+            async with FileWatcher(camera_root="/path/to/cameras") as watcher:
+                # watcher is started and ready to use
+                ...
+            # watcher is automatically stopped when exiting the block
+        """
+        await self.start()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit.
+
+        Stops the file watcher, ensuring cleanup even if an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised, None otherwise.
+            exc_val: Exception value if an exception was raised, None otherwise.
+            exc_tb: Exception traceback if an exception was raised, None otherwise.
+        """
+        await self.stop()

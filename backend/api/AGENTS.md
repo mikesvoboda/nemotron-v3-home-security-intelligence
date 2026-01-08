@@ -10,8 +10,7 @@ The `backend/api/` package contains the FastAPI REST API layer for the home secu
 backend/api/
 ├── __init__.py              # Package initialization
 ├── AGENTS.md                # This file
-├── dependencies.py          # Reusable utility functions for entity existence checks
-├── deps.py                  # FastAPI dependency injection helpers
+├── dependencies.py          # FastAPI dependency injection and entity existence checks
 ├── exception_handlers.py    # Global exception handlers for standardized error responses
 ├── helpers/                 # Helper modules for API transformations
 ├── routes/                  # API route handlers (endpoints)
@@ -27,8 +26,16 @@ Package initialization. Contains a simple docstring: "API package for routes and
 
 ### `dependencies.py`
 
-Reusable utility functions for entity existence checks. These functions abstract the repeated
-pattern of querying for an entity by ID and raising a 404 if not found:
+Consolidated module for FastAPI dependency injection and entity existence checks.
+Provides dependency functions for services, resources, and entity lookups.
+
+**FastAPI Depends() Functions:**
+
+| Function           | Purpose                                  |
+| ------------------ | ---------------------------------------- |
+| `get_orchestrator` | Get ContainerOrchestrator from app state |
+
+**Entity Lookup Utilities:**
 
 | Function               | Purpose                                         |
 | ---------------------- | ----------------------------------------------- |
@@ -36,35 +43,39 @@ pattern of querying for an entity by ID and raising a 404 if not found:
 | `get_event_or_404`     | Get event by ID or raise HTTPException(404)     |
 | `get_detection_or_404` | Get detection by ID or raise HTTPException(404) |
 
-Usage pattern:
+**Service Dependency Injection:**
+
+| Function                         | Purpose                                             |
+| -------------------------------- | --------------------------------------------------- |
+| `get_cache_service_dep`          | Inject CacheService with Redis dependency           |
+| `get_cache_service_optional_dep` | Inject optional CacheService (graceful degradation) |
+
+Usage patterns:
 
 ```python
-from backend.api.dependencies import get_camera_or_404
-
-@router.get("/{camera_id}")
-async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Camera:
-    return await get_camera_or_404(camera_id, db)
-```
-
-### `deps.py`
-
-FastAPI dependency injection helpers for services. Provides dependency functions that can be
-used with FastAPI's `Depends()` mechanism:
-
-| Function           | Purpose                                  |
-| ------------------ | ---------------------------------------- |
-| `get_orchestrator` | Get ContainerOrchestrator from app state |
-
-Usage pattern:
-
-```python
-from backend.api.deps import get_orchestrator
+# Orchestrator dependency
+from backend.api.dependencies import get_orchestrator
 
 @router.get("/services")
 async def list_services(
     orchestrator: ContainerOrchestrator = Depends(get_orchestrator),
 ):
     return orchestrator.get_all_services()
+
+# Entity lookup
+from backend.api.dependencies import get_camera_or_404
+
+@router.get("/{camera_id}")
+async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Camera:
+    return await get_camera_or_404(camera_id, db)
+
+# Service dependency
+from backend.api.dependencies import get_cache_service_dep
+
+@router.get("/stats")
+async def get_stats(cache: CacheService = Depends(get_cache_service_dep)):
+    cached = await cache.get("key")
+    ...
 ```
 
 ### `exception_handlers.py`
