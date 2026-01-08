@@ -199,8 +199,15 @@ class TestCleanupServiceInitialization:
         Given: No configuration parameters provided
         When: A new CleanupService instance is created
         Then: Uses default cleanup_time="03:00", retention_days=30, delete_images=False
+
+        Note: We mock get_settings to return actual defaults because the runtime.env
+        file may override values. This test is specifically testing code defaults.
         """
-        service = CleanupService()
+        mock_settings = MagicMock()
+        mock_settings.retention_days = 30  # Default from Settings class
+
+        with patch("backend.services.cleanup_service.get_settings", return_value=mock_settings):
+            service = CleanupService()
 
         assert service.cleanup_time == "03:00"
         assert service.retention_days == 30  # From config default
