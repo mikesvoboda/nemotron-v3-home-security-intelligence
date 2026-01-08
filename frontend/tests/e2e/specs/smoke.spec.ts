@@ -31,7 +31,7 @@ test.describe('Dashboard Smoke Tests @smoke', () => {
 
   test('dashboard page loads successfully', async ({ page }) => {
     await dashboardPage.goto();
-    await expect(page).toHaveTitle(/Home Security/i);
+    await expect(page).toHaveTitle(/Security Dashboard/i);
     await dashboardPage.waitForDashboardLoad();
   });
 
@@ -50,7 +50,7 @@ test.describe('Dashboard Smoke Tests @smoke', () => {
   test('dashboard has correct page title', async ({ page }) => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(page).toHaveTitle(/Home Security/i);
+    await expect(page).toHaveTitle(/Security Dashboard/i);
   });
 
   test('dashboard shows risk score card', async () => {
