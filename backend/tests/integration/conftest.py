@@ -984,6 +984,10 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
         "redis_version": "7.0.0",
     }
 
+    # Set _client to None by default - tests that need _client behavior
+    # should configure it explicitly
+    mock_redis_client._client = None
+
     # Patch the shared singleton, initializer, and closer.
     with (
         patch("backend.core.redis._redis_client", mock_redis_client),

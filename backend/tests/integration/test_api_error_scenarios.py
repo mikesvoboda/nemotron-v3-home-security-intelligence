@@ -802,7 +802,7 @@ class TestSystemEndpointErrors:
     @pytest.mark.asyncio
     async def test_telemetry_redis_error(self, client, mock_redis):
         """Test telemetry endpoint handles Redis errors gracefully."""
-        mock_redis.get_queue_length.side_effect = Exception("Redis error")
+        mock_redis.get_queue_length.side_effect = ConnectionError("Redis error")
         response = await client.get("/api/system/telemetry")
         # Should still return a response with zero queue depths
         assert response.status_code == 200

@@ -65,6 +65,21 @@ from backend.core.profiling import (
     profile_if_enabled,
     reset_profiling_manager,
 )
+from backend.core.protocols import (
+    AIServiceProtocol,
+    AIServiceWithLifecycle,
+    BroadcasterProtocol,
+    BroadcasterWithMetrics,
+    CacheProtocol,
+    HealthCheckableProtocol,
+    InputT,
+    LifecycleProtocol,
+    MetricsProviderProtocol,
+    ModelLoaderProtocol,
+    OutputT,
+    QueueProcessorProtocol,
+    SubscribableProtocol,
+)
 from backend.core.query_explain import (
     QueryExplainLogger,
     setup_explain_logging,
@@ -97,26 +112,43 @@ from backend.core.tls import (
 )
 
 __all__ = [
+    # Constants
     "DEFAULT_IMAGE_MIME",
     "DEFAULT_VIDEO_MIME",
     "EXTENSION_TO_MIME",
     "SENSITIVE_FIELD_NAMES",
+    # Protocols
+    "AIServiceProtocol",
+    "AIServiceWithLifecycle",
+    # Classes
     "Base",
+    "BroadcasterProtocol",
+    "BroadcasterWithMetrics",
+    "CacheProtocol",
     "CertificateNotFoundError",
     "CertificateValidationError",
     "CircularDependencyError",
     "Container",
+    "HealthCheckableProtocol",
+    "InputT",
+    "LifecycleProtocol",
+    "MetricsProviderProtocol",
+    "ModelLoaderProtocol",
+    "OutputT",
     "ProfilingManager",
     "QueryExplainLogger",
     "QueueAddResult",
+    "QueueProcessorProtocol",
     "RedisClient",
     "ServiceAlreadyRegisteredError",
     "ServiceNotFoundError",
     "Settings",
+    "SubscribableProtocol",
     "TLSConfig",
     "TLSConfigurationError",
     "TLSError",
     "TLSMode",
+    # Functions
     "close_db",
     "close_redis",
     "create_ssl_context",

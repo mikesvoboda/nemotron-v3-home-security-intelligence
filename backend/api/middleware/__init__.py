@@ -32,6 +32,7 @@ from .request_logging import (
 )
 from .request_timing import RequestTimingMiddleware
 from .security_headers import SecurityHeadersMiddleware
+from .websocket_auth import validate_websocket_token
 
 __all__ = [
     "MAGIC_SIGNATURES",
@@ -61,4 +62,5 @@ __all__ = [
     "validate_file_magic_sync",
     "validate_upload_file",
     "validate_websocket_api_key",
+    "validate_websocket_token",
 ]

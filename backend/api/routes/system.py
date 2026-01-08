@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import os
 import shutil
+import tempfile
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -508,7 +509,8 @@ async def check_database_health(db: AsyncSession) -> HealthCheckServiceStatus:
                 }
             },
         )
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+        # Database connection and query failures
         return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Database error: {e!s}",
@@ -547,7 +549,8 @@ async def check_redis_health(redis: RedisClient | None) -> HealthCheckServiceSta
                 message=health.get("error", "Redis connection error"),
                 details=None,
             )
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError) as e:
+        # Redis connection failures
         return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Redis error: {e!s}",
@@ -576,7 +579,8 @@ async def _check_rtdetr_health(rtdetr_url: str, timeout: float) -> tuple[bool, s
         return False, "RT-DETR service request timed out"
     except httpx.HTTPStatusError as e:
         return False, f"RT-DETR service returned HTTP {e.response.status_code}"
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
+        # Network-level failures
         return False, f"RT-DETR service error: {e!s}"
 
 
@@ -601,7 +605,8 @@ async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[boo
         return False, "Nemotron service request timed out"
     except httpx.HTTPStatusError as e:
         return False, f"Nemotron service returned HTTP {e.response.status_code}"
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
+        # Network-level failures
         return False, f"Nemotron service error: {e!s}"
 
 
@@ -1179,8 +1184,29 @@ async def get_config() -> ConfigResponse:
 
 
 def _runtime_env_path() -> Path:
-    """Return the configured runtime override env file path."""
-    return Path(os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env"))
+    """Return the configured runtime override env file path.
+
+    The path is validated to be within expected directories to prevent
+    path traversal vulnerabilities via HSI_RUNTIME_ENV_PATH.
+    """
+    raw_path = os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env")
+    path = Path(raw_path).resolve()
+
+    # Allowed directories: data dirs, system temp dir, or current working directory
+    allowed_bases = [
+        Path("./data").resolve(),
+        Path("/data").resolve(),
+        Path(tempfile.gettempdir()).resolve(),
+        Path.cwd().resolve(),
+    ]
+    if not any(str(path).startswith(str(base)) for base in allowed_bases):
+        logger.warning(
+            f"Runtime env path {path} is outside allowed directories, "
+            f"using default ./data/runtime.env"
+        )
+        path = Path("./data/runtime.env").resolve()
+
+    return path
 
 
 def _write_runtime_env(overrides: dict[str, str]) -> None:
@@ -1293,9 +1319,12 @@ async def patch_config(
                 request=request,
             )
             await db.commit()
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database transaction failures
             logger.error(
-                "Failed to commit audit log", exc_info=True, extra={"action": "settings_changed"}
+                f"Failed to commit audit log: {e}",
+                exc_info=True,
+                extra={"action": "settings_changed"},
             )
             await db.rollback()
             # Don't fail the main operation - audit is non-critical
@@ -1410,9 +1439,10 @@ async def update_anomaly_config(
                 request=request,
             )
             await db.commit()
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database transaction failures
             logger.error(
-                "Failed to commit audit log",
+                f"Failed to commit audit log: {e}",
                 exc_info=True,
                 extra={"action": "anomaly_config_updated"},
             )
@@ -1518,7 +1548,8 @@ async def record_stage_latency(
             return
         # Refresh TTL so inactive stages eventually expire
         await redis.expire(key, LATENCY_TTL_SECONDS)
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError) as e:
+        # Redis connection failures
         logger.warning(f"Failed to record latency for stage {stage}: {e}")
 
 
@@ -1602,7 +1633,8 @@ async def get_latency_stats(redis: RedisClient) -> PipelineLatencies | None:
             batch=latencies.get("batch"),
             analyze=latencies.get("analyze"),
         )
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, ValueError) as e:
+        # Redis failures or parsing errors
         logger.warning(f"Failed to get latency stats: {e}")
         return None
 
@@ -1633,7 +1665,8 @@ async def get_telemetry(
     try:
         detection_depth = await redis.get_queue_length(DETECTION_QUEUE)
         analysis_depth = await redis.get_queue_length(ANALYSIS_QUEUE)
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError) as e:
+        # Redis connection failures
         logger.warning(f"Failed to get queue depths: {e}")
         # Return zeros on error - endpoint should still work
 
@@ -1856,9 +1889,10 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
                 dry_run=True,
                 timestamp=datetime.now(UTC),
             )
-        except Exception:
+        except (OSError, RuntimeError, ConnectionError) as e:
+            # File system and database cleanup failures
             logger.error(
-                "Manual cleanup dry run failed",
+                f"Manual cleanup dry run failed: {e}",
                 exc_info=True,
                 extra={"retention_days": settings.retention_days},
             )
@@ -1891,9 +1925,10 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
                 dry_run=False,
                 timestamp=datetime.now(UTC),
             )
-        except Exception:
+        except (OSError, RuntimeError, ConnectionError) as e:
+            # File system and database cleanup failures
             logger.error(
-                "Manual cleanup failed",
+                f"Manual cleanup failed: {e}",
                 exc_info=True,
                 extra={"retention_days": settings.retention_days},
             )
@@ -2044,9 +2079,10 @@ async def update_severity_thresholds(
                 request=request,
             )
             await db.commit()
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+            # Database transaction failures
             logger.error(
-                "Failed to commit audit log",
+                f"Failed to commit audit log: {e}",
                 exc_info=True,
                 extra={"action": "severity_thresholds_updated"},
             )
@@ -2515,7 +2551,8 @@ async def _get_batch_aggregator_status(
                         last_activity_seconds=round(current_time - last_activity, 1),
                     )
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
+                # Data parsing failures for individual batches
                 logger.warning(f"Error processing batch {batch_id}: {e}", exc_info=True)
                 continue
 
@@ -2525,8 +2562,9 @@ async def _get_batch_aggregator_status(
             batch_window_seconds=settings.batch_window_seconds,
             idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         )
-    except Exception:
-        logger.error("Error getting batch aggregator status", exc_info=True)
+    except (ConnectionError, TimeoutError, OSError) as e:
+        # Redis connection failures
+        logger.error(f"Error getting batch aggregator status: {e}", exc_info=True)
         return None
 
 
@@ -2542,7 +2580,9 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
 
         try:
             manager = get_degradation_manager()
-        except Exception:
+        except (RuntimeError, ValueError) as e:
+            # Manager not initialized or invalid state
+            logger.debug(f"Degradation manager not available: {e}")
             return None
     else:
         manager = _degradation_manager
@@ -2573,8 +2613,9 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
             services=services_list,
             available_features=status.get("available_features", []),
         )
-    except Exception:
-        logger.error("Error getting degradation status", exc_info=True)
+    except (KeyError, ValueError, AttributeError) as e:
+        # Status data parsing failures
+        logger.error(f"Error getting degradation status: {e}", exc_info=True)
         return None
 
 

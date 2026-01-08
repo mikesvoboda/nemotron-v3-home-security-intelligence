@@ -160,8 +160,11 @@ class AlertRuleEngine:
                     ) > SEVERITY_PRIORITY.get(result.highest_severity, 0):
                         result.highest_severity = rule.severity
 
-            except Exception as e:
-                logger.error(f"Error evaluating rule {rule.id}: {e}")
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
+                # ValueError/TypeError: Invalid condition values or type mismatches
+                # KeyError: Missing required fields in rule conditions
+                # AttributeError: Unexpected None values in rule or event data
+                logger.error(f"Error evaluating rule {rule.id}: {e}", exc_info=True)
                 result.skipped_rules.append((rule, f"evaluation_error: {e}"))
 
         # Sort triggered rules by severity (highest first)
@@ -354,8 +357,9 @@ class AlertRuleEngine:
         tz_name = schedule.get("timezone", "UTC")
         try:
             tz = ZoneInfo(tz_name)
-        except Exception:
-            logger.warning(f"Invalid timezone {tz_name}, using UTC")
+        except (KeyError, ValueError) as e:
+            # KeyError: unknown timezone, ValueError: invalid timezone format
+            logger.warning(f"Invalid timezone {tz_name}, using UTC: {e}")
             tz = ZoneInfo("UTC")
 
         # Convert current time to the schedule's timezone

@@ -9,6 +9,7 @@ venv/
 # Environment
 .env
 .env.local
+data/runtime.env
 
 # Secrets (Docker secrets directory)
 secrets/*
