@@ -150,10 +150,10 @@ function normalizeStatus(status: string | undefined): 'healthy' | 'unhealthy' | 
 /**
  * Get badge color for status
  */
-function getStatusColor(status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown'): 'green' | 'red' | 'yellow' | 'gray' {
+function getStatusColor(status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown'): 'emerald' | 'red' | 'yellow' | 'gray' {
   switch (status) {
     case 'healthy':
-      return 'green';
+      return 'emerald'; // Changed from 'green' for WCAG 4.5:1 contrast
     case 'unhealthy':
       return 'red';
     case 'degraded':
@@ -304,7 +304,7 @@ function CategorySummaryBar({ summaries }: CategorySummaryBarProps) {
               {CATEGORY_CONFIG[summary.category].label}
             </Text>
             <Badge
-              color={isAllHealthy ? 'green' : summary.unhealthy > 0 ? 'red' : 'yellow'}
+              color={isAllHealthy ? 'emerald' : summary.unhealthy > 0 ? 'red' : 'yellow'}
               size="xs"
               data-testid={`category-badge-${summary.category}`}
             >
@@ -576,7 +576,7 @@ export default function ServicesPanel({
           Services
         </Title>
         <Badge
-          color={totalHealthy === totalServices ? 'green' : totalHealthy === 0 ? 'red' : 'yellow'}
+          color={totalHealthy === totalServices ? 'emerald' : totalHealthy === 0 ? 'red' : 'yellow'}
           size="sm"
           data-testid="services-total-badge"
         >
