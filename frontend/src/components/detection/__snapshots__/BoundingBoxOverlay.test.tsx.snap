@@ -124,8 +124,7 @@ exports[`BoundingBoxOverlay snapshots > renders with custom colors 1`] = `
           font-weight="500"
           opacity="0.9"
         >
-
-          90%
+           90%
         </tspan>
       </text>
     </g>
@@ -167,8 +166,7 @@ exports[`BoundingBoxOverlay snapshots > renders with custom colors 1`] = `
           font-weight="500"
           opacity="0.9"
         >
-
-          85%
+           85%
         </tspan>
       </text>
     </g>
@@ -220,8 +218,7 @@ exports[`BoundingBoxOverlay snapshots > renders with different image dimensions 
           font-weight="500"
           opacity="0.9"
         >
-
-          95%
+           95%
         </tspan>
       </text>
     </g>
@@ -263,8 +260,7 @@ exports[`BoundingBoxOverlay snapshots > renders with different image dimensions 
           font-weight="500"
           opacity="0.9"
         >
-
-          87%
+           87%
         </tspan>
       </text>
     </g>
@@ -352,8 +348,7 @@ exports[`BoundingBoxOverlay snapshots > renders with minConfidence filter 1`] = 
           font-weight="500"
           opacity="0.9"
         >
-
-          95%
+           95%
         </tspan>
       </text>
     </g>
@@ -405,8 +400,7 @@ exports[`BoundingBoxOverlay snapshots > renders with multiple bounding boxes 1`]
           font-weight="500"
           opacity="0.9"
         >
-
-          95%
+           95%
         </tspan>
       </text>
     </g>
@@ -448,8 +442,7 @@ exports[`BoundingBoxOverlay snapshots > renders with multiple bounding boxes 1`]
           font-weight="500"
           opacity="0.9"
         >
-
-          87%
+           87%
         </tspan>
       </text>
     </g>
@@ -501,8 +494,7 @@ exports[`BoundingBoxOverlay snapshots > renders with single bounding box 1`] = `
           font-weight="500"
           opacity="0.9"
         >
-
-          95%
+           95%
         </tspan>
       </text>
     </g>
@@ -554,8 +546,7 @@ exports[`BoundingBoxOverlay snapshots > renders with unknown object type (defaul
           font-weight="500"
           opacity="0.9"
         >
-
-          85%
+           85%
         </tspan>
       </text>
     </g>
@@ -607,8 +598,7 @@ exports[`BoundingBoxOverlay snapshots > renders with various object types 1`] = 
           font-weight="500"
           opacity="0.9"
         >
-
-          99%
+           99%
         </tspan>
       </text>
     </g>
@@ -650,8 +640,7 @@ exports[`BoundingBoxOverlay snapshots > renders with various object types 1`] = 
           font-weight="500"
           opacity="0.9"
         >
-
-          85%
+           85%
         </tspan>
       </text>
     </g>
@@ -693,8 +682,7 @@ exports[`BoundingBoxOverlay snapshots > renders with various object types 1`] = 
           font-weight="500"
           opacity="0.9"
         >
-
-          72%
+           72%
         </tspan>
       </text>
     </g>
@@ -736,8 +724,7 @@ exports[`BoundingBoxOverlay snapshots > renders with various object types 1`] = 
           font-weight="500"
           opacity="0.9"
         >
-
-          91%
+           91%
         </tspan>
       </text>
     </g>

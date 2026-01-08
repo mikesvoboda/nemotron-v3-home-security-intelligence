@@ -185,8 +185,7 @@ const BoundingBoxOverlayComponent: React.FC<BoundingBoxOverlayProps> = ({
                   {box.label}
                   {showConfidence && (
                     <tspan fill="white" opacity="0.9" fontWeight="500">
-                      {' '}
-                      {formatConfidence(box.confidence)}
+                      {` ${formatConfidence(box.confidence)}`}
                     </tspan>
                   )}
                 </text>

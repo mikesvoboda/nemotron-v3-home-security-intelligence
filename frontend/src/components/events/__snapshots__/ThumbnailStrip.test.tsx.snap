@@ -16,7 +16,7 @@ exports[`ThumbnailStrip > snapshots > renders detection without object type or c
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -74,7 +74,7 @@ exports[`ThumbnailStrip > snapshots > renders detection without object type or c
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
     </button>
@@ -147,7 +147,7 @@ exports[`ThumbnailStrip > snapshots > renders single detection 1`] = `
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -205,7 +205,7 @@ exports[`ThumbnailStrip > snapshots > renders single detection 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
       <div
@@ -235,7 +235,7 @@ exports[`ThumbnailStrip > snapshots > renders with high confidence detection 1`]
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -293,7 +293,7 @@ exports[`ThumbnailStrip > snapshots > renders with high confidence detection 1`]
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
       <div
@@ -323,7 +323,7 @@ exports[`ThumbnailStrip > snapshots > renders with low confidence detection 1`] 
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -381,7 +381,7 @@ exports[`ThumbnailStrip > snapshots > renders with low confidence detection 1`] 
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
       <div
@@ -411,7 +411,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -469,7 +469,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
       <div
@@ -480,7 +480,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 2 at 05:30:01. Double-click to enlarge."
+      aria-label="View detection 2 at 10:30:01. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -538,7 +538,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:01
+          10:30:01
         </span>
       </div>
       <div
@@ -549,7 +549,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 3 at 05:30:02. Double-click to enlarge."
+      aria-label="View detection 3 at 10:30:02. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -607,7 +607,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:02
+          10:30:02
         </span>
       </div>
       <div
@@ -618,7 +618,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 4 at 05:30:03. Double-click to enlarge."
+      aria-label="View detection 4 at 10:30:03. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -676,7 +676,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:03
+          10:30:03
         </span>
       </div>
       <div
@@ -687,7 +687,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 5 at 05:30:04. Double-click to enlarge."
+      aria-label="View detection 5 at 10:30:04. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -745,7 +745,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:04
+          10:30:04
         </span>
       </div>
       <div
@@ -756,7 +756,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 6 at 05:30:05. Double-click to enlarge."
+      aria-label="View detection 6 at 10:30:05. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -814,7 +814,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:05
+          10:30:05
         </span>
       </div>
       <div
@@ -825,7 +825,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 7 at 05:30:06. Double-click to enlarge."
+      aria-label="View detection 7 at 10:30:06. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -883,7 +883,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:06
+          10:30:06
         </span>
       </div>
       <div
@@ -894,7 +894,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 8 at 05:30:07. Double-click to enlarge."
+      aria-label="View detection 8 at 10:30:07. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -952,7 +952,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:07
+          10:30:07
         </span>
       </div>
       <div
@@ -963,7 +963,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 9 at 05:30:08. Double-click to enlarge."
+      aria-label="View detection 9 at 10:30:08. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1021,7 +1021,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:08
+          10:30:08
         </span>
       </div>
       <div
@@ -1032,7 +1032,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
       </div>
     </button>
     <button
-      aria-label="View detection 10 at 05:30:09. Double-click to enlarge."
+      aria-label="View detection 10 at 10:30:09. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1090,7 +1090,7 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
         <span
           class="font-mono text-gray-500"
         >
-          05:30:09
+          10:30:09
         </span>
       </div>
       <div
@@ -1164,7 +1164,7 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1222,7 +1222,7 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
       <div
@@ -1233,7 +1233,7 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
       </div>
     </button>
     <button
-      aria-label="View detection 2 at 05:30:02. Double-click to enlarge."
+      aria-label="View detection 2 at 10:30:02. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all bg-[#76B900]/20 ring-2 ring-[#76B900]"
       style="min-width: 120px;"
       type="button"
@@ -1291,7 +1291,7 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:02
+          10:30:02
         </span>
       </div>
       <div
@@ -1302,7 +1302,7 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
       </div>
     </button>
     <button
-      aria-label="View detection 3 at 05:30:05. Double-click to enlarge."
+      aria-label="View detection 3 at 10:30:05. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1360,7 +1360,7 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:05
+          10:30:05
         </span>
       </div>
       <div
@@ -1390,7 +1390,7 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
     style="scrollbar-width: thin;"
   >
     <button
-      aria-label="View detection 1 at 05:30:00. Double-click to enlarge."
+      aria-label="View detection 1 at 10:30:00. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1448,7 +1448,7 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:00
+          10:30:00
         </span>
       </div>
       <div
@@ -1459,7 +1459,7 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
       </div>
     </button>
     <button
-      aria-label="View detection 2 at 05:30:02. Double-click to enlarge."
+      aria-label="View detection 2 at 10:30:02. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1517,7 +1517,7 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:02
+          10:30:02
         </span>
       </div>
       <div
@@ -1528,7 +1528,7 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
       </div>
     </button>
     <button
-      aria-label="View detection 3 at 05:30:05. Double-click to enlarge."
+      aria-label="View detection 3 at 10:30:05. Double-click to enlarge."
       class="group relative flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg p-2 transition-all hover:bg-gray-800/50 hover:scale-[1.02] focus:bg-gray-800/50"
       style="min-width: 120px;"
       type="button"
@@ -1586,7 +1586,7 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
         <span
           class="font-mono text-gray-500"
         >
-          05:30:05
+          10:30:05
         </span>
       </div>
       <div
