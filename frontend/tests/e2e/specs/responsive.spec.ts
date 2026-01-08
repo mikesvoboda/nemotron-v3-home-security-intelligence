@@ -10,10 +10,11 @@ import { DashboardPage, TimelinePage, SettingsPage, SystemPage } from '../pages'
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
 
 // Common viewport sizes to test
+// Note: Mobile breakpoint is 768px (max-width), so tablet should be > 768px
 const viewports = {
   mobile: { width: 375, height: 667 }, // iPhone SE
   mobileLarge: { width: 414, height: 896 }, // iPhone 11 Pro Max
-  tablet: { width: 768, height: 1024 }, // iPad
+  tablet: { width: 769, height: 1024 }, // iPad (just above mobile breakpoint)
   tabletLandscape: { width: 1024, height: 768 }, // iPad Landscape
   desktop: { width: 1280, height: 720 }, // Standard desktop
   desktopLarge: { width: 1920, height: 1080 }, // Full HD
