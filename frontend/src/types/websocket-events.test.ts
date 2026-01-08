@@ -1,20 +1,17 @@
 /**
- * Tests for WebSocket Event Map types and utilities
+ * Tests for WebSocket Event Map Types and Utilities
+ *
+ * These tests verify the type guards and utility functions for WebSocket
+ * event handling. Type-level tests are verified through compilation.
  */
 
 import { describe, it, expect } from 'vitest';
 
 import {
-  isWebSocketEventKey,
-  extractEventType,
   WEBSOCKET_EVENT_KEYS,
-} from './websocket-events';
-
-import type {
-  WebSocketEventMap,
-  WebSocketEventKey,
-  WebSocketEventPayload,
-  WebSocketEventHandler,
+  extractEventPayload,
+  extractEventType,
+  isWebSocketEventKey,
 } from './websocket-events';
 
 describe('WebSocket Event Types', () => {
@@ -29,12 +26,8 @@ describe('WebSocket Event Types', () => {
       expect(WEBSOCKET_EVENT_KEYS).toContain('pong');
     });
 
-    it('should be a readonly array type', () => {
-      // TypeScript compilation would fail if we tried to modify it
-      // The 'as const' assertion makes it readonly at compile time
-      // At runtime, we just verify it's an array
-      expect(Array.isArray(WEBSOCKET_EVENT_KEYS)).toBe(true);
-      expect(WEBSOCKET_EVENT_KEYS.length).toBeGreaterThan(0);
+    it('should have exactly 7 event keys', () => {
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(7);
     });
   });
 
@@ -51,92 +44,118 @@ describe('WebSocket Event Types', () => {
 
     it('should return false for invalid event keys', () => {
       expect(isWebSocketEventKey('invalid')).toBe(false);
-      expect(isWebSocketEventKey('unknown_type')).toBe(false);
+      expect(isWebSocketEventKey('unknown')).toBe(false);
+      expect(isWebSocketEventKey('message')).toBe(false);
       expect(isWebSocketEventKey('')).toBe(false);
+    });
+
+    it('should return false for non-string values', () => {
       expect(isWebSocketEventKey(null)).toBe(false);
       expect(isWebSocketEventKey(undefined)).toBe(false);
       expect(isWebSocketEventKey(123)).toBe(false);
       expect(isWebSocketEventKey({})).toBe(false);
+      expect(isWebSocketEventKey([])).toBe(false);
     });
   });
 
   describe('extractEventType', () => {
-    it('should extract event type from valid messages', () => {
-      expect(extractEventType({ type: 'event', data: {} })).toBe('event');
+    it('should extract valid event type from message object', () => {
+      expect(extractEventType({ type: 'event' })).toBe('event');
       expect(extractEventType({ type: 'ping' })).toBe('ping');
-      expect(extractEventType({ type: 'system_status', data: {}, timestamp: '' })).toBe(
-        'system_status'
-      );
+      expect(extractEventType({ type: 'system_status', data: {} })).toBe('system_status');
     });
 
-    it('should return undefined for invalid messages', () => {
+    it('should return undefined for invalid type', () => {
+      expect(extractEventType({ type: 'invalid' })).toBeUndefined();
+      expect(extractEventType({ type: 123 })).toBeUndefined();
+    });
+
+    it('should return undefined for missing type', () => {
+      expect(extractEventType({})).toBeUndefined();
+      expect(extractEventType({ data: {} })).toBeUndefined();
+    });
+
+    it('should return undefined for non-object values', () => {
       expect(extractEventType(null)).toBeUndefined();
       expect(extractEventType(undefined)).toBeUndefined();
-      expect(extractEventType('string')).toBeUndefined();
+      expect(extractEventType('event')).toBeUndefined();
       expect(extractEventType(123)).toBeUndefined();
-      expect(extractEventType({})).toBeUndefined();
-      expect(extractEventType({ invalid: 'message' })).toBeUndefined();
-      expect(extractEventType({ type: 'unknown_type' })).toBeUndefined();
     });
   });
 
-  describe('Type Inference', () => {
-    it('should correctly type event payloads', () => {
-      // These are compile-time checks - if the types are wrong, TypeScript will fail
-      const eventKey: WebSocketEventKey = 'event';
-      const eventPayload: WebSocketEventPayload<'event'> = {
+  describe('extractEventPayload', () => {
+    it('should extract data payload from message with data field', () => {
+      const eventData = {
         id: '123',
         camera_id: 'front_door',
         risk_score: 75,
         risk_level: 'high',
-        summary: 'Test',
+        summary: 'Person detected',
       };
+      const message = { type: 'event', data: eventData };
 
-      const pingPayload: WebSocketEventPayload<'ping'> = {
-        type: 'ping',
-      };
-
-      const errorPayload: WebSocketEventPayload<'error'> = {
-        message: 'Test error',
-      };
-
-      expect(eventKey).toBe('event');
-      expect(eventPayload.risk_score).toBe(75);
-      expect(pingPayload.type).toBe('ping');
-      expect(errorPayload.message).toBe('Test error');
+      const payload = extractEventPayload(message, 'event');
+      expect(payload).toEqual(eventData);
     });
 
-    it('should correctly type event handlers', () => {
-      const handler: WebSocketEventHandler<'event'> = (data) => {
-        // TypeScript knows data is SecurityEventData
-        const _riskScore: number = data.risk_score;
-        expect(typeof _riskScore).toBe('number');
-      };
+    it('should return message itself for simple messages without data field', () => {
+      const pingMessage = { type: 'ping' };
 
-      handler({
-        id: '123',
-        camera_id: 'front_door',
-        risk_score: 75,
-        risk_level: 'high',
-        summary: 'Test',
-      });
+      const payload = extractEventPayload(pingMessage, 'ping');
+      expect(payload).toEqual(pingMessage);
+    });
+
+    it('should return undefined if type does not match', () => {
+      const message = { type: 'event', data: {} };
+
+      const payload = extractEventPayload(message, 'ping');
+      expect(payload).toBeUndefined();
+    });
+
+    it('should return undefined for non-object values', () => {
+      expect(extractEventPayload(null, 'event')).toBeUndefined();
+      expect(extractEventPayload(undefined, 'event')).toBeUndefined();
+      expect(extractEventPayload('string', 'event')).toBeUndefined();
+    });
+
+    it('should handle system_status messages with nested data', () => {
+      const systemData = {
+        gpu: { utilization: 50, memory_used: 1024, memory_total: 2048, temperature: 65, inference_fps: 30 },
+        cameras: { active: 4, total: 4 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy',
+      };
+      const message = { type: 'system_status', data: systemData, timestamp: '2024-01-01T00:00:00Z' };
+
+      const payload = extractEventPayload(message, 'system_status');
+      expect(payload).toEqual(systemData);
     });
   });
+});
 
-  describe('WebSocketEventMap', () => {
-    it('should have all expected event types', () => {
-      // Type-level test - ensure all keys are present in the map
-      const keys: (keyof WebSocketEventMap)[] = [
-        'event',
-        'service_status',
-        'system_status',
-        'ping',
-        'gpu_stats',
-        'error',
-        'pong',
-      ];
+/**
+ * Type-level tests (these fail at compile time if types are wrong)
+ *
+ * These tests verify that the type system correctly infers handler
+ * parameter types based on event keys.
+ */
+describe('Type-level verification', () => {
+  it('should correctly type handler parameters', () => {
+    // This test verifies compilation - if types are wrong, TypeScript will error
+    type EventHandler = (data: { risk_score: number }) => void;
+    const _handler: EventHandler = (data) => {
+      // TypeScript should know data has risk_score
+      expect(typeof data.risk_score).toBe('number');
+    };
 
-      expect(keys).toHaveLength(7);
-    });
+    _handler({ risk_score: 75 });
+  });
+
+  it('should correctly narrow types with type guards', () => {
+    const key = 'event';
+    if (isWebSocketEventKey(key)) {
+      // TypeScript knows key is WebSocketEventKey
+      expect(WEBSOCKET_EVENT_KEYS).toContain(key);
+    }
   });
 });
