@@ -199,7 +199,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short"
+addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
 timeout = 5
 timeout_method = "thread"
 markers = [
@@ -306,12 +306,4 @@ pytest_add_cli_args = ["-x", "-q", "--tb=short", "-p", "no:benchmark", "-o", "ad
 # Also copy backend modules to mutants directory for imports
 also_copy = [
     "backend/",
-]
-
-[dependency-groups]
-dev = [
-    "pytest-clarity>=1.0.1",
-    "pytest-deadfixtures>=3.0.0",
-    "pytest-randomly>=4.0.1",
-    "pytest-sugar>=1.1.1",
 ]

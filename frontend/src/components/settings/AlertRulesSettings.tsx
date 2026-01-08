@@ -800,7 +800,7 @@ export default function AlertRulesSettings() {
                                   )}
                                 />
                               </Switch>
-                              <span className="text-sm text-text-secondary">
+                              <span className="text-sm text-gray-300">
                                 {formData.enabled ? 'Enabled' : 'Disabled'}
                               </span>
                             </div>
@@ -1301,7 +1301,7 @@ export default function AlertRulesSettings() {
                         void handleDelete();
                       }}
                       disabled={submitting}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-all hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-700 px-4 py-2 font-medium text-white transition-all hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-700 disabled:opacity-50"
                     >
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                       {submitting ? 'Deleting...' : 'Delete Rule'}

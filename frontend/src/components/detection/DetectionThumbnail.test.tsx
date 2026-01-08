@@ -370,4 +370,66 @@ describe('DetectionThumbnail', () => {
       expect(img).toHaveAttribute('src', '/api/detections/999/image');
     });
   });
+
+  describe('snapshots', () => {
+    it('renders loading skeleton state', () => {
+      const { container } = render(<DetectionThumbnail {...defaultProps} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it.each(['sm', 'md', 'lg'] as const)('renders %s size loading skeleton', (size) => {
+      const { container } = render(<DetectionThumbnail {...defaultProps} size={size} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders error state', async () => {
+      const { container } = render(<DetectionThumbnail {...defaultProps} />);
+      const hiddenImg = container.querySelector('img[aria-hidden="true"]') as HTMLImageElement;
+      fireEvent.error(hiddenImg);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-display')).toBeInTheDocument();
+      });
+
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders loaded state with image', async () => {
+      const { container } = render(<DetectionThumbnail {...defaultProps} />);
+      const hiddenImg = container.querySelector('img[aria-hidden="true"]') as HTMLImageElement;
+      fireEvent.load(hiddenImg);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+      });
+
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with onClick handler (clickable state)', async () => {
+      const { container } = render(
+        <DetectionThumbnail {...defaultProps} onClick={() => {}} />
+      );
+      const hiddenImg = container.querySelector('img[aria-hidden="true"]') as HTMLImageElement;
+      fireEvent.load(hiddenImg);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+      });
+
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with custom className', () => {
+      const { container } = render(
+        <DetectionThumbnail {...defaultProps} className="custom-border border-4" />
+      );
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with showLoading disabled', () => {
+      const { container } = render(<DetectionThumbnail {...defaultProps} showLoading={false} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+  });
 });

@@ -69,7 +69,7 @@ export default function ThumbnailStrip({
     return null;
   }
 
-  // Format timestamp to show relative time or HH:MM:SS
+  // Format timestamp to show relative time or HH:MM:SS (UTC for consistency)
   const formatTimestamp = (isoString: string): string => {
     try {
       const date = new Date(isoString);
@@ -78,6 +78,7 @@ export default function ThumbnailStrip({
         minute: '2-digit',
         second: '2-digit',
         hour12: false,
+        timeZone: 'UTC',
       });
     } catch {
       return '--:--:--';

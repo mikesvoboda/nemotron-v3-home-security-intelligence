@@ -208,4 +208,39 @@ describe('RiskBadge', () => {
       expect(badge.closest('span')).toHaveClass('font-medium');
     });
   });
+
+  describe('snapshots', () => {
+    it.each(['low', 'medium', 'high', 'critical'] as const)(
+      'renders %s risk level correctly',
+      (level) => {
+        const { container } = render(<RiskBadge level={level} />);
+        expect(container.firstChild).toMatchSnapshot();
+      }
+    );
+
+    it('renders with score displayed', () => {
+      const { container } = render(<RiskBadge level="high" score={85} showScore={true} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it.each(['sm', 'md', 'lg'] as const)('renders %s size variant correctly', (size) => {
+      const { container } = render(<RiskBadge level="medium" size={size} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders critical level with animation', () => {
+      const { container } = render(<RiskBadge level="critical" animated={true} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders critical level without animation', () => {
+      const { container } = render(<RiskBadge level="critical" animated={false} />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+
+    it('renders with custom className', () => {
+      const { container } = render(<RiskBadge level="low" className="custom-margin ml-4" />);
+      expect(container.firstChild).toMatchSnapshot();
+    });
+  });
 });
