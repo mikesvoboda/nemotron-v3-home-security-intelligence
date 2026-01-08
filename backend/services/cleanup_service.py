@@ -28,12 +28,9 @@ import asyncio
 import contextlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict
 
 from sqlalchemy import delete, select
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
@@ -43,7 +40,20 @@ from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.models.log import Log
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 logger = get_logger(__name__)
+
+
+class CleanupStatsDict(TypedDict):
+    """Type for cleanup service status dictionary."""
+
+    running: bool
+    retention_days: int
+    cleanup_time: str
+    delete_images: bool
+    next_cleanup: str | None
 
 
 class CleanupStats:
@@ -448,7 +458,7 @@ class CleanupService:
             logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=True)
             return False
 
-    def get_cleanup_stats(self) -> dict[str, Any]:
+    def get_cleanup_stats(self) -> CleanupStatsDict:
         """Get current service status and statistics.
 
         Returns:

@@ -1,5 +1,6 @@
 # Prometheus configuration for Home Security Intelligence
-# Scrapes metrics from backend API endpoints via JSON exporter
+# Scrapes native Prometheus metrics from backend /api/metrics endpoint
+# Also scrapes JSON endpoints via JSON exporter for health/telemetry/stats
 
 global:
   scrape_interval: 15s
@@ -22,6 +23,33 @@ alerting:
       api_version: v2
 
 scrape_configs:
+  # ==========================================================================
+  # Direct Native Prometheus Metrics Scraping (Preferred)
+  # ==========================================================================
+  # Scrapes the native Prometheus metrics endpoint directly.
+  # This is the recommended approach as it:
+  # - Preserves native histogram buckets for accurate percentile calculations
+  # - Eliminates the JSON exporter as an intermediate failure point
+  # - Reduces latency in metrics collection
+  # - Properly types all metrics (counters, gauges, histograms)
+  - job_name: 'hsi-backend-metrics'
+    metrics_path: /api/metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'backend:8000'
+    # Relabel to add service identification
+    relabel_configs:
+      - target_label: service
+        replacement: 'home-security-intelligence'
+
+  # ==========================================================================
+  # JSON Exporter Scraped Endpoints (For non-Prometheus format data)
+  # ==========================================================================
+  # These endpoints return JSON data that needs conversion to Prometheus format.
+  # Used for health checks, telemetry summaries, and stats that don't have
+  # native Prometheus equivalents.
+
   # Backend health metrics via JSON exporter
   - job_name: 'hsi-health'
     metrics_path: /probe

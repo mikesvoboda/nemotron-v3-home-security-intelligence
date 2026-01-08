@@ -345,6 +345,20 @@ class LocalPostgresService:
         return 5432
 
     def get_connection_url(self) -> str:
+        """Get PostgreSQL connection URL, preferring CI environment variables.
+
+        Priority order:
+        1. TEST_DATABASE_URL (explicit CI override)
+        2. DATABASE_URL (also set in CI)
+        3. DEFAULT_DEV_POSTGRES_URL (local development fallback)
+        """
+        # Check CI environment variables first
+        env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        if env_url:
+            # Ensure asyncpg driver
+            if "postgresql://" in env_url and "asyncpg" not in env_url:
+                env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
+            return env_url
         return DEFAULT_DEV_POSTGRES_URL
 
 

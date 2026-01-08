@@ -218,6 +218,12 @@ class DetectorClient:
             ),
         )
 
+        # Cold start and warmup tracking (NEM-1670)
+        self._last_inference_time: float | None = None
+        self._is_warming: bool = False
+        self._warmup_enabled = settings.ai_warmup_enabled
+        self._cold_start_threshold = settings.ai_cold_start_threshold_seconds
+
         logger.debug(
             f"DetectorClient initialized with max_retries={self._max_retries}, "
             f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}, "
@@ -275,6 +281,149 @@ class DetectorClient:
                 f"Unexpected error during detector health check: {sanitize_error(e)}", exc_info=True
             )
             return False
+
+    # =========================================================================
+    # Cold Start Detection and Warmup (NEM-1670)
+    # =========================================================================
+
+    def _track_inference(self) -> None:
+        """Record the timestamp of an inference operation.
+
+        Called after each successful detection inference to track model warmth.
+        """
+        self._last_inference_time = time.monotonic()
+
+    def is_cold(self) -> bool:
+        """Check if the model is considered cold (not recently used).
+
+        A model is cold if:
+        - It has never been used (_last_inference_time is None)
+        - The time since last inference exceeds cold_start_threshold
+
+        Returns:
+            True if model is cold, False if warm
+        """
+        if self._last_inference_time is None:
+            return True
+        seconds_since_last = time.monotonic() - self._last_inference_time
+        return seconds_since_last > self._cold_start_threshold
+
+    def get_warmth_state(self) -> dict[str, Any]:
+        """Get the current warmth state of the model.
+
+        Returns:
+            Dictionary containing:
+            - state: 'cold', 'warming', or 'warm'
+            - last_inference_seconds_ago: Seconds since last inference, or None
+        """
+        if self._is_warming:
+            return {
+                "state": "warming",
+                "last_inference_seconds_ago": None,
+            }
+
+        if self._last_inference_time is None:
+            return {
+                "state": "cold",
+                "last_inference_seconds_ago": None,
+            }
+
+        seconds_ago = time.monotonic() - self._last_inference_time
+        is_cold = seconds_ago > self._cold_start_threshold
+        return {
+            "state": "cold" if is_cold else "warm",
+            "last_inference_seconds_ago": seconds_ago,
+        }
+
+    async def model_readiness_probe(self) -> bool:
+        """Perform model readiness probe with actual inference.
+
+        Unlike health_check which only checks HTTP availability,
+        this method sends a test image to verify the model can
+        actually perform inference. This is used for warmup and
+        to detect if the model is loaded and ready.
+
+        Returns:
+            True if model completed inference successfully, False otherwise
+        """
+        try:
+            # Create a simple 32x32 black test image
+            # This is small enough to be fast but exercises the full inference path
+            test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+            import io
+
+            buffer = io.BytesIO()
+            test_image.save(buffer, format="JPEG")
+            image_data = buffer.getvalue()
+
+            # Send detection request - result is not needed, just verify no exception
+            await self._send_detection_request(
+                image_data=image_data,
+                image_name="warmup_test.jpg",
+                camera_id="warmup",
+                image_path="/dev/null",  # placeholder path for warmup probe
+            )
+            # Any valid response (even empty detections) means the model is ready
+            return True
+        except DetectorUnavailableError as e:
+            logger.warning(f"RT-DETR readiness probe failed (unavailable): {e}")
+            return False
+        except Exception as e:
+            logger.warning(f"RT-DETR readiness probe failed: {e}")
+            return False
+
+    async def warmup(self) -> bool:
+        """Perform model warmup by running a test inference.
+
+        Called on service startup to preload model weights into GPU memory.
+        This reduces first-request latency for production traffic.
+
+        Records metrics:
+        - hsi_model_warmup_duration_seconds{model="rtdetr"}
+        - hsi_model_cold_start_total{model="rtdetr"} (if model was cold)
+
+        Returns:
+            True if warmup succeeded, False otherwise
+        """
+        from backend.core.metrics import (
+            observe_model_warmup_duration,
+            record_model_cold_start,
+            set_model_warmth_state,
+        )
+
+        if not self._warmup_enabled:
+            logger.debug("RT-DETR warmup disabled by configuration")
+            return True
+
+        was_cold = self.is_cold()
+        self._is_warming = True
+        set_model_warmth_state("rtdetr", "warming")
+
+        try:
+            logger.info("Starting RT-DETR model warmup...")
+            start_time = time.monotonic()
+
+            result = await self.model_readiness_probe()
+
+            duration = time.monotonic() - start_time
+            observe_model_warmup_duration("rtdetr", duration)
+
+            if result:
+                self._track_inference()
+                if was_cold:
+                    record_model_cold_start("rtdetr")
+                set_model_warmth_state("rtdetr", "warm")
+                logger.info(
+                    f"RT-DETR warmup completed in {duration:.2f}s",
+                    extra={"duration": duration, "was_cold": was_cold},
+                )
+                return True
+            else:
+                set_model_warmth_state("rtdetr", "cold")
+                logger.warning("RT-DETR warmup failed - model not ready")
+                return False
+        finally:
+            self._is_warming = False
 
     async def _send_detection_request(  # noqa: PLR0912
         self,

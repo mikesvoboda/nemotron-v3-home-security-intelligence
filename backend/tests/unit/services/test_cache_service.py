@@ -498,59 +498,67 @@ async def test_refresh_handles_error(cache_service, mock_redis_client):
 
 
 def test_cache_keys_cameras_list():
-    """Test CacheKeys.cameras_list() returns correct key."""
+    """Test CacheKeys.cameras_list() returns correct prefixed key."""
     key = CacheKeys.cameras_list()
 
-    assert key == "cameras:list"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:cameras:list"
 
 
 def test_cache_keys_cameras_list_by_status_with_status():
     """Test CacheKeys.cameras_list_by_status() with status."""
     key = CacheKeys.cameras_list_by_status("online")
 
-    assert key == "cameras:list:online"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:cameras:list:online"
 
 
 def test_cache_keys_cameras_list_by_status_none():
     """Test CacheKeys.cameras_list_by_status() with None status."""
     key = CacheKeys.cameras_list_by_status(None)
 
-    assert key == "cameras:list:all"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:cameras:list:all"
 
 
 def test_cache_keys_camera():
-    """Test CacheKeys.camera() returns correct key."""
+    """Test CacheKeys.camera() returns correct prefixed key."""
     key = CacheKeys.camera("cam_123")
 
-    assert key == "cameras:cam_123"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:cameras:cam_123"
 
 
 def test_cache_keys_event_stats_with_dates():
     """Test CacheKeys.event_stats() with date range."""
     key = CacheKeys.event_stats("2024-01-01", "2024-01-31")
 
-    assert key == "stats:events:2024-01-01:2024-01-31"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:2024-01-31"
 
 
 def test_cache_keys_event_stats_no_dates():
     """Test CacheKeys.event_stats() without dates."""
     key = CacheKeys.event_stats()
 
-    assert key == "stats:events:none:none"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:none:none"
 
 
 def test_cache_keys_event_stats_partial_dates():
     """Test CacheKeys.event_stats() with only start date."""
     key = CacheKeys.event_stats(start_date="2024-01-01")
 
-    assert key == "stats:events:2024-01-01:none"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:event_stats:2024-01-01:none"
 
 
 def test_cache_keys_system_status():
-    """Test CacheKeys.system_status() returns correct key."""
+    """Test CacheKeys.system_status() returns correct prefixed key."""
     key = CacheKeys.system_status()
 
-    assert key == "system:status"
+    # Keys now include global prefix (NEM-1621)
+    assert key == f"{CacheKeys.PREFIX}:cache:system:status"
 
 
 # =============================================================================
