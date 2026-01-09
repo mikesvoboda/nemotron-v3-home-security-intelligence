@@ -1,7 +1,19 @@
 name: Benchmarks
 
+# Performance benchmarks for regression detection.
+# Runs pytest-benchmark on backend tests and fails on >20% regression from baseline.
+#
+# PR Gate: Runs on PRs and BLOCKS merges if performance regresses >20%
+# Main: Runs post-merge to update baseline and track trends
+# Creates Linear issue on failure for tracking and follow-up.
+
 on:
   push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/benchmarks.yml'
+  pull_request:
     branches: [main]
     paths:
       - 'backend/**'
