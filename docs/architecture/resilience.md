@@ -1233,14 +1233,15 @@ Look for these log patterns:
 
 ## Related Documentation
 
-| Document                                              | Purpose                             |
-| ----------------------------------------------------- | ----------------------------------- |
-| [AI Pipeline](ai-pipeline.md)                         | Detection and analysis flow         |
-| [Real-Time](real-time.md)                             | WebSocket and pub/sub architecture  |
-| [Data Model](data-model.md)                           | Database schema and relationships   |
-| [Backend AGENTS.md](../../backend/services/AGENTS.md) | Service implementation details      |
-| [Frontend Hooks](frontend-hooks.md)                   | React hooks including useWebSocket  |
-| [Backend Core](../../backend/core/AGENTS.md)          | Core infrastructure including Redis |
+| Document                                                         | Purpose                                                                                               |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [Resilience Patterns Guide](../developer/resilience-patterns.md) | Developer guide with code examples for circuit breakers, retry logic, and prompt injection prevention |
+| [AI Pipeline](ai-pipeline.md)                                    | Detection and analysis flow                                                                           |
+| [Real-Time](real-time.md)                                        | WebSocket and pub/sub architecture                                                                    |
+| [Data Model](data-model.md)                                      | Database schema and relationships                                                                     |
+| [Backend AGENTS.md](../../backend/services/AGENTS.md)            | Service implementation details                                                                        |
+| [Frontend Hooks](frontend-hooks.md)                              | React hooks including useWebSocket                                                                    |
+| [Backend Core](../../backend/core/AGENTS.md)                     | Core infrastructure including Redis                                                                   |
 
 ---
 

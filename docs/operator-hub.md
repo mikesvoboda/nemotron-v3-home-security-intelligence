@@ -369,6 +369,29 @@ When `REDIS_PASSWORD` is set, both the Redis container and backend automatically
 - SSL/TLS setup
 - Troubleshooting connection issues
 
+### Secrets Management
+
+~8 min read | [Full Guide](operator/secrets-management.md)
+
+For production deployments, use Docker Secrets instead of environment variables for sensitive credentials:
+
+```bash
+# Create secrets directory
+mkdir -p secrets && chmod 700 secrets
+
+# Generate secure passwords
+openssl rand -base64 32 > secrets/postgres_password.txt
+openssl rand -base64 32 > secrets/redis_password.txt
+chmod 600 secrets/*.txt
+```
+
+See [Secrets Management Guide](operator/secrets-management.md) for:
+
+- Docker Secrets setup and configuration
+- Credential rotation procedures
+- Migration from environment variables
+- Security best practices
+
 ---
 
 ## Operations
@@ -402,6 +425,49 @@ curl http://localhost:8000/api/dlq/stats
 **WebSocket monitoring:**
 
 GPU stats and service status broadcast via `/ws/system` channel.
+
+**Advanced Observability:**
+
+For detailed documentation on GPU monitoring, LLM token tracking, and distributed tracing, see:
+
+- [Monitoring and Observability Guide](operator/monitoring.md) - GPU metrics, token tracking, OpenTelemetry setup
+- [Prometheus Alerting Guide](operator/prometheus-alerting.md) - Alert rules, Alertmanager configuration, notification channels
+
+**System Management:**
+
+- [Service Control](operator/service-control.md) - Start, stop, restart services via dashboard UI
+- [DLQ Management](operator/dlq-management.md) - Monitor and recover failed AI pipeline jobs
+- [Scene Change Detection](operator/scene-change-detection.md) - Configure camera tampering alerts
+
+### Prometheus Alerting
+
+~10 min read | [Full Guide](operator/prometheus-alerting.md)
+
+Configure alerts for AI pipeline failures, infrastructure issues, and SLO violations:
+
+```bash
+# Enable monitoring stack
+docker compose --profile monitoring -f docker-compose.prod.yml up -d
+
+# Access Alertmanager
+open http://localhost:9093
+```
+
+**Pre-configured alerts include:**
+
+| Category       | Examples                                             |
+| -------------- | ---------------------------------------------------- |
+| AI Pipeline    | Detector unavailable, high error rate, queue backlog |
+| GPU Resources  | Overheating, memory critical, temperature warning    |
+| Infrastructure | Database unhealthy, Redis unhealthy                  |
+| SLO Violations | API availability, detection latency                  |
+
+See [Prometheus Alerting Guide](operator/prometheus-alerting.md) for:
+
+- Alert severity levels and routing
+- Configuring Slack/email/PagerDuty notifications
+- Custom alert rules
+- Alert silencing and runbooks
 
 ### Backup and Recovery
 
@@ -694,7 +760,9 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 | Redis auth failed          | Check `REDIS_PASSWORD` matches in .env, restart services. See [Redis Setup](operator/redis.md)     |
 | WebSocket won't connect    | Check CORS settings, verify backend is healthy                                                     |
 | Images not processing      | Check `FOSCAM_BASE_PATH`, enable `FILE_WATCHER_POLLING` for Docker Desktop                         |
-| DLQ jobs accumulating      | Verify AI services are healthy, check error messages in DLQ                                        |
+| DLQ jobs accumulating      | Verify AI services are healthy, check [DLQ Management](operator/dlq-management.md)                 |
+| Scene change false alerts  | Adjust threshold, see [Scene Change Detection](operator/scene-change-detection.md)                 |
+| Service won't restart      | Check if disabled, use [Service Control](operator/service-control.md) to enable                    |
 
 ### Getting Help
 
