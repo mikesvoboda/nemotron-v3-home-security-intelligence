@@ -79,7 +79,9 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           echo "Generating OpenAPI spec from current branch..."
-          uv run python scripts/generate-openapi.py --output /tmp/spec-current.json
+          # Use project-relative path to comply with generate-openapi.py security checks
+          mkdir -p .ci-temp
+          uv run python scripts/generate-openapi.py --output .ci-temp/spec-current.json
           echo "Generated OpenAPI spec from current branch"
 
       - name: Fetch base branch OpenAPI spec
@@ -91,11 +93,11 @@ jobs:
           echo "Fetching OpenAPI spec from base branch..."
 
           # Get the base branch spec from the docs/openapi.json file on main
-          if git show origin/main:docs/openapi.json > /tmp/spec-base.json 2>/dev/null; then
+          if git show origin/main:docs/openapi.json > .ci-temp/spec-base.json 2>/dev/null; then
             echo "✓ Base branch OpenAPI spec fetched"
           else
             echo "::warning::Could not fetch base spec from main, using current"
-            cp /tmp/spec-current.json /tmp/spec-base.json
+            cp .ci-temp/spec-current.json .ci-temp/spec-base.json
           fi
 
       - name: Run contract breaking change detection
@@ -105,7 +107,7 @@ jobs:
           echo "Checking for breaking changes in API contract..."
 
           # Run oasdiff breaking check - returns non-zero if breaking changes found
-          if oasdiff breaking /tmp/spec-base.json /tmp/spec-current.json \
+          if oasdiff breaking .ci-temp/spec-base.json .ci-temp/spec-current.json \
             --format json > breaking-changes.json 2>&1; then
             echo "contract_result=PASS" >> $GITHUB_OUTPUT
             echo "No breaking changes detected ✓"
@@ -121,7 +123,7 @@ jobs:
           echo "Generating API changelog..."
 
           # Generate detailed changelog of all changes
-          oasdiff changelog /tmp/spec-base.json /tmp/spec-current.json \
+          oasdiff changelog .ci-temp/spec-base.json .ci-temp/spec-current.json \
             --format markdown > api-changelog.md 2>&1 || true
 
           if [ -s api-changelog.md ]; then
@@ -136,7 +138,7 @@ jobs:
           echo "Generating detailed API diff..."
 
           # Generate full diff for PR comment
-          oasdiff diff /tmp/spec-base.json /tmp/spec-current.json \
+          oasdiff diff .ci-temp/spec-base.json .ci-temp/spec-current.json \
             --format markdown > api-diff.md 2>&1 || true
 
       - name: Comment PR with contract test results
@@ -237,8 +239,8 @@ jobs:
         with:
           name: api-contract-test-results
           path: |
-            /tmp/spec-base.json
-            /tmp/spec-current.json
+            .ci-temp/spec-base.json
+            .ci-temp/spec-current.json
             breaking-changes.json
             api-changelog.md
             api-diff.md
