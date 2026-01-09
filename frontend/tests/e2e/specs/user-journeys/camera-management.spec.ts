@@ -17,7 +17,7 @@ import { test, expect } from '../../fixtures';
 test.describe('Camera Management Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard first
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Wait for initial load - WebSocket status indicator
     // Firefox/WebKit need longer timeout for WebSocket connection establishment
@@ -189,7 +189,7 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate and open camera detail
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
 
@@ -247,7 +247,7 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
      */
 
     // Given: Open camera detail
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const firstCamera = page.locator('[data-testid^="camera-card-"]').or(
       page.locator('[data-testid*="camera-"]')
@@ -291,7 +291,7 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
      */
 
     // Given: Open camera detail
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const firstCamera = page.locator('[data-testid^="camera-card-"]').or(
       page.locator('[data-testid*="camera-"]')
@@ -345,7 +345,7 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
      */
 
     // Given: Dashboard with WebSocket connected
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('[data-testid="websocket-status"]')).toBeVisible({ timeout: 15000 });
 
@@ -388,7 +388,7 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to dashboard
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
 
@@ -434,7 +434,7 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
      */
 
     // Given: Dashboard loaded
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
 

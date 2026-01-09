@@ -17,7 +17,7 @@ import { test, expect } from '../../fixtures';
 test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
     // Navigate to dashboard first
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Wait for dashboard to load first (more reliable than WebSocket status)
     const timeout = browserName === 'chromium' ? 10000 : 20000;
@@ -55,7 +55,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page).toHaveURL(/\/alerts/, { timeout: 10000 });
 
     // Wait for navigation to complete and page to render
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify alerts page loaded (check for actual heading)
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
@@ -69,7 +69,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts', { waitUntil: 'networkidle' });
+    await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
 
     // Wait for alerts page to load
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
@@ -122,7 +122,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts', { waitUntil: 'networkidle' });
+    await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
 
     // Wait for alerts page to load
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
@@ -170,7 +170,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts', { waitUntil: 'networkidle' });
+    await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
 
     // Wait for alerts page to load
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
@@ -209,7 +209,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given & When: Navigate to alerts page
-    await page.goto('/alerts', { waitUntil: 'networkidle' });
+    await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
 
     // Wait for alerts page to load
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
@@ -247,7 +247,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts', { waitUntil: 'networkidle' });
+    await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
 
     // Wait for alerts page to load
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
@@ -295,7 +295,7 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
      */
 
     // Given: Navigate to alerts page
-    await page.goto('/alerts', { waitUntil: 'networkidle' });
+    await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
 
     // Wait for alerts page to load
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
