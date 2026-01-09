@@ -30,6 +30,8 @@ def mock_detection() -> MagicMock:
     detection.camera_id = "camera-001"
     detection.file_path = "/export/foscam/front_door/20251223_120000.jpg"
     detection.file_type = "image/jpeg"
+    detection.media_type = "image"
+    detection.video_codec = None
     detection.detected_at = datetime(2025, 12, 23, 12, 0, 0)
     detection.object_type = "person"
     detection.confidence = 0.95
@@ -38,6 +40,7 @@ def mock_detection() -> MagicMock:
     detection.bbox_width = 200
     detection.bbox_height = 400
     detection.thumbnail_path = "/data/thumbnails/1_thumb.jpg"
+    detection.enrichment_data = {}
     return detection
 
 
@@ -49,6 +52,8 @@ def mock_detection_no_thumbnail() -> MagicMock:
     detection.camera_id = "camera-002"
     detection.file_path = "/export/foscam/back_door/20251223_120100.jpg"
     detection.file_type = "image/jpeg"
+    detection.media_type = "image"
+    detection.video_codec = None
     detection.detected_at = datetime(2025, 12, 23, 12, 1, 0)
     detection.object_type = "car"
     detection.confidence = 0.88
@@ -57,6 +62,7 @@ def mock_detection_no_thumbnail() -> MagicMock:
     detection.bbox_width = 300
     detection.bbox_height = 200
     detection.thumbnail_path = None
+    detection.enrichment_data = {}
     return detection
 
 
@@ -102,11 +108,12 @@ async def test_list_detections_no_filters(
     )
 
     # Verify
-    assert result["count"] == 1
-    assert result["limit"] == 50
-    assert result["offset"] == 0
-    assert len(result["detections"]) == 1
-    assert result["detections"][0] == mock_detection
+    assert result.count == 1
+    assert result.limit == 50
+    assert result.offset == 0
+    assert len(result.detections) == 1
+    assert result.detections[0].id == mock_detection.id
+    assert result.detections[0].camera_id == mock_detection.camera_id
 
 
 @pytest.mark.asyncio
@@ -137,8 +144,8 @@ async def test_list_detections_with_camera_filter(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
-    assert result["detections"][0].camera_id == "camera-001"
+    assert result.count == 1
+    assert result.detections[0].camera_id == "camera-001"
 
 
 @pytest.mark.asyncio
@@ -169,8 +176,8 @@ async def test_list_detections_with_object_type_filter(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
-    assert result["detections"][0].object_type == "person"
+    assert result.count == 1
+    assert result.detections[0].object_type == "person"
 
 
 @pytest.mark.asyncio
@@ -204,7 +211,7 @@ async def test_list_detections_with_date_range_filter(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -235,8 +242,8 @@ async def test_list_detections_with_confidence_filter(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
-    assert result["detections"][0].confidence >= 0.9
+    assert result.count == 1
+    assert result.detections[0].confidence >= 0.9
 
 
 @pytest.mark.asyncio
@@ -267,7 +274,7 @@ async def test_list_detections_with_all_filters(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -298,9 +305,9 @@ async def test_list_detections_with_pagination(
         db=mock_db_session,
     )
 
-    assert result["count"] == 100
-    assert result["limit"] == 10
-    assert result["offset"] == 20
+    assert result.count == 100
+    assert result.limit == 10
+    assert result.offset == 20
 
 
 @pytest.mark.asyncio
@@ -329,8 +336,8 @@ async def test_list_detections_empty_result(mock_db_session: AsyncMock) -> None:
         db=mock_db_session,
     )
 
-    assert result["count"] == 0
-    assert result["detections"] == []
+    assert result.count == 0
+    assert result.detections == []
 
 
 @pytest.mark.asyncio
@@ -359,7 +366,7 @@ async def test_list_detections_count_returns_none(mock_db_session: AsyncMock) ->
         db=mock_db_session,
     )
 
-    assert result["count"] == 0  # Should default to 0 when None
+    assert result.count == 0  # Should default to 0 when None
 
 
 @pytest.mark.asyncio
@@ -369,16 +376,52 @@ async def test_list_detections_multiple_results(mock_db_session: AsyncMock) -> N
     detection1.id = 1
     detection1.camera_id = "camera-001"
     detection1.detected_at = datetime(2025, 12, 23, 12, 0, 0)
+    detection1.media_type = "image"
+    detection1.video_codec = None
+    detection1.enrichment_data = {}
+    detection1.object_type = "person"
+    detection1.confidence = 0.9
+    detection1.bbox_x = 10
+    detection1.bbox_y = 20
+    detection1.bbox_width = 100
+    detection1.bbox_height = 200
+    detection1.file_path = "/path/to/file1.jpg"
+    detection1.file_type = "image/jpeg"
+    detection1.thumbnail_path = "/path/to/thumb1.jpg"
 
     detection2 = MagicMock(spec=Detection)
     detection2.id = 2
     detection2.camera_id = "camera-002"
     detection2.detected_at = datetime(2025, 12, 23, 12, 1, 0)
+    detection2.media_type = "image"
+    detection2.video_codec = None
+    detection2.enrichment_data = {}
+    detection2.object_type = "person"
+    detection2.confidence = 0.9
+    detection2.bbox_x = 10
+    detection2.bbox_y = 20
+    detection2.bbox_width = 100
+    detection2.bbox_height = 200
+    detection2.file_path = "/path/to/file2.jpg"
+    detection2.file_type = "image/jpeg"
+    detection2.thumbnail_path = "/path/to/thumb2.jpg"
 
     detection3 = MagicMock(spec=Detection)
     detection3.id = 3
     detection3.camera_id = "camera-001"
     detection3.detected_at = datetime(2025, 12, 23, 12, 2, 0)
+    detection3.media_type = "image"
+    detection3.video_codec = None
+    detection3.enrichment_data = {}
+    detection3.object_type = "person"
+    detection3.confidence = 0.9
+    detection3.bbox_x = 10
+    detection3.bbox_y = 20
+    detection3.bbox_width = 100
+    detection3.bbox_height = 200
+    detection3.file_path = "/path/to/file3.jpg"
+    detection3.file_type = "image/jpeg"
+    detection3.thumbnail_path = "/path/to/thumb3.jpg"
 
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -403,8 +446,8 @@ async def test_list_detections_multiple_results(mock_db_session: AsyncMock) -> N
         db=mock_db_session,
     )
 
-    assert result["count"] == 3
-    assert len(result["detections"]) == 3
+    assert result.count == 3
+    assert len(result.detections) == 3
 
 
 # =============================================================================
@@ -764,7 +807,7 @@ async def test_list_detections_with_zero_confidence_filter(mock_db_session: Asyn
         db=mock_db_session,
     )
 
-    assert result["count"] == 0
+    assert result.count == 0
 
 
 @pytest.mark.asyncio
@@ -795,7 +838,7 @@ async def test_list_detections_with_start_date_only(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -826,7 +869,7 @@ async def test_list_detections_with_end_date_only(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 @pytest.mark.asyncio
@@ -836,10 +879,13 @@ async def test_get_detection_image_with_none_thumbnail_path(mock_db_session: Asy
     detection.id = 3
     detection.thumbnail_path = None
     detection.file_path = "/export/foscam/camera/image.jpg"
+    detection.media_type = "image"
+    detection.video_codec = None
     detection.object_type = "person"
     detection.confidence = 0.9
     detection.bbox_x = 10
     detection.bbox_y = 20
+    detection.enrichment_data = {}
     detection.bbox_width = 100
     detection.bbox_height = 200
 
@@ -895,9 +941,9 @@ async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
         db=mock_db_session,
     )
 
-    assert result["count"] == 10
-    assert result["offset"] == 1000
-    assert result["detections"] == []
+    assert result.count == 10
+    assert result.offset == 1000
+    assert result.detections == []
 
 
 @pytest.mark.asyncio
@@ -928,7 +974,7 @@ async def test_list_detections_max_limit(
         db=mock_db_session,
     )
 
-    assert result["limit"] == 1000
+    assert result.limit == 1000
 
 
 @pytest.mark.asyncio
@@ -959,7 +1005,7 @@ async def test_list_detections_min_limit(
         db=mock_db_session,
     )
 
-    assert result["limit"] == 1
+    assert result.limit == 1
 
 
 # =============================================================================
@@ -1024,7 +1070,7 @@ async def test_list_detections_equal_dates_is_valid(
         db=mock_db_session,
     )
 
-    assert result["count"] == 1
+    assert result.count == 1
 
 
 # =============================================================================
