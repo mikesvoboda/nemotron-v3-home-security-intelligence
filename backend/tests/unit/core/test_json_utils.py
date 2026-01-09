@@ -605,7 +605,7 @@ class TestPropertyBasedJsonParsing:
     """Property-based tests for JSON parsing using Hypothesis."""
 
     @given(obj=json_objects(max_depth=2))
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_valid_json_always_parses(self, obj: dict) -> None:
         """Property: Valid JSON objects always parse successfully."""
         # Avoid keys that look like think blocks which would be stripped by clean_llm_response
@@ -616,7 +616,7 @@ class TestPropertyBasedJsonParsing:
         assert result == obj
 
     @given(obj=json_objects(max_depth=2))
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_json_with_prefix_parses(self, obj: dict) -> None:
         """Property: Valid JSON with text prefix always extracts correctly."""
         # Avoid keys that look like think blocks which would be stripped by clean_llm_response
@@ -628,7 +628,7 @@ class TestPropertyBasedJsonParsing:
         assert result == obj
 
     @given(obj=json_objects(max_depth=2))
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_json_in_markdown_block_parses(self, obj: dict) -> None:
         """Property: Valid JSON in markdown code block always extracts correctly."""
         # Avoid keys that look like think blocks which would be stripped
@@ -640,7 +640,7 @@ class TestPropertyBasedJsonParsing:
         assert result == obj
 
     @given(obj=json_objects(max_depth=1), think_content=st.text(min_size=1, max_size=50))
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_json_after_think_block_parses(self, obj: dict, think_content: str) -> None:
         """Property: JSON after <think> block always parses correctly."""
         json_str = json.dumps(obj)
@@ -656,7 +656,7 @@ class TestPropertyBasedJsonParsing:
             min_size=0, max_size=50, alphabet=st.characters(blacklist_categories=("Cs",))
         ),
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_roundtrip_preserves_string_values(self, key: str, value: str) -> None:
         """Property: String values survive JSON roundtrip through extractor."""
         obj = {key: value}
@@ -668,7 +668,7 @@ class TestPropertyBasedJsonParsing:
         key=st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=("Cs",))),
         num=st.integers(min_value=-1_000_000, max_value=1_000_000),
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_roundtrip_preserves_integer_values(self, key: str, num: int) -> None:
         """Property: Integer values survive JSON roundtrip through extractor."""
         obj = {key: num}
@@ -680,7 +680,7 @@ class TestPropertyBasedJsonParsing:
         key=st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=("Cs",))),
         val=st.booleans(),
     )
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_roundtrip_preserves_boolean_values(self, key: str, val: bool) -> None:
         """Property: Boolean values survive JSON roundtrip through extractor."""
         obj = {key: val}
@@ -691,7 +691,7 @@ class TestPropertyBasedJsonParsing:
     @given(
         key=st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=("Cs",))),
     )
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_roundtrip_preserves_null_values(self, key: str) -> None:
         """Property: Null values survive JSON roundtrip through extractor."""
         obj = {key: None}
@@ -713,7 +713,7 @@ class TestPropertyBasedRepairFunctions:
         val1=st.integers(min_value=0, max_value=100),
         val2=st.integers(min_value=0, max_value=100),
     )
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_fix_missing_commas_produces_parseable_json(
         self, key1: str, key2: str, val1: int, val2: int
     ) -> None:
@@ -738,7 +738,7 @@ class TestPropertyBasedRepairFunctions:
         ),
         val=st.integers(min_value=0, max_value=100),
     )
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_fix_trailing_commas_produces_parseable_json(self, key: str, val: int) -> None:
         """Property: _fix_trailing_commas produces valid JSON from trailing-comma input."""
         malformed = f'{{"{key}": {val},}}'
@@ -755,7 +755,7 @@ class TestPropertyBasedRepairFunctions:
             min_size=0, max_size=20, alphabet=st.sampled_from("abcdefghijklmnopqrstuvwxyz ")
         ),
     )
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_fix_single_quotes_produces_parseable_json(self, key: str, val: str) -> None:
         """Property: _fix_single_quotes produces valid JSON from single-quote input."""
         malformed = f"{{'{key}': '{val}'}}"

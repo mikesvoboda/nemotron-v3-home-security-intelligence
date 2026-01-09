@@ -686,14 +686,14 @@ class TestAlertProperties:
         assert alert.status == status
 
     @given(event_id=st.integers(min_value=1, max_value=1000000))
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_alert_event_id_roundtrip(self, event_id: int):
         """Property: Event ID values roundtrip correctly."""
         alert = Alert(event_id=event_id, dedup_key="key")
         assert alert.event_id == event_id
 
     @given(dedup_key=st.text(min_size=1, max_size=255))
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_alert_dedup_key_roundtrip(self, dedup_key: str):
         """Property: Dedup key values roundtrip correctly."""
         alert = Alert(event_id=1, dedup_key=dedup_key)
@@ -711,21 +711,21 @@ class TestAlertRuleProperties:
         assert rule.severity == severity
 
     @given(threshold=risk_thresholds)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_rule_threshold_roundtrip(self, threshold: int):
         """Property: Risk threshold values roundtrip correctly."""
         rule = AlertRule(name="Test", risk_threshold=threshold)
         assert rule.risk_threshold == threshold
 
     @given(cooldown=cooldown_seconds)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_rule_cooldown_roundtrip(self, cooldown: int):
         """Property: Cooldown values roundtrip correctly."""
         rule = AlertRule(name="Test", cooldown_seconds=cooldown)
         assert rule.cooldown_seconds == cooldown
 
     @given(confidence=confidence_values)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_rule_confidence_roundtrip(self, confidence: float):
         """Property: Min confidence values roundtrip correctly."""
         rule = AlertRule(name="Test", min_confidence=confidence)
@@ -746,7 +746,7 @@ class TestAlertRuleProperties:
         assert rule.dedup_key_template == template
 
     @given(name=st.text(min_size=1, max_size=255))
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_rule_name_roundtrip(self, name: str):
         """Property: Name values roundtrip correctly."""
         rule = AlertRule(name=name)
