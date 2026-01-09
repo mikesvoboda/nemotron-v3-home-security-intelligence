@@ -35,8 +35,6 @@ class TestGetCameraBaseline:
     @pytest.mark.asyncio
     async def test_get_baseline_camera_not_found(self) -> None:
         """Test that baseline endpoint returns 404 for non-existent camera."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline
 
         mock_db = AsyncMock()
@@ -45,12 +43,10 @@ class TestGetCameraBaseline:
         mock_db.execute.return_value = mock_result
 
         mock_baseline_service = MagicMock()
-        mock_response = Response()
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_baseline(
                 "nonexistent_camera",
-                response=mock_response,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
             )
@@ -61,12 +57,9 @@ class TestGetCameraBaseline:
     @pytest.mark.asyncio
     async def test_get_baseline_empty_data(self) -> None:
         """Test baseline endpoint returns empty baseline for camera with no data."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -96,7 +89,6 @@ class TestGetCameraBaseline:
 
         result = await get_camera_baseline(
             "test_camera",
-            response=mock_response,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
@@ -113,12 +105,9 @@ class TestGetCameraBaseline:
     @pytest.mark.asyncio
     async def test_get_baseline_with_data(self) -> None:
         """Test baseline endpoint returns complete data for camera with baselines."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -177,7 +166,7 @@ class TestGetCameraBaseline:
         )
 
         result = await get_camera_baseline(
-            "front_door", response=mock_response, db=mock_db, baseline_service=mock_baseline_service
+            "front_door", db=mock_db, baseline_service=mock_baseline_service
         )
 
         assert isinstance(result, BaselineSummaryResponse)
@@ -201,8 +190,6 @@ class TestGetCameraBaselineAnomalies:
     @pytest.mark.asyncio
     async def test_get_anomalies_camera_not_found(self) -> None:
         """Test that anomalies endpoint returns 404 for non-existent camera."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline_anomalies
 
         mock_db = AsyncMock()
@@ -211,12 +198,10 @@ class TestGetCameraBaselineAnomalies:
         mock_db.execute.return_value = mock_result
 
         mock_baseline_service = MagicMock()
-        mock_response = Response()
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_baseline_anomalies(
                 "nonexistent_camera",
-                response=mock_response,
                 days=7,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
@@ -227,12 +212,9 @@ class TestGetCameraBaselineAnomalies:
     @pytest.mark.asyncio
     async def test_get_anomalies_no_anomalies(self) -> None:
         """Test anomalies endpoint returns empty list when no anomalies exist."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline_anomalies
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -247,7 +229,6 @@ class TestGetCameraBaselineAnomalies:
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_baseline_anomalies(
             "test_camera",
-            response=mock_response,
             days=7,
             db=mock_db,
             baseline_service=mock_baseline_service,
@@ -262,13 +243,10 @@ class TestGetCameraBaselineAnomalies:
     @pytest.mark.asyncio
     async def test_get_anomalies_with_data(self) -> None:
         """Test anomalies endpoint returns anomaly events."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline_anomalies
         from backend.api.schemas.baseline import AnomalyEvent
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -303,7 +281,6 @@ class TestGetCameraBaselineAnomalies:
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_baseline_anomalies(
             "front_door",
-            response=mock_response,
             days=7,
             db=mock_db,
             baseline_service=mock_baseline_service,
@@ -320,12 +297,9 @@ class TestGetCameraBaselineAnomalies:
     @pytest.mark.asyncio
     async def test_get_anomalies_custom_days(self) -> None:
         """Test anomalies endpoint respects days parameter."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_baseline_anomalies
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -340,7 +314,6 @@ class TestGetCameraBaselineAnomalies:
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_baseline_anomalies(
             "test_camera",
-            response=mock_response,
             days=14,
             db=mock_db,
             baseline_service=mock_baseline_service,
@@ -507,8 +480,6 @@ class TestGetCameraActivityBaseline:
     @pytest.mark.asyncio
     async def test_get_activity_baseline_camera_not_found(self) -> None:
         """Test that activity baseline endpoint returns 404 for non-existent camera."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_activity_baseline
 
         mock_db = AsyncMock()
@@ -517,12 +488,10 @@ class TestGetCameraActivityBaseline:
         mock_db.execute.return_value = mock_result
 
         mock_baseline_service = MagicMock()
-        mock_response = Response()
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_activity_baseline(
                 "nonexistent_camera",
-                response=mock_response,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
             )
@@ -533,12 +502,9 @@ class TestGetCameraActivityBaseline:
     @pytest.mark.asyncio
     async def test_get_activity_baseline_empty_data(self) -> None:
         """Test activity baseline endpoint returns empty response for camera with no data."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_activity_baseline
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -555,7 +521,6 @@ class TestGetCameraActivityBaseline:
 
         result = await get_camera_activity_baseline(
             "test_camera",
-            response=mock_response,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
@@ -571,12 +536,9 @@ class TestGetCameraActivityBaseline:
     @pytest.mark.asyncio
     async def test_get_activity_baseline_with_data(self) -> None:
         """Test activity baseline endpoint returns entries for camera with baselines."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_activity_baseline
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -603,7 +565,7 @@ class TestGetCameraActivityBaseline:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_activity_baseline(
-            "front_door", response=mock_response, db=mock_db, baseline_service=mock_baseline_service
+            "front_door", db=mock_db, baseline_service=mock_baseline_service
         )
 
         assert isinstance(result, ActivityBaselineResponse)
@@ -621,8 +583,6 @@ class TestGetCameraClassBaseline:
     @pytest.mark.asyncio
     async def test_get_class_baseline_camera_not_found(self) -> None:
         """Test that class baseline endpoint returns 404 for non-existent camera."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_class_baseline
 
         mock_db = AsyncMock()
@@ -631,12 +591,10 @@ class TestGetCameraClassBaseline:
         mock_db.execute.return_value = mock_result
 
         mock_baseline_service = MagicMock()
-        mock_response = Response()
 
         with pytest.raises(Exception) as exc_info:
             await get_camera_class_baseline(
                 "nonexistent_camera",
-                response=mock_response,
                 db=mock_db,
                 baseline_service=mock_baseline_service,
             )
@@ -647,12 +605,9 @@ class TestGetCameraClassBaseline:
     @pytest.mark.asyncio
     async def test_get_class_baseline_empty_data(self) -> None:
         """Test class baseline endpoint returns empty response for camera with no data."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_class_baseline
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -668,7 +623,6 @@ class TestGetCameraClassBaseline:
 
         result = await get_camera_class_baseline(
             "test_camera",
-            response=mock_response,
             db=mock_db,
             baseline_service=mock_baseline_service,
         )
@@ -683,12 +637,9 @@ class TestGetCameraClassBaseline:
     @pytest.mark.asyncio
     async def test_get_class_baseline_with_data(self) -> None:
         """Test class baseline endpoint returns entries for camera with baselines."""
-        from fastapi import Response
-
         from backend.api.routes.cameras import get_camera_class_baseline
 
         mock_db = AsyncMock()
-        mock_response = Response()
 
         # Mock camera query
         mock_camera = MagicMock()
@@ -714,7 +665,7 @@ class TestGetCameraClassBaseline:
 
         # Pass mock service directly via DI parameter (NEM-2032)
         result = await get_camera_class_baseline(
-            "front_door", response=mock_response, db=mock_db, baseline_service=mock_baseline_service
+            "front_door", db=mock_db, baseline_service=mock_baseline_service
         )
 
         assert isinstance(result, ClassBaselineResponse)
