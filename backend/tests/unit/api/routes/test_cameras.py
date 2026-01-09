@@ -51,7 +51,9 @@ class TestListCameras:
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
 
-        assert result == cached_data
+        assert result.count == cached_data["count"]
+        assert len(result.cameras) == len(cached_data["cameras"])
+        assert result.cameras[0].id == cached_data["cameras"][0]["id"]
         mock_cache.get.assert_called_once()
         mock_db.execute.assert_not_called()  # Database not queried on cache hit
 
@@ -81,10 +83,10 @@ class TestListCameras:
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
 
-        assert result["count"] == 1
-        assert len(result["cameras"]) == 1
-        assert result["cameras"][0]["id"] == "front_door"
-        assert result["cameras"][0]["name"] == "Front Door"
+        assert result.count == 1
+        assert len(result.cameras) == 1
+        assert result.cameras[0].id == "front_door"
+        assert result.cameras[0].name == "Front Door"
         mock_cache.set.assert_called_once()  # Cache should be populated
 
     @pytest.mark.asyncio
@@ -113,8 +115,8 @@ class TestListCameras:
 
         result = await list_cameras(status_filter="online", db=mock_db, cache=mock_cache)
 
-        assert result["count"] == 1
-        assert result["cameras"][0]["status"] == "online"
+        assert result.count == 1
+        assert result.cameras[0].status == "online"
 
     @pytest.mark.asyncio
     async def test_list_cameras_empty_list(self) -> None:
@@ -134,8 +136,8 @@ class TestListCameras:
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
 
-        assert result["count"] == 0
-        assert result["cameras"] == []
+        assert result.count == 0
+        assert result.cameras == []
 
     @pytest.mark.asyncio
     async def test_list_cameras_cache_read_failure(self) -> None:
@@ -163,8 +165,8 @@ class TestListCameras:
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
 
-        assert result["count"] == 1
-        assert result["cameras"][0]["id"] == "backyard"
+        assert result.count == 1
+        assert result.cameras[0].id == "backyard"
 
     @pytest.mark.asyncio
     async def test_list_cameras_cache_write_failure(self) -> None:
@@ -195,8 +197,8 @@ class TestListCameras:
         # Should not raise exception, just log warning
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
 
-        assert result["count"] == 1
-        assert result["cameras"][0]["id"] == "garage"
+        assert result.count == 1
+        assert result.cameras[0].id == "garage"
 
 
 class TestGetCamera:
