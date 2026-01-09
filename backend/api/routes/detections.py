@@ -28,8 +28,12 @@ from backend.api.schemas.bulk import (
     DetectionBulkUpdateRequest,
 )
 from backend.api.schemas.detections import (
+    DetectionLabelCount,
+    DetectionLabelsResponse,
     DetectionListResponse,
     DetectionResponse,
+    DetectionSearchResponse,
+    DetectionSearchResult,
     DetectionStatsResponse,
     EnrichmentDataSchema,
     PersonEnrichmentData,
@@ -414,6 +418,87 @@ async def get_detection_stats(
         total_detections=total_detections,
         detections_by_class=detections_by_class,
         average_confidence=float(avg_confidence) if avg_confidence else None,
+    )
+
+
+@router.get("/search", response_model=DetectionSearchResponse)
+async def search_detections(
+    q: str = Query(..., min_length=1),
+    labels: list[str] | None = Query(default=None),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    camera_id: str | None = Query(default=None),
+    start_date: datetime | None = Query(default=None),
+    end_date: datetime | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+) -> DetectionSearchResponse:
+    """Search detections using full-text search."""
+    from sqlalchemy import cast, text
+    from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
+    validate_date_range(start_date, end_date)
+    search_words = q.strip().split()
+    search_query = r" \& ".join(f"{word}:*" for word in search_words if word)
+    ts_query = func.to_tsquery("english", search_query)
+    base_query = select(
+        Detection, func.ts_rank(Detection.search_vector, ts_query).label("rank")
+    ).where(Detection.search_vector.op("@@")(ts_query))
+    if labels:
+        for label in labels:
+            base_query = base_query.where(Detection.labels.op("@>")(cast([label], PG_JSONB)))
+    if min_confidence is not None:
+        base_query = base_query.where(Detection.confidence >= min_confidence)
+    if camera_id:
+        base_query = base_query.where(Detection.camera_id == camera_id)
+    if start_date:
+        base_query = base_query.where(Detection.detected_at >= start_date)
+    if end_date:
+        base_query = base_query.where(Detection.detected_at <= end_date)
+    count_query = select(func.count()).select_from(base_query.subquery())
+    count_result = await db.execute(count_query)
+    total_count = count_result.scalar() or 0
+    paginated_query = (
+        base_query.order_by(text("rank DESC"), Detection.detected_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await db.execute(paginated_query)
+    rows = result.all()
+    max_rank = max((row.rank for row in rows), default=1.0) or 1.0
+    results = [
+        DetectionSearchResult(
+            id=row.Detection.id,
+            camera_id=row.Detection.camera_id,
+            object_type=row.Detection.object_type,
+            confidence=row.Detection.confidence,
+            detected_at=row.Detection.detected_at,
+            file_path=row.Detection.file_path,
+            thumbnail_path=row.Detection.thumbnail_path,
+            relevance_score=round(min(row.rank / max_rank, 1.0), 4),
+            labels=row.Detection.labels or [],
+            bbox_x=row.Detection.bbox_x,
+            bbox_y=row.Detection.bbox_y,
+            bbox_width=row.Detection.bbox_width,
+            bbox_height=row.Detection.bbox_height,
+            enrichment_data=row.Detection.enrichment_data,
+        )
+        for row in rows
+    ]
+    return DetectionSearchResponse(
+        results=results, total_count=total_count, limit=limit, offset=offset
+    )
+
+
+@router.get("/labels", response_model=DetectionLabelsResponse)
+async def list_detection_labels(db: AsyncSession = Depends(get_db)) -> DetectionLabelsResponse:
+    """Get all unique detection labels with counts."""
+    from sqlalchemy import text as sql_text
+
+    query = "SELECT label, COUNT(*) as count FROM detections, jsonb_array_elements_text(COALESCE(labels, '[]'::jsonb)) AS label GROUP BY label ORDER BY count DESC"
+    result = await db.execute(sql_text(query))
+    return DetectionLabelsResponse(
+        labels=[DetectionLabelCount(label=row.label, count=row.count) for row in result.all()]
     )
 
 
