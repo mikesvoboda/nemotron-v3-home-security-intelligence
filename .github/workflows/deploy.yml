@@ -358,6 +358,89 @@ jobs:
             --type spdxjson \
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
 
+  # Staging environment deployment
+  # Deploys images to staging environment for pre-production validation
+  # This job is optional and can be skipped for direct production deployments
+  staging-deployment:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: merge
+    if: success()
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: staging
+      url: http://staging.example.com # Update with actual staging URL
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Deploy to staging environment
+        run: |
+          echo "Staging Deployment Instructions"
+          echo "=================================="
+          echo ""
+          echo "Container images are ready for staging deployment:"
+          echo ""
+          echo "Backend:  ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:latest"
+          echo "Frontend: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:latest"
+          echo ""
+          echo "To deploy to staging:"
+          echo ""
+          echo "1. SSH into staging server"
+          echo "2. Pull latest images:"
+          echo ""
+          echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:latest"
+          echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:latest"
+          echo ""
+          echo "3. Update docker-compose.staging.yml with IMAGE_TAG=latest"
+          echo ""
+          echo "4. Deploy:"
+          echo ""
+          echo "   docker compose -f docker-compose.staging.yml up -d"
+          echo ""
+          echo "5. Verify deployment:"
+          echo ""
+          echo "   docker compose -f docker-compose.staging.yml ps"
+          echo "   curl http://localhost:8000/api/system/health/ready"
+          echo ""
+          echo "6. Run smoke tests:"
+          echo ""
+          echo "   BACKEND_URL=http://localhost:8000 pytest tests/smoke/ -m critical -v"
+          echo ""
+          echo "NOTE: This is a manual deployment step."
+          echo "For automated staging deployment, implement a deployment webhook or API."
+
+      - name: Verify staging deployment checklist
+        run: |
+          echo "Staging Deployment Checklist"
+          echo "============================="
+          echo ""
+          echo "Before running E2E tests against staging:"
+          echo "- [ ] Backend service is healthy (/api/system/health/ready returns 200)"
+          echo "- [ ] Frontend is serving HTML (http status 200)"
+          echo "- [ ] Database migrations have completed"
+          echo "- [ ] Redis is accessible and healthy"
+          echo "- [ ] All API endpoints respond without errors"
+          echo "- [ ] WebSocket endpoint is accessible"
+          echo "- [ ] Monitoring stack is running (if enabled)"
+          echo "- [ ] No error messages in application logs"
+          echo ""
+          echo "Run smoke tests to verify:"
+          echo "  BACKEND_URL=http://staging:8000 pytest tests/smoke/ -m critical -v"
+          echo ""
+          echo "Then run E2E tests:"
+          echo "  FRONTEND_URL=http://staging:5173 npm test -- --project=chromium"
+
+      - name: Document staging validation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-deployment-guide
+          path: docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md
+          retention-days: 30
+
   # Post-deployment health validation and progression
   # Validates deployment success and readiness for canary/progressive rollout
   post-deployment-validation:
