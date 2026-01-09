@@ -4,6 +4,11 @@ from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api
 from .body_limit import BodySizeLimitMiddleware
 from .content_type_validator import ContentTypeValidationMiddleware
 from .correlation import get_correlation_headers, merge_headers_with_correlation
+from .deprecation_logger import (
+    DEPRECATED_CALLS_TOTAL,
+    DeprecationLoggerMiddleware,
+    record_deprecated_call,
+)
 from .exception_handler import create_safe_error_message
 from .file_validator import (
     MAGIC_SIGNATURES,
@@ -42,10 +47,12 @@ from .security_headers import SecurityHeadersMiddleware
 from .websocket_auth import validate_websocket_token
 
 __all__ = [
+    "DEPRECATED_CALLS_TOTAL",
     "MAGIC_SIGNATURES",
     "AuthMiddleware",
     "BodySizeLimitMiddleware",
     "ContentTypeValidationMiddleware",
+    "DeprecationLoggerMiddleware",
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",
@@ -68,6 +75,7 @@ __all__ = [
     "rate_limit_default",
     "rate_limit_media",
     "rate_limit_search",
+    "record_deprecated_call",
     "redact_request_body",
     "set_correlation_id",
     "validate_file_magic",

@@ -29,7 +29,7 @@ from backend.core.metrics import (
 )
 from backend.models.camera import Camera
 from backend.models.event import Event
-from backend.models.event_detection import EventDetection
+from backend.models.event_detection import event_detections
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.enrichment_pipeline import EnrichmentResult
 from backend.services.inference_semaphore import get_inference_semaphore
@@ -269,13 +269,20 @@ async def analyze_batch_streaming(  # noqa: PLR0911, PLR0912
         await session.commit()
         await session.refresh(event)
 
-        # Populate event_detections junction table (NEM-1592)
+        # Populate event_detections junction table (NEM-1592, NEM-2012)
+        # Uses ON CONFLICT DO NOTHING to prevent race conditions when
+        # concurrent requests try to create the same junction records.
+        # This is safe because the composite primary key (event_id, detection_id)
+        # enforces uniqueness at the database level.
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
         for detection_id in int_detection_ids:
-            event_detection = EventDetection(
-                event_id=event.id,
-                detection_id=detection_id,
+            stmt = (
+                pg_insert(event_detections)
+                .values(event_id=event.id, detection_id=detection_id)
+                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
-            session.add(event_detection)
+            await session.execute(stmt)
         await session.commit()
 
         await analyzer._set_idempotency(batch_id, event.id)

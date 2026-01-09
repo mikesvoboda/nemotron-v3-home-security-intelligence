@@ -1,5 +1,14 @@
-"""FastAPI application entry point for home security intelligence system."""
+"""FastAPI application entry point for home security intelligence system.
 
+This module provides:
+- FastAPI application configuration with middleware and routes
+- Application lifespan management (startup/shutdown)
+- Signal handling for graceful shutdown (SIGTERM/SIGINT)
+- Health check endpoints for container orchestration
+"""
+
+import asyncio
+import signal
 import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -12,6 +21,7 @@ from backend.api.middleware import (
     AuthMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
+    DeprecationLoggerMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -60,6 +70,98 @@ from backend.services.pipeline_quality_audit_service import get_audit_service
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
+
+# Graceful shutdown event - set when SIGTERM/SIGINT is received
+# This allows the lifespan context to coordinate shutdown with signal handlers
+_shutdown_event: asyncio.Event | None = None
+
+# Track whether signal handlers have been installed (prevents double-installation)
+_signal_handlers_installed: bool = False
+
+
+def get_shutdown_event() -> asyncio.Event:
+    """Get the global shutdown event, creating it if necessary.
+
+    The shutdown event is used to coordinate graceful shutdown between
+    signal handlers and the FastAPI lifespan context. When a signal is
+    received, the event is set, allowing async code to detect the shutdown
+    request and clean up appropriately.
+
+    Returns:
+        asyncio.Event that is set when shutdown is requested
+    """
+    global _shutdown_event  # noqa: PLW0603
+    if _shutdown_event is None:
+        _shutdown_event = asyncio.Event()
+    return _shutdown_event
+
+
+def install_signal_handlers() -> None:
+    """Install signal handlers for graceful shutdown.
+
+    Registers handlers for SIGTERM and SIGINT that:
+    1. Log the received signal
+    2. Set the shutdown event for coordination
+
+    This function is idempotent - calling it multiple times is safe.
+    Signal handlers are only installed when running in the main thread
+    and when the event loop supports add_signal_handler (not on Windows).
+
+    Note: Uvicorn already handles signals and triggers lifespan shutdown,
+    so our handlers primarily add logging and coordination capabilities.
+    """
+    global _signal_handlers_installed  # noqa: PLW0603
+
+    if _signal_handlers_installed:
+        return
+
+    from backend.core.logging import get_logger
+
+    logger = get_logger(__name__)
+
+    try:
+        loop = asyncio.get_running_loop()
+        shutdown_event = get_shutdown_event()
+
+        def create_signal_handler(sig: signal.Signals) -> None:
+            def handler() -> None:
+                logger.info(
+                    f"Received {sig.name}, initiating graceful shutdown...",
+                    extra={"signal": sig.name, "signal_number": sig.value},
+                )
+                shutdown_event.set()
+
+            loop.add_signal_handler(sig, handler)
+
+        # Register handlers for common termination signals
+        create_signal_handler(signal.SIGTERM)
+        create_signal_handler(signal.SIGINT)
+
+        _signal_handlers_installed = True
+        logger.info(
+            "Signal handlers installed for SIGTERM and SIGINT",
+            extra={"handlers": ["SIGTERM", "SIGINT"]},
+        )
+
+    except NotImplementedError:
+        # Signal handlers not supported on Windows with ProactorEventLoop
+        logger.debug("Signal handlers not supported on this platform")
+    except RuntimeError as e:
+        # Not running in the main thread or no event loop
+        logger.debug(f"Could not install signal handlers: {e}")
+
+
+def reset_signal_handlers() -> None:
+    """Reset signal handler state for testing.
+
+    This function is NOT thread-safe and should only be used in test
+    fixtures to ensure clean state between tests.
+
+    Warning: Only use this in test teardown, never in production code.
+    """
+    global _shutdown_event, _signal_handlers_installed  # noqa: PLW0603
+    _shutdown_event = None
+    _signal_handlers_installed = False
 
 
 async def create_camera_callback(camera: Camera) -> None:
@@ -284,9 +386,29 @@ async def validate_camera_paths_on_startup() -> tuple[int, int]:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Complex lifecycle requires many branches
-    """Manage application lifecycle - startup and shutdown events."""
+    """Manage application lifecycle - startup and shutdown events.
+
+    This lifespan context manager handles:
+    1. Startup: Initialize all services (database, Redis, workers, etc.)
+    2. Signal handling: Install SIGTERM/SIGINT handlers for graceful shutdown
+    3. Shutdown: Stop all services in proper order, clean up resources
+
+    Signal Handling:
+        SIGTERM and SIGINT handlers are installed during startup. When a signal
+        is received, the handler logs the event and sets a shutdown event.
+        Uvicorn will then trigger the lifespan shutdown sequence.
+
+    Container Orchestration:
+        - Docker/Podman: SIGTERM sent on `docker stop` (30s default grace period)
+        - Kubernetes: SIGTERM sent on pod termination (30s default grace period)
+        - The application should complete shutdown within the grace period
+    """
     # Initialize logging first (before any other initialization)
     setup_logging()
+
+    # Install signal handlers for graceful shutdown (SIGTERM/SIGINT)
+    # This must be done early, after the event loop is running
+    install_signal_handlers()
 
     # Startup
     settings = get_settings()
@@ -612,6 +734,10 @@ app.add_middleware(RequestIDMiddleware)
 # Add request timing middleware for API latency tracking (NEM-1469)
 # Added early so it measures the full request lifecycle including other middleware
 app.add_middleware(RequestTimingMiddleware)
+
+# Add deprecation logger middleware for tracking deprecated endpoint usage (NEM-2090)
+# Logs deprecated calls, increments Prometheus metrics, and adds Warning header
+app.add_middleware(DeprecationLoggerMiddleware)
 
 # Security: Restrict CORS methods to only what's needed
 # Using explicit methods instead of wildcard "*" to follow least-privilege principle

@@ -633,3 +633,275 @@ class TestExportConfigSettings:
 
         field_info = Settings.model_fields.get("rate_limit_export_requests_per_minute")
         assert field_info is not None
+
+
+# =============================================================================
+# Multi-Format Export Tests (NEM-2088)
+# =============================================================================
+
+
+class TestExportFormatDetection:
+    """Tests for export format detection via Accept header."""
+
+    @pytest.mark.asyncio
+    async def test_csv_accept_header_returns_csv(self):
+        """Test that Accept: text/csv returns CSV format."""
+        from backend.services.export_service import ExportFormat, parse_accept_header
+
+        assert parse_accept_header("text/csv") == ExportFormat.CSV
+        assert parse_accept_header("application/csv") == ExportFormat.CSV
+
+    @pytest.mark.asyncio
+    async def test_excel_accept_header_returns_excel(self):
+        """Test that Excel Accept headers return Excel format."""
+        from backend.services.export_service import ExportFormat, parse_accept_header
+
+        # Standard XLSX MIME type
+        xlsx_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        assert parse_accept_header(xlsx_mime) == ExportFormat.EXCEL
+
+        # Legacy Excel MIME type
+        assert parse_accept_header("application/vnd.ms-excel") == ExportFormat.EXCEL
+
+        # Shorthand
+        assert parse_accept_header("application/xlsx") == ExportFormat.EXCEL
+
+    @pytest.mark.asyncio
+    async def test_no_accept_header_defaults_to_csv(self):
+        """Test that missing Accept header defaults to CSV."""
+        from backend.services.export_service import ExportFormat, parse_accept_header
+
+        assert parse_accept_header(None) == ExportFormat.CSV
+        assert parse_accept_header("") == ExportFormat.CSV
+
+    @pytest.mark.asyncio
+    async def test_unknown_accept_header_defaults_to_csv(self):
+        """Test that unknown Accept header defaults to CSV."""
+        from backend.services.export_service import ExportFormat, parse_accept_header
+
+        assert parse_accept_header("application/json") == ExportFormat.CSV
+        assert parse_accept_header("text/html") == ExportFormat.CSV
+
+    @pytest.mark.asyncio
+    async def test_accept_header_with_quality_values(self):
+        """Test parsing Accept header with quality values."""
+        from backend.services.export_service import ExportFormat, parse_accept_header
+
+        # CSV with quality value
+        assert parse_accept_header("text/csv;q=0.9") == ExportFormat.CSV
+
+        # Multiple types with quality values
+        accept = "text/csv;q=0.9, application/json;q=0.8"
+        assert parse_accept_header(accept) == ExportFormat.CSV
+
+
+class TestExportFilenameGeneration:
+    """Tests for export filename generation."""
+
+    @pytest.mark.asyncio
+    async def test_csv_filename_extension(self):
+        """Test CSV filename has .csv extension."""
+        from backend.services.export_service import ExportFormat, generate_export_filename
+
+        filename = generate_export_filename("events_export", ExportFormat.CSV)
+        assert filename.endswith(".csv")
+        assert filename.startswith("events_export_")
+
+    @pytest.mark.asyncio
+    async def test_excel_filename_extension(self):
+        """Test Excel filename has .xlsx extension."""
+        from backend.services.export_service import ExportFormat, generate_export_filename
+
+        filename = generate_export_filename("events_export", ExportFormat.EXCEL)
+        assert filename.endswith(".xlsx")
+        assert filename.startswith("events_export_")
+
+    @pytest.mark.asyncio
+    async def test_filename_includes_timestamp(self):
+        """Test filename includes timestamp."""
+        from backend.services.export_service import ExportFormat, generate_export_filename
+
+        filename = generate_export_filename("test", ExportFormat.CSV)
+
+        # Should have format: test_YYYYMMDD_HHMMSS.csv
+        parts = filename.replace(".csv", "").split("_")
+        assert len(parts) >= 3  # test, date, time
+
+        # Date part should be 8 digits
+        date_part = parts[1]
+        assert len(date_part) == 8
+        assert date_part.isdigit()
+
+        # Time part should be 6 digits
+        time_part = parts[2]
+        assert len(time_part) == 6
+        assert time_part.isdigit()
+
+
+class TestExportContentTypes:
+    """Tests for export MIME types."""
+
+    @pytest.mark.asyncio
+    async def test_csv_content_type(self):
+        """Test CSV MIME type is correct."""
+        from backend.services.export_service import EXPORT_MIME_TYPES, ExportFormat
+
+        assert EXPORT_MIME_TYPES[ExportFormat.CSV] == "text/csv"
+
+    @pytest.mark.asyncio
+    async def test_excel_content_type(self):
+        """Test Excel MIME type is correct."""
+        from backend.services.export_service import EXPORT_MIME_TYPES, ExportFormat
+
+        expected = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        assert EXPORT_MIME_TYPES[ExportFormat.EXCEL] == expected
+
+
+class TestExcelExportGeneration:
+    """Tests for Excel export generation."""
+
+    @pytest.mark.asyncio
+    async def test_excel_export_returns_bytes(self):
+        """Test Excel export returns bytes."""
+        from datetime import UTC, datetime
+
+        from backend.services.export_service import EventExportRow, events_to_excel
+
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Test Camera",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=None,
+                risk_score=50,
+                risk_level="medium",
+                summary="Test event",
+                detection_count=1,
+                reviewed=False,
+            ),
+        ]
+
+        content = events_to_excel(events)
+
+        assert isinstance(content, bytes)
+        assert len(content) > 0
+
+    @pytest.mark.asyncio
+    async def test_excel_export_is_valid_xlsx(self):
+        """Test Excel export is a valid XLSX file (ZIP archive)."""
+        from datetime import UTC, datetime
+
+        from backend.services.export_service import EventExportRow, events_to_excel
+
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Test",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=None,
+                risk_score=50,
+                risk_level="medium",
+                summary="Test",
+                detection_count=1,
+                reviewed=False,
+            ),
+        ]
+
+        content = events_to_excel(events)
+
+        # XLSX files are ZIP archives and start with "PK" signature
+        assert content[:2] == b"PK"
+
+    @pytest.mark.asyncio
+    async def test_excel_export_can_be_loaded(self):
+        """Test Excel export can be loaded by openpyxl."""
+        import io
+        from datetime import UTC, datetime
+
+        from openpyxl import load_workbook
+
+        from backend.services.export_service import EventExportRow, events_to_excel
+
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Front Door",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=datetime(2024, 1, 15, 10, 31, 0, tzinfo=UTC),
+                risk_score=75,
+                risk_level="high",
+                summary="Person detected",
+                detection_count=3,
+                reviewed=True,
+            ),
+        ]
+
+        content = events_to_excel(events)
+
+        # Load workbook and verify structure
+        wb = load_workbook(io.BytesIO(content))
+        ws = wb.active
+
+        # Check header row
+        assert ws.cell(row=1, column=1).value == "Event ID"
+        assert ws.cell(row=1, column=2).value == "Camera"
+
+        # Check data row
+        assert ws.cell(row=2, column=1).value == 1
+        assert ws.cell(row=2, column=2).value == "Front Door"
+
+    @pytest.mark.asyncio
+    async def test_excel_export_sanitizes_injection_values(self):
+        """Test Excel export sanitizes values with injection characters."""
+        import io
+        from datetime import UTC, datetime
+
+        from openpyxl import load_workbook
+
+        from backend.services.export_service import EventExportRow, events_to_excel
+
+        # Create event with injection attempt in summary
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Test",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=None,
+                risk_score=50,
+                risk_level="medium",
+                summary='=HYPERLINK("http://evil.com","Click")',
+                detection_count=1,
+                reviewed=False,
+            ),
+        ]
+
+        content = events_to_excel(events)
+        wb = load_workbook(io.BytesIO(content))
+        ws = wb.active
+
+        # Summary column should be sanitized (starts with quote)
+        summary_value = ws.cell(row=2, column=7).value  # summary is 7th column
+        assert summary_value.startswith("'=")
+
+    @pytest.mark.asyncio
+    async def test_excel_export_empty_events_list(self):
+        """Test Excel export with empty events list."""
+        import io
+
+        from openpyxl import load_workbook
+
+        from backend.services.export_service import events_to_excel
+
+        content = events_to_excel([])
+
+        # Should still be valid XLSX with header row only
+        assert content[:2] == b"PK"
+
+        wb = load_workbook(io.BytesIO(content))
+        ws = wb.active
+
+        # Header row should exist
+        assert ws.cell(row=1, column=1).value == "Event ID"
+
+        # No data rows
+        assert ws.cell(row=2, column=1).value is None
