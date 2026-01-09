@@ -861,13 +861,17 @@ class TestServeMediaCompat:
         """Test detections/* with unavailable database returns 500."""
         from backend.api.routes.media import serve_media_compat
 
-        # Patch get_db to yield nothing (simulate edge case)
-        async def mock_get_db_empty():
-            # Generator that yields nothing
-            return
-            yield  # pragma: no cover
+        # Create an empty async generator using a class
+        class EmptyAsyncGenerator:
+            """Async generator that yields nothing (simulates unavailable DB)."""
 
-        with patch("backend.api.routes.media.get_db", mock_get_db_empty):
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise StopAsyncIteration
+
+        with patch("backend.api.routes.media.get_db", lambda: EmptyAsyncGenerator()):
             with pytest.raises(HTTPException) as exc_info:
                 await serve_media_compat(
                     path="detections/123",
