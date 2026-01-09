@@ -72,6 +72,7 @@ from backend.models.event_detection import EventDetection
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.cache_service import get_cache_service
 from backend.services.context_enricher import ContextEnricher, EnrichedContext, get_context_enricher
+from backend.services.cost_tracker import get_cost_tracker
 from backend.services.enrichment_pipeline import (
     BoundingBox,
     DetectionInput,
@@ -1582,6 +1583,17 @@ class NemotronAnalyzer:
                             if input_tokens > 0 or output_tokens > 0
                             else None,
                         )
+
+                        # Record cost tracking metrics (NEM-1673)
+                        cost_tracker = get_cost_tracker()
+                        cost_tracker.track_llm_usage(
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            model="nemotron",
+                            duration_seconds=llm_call_duration,
+                            camera_id=camera_name,
+                        )
+                        cost_tracker.increment_event_count()
 
                         # Add success attributes to span (NEM-1467)
                         add_span_attributes(

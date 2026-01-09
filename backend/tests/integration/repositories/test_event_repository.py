@@ -1,7 +1,7 @@
-"""Unit tests for EventRepository.
+"""Integration tests for EventRepository.
 
 Tests follow TDD approach - these tests are written BEFORE the implementation.
-Run with: uv run pytest backend/tests/unit/repositories/test_event_repository.py -v
+Run with: uv run pytest backend/tests/integration/repositories/test_event_repository.py -v
 """
 
 from __future__ import annotations

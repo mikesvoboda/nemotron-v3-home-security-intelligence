@@ -40,6 +40,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
+from redis.exceptions import RedisError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.api.schemas.problem_details import ProblemDetail, get_status_phrase
@@ -586,6 +588,110 @@ async def external_service_exception_handler(
     )
 
 
+async def sqlalchemy_exception_handler(
+    request: Request,
+    exc: SQLAlchemyError,
+) -> JSONResponse:
+    """Handle SQLAlchemy database errors.
+
+    Converts SQLAlchemy exceptions to standardized error responses:
+    - IntegrityError: 409 Conflict (duplicate key, constraint violation)
+    - OperationalError: 503 Service Unavailable (connection issues)
+    - Other SQLAlchemyError: 503 Service Unavailable
+
+    This handler:
+    - Sanitizes error messages to prevent information leakage
+    - Logs the full error for debugging
+    - Includes request ID for tracing
+    - Does not expose database schema or connection details
+
+    Args:
+        request: The FastAPI request
+        exc: The SQLAlchemy exception
+
+    Returns:
+        Standardized JSON error response
+
+    NEM-1442: Add global exception handlers for structured error responses
+    """
+    log_context = {
+        "path": str(request.url.path),
+        "method": request.method,
+        "exception_type": type(exc).__name__,
+    }
+
+    request_id = get_request_id(request)
+    if request_id:
+        log_context["request_id"] = request_id
+
+    # Determine status code based on exception type
+    if isinstance(exc, IntegrityError):
+        # Integrity errors (duplicate key, constraint violation) are conflicts
+        status_code = status.HTTP_409_CONFLICT
+        error_code = "DATABASE_CONFLICT"
+        message = "Database constraint violation"
+        logger.warning(f"Database integrity error: {exc!s}", extra=log_context)
+    else:
+        # All other database errors (connection, operational) are service unavailable
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        error_code = "DATABASE_UNAVAILABLE"
+        message = "Database service temporarily unavailable"
+        logger.error(f"Database error: {exc!s}", extra=log_context, exc_info=True)
+
+    return build_error_response(
+        error_code=error_code,
+        message=message,
+        status_code=status_code,
+        request=request,
+    )
+
+
+async def redis_exception_handler(
+    request: Request,
+    exc: RedisError,
+) -> JSONResponse:
+    """Handle Redis cache errors.
+
+    Converts Redis exceptions to standardized 503 error responses.
+    Redis is used for caching, queues, and pub/sub - all considered
+    temporary service issues that clients should retry.
+
+    This handler:
+    - Sanitizes error messages to prevent information leakage
+    - Logs the full error for debugging
+    - Includes request ID for tracing
+    - Does not expose Redis connection details
+
+    Args:
+        request: The FastAPI request
+        exc: The Redis exception
+
+    Returns:
+        Standardized JSON error response
+
+    NEM-1442: Add global exception handlers for structured error responses
+    """
+    log_context = {
+        "path": str(request.url.path),
+        "method": request.method,
+        "exception_type": type(exc).__name__,
+    }
+
+    request_id = get_request_id(request)
+    if request_id:
+        log_context["request_id"] = request_id
+
+    # Log the full error for debugging
+    logger.error(f"Redis error: {exc!s}", extra=log_context, exc_info=True)
+
+    return build_error_response(
+        error_code="CACHE_UNAVAILABLE",
+        message="Cache service temporarily unavailable",
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        request=request,
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register all exception handlers with the FastAPI application.
 
@@ -643,6 +749,20 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(
         StarletteHTTPException,
         problem_details_exception_handler,  # type: ignore[arg-type]
+    )
+
+    # SQLAlchemy database errors (NEM-1442)
+    # Handles connection errors, integrity errors, and other database exceptions
+    app.add_exception_handler(
+        SQLAlchemyError,
+        sqlalchemy_exception_handler,  # type: ignore[arg-type]
+    )
+
+    # Redis cache errors (NEM-1442)
+    # Handles connection errors, timeout errors, and other Redis exceptions
+    app.add_exception_handler(
+        RedisError,
+        redis_exception_handler,  # type: ignore[arg-type]
     )
 
     # Catch-all for any unhandled exceptions
