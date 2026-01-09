@@ -180,6 +180,131 @@ Security headers middleware for HTTP responses.
 
 All headers are configurable via constructor parameters but have secure defaults.
 
+### `body_limit.py`
+
+Request body size limits middleware for DoS protection.
+
+**Purpose:**
+
+Limits the maximum size of request bodies to prevent memory exhaustion and denial-of-service attacks. Returns 413 Payload Too Large for requests exceeding the limit.
+
+**Classes:**
+
+| Class                 | Purpose                            |
+| --------------------- | ---------------------------------- |
+| `BodyLimitMiddleware` | Enforces maximum request body size |
+
+**Configuration:**
+
+- `max_body_size` - Maximum body size in bytes (default from settings)
+
+### `content_type_validator.py`
+
+Content-Type header validation for request bodies.
+
+**Purpose:**
+
+Ensures that POST/PUT/PATCH requests include proper Content-Type headers and validates that the content type matches expected values (application/json, multipart/form-data, etc.).
+
+**Classes:**
+
+| Class                            | Purpose                        |
+| -------------------------------- | ------------------------------ |
+| `ContentTypeValidatorMiddleware` | Validates Content-Type headers |
+
+### `file_validator.py`
+
+File upload validation using magic number detection.
+
+**Purpose:**
+
+Validates uploaded files by checking their magic numbers (file signatures) to ensure the actual file type matches the claimed MIME type. Prevents file type spoofing attacks.
+
+**Functions:**
+
+| Function              | Purpose                                      |
+| --------------------- | -------------------------------------------- |
+| `validate_file_magic` | Check file magic number against claimed type |
+| `get_magic_bytes`     | Get magic number bytes for a file type       |
+
+**Supported Types:**
+
+- Images: JPEG, PNG, GIF, WebP, BMP
+- Videos: MP4, AVI, WebM, MKV, MOV
+
+### `request_logging.py`
+
+Structured HTTP request/response logging middleware.
+
+**Purpose:**
+
+Logs HTTP requests and responses with structured JSON output including method, path, status code, duration, and client IP. Supports configurable log levels and sensitive data redaction.
+
+**Classes:**
+
+| Class                      | Purpose                             |
+| -------------------------- | ----------------------------------- |
+| `RequestLoggingMiddleware` | Structured request/response logging |
+
+**Features:**
+
+- Structured JSON log format
+- Request/response duration timing
+- Client IP extraction (with proxy support)
+- Sensitive header redaction
+- Configurable paths to exclude from logging
+
+### `request_recorder.py`
+
+Request recording middleware for replay debugging (NEM-1646).
+
+**Purpose:**
+
+Records HTTP requests for later replay during debugging. Useful for reproducing issues in development without needing to recreate the exact request conditions.
+
+**Classes:**
+
+| Class                       | Purpose                     |
+| --------------------------- | --------------------------- |
+| `RequestRecorderMiddleware` | Records requests for replay |
+
+**Features:**
+
+- Configurable recording trigger (header or query param)
+- Request body capture
+- Headers capture (with sensitive redaction)
+- Replay endpoint for recorded requests
+
+### `websocket_auth.py`
+
+WebSocket-specific token authentication.
+
+**Purpose:**
+
+Provides WebSocket authentication separate from the main API key authentication. Supports token-based authentication via query parameters or Sec-WebSocket-Protocol header.
+
+**Functions:**
+
+| Function                       | Purpose                             |
+| ------------------------------ | ----------------------------------- |
+| `validate_websocket_token`     | Validate WebSocket connection token |
+| `authenticate_websocket_token` | Authenticate and close if invalid   |
+
+### `exception_handler.py`
+
+Exception handling utilities with data minimization.
+
+**Purpose:**
+
+Provides utilities for safely handling exceptions with sensitive data minimization. Ensures error responses don't leak internal implementation details or sensitive information.
+
+**Functions:**
+
+| Function                  | Purpose                                      |
+| ------------------------- | -------------------------------------------- |
+| `minimize_error_response` | Remove sensitive details from error response |
+| `safe_error_message`      | Generate safe error message for clients      |
+
 ---
 
 ## Authentication Middleware (`auth.py`)
