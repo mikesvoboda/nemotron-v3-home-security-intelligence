@@ -1105,6 +1105,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all soft-deleted cameras
+         * @description List all soft-deleted cameras for trash view.
+         *
+         *     Returns cameras that have been soft-deleted (deleted_at is not null),
+         *     ordered by deleted_at descending (most recently deleted first).
+         *
+         *     This endpoint enables a "trash" view where users can see deleted cameras
+         *     and optionally restore them.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         DeletedCamerasListResponse containing list of deleted cameras and count
+         */
+        get: operations["list_deleted_cameras_api_cameras_deleted_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/validation/paths": {
         parameters: {
             query?: never;
@@ -1327,6 +1359,41 @@ export interface paths {
         get: operations["get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a soft-deleted camera
+         * @description Restore a soft-deleted camera.
+         *
+         *     Clears the deleted_at timestamp on a soft-deleted camera, making it
+         *     visible again in normal queries.
+         *
+         *     Args:
+         *         camera_id: ID of the camera to restore
+         *         db: Database session
+         *         cache: Cache service for invalidation
+         *
+         *     Returns:
+         *         CameraResponse with the restored camera data
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         *         HTTPException: 400 if camera is not deleted (nothing to restore)
+         */
+        post: operations["restore_camera_api_cameras__camera_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2645,14 +2712,16 @@ export interface paths {
          *     Supports partial success - some deletions may succeed while others fail.
          *     Returns HTTP 207 Multi-Status with per-item results.
          *
-         *     By default uses soft delete (sets deleted_at timestamp). Use soft_delete=false
-         *     for permanent deletion.
+         *     By default uses soft delete (sets deleted_at timestamp) with cascade to
+         *     related detections. Use soft_delete=false for permanent deletion.
+         *     Use cascade=false to only delete the event without affecting detections.
          *
          *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
          *
          *     Args:
          *         request: Bulk delete request with up to 100 event IDs
          *         db: Database session
+         *         cache: Cache service for invalidation
          *
          *     Returns:
          *         BulkOperationResponse with per-item results
@@ -2677,6 +2746,38 @@ export interface paths {
          *         BulkOperationResponse with per-item results
          */
         patch: operations["bulk_update_events_api_events_bulk_patch"];
+        trace?: never;
+    };
+    "/api/events/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all soft-deleted events
+         * @description List all soft-deleted events for trash view.
+         *
+         *     Returns events that have been soft-deleted (deleted_at is not null),
+         *     ordered by deleted_at descending (most recently deleted first).
+         *
+         *     This endpoint enables a "trash" view where users can see deleted events
+         *     and optionally restore them.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         DeletedEventsListResponse containing list of deleted events and count
+         */
+        get: operations["list_deleted_events_api_events_deleted_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/events/export": {
@@ -2839,7 +2940,23 @@ export interface paths {
         get: operations["get_event_api_events__event_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Soft delete a single event
+         * @description Soft delete a single event with optional cascade to related detections.
+         *
+         *     By default, cascade=True soft deletes all related detections using the same
+         *     timestamp as the event. This enables cascade restore by matching timestamps.
+         *
+         *     Args:
+         *         event_id: ID of the event to delete
+         *         cascade: If True, cascade soft delete to related detections
+         *         db: Database session
+         *         cache: Cache service for invalidation
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found, 409 if already deleted
+         */
+        delete: operations["delete_event_api_events__event_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -3001,6 +3118,41 @@ export interface paths {
         get: operations["get_event_enrichments_api_events__event_id__enrichments_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{event_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a soft-deleted event
+         * @description Restore a soft-deleted event with optional cascade to related detections.
+         *
+         *     When cascade=True, this restores detections that were deleted at the same
+         *     timestamp as the event, indicating they were cascade-deleted together.
+         *
+         *     Args:
+         *         event_id: ID of the event to restore
+         *         cascade: If True, cascade restore to related detections
+         *         db: Database session
+         *         cache: Cache service for invalidation
+         *
+         *     Returns:
+         *         The restored event
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found, 409 if not deleted
+         */
+        post: operations["restore_event_api_events__event_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7382,6 +7534,82 @@ export interface components {
              * @description Health status of registered services
              */
             services?: components["schemas"]["ServiceHealthStatusResponse"][];
+        };
+        /**
+         * DeletedCamerasListResponse
+         * @description Schema for listing soft-deleted cameras (trash view).
+         *
+         *     NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
+         *     Cameras are ordered by deleted_at descending (most recently deleted first).
+         * @example {
+         *       "cameras": [
+         *         {
+         *           "created_at": "2025-12-23T10:00:00Z",
+         *           "folder_path": "/export/foscam/front_door",
+         *           "id": "front_door",
+         *           "last_seen_at": "2025-12-23T12:00:00Z",
+         *           "name": "Front Door Camera",
+         *           "status": "offline"
+         *         }
+         *       ],
+         *       "count": 1
+         *     }
+         */
+        DeletedCamerasListResponse: {
+            /**
+             * Cameras
+             * @description List of soft-deleted cameras
+             */
+            cameras: components["schemas"]["CameraResponse"][];
+            /**
+             * Count
+             * @description Total number of deleted cameras
+             */
+            count: number;
+        };
+        /**
+         * DeletedEventsListResponse
+         * @description Schema for listing soft-deleted events (trash view).
+         *
+         *     NEM-1955: Provides a trash view of soft-deleted events that can be restored.
+         *     Events are ordered by deleted_at descending (most recently deleted first).
+         * @example {
+         *       "count": 1,
+         *       "events": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "detection_count": 5,
+         *           "detection_ids": [
+         *             1,
+         *             2,
+         *             3,
+         *             4,
+         *             5
+         *           ],
+         *           "ended_at": "2025-12-23T12:02:30Z",
+         *           "id": 1,
+         *           "reasoning": "Analysis details",
+         *           "reviewed": false,
+         *           "risk_level": "medium",
+         *           "risk_score": 75,
+         *           "started_at": "2025-12-23T12:00:00Z",
+         *           "summary": "Person detected near front entrance",
+         *           "thumbnail_url": "/api/media/detections/1"
+         *         }
+         *       ]
+         *     }
+         */
+        DeletedEventsListResponse: {
+            /**
+             * Count
+             * @description Total number of deleted events
+             */
+            count: number;
+            /**
+             * Events
+             * @description List of soft-deleted events
+             */
+            events: components["schemas"]["EventResponse"][];
         };
         /**
          * DepthEnrichment
@@ -15406,6 +15634,26 @@ export interface operations {
             };
         };
     };
+    list_deleted_cameras_api_cameras_deleted_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of soft-deleted cameras */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedCamerasListResponse"];
+                };
+            };
+        };
+    };
     validate_camera_paths_api_cameras_validation_paths_get: {
         parameters: {
             query?: never;
@@ -15638,6 +15886,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassBaselineResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_camera_api_cameras__camera_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Camera restored successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraResponse"];
+                };
+            };
+            /** @description Camera is not deleted */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -17447,6 +17740,26 @@ export interface operations {
             };
         };
     };
+    list_deleted_events_api_events_deleted_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of soft-deleted events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedEventsListResponse"];
+                };
+            };
+        };
+    };
     export_events_api_events_export_get: {
         parameters: {
             query?: {
@@ -17590,6 +17903,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_api_events__event_id__delete: {
+        parameters: {
+            query?: {
+                /** @description Cascade soft delete to related detections */
+                cascade?: boolean;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event deleted successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event already deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -17786,6 +18145,54 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventEnrichmentsResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_event_api_events__event_id__restore_post: {
+        parameters: {
+            query?: {
+                /** @description Cascade restore to related detections */
+                cascade?: boolean;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event restored successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"];
+                };
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event is not deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
