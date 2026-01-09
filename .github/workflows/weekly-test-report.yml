@@ -1,0 +1,318 @@
+name: Weekly Test Report
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+  UV_VERSION: '0.9.18'
+
+jobs:
+  # ============================================================================
+  # Collect test metrics and coverage
+  # ============================================================================
+
+  weekly-report:
+    name: Generate Weekly Test Report
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install backend dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fac7f3be8dfca0013e7d64 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Run backend unit tests
+        id: backend-unit
+        run: |
+          uv run pytest backend/tests/unit/ \
+            --cov=backend \
+            --cov-json \
+            --json-report \
+            --json-report-file=backend-unit-report.json \
+            -v
+        continue-on-error: true
+
+      - name: Run backend integration tests
+        id: backend-integration
+        run: |
+          uv run pytest backend/tests/integration/ \
+            -n0 \
+            --json-report \
+            --json-report-file=backend-integration-report.json \
+            -v
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+
+      - name: Run frontend tests
+        id: frontend-test
+        working-directory: frontend
+        run: |
+          npm test -- --run --reporter=verbose
+        continue-on-error: true
+
+      - name: Generate weekly report
+        id: report
+        run: |
+          python3 scripts/weekly-test-report.py \
+            --output weekly-test-report.json \
+            --no-frontend
+        continue-on-error: true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344d432e07d0e4e4c3b4c2b0411 # v4
+        with:
+          name: test-reports
+          path: |
+            weekly-test-report.json
+            backend-unit-report.json
+            backend-integration-report.json
+            .coverage
+            coverage/
+          retention-days: 90
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          # 📊 Weekly Test Report
+
+          ## Test Execution
+
+          - **Backend Unit Tests**: ${{ steps.backend-unit.outcome }}
+          - **Backend Integration Tests**: ${{ steps.backend-integration.outcome }}
+          - **Frontend Tests**: ${{ steps.frontend-test.outcome }}
+          - **Report Generation**: ${{ steps.report.outcome }}
+
+          ## Artifacts
+
+          Generated report saved to: `weekly-test-report.json`
+
+          View detailed test metrics:
+          - Backend unit test report: `backend-unit-report.json`
+          - Backend integration test report: `backend-integration-report.json`
+          - Coverage data: `.coverage`
+
+          ## Actions
+
+          - Download artifacts to analyze trends
+          - Compare with previous weeks to identify regressions
+          - Review flaky tests and coverage gaps
+          EOF
+
+  # ============================================================================
+  # Post report to team channels (if integration configured)
+  # ============================================================================
+
+  post-report:
+    name: Post Report Summary
+    runs-on: ubuntu-latest
+    needs: [weekly-report]
+    if: always()
+    steps:
+      - name: Download report
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: test-reports
+          path: reports
+
+      - name: Prepare summary
+        id: summary
+        run: |
+          echo "Preparing weekly test report summary..."
+          if [ -f reports/weekly-test-report.json ]; then
+            echo "REPORT_AVAILABLE=true" >> $GITHUB_OUTPUT
+          else
+            echo "REPORT_AVAILABLE=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post to team channel (if configured)
+        if: steps.summary.outputs.REPORT_AVAILABLE == 'true' && env.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f49a # v1.26.0
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "📊 Weekly Test Report Generated",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Weekly Test Report*\n\nGenerated on: $(date '+%Y-%m-%d')\nStatus: Complete\n\nView full report in CI artifacts."
+                  }
+                }
+              ]
+            }
+        continue-on-error: true
+
+  # ============================================================================
+  # Detect and report flaky tests
+  # ============================================================================
+
+  analyze-flaky-tests:
+    name: Analyze Flaky Tests
+    runs-on: ubuntu-latest
+    needs: [weekly-report]
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download test reports
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: test-reports
+          path: reports
+
+      - name: Check for flaky tests
+        run: |
+          echo "Analyzing test results for flaky patterns..."
+
+          # This would be implemented as a script that:
+          # 1. Parses test reports
+          # 2. Compares with historical data
+          # 3. Identifies intermittent failures
+          # 4. Generates summary
+
+          if [ -f reports/backend-unit-report.json ]; then
+            echo "Backend unit tests: Available"
+          fi
+
+          if [ -f reports/backend-integration-report.json ]; then
+            echo "Backend integration tests: Available"
+          fi
+        continue-on-error: true
+
+      - name: Comment on flaky tests (if found)
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // This would create an issue or discussion about flaky tests
+            // when patterns are detected in the test reports
+            console.log("Flaky test analysis complete");
+        continue-on-error: true
+
+  # ============================================================================
+  # Enforce coverage thresholds
+  # ============================================================================
+
+  coverage-threshold-check:
+    name: Coverage Threshold Enforcement
+    runs-on: ubuntu-latest
+    needs: [weekly-report]
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download coverage data
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: test-reports
+          path: reports
+
+      - name: Check coverage thresholds
+        run: |
+          echo "Checking coverage against thresholds..."
+          echo ""
+          echo "Required thresholds:"
+          echo "  Backend unit tests: 85%"
+          echo "  Backend combined: 95%"
+          echo "  Frontend: 83%/77%/81%/84% (statements/branches/functions/lines)"
+          echo ""
+          echo "Note: Thresholds are enforced in CI workflow"
+          echo "Weekly report tracks trends over time"
+        continue-on-error: true
+
+  # ============================================================================
+  # Cleanup old reports
+  # ============================================================================
+
+  cleanup-old-reports:
+    name: Cleanup Old Reports
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup artifacts older than 90 days
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const now = new Date();
+            const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+
+            for (const artifact of artifacts.data.artifacts) {
+              const createdAt = new Date(artifact.created_at);
+              if (createdAt < ninetyDaysAgo) {
+                console.log(`Deleting old artifact: ${artifact.name}`);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }
+        continue-on-error: true

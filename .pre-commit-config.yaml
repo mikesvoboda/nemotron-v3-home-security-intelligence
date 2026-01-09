@@ -183,3 +183,23 @@ repos:
         language: system
         files: ^backend/tests/.*\.py$
         pass_filenames: true
+
+      # Test automation enforcement hooks
+      # These ensure new files include proper test stubs and integration tests
+
+      - id: check-integration-tests
+        name: Check for integration tests on API/service changes
+        entry: python3 scripts/check-integration-tests.py
+        language: system
+        files: ^backend/(api/routes|services)/.*\.py$
+        pass_filenames: true
+        stages: [commit, push]
+
+      - id: check-new-files-have-tests
+        name: Detect new source files without test files
+        entry: python3 scripts/check-test-coverage-gate.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [push]
+        verbose: true

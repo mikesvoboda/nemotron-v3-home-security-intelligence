@@ -8,14 +8,19 @@ This directory contains chaos engineering tests that verify graceful degradation
 
 ```
 backend/tests/chaos/
-├── __init__.py                  # Module documentation
-├── conftest.py                  # Fault injection framework and fixtures
-├── test_rtdetr_failures.py      # RT-DETR object detection service failures
-├── test_redis_failures.py       # Redis cache/queue service failures
-├── test_database_failures.py    # PostgreSQL database failures
-├── test_nemotron_failures.py    # Nemotron LLM service failures
-├── test_network_conditions.py   # Network latency and reliability issues
-└── AGENTS.md                    # This documentation
+├── __init__.py                        # Module documentation
+├── conftest.py                        # Fault injection framework and fixtures
+├── test_rtdetr_failures.py            # RT-DETR object detection service failures
+├── test_redis_failures.py             # Redis cache/queue service failures
+├── test_database_failures.py          # PostgreSQL database failures
+├── test_nemotron_failures.py          # Nemotron LLM service failures
+├── test_network_conditions.py         # Network latency and reliability issues
+├── test_ftp_failures.py               # FTP upload and file system failures (18 tests)
+├── test_gpu_runtime_failures.py       # GPU runtime and CUDA errors (18 tests)
+├── test_database_pool_exhaustion.py   # Database connection pool exhaustion (20 tests)
+├── test_timeout_cascade.py            # Cascading timeout scenarios (19 tests)
+├── test_pubsub_failures.py            # Redis pub/sub failures (17 tests)
+└── AGENTS.md                          # This documentation
 ```
 
 ## Running Chaos Tests
@@ -30,6 +35,13 @@ uv run pytest backend/tests/chaos/test_redis_failures.py -v
 uv run pytest backend/tests/chaos/test_database_failures.py -v
 uv run pytest backend/tests/chaos/test_nemotron_failures.py -v
 uv run pytest backend/tests/chaos/test_network_conditions.py -v
+
+# Run external service failure tests (NEM-2097)
+uv run pytest backend/tests/chaos/test_ftp_failures.py -v
+uv run pytest backend/tests/chaos/test_gpu_runtime_failures.py -v
+uv run pytest backend/tests/chaos/test_database_pool_exhaustion.py -v
+uv run pytest backend/tests/chaos/test_timeout_cascade.py -v
+uv run pytest backend/tests/chaos/test_pubsub_failures.py -v
 
 # Run with verbose output for debugging
 uv run pytest backend/tests/chaos/ -v --tb=long
@@ -249,6 +261,95 @@ chaos-tests:
     - run: uv run pytest backend/tests/chaos/ -v -m chaos
 ```
 
+## External Service Failure Tests (NEM-2097)
+
+### FTP Failures (`test_ftp_failures.py`)
+
+Tests for FTP upload and file system issues (18 tests):
+
+- **Upload Timeout**: FTP upload timeout moves files to DLQ for retry
+- **Incomplete Upload**: Partial file writes detected via validation
+- **Corrupted Files**: Invalid JPEG/MP4 files handled gracefully
+- **Disk Full**: Disk space errors logged and alerted
+- **Permission Denied**: Read/write permission errors handled without crash
+- **File Deleted**: Files deleted mid-processing don't cause infinite retry
+- **Invalid Format**: Unsupported file extensions skipped
+- **Oversized Files**: Files exceeding size limit rejected
+- **Concurrent Conflicts**: Duplicate file hash prevents reprocessing
+
+**Expected Behavior**: File watcher remains stable, DLQ absorbs failures, no data loss
+
+### GPU Runtime Failures (`test_gpu_runtime_failures.py`)
+
+Tests for GPU and CUDA failures (18 tests):
+
+- **GPU Unavailable**: Driver crash mid-inference falls back to queue
+- **VRAM Exhaustion**: CUDA OOM triggers batch size reduction
+- **Thermal Throttle**: High GPU temperature triggers inference pause
+- **Context Corruption**: CUDA context corruption triggers service restart
+- **Model Loading**: Corrupted model files trigger redownload
+- **Inference Timeout**: Timeouts retry with exponential backoff
+- **No GPU**: Missing GPU falls back to CPU inference
+- **Batch Processing**: Partial batch failures process successful items
+
+**Expected Behavior**: Circuit breaker opens after repeated failures, degradation mode activated
+
+### Database Pool Exhaustion (`test_database_pool_exhaustion.py`)
+
+Tests for connection pool exhaustion (20 tests):
+
+- **Pool Exhaustion**: 50 concurrent queries with pool of 5 queue properly
+- **Pool Timeout**: Timeout exceeded triggers clear error message
+- **Connection Leaks**: Unclosed connections detected and logged
+- **Long Queries**: Queries cancelled after statement timeout
+- **Pool Recycling**: Stale connections recycled on checkout
+- **Max Overflow**: Overflow connections created under pressure
+- **Connection Refused**: Connection failures logged and alerted
+- **Connection Lost**: Mid-transaction loss triggers rollback
+- **Deadlock Detection**: Deadlocks detected and retried
+- **Transaction Timeout**: Long transactions timeout and rollback
+
+**Expected Behavior**: System remains responsive, connection leaks prevented, graceful errors
+
+### Timeout Cascade (`test_timeout_cascade.py`)
+
+Tests for cascading timeout scenarios (19 tests):
+
+- **Detection→Enrichment**: Detection timeout creates degraded event
+- **DB+Redis Cascade**: Combined timeouts activate circuit breaker
+- **API Propagation**: API timeouts send notifications to WebSocket clients
+- **Batch Cascade**: Batch timeout doesn't delay next batch
+- **Dependent Services**: Timeout in one service delays dependent services
+- **Timeout Storm**: Multiple simultaneous timeouts open circuit breaker
+- **Degraded Mode**: Cascading timeouts trigger degraded mode
+- **Recovery Time**: Slow recovery logged for monitoring
+
+**Expected Behavior**: Timeouts don't cascade indefinitely, degraded events created, system remains stable
+
+### Pub/Sub Failures (`test_pubsub_failures.py`)
+
+Tests for Redis pub/sub failures (17 tests):
+
+- **Disconnect**: Disconnect during broadcast triggers retry and reconnection
+- **Message Loss**: Zero subscribers detected and logged
+- **Reconnection**: Subscribers reconnect and resubscribe to all channels
+- **Subscription Failures**: Invalid channels fail gracefully
+- **Publish Fallback**: Failed publish falls back to direct WebSocket
+- **Race Conditions**: Concurrent subscriptions handled correctly
+
+**Expected Behavior**: Automatic reconnection, message loss logged, WebSocket connections remain stable
+
+## Test Coverage Summary
+
+| Test Suite               | Tests  | Focus Areas                              |
+| ------------------------ | ------ | ---------------------------------------- |
+| FTP Failures             | 18     | Upload timeouts, corruption, disk issues |
+| GPU Runtime Failures     | 18     | VRAM, thermal, CUDA errors               |
+| Database Pool Exhaustion | 20     | Connection pool, leaks, timeouts         |
+| Timeout Cascade          | 19     | Cascading failures, degradation          |
+| Pub/Sub Failures         | 17     | Redis pub/sub, reconnection              |
+| **Total New Tests**      | **92** | **External service chaos scenarios**     |
+
 ## Adding New Chaos Tests
 
 1. Create fixture in `conftest.py` if new fault type needed
@@ -264,3 +365,4 @@ chaos-tests:
 - `/backend/services/degradation_manager.py` - Graceful degradation manager
 - `/backend/core/redis.py` - Redis client with retry logic
 - `/backend/tests/AGENTS.md` - Overall test documentation
+- `NEM-2097` - External service chaos testing implementation

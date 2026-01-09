@@ -1,0 +1,180 @@
+name: Test Coverage Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+  UV_VERSION: '0.9.18'
+
+jobs:
+  # ============================================================================
+  # PR Gate: Enforce test coverage requirements
+  # ============================================================================
+
+  test-coverage-gate:
+    name: Test Coverage Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0 # Full history for coverage diff
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Check test coverage requirements
+        run: |
+          python3 scripts/check-test-coverage-gate.py \
+            --base-branch origin/${{ github.base_ref }} \
+            --strict
+        id: coverage-gate
+
+      - name: Comment PR on failures
+        if: failure()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = [
+              '## ⚠️ Test Coverage Gate Failed',
+              '',
+              'Some files have test coverage requirements but are missing tests:',
+              '',
+              '| Layer | Requirements | Coverage |',
+              '|-------|--------------|----------|',
+              '| API Routes | Unit + integration tests | 95% |',
+              '| Services | Unit + integration tests | 90% |',
+              '| Models | Unit tests | 85% |',
+              '| Frontend Components | Unit tests | 80% |',
+              '',
+              '### To Fix',
+              '',
+              '1. Run the generator to create test stubs:',
+              '   ```bash',
+              '   ./scripts/generate-test-stubs.py <your-new-file>',
+              '   ```',
+              '',
+              '2. Review the generated test skeleton',
+              '3. Implement test cases following project conventions',
+              '',
+              '### Resources',
+              '',
+              '📚 docs/TESTING_GUIDE.md | 🧪 backend/tests/AGENTS.md | 🛠️ scripts/generate-test-stubs.py',
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            })
+
+  # ============================================================================
+  # Check integration tests for API changes
+  # ============================================================================
+
+  check-integration-tests:
+    name: Check Integration Test Requirements
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@89e61da3e8d2a4d3c9f65b33e1f65a39a1e5c0f7 # v45
+        with:
+          files: |
+            backend/api/routes/**
+            backend/services/**
+
+      - name: Check for integration tests
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          python3 scripts/check-integration-tests.py \
+            ${{ steps.changed-files.outputs.all_changed_files }}
+        continue-on-error: true
+
+  # ============================================================================
+  # API Test Generation Check
+  # ============================================================================
+
+  api-test-generation:
+    name: API Test Generation Readiness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Check if tests can be generated
+        run: |
+          python3 scripts/generate-api-tests.py \
+            --save-spec \
+            || true
+        continue-on-error: true
+
+      - name: Upload OpenAPI spec
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344d432e07d0e4e4c3b4c2b0411 # v4
+        with:
+          name: openapi-spec
+          path: openapi-extracted.json
+          retention-days: 7
+
+  # ============================================================================
+  # Summary Job
+  # ============================================================================
+
+  test-coverage-summary:
+    name: Test Coverage Summary
+    runs-on: ubuntu-latest
+    needs: [test-coverage-gate, check-integration-tests, api-test-generation]
+    if: always()
+    steps:
+      - name: Check test coverage gate result
+        run: |
+          if [ "${{ needs.test-coverage-gate.result }}" == "failure" ]; then
+            echo "⚠️ Test coverage gate failed - review requirements above"
+            exit 1
+          fi
+          echo "✓ Test coverage requirements met"
+
+      - name: Summary
+        run: |
+          echo "## Test Coverage Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage Gate**: ${{ needs.test-coverage-gate.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Integration Tests**: ${{ needs.check-integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Tests**: ${{ needs.api-test-generation.result }}" >> $GITHUB_STEP_SUMMARY
