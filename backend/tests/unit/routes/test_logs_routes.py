@@ -16,6 +16,41 @@ from backend.api.routes import logs as logs_routes
 from backend.api.schemas.logs import FrontendLogCreate, LogEntry, LogsResponse, LogStats
 from backend.models.log import Log
 
+
+def _create_mock_log(
+    log_id: int = 1,
+    level: str = "INFO",
+    component: str = "api",
+    message: str = "Test message",
+    source: str = "backend",
+    camera_id: str | None = None,
+    event_id: int | None = None,
+    request_id: str | None = None,
+    detection_id: int | None = None,
+    duration_ms: int | None = None,
+    extra: dict | None = None,
+    timestamp: datetime | None = None,
+) -> MagicMock:
+    """Create a properly configured mock Log object with all required fields.
+
+    This ensures all fields are actual values (not MagicMock) for Pydantic validation.
+    """
+    mock_log = MagicMock(spec=Log)
+    mock_log.id = log_id
+    mock_log.timestamp = timestamp or datetime.now(UTC)
+    mock_log.level = level
+    mock_log.component = component
+    mock_log.message = message
+    mock_log.source = source
+    mock_log.camera_id = camera_id
+    mock_log.event_id = event_id
+    mock_log.request_id = request_id
+    mock_log.detection_id = detection_id
+    mock_log.duration_ms = duration_ms
+    mock_log.extra = extra
+    return mock_log
+
+
 # =============================================================================
 # List Logs Endpoint Tests
 # =============================================================================
@@ -62,22 +97,9 @@ async def test_list_logs_with_results() -> None:
     """Test listing logs returns logs from database."""
     db = AsyncMock()
 
-    # Create mock log objects
-    mock_log1 = MagicMock(spec=Log)
-    mock_log1.id = 1
-    mock_log1.timestamp = datetime.now(UTC)
-    mock_log1.level = "INFO"
-    mock_log1.component = "api"
-    mock_log1.message = "Test message"
-    mock_log1.source = "backend"
-
-    mock_log2 = MagicMock(spec=Log)
-    mock_log2.id = 2
-    mock_log2.timestamp = datetime.now(UTC)
-    mock_log2.level = "ERROR"
-    mock_log2.component = "api"
-    mock_log2.message = "Error message"
-    mock_log2.source = "backend"
+    # Create mock log objects with all required fields
+    mock_log1 = _create_mock_log(log_id=1, level="INFO", component="api", message="Test message")
+    mock_log2 = _create_mock_log(log_id=2, level="ERROR", component="api", message="Error message")
 
     # Mock execute for count query
     count_result = MagicMock()
@@ -112,9 +134,7 @@ async def test_list_logs_filter_by_level() -> None:
     """Test listing logs filtered by level."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.level = "ERROR"
+    mock_log = _create_mock_log(log_id=1, level="ERROR")
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -147,9 +167,7 @@ async def test_list_logs_filter_by_component() -> None:
     """Test listing logs filtered by component."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.component = "file_watcher"
+    mock_log = _create_mock_log(log_id=1, component="file_watcher")
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -181,9 +199,7 @@ async def test_list_logs_filter_by_camera_id() -> None:
     """Test listing logs filtered by camera_id."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.camera_id = "front_door"
+    mock_log = _create_mock_log(log_id=1, camera_id="front_door")
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -215,9 +231,7 @@ async def test_list_logs_filter_by_source() -> None:
     """Test listing logs filtered by source."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.source = "frontend"
+    mock_log = _create_mock_log(log_id=1, source="frontend")
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -249,9 +263,7 @@ async def test_list_logs_filter_by_search() -> None:
     """Test listing logs filtered by search text."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.message = "Connection timeout error"
+    mock_log = _create_mock_log(log_id=1, message="Connection timeout error")
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -283,9 +295,7 @@ async def test_list_logs_filter_by_start_date() -> None:
     """Test listing logs filtered by start_date."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.timestamp = datetime.now(UTC)
+    mock_log = _create_mock_log(log_id=1)
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -319,9 +329,7 @@ async def test_list_logs_filter_by_end_date() -> None:
     """Test listing logs filtered by end_date."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.timestamp = datetime.now(UTC) - timedelta(hours=2)
+    mock_log = _create_mock_log(log_id=1, timestamp=datetime.now(UTC) - timedelta(hours=2))
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -355,8 +363,7 @@ async def test_list_logs_filter_by_date_range() -> None:
     """Test listing logs filtered by both start and end date."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
+    mock_log = _create_mock_log(log_id=1)
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -391,13 +398,14 @@ async def test_list_logs_with_all_filters() -> None:
     """Test listing logs with all filters applied."""
     db = AsyncMock()
 
-    mock_log = MagicMock(spec=Log)
-    mock_log.id = 1
-    mock_log.level = "ERROR"
-    mock_log.component = "file_watcher"
-    mock_log.camera_id = "front_door"
-    mock_log.source = "backend"
-    mock_log.message = "Connection timeout"
+    mock_log = _create_mock_log(
+        log_id=1,
+        level="ERROR",
+        component="file_watcher",
+        camera_id="front_door",
+        source="backend",
+        message="Connection timeout",
+    )
 
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -431,10 +439,8 @@ async def test_list_logs_pagination() -> None:
     """Test listing logs with pagination parameters."""
     db = AsyncMock()
 
-    # Create multiple mock logs
-    mock_logs = [MagicMock(spec=Log) for _ in range(5)]
-    for i, log in enumerate(mock_logs):
-        log.id = i + 11  # IDs 11-15 (second page)
+    # Create multiple mock logs with all required fields
+    mock_logs = [_create_mock_log(log_id=i + 11) for i in range(5)]  # IDs 11-15 (second page)
 
     count_result = MagicMock()
     count_result.scalar.return_value = 15
