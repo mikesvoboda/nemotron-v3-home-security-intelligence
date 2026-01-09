@@ -36,46 +36,9 @@ The system stores several types of data that grow over time:
 
 The [`CleanupService`](../../backend/services/cleanup_service.py:85) runs daily to enforce retention policies and reclaim disk space.
 
-```mermaid
-flowchart TB
-    subgraph Data["Data Sources"]
-        E[Events]
-        D[Detections]
-        G[GPU Stats]
-        L[Logs]
-    end
+![Retention Policies](../images/admin/retention-policies.png)
 
-    subgraph Files["File Storage"]
-        T[Thumbnails]
-        I[Original Images]
-    end
-
-    subgraph Cleanup["Cleanup Service"]
-        CS[CleanupService<br/>Daily at 03:00]
-        DRY[Dry Run Preview]
-    end
-
-    subgraph Storage["Disk"]
-        DB[(PostgreSQL)]
-        FS[Filesystem]
-    end
-
-    E --> CS
-    D --> CS
-    G --> CS
-    L --> CS
-    T --> CS
-    I --> CS
-
-    CS --> DB
-    CS --> FS
-
-    DRY -.-> CS
-
-    style CS fill:#A855F7,color:#fff
-    style DB fill:#3B82F6,color:#fff
-    style FS fill:#76B900,color:#fff
-```
+_Retention policies showing data sources (events, detections, GPU stats, logs) and file storage (thumbnails, original images) flowing through the CleanupService (daily at 03:00) with dry run preview capability, targeting PostgreSQL and filesystem storage._
 
 ---
 
@@ -267,40 +230,9 @@ curl http://localhost:8000/api/system/cleanup/status
 
 ## Cleanup Process Flow
 
-```mermaid
-flowchart TB
-    subgraph Preparation["1. Preparation"]
-        CUTOFF[Calculate Cutoff Date<br/>now() - retention_days]
-        QUERY[Query Records<br/>Older Than Cutoff]
-    end
+![Cleanup Sequence](../images/admin/cleanup-sequence.png)
 
-    subgraph Database["2. Database Cleanup"]
-        DEL_DET[Delete Detections]
-        DEL_EVT[Delete Events]
-        DEL_GPU[Delete GPU Stats]
-        DEL_LOG[Delete Logs]
-        COMMIT[Commit Transaction]
-    end
-
-    subgraph Files["3. File Cleanup"]
-        DEL_THM[Delete Thumbnails]
-        DEL_IMG[Delete Images<br/>if enabled]
-    end
-
-    subgraph Results["4. Results"]
-        STATS[Return CleanupStats]
-        LOG[Log Summary]
-    end
-
-    CUTOFF --> QUERY
-    QUERY --> DEL_DET --> DEL_EVT --> DEL_GPU --> DEL_LOG --> COMMIT
-    COMMIT --> DEL_THM --> DEL_IMG
-    DEL_IMG --> STATS --> LOG
-
-    style CUTOFF fill:#3B82F6,color:#fff
-    style COMMIT fill:#76B900,color:#fff
-    style STATS fill:#A855F7,color:#fff
-```
+_Cleanup process flow: (1) Preparation - calculate cutoff date and query old records; (2) Database cleanup - delete detections, events, GPU stats, logs, then commit transaction; (3) File cleanup - delete thumbnails and images if enabled; (4) Results - return CleanupStats and log summary._
 
 ---
 

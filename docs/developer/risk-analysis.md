@@ -393,7 +393,7 @@ Clients receive:
 - [Risk Levels Reference](../reference/config/risk-levels.md) - Canonical risk level definitions
 - [AI Overview](../operator/ai-overview.md) - NVIDIA Nemotron deployment
 - [Alerts](alerts.md) - How risk scores trigger alerts
-- [Understanding Alerts](../user/understanding-alerts.md) - User-friendly risk level guide
+- [Understanding Alerts](../user-guide/understanding-alerts.md) - User-friendly risk level guide
 
 ## External Resources
 

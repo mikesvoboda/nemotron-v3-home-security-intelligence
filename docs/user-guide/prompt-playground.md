@@ -3,7 +3,7 @@
 > Edit, test, and refine AI model prompts and configurations with A/B testing and version history.
 
 **Time to read:** ~15 min
-**Prerequisites:** [AI Audit Dashboard](../user/ai-audit.md), [Dashboard Basics](../user/dashboard-basics.md)
+**Prerequisites:** [AI Audit Dashboard](../user-guide/ai-audit.md), [Dashboard Basics](../user-guide/dashboard-basics.md)
 
 ---
 
@@ -28,7 +28,7 @@ The Prompt Playground is intended for:
 - **System administrators** who need to optimize detection accuracy
 - **Advanced users** comfortable with prompt engineering concepts
 
-If you are new to the system, start with the [AI Audit Dashboard](../user/ai-audit.md) to understand how the AI performs before making changes.
+If you are new to the system, start with the [AI Audit Dashboard](../user-guide/ai-audit.md) to understand how the AI performs before making changes.
 
 ---
 
@@ -382,7 +382,7 @@ To restore or share configurations:
 
 ## Next Steps
 
-- [AI Audit Dashboard](../user/ai-audit.md) - Monitor AI quality metrics
+- [AI Audit Dashboard](../user-guide/ai-audit.md) - Monitor AI quality metrics
 - [Understanding Alerts](understanding-alerts.md) - Learn about risk levels
 - [Settings](settings.md) - Configure other system options
 

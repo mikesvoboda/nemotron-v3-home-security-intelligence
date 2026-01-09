@@ -82,19 +82,7 @@ Entity re-identification helps you track the same person or vehicle as they appe
 
 When a person or vehicle is detected, the system creates a unique visual fingerprint (called an embedding) using AI. This fingerprint can be compared against other detections to find matches, even across different cameras.
 
-```mermaid
-flowchart LR
-    A[Front Door<br>10:15 AM] --> B[AI Embedding]
-    C[Driveway<br>10:16 AM] --> D[AI Embedding]
-    E[Back Yard<br>10:18 AM] --> F[AI Embedding]
-
-    B --> G{Compare}
-    D --> G
-    F --> G
-    G --> H[Same Person<br>85% Match]
-
-    style H fill:#76B900,color:#000
-```
+![Entity Re-ID flow showing detections from Front Door, Driveway, and Back Yard being processed through AI embeddings and compared to identify the same person with 85% match](../images/user-guide/entity-reid-flow.png)
 
 ### How Matching Works
 

@@ -21,65 +21,11 @@ This document describes the service dependency hierarchy, startup order requirem
 
 _Complete microservices topology showing all 9 services, their connections, and the GPU hardware layer._
 
-### Mermaid Diagram
+### Service Dependency Diagram
 
-```mermaid
-graph TB
-    subgraph "External"
-        Cameras[Camera FTP Uploads]
-        Browser[Web Browser]
-    end
+![Service Dependencies Diagram](images/service-dependencies-mermaid.png)
 
-    subgraph "Application Layer"
-        Frontend[Frontend<br/>React + Nginx<br/>:5173]
-        Backend[Backend<br/>FastAPI<br/>:8000]
-    end
-
-    subgraph "Data Layer"
-        Postgres[PostgreSQL<br/>:5432]
-        Redis[Redis<br/>:6379]
-    end
-
-    subgraph "AI Layer"
-        RTDetr[RT-DETRv2<br/>:8090]
-        Nemotron[Nemotron<br/>:8091]
-        Florence[Florence-2<br/>:8092]
-        Clip[CLIP<br/>:8093]
-        Enrichment[Enrichment<br/>:8094]
-    end
-
-    subgraph "Hardware"
-        GPU[NVIDIA GPU<br/>RTX A5500]
-    end
-
-    Browser -->|HTTP/WS| Frontend
-    Frontend -->|HTTP/WS| Backend
-    Cameras -->|Files| Backend
-    Backend -->|SQL| Postgres
-    Backend -->|Redis Protocol| Redis
-    Backend -->|HTTP| RTDetr
-    Backend -->|HTTP| Nemotron
-    Backend -->|HTTP| Florence
-    Backend -->|HTTP| Clip
-    Backend -->|HTTP| Enrichment
-    Backend -->|pynvml| GPU
-    RTDetr -->|CUDA| GPU
-    Nemotron -->|CUDA| GPU
-    Florence -->|CUDA| GPU
-    Clip -->|CUDA| GPU
-    Enrichment -->|CUDA| GPU
-
-    style Frontend fill:#61dafb
-    style Backend fill:#009485
-    style Postgres fill:#336791
-    style Redis fill:#dc382d
-    style RTDetr fill:#76b900
-    style Nemotron fill:#76b900
-    style Florence fill:#76b900
-    style Clip fill:#76b900
-    style Enrichment fill:#76b900
-    style GPU fill:#76b900
-```
+_Full microservices topology: External (Browser, Cameras), Application Layer (Frontend, Backend), Data Layer (PostgreSQL, Redis), AI Layer (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment), and Hardware (GPU)._
 
 ---
 

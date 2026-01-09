@@ -30,40 +30,9 @@ no text overlays"
 
 The installation consists of four steps:
 
-```mermaid
-flowchart TB
-    subgraph Step1["1. Clone Repository"]
-        CLONE[git clone]
-    end
+![Installation Workflow](../images/installation-workflow.png)
 
-    subgraph Step2["2. Setup Environment"]
-        SETUP[setup-hooks.sh]
-        PYTHON[Python venv + deps]
-        NODE[Node.js deps]
-        HOOKS[Pre-commit hooks]
-        SETUP --> PYTHON --> NODE --> HOOKS
-    end
-
-    subgraph Step3["3. Download Models"]
-        MODELS[download_models.sh]
-        NEMOTRON[Nemotron 4B ~2.5GB]
-        RTDETR[RT-DETRv2 ~160MB]
-        MODELS --> NEMOTRON
-        MODELS --> RTDETR
-    end
-
-    subgraph Step4["4. Configure"]
-        ENV[.env file]
-        CAMERAS[Camera paths]
-    end
-
-    Step1 --> Step2 --> Step3 --> Step4
-
-    style Step1 fill:#3B82F6,color:#fff
-    style Step2 fill:#76B900,color:#fff
-    style Step3 fill:#76B900,color:#fff
-    style Step4 fill:#A855F7,color:#fff
-```
+_Four-step installation workflow: Clone Repository, Setup Environment, Download Models, and Configure._
 
 ---
 

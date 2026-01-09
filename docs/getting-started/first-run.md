@@ -101,30 +101,9 @@ Open **[http://localhost:5173](http://localhost:5173)**
 
 AI servers run natively on the host for faster iteration. Application services run in containers.
 
-```mermaid
-flowchart TB
-    subgraph AIServers["1. AI Servers (Native)"]
-        DET[RT-DETRv2<br/>Port 8090]
-        LLM[Nemotron<br/>Port 8091]
-    end
+![Development Mode Architecture](../images/first-run-devmode.png)
 
-    subgraph Containers["2. Application (Docker/Podman)"]
-        PG[(PostgreSQL<br/>Port 5432)]
-        REDIS[(Redis<br/>Port 6379)]
-        BACK[Backend<br/>Port 8000]
-        FRONT[Frontend<br/>Port 5173]
-
-        PG --> BACK
-        REDIS --> BACK
-        BACK --> FRONT
-    end
-
-    DET -.->|HTTP| BACK
-    LLM -.->|HTTP| BACK
-
-    style AIServers fill:#76B900,color:#fff
-    style Containers fill:#3B82F6,color:#fff
-```
+_Development mode: AI servers run natively on the host, application services run in containers._
 
 > **Why host AI servers?** Faster restart times during model development, easier debugging, and simpler GPU access without container runtime configuration.
 
