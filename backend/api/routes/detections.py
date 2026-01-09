@@ -960,7 +960,7 @@ async def stream_detection_video(
             start, end = _parse_range_header(range_header, file_size)
         except ValueError as e:
             raise HTTPException(
-                status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
                 detail=str(e),
                 headers={"Content-Range": f"bytes */{file_size}"},
             ) from e

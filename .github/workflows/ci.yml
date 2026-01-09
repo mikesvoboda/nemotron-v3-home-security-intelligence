@@ -124,23 +124,32 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run unit tests with coverage
+      - name: Run unit tests with coverage (parallelized)
         # Unit tests coverage threshold - 85% for unit tests alone
         # Combined coverage (unit + integration) should reach 95%
         # -n auto enables xdist parallelization with worksteal scheduler
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
+        # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
         run: |
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --timeout=0 \
             --cov=backend \
             --cov-config=pyproject.toml \
-            --cov-report=xml:coverage-unit.xml \
+            --cov-fail-under=0 \
             --cov-report=term-missing \
-            --cov-fail-under=85 \
-            --junit-xml=test-results-unit.xml \
+            --junit-xml=test-results-unit-parallel.xml \
             --durations=20 \
             -v
+
+      - name: Generate combined coverage report
+        # Generate XML and check 85% threshold for unit tests
+        # Note: --rcfile=/dev/null ignores pyproject.toml's fail_under=95 setting
+        # We use 85% for unit tests alone; combined coverage (unit+integration) should reach 95%
+        # IMPORTANT: coverage xml also reads fail_under from pyproject.toml, so add --rcfile=/dev/null
+        run: |
+          uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null
+          uv run coverage report --fail-under=85 --rcfile=/dev/null
 
       - name: Upload unit test results
         if: always()
