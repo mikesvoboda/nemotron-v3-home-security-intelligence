@@ -23,19 +23,21 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Service Categories
 
-1. **Core AI Pipeline** - File watching, detection, batching, analysis
+1. **Core AI Pipeline** - File watching, detection, batching, analysis, streaming
 2. **AI Clients** - HTTP clients for external AI services (Florence, CLIP)
 3. **Context Enrichment** - Zone detection, baseline tracking, re-identification
 4. **Model Zoo** - On-demand model loading for attribute extraction
 5. **Model Loaders** - Individual model loading functions for Model Zoo
-6. **Pipeline Workers** - Background queue consumers and managers
-7. **Background Services** - GPU monitoring, cleanup, health checks, evaluation
-8. **Container Orchestrator** - Container discovery, lifecycle management
-9. **Infrastructure** - Circuit breakers, retry handlers, degradation
-10. **Alerting** - Alert rules, deduplication, notifications
-11. **Prompt Management** - LLM prompt templates, storage, versioning
-12. **Utility** - Search, severity mapping, token counting, batch fetching
-13. **Data Management** - Partition management for time-series tables
+6. **Model Loader Base** - Abstract base class for model loaders
+7. **Pipeline Workers** - Background queue consumers and managers
+8. **Background Services** - GPU monitoring, cleanup, health checks, evaluation
+9. **Container Orchestrator** - Container discovery, lifecycle management
+10. **Infrastructure** - Circuit breakers, retry handlers, degradation, fallback
+11. **Alerting** - Alert rules, deduplication, notifications, filtering
+12. **Audit** - Security audit logging, AI pipeline auditing
+13. **Prompt Management** - LLM prompt templates, storage, versioning, type-safety
+14. **Utility** - Search, severity mapping, token counting, batch fetching, cost tracking
+15. **Data Management** - Partition management for time-series tables
 
 ## Service Files Overview
 
@@ -48,6 +50,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `detector_client.py`     | Send images to RT-DETRv2 for detection       | Yes                        |
 | `batch_aggregator.py`    | Group detections into time-based batches     | Yes                        |
 | `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Yes                        |
+| `nemotron_streaming.py`  | Streaming LLM response extensions            | No (import directly)       |
 | `thumbnail_generator.py` | Generate preview images with bounding boxes  | Yes                        |
 | `video_processor.py`     | Extract video metadata and thumbnails        | No (import directly)       |
 | `event_broadcaster.py`   | Distribute events via WebSocket              | Yes                        |
@@ -100,6 +103,12 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `vehicle_damage_loader.py`     | Load vehicle damage detection model              | No (import directly)       |
 | `pet_classifier_loader.py`     | Load pet classifier for false positive reduction | No (import directly)       |
 
+### Model Loader Base
+
+| Service                | Purpose                                       | Exported via `__init__.py` |
+| ---------------------- | --------------------------------------------- | -------------------------- |
+| `model_loader_base.py` | Abstract base class for all Model Zoo loaders | No (import directly)       |
+
 ### Specialized Detection Services
 
 | Service             | Purpose                                     | Exported via `__init__.py` |
@@ -136,30 +145,34 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Infrastructure Services
 
-| Service                  | Purpose                                 | Exported via `__init__.py` |
-| ------------------------ | --------------------------------------- | -------------------------- |
-| `retry_handler.py`       | Exponential backoff and DLQ support     | Yes                        |
-| `service_managers.py`    | Strategy pattern for service management | No (import directly)       |
-| `circuit_breaker.py`     | Circuit breaker for service resilience  | Yes                        |
-| `degradation_manager.py` | Graceful degradation management         | Yes                        |
-| `cache_service.py`       | Redis caching utilities                 | Yes                        |
-| `service_registry.py`    | Service registry with Redis persistence | No (import directly)       |
-| `inference_semaphore.py` | Shared semaphore for AI inference       | No (import directly)       |
+| Service                  | Purpose                                            | Exported via `__init__.py` |
+| ------------------------ | -------------------------------------------------- | -------------------------- |
+| `retry_handler.py`       | Exponential backoff and DLQ support                | Yes                        |
+| `service_managers.py`    | Strategy pattern for service management            | No (import directly)       |
+| `circuit_breaker.py`     | Circuit breaker for service resilience             | Yes                        |
+| `degradation_manager.py` | Graceful degradation management                    | Yes                        |
+| `cache_service.py`       | Redis caching utilities                            | Yes                        |
+| `service_registry.py`    | Service registry with Redis persistence            | No (import directly)       |
+| `inference_semaphore.py` | Shared semaphore for AI inference                  | No (import directly)       |
+| `managed_service.py`     | Canonical ManagedService and ServiceRegistry types | Yes                        |
+| `ai_fallback.py`         | AI service fallback strategies for degradation     | No (import directly)       |
 
 ### Alerting Services
 
-| Service           | Purpose                             | Exported via `__init__.py` |
-| ----------------- | ----------------------------------- | -------------------------- |
-| `alert_engine.py` | Evaluate alert rules against events | Yes                        |
-| `alert_dedup.py`  | Alert deduplication logic           | Yes                        |
-| `notification.py` | Multi-channel notification delivery | Yes                        |
+| Service                  | Purpose                                  | Exported via `__init__.py` |
+| ------------------------ | ---------------------------------------- | -------------------------- |
+| `alert_engine.py`        | Evaluate alert rules against events      | Yes                        |
+| `alert_dedup.py`         | Alert deduplication logic                | Yes                        |
+| `notification.py`        | Multi-channel notification delivery      | Yes                        |
+| `notification_filter.py` | Filter notifications by user preferences | No (import directly)       |
 
 ### Audit Services
 
-| Service            | Purpose                                      | Exported via `__init__.py` |
-| ------------------ | -------------------------------------------- | -------------------------- |
-| `audit.py`         | Audit logging for security-sensitive actions | Yes                        |
-| `audit_service.py` | AI pipeline audit and self-evaluation        | Yes                        |
+| Service                             | Purpose                                      | Exported via `__init__.py` |
+| ----------------------------------- | -------------------------------------------- | -------------------------- |
+| `audit.py`                          | Audit logging for security-sensitive actions | Yes                        |
+| `audit_logger.py`                   | High-level security audit logging interface  | No (import directly)       |
+| `pipeline_quality_audit_service.py` | AI pipeline audit and self-evaluation        | Yes                        |
 
 ### Prompt Management Services
 
@@ -171,6 +184,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `prompt_storage.py`         | File-based prompt storage with versioning             | No (import directly)       |
 | `prompt_version_service.py` | Prompt version history and restoration                | No (import directly)       |
 | `prompt_parser.py`          | Parse and modify prompts with suggestions             | No (import directly)       |
+| `typed_prompt_config.py`    | Type-safe prompt configuration with generics          | No (import directly)       |
 
 ### Utility Services
 
@@ -181,6 +195,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `clip_generator.py` | Video clip generation for events                        | Yes                        |
 | `token_counter.py`  | LLM prompt token counting and context window validation | No (import directly)       |
 | `batch_fetch.py`    | Batch fetch detections (avoid N+1)                      | No (import directly)       |
+| `cost_tracker.py`   | LLM inference cost tracking and budget controls         | Yes                        |
 
 ### Data Management Services
 
@@ -1563,6 +1578,565 @@ processor = result["processor"]
 # Model is automatically moved to GPU if available
 ```
 
+### ai_fallback.py
+
+**Purpose:** AI service fallback strategies for graceful degradation when AI services become unavailable.
+
+**Key Features:**
+
+- Per-service fallback strategies for RT-DETRv2, Nemotron, Florence-2, and CLIP
+- Cached risk score retrieval for fallback values
+- Default value generation based on object types
+- Health-based routing and degradation level tracking
+- WebSocket status broadcasting for status changes
+- Integration with circuit breakers
+
+**Degradation Levels:**
+
+- `NORMAL` - All services healthy
+- `DEGRADED` - Non-critical services (Florence, CLIP) down
+- `MINIMAL` - Critical services (RT-DETRv2, Nemotron) partially available
+- `OFFLINE` - All AI services down
+
+**Key Classes:**
+
+- `AIService` - Enum of AI service identifiers (rtdetr, nemotron, florence, clip)
+- `DegradationLevel` - System degradation levels
+- `ServiceState` - State information for a single AI service
+- `FallbackRiskAnalysis` - Fallback risk analysis result when Nemotron unavailable
+- `RiskScoreCache` - Cache for risk score patterns
+- `AIFallbackService` - Main service class
+
+**Public API:**
+
+```python
+from backend.services.ai_fallback import (
+    AIFallbackService,
+    AIService,
+    DegradationLevel,
+    get_ai_fallback_service,
+    reset_ai_fallback_service,
+)
+
+service = get_ai_fallback_service()
+await service.start()
+
+# Check service availability
+if service.is_service_available(AIService.NEMOTRON):
+    result = await analyzer.analyze(...)
+else:
+    result = service.get_fallback_risk_analysis(
+        camera_name="front_door",
+        object_types=["person", "vehicle"]
+    )
+
+# Get degradation status
+status = service.get_degradation_status()
+level = service.get_degradation_level()
+features = service.get_available_features()
+
+# Convenience checks
+if service.should_skip_detection():
+    pass  # RT-DETRv2 unavailable
+if service.should_use_default_risk():
+    pass  # Nemotron unavailable
+
+await service.stop()
+```
+
+### nemotron_streaming.py
+
+**Purpose:** Streaming extensions for NemotronAnalyzer to enable progressive LLM response updates during long inference times.
+
+**Key Features:**
+
+- Server-Sent Events (SSE) streaming from llama.cpp
+- Progressive content updates during LLM inference
+- Error handling with typed error codes
+- Full batch analysis with streaming progress events
+- Integration with inference semaphore for concurrency control
+
+**Streaming Event Types:**
+
+- `StreamingProgressEvent` - Incremental content chunks
+- `StreamingCompleteEvent` - Final analysis result
+- `StreamingErrorEvent` - Error with code and recoverability flag
+
+**Error Codes:**
+
+- `BATCH_NOT_FOUND` - Batch ID not found in Redis
+- `NO_DETECTIONS` - Batch has no detections
+- `LLM_TIMEOUT` - LLM request timed out
+- `LLM_CONNECTION_ERROR` - Cannot connect to LLM server
+- `LLM_SERVER_ERROR` - LLM inference failed
+- `INTERNAL_ERROR` - Unexpected internal error
+
+**Public API:**
+
+```python
+from backend.services.nemotron_streaming import (
+    call_llm_streaming,
+    analyze_batch_streaming,
+)
+
+# Stream LLM response chunks
+async for chunk in call_llm_streaming(
+    analyzer=nemotron_analyzer,
+    camera_name="Front Door",
+    start_time="2024-01-15T10:30:00",
+    end_time="2024-01-15T10:31:30",
+    detections_list="- person detected at 10:30:15 (confidence: 0.95)",
+    enriched_context=context,
+    enrichment_result=enrichment,
+):
+    print(chunk, end="")  # Progressive output
+
+# Full streaming batch analysis
+async for event in analyze_batch_streaming(
+    analyzer=nemotron_analyzer,
+    batch_id="batch_uuid",
+    camera_id="front_door",
+    detection_ids=[1, 2, 3],
+):
+    if event["type"] == "progress":
+        print(event["content"], end="")
+    elif event["type"] == "complete":
+        print(f"Risk score: {event['risk_score']}")
+    elif event["type"] == "error":
+        print(f"Error: {event['error_message']}")
+```
+
+### managed_service.py
+
+**Purpose:** Canonical ManagedService and ServiceRegistry definitions for the Container Orchestrator system.
+
+**Key Features:**
+
+- Single authoritative definitions used throughout container orchestration
+- Redis persistence for state recovery across backend restarts
+- Thread-safe concurrent access via RLock
+- Factory methods for creating services from configs
+- Serialization/deserialization for JSON and Redis storage
+
+**Key Classes:**
+
+- `ServiceConfig` - Configuration for service patterns used in discovery
+- `ManagedService` - Container service managed by the orchestrator
+- `ServiceRegistry` - Registry with optional Redis persistence
+
+**ManagedService Fields:**
+
+- Identity: name, display_name, container_id, image, port
+- Health: health_endpoint, health_cmd
+- Classification: category (infrastructure, ai, monitoring)
+- Runtime: status, enabled
+- Tracking: failure_count, last_failure_at, restart_count, last_restart_at
+- Limits: max_failures, restart_backoff_base, restart_backoff_max, startup_grace_period
+
+**Public API:**
+
+```python
+from backend.services.managed_service import (
+    ManagedService,
+    ServiceConfig,
+    ServiceRegistry,
+    get_service_registry,
+    reset_service_registry,
+)
+from backend.api.schemas.services import ServiceCategory, ContainerServiceStatus
+
+# Create a managed service
+service = ManagedService(
+    name="ai-detector",
+    display_name="RT-DETRv2",
+    container_id="abc123",
+    image="ghcr.io/.../rtdetr:latest",
+    port=8090,
+    health_endpoint="/health",
+    category=ServiceCategory.AI,
+    status=ContainerServiceStatus.RUNNING,
+)
+
+# Get global registry
+registry = await get_service_registry()
+
+# Register and manage services
+registry.register(service)
+registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
+registry.increment_failure("ai-detector")
+registry.record_restart("ai-detector")
+
+# Persist to Redis
+await registry.persist_state("ai-detector")
+await registry.load_state("ai-detector")
+```
+
+### model_loader_base.py
+
+**Purpose:** Abstract base class for all model loaders in the Model Zoo.
+
+**Key Features:**
+
+- Consistent interface for 14+ model loaders
+- Generic type parameter for model instance types
+- Required properties: model_name, vram_mb
+- Required methods: load(device), unload()
+- VRAM budget management integration
+
+**Abstract Interface:**
+
+```python
+class ModelLoaderBase(ABC, Generic[T]):
+    @property
+    @abstractmethod
+    def model_name(self) -> str:
+        """Unique model identifier (e.g., 'clip-vit-l')."""
+        ...
+
+    @property
+    @abstractmethod
+    def vram_mb(self) -> int:
+        """Estimated VRAM usage in megabytes."""
+        ...
+
+    @abstractmethod
+    async def load(self, device: str = "cuda") -> T:
+        """Load model and return instance."""
+        ...
+
+    @abstractmethod
+    async def unload(self) -> None:
+        """Unload model and free GPU memory."""
+        ...
+```
+
+**Usage Example:**
+
+```python
+from backend.services.model_loader_base import ModelLoaderBase
+
+class CLIPLoader(ModelLoaderBase[dict]):
+    @property
+    def model_name(self) -> str:
+        return "clip-vit-l"
+
+    @property
+    def vram_mb(self) -> int:
+        return 800
+
+    async def load(self, device: str = "cuda") -> dict:
+        from transformers import CLIPModel, CLIPProcessor
+        model = CLIPModel.from_pretrained(self.model_path)
+        processor = CLIPProcessor.from_pretrained(self.model_path)
+        if device.startswith("cuda"):
+            model = model.cuda()
+        return {"model": model, "processor": processor}
+
+    async def unload(self) -> None:
+        del self._model
+        torch.cuda.empty_cache()
+```
+
+### typed_prompt_config.py
+
+**Purpose:** Type-safe prompt configuration with Python generics and Pydantic validation.
+
+**Key Features:**
+
+- Compile-time type checking via mypy
+- Runtime validation via Pydantic
+- Model-specific parameter types
+- Generic template with type constraints
+- Factory functions for template creation
+
+**Parameter Types:**
+
+| Type                      | Purpose                        | Required Fields                                  |
+| ------------------------- | ------------------------------ | ------------------------------------------------ |
+| `NemotronPromptParams`    | Nemotron risk analysis         | camera_name, timestamp, day_of_week, time_of_day |
+| `Florence2PromptParams`   | Florence-2 VQA                 | queries                                          |
+| `YoloWorldPromptParams`   | YOLO-World detection           | classes, confidence_threshold                    |
+| `XClipPromptParams`       | X-CLIP action recognition      | action_classes                                   |
+| `FashionClipPromptParams` | Fashion-CLIP clothing analysis | clothing_categories, suspicious_indicators       |
+
+**Public API:**
+
+```python
+from backend.services.typed_prompt_config import (
+    TypedPromptTemplate,
+    NemotronPromptParams,
+    create_typed_template,
+    get_typed_params,
+    get_param_type_for_model,
+)
+
+# Create typed template
+template = TypedPromptTemplate[NemotronPromptParams](
+    model_name="nemotron",
+    template_string="Camera: {camera_name}\nTime: {timestamp}",
+    param_type=NemotronPromptParams,
+)
+
+# Or use factory
+template = create_typed_template("nemotron", "Camera: {camera_name}")
+
+# Validate and render
+params = NemotronPromptParams(
+    camera_name="Front Door",
+    timestamp="2024-01-15T10:30:00",
+    day_of_week="Monday",
+    time_of_day="morning",
+)
+rendered = template.render(params)
+
+# Parse raw data into typed params
+params = get_typed_params("nemotron", raw_dict)
+```
+
+### service_managers.py
+
+**Purpose:** Strategy pattern for service management with health checks and restarts.
+
+**Key Features:**
+
+- Abstract ServiceManager base class
+- ShellServiceManager for script-based restarts
+- DockerServiceManager for container restarts
+- HTTP health checks for AI services
+- Redis health via redis-cli ping
+- Security: Command allowlist and container name validation
+
+**Security Measures:**
+
+- Restart commands validated against `ALLOWED_RESTART_SCRIPTS` allowlist
+- Container names validated against Docker naming regex
+- Commands executed with `shell=False` to prevent injection
+- Maximum container name length of 128 characters
+
+**Key Classes:**
+
+- `ServiceConfig` - Configuration for a managed service
+- `ServiceManager` - Abstract base class
+- `ShellServiceManager` - Restart via shell scripts
+- `DockerServiceManager` - Restart via docker restart
+
+**Public API:**
+
+```python
+from backend.services.service_managers import (
+    ServiceConfig,
+    ShellServiceManager,
+    DockerServiceManager,
+    validate_restart_command,
+    validate_container_name,
+)
+
+# Create config
+config = ServiceConfig(
+    name="rtdetr",
+    health_url="http://localhost:8090/health",
+    restart_cmd="scripts/restart_rtdetr.sh",  # Must be in allowlist
+    health_timeout=5.0,
+    max_retries=3,
+    backoff_base=5.0,
+)
+
+# Use shell manager
+manager = ShellServiceManager(subprocess_timeout=60.0)
+healthy = await manager.check_health(config)
+if not healthy:
+    success = await manager.restart(config)
+
+# Use Docker manager
+docker_manager = DockerServiceManager()
+healthy = await docker_manager.check_health(config)
+if not healthy:
+    success = await docker_manager.restart(config)
+
+# Validate commands
+is_valid = validate_restart_command("scripts/restart_rtdetr.sh")
+is_valid = validate_container_name("ai-detector-1")
+```
+
+### notification_filter.py
+
+**Purpose:** Filter notifications based on user preferences, camera settings, and quiet hours.
+
+**Key Features:**
+
+- Global notification preference checking
+- Per-camera notification settings
+- Risk level filtering (critical, high, medium, low)
+- Quiet hours periods with day-of-week support
+- Handles periods spanning midnight
+
+**Filtering Logic:**
+
+1. Check if global notifications enabled
+2. Check if risk level is in enabled filters
+3. Check per-camera settings (if provided)
+4. Check quiet hours periods (if provided)
+
+**Risk Level Thresholds:**
+
+- CRITICAL: score >= 80
+- HIGH: score >= 60
+- MEDIUM: score >= 40
+- LOW: score < 40
+
+**Public API:**
+
+```python
+from backend.services.notification_filter import NotificationFilterService
+from backend.models.notification_preferences import (
+    NotificationPreferences,
+    CameraNotificationSetting,
+    QuietHoursPeriod,
+)
+from datetime import datetime, time
+
+filter_service = NotificationFilterService()
+
+# Check if notification should be sent
+should_send = filter_service.should_notify(
+    risk_score=75,
+    camera_id="front_door",
+    timestamp=datetime.now(),
+    global_prefs=NotificationPreferences(
+        enabled=True,
+        risk_filters=["critical", "high"],
+    ),
+    camera_setting=CameraNotificationSetting(
+        enabled=True,
+        risk_threshold=50,
+    ),
+    quiet_periods=[
+        QuietHoursPeriod(
+            start_time=time(22, 0),
+            end_time=time(6, 0),
+            days=["monday", "tuesday", "wednesday", "thursday", "friday"],
+        ),
+    ],
+)
+
+# Check if in quiet period
+is_quiet = filter_service.is_quiet_period(
+    timestamp=datetime.now(),
+    period=quiet_period,
+)
+```
+
+### cost_tracker.py
+
+**Purpose:** LLM inference cost tracking and budget controls.
+
+**Key Features:**
+
+- Token usage tracking per LLM request (input/output)
+- GPU-time tracking per model inference
+- Cost estimation based on cloud equivalents
+- Daily/monthly budget limits with alerts
+- Prometheus metrics for monitoring
+- Redis persistence for usage records
+
+**Cloud Pricing Models:**
+
+- AWS GPU instances (p4d, p3, g5)
+- GCP GPU instances (a2, n1)
+- Azure GPU instances (NC, ND)
+
+**Public API:**
+
+```python
+from backend.services.cost_tracker import (
+    CostTracker,
+    CostModel,
+    get_cost_tracker,
+    reset_cost_tracker,
+)
+
+tracker = get_cost_tracker()
+
+# Track LLM usage
+tracker.track_llm_usage(
+    input_tokens=1500,
+    output_tokens=500,
+    model="nemotron",
+    duration_seconds=2.5,
+    camera_id="front_door",
+)
+
+# Track detection model usage
+tracker.track_detection_usage(
+    model="rtdetr",
+    duration_seconds=0.15,
+    images_processed=1,
+)
+
+# Check budget status
+status = await tracker.get_budget_status()
+if status.daily_exceeded:
+    logger.warning("Daily budget exceeded!")
+
+# Get usage summary
+daily = await tracker.get_daily_usage()
+monthly = await tracker.get_monthly_usage()
+```
+
+### audit_logger.py
+
+**Purpose:** High-level security audit logging interface for common security events.
+
+**Key Features:**
+
+- Simplified API for logging security events
+- Rate limit violation logging
+- Content-Type validation failure logging
+- File magic number validation logging
+- Configuration change tracking
+- Sensitive operation logging
+
+**Logged Events:**
+
+- Rate limit exceeded
+- Content-Type validation failure
+- File magic validation failure
+- Configuration changes
+- Export operations
+- Cleanup operations
+
+**Public API:**
+
+```python
+from backend.services.audit_logger import audit_logger
+
+# Log rate limit exceeded
+await audit_logger.log_rate_limit_exceeded(
+    db=db,
+    request=request,
+    tier="default",
+    current_count=65,
+    limit=60,
+)
+
+# Log configuration change
+await audit_logger.log_config_change(
+    db=db,
+    request=request,
+    setting_name="batch_window_seconds",
+    old_value=90,
+    new_value=120,
+)
+
+# Log sensitive operation
+await audit_logger.log_sensitive_operation(
+    db=db,
+    request=request,
+    operation="export_events",
+    details={"format": "csv", "count": 1000},
+)
+```
+
 ## Data Flow Between Services
 
 ### Complete Pipeline Flow
@@ -1745,6 +2319,10 @@ from backend.services import (
     BackgroundEvaluator,
     EvaluationQueue,
     PartitionManager,
+    ManagedService,
+    ServiceConfig,
+    ServiceRegistry,
+    CostTracker,
 )
 
 # For context enrichment (import directly)
@@ -1756,27 +2334,52 @@ from backend.services.vision_extractor import VisionExtractor
 
 # For Model Zoo (import directly)
 from backend.services.model_zoo import ModelManager, get_model_manager, get_model_config
+from backend.services.model_loader_base import ModelLoaderBase
 
 # For AI clients (import directly)
 from backend.services.florence_client import FlorenceClient, get_florence_client
 from backend.services.clip_client import CLIPClient, get_clip_client
 
+# For AI fallback and streaming (import directly)
+from backend.services.ai_fallback import AIFallbackService, get_ai_fallback_service
+from backend.services.nemotron_streaming import call_llm_streaming, analyze_batch_streaming
+
 # For workers and background services (import directly)
 from backend.services.pipeline_workers import PipelineWorkerManager
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.performance_collector import PerformanceCollector
-from backend.services.audit_service import AuditService, get_audit_service
+from backend.services.pipeline_quality_audit_service import PipelineQualityAuditService, get_audit_service
 
 # For container orchestrator (import directly)
 from backend.services.container_orchestrator import ContainerOrchestrator
 from backend.services.container_discovery import ContainerDiscoveryService
 from backend.services.lifecycle_manager import LifecycleManager
+from backend.services.managed_service import get_service_registry
+
+# For service management (import directly)
+from backend.services.service_managers import (
+    ServiceManager,
+    ShellServiceManager,
+    DockerServiceManager,
+)
+
+# For notifications (import directly)
+from backend.services.notification_filter import NotificationFilterService
+
+# For typed prompts (import directly)
+from backend.services.typed_prompt_config import (
+    TypedPromptTemplate,
+    NemotronPromptParams,
+    create_typed_template,
+)
 
 # For utilities (import directly)
 from backend.services.token_counter import get_token_counter, count_prompt_tokens
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_detections_by_ids
 from backend.services.prompt_parser import apply_suggestion_to_prompt
 from backend.services.inference_semaphore import get_inference_semaphore
+from backend.services.cost_tracker import get_cost_tracker
+from backend.services.audit_logger import audit_logger
 ```
 
 ## Testing Considerations
@@ -1808,6 +2411,8 @@ Most services provide `reset_*()` functions for test isolation:
 - `reset_background_evaluator()`, `reset_evaluation_queue()`
 - `reset_token_counter()`, `reset_clip_generator()`
 - `reset_inference_semaphore()`
+- `reset_ai_fallback_service()`, `reset_service_registry()`
+- `reset_cost_tracker()`
 
 ### Integration Test Patterns
 

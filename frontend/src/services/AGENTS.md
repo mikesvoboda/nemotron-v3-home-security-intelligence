@@ -12,6 +12,8 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 | `api.test.ts`                 | Comprehensive test coverage for API client                    |
 | `api.abort.test.ts`           | Tests for request cancellation and AbortController usage      |
 | `api.missing-coverage.test.ts`| Tests for missing coverage scenarios                          |
+| `api.sentry.test.ts`          | Tests for API Sentry integration and error tracking           |
+| `api.timeout.test.ts`         | Tests for API timeout handling and configuration              |
 | `auditApi.ts`                 | AI pipeline audit API client (model contributions, stats)     |
 | `auditApi.test.ts`            | Tests for audit API client                                    |
 | `abTestService.ts`            | A/B testing service for prompt playground                     |
@@ -26,6 +28,10 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 | `interceptors.test.ts`        | Tests for interceptors                                        |
 | `queryClient.ts`              | TanStack Query configuration and query key factories          |
 | `queryClient.test.ts`         | Tests for QueryClient configuration                           |
+| `sentry.ts`                   | Sentry error tracking, performance monitoring, session replay |
+| `sentry.test.ts`              | Tests for Sentry service                                      |
+| `rum.ts`                      | Real User Monitoring (RUM) for Core Web Vitals collection     |
+| `rum.test.ts`                 | Tests for RUM service                                         |
 | `.gitkeep`                    | Placeholder file                                              |
 
 ## API Client Structure (`api.ts`)
@@ -729,6 +735,160 @@ interface ErrorInterceptor {
 }
 ```
 
+## Sentry Error Tracking (`sentry.ts`)
+
+Centralized error tracking, performance monitoring, and session replay integration using Sentry.
+
+**Configuration (Environment Variables):**
+
+| Variable                         | Purpose                                   | Default       |
+| -------------------------------- | ----------------------------------------- | ------------- |
+| `VITE_SENTRY_DSN`                | Sentry DSN (required to enable)           | -             |
+| `VITE_SENTRY_ENVIRONMENT`        | Environment name                          | 'production'  |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Transaction sample rate                   | 0.1           |
+| `VITE_SENTRY_REPLAY_SAMPLE_RATE` | Session replay sample rate                | 0.1           |
+| `VITE_SENTRY_REPLAY_ON_ERROR_RATE`| Replay on error sample rate              | 1.0           |
+
+**Key Functions:**
+
+```typescript
+// Initialize Sentry (call in main.tsx)
+initSentry(customConfig?: Partial<SentryConfig>): void
+
+// Check if Sentry is enabled
+isSentryEnabled(): boolean
+
+// Capture an error
+captureError(error: unknown, context?: CaptureContext): void
+
+// Capture a message
+captureMessage(message: string, level?: SeverityLevel): void
+
+// Add breadcrumb for debugging
+addBreadcrumb(breadcrumb: BreadcrumbData): void
+
+// Set user context for error attribution
+setUserContext(user: UserContext | null): void
+
+// Set additional context
+setContext(name: string, context: Record<string, unknown>): void
+
+// Add API breadcrumb (convenience wrapper)
+addApiBreadcrumb(method: string, url: string, statusCode: number, duration?: number): void
+```
+
+**Key Types:**
+
+```typescript
+interface SentryConfig {
+  dsn?: string;
+  environment?: string;
+  release?: string;
+  tracesSampleRate?: number;
+  replaysSessionSampleRate?: number;
+  replaysOnErrorSampleRate?: number;
+  debug?: boolean;
+}
+
+interface BreadcrumbData {
+  message: string;
+  category: string;
+  level?: 'fatal' | 'error' | 'warning' | 'info' | 'debug';
+  data?: Record<string, unknown>;
+}
+
+interface CaptureContext {
+  tags?: Record<string, string>;
+  extra?: Record<string, unknown>;
+  level?: SeverityLevel;
+}
+```
+
+**React Integration:**
+
+```typescript
+// Re-exported ErrorBoundary for React components
+import { SentryErrorBoundary } from './services/sentry';
+
+<SentryErrorBoundary fallback={<ErrorFallback />}>
+  <MyComponent />
+</SentryErrorBoundary>
+```
+
+## Real User Monitoring (`rum.ts`)
+
+Core Web Vitals collection and reporting service for production user monitoring.
+
+**Metrics Collected:**
+
+| Metric | Full Name                 | Measures                    |
+| ------ | ------------------------- | --------------------------- |
+| LCP    | Largest Contentful Paint  | Loading performance         |
+| INP    | Interaction to Next Paint | Interactivity (new standard)|
+| CLS    | Cumulative Layout Shift   | Visual stability            |
+| TTFB   | Time to First Byte        | Server response time        |
+| FCP    | First Contentful Paint    | First content render        |
+| FID    | First Input Delay         | Interactivity (legacy)      |
+
+**Configuration:**
+
+```typescript
+interface RUMConfig {
+  endpoint: string;        // default: '/api/rum'
+  enabled: boolean;        // default: true
+  batchSize: number;       // default: 5
+  flushIntervalMs: number; // default: 10000
+  sessionId?: string;      // optional session identifier
+  maxQueueSize: number;    // default: 50
+}
+```
+
+**Key Functions:**
+
+```typescript
+// Initialize RUM collection (call in main.tsx)
+initRUM(config?: Partial<RUMConfig>): RUM
+
+// Manual metric reporting
+rum.reportMetric(metric: WebVitalMetric): void
+
+// Manual flush
+rum.flush(): Promise<void>
+
+// Get queue size
+rum.getQueueSize(): number
+
+// Cleanup
+rum.destroy(): void
+```
+
+**Features:**
+
+- Automatic flushing when batch size is reached
+- Periodic timer-based flushing
+- Reliable delivery via `navigator.sendBeacon` on page unload
+- Queue size limits to prevent memory issues
+- Automatic integration with web-vitals library
+- Mobile-friendly with visibilitychange handling
+
+**Usage:**
+
+```typescript
+import { initRUM } from './services/rum';
+
+// Initialize in main.tsx
+const rum = initRUM({
+  sessionId: 'user-session-123',
+});
+
+// Or with custom config
+const rum = initRUM({
+  enabled: true,
+  batchSize: 10,
+  flushIntervalMs: 5000,
+});
+```
+
 ## Notes
 
 - All functions are async and return Promises
@@ -741,6 +901,8 @@ interface ErrorInterceptor {
 - A/B testing service supports batch testing with configurable sample sizes
 - Prompt management API includes version control with rollback capability
 - All new services use custom error classes for type-safe error handling
+- Sentry integration is optional (only enabled when VITE_SENTRY_DSN is set)
+- RUM service uses web-vitals library for Core Web Vitals collection
 
 ## Entry Points
 
@@ -754,3 +916,5 @@ For AI agents exploring this codebase:
 6. **A/B testing**: Use `abTestService.ts` for prompt playground A/B tests
 7. **Prompt management**: Use `promptManagementApi.ts` for prompt CRUD and versioning
 8. **Audit data**: Use `auditApi.ts` for AI pipeline audit and model contribution data
+9. **Error tracking**: Use `sentry.ts` for Sentry error capture and breadcrumbs
+10. **Performance monitoring**: Use `rum.ts` for Core Web Vitals collection

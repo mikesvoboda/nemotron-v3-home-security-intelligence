@@ -18,12 +18,18 @@ This directory contains all React application source code including components, 
 
 - **`App.tsx`** - Root application component
   - Uses `BrowserRouter` for client-side routing
-  - Wraps all routes in `<Layout />` component
+  - Wraps all routes in `<Layout />` component with error boundaries
+  - Integrates React Query via `QueryClientProvider` with DevTools
+  - Uses `ToastProvider` for global notifications
+  - Implements lazy loading for all page components (code splitting)
+  - Wraps routes in `ChunkLoadErrorBoundary` and `Suspense` for graceful loading
+  - Includes `ProductTour` for first-time user onboarding
   - Defines routes for all pages (see Routes section)
 
 ### Tests
 
 - **`App.test.tsx`** - Tests for root App component
+- **`App.lazy.test.tsx`** - Tests for lazy-loaded route components
 
 ### Type Definitions
 
@@ -42,32 +48,130 @@ Components are organized by feature area. Each component directory contains:
 
 #### Feature Directories
 
-| Directory    | Description                      |
-| ------------ | -------------------------------- |
-| `alerts/`    | Alert management page            |
-| `audit/`     | Audit log viewer                 |
-| `common/`    | Reusable UI components           |
-| `dashboard/` | Main dashboard components        |
-| `detection/` | Object detection visualization   |
-| `entities/`  | Entity tracking page             |
-| `events/`    | Event list and detail components |
-| `layout/`    | Layout, header, and sidebar      |
-| `logs/`      | Application logs viewer          |
-| `search/`    | Global search components         |
-| `settings/`  | Settings pages and forms         |
-| `system/`    | System monitoring components     |
-| `video/`     | Video player component           |
+| Directory         | Description                           |
+| ----------------- | ------------------------------------- |
+| `ai/`             | AI performance and audit pages        |
+| `ai-audit/`       | AI audit visualization components     |
+| `ai-performance/` | AI performance summary components     |
+| `alerts/`         | Alert management page                 |
+| `analytics/`      | Analytics dashboard and visualizations|
+| `audit/`          | Audit log viewer                      |
+| `common/`         | Reusable UI components                |
+| `dashboard/`      | Main dashboard components             |
+| `detection/`      | Object detection visualization        |
+| `entities/`       | Entity tracking page                  |
+| `events/`         | Event list and detail components      |
+| `layout/`         | Layout, header, and sidebar           |
+| `logs/`           | Application logs viewer               |
+| `search/`         | Global search components              |
+| `settings/`       | Settings pages and forms              |
+| `system/`         | System monitoring components          |
+| `video/`          | Video player component                |
 
 #### `/components/common/`
 
-Reusable UI components:
+Reusable UI components and utilities:
 
+**Badges and Indicators:**
 - `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
 - `ConfidenceBadge.tsx` - Detection confidence score badge with color coding
 - `ObjectTypeBadge.tsx` - Displays object type badges (person/vehicle/animal/package)
 - `WebSocketStatus.tsx` - WebSocket connection status indicator with tooltip
-- `Lightbox.tsx` - Full-size image viewer with navigation
 - `ServiceStatusAlert.tsx` - Service status alert banner
+
+**Error Handling:**
+- `ErrorBoundary.tsx` - Generic error boundary with customizable title/description
+- `ChunkLoadErrorBoundary.tsx` - Handles lazy-loaded chunk failures with retry
+- `FeatureErrorBoundary.tsx` - Feature-specific error isolation
+
+**Loading and Transitions:**
+- `LoadingSpinner.tsx` - Animated loading indicator
+- `RouteLoadingFallback.tsx` - Loading state for lazy-loaded routes
+- `PageTransition.tsx` - Animated page transitions
+- `Skeleton.tsx` - Content placeholder during loading
+
+**Modals and Overlays:**
+- `Lightbox.tsx` - Full-size image viewer with navigation
+- `AnimatedModal.tsx` - Modal with entrance/exit animations
+- `ShortcutsHelpModal.tsx` - Keyboard shortcuts help dialog
+- `CommandPalette.tsx` - Command palette (Cmd+K) for quick navigation
+
+**User Experience:**
+- `ProductTour.tsx` - Interactive onboarding tour for first-time users
+- `ToastProvider.tsx` - Global toast notification system
+- `InstallBanner.tsx` - PWA installation prompt
+- `OfflineFallback.tsx` - Offline state display
+- `SecureContextWarning.tsx` - HTTPS requirement warning
+
+**Content Display:**
+- `EmptyState.tsx` - Empty state placeholder with icon and action
+- `TruncatedText.tsx` - Text truncation with tooltip
+- `AnimatedList.tsx` - Animated list with enter/exit transitions
+- `Button.tsx` - Styled button component
+- `ScheduleSelector.tsx` - Schedule time selection component
+
+**Exports:**
+- `index.ts` - Barrel export for all components
+
+#### `/components/ai/`
+
+AI performance monitoring and audit pages:
+
+**Pages:**
+- `AIPerformancePage.tsx` - Main AI performance monitoring dashboard
+- `AIAuditPage.tsx` - AI decision audit and analysis page
+
+**Model Monitoring:**
+- `ModelStatusCards.tsx` - Model health and status cards
+- `ModelZooSection.tsx` - Model zoo overview with VRAM stats
+- `ModelLeaderboard.tsx` - Model performance ranking
+- `ModelContributionChart.tsx` - Model contribution visualization
+
+**Performance Metrics:**
+- `LatencyPanel.tsx` - Inference latency metrics
+- `PipelineHealthPanel.tsx` - AI pipeline health indicators
+- `QualityScoreTrends.tsx` - Quality score trend charts
+- `InsightsCharts.tsx` - AI insights visualizations
+
+**Prompt Engineering:**
+- `PromptPlayground.tsx` - Interactive prompt testing environment
+- `PromptABTest.tsx` - A/B testing for prompts
+- `ABTestStats.tsx` - A/B test statistics display
+- `SuggestionDiffView.tsx` - Diff view for prompt suggestions
+- `SuggestionExplanation.tsx` - Explanation for AI suggestions
+
+**Audit:**
+- `BatchAuditModal.tsx` - Batch audit modal dialog
+- `RecommendationsPanel.tsx` - AI recommendations display
+
+**Exports:**
+- `index.ts` - Barrel export
+
+#### `/components/ai-audit/`
+
+AI audit visualization components:
+
+- `AuditProgressBar.tsx` - Audit progress indicator
+- `AuditResultsTable.tsx` - Audit results table display
+- `ModelContributionChart.tsx` - Model contribution visualization
+- `index.ts` - Barrel export
+
+#### `/components/ai-performance/`
+
+AI performance summary components:
+
+- `AIPerformanceSummaryRow.tsx` - Performance summary row component
+
+#### `/components/analytics/`
+
+Analytics dashboard and visualization components:
+
+- `AnalyticsPage.tsx` - Main analytics dashboard page
+- `ActivityHeatmap.tsx` - Activity heatmap visualization
+- `ClassFrequencyChart.tsx` - Detection class frequency chart
+- `PipelineLatencyPanel.tsx` - Pipeline latency metrics panel
+- `SceneChangePanel.tsx` - Scene change detection panel
+- `AnomalyConfigPanel.tsx` - Anomaly detection configuration
 - `index.ts` - Barrel export
 
 #### `/components/layout/`
@@ -217,17 +321,37 @@ Each hook has a co-located `.test.ts` file.
 
 ### `/services/` - API Client and Services
 
-| File                    | Purpose                                          |
-| ----------------------- | ------------------------------------------------ |
-| `api.ts`                | REST API client with typed fetch wrappers        |
-| `api.test.ts`           | API client tests                                 |
-| `api.abort.test.ts`     | Request cancellation tests                       |
-| `auditApi.ts`           | AI pipeline audit API client                     |
-| `auditApi.test.ts`      | Audit API client tests                           |
-| `logger.ts`             | Client-side structured logging                   |
-| `logger.test.ts`        | Logger tests                                     |
-| `metricsParser.ts`      | Prometheus text format parser                    |
-| `metricsParser.test.ts` | Metrics parser tests                             |
+| File                       | Purpose                                          |
+| -------------------------- | ------------------------------------------------ |
+| `api.ts`                   | REST API client with typed fetch wrappers        |
+| `auditApi.ts`              | AI pipeline audit API client                     |
+| `promptManagementApi.ts`   | Prompt management API client                     |
+| `abTestService.ts`         | A/B testing service                              |
+| `queryClient.ts`           | React Query client configuration                 |
+| `interceptors.ts`          | Request/response interceptors                    |
+| `logger.ts`                | Client-side structured logging                   |
+| `metricsParser.ts`         | Prometheus text format parser                    |
+| `sentry.ts`                | Sentry error tracking integration                |
+| `rum.ts`                   | Real User Monitoring (RUM) service               |
+
+**Test Files:**
+
+| File                          | Purpose                                      |
+| ----------------------------- | -------------------------------------------- |
+| `api.test.ts`                 | API client tests                             |
+| `api.abort.test.ts`           | Request cancellation tests                   |
+| `api.timeout.test.ts`         | Request timeout tests                        |
+| `api.sentry.test.ts`          | Sentry integration tests                     |
+| `api.missing-coverage.test.ts`| Coverage gap tests                           |
+| `auditApi.test.ts`            | Audit API client tests                       |
+| `promptManagementApi.test.ts` | Prompt management API tests                  |
+| `abTestService.test.ts`       | A/B test service tests                       |
+| `queryClient.test.ts`         | Query client tests                           |
+| `interceptors.test.ts`        | Interceptor tests                            |
+| `logger.test.ts`              | Logger tests                                 |
+| `metricsParser.test.ts`       | Metrics parser tests                         |
+| `sentry.test.ts`              | Sentry integration tests                     |
+| `rum.test.ts`                 | RUM service tests                            |
 
 The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
@@ -283,23 +407,58 @@ Import test utilities from `../test-utils` in test files.
 
 ### `/__tests__/` - Additional Tests
 
+- `api-contracts.test.ts` - API contract validation tests
 - `lighthouserc.test.ts` - Lighthouse CI configuration tests
+- `matchers.ts` - Custom test matchers
+- `matchers.test.ts` - Tests for custom matchers
+- `AGENTS.md` - Test directory documentation
 
 ## Application Routes
 
-Defined in `App.tsx`:
+All routes use lazy loading for code splitting. Defined in `App.tsx`:
+
+| Path          | Component              | Description                        |
+| ------------- | ---------------------- | ---------------------------------- |
+| `/`           | `DashboardPage`        | Main dashboard with live monitoring|
+| `/timeline`   | `EventTimeline`        | Chronological event timeline       |
+| `/analytics`  | `AnalyticsPage`        | Analytics and insights dashboard   |
+| `/alerts`     | `AlertsPage`           | Alert management and history       |
+| `/entities`   | `EntitiesPage`         | Entity tracking and management     |
+| `/logs`       | `LogsDashboard`        | Application logs viewer            |
+| `/audit`      | `AuditLogPage`         | System audit log                   |
+| `/ai`         | `AIPerformancePage`    | AI model performance monitoring    |
+| `/ai-audit`   | `AIAuditPage`          | AI decision audit and analysis     |
+| `/system`     | `SystemMonitoringPage` | System health and metrics          |
+| `/settings`   | `SettingsPage`         | Application settings               |
+
+### Lazy Loading Pattern
+
+All page components use React's `lazy()` for code splitting:
 
 ```typescript
-<Routes>
-  <Route path="/" element={<DashboardPage />} />
-  <Route path="/timeline" element={<EventTimeline />} />
-  <Route path="/alerts" element={<AlertsPage />} />
-  <Route path="/entities" element={<EntitiesPage />} />
-  <Route path="/logs" element={<LogsDashboard />} />
-  <Route path="/audit" element={<AuditLogPage />} />
-  <Route path="/system" element={<SystemMonitoringPage />} />
-  <Route path="/settings" element={<SettingsPage />} />
-</Routes>
+// Direct default export
+const DashboardPage = lazy(() => import('./components/dashboard/DashboardPage'));
+
+// Named export from barrel file (requires .then() transformation)
+const AnalyticsPage = lazy(() =>
+  import('./components/analytics').then((module) => ({ default: module.AnalyticsPage }))
+);
+```
+
+Routes are wrapped with error handling and loading states:
+
+```typescript
+<ErrorBoundary>
+  <Layout>
+    <ChunkLoadErrorBoundary>
+      <Suspense fallback={<RouteLoadingFallback />}>
+        <PageTransition>
+          <Routes>...</Routes>
+        </PageTransition>
+      </Suspense>
+    </ChunkLoadErrorBoundary>
+  </Layout>
+</ErrorBoundary>
 ```
 
 ## Testing
@@ -418,7 +577,10 @@ import { Dialog, Transition, Tab } from '@headlessui/react';
 ## Notes
 
 - **Routing**: Uses react-router-dom v7
+- **State Management**: React Query for server state, React hooks for local state
 - **WebSocket channels**: `/ws/events` and `/ws/system`
 - **Media URLs**: `/api/media/cameras/{cameraId}/{filename}`
 - **Environment variables**: Use `import.meta.env.VITE_*`
 - **Hot reload**: Vite HMR for instant updates
+- **Error Tracking**: Sentry integration for production error monitoring
+- **Performance**: Real User Monitoring (RUM) for performance tracking
