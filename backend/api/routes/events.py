@@ -873,6 +873,7 @@ async def update_event(
         update_data: Update data (reviewed field)
         request: FastAPI request for audit logging
         db: Database session
+        cache: Cache service for cache invalidation (NEM-1938)
 
     Returns:
         Updated event object
@@ -942,7 +943,7 @@ async def update_event(
         await db.commit()
     await db.refresh(event)
 
-    # Invalidate event-related caches after successful update (NEM-1950)
+    # Invalidate event-related caches after successful update (NEM-1950, NEM-1938)
     try:
         await cache.invalidate_events(reason="event_updated")
         await cache.invalidate_event_stats(reason="event_updated")
