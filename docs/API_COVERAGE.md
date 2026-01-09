@@ -4,6 +4,8 @@
 
 This document maps all backend API endpoints to their frontend consumers, ensuring complete API coverage and identifying any unused endpoints.
 
+**Total Endpoints:** 142 (from OpenAPI spec)
+
 ## Generation & Validation
 
 API coverage is automatically validated in CI via `./scripts/check-api-coverage.sh`. This script:
@@ -14,6 +16,28 @@ API coverage is automatically validated in CI via `./scripts/check-api-coverage.
 4. Fails CI if unmapped endpoints are found (unless allowlisted)
 
 **Note:** Some internal/admin endpoints may be intentionally unused and should be added to the allowlist in `scripts/check-api-coverage.sh`.
+
+## OpenAPI Specification
+
+The complete OpenAPI specification is committed at `docs/openapi.json` and can be regenerated with:
+
+```bash
+# Generate OpenAPI spec
+./scripts/generate-types.sh
+
+# Or directly with Python
+python -c "
+from backend.main import app
+import json
+with open('docs/openapi.json', 'w') as f:
+    json.dump(app.openapi(), f, indent=2, sort_keys=True)
+"
+```
+
+Interactive documentation is available at runtime:
+
+- **Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc:** `http://localhost:8000/redoc`
 
 ## API Endpoints by Domain
 
@@ -143,10 +167,9 @@ Endpoints defined in backend but not yet consumed by frontend (intentional or fu
 
 ### Latest Validation
 
-- **Total Endpoints:** 87
-- **Frontend Consumers:** 84
-- **Allowlisted (Intentional):** 3
-- **Last Updated:** 2026-01-08
+- **Total Endpoints:** 142
+- **Documented Categories:** 19
+- **Last Updated:** 2026-01-09
 - **CI Status:** Passing
 
 Run locally:
