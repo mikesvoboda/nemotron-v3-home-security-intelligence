@@ -31,9 +31,9 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 - **No cloud connectivity** - All processing is local
 - **No internet exposure** - Designed for LAN access only
 
-![Security Architecture](../images/admin/security-architecture.png)
+![Security Architecture Diagram showing network zones: Internet (untrusted) blocked by firewall, trusted LAN containing user browser connecting to frontend and backend services, internal zone containing PostgreSQL, Redis, and AI services isolated from external access](../images/admin/security-architecture.png)
 
-_Security architecture showing trusted LAN network with user browser, frontend, backend API, AI services, and databases. Internet attackers are blocked from accessing the trusted zone._
+_Security architecture showing the trusted LAN network with user browser, frontend, backend API, AI services, and databases. Internet attackers are blocked from accessing the trusted zone by firewall rules and network isolation._
 
 ---
 

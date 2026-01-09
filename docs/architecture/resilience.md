@@ -50,6 +50,13 @@ This document details the resilience patterns implemented in the Home Security I
 
 The system implements multiple layers of resilience to handle failures gracefully:
 
+![Resilience Architecture Overview](../images/architecture/resilience-overview-graphviz.png)
+
+_Layered resilience architecture showing circuit breakers, retry logic with exponential backoff, dead-letter queues, and health monitoring._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 flowchart TB
     subgraph Input["Incoming Request"]
@@ -103,6 +110,8 @@ flowchart TB
     style HALF fill:#FFB800,color:#000
 ```
 
+</details>
+
 ### Resilience Components
 
 | Component                                                        | Location                                  | Responsibility                              |
@@ -119,6 +128,13 @@ flowchart TB
 The circuit breaker protects external services from cascading failures by monitoring failure rates and temporarily blocking calls to unhealthy services.
 
 ### Circuit Breaker States
+
+![Circuit Breaker State Machine](../images/architecture/circuit-breaker-states.png)
+
+_State machine showing transitions between CLOSED (normal), OPEN (tripped), and HALF_OPEN (testing) states._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
 
 ```mermaid
 stateDiagram-v2
@@ -141,6 +157,8 @@ stateDiagram-v2
     HALF_OPEN: Limited calls allowed
     HALF_OPEN: Track successes
 ```
+
+</details>
 
 ### Implementation Details
 
@@ -246,6 +264,13 @@ The [RetryHandler](../../backend/services/retry_handler.py) at line 128 provides
 
 ### Retry Flow
 
+![Exponential Backoff with Jitter](../images/architecture/retry-backoff.png)
+
+_Retry flow showing exponential backoff calculation, jitter application, cap enforcement, and dead-letter queue handling._
+
+<details>
+<summary>Mermaid source (click to expand)</summary>
+
 ```mermaid
 flowchart TB
     subgraph Input["Job Processing"]
@@ -279,6 +304,8 @@ flowchart TB
     style OK fill:#76B900,color:#fff
     style DLQ fill:#E74856,color:#fff
 ```
+
+</details>
 
 ### Exponential Backoff Algorithm
 
@@ -324,6 +351,10 @@ class RetryConfig:
 Jobs that exhaust all retry attempts are moved to dead-letter queues for manual inspection and reprocessing.
 
 ### DLQ Architecture
+
+![Dead-letter queue architecture showing processing queues (detection_queue, analysis_queue) flowing through workers to the retry handler, with failed jobs moving to DLQ storage (dlq:detection_queue, dlq:analysis_queue) and the DLQ management API providing inspection, requeue, and clear operations](../images/architecture/dlq-architecture.png)
+
+_DLQ system architecture with queue workers, retry handling, and management API for failed job recovery._
 
 ```mermaid
 flowchart TB

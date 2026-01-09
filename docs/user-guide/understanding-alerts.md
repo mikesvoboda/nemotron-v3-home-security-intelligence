@@ -178,7 +178,9 @@ _Risk analysis decision tree showing how the AI evaluates detection context to d
 
 Use this flowchart when you receive an alert:
 
-![Decision flowchart showing how to respond to alerts based on risk level, from LOW (no action) through MEDIUM (recognize person?) to HIGH (review footage) and CRITICAL (stay safe, call for help)](../images/user-guide/decision-flowchart.png)
+![Alert Response Decision Flowchart showing step-by-step process: Check alert color, then follow path based on severity - GREEN leads to no action, YELLOW asks if you recognize the person, ORANGE prompts immediate footage review, RED indicates staying safe and calling for help if needed](../images/user-guide/decision-flowchart.png)
+
+_Decision flowchart for responding to security alerts based on risk level and situation assessment._
 
 ---
 
