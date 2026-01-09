@@ -13,7 +13,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.core.sanitization import URLValidationError, validate_grafana_url
@@ -1284,6 +1284,72 @@ class Settings(BaseSettings):
             raise ValueError(f"tls_min_version must be one of: {', '.join(valid_versions)}")
         return v
 
+    @field_validator("tls_cert_path", "tls_key_path", "tls_ca_path")
+    @classmethod
+    def validate_tls_cert_path(cls, v: str | None) -> str | None:
+        """Validate TLS certificate file paths exist (NEM-2024).
+
+        This validates that if a TLS certificate path is provided,
+        the file actually exists on the filesystem and is a regular file.
+        This catches configuration errors at startup rather than at runtime
+        when TLS connections fail.
+
+        Args:
+            v: The file path to validate (can be None)
+
+        Returns:
+            The validated path, or None if not provided
+
+        Raises:
+            ValueError: If the file path is provided but does not exist or is not a file
+        """
+        if v is None:
+            return v
+        path = Path(v)
+        if not path.exists():
+            raise ValueError(f"Certificate file not found: {v}")
+        if not path.is_file():
+            raise ValueError(f"Certificate path is not a file: {v}")
+        return v
+
+    @field_validator("tls_key_path", mode="after")
+    @classmethod
+    def validate_tls_key_permissions(cls, v: str | None) -> str | None:
+        """Warn if TLS private key file has insecure permissions (NEM-2024).
+
+        This checks if the TLS private key file is readable by group or others,
+        which is a security risk. A warning is emitted rather than an error
+        to allow for development/testing scenarios.
+
+        Args:
+            v: The validated file path (can be None, already validated by validate_tls_cert_path)
+
+        Returns:
+            The path unchanged
+
+        Warns:
+            UserWarning: If the key file is readable by group or others (mode & 0o044)
+        """
+        if v is None:
+            return v
+        import warnings
+
+        path = Path(v)
+        # Check if file exists (should already be validated, but be defensive)
+        if not path.exists():
+            return v
+        # Check if group or others have read permissions (mode & 0o044)
+        # 0o040 = group read, 0o004 = others read
+        mode = path.stat().st_mode
+        if mode & 0o044:
+            warnings.warn(
+                f"TLS key file {v} is readable by others. "
+                "Consider restricting permissions to owner only (chmod 600).",
+                UserWarning,
+                stacklevel=2,
+            )
+        return v
+
     @field_validator("log_file_path")
     @classmethod
     def validate_log_file_path(cls, v: str) -> str:
@@ -1342,6 +1408,58 @@ class Settings(BaseSettings):
                 f"redis_ssl_cert_reqs must be one of: {', '.join(valid_modes)}. Got: '{v}'"
             )
         return v_lower
+
+    @field_validator("redis_ssl_certfile", "redis_ssl_keyfile", "redis_ssl_ca_certs")
+    @classmethod
+    def validate_redis_ssl_path(cls, v: str | None) -> str | None:
+        """Validate Redis SSL certificate file paths exist.
+
+        This validates that if a Redis SSL certificate path is provided,
+        the file actually exists on the filesystem. This catches configuration
+        errors at startup rather than at runtime when Redis connections fail.
+
+        Args:
+            v: The file path to validate (can be None)
+
+        Returns:
+            The validated path, or None if not provided
+
+        Raises:
+            ValueError: If the file path is provided but does not exist
+        """
+        if v is None:
+            return v
+        path = Path(v)
+        if not path.exists():
+            raise ValueError(f"Redis SSL file not found: {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_redis_ssl_consistency(self) -> Settings:
+        """Validate Redis SSL configuration consistency.
+
+        For mutual TLS (mTLS), both the client certificate (certfile) and
+        private key (keyfile) must be provided together. Having only one
+        of them is a configuration error.
+
+        CA certificates can be provided alone for verify-only mode where
+        the server certificate is verified but no client certificate is sent.
+
+        Returns:
+            self: The validated Settings instance
+
+        Raises:
+            ValueError: If only one of redis_ssl_certfile/redis_ssl_keyfile is provided
+        """
+        ssl_fields = [self.redis_ssl_certfile, self.redis_ssl_keyfile]
+        provided = sum(1 for f in ssl_fields if f is not None)
+        if provided > 0 and provided < 2:
+            raise ValueError(
+                "Both redis_ssl_certfile and redis_ssl_keyfile must be provided together "
+                "for mutual TLS. Provide both, or neither (CA certs alone are allowed for "
+                "server certificate verification without client authentication)."
+            )
+        return self
 
     @field_validator("database_url")
     @classmethod

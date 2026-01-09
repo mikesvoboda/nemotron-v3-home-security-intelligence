@@ -828,23 +828,43 @@ class TestRedisSSLSettings:
         with pytest.raises(ValueError, match="redis_ssl_cert_reqs must be one of"):
             Settings()
 
-    def test_redis_ssl_ca_certs_from_env(self, clean_env):
+    def test_redis_ssl_ca_certs_from_env(self, clean_env, tmp_path):
         """Test that REDIS_SSL_CA_CERTS can be set via environment."""
-        clean_env.setenv("REDIS_SSL_CA_CERTS", "/path/to/ca.crt")
+        ca_file = tmp_path / "ca.crt"
+        ca_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        clean_env.setenv("REDIS_SSL_CA_CERTS", str(ca_file))
         settings = Settings()
-        assert settings.redis_ssl_ca_certs == "/path/to/ca.crt"
+        assert settings.redis_ssl_ca_certs == str(ca_file)
 
-    def test_redis_ssl_certfile_from_env(self, clean_env):
+    def test_redis_ssl_certfile_from_env(self, clean_env, tmp_path):
         """Test that REDIS_SSL_CERTFILE can be set via environment."""
-        clean_env.setenv("REDIS_SSL_CERTFILE", "/path/to/client.crt")
+        # Need both certfile and keyfile together
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
         settings = Settings()
-        assert settings.redis_ssl_certfile == "/path/to/client.crt"
+        assert settings.redis_ssl_certfile == str(cert_file)
 
-    def test_redis_ssl_keyfile_from_env(self, clean_env):
+    def test_redis_ssl_keyfile_from_env(self, clean_env, tmp_path):
         """Test that REDIS_SSL_KEYFILE can be set via environment."""
-        clean_env.setenv("REDIS_SSL_KEYFILE", "/path/to/client.key")
+        # Need both certfile and keyfile together
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
         settings = Settings()
-        assert settings.redis_ssl_keyfile == "/path/to/client.key"
+        assert settings.redis_ssl_keyfile == str(key_file)
 
     def test_redis_ssl_check_hostname_from_env(self, clean_env):
         """Test that REDIS_SSL_CHECK_HOSTNAME can be set via environment."""
@@ -852,22 +872,33 @@ class TestRedisSSLSettings:
         settings = Settings()
         assert settings.redis_ssl_check_hostname is False
 
-    def test_redis_ssl_full_config(self, clean_env):
+    def test_redis_ssl_full_config(self, clean_env, tmp_path):
         """Test that all Redis SSL settings can be configured together."""
+        # Create temp files for SSL paths
+        ca_file = tmp_path / "ca.crt"
+        ca_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+
         clean_env.setenv("REDIS_SSL_ENABLED", "true")
         clean_env.setenv("REDIS_SSL_CERT_REQS", "required")
-        clean_env.setenv("REDIS_SSL_CA_CERTS", "/path/to/ca.crt")
-        clean_env.setenv("REDIS_SSL_CERTFILE", "/path/to/client.crt")
-        clean_env.setenv("REDIS_SSL_KEYFILE", "/path/to/client.key")
+        clean_env.setenv("REDIS_SSL_CA_CERTS", str(ca_file))
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
         clean_env.setenv("REDIS_SSL_CHECK_HOSTNAME", "true")
 
         settings = Settings()
 
         assert settings.redis_ssl_enabled is True
         assert settings.redis_ssl_cert_reqs == "required"
-        assert settings.redis_ssl_ca_certs == "/path/to/ca.crt"
-        assert settings.redis_ssl_certfile == "/path/to/client.crt"
-        assert settings.redis_ssl_keyfile == "/path/to/client.key"
+        assert settings.redis_ssl_ca_certs == str(ca_file)
+        assert settings.redis_ssl_certfile == str(cert_file)
+        assert settings.redis_ssl_keyfile == str(key_file)
         assert settings.redis_ssl_check_hostname is True
 
 
@@ -1033,3 +1064,320 @@ class TestRedisPasswordSettings:
         settings = Settings()
         assert settings.redis_password == "secure_password"  # noqa: S105  # pragma: allowlist secret
         assert settings.redis_ssl_enabled is True
+
+
+class TestTLSCertificatePathValidation:
+    """Test TLS certificate path validators (NEM-2024).
+
+    These validators ensure TLS certificate paths are validated at startup
+    rather than failing at runtime when paths are invalid.
+    """
+
+    def test_tls_cert_path_none_allowed(self, clean_env):
+        """Test that None is allowed for tls_cert_path (optional field)."""
+        clean_env.delenv("TLS_CERT_PATH", raising=False)
+        settings = Settings()
+        assert settings.tls_cert_path is None
+
+    def test_tls_key_path_none_allowed(self, clean_env):
+        """Test that None is allowed for tls_key_path (optional field)."""
+        clean_env.delenv("TLS_KEY_PATH", raising=False)
+        settings = Settings()
+        assert settings.tls_key_path is None
+
+    def test_tls_cert_path_valid_file(self, clean_env, tmp_path):
+        """Test that valid certificate file path passes validation."""
+        cert_file = tmp_path / "server.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        clean_env.setenv("TLS_CERT_PATH", str(cert_file))
+        settings = Settings()
+        assert settings.tls_cert_path == str(cert_file)
+
+    def test_tls_key_path_valid_file(self, clean_env, tmp_path):
+        """Test that valid key file path passes validation."""
+        key_file = tmp_path / "server.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        # Set restrictive permissions (owner read/write only)
+        key_file.chmod(0o600)
+        clean_env.setenv("TLS_KEY_PATH", str(key_file))
+        settings = Settings()
+        assert settings.tls_key_path == str(key_file)
+
+    def test_tls_cert_path_missing_file_raises_error(self, clean_env, tmp_path):
+        """Test that missing certificate file raises ValueError at startup."""
+        nonexistent_path = tmp_path / "does_not_exist.crt"
+        clean_env.setenv("TLS_CERT_PATH", str(nonexistent_path))
+        with pytest.raises(ValueError, match="Certificate file not found"):
+            Settings()
+
+    def test_tls_key_path_missing_file_raises_error(self, clean_env, tmp_path):
+        """Test that missing key file raises ValueError at startup."""
+        nonexistent_path = tmp_path / "does_not_exist.key"
+        clean_env.setenv("TLS_KEY_PATH", str(nonexistent_path))
+        with pytest.raises(ValueError, match="Certificate file not found"):
+            Settings()
+
+    def test_tls_cert_path_directory_raises_error(self, clean_env, tmp_path):
+        """Test that directory path for certificate raises ValueError."""
+        cert_dir = tmp_path / "certs"
+        cert_dir.mkdir()
+        clean_env.setenv("TLS_CERT_PATH", str(cert_dir))
+        with pytest.raises(ValueError, match="Certificate path is not a file"):
+            Settings()
+
+    def test_tls_key_path_directory_raises_error(self, clean_env, tmp_path):
+        """Test that directory path for key raises ValueError."""
+        key_dir = tmp_path / "keys"
+        key_dir.mkdir()
+        clean_env.setenv("TLS_KEY_PATH", str(key_dir))
+        with pytest.raises(ValueError, match="Certificate path is not a file"):
+            Settings()
+
+    def test_tls_key_world_readable_triggers_warning(self, clean_env, tmp_path):
+        """Test that world-readable key file triggers security warning."""
+        key_file = tmp_path / "server.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        # Set world-readable permissions (insecure)
+        key_file.chmod(0o644)
+        clean_env.setenv("TLS_KEY_PATH", str(key_file))
+
+        with pytest.warns(UserWarning, match="TLS key file .* is readable by others"):
+            Settings()
+
+    def test_tls_key_group_readable_triggers_warning(self, clean_env, tmp_path):
+        """Test that group-readable key file triggers security warning."""
+        key_file = tmp_path / "server.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        # Set group-readable permissions (insecure)
+        key_file.chmod(0o640)
+        clean_env.setenv("TLS_KEY_PATH", str(key_file))
+
+        with pytest.warns(UserWarning, match="TLS key file .* is readable by others"):
+            Settings()
+
+    def test_tls_key_owner_only_no_warning(self, clean_env, tmp_path):
+        """Test that owner-only permissions do not trigger warning."""
+        key_file = tmp_path / "server.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        # Set secure permissions (owner read/write only)
+        key_file.chmod(0o600)
+        clean_env.setenv("TLS_KEY_PATH", str(key_file))
+
+        # Should NOT emit any warnings
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            settings = Settings()
+            assert settings.tls_key_path == str(key_file)
+
+    def test_tls_cert_and_key_both_valid(self, clean_env, tmp_path):
+        """Test that both cert and key paths can be validated together."""
+        cert_file = tmp_path / "server.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        key_file = tmp_path / "server.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+        key_file.chmod(0o600)
+
+        clean_env.setenv("TLS_CERT_PATH", str(cert_file))
+        clean_env.setenv("TLS_KEY_PATH", str(key_file))
+
+        settings = Settings()
+        assert settings.tls_cert_path == str(cert_file)
+        assert settings.tls_key_path == str(key_file)
+
+    def test_tls_ca_path_valid_file(self, clean_env, tmp_path):
+        """Test that valid CA certificate file path passes validation."""
+        ca_file = tmp_path / "ca.crt"
+        ca_file.write_text("-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----")
+        clean_env.setenv("TLS_CA_PATH", str(ca_file))
+        settings = Settings()
+        assert settings.tls_ca_path == str(ca_file)
+
+    def test_tls_ca_path_missing_file_raises_error(self, clean_env, tmp_path):
+        """Test that missing CA certificate file raises ValueError at startup."""
+        nonexistent_path = tmp_path / "does_not_exist_ca.crt"
+        clean_env.setenv("TLS_CA_PATH", str(nonexistent_path))
+        with pytest.raises(ValueError, match="Certificate file not found"):
+            Settings()
+
+
+class TestRedisSSLPathValidation:
+    """Test Redis SSL certificate path validation (NEM-2025).
+
+    These tests verify that:
+    1. Valid file paths pass validation
+    2. Missing files raise ValueError
+    3. Partial SSL config (only cert, no key) raises ValueError
+    4. Partial SSL config (only key, no cert) raises ValueError
+    5. CA certs alone is allowed (for verify-only mode)
+    6. All None values are allowed
+    """
+
+    def test_redis_ssl_paths_all_none_allowed(self, clean_env):
+        """Test that all None values for SSL paths are allowed (default case)."""
+        settings = Settings()
+        assert settings.redis_ssl_certfile is None
+        assert settings.redis_ssl_keyfile is None
+        assert settings.redis_ssl_ca_certs is None
+
+    def test_redis_ssl_certfile_valid_path(self, clean_env, tmp_path):
+        """Test that a valid certfile path passes validation."""
+        # Create a temp cert file
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        # Need keyfile too since they must be provided together
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
+        settings = Settings()
+        assert settings.redis_ssl_certfile == str(cert_file)
+        assert settings.redis_ssl_keyfile == str(key_file)
+
+    def test_redis_ssl_keyfile_valid_path(self, clean_env, tmp_path):
+        """Test that a valid keyfile path passes validation."""
+        # Create temp key and cert files (both required together)
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
+        settings = Settings()
+        assert settings.redis_ssl_keyfile == str(key_file)
+
+    def test_redis_ssl_ca_certs_valid_path(self, clean_env, tmp_path):
+        """Test that a valid CA certs path passes validation."""
+        # Create a temp CA cert file
+        ca_file = tmp_path / "ca.crt"
+        ca_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+
+        clean_env.setenv("REDIS_SSL_CA_CERTS", str(ca_file))
+        settings = Settings()
+        assert settings.redis_ssl_ca_certs == str(ca_file)
+
+    def test_redis_ssl_ca_certs_alone_is_allowed(self, clean_env, tmp_path):
+        """Test that CA certs alone (without cert/key pair) is allowed for verify-only mode."""
+        # Create a temp CA cert file
+        ca_file = tmp_path / "ca.crt"
+        ca_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+
+        clean_env.setenv("REDIS_SSL_CA_CERTS", str(ca_file))
+        # No certfile or keyfile set
+        settings = Settings()
+        assert settings.redis_ssl_ca_certs == str(ca_file)
+        assert settings.redis_ssl_certfile is None
+        assert settings.redis_ssl_keyfile is None
+
+    def test_redis_ssl_certfile_missing_raises_error(self, clean_env):
+        """Test that a missing certfile raises ValueError."""
+        clean_env.setenv("REDIS_SSL_CERTFILE", "/nonexistent/path/to/client.crt")
+        clean_env.setenv("REDIS_SSL_KEYFILE", "/nonexistent/path/to/client.key")
+        with pytest.raises(ValueError, match="Redis SSL file not found"):
+            Settings()
+
+    def test_redis_ssl_keyfile_missing_raises_error(self, clean_env, tmp_path):
+        """Test that a missing keyfile raises ValueError."""
+        # Create only the cert file
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", "/nonexistent/path/to/client.key")
+        with pytest.raises(ValueError, match="Redis SSL file not found"):
+            Settings()
+
+    def test_redis_ssl_ca_certs_missing_raises_error(self, clean_env):
+        """Test that a missing CA certs file raises ValueError."""
+        clean_env.setenv("REDIS_SSL_CA_CERTS", "/nonexistent/path/to/ca.crt")
+        with pytest.raises(ValueError, match="Redis SSL file not found"):
+            Settings()
+
+    def test_redis_ssl_partial_config_certfile_only_raises_error(self, clean_env, tmp_path):
+        """Test that providing only certfile (without keyfile) raises ValueError."""
+        # Create a temp cert file
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        # No keyfile set
+        with pytest.raises(
+            ValueError, match="redis_ssl_certfile and redis_ssl_keyfile must be provided together"
+        ):
+            Settings()
+
+    def test_redis_ssl_partial_config_keyfile_only_raises_error(self, clean_env, tmp_path):
+        """Test that providing only keyfile (without certfile) raises ValueError."""
+        # Create a temp key file
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
+        # No certfile set
+        with pytest.raises(
+            ValueError, match="redis_ssl_certfile and redis_ssl_keyfile must be provided together"
+        ):
+            Settings()
+
+    def test_redis_ssl_full_config_with_all_paths(self, clean_env, tmp_path):
+        """Test that a full SSL config with all paths passes validation."""
+        # Create temp files
+        ca_file = tmp_path / "ca.crt"
+        ca_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        cert_file = tmp_path / "client.crt"
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
+        key_file = tmp_path / "client.key"
+        # Test key content (not a real private key)
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"  # pragma: allowlist secret
+        )
+
+        clean_env.setenv("REDIS_SSL_CA_CERTS", str(ca_file))
+        clean_env.setenv("REDIS_SSL_CERTFILE", str(cert_file))
+        clean_env.setenv("REDIS_SSL_KEYFILE", str(key_file))
+
+        settings = Settings()
+        assert settings.redis_ssl_ca_certs == str(ca_file)
+        assert settings.redis_ssl_certfile == str(cert_file)
+        assert settings.redis_ssl_keyfile == str(key_file)
+
+    def test_redis_ssl_path_validation_clear_error_message(self, clean_env):
+        """Test that error messages clearly indicate which file is missing."""
+        nonexistent_path = "/nonexistent/path/to/client.crt"
+        clean_env.setenv("REDIS_SSL_CERTFILE", nonexistent_path)
+        clean_env.setenv("REDIS_SSL_KEYFILE", "/nonexistent/path/to/client.key")
+
+        with pytest.raises(ValueError) as exc_info:
+            Settings()
+
+        # Error message should contain the problematic path
+        assert nonexistent_path in str(exc_info.value) or "Redis SSL file not found" in str(
+            exc_info.value
+        )
