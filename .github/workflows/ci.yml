@@ -816,7 +816,7 @@ jobs:
     env:
       NODE_VERSION: '20'
       # Increase Node.js heap size to prevent OOM errors during test cleanup
-      NODE_OPTIONS: '--max-old-space-size=4096'
+      NODE_OPTIONS: '--max-old-space-size=6144'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
