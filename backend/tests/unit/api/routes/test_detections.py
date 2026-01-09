@@ -32,6 +32,7 @@ from backend.api.routes.detections import (
     get_detection_enrichment,
     get_detection_image,
     get_detection_stats,
+    get_detection_thumbnail,
     get_video_thumbnail,
     list_detections,
     stream_detection_video,
@@ -1021,6 +1022,153 @@ class TestGetDetectionImage:
                     await get_detection_image(detection_id=1, db=mock_db_session)
 
         assert exc_info.value.status_code == 500
+
+
+class TestGetDetectionThumbnail:
+    """Tests for get_detection_thumbnail endpoint (NEM-1921)."""
+
+    @pytest.mark.asyncio
+    async def test_get_thumbnail_exists(self, mock_db_session):
+        """Test getting detection thumbnail when it exists."""
+        detection = DetectionFactory(
+            id=1,
+            file_path="/export/foscam/test.jpg",
+            thumbnail_path="/data/thumbnails/1.jpg",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+        ):
+            response = await get_detection_thumbnail(detection_id=1, db=mock_db_session)
+
+        assert response.path == Path("/data/thumbnails/1.jpg")
+        assert response.media_type == "image/jpeg"
+        assert response.filename == "detection_1_thumbnail.jpg"
+
+    @pytest.mark.asyncio
+    async def test_get_thumbnail_png_extension(self, mock_db_session):
+        """Test getting detection thumbnail with PNG extension."""
+        detection = DetectionFactory(
+            id=2,
+            file_path="/export/foscam/test.png",
+            thumbnail_path="/data/thumbnails/2.png",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+        ):
+            response = await get_detection_thumbnail(detection_id=2, db=mock_db_session)
+
+        assert response.media_type == "image/png"
+        assert response.filename == "detection_2_thumbnail.png"
+
+    @pytest.mark.asyncio
+    async def test_get_thumbnail_generates_on_fly(self, mock_db_session):
+        """Test generating thumbnail on the fly when it doesn't exist."""
+        detection = DetectionFactory(
+            id=3,
+            file_path="/export/foscam/test.jpg",
+            thumbnail_path=None,
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=200,
+            bbox_width=150,
+            bbox_height=300,
+        )
+
+        with patch(
+            "backend.api.routes.detections.get_detection_or_404",
+            return_value=detection,
+        ):
+            # First call: source file exists check
+            with patch("backend.api.routes.detections.os.path.exists", return_value=True):
+                with patch(
+                    "backend.api.routes.detections.thumbnail_generator.generate_thumbnail",
+                    return_value="/data/thumbnails/generated_3.jpg",
+                ):
+                    response = await get_detection_thumbnail(detection_id=3, db=mock_db_session)
+
+        assert response.path == Path("/data/thumbnails/generated_3.jpg")
+        assert response.media_type == "image/jpeg"
+        # Verify thumbnail path was saved to detection
+        assert detection.thumbnail_path == "/data/thumbnails/generated_3.jpg"
+
+    @pytest.mark.asyncio
+    async def test_get_thumbnail_source_not_found(self, mock_db_session):
+        """Test 404 when source image doesn't exist for thumbnail generation."""
+        detection = DetectionFactory(
+            id=4,
+            file_path="/export/foscam/missing.jpg",
+            thumbnail_path=None,
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("backend.api.routes.detections.os.path.exists", return_value=False),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_detection_thumbnail(detection_id=4, db=mock_db_session)
+
+        assert exc_info.value.status_code == 404
+        assert "source image not found" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_thumbnail_generation_fails(self, mock_db_session):
+        """Test 500 error when thumbnail generation fails."""
+        detection = DetectionFactory(
+            id=5,
+            file_path="/export/foscam/test.jpg",
+            thumbnail_path=None,
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch(
+                "backend.api.routes.detections.thumbnail_generator.generate_thumbnail",
+                return_value=None,
+            ),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_detection_thumbnail(detection_id=5, db=mock_db_session)
+
+        assert exc_info.value.status_code == 500
+        assert "failed to generate thumbnail" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_thumbnail_includes_cache_headers(self, mock_db_session):
+        """Test that thumbnail response includes cache headers."""
+        detection = DetectionFactory(
+            id=6,
+            file_path="/export/foscam/test.jpg",
+            thumbnail_path="/data/thumbnails/6.jpg",
+        )
+
+        with (
+            patch(
+                "backend.api.routes.detections.get_detection_or_404",
+                return_value=detection,
+            ),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+        ):
+            response = await get_detection_thumbnail(detection_id=6, db=mock_db_session)
+
+        assert response.headers.get("Cache-Control") == "public, max-age=3600"
 
 
 class TestStreamDetectionVideo:

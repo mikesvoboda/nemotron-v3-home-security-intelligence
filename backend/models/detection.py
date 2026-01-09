@@ -9,6 +9,13 @@ from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Inte
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.api.schemas.enrichment_data import (
+    coerce_enrichment_data as _coerce_enrichment_data,
+)
+from backend.api.schemas.enrichment_data import (
+    validate_enrichment_data as _validate_enrichment_data,
+)
+
 from .camera import Base
 
 if TYPE_CHECKING:
@@ -110,3 +117,49 @@ class Detection(Base):
             f"<Detection(id={self.id}, camera_id={self.camera_id!r}, "
             f"object_type={self.object_type!r}, confidence={self.confidence})>"
         )
+
+    def validate_enrichment_data(self) -> tuple[bool, list[str]]:
+        """Validate the enrichment_data field using EnrichmentDataSchema.
+
+        Returns:
+            A tuple of (is_valid, messages) where:
+            - is_valid: True if the data is valid or None
+            - messages: List of warning/error messages (empty if valid)
+        """
+        result = _validate_enrichment_data(self.enrichment_data)
+        messages = result.warnings + result.errors
+        return result.is_valid, messages
+
+    def get_validated_enrichment_data(self) -> dict[str, Any] | None:
+        """Get validated and coerced enrichment_data.
+
+        Returns the enrichment_data with values coerced to valid ranges
+        (e.g., confidence values clamped to 0.0-1.0).
+
+        Returns:
+            Validated/coerced data dict, or None if enrichment_data is None
+        """
+        return _coerce_enrichment_data(self.enrichment_data)
+
+    def set_enrichment_data_validated(
+        self, data: dict[str, Any], *, strict: bool = False
+    ) -> tuple[bool, list[str]]:
+        """Set enrichment_data with validation.
+
+        Args:
+            data: The enrichment data to set
+            strict: If True, do not set data if validation fails
+
+        Returns:
+            A tuple of (success, messages) where:
+            - success: True if data was set successfully
+            - messages: List of warning/error messages
+        """
+        result = _validate_enrichment_data(data, strict=strict)
+        messages = result.warnings + result.errors
+
+        if strict and not result.is_valid:
+            return False, messages
+
+        self.enrichment_data = result.data
+        return True, messages

@@ -2166,6 +2166,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/detections/{detection_id}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get detection thumbnail
+         * @description Serve the cropped thumbnail image with bounding box overlay.
+         */
+        get: operations["get_detection_thumbnail_api_detections__detection_id__thumbnail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections/{detection_id}/video": {
         parameters: {
             query?: never;
@@ -16661,6 +16681,59 @@ export interface operations {
                 content?: never;
             };
             /** @description Detection or image not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to generate thumbnail */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_detection_thumbnail_api_detections__detection_id__thumbnail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                    "image/png": unknown;
+                };
+            };
+            /** @description Detection or thumbnail not found */
             404: {
                 headers: {
                     [name: string]: unknown;
