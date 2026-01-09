@@ -812,6 +812,76 @@ async def export_events(
     )
 
 
+# =============================================================================
+# Soft Delete Trash View Endpoint (NEM-1955)
+# NOTE: This endpoint MUST be defined before /{event_id} to avoid
+# validation errors when "deleted" is parsed as event_id
+# =============================================================================
+
+
+@router.get(
+    "/deleted",
+    response_model=DeletedEventsListResponse,
+    summary="List all soft-deleted events",
+    responses={
+        200: {"description": "List of soft-deleted events"},
+    },
+)
+async def list_deleted_events(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List all soft-deleted events for trash view.
+
+    Returns events that have been soft-deleted (deleted_at is not null),
+    ordered by deleted_at descending (most recently deleted first).
+
+    This endpoint enables a "trash" view where users can see deleted events
+    and optionally restore them.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DeletedEventsListResponse containing list of deleted events and count
+    """
+    # Query for events where deleted_at is not null
+    query = select(Event).where(Event.deleted_at.isnot(None)).order_by(Event.deleted_at.desc())
+
+    result = await db.execute(query)
+    deleted_events = result.scalars().all()
+
+    # Build response with detection info
+    events_data = []
+    for event in deleted_events:
+        detection_ids = get_detection_ids_from_event(event)
+        thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
+
+        events_data.append(
+            {
+                "id": event.id,
+                "camera_id": event.camera_id,
+                "started_at": event.started_at,
+                "ended_at": event.ended_at,
+                "risk_score": event.risk_score,
+                "risk_level": event.risk_level,
+                "summary": event.summary,
+                "reasoning": event.reasoning,
+                "llm_prompt": event.llm_prompt,
+                "reviewed": event.reviewed,
+                "notes": event.notes,
+                "detection_count": len(detection_ids),
+                "detection_ids": detection_ids,
+                "thumbnail_url": thumbnail_url,
+                "enrichment_status": None,
+            }
+        )
+
+    return {
+        "events": events_data,
+        "count": len(events_data),
+    }
+
+
 @router.get("/{event_id}", response_model=EventResponse)
 async def get_event(
     event_id: int,
@@ -1735,11 +1805,11 @@ async def bulk_delete_events(
     for idx, event_id in enumerate(request.event_ids):
         try:
             if request.soft_delete:
-                # Soft delete with optional cascade to related detections
+                # Soft delete the event (cascade param preserved for future use)
                 await event_service.soft_delete_event(
                     event_id=event_id,
                     db=db,
-                    cascade=request.cascade,
+                    cascade=True,
                 )
             else:
                 # Hard delete - fetch and delete directly
@@ -1813,74 +1883,6 @@ async def bulk_delete_events(
         skipped=0,
         results=results,
     )
-
-
-# =============================================================================
-# Soft Delete Trash View Endpoint (NEM-1955)
-# =============================================================================
-
-
-@router.get(
-    "/deleted",
-    response_model=DeletedEventsListResponse,
-    summary="List all soft-deleted events",
-    responses={
-        200: {"description": "List of soft-deleted events"},
-    },
-)
-async def list_deleted_events(
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
-    """List all soft-deleted events for trash view.
-
-    Returns events that have been soft-deleted (deleted_at is not null),
-    ordered by deleted_at descending (most recently deleted first).
-
-    This endpoint enables a "trash" view where users can see deleted events
-    and optionally restore them.
-
-    Args:
-        db: Database session
-
-    Returns:
-        DeletedEventsListResponse containing list of deleted events and count
-    """
-    # Query for events where deleted_at is not null
-    query = select(Event).where(Event.deleted_at.isnot(None)).order_by(Event.deleted_at.desc())
-
-    result = await db.execute(query)
-    deleted_events = result.scalars().all()
-
-    # Build response with detection info
-    events_data = []
-    for event in deleted_events:
-        detection_ids = get_detection_ids_from_event(event)
-        thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
-
-        events_data.append(
-            {
-                "id": event.id,
-                "camera_id": event.camera_id,
-                "started_at": event.started_at,
-                "ended_at": event.ended_at,
-                "risk_score": event.risk_score,
-                "risk_level": event.risk_level,
-                "summary": event.summary,
-                "reasoning": event.reasoning,
-                "llm_prompt": event.llm_prompt,
-                "reviewed": event.reviewed,
-                "notes": event.notes,
-                "detection_count": len(detection_ids),
-                "detection_ids": detection_ids,
-                "thumbnail_url": thumbnail_url,
-                "enrichment_status": None,
-            }
-        )
-
-    return {
-        "events": events_data,
-        "count": len(events_data),
-    }
 
 
 @router.delete(

@@ -25,6 +25,7 @@ from backend.api.schemas.camera import (
     CameraListResponse,
     CameraResponse,
     CameraUpdate,
+    DeletedCamerasListResponse,
 )
 from backend.api.schemas.scene_change import (
     SceneChangeAcknowledgeResponse,
@@ -181,6 +182,120 @@ async def list_cameras(
         response["cameras"] = [filter_fields(c, validated_fields) for c in cameras_data]
 
     return CameraListResponse(cameras=response["cameras"], count=response["count"])
+
+
+# =============================================================================
+# Soft Delete Trash View Endpoints (NEM-1955)
+# NOTE: These endpoints MUST be defined before /{camera_id} to avoid
+# "deleted" being matched as a camera_id
+# =============================================================================
+
+
+@router.get(
+    "/deleted",
+    response_model=DeletedCamerasListResponse,
+    summary="List all soft-deleted cameras",
+    responses={
+        200: {"description": "List of soft-deleted cameras"},
+    },
+)
+async def list_deleted_cameras(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List all soft-deleted cameras for trash view.
+
+    Returns cameras that have been soft-deleted (deleted_at is not null),
+    ordered by deleted_at descending (most recently deleted first).
+
+    This endpoint enables a "trash" view where users can see deleted cameras
+    and optionally restore them.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DeletedCamerasListResponse containing list of deleted cameras and count
+    """
+    # Query for cameras where deleted_at is not null
+    query = select(Camera).where(Camera.deleted_at.isnot(None)).order_by(Camera.deleted_at.desc())
+
+    result = await db.execute(query)
+    deleted_cameras = result.scalars().all()
+
+    # Serialize cameras for response
+    cameras_data = [
+        {
+            "id": c.id,
+            "name": c.name,
+            "folder_path": c.folder_path,
+            "status": c.status,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
+        }
+        for c in deleted_cameras
+    ]
+
+    return {
+        "cameras": cameras_data,
+        "count": len(cameras_data),
+    }
+
+
+@router.post(
+    "/{camera_id}/restore",
+    response_model=CameraResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Restore a soft-deleted camera",
+    responses={
+        200: {"description": "Camera restored successfully"},
+        400: {"description": "Camera is not deleted"},
+        404: {"description": "Camera not found"},
+    },
+)
+async def restore_camera(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> Camera:
+    """Restore a soft-deleted camera.
+
+    Clears the deleted_at timestamp on a soft-deleted camera, making it
+    visible again in normal queries.
+
+    Args:
+        camera_id: ID of the camera to restore
+        db: Database session
+        cache: Cache service for invalidation
+
+    Returns:
+        CameraResponse with the restored camera data
+
+    Raises:
+        HTTPException: 404 if camera not found
+        HTTPException: 400 if camera is not deleted (nothing to restore)
+    """
+    # Use include_deleted=True to find soft-deleted cameras
+    camera = await get_camera_or_404(camera_id, db, include_deleted=True)
+
+    # Check if the camera is actually deleted
+    if camera.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Camera {camera_id} is not deleted",
+        )
+
+    # Restore the camera by clearing deleted_at
+    camera.restore()
+    await db.commit()
+    await db.refresh(camera)
+
+    # Invalidate cameras cache
+    try:
+        await cache.invalidate_cameras(reason="camera_restored")
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed after camera restore: {e}")
+
+    return camera
 
 
 @router.get("/{camera_id}", response_model=CameraResponse)
