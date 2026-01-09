@@ -7,6 +7,7 @@
 
 import type { Page, TestInfo, Route } from '@playwright/test';
 import { expect } from '@playwright/test';
+import * as fs from 'fs';
 
 /**
  * Wait for page hydration to complete
@@ -148,37 +149,52 @@ export async function clearTestState(
 ): Promise<void> {
   const { preserveAuth = false, clearIndexedDB = true } = options;
 
-  // Clear storage
-  await page.evaluate(
-    ({ keepAuth, clearIDB }) => {
-      // Clear localStorage
-      if (!keepAuth) {
-        localStorage.clear();
-      } else {
-        // Preserve auth tokens if needed
-        const authToken = localStorage.getItem('auth_token');
-        localStorage.clear();
-        if (authToken) {
-          localStorage.setItem('auth_token', authToken);
-        }
-      }
+  // Check if we're on a valid page (not about:blank)
+  const url = page.url();
+  if (url === 'about:blank' || url === '') {
+    // Skip storage clearing - page hasn't navigated yet
+    return;
+  }
 
-      // Clear sessionStorage
-      sessionStorage.clear();
-
-      // Clear IndexedDB
-      if (clearIDB && window.indexedDB) {
-        indexedDB.databases().then((databases) => {
-          databases.forEach((db) => {
-            if (db.name) {
-              indexedDB.deleteDatabase(db.name);
+  // Clear storage - wrap in try-catch for security restrictions
+  try {
+    await page.evaluate(
+      ({ keepAuth, clearIDB }) => {
+        try {
+          // Clear localStorage
+          if (!keepAuth) {
+            localStorage.clear();
+          } else {
+            // Preserve auth tokens if needed
+            const authToken = localStorage.getItem('auth_token');
+            localStorage.clear();
+            if (authToken) {
+              localStorage.setItem('auth_token', authToken);
             }
-          });
-        });
-      }
-    },
-    { keepAuth: preserveAuth, clearIDB: clearIndexedDB }
-  );
+          }
+
+          // Clear sessionStorage
+          sessionStorage.clear();
+
+          // Clear IndexedDB
+          if (clearIDB && window.indexedDB) {
+            indexedDB.databases().then((databases) => {
+              databases.forEach((db) => {
+                if (db.name) {
+                  indexedDB.deleteDatabase(db.name);
+                }
+              });
+            });
+          }
+        } catch {
+          // Ignore security errors (e.g., cross-origin frames)
+        }
+      },
+      { keepAuth: preserveAuth, clearIDB: clearIndexedDB }
+    );
+  } catch {
+    // Ignore evaluate errors (page context issues)
+  }
 
   // Clear cookies
   const cookies = await page.context().cookies();
@@ -232,7 +248,7 @@ export async function takeScreenshotOnFailure(page: Page, testInfo: TestInfo): P
     // Also capture HTML snapshot for debugging
     const htmlPath = testInfo.outputPath(`failure-${Date.now()}.html`);
     const html = await page.content().catch(() => '<html><body>Failed to capture HTML</body></html>');
-    await require('fs').promises.writeFile(htmlPath, html);
+    await fs.promises.writeFile(htmlPath, html);
 
     await testInfo.attach('html-snapshot', {
       path: htmlPath,
