@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.api.schemas.pagination import PaginationMeta
 from backend.models.audit import AuditAction, AuditStatus
 
 
@@ -78,7 +79,7 @@ class AuditLogListResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "logs": [
+                "items": [
                     {
                         "id": 1,
                         "timestamp": "2026-01-03T10:30:00Z",
@@ -92,23 +93,20 @@ class AuditLogListResponse(BaseModel):
                         "status": "success",
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
-                "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",  # pragma: allowlist secret
-                "has_more": False,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",  # pragma: allowlist secret
+                    "has_more": False,
+                },
             }
         }
     )
 
-    logs: list[AuditLogResponse] = Field(..., description="List of audit log entries")
-    count: int = Field(..., ge=0, description="Total count matching filters")
-    limit: int = Field(..., ge=1, le=1000, description="Page size (1-1000)")
-    offset: int = Field(..., ge=0, description="Page offset (0-based, deprecated)")
-    next_cursor: str | None = Field(
-        None, description="Cursor for next page (use this instead of offset)"
-    )
-    has_more: bool = Field(False, description="Whether more results are available")
+    items: list[AuditLogResponse] = Field(..., description="List of audit log entries")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
     deprecation_warning: str | None = Field(
         None, description="Warning when using deprecated offset pagination"
     )

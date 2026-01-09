@@ -7,6 +7,8 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
 
+from backend.api.schemas.pagination import PaginationMeta
+
 # Pattern for valid dedup_key: alphanumeric, underscore, hyphen, colon only
 # This prevents injection attacks via special characters (NEM-1107)
 DEDUP_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9_:\-]+$")
@@ -424,7 +426,7 @@ class AlertRuleListResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "rules": [
+                "items": [
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440000",
                         "name": "High Risk Alert",
@@ -436,17 +438,20 @@ class AlertRuleListResponse(BaseModel):
                         "updated_at": "2025-12-28T12:00:00Z",
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    rules: list[AlertRuleResponse] = Field(..., description="List of alert rules")
-    count: int = Field(..., description="Total number of rules")
-    limit: int = Field(..., description="Maximum number of results returned")
-    offset: int = Field(..., description="Number of results skipped")
+    items: list[AlertRuleResponse] = Field(..., description="List of alert rules")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
 
 # =============================================================================
@@ -551,7 +556,7 @@ class AlertListResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "alerts": [
+                "items": [
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440001",
                         "event_id": 123,
@@ -566,17 +571,20 @@ class AlertListResponse(BaseModel):
                         "metadata": {},
                     }
                 ],
-                "count": 1,
-                "limit": 50,
-                "offset": 0,
+                "pagination": {
+                    "total": 1,
+                    "limit": 50,
+                    "offset": 0,
+                    "cursor": None,
+                    "next_cursor": None,
+                    "has_more": False,
+                },
             }
         }
     )
 
-    alerts: list[AlertResponse] = Field(..., description="List of alerts")
-    count: int = Field(..., description="Total number of alerts matching filters")
-    limit: int = Field(..., description="Maximum number of results returned")
-    offset: int = Field(..., description="Number of results skipped")
+    items: list[AlertResponse] = Field(..., description="List of alerts")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
 
 # =============================================================================
