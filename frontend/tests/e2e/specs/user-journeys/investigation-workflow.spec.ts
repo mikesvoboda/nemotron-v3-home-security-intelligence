@@ -208,15 +208,15 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
 
       // Verify detail contains key information
       await expect(
-        eventDetail.first().locator('[data-testid*="timestamp"]')
+        eventDetail.first().locator('[data-testid="detection-timestamp"]')
       ).toBeVisible();
 
       await expect(
-        eventDetail.first().locator('[data-testid*="camera"]')
+        eventDetail.first().locator('[data-testid="detection-camera"]')
       ).toBeVisible();
 
       await expect(
-        eventDetail.first().locator('[data-testid*="detection"]')
+        eventDetail.first().locator('[data-testid="detection-objects"]')
       ).toBeVisible();
     }
   });
@@ -374,14 +374,21 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     // Given: Navigate to timeline
     await page.goto('/timeline').catch(() => page.goto('/events'));
 
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
 
     // When: Locate events with timestamps
-    const events = page.locator('[data-testid^="event-"]').or(
-      page.locator('[data-testid^="timeline-event-"]')
+    const events = page.locator('[data-testid^="event-card-"]');
+
+    // Wait for at least one event to be visible or verify empty state
+    const firstEventOrEmpty = page.locator('[data-testid^="event-card-"]').first().or(
+      page.locator('[data-testid="timeline-empty-state"]')
     );
 
-    if (await events.count() >= 2) {
+    await expect(firstEventOrEmpty).toBeVisible({ timeout: 5000 });
+
+    const eventCount = await events.count();
+
+    if (eventCount >= 2) {
       // Then: Get timestamps from first two events
       const firstEvent = events.nth(0);
       const secondEvent = events.nth(1);
@@ -390,8 +397,8 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       await expect(secondEvent).toBeVisible();
 
       // Verify both have timestamp elements
-      const firstTimestamp = firstEvent.locator('[data-testid*="timestamp"]');
-      const secondTimestamp = secondEvent.locator('[data-testid*="timestamp"]');
+      const firstTimestamp = firstEvent.locator('[data-testid="event-timestamp"]');
+      const secondTimestamp = secondEvent.locator('[data-testid="event-timestamp"]');
 
       await expect(firstTimestamp).toBeVisible();
       await expect(secondTimestamp).toBeVisible();
@@ -403,6 +410,18 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       // Both should have content
       expect(firstTime).toBeTruthy();
       expect(secondTime).toBeTruthy();
+    } else if (eventCount === 1) {
+      // If only one event, just verify it has a timestamp
+      const firstEvent = events.nth(0);
+      await expect(firstEvent).toBeVisible();
+      const firstTimestamp = firstEvent.locator('[data-testid="event-timestamp"]');
+      await expect(firstTimestamp).toBeVisible();
+      const firstTime = await firstTimestamp.textContent();
+      expect(firstTime).toBeTruthy();
+    } else {
+      // If no events, verify the empty state or timeline container is present
+      const timelinePage = page.locator('[data-testid="timeline-page"]');
+      await expect(timelinePage).toBeVisible();
     }
   });
 });

@@ -189,7 +189,7 @@ const EventCard = memo(function EventCard({
                 {camera_name}
               </h3>
               <div className="mt-1 flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+                <div className="flex items-center gap-1.5 text-sm text-text-secondary" data-testid="event-timestamp">
                   <Clock className="h-3.5 w-3.5" />
                   <span>{formatTimestamp(timestamp)}</span>
                 </div>

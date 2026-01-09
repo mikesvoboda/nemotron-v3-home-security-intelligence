@@ -166,19 +166,22 @@ test.describe('Detection to Alert Journey (NEM-1664)', () => {
     await expect(detectedObjects).toBeVisible();
   });
 
-  test('user can close detection detail modal and return to dashboard', async ({ page }) => {
+  test('user can close detection detail modal and return to timeline', async ({ page }) => {
     /**
-     * Given: User has opened a detection detail modal
+     * Given: User has opened a detection detail modal from dashboard
      * When: User clicks the close button
-     * Then: Modal closes and user returns to dashboard view
+     * Then: Modal closes and user remains on timeline view
      */
 
-    // Given: Open detection modal
+    // Given: Open detection modal from dashboard
     await expect(page.locator('[data-testid="activity-feed"]')).toBeVisible();
 
     const firstDetection = page.locator('[data-testid^="detection-card-"]').first();
     await expect(firstDetection).toBeVisible({ timeout: 15000 });
     await firstDetection.click();
+
+    // Clicking detection navigates to timeline page with modal
+    await page.waitForURL(/\/timeline\?event=\d+/);
 
     const eventModal = page.locator('[data-testid="event-detail-modal"]');
     await expect(eventModal).toBeVisible();
@@ -191,9 +194,8 @@ test.describe('Detection to Alert Journey (NEM-1664)', () => {
     // Then: Modal should be hidden
     await expect(eventModal).not.toBeVisible();
 
-    // Verify dashboard is still visible
-    await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
-    await expect(page.locator('[data-testid="activity-feed"]')).toBeVisible();
+    // Verify user is on timeline page (not dashboard)
+    await expect(page.locator('[data-testid="timeline-page"]')).toBeVisible();
   });
 
   test('detection cards show preview information before opening', async ({ page }) => {

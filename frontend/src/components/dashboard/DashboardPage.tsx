@@ -202,10 +202,10 @@ export default function DashboardPage() {
     [navigate]
   );
 
-  // Handle activity event click - navigate to timeline
+  // Handle activity event click - navigate to timeline with event ID to open modal
   const handleEventClick = useCallback(
-    (_eventId: string) => {
-      void navigate('/timeline');
+    (eventId: string) => {
+      void navigate(`/timeline?event=${eventId}`);
     },
     [navigate]
   );
