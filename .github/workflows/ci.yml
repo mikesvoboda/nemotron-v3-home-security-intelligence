@@ -816,7 +816,8 @@ jobs:
     env:
       NODE_VERSION: '20'
       # Increase Node.js heap size to prevent OOM errors during test cleanup
-      NODE_OPTIONS: '--max-old-space-size=6144'
+      # Shard 4 requires >6GB due to memory-intensive tests
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
