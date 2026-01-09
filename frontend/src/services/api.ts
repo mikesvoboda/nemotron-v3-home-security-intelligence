@@ -167,7 +167,31 @@ export interface EventsQueryParams {
   reviewed?: boolean;
   object_type?: string;
   limit?: number;
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
   offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
+}
+
+/**
+ * Query parameters for detection list endpoints.
+ */
+export interface DetectionQueryParams {
+  limit?: number;
+  /**
+   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   */
+  offset?: number;
+  /**
+   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
+   * Recommended over offset pagination for better performance.
+   */
+  cursor?: string;
 }
 
 // ============================================================================
@@ -1143,7 +1167,12 @@ export async function fetchEvents(
     if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
     if (params.object_type) queryParams.append('object_type', params.object_type);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+    // Prefer cursor over offset for pagination
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
   }
 
   const queryString = queryParams.toString();
@@ -1295,13 +1324,18 @@ export async function permanentlyDeleteEvent(id: number): Promise<void> {
 
 export async function fetchEventDetections(
   eventId: number,
-  params?: { limit?: number; offset?: number }
+  params?: DetectionQueryParams
 ): Promise<GeneratedDetectionListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params) {
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+    // Prefer cursor over offset for pagination
+    if (params.cursor) {
+      queryParams.append('cursor', params.cursor);
+    } else if (params.offset !== undefined) {
+      queryParams.append('offset', String(params.offset));
+    }
   }
 
   const queryString = queryParams.toString();

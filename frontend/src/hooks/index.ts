@@ -158,3 +158,25 @@ export { useIsMobile } from './useIsMobile';
 
 export { useSwipeGesture } from './useSwipeGesture';
 export type { SwipeDirection, SwipeGestureOptions } from './useSwipeGesture';
+
+// Cursor-based pagination hooks
+export { useCursorPaginatedQuery, default as useCursorPaginatedQueryDefault } from './useCursorPaginatedQuery';
+export type {
+  CursorPaginatedResponse,
+  UseCursorPaginatedQueryOptions,
+  UseCursorPaginatedQueryReturn,
+  ExtractItemType,
+} from './useCursorPaginatedQuery';
+
+export { useEventsInfiniteQuery, eventsQueryKeys } from './useEventsQuery';
+export type {
+  EventFilters,
+  UseEventsInfiniteQueryOptions,
+  UseEventsInfiniteQueryReturn,
+} from './useEventsQuery';
+
+export { useDetectionsInfiniteQuery, detectionsQueryKeys } from './useDetectionsQuery';
+export type {
+  UseDetectionsInfiniteQueryOptions,
+  UseDetectionsInfiniteQueryReturn,
+} from './useDetectionsQuery';
