@@ -13,7 +13,7 @@ Endpoints:
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any  # Still used for _rule_to_response helper return type
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
@@ -76,7 +76,7 @@ async def list_rules(
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> AlertRuleListResponse:
     """List all alert rules with optional filtering and pagination.
 
     Args:
@@ -113,12 +113,12 @@ async def list_rules(
     result = await db.execute(query)
     rules = result.scalars().all()
 
-    return {
-        "rules": [_rule_to_response(rule) for rule in rules],
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-    }
+    return AlertRuleListResponse(
+        rules=[AlertRuleResponse(**_rule_to_response(rule)) for rule in rules],
+        count=total_count,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post(
@@ -133,7 +133,7 @@ async def list_rules(
 async def create_rule(
     rule_data: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> AlertRuleResponse:
     """Create a new alert rule.
 
     Args:
@@ -177,7 +177,7 @@ async def create_rule(
     await db.commit()
     await db.refresh(rule)
 
-    return _rule_to_response(rule)
+    return AlertRuleResponse(**_rule_to_response(rule))
 
 
 @router.get(
@@ -191,7 +191,7 @@ async def create_rule(
 async def get_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> AlertRuleResponse:
     """Get a specific alert rule by ID.
 
     Args:
@@ -205,7 +205,7 @@ async def get_rule(
         HTTPException: 404 if rule not found
     """
     rule = await get_alert_rule_or_404(rule_id, db)
-    return _rule_to_response(rule)
+    return AlertRuleResponse(**_rule_to_response(rule))
 
 
 def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict: dict) -> None:
@@ -254,7 +254,7 @@ async def update_rule(
     rule_id: str,
     rule_data: AlertRuleUpdate,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> AlertRuleResponse:
     """Update an existing alert rule.
 
     Args:
@@ -277,7 +277,7 @@ async def update_rule(
     await db.commit()
     await db.refresh(rule)
 
-    return _rule_to_response(rule)
+    return AlertRuleResponse(**_rule_to_response(rule))
 
 
 @router.delete(
@@ -319,7 +319,7 @@ async def test_rule(
     rule_id: str,
     test_data: RuleTestRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> RuleTestResponse:
     """Test a rule against historical events.
 
     This endpoint allows testing rule configuration without actually
@@ -350,14 +350,14 @@ async def test_rule(
     events = list(events_result.scalars().all())
 
     if not events:
-        return {
-            "rule_id": rule.id,
-            "rule_name": rule.name,
-            "events_tested": 0,
-            "events_matched": 0,
-            "match_rate": 0.0,
-            "results": [],
-        }
+        return RuleTestResponse(
+            rule_id=rule.id,
+            rule_name=rule.name,
+            events_tested=0,
+            events_matched=0,
+            match_rate=0.0,
+            results=[],
+        )
 
     # Test the rule against each event
     engine = AlertRuleEngine(db)
@@ -382,11 +382,11 @@ async def test_rule(
     events_matched = sum(1 for r in results if r.matches)
     events_tested = len(results)
 
-    return {
-        "rule_id": rule.id,
-        "rule_name": rule.name,
-        "events_tested": events_tested,
-        "events_matched": events_matched,
-        "match_rate": events_matched / events_tested if events_tested > 0 else 0.0,
-        "results": results,
-    }
+    return RuleTestResponse(
+        rule_id=rule.id,
+        rule_name=rule.name,
+        events_tested=events_tested,
+        events_matched=events_matched,
+        match_rate=events_matched / events_tested if events_tested > 0 else 0.0,
+        results=results,
+    )
