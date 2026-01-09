@@ -85,17 +85,36 @@ async def verify_api_key(
 
 
 class DLQName(str, Enum):
-    """Available dead-letter queue names."""
+    """Available dead-letter queue names.
+
+    The system has two dead-letter queues corresponding to the two stages
+    of the AI processing pipeline:
+
+    - DETECTION: Jobs that failed during RT-DETRv2 object detection
+      (e.g., detector service unavailable, image processing errors)
+    - ANALYSIS: Jobs that failed during Nemotron risk analysis
+      (e.g., LLM service unavailable, response parsing errors)
+
+    Each DLQ stores failed jobs with enriched error context for debugging.
+    """
 
     DETECTION = DLQ_DETECTION_QUEUE
+    """Dead-letter queue for failed detection jobs (dlq:detection_queue)."""
+
     ANALYSIS = DLQ_ANALYSIS_QUEUE
+    """Dead-letter queue for failed analysis jobs (dlq:analysis_queue)."""
 
     @property
     def target_queue(self) -> str:
         """Get the target queue name for requeuing from this DLQ.
 
+        When jobs are requeued from a DLQ, they are moved to their original
+        processing queue:
+        - dlq:detection_queue -> detection_queue
+        - dlq:analysis_queue -> analysis_queue
+
         Returns:
-            Target queue name
+            Target queue name for requeuing
         """
         return {
             DLQName.DETECTION: DETECTION_QUEUE,
@@ -106,8 +125,31 @@ class DLQName(str, Enum):
 @router.get(
     "/stats",
     response_model=DLQStatsResponse,
+    summary="Get DLQ statistics",
+    description="""
+Retrieve statistics for all dead-letter queues in the system.
+
+Returns the count of failed jobs in each DLQ (detection and analysis)
+along with a total count. Use this endpoint to monitor the health of
+the AI processing pipeline and identify when jobs are failing.
+
+**No authentication required** for this read-only endpoint.
+    """,
+    operation_id="get_dlq_stats",
     responses={
-        500: {"description": "Internal server error"},
+        200: {
+            "description": "Successfully retrieved DLQ statistics",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detection_queue_count": 2,
+                        "analysis_queue_count": 1,
+                        "total_count": 3,
+                    }
+                }
+            },
+        },
+        500: {"description": "Internal server error - Redis connection failed"},
     },
 )
 async def get_dlq_stats(
@@ -116,9 +158,14 @@ async def get_dlq_stats(
     """Get dead-letter queue statistics.
 
     Returns the number of jobs in each DLQ and the total count.
+    This is useful for monitoring the health of the AI pipeline
+    and identifying when processing jobs are failing.
+
+    Args:
+        redis: Redis client (injected dependency)
 
     Returns:
-        DLQStatsResponse with queue counts
+        DLQStatsResponse with queue counts for detection and analysis DLQs
     """
     handler = get_retry_handler(redis)
     stats = await handler.get_dlq_stats()
@@ -133,15 +180,97 @@ async def get_dlq_stats(
 @router.get(
     "/jobs/{queue_name}",
     response_model=DLQJobsResponse,
+    summary="List jobs in a DLQ",
+    description="""
+List failed jobs in a specific dead-letter queue with enriched error context.
+
+Returns jobs in the specified DLQ without removing them. Use pagination
+parameters to efficiently browse through large numbers of failed jobs.
+
+**Available queues:**
+- `dlq:detection_queue` - Jobs that failed during RT-DETRv2 object detection
+- `dlq:analysis_queue` - Jobs that failed during Nemotron risk analysis
+
+**Enriched error context (NEM-1474):**
+Each job includes detailed debugging information:
+- `error_type`: Exception class name (e.g., 'ConnectionRefusedError') for categorization
+- `stack_trace`: Truncated stack trace (max 4KB) for debugging
+- `http_status`: HTTP status code if the error was from a network request
+- `response_body`: Truncated AI service response (max 2KB)
+- `retry_delays`: List of delays (seconds) applied between retry attempts
+- `context`: System state snapshot at failure time (queue depths, circuit breaker states)
+
+**No authentication required** for this read-only endpoint.
+    """,
+    operation_id="get_dlq_jobs",
     responses={
-        422: {"description": "Validation error"},
-        500: {"description": "Internal server error"},
+        200: {
+            "description": "Successfully retrieved jobs from the DLQ",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "queue_name": "dlq:detection_queue",
+                        "jobs": [
+                            {
+                                "original_job": {
+                                    "camera_id": "front_door",
+                                    "file_path": "/export/foscam/front_door/image_001.jpg",
+                                    "timestamp": "2025-12-23T10:30:00.000000",
+                                },
+                                "error": "Connection refused: detector service unavailable",
+                                "attempt_count": 3,
+                                "first_failed_at": "2025-12-23T10:30:05.000000",
+                                "last_failed_at": "2025-12-23T10:30:15.000000",
+                                "queue_name": "detection_queue",
+                                "error_type": "ConnectionRefusedError",
+                                "stack_trace": "Traceback (most recent call last):\n  ...",
+                                "http_status": None,
+                                "response_body": None,
+                                "retry_delays": [1.0, 2.0],
+                                "context": {
+                                    "detection_queue_depth": 150,
+                                    "analysis_queue_depth": 25,
+                                    "dlq_circuit_breaker_state": "closed",
+                                },
+                            }
+                        ],
+                        "count": 1,
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid queue name or pagination parameters",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "type": "enum",
+                                "loc": ["path", "queue_name"],
+                                "msg": "Input should be 'dlq:detection_queue' or 'dlq:analysis_queue'",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+        500: {"description": "Internal server error - Redis connection failed"},
     },
 )
 async def get_dlq_jobs(
     queue_name: DLQName,
-    start: int = Query(0, ge=0, description="Start index (0-based)"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of jobs to return"),
+    start: int = Query(
+        0,
+        ge=0,
+        description="Start index for pagination (0-based). Use with `limit` to page through results.",
+    ),
+    limit: int = Query(
+        100,
+        ge=1,
+        le=1000,
+        description="Maximum number of jobs to return (1-1000). Default is 100.",
+    ),
     redis: RedisClient = Depends(get_redis),
 ) -> DLQJobsResponse:
     """List jobs in a specific dead-letter queue with enriched error context.
@@ -159,9 +288,9 @@ async def get_dlq_jobs(
 
     Args:
         queue_name: Name of the DLQ (detection or analysis)
-        start: Start index for pagination
-        limit: Maximum number of jobs to return
-        redis: Redis client
+        start: Start index for pagination (0-based)
+        limit: Maximum number of jobs to return (1-1000)
+        redis: Redis client (injected dependency)
 
     Returns:
         DLQJobsResponse with list of jobs including error context
@@ -198,10 +327,90 @@ async def get_dlq_jobs(
 @router.post(
     "/requeue/{queue_name}",
     response_model=DLQRequeueResponse,
+    summary="Requeue oldest job from DLQ",
+    description="""
+Requeue the oldest (first) job from a dead-letter queue back to its original processing queue.
+
+This operation:
+1. Removes the oldest job from the specified DLQ (FIFO order)
+2. Adds it back to the original processing queue for retry
+3. Returns success/failure status
+
+**Queue mapping:**
+- `dlq:detection_queue` -> `detection_queue` (RT-DETRv2 processing)
+- `dlq:analysis_queue` -> `analysis_queue` (Nemotron risk analysis)
+
+**Use cases:**
+- Retry a single job after fixing a transient issue (e.g., AI service restart)
+- Gradually reprocess failed jobs one at a time
+- Test if the processing pipeline is working before requeuing all jobs
+
+**Authentication required:** This destructive operation requires an API key when `api_key_enabled=True`.
+Provide the key via `X-API-Key` header or `api_key` query parameter.
+    """,
+    operation_id="requeue_dlq_job",
     responses={
-        401: {"description": "Unauthorized - API key required"},
-        422: {"description": "Validation error"},
-        500: {"description": "Internal server error"},
+        200: {
+            "description": "Job successfully requeued or no jobs available",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "success": {
+                            "summary": "Job requeued successfully",
+                            "value": {
+                                "success": True,
+                                "message": "Job requeued from dlq:detection_queue to detection_queue",
+                                "job": None,
+                            },
+                        },
+                        "empty_queue": {
+                            "summary": "No jobs in DLQ",
+                            "value": {
+                                "success": False,
+                                "message": "No jobs to requeue from dlq:detection_queue",
+                                "job": None,
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        401: {
+            "description": "Unauthorized - API key required or invalid",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "missing_key": {
+                            "summary": "API key not provided",
+                            "value": {
+                                "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
+                            },
+                        },
+                        "invalid_key": {
+                            "summary": "Invalid API key",
+                            "value": {"detail": "Invalid API key"},
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid queue name",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "type": "enum",
+                                "loc": ["path", "queue_name"],
+                                "msg": "Input should be 'dlq:detection_queue' or 'dlq:analysis_queue'",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+        500: {"description": "Internal server error - Redis connection failed"},
     },
 )
 async def requeue_dlq_job(
@@ -212,14 +421,16 @@ async def requeue_dlq_job(
     """Requeue the oldest job from a DLQ back to its original processing queue.
 
     Removes the oldest job from the specified DLQ and adds it back to the
-    original processing queue for retry.
+    original processing queue for retry. This is a destructive operation
+    that requires API key authentication when enabled.
 
     Args:
         queue_name: Name of the DLQ (detection or analysis)
-        redis: Redis client
+        redis: Redis client (injected dependency)
+        _auth: API key verification (injected dependency)
 
     Returns:
-        DLQRequeueResponse with operation result
+        DLQRequeueResponse with operation result (success=True if job was requeued)
     """
     handler = get_retry_handler(redis)
     target_queue = queue_name.target_queue
@@ -251,10 +462,103 @@ async def requeue_dlq_job(
 @router.post(
     "/requeue-all/{queue_name}",
     response_model=DLQRequeueResponse,
+    summary="Requeue all jobs from DLQ",
+    description="""
+Requeue all jobs from a dead-letter queue back to their original processing queue.
+
+This bulk operation:
+1. Removes all jobs from the specified DLQ
+2. Adds them back to the original processing queue for retry
+3. Returns the count of requeued jobs
+
+**Queue mapping:**
+- `dlq:detection_queue` -> `detection_queue` (RT-DETRv2 processing)
+- `dlq:analysis_queue` -> `analysis_queue` (Nemotron risk analysis)
+
+**Safety limits:**
+This operation is limited to `max_requeue_iterations` (configurable in settings)
+to prevent resource exhaustion. If the DLQ contains more jobs than the limit,
+a partial requeue will occur and the response will indicate the limit was hit.
+
+**Use cases:**
+- Bulk retry after fixing a systemic issue (e.g., AI service configuration)
+- Clear DLQ after investigating and resolving root cause
+- Recovery after a prolonged outage
+
+**Authentication required:** This destructive operation requires an API key when `api_key_enabled=True`.
+Provide the key via `X-API-Key` header or `api_key` query parameter.
+    """,
+    operation_id="requeue_all_dlq_jobs",
     responses={
-        401: {"description": "Unauthorized - API key required"},
-        422: {"description": "Validation error"},
-        500: {"description": "Internal server error"},
+        200: {
+            "description": "Jobs requeued (fully or partially) or no jobs available",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "success": {
+                            "summary": "All jobs requeued successfully",
+                            "value": {
+                                "success": True,
+                                "message": "Requeued 15 jobs from dlq:detection_queue to detection_queue",
+                                "job": None,
+                            },
+                        },
+                        "partial": {
+                            "summary": "Partial requeue (hit limit)",
+                            "value": {
+                                "success": True,
+                                "message": "Requeued 1000 jobs from dlq:detection_queue to detection_queue (hit limit of 1000)",
+                                "job": None,
+                            },
+                        },
+                        "empty_queue": {
+                            "summary": "No jobs in DLQ",
+                            "value": {
+                                "success": False,
+                                "message": "No jobs to requeue from dlq:detection_queue",
+                                "job": None,
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        401: {
+            "description": "Unauthorized - API key required or invalid",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "missing_key": {
+                            "summary": "API key not provided",
+                            "value": {
+                                "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
+                            },
+                        },
+                        "invalid_key": {
+                            "summary": "Invalid API key",
+                            "value": {"detail": "Invalid API key"},
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid queue name",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "type": "enum",
+                                "loc": ["path", "queue_name"],
+                                "msg": "Input should be 'dlq:detection_queue' or 'dlq:analysis_queue'",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+        500: {"description": "Internal server error - Redis connection failed"},
     },
 )
 async def requeue_all_dlq_jobs(
@@ -268,12 +572,16 @@ async def requeue_all_dlq_jobs(
     original processing queue for retry. Limited to settings.max_requeue_iterations
     to prevent resource exhaustion.
 
+    This is a destructive bulk operation that requires API key authentication
+    when enabled.
+
     Args:
         queue_name: Name of the DLQ (detection or analysis)
-        redis: Redis client
+        redis: Redis client (injected dependency)
+        _auth: API key verification (injected dependency)
 
     Returns:
-        DLQRequeueResponse with operation result and count
+        DLQRequeueResponse with operation result and count of requeued jobs
     """
     settings = get_settings()
     max_iterations = settings.max_requeue_iterations
@@ -329,10 +637,101 @@ async def requeue_all_dlq_jobs(
 @router.delete(
     "/{queue_name}",
     response_model=DLQClearResponse,
+    summary="Clear all jobs from DLQ",
+    description="""
+**WARNING:** Permanently delete all jobs from a dead-letter queue.
+
+This destructive operation:
+1. Counts jobs in the specified DLQ
+2. Deletes all jobs permanently (they cannot be recovered)
+3. Returns the count of deleted jobs
+
+**Available queues:**
+- `dlq:detection_queue` - Failed RT-DETRv2 object detection jobs
+- `dlq:analysis_queue` - Failed Nemotron risk analysis jobs
+
+**Use cases:**
+- Clear stale jobs that are no longer relevant (e.g., images already deleted)
+- Reset after testing or debugging
+- Clean up after resolving issues and selectively requeuing important jobs
+
+**Caution:** Unlike requeue operations, cleared jobs cannot be recovered.
+Consider using `/jobs/{queue_name}` to inspect jobs before clearing.
+
+**Authentication required:** This destructive operation requires an API key when `api_key_enabled=True`.
+Provide the key via `X-API-Key` header or `api_key` query parameter.
+    """,
+    operation_id="clear_dlq",
     responses={
-        401: {"description": "Unauthorized - API key required"},
-        422: {"description": "Validation error"},
-        500: {"description": "Internal server error"},
+        200: {
+            "description": "DLQ cleared successfully or operation failed",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "success": {
+                            "summary": "DLQ cleared successfully",
+                            "value": {
+                                "success": True,
+                                "message": "Cleared 5 jobs from dlq:detection_queue",
+                                "queue_name": "dlq:detection_queue",
+                            },
+                        },
+                        "empty_queue": {
+                            "summary": "DLQ was already empty",
+                            "value": {
+                                "success": True,
+                                "message": "Cleared 0 jobs from dlq:detection_queue",
+                                "queue_name": "dlq:detection_queue",
+                            },
+                        },
+                        "failure": {
+                            "summary": "Clear operation failed",
+                            "value": {
+                                "success": False,
+                                "message": "Failed to clear dlq:detection_queue",
+                                "queue_name": "dlq:detection_queue",
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        401: {
+            "description": "Unauthorized - API key required or invalid",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "missing_key": {
+                            "summary": "API key not provided",
+                            "value": {
+                                "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
+                            },
+                        },
+                        "invalid_key": {
+                            "summary": "Invalid API key",
+                            "value": {"detail": "Invalid API key"},
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid queue name",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "type": "enum",
+                                "loc": ["path", "queue_name"],
+                                "msg": "Input should be 'dlq:detection_queue' or 'dlq:analysis_queue'",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+        500: {"description": "Internal server error - Redis connection failed"},
     },
 )
 async def clear_dlq(
@@ -343,14 +742,18 @@ async def clear_dlq(
     """Clear all jobs from a dead-letter queue.
 
     WARNING: This permanently removes all jobs from the specified DLQ.
-    Use with caution.
+    Jobs cannot be recovered after this operation. Use with caution.
+
+    This is a destructive operation that requires API key authentication
+    when enabled.
 
     Args:
         queue_name: Name of the DLQ to clear
-        redis: Redis client
+        redis: Redis client (injected dependency)
+        _auth: API key verification (injected dependency)
 
     Returns:
-        DLQClearResponse with operation result
+        DLQClearResponse with operation result and count of deleted jobs
     """
     handler = get_retry_handler(redis)
 

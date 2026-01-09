@@ -160,7 +160,62 @@ def _audit_to_response(audit: EventAudit) -> EventAuditResponse:
 @router.get(
     "/events/{event_id}",
     response_model=EventAuditResponse,
+    summary="Get event audit details",
+    description="""Retrieve the AI pipeline audit record for a specific event.
+
+Returns comprehensive audit information including:
+- **Model contributions**: Which AI models (RT-DETR, Florence, CLIP, etc.) contributed to the analysis
+- **Quality scores**: Self-evaluation rubric scores (context usage, reasoning coherence, risk justification)
+- **Prompt improvements**: Suggestions for improving the AI prompt template
+- **Consistency metrics**: Cross-validation of risk scores""",
     responses={
+        200: {
+            "description": "Audit details retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "event_id": 42,
+                        "audited_at": "2026-01-03T10:30:00Z",
+                        "is_fully_evaluated": True,
+                        "contributions": {
+                            "rtdetr": True,
+                            "florence": True,
+                            "clip": False,
+                            "violence": False,
+                            "clothing": True,
+                            "vehicle": False,
+                            "pet": False,
+                            "weather": True,
+                            "image_quality": True,
+                            "zones": True,
+                            "baseline": False,
+                            "cross_camera": False,
+                        },
+                        "prompt_length": 2500,
+                        "prompt_token_estimate": 625,
+                        "enrichment_utilization": 0.85,
+                        "scores": {
+                            "context_usage": 4.2,
+                            "reasoning_coherence": 4.5,
+                            "risk_justification": 4.0,
+                            "consistency": 4.3,
+                            "overall": 4.25,
+                        },
+                        "consistency_risk_score": 72,
+                        "consistency_diff": 3,
+                        "self_eval_critique": "Good context usage but could include more temporal patterns.",
+                        "improvements": {
+                            "missing_context": ["time since last event"],
+                            "confusing_sections": [],
+                            "unused_data": ["weather data not referenced"],
+                            "format_suggestions": [],
+                            "model_gaps": [],
+                        },
+                    }
+                }
+            },
+        },
         404: {"description": "Event or audit not found"},
         500: {"description": "Internal server error"},
     },
@@ -196,7 +251,37 @@ async def get_event_audit(
 @router.post(
     "/events/{event_id}/evaluate",
     response_model=EventAuditResponse,
+    summary="Trigger event audit evaluation",
+    description="""Run the complete AI self-evaluation pipeline for an event's audit.
+
+This endpoint triggers a comprehensive evaluation including:
+1. **Self-critique**: LLM reviews its own reasoning for blind spots
+2. **Rubric scoring**: Quality assessment on 1-5 scale across multiple dimensions
+3. **Consistency check**: Re-runs risk analysis to verify score stability
+4. **Prompt improvement**: Generates suggestions for better prompts
+
+Use `force=true` to re-evaluate events that have already been fully evaluated.""",
     responses={
+        200: {
+            "description": "Evaluation completed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "event_id": 42,
+                        "audited_at": "2026-01-03T10:30:00Z",
+                        "is_fully_evaluated": True,
+                        "contributions": {"rtdetr": True, "florence": True, "clip": False},
+                        "prompt_length": 2500,
+                        "prompt_token_estimate": 625,
+                        "enrichment_utilization": 0.85,
+                        "scores": {"overall": 4.25},
+                        "consistency_risk_score": 72,
+                        "consistency_diff": 3,
+                    }
+                }
+            },
+        },
         404: {"description": "Event or audit not found"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -259,7 +344,45 @@ async def evaluate_event(
 @router.get(
     "/stats",
     response_model=AuditStatsResponse,
+    summary="Get aggregate audit statistics",
+    description="""Retrieve aggregate AI audit statistics over a specified time period.
+
+Returns comprehensive metrics including:
+- **Event counts**: Total, audited, and fully evaluated events
+- **Quality metrics**: Average quality scores and consistency rates
+- **Model performance**: Contribution rates for each AI model
+- **Trends**: Daily audit counts for visualization
+
+Useful for monitoring AI pipeline health and identifying optimization opportunities.""",
     responses={
+        200: {
+            "description": "Statistics retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_events": 1250,
+                        "audited_events": 1200,
+                        "fully_evaluated_events": 950,
+                        "avg_quality_score": 4.2,
+                        "avg_consistency_rate": 0.92,
+                        "avg_enrichment_utilization": 0.78,
+                        "model_contribution_rates": {
+                            "rtdetr": 0.98,
+                            "florence": 0.85,
+                            "clip": 0.45,
+                            "clothing": 0.62,
+                            "weather": 0.73,
+                            "zones": 0.88,
+                        },
+                        "audits_by_day": [
+                            {"date": "2026-01-01", "count": 180},
+                            {"date": "2026-01-02", "count": 195},
+                            {"date": "2026-01-03", "count": 210},
+                        ],
+                    }
+                }
+            },
+        },
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -300,7 +423,46 @@ async def get_audit_stats(
 @router.get(
     "/leaderboard",
     response_model=LeaderboardResponse,
+    summary="Get AI model leaderboard",
+    description="""Retrieve a ranked leaderboard of AI models by their contribution rate.
+
+The leaderboard shows:
+- **Contribution rate**: How often each model contributes to event analysis (0-1)
+- **Quality correlation**: How model contribution correlates with quality scores
+- **Event count**: Number of events where the model contributed
+
+Helps identify which models are most valuable to the pipeline.""",
     responses={
+        200: {
+            "description": "Leaderboard retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "entries": [
+                            {
+                                "model_name": "rtdetr",
+                                "contribution_rate": 0.98,
+                                "quality_correlation": 0.85,
+                                "event_count": 1180,
+                            },
+                            {
+                                "model_name": "zones",
+                                "contribution_rate": 0.88,
+                                "quality_correlation": 0.72,
+                                "event_count": 1056,
+                            },
+                            {
+                                "model_name": "florence",
+                                "contribution_rate": 0.85,
+                                "quality_correlation": 0.68,
+                                "event_count": 1020,
+                            },
+                        ],
+                        "period_days": 7,
+                    }
+                }
+            },
+        },
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -341,7 +503,47 @@ async def get_model_leaderboard(
 @router.get(
     "/recommendations",
     response_model=RecommendationsResponse,
+    summary="Get prompt improvement recommendations",
+    description="""Get aggregated, prioritized recommendations for improving AI prompts.
+
+Analyzes self-evaluation data from recent audits to identify:
+- **Missing context**: Information the LLM wishes it had
+- **Unused data**: Enrichments provided but not utilized
+- **Model gaps**: Missing model contributions that could help
+- **Format suggestions**: Ways to improve prompt structure
+
+Recommendations are prioritized by frequency and impact.""",
     responses={
+        200: {
+            "description": "Recommendations retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "recommendations": [
+                            {
+                                "category": "missing_context",
+                                "suggestion": "Time since last detected motion or event",
+                                "frequency": 45,
+                                "priority": "high",
+                            },
+                            {
+                                "category": "unused_data",
+                                "suggestion": "Weather data rarely referenced in analysis",
+                                "frequency": 28,
+                                "priority": "medium",
+                            },
+                            {
+                                "category": "model_gaps",
+                                "suggestion": "Vehicle classification could help with driveway events",
+                                "frequency": 15,
+                                "priority": "low",
+                            },
+                        ],
+                        "total_events_analyzed": 950,
+                    }
+                }
+            },
+        },
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -385,7 +587,28 @@ async def get_recommendations(
 @router.post(
     "/batch",
     response_model=BatchAuditResponse,
+    summary="Trigger batch audit processing",
+    description="""Queue multiple events for audit evaluation based on filtering criteria.
+
+Use this endpoint to:
+- Backfill audits for events that haven't been evaluated
+- Re-evaluate events with updated self-evaluation logic
+- Process high-risk events for deeper analysis
+
+Events are processed synchronously in this implementation.
+Use `force_reevaluate=true` to re-process already-evaluated events.""",
     responses={
+        200: {
+            "description": "Batch processing completed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "queued_count": 25,
+                        "message": "Successfully processed 25 events for audit evaluation",
+                    }
+                }
+            },
+        },
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -489,7 +712,47 @@ def _validate_model_name(model: str) -> None:
 @router.get(
     "/prompts",
     response_model=AllPromptsResponse,
+    summary="Get all prompt configurations",
+    description="""Retrieve current prompt configurations for all supported AI models.
+
+Returns configurations for:
+- **nemotron**: LLM risk analysis system prompt and parameters
+- **florence2**: Visual question-answering queries
+- **yolo_world**: Object detection classes and thresholds
+- **xclip**: Action recognition classes
+- **fashion_clip**: Clothing analysis categories
+
+Each model configuration includes version number and last update timestamp.""",
     responses={
+        200: {
+            "description": "All configurations retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "prompts": {
+                            "nemotron": {
+                                "model_name": "nemotron",
+                                "config": {
+                                    "system_prompt": "You are a security analyst...",
+                                    "temperature": 0.7,
+                                    "max_tokens": 2048,
+                                },
+                                "version": 5,
+                                "updated_at": "2026-01-03T10:30:00Z",
+                            },
+                            "florence2": {
+                                "model_name": "florence2",
+                                "config": {
+                                    "vqa_queries": ["What is happening?", "Who is present?"]
+                                },
+                                "version": 3,
+                                "updated_at": "2026-01-02T14:00:00Z",
+                            },
+                        }
+                    }
+                }
+            },
+        },
         500: {"description": "Internal server error"},
     },
 )
@@ -524,7 +787,42 @@ async def get_all_prompts() -> AllPromptsResponse:
 @router.post(
     "/test-prompt",
     response_model=CustomTestPromptResponse,
+    summary="Test custom prompt (A/B testing)",
+    description="""Test a custom prompt against an existing event without persisting results.
+
+This endpoint is designed for the Prompt Playground A/B testing feature:
+1. Fetches the specified event with its detections
+2. Builds context from the event data
+3. Runs inference with the custom prompt
+4. Returns analysis results WITHOUT saving to database
+
+**Use cases:**
+- Experiment with prompt variations before committing
+- Compare different prompt styles side-by-side
+- Test temperature and max_tokens settings
+
+**Limits:**
+- Maximum prompt length: 50,000 characters
+- Timeout: 60 seconds""",
     responses={
+        200: {
+            "description": "Prompt test completed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "risk_score": 45,
+                        "risk_level": "medium",
+                        "reasoning": "Person detected approaching front door during normal hours. No suspicious behavior observed.",
+                        "summary": "Routine visitor activity at front entrance.",
+                        "entities": [{"type": "person", "confidence": 0.92}],
+                        "flags": [],
+                        "recommended_action": "Review - Check event details when convenient",
+                        "processing_time_ms": 1250,
+                        "tokens_used": 825,
+                    }
+                }
+            },
+        },
         400: {"description": "Bad request - Invalid or too long prompt"},
         404: {"description": "Event not found"},
         408: {"description": "Request timeout"},
@@ -656,7 +954,40 @@ def _get_recommended_action(risk_level: str) -> str:
 @router.post(
     "/prompts/test",
     response_model=PromptTestResponse,
+    summary="Test prompt configuration change",
+    description="""Compare before/after results when modifying a model's prompt configuration.
+
+This endpoint runs inference twice:
+1. With the **current** (saved) configuration
+2. With the **modified** (proposed) configuration
+
+Returns a side-by-side comparison to help evaluate whether the change improves results.
+
+**Supported models:** nemotron, florence2, yolo_world, xclip, fashion_clip
+
+Note: Currently returns mock results for demonstration purposes.""",
     responses={
+        200: {
+            "description": "Test completed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "before": {
+                            "score": 65,
+                            "risk_level": "medium",
+                            "summary": "Person detected at front door",
+                        },
+                        "after": {
+                            "score": 45,
+                            "risk_level": "medium",
+                            "summary": "Delivery person at front door during business hours",
+                        },
+                        "improved": True,
+                        "inference_time_ms": 2150,
+                    }
+                }
+            },
+        },
         400: {"description": "Bad request - Invalid configuration"},
         404: {"description": "Model or event not found"},
         422: {"description": "Validation error"},
@@ -724,7 +1055,46 @@ async def test_prompt(
 @router.get(
     "/prompts/history",
     response_model=dict[str, PromptHistoryResponse],
+    summary="Get version history for all models",
+    description="""Retrieve prompt configuration version history for all AI models.
+
+Returns the most recent versions for each supported model, ordered by version
+number descending (newest first).
+
+Useful for:
+- Viewing recent changes across all models
+- Comparing configurations over time
+- Finding versions to restore""",
     responses={
+        200: {
+            "description": "History retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "nemotron": {
+                            "model_name": "nemotron",
+                            "versions": [
+                                {
+                                    "version": 5,
+                                    "config": {"system_prompt": "...", "temperature": 0.7},
+                                    "created_at": "2026-01-03T10:30:00Z",
+                                    "created_by": "user",
+                                    "description": "Added temporal context",
+                                },
+                                {
+                                    "version": 4,
+                                    "config": {"system_prompt": "...", "temperature": 0.8},
+                                    "created_at": "2026-01-02T14:00:00Z",
+                                    "created_by": "user",
+                                    "description": None,
+                                },
+                            ],
+                            "total_versions": 5,
+                        }
+                    }
+                }
+            },
+        },
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -770,7 +1140,40 @@ async def get_all_prompts_history(
 @router.get(
     "/prompts/export",
     response_model=PromptExportResponse,
+    summary="Export all prompt configurations",
+    description="""Export all AI model configurations as a JSON bundle.
+
+The export includes:
+- All current model configurations
+- Export timestamp
+- Format version for compatibility checking
+
+**Use cases:**
+- Backup configurations before major changes
+- Transfer configurations between environments
+- Version control of prompt templates""",
     responses={
+        200: {
+            "description": "Export generated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "exported_at": "2026-01-03T10:30:00Z",
+                        "version": "1.0",
+                        "prompts": {
+                            "nemotron": {
+                                "system_prompt": "You are a security analyst...",
+                                "temperature": 0.7,
+                                "max_tokens": 2048,
+                            },
+                            "florence2": {
+                                "vqa_queries": ["What is happening?", "Who is present?"],
+                            },
+                        },
+                    }
+                }
+            },
+        },
         500: {"description": "Internal server error"},
     },
 )
@@ -796,7 +1199,34 @@ async def export_prompts() -> PromptExportResponse:
 @router.post(
     "/prompts/import",
     response_model=PromptImportResponse,
+    summary="Import prompt configurations",
+    description="""Import AI model configurations from a JSON bundle.
+
+Imports configurations for multiple models at once.
+
+**Behavior:**
+- By default, existing configurations are NOT overwritten (skipped)
+- Set `overwrite=true` to replace existing configurations
+- Invalid configurations are reported in the `errors` array
+- Unsupported model names are skipped with an error
+
+**Validation:**
+- Each configuration is validated against the model's schema
+- Import fails for a model if validation errors are found and overwrite=true""",
     responses={
+        200: {
+            "description": "Import completed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "imported_count": 3,
+                        "skipped_count": 2,
+                        "errors": [],
+                        "message": "Imported 3 model(s), skipped 2 (already exist)",
+                    }
+                }
+            },
+        },
         400: {"description": "Bad request - No prompts provided"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -882,7 +1312,33 @@ async def import_prompts(request: PromptImportRequest) -> PromptImportResponse:
 @router.get(
     "/prompts/{model}",
     response_model=ModelPromptResponse,
+    summary="Get model prompt configuration",
+    description="""Get the current prompt configuration for a specific AI model.
+
+**Supported models:**
+- `nemotron`: LLM risk analysis (system_prompt, temperature, max_tokens)
+- `florence2`: Visual QA (vqa_queries)
+- `yolo_world`: Object detection (object_classes, confidence_threshold)
+- `xclip`: Action recognition (action_classes)
+- `fashion_clip`: Clothing analysis (clothing_categories, suspicious_indicators)""",
     responses={
+        200: {
+            "description": "Configuration retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model_name": "nemotron",
+                        "config": {
+                            "system_prompt": "You are a security analyst reviewing camera footage...",
+                            "temperature": 0.7,
+                            "max_tokens": 2048,
+                        },
+                        "version": 5,
+                        "updated_at": "2026-01-03T10:30:00Z",
+                    }
+                }
+            },
+        },
         404: {"description": "Model not found"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -916,7 +1372,36 @@ async def get_model_prompt(model: str) -> ModelPromptResponse:
 @router.put(
     "/prompts/{model}",
     response_model=PromptUpdateResponse,
+    summary="Update model prompt configuration",
+    description="""Update the prompt configuration for a specific AI model.
+
+Creates a new version of the configuration while preserving the previous
+version in history. Each update increments the version number.
+
+**Validation:**
+- Configuration must match the model's expected schema
+- Nemotron requires: system_prompt, temperature, max_tokens
+- Other models have model-specific required fields
+
+**Optional:** Include a `description` to document what changed.""",
     responses={
+        200: {
+            "description": "Configuration updated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model_name": "nemotron",
+                        "version": 6,
+                        "message": "Configuration updated to version 6",
+                        "config": {
+                            "system_prompt": "You are a security analyst...",
+                            "temperature": 0.7,
+                            "max_tokens": 2048,
+                        },
+                    }
+                }
+            },
+        },
         400: {"description": "Bad request - Invalid configuration"},
         404: {"description": "Model not found"},
         422: {"description": "Validation error"},
@@ -973,7 +1458,39 @@ async def update_model_prompt(
 @router.get(
     "/prompts/history/{model}",
     response_model=PromptHistoryResponse,
+    summary="Get model version history",
+    description="""Get the version history for a specific AI model's prompt configuration.
+
+Returns all versions ordered by version number descending (newest first),
+with pagination support.
+
+Each version entry includes:
+- Version number
+- Full configuration at that version
+- Creation timestamp
+- Who created it (user/system/import)
+- Optional description of changes""",
     responses={
+        200: {
+            "description": "History retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model_name": "nemotron",
+                        "versions": [
+                            {
+                                "version": 5,
+                                "config": {"system_prompt": "...", "temperature": 0.7},
+                                "created_at": "2026-01-03T10:30:00Z",
+                                "created_by": "user",
+                                "description": "Added temporal context guidance",
+                            }
+                        ],
+                        "total_versions": 5,
+                    }
+                }
+            },
+        },
         404: {"description": "Model not found"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -1025,7 +1542,32 @@ async def get_model_history(
 @router.post(
     "/prompts/history/{version}",
     response_model=PromptRestoreResponse,
+    summary="Restore prompt version",
+    description="""Restore a previous version of a model's prompt configuration.
+
+This operation:
+1. Retrieves the configuration from the specified version
+2. Creates a **new** version with that configuration
+3. Records the restore action in history
+
+The restored configuration becomes the current active configuration.
+Original versions are preserved - this creates a new version, not a rollback.
+
+**Note:** Requires the `model` query parameter to specify which model to restore.""",
     responses={
+        200: {
+            "description": "Version restored successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model_name": "nemotron",
+                        "restored_version": 3,
+                        "new_version": 6,
+                        "message": "Restored version 3 as new version 6",
+                    }
+                }
+            },
+        },
         404: {"description": "Model or version not found"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -1107,7 +1649,38 @@ def _validate_db_model_name(model: str) -> None:
         )
 
 
-@router.get("/prompt-config/{model}", response_model=PromptConfigResponse)
+@router.get(
+    "/prompt-config/{model}",
+    response_model=PromptConfigResponse,
+    summary="Get database-backed prompt config",
+    description="""Get the prompt configuration stored in the database for a model.
+
+This endpoint is used by the Prompt Playground "Save" functionality.
+
+**Supported models:** nemotron, florence-2, yolo-world, x-clip, fashion-clip
+
+Note: Model names use hyphens (florence-2) unlike the file-based endpoints
+which use underscores (florence2).""",
+    responses={
+        200: {
+            "description": "Configuration retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model": "nemotron",
+                        "systemPrompt": "You are a security analyst reviewing camera footage...",
+                        "temperature": 0.7,
+                        "maxTokens": 2048,
+                        "version": 3,
+                        "updatedAt": "2026-01-03T10:30:00Z",
+                    }
+                }
+            },
+        },
+        404: {"description": "Model not found or no configuration exists"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_prompt_config(
     model: str,
     db: AsyncSession = Depends(get_db),
@@ -1148,7 +1721,45 @@ async def get_prompt_config(
     )
 
 
-@router.put("/prompt-config/{model}", response_model=PromptConfigResponse)
+@router.put(
+    "/prompt-config/{model}",
+    response_model=PromptConfigResponse,
+    summary="Update database-backed prompt config",
+    description="""Create or update the prompt configuration in the database.
+
+This endpoint is used by the Prompt Playground "Save" functionality.
+
+**Behavior:**
+- If no configuration exists: creates a new one at version 1
+- If configuration exists: updates it and increments version
+
+**Supported models:** nemotron, florence-2, yolo-world, x-clip, fashion-clip
+
+**Request body:**
+- `systemPrompt`: Full system prompt text (required)
+- `temperature`: LLM temperature 0.0-2.0 (default 0.7)
+- `maxTokens`: Max response tokens 100-8192 (default 2048)""",
+    responses={
+        200: {
+            "description": "Configuration updated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model": "nemotron",
+                        "systemPrompt": "You are a security analyst...",
+                        "temperature": 0.7,
+                        "maxTokens": 2048,
+                        "version": 4,
+                        "updatedAt": "2026-01-03T10:35:00Z",
+                    }
+                }
+            },
+        },
+        404: {"description": "Model not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_prompt_config(
     model: str,
     request: PromptConfigRequest,

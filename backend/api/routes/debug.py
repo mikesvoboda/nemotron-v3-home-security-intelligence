@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.api.schemas.system import QueueDepths
@@ -73,104 +73,320 @@ def require_debug_mode() -> None:
 
 
 class PipelineWorkerStatus(BaseModel):
-    """Status of a pipeline worker."""
+    """Status of a pipeline worker.
 
-    name: str = Field(description="Worker name")
-    running: bool = Field(description="Whether worker is currently running")
-    last_activity: str | None = Field(default=None, description="ISO timestamp of last activity")
-    error_count: int = Field(default=0, description="Number of recent errors")
+    Tracks the health and activity of individual pipeline workers including
+    file watcher, detector, and analyzer components.
+    """
+
+    name: str = Field(
+        ...,
+        description="Worker name (file_watcher, detector, or analyzer)",
+        json_schema_extra={"example": "file_watcher"},
+    )
+    running: bool = Field(
+        ...,
+        description="Whether worker is currently running based on heartbeat presence",
+    )
+    last_activity: str | None = Field(
+        default=None,
+        description="ISO timestamp of last heartbeat activity (null if never active)",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
+    error_count: int = Field(
+        default=0,
+        description="Number of recent errors tracked in Redis",
+        ge=0,
+    )
 
 
 class PipelineWorkersStatus(BaseModel):
-    """Status of all pipeline workers."""
+    """Status of all pipeline workers.
 
-    file_watcher: PipelineWorkerStatus = Field(description="File watcher status")
-    detector: PipelineWorkerStatus = Field(description="Detector worker status")
-    analyzer: PipelineWorkerStatus = Field(description="Analyzer worker status")
+    Groups status information for the three main pipeline components:
+    - file_watcher: Monitors camera directories for new image uploads
+    - detector: Runs RT-DETRv2 object detection on queued images
+    - analyzer: Runs Nemotron LLM analysis on detection batches
+    """
+
+    file_watcher: PipelineWorkerStatus = Field(
+        ...,
+        description="File watcher worker status - monitors /export/foscam for new images",
+    )
+    detector: PipelineWorkerStatus = Field(
+        ...,
+        description="Detector worker status - RT-DETRv2 object detection",
+    )
+    analyzer: PipelineWorkerStatus = Field(
+        ...,
+        description="Analyzer worker status - Nemotron LLM risk analysis",
+    )
 
 
 class RecentError(BaseModel):
-    """Recent error information."""
+    """Recent error information.
 
-    timestamp: str = Field(description="ISO timestamp of error")
-    error_type: str = Field(description="Type of error")
-    component: str = Field(description="Component that generated error")
-    message: str | None = Field(default=None, description="Error message")
+    Captures details about errors that occurred in the AI pipeline,
+    useful for debugging intermittent issues and identifying patterns.
+    """
+
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when the error occurred",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
+    error_type: str = Field(
+        ...,
+        description="Type/class of the error (e.g., TimeoutError, ConnectionError)",
+        json_schema_extra={"example": "TimeoutError"},
+    )
+    component: str = Field(
+        ...,
+        description="Pipeline component that generated the error",
+        json_schema_extra={"example": "detector"},
+    )
+    message: str | None = Field(
+        default=None,
+        description="Human-readable error message with details",
+        json_schema_extra={"example": "RT-DETR inference timed out after 30s"},
+    )
 
 
 class PipelineStateResponse(BaseModel):
-    """Response for pipeline state inspection."""
+    """Response for pipeline state inspection.
 
-    queue_depths: QueueDepths = Field(description="Current queue depths")
-    workers: PipelineWorkersStatus = Field(description="Worker status")
-    recent_errors: list[RecentError] = Field(
-        default_factory=list, description="Recent errors (last 10)"
+    Provides a comprehensive snapshot of the AI processing pipeline state,
+    including queue depths, worker health, and recent errors. Useful for
+    debugging pipeline stalls, identifying bottlenecks, and monitoring
+    system health during development.
+    """
+
+    queue_depths: QueueDepths = Field(
+        ...,
+        description="Current queue depths for detection and analysis queues",
     )
-    timestamp: str = Field(description="ISO timestamp of response")
-    correlation_id: str | None = Field(default=None, description="Correlation ID from request")
+    workers: PipelineWorkersStatus = Field(
+        ...,
+        description="Status of all pipeline workers (file_watcher, detector, analyzer)",
+    )
+    recent_errors: list[RecentError] = Field(
+        default_factory=list,
+        description="Recent errors from the last 10 pipeline failures (placeholder)",
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when the snapshot was taken",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
+    correlation_id: str | None = Field(
+        default=None,
+        description="Correlation ID echoed from X-Correlation-ID header for request tracing",
+        json_schema_extra={"example": "req-abc123-def456"},
+    )
 
 
 class LogLevelRequest(BaseModel):
-    """Request to change log level."""
+    """Request to change log level at runtime.
 
-    level: str = Field(description="New log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+    Allows temporarily adjusting the application log level without restarting.
+    Useful for enabling DEBUG logging to investigate issues in production.
+    """
+
+    level: str = Field(
+        ...,
+        description="New log level to set (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        json_schema_extra={"example": "DEBUG"},
+    )
 
 
 class LogLevelResponse(BaseModel):
-    """Response for log level operations."""
+    """Response for log level operations.
 
-    level: str = Field(description="Current log level")
-    previous_level: str | None = Field(default=None, description="Previous log level (on change)")
-    timestamp: str = Field(description="ISO timestamp of response")
+    Returns the current log level and, when changing the level,
+    the previous level for auditing purposes.
+    """
+
+    level: str = Field(
+        ...,
+        description="Current log level after the operation",
+        json_schema_extra={"example": "DEBUG"},
+    )
+    previous_level: str | None = Field(
+        default=None,
+        description="Previous log level before change (only set on POST requests)",
+        json_schema_extra={"example": "INFO"},
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when the operation completed",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
 
 
 class DebugConfigResponse(BaseModel):
-    """Response for configuration inspection."""
+    """Response for configuration inspection.
+
+    Returns all application configuration settings with sensitive values
+    (passwords, API keys, secrets) automatically redacted. URLs containing
+    credentials have only the password portion redacted, preserving structure.
+    """
 
     config: dict[str, Any] = Field(
-        description="Current configuration with sensitive values redacted"
+        ...,
+        description="Current configuration dict with sensitive values showing [REDACTED]",
+        json_schema_extra={
+            "example": {
+                "app_name": "Home Security Intelligence",
+                "debug": True,
+                "database_url": "postgresql+asyncpg://user:[REDACTED]@localhost:5432/db",
+                "redis_url": "redis://localhost:6379/0",
+                "retention_days": 30,
+            }
+        },
     )
-    timestamp: str = Field(description="ISO timestamp of response")
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when configuration was retrieved",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
 
 
 class RedisInfoResponse(BaseModel):
-    """Response for Redis connection stats."""
+    """Response for Redis connection stats.
 
-    status: str = Field(description="Redis connection status (connected, unavailable)")
-    info: dict[str, Any] | None = Field(default=None, description="Redis INFO command output")
-    pubsub: dict[str, Any] | None = Field(default=None, description="Pub/sub channel information")
-    timestamp: str = Field(description="ISO timestamp of response")
+    Provides Redis server diagnostics including memory usage, connection counts,
+    uptime, and active pub/sub channels with subscriber counts.
+    """
+
+    status: str = Field(
+        ...,
+        description="Redis connection status: 'connected', 'unavailable', or 'error'",
+        json_schema_extra={"example": "connected"},
+    )
+    info: dict[str, Any] | None = Field(
+        default=None,
+        description="Redis INFO command output with version, memory, connections, uptime",
+        json_schema_extra={
+            "example": {
+                "redis_version": "7.0.0",
+                "connected_clients": 5,
+                "used_memory_human": "2.5M",
+                "used_memory_peak_human": "3.1M",
+                "total_connections_received": 150,
+                "total_commands_processed": 12500,
+                "uptime_in_seconds": 86400,
+            }
+        },
+    )
+    pubsub: dict[str, Any] | None = Field(
+        default=None,
+        description="Active pub/sub channels and their subscriber counts",
+        json_schema_extra={
+            "example": {
+                "channels": ["events", "system"],
+                "subscriber_counts": {"events": 3, "system": 2},
+            }
+        },
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when Redis info was retrieved",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
 
 
 class DebugWebSocketBroadcasterStatus(BaseModel):
-    """Status of a WebSocket broadcaster."""
+    """Status of a WebSocket broadcaster.
 
-    connection_count: int = Field(description="Number of active connections")
-    is_listening: bool = Field(description="Whether the broadcaster is listening for events")
-    is_degraded: bool = Field(description="Whether the broadcaster is in degraded mode")
-    circuit_state: str = Field(description="Circuit breaker state (CLOSED, OPEN, HALF_OPEN)")
-    channel_name: str | None = Field(default=None, description="Redis channel being listened to")
+    Tracks the health of WebSocket broadcasters including connection counts,
+    circuit breaker state, and degradation mode for resilient real-time updates.
+    """
+
+    connection_count: int = Field(
+        ...,
+        description="Number of active WebSocket client connections",
+        ge=0,
+        json_schema_extra={"example": 3},
+    )
+    is_listening: bool = Field(
+        ...,
+        description="Whether the broadcaster is actively listening for Redis pub/sub events",
+    )
+    is_degraded: bool = Field(
+        ...,
+        description="Whether the broadcaster has fallen back to degraded mode due to errors",
+    )
+    circuit_state: str = Field(
+        ...,
+        description="Circuit breaker state: CLOSED (normal), OPEN (failing), HALF_OPEN (testing), UNKNOWN",
+        json_schema_extra={"example": "CLOSED"},
+    )
+    channel_name: str | None = Field(
+        default=None,
+        description="Redis pub/sub channel being monitored (null for system broadcaster)",
+        json_schema_extra={"example": "events"},
+    )
 
 
 class WebSocketConnectionsResponse(BaseModel):
-    """Response for WebSocket connection states."""
+    """Response for WebSocket connection states.
+
+    Provides status information for both WebSocket broadcasters:
+    - event_broadcaster: Streams security events to connected dashboards
+    - system_broadcaster: Streams system status updates (GPU, health, etc.)
+    """
 
     event_broadcaster: DebugWebSocketBroadcasterStatus = Field(
-        description="Event broadcaster status"
+        ...,
+        description="Event broadcaster status - handles security event streaming",
     )
     system_broadcaster: DebugWebSocketBroadcasterStatus = Field(
-        description="System broadcaster status"
+        ...,
+        description="System broadcaster status - handles system metrics streaming",
     )
-    timestamp: str = Field(description="ISO timestamp of response")
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when WebSocket status was retrieved",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
 
 
 class DebugCircuitBreakersResponse(BaseModel):
-    """Response for circuit breaker states."""
+    """Response for circuit breaker states.
+
+    Returns status information for all registered circuit breakers in the system,
+    including AI services, WebSocket broadcasters, and external service clients.
+    Circuit breakers prevent cascading failures by temporarily stopping calls
+    to failing services.
+    """
 
     circuit_breakers: dict[str, dict[str, Any]] = Field(
-        description="All circuit breaker states keyed by name"
+        ...,
+        description="All circuit breaker states keyed by name with state, failure_count, config",
+        json_schema_extra={
+            "example": {
+                "rtdetr": {
+                    "state": "CLOSED",
+                    "failure_count": 0,
+                    "success_count": 0,
+                    "total_calls": 150,
+                    "rejected_calls": 0,
+                },
+                "nemotron": {
+                    "state": "CLOSED",
+                    "failure_count": 0,
+                    "success_count": 0,
+                    "total_calls": 50,
+                    "rejected_calls": 0,
+                },
+            }
+        },
     )
-    timestamp: str = Field(description="ISO timestamp of response")
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when circuit breaker status was retrieved",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
 
 
 # =============================================================================
@@ -669,29 +885,86 @@ async def set_log_level(
 
 
 class ProfileStartResponse(BaseModel):
-    """Response for starting profiling."""
+    """Response for starting profiling.
 
-    status: str = Field(description="Profiling status ('started' or 'already_running')")
-    started_at: str = Field(description="ISO timestamp when profiling started")
-    message: str = Field(description="Human-readable status message")
+    Indicates whether profiling was successfully started or was already running.
+    Use with snakeviz or py-spy to analyze the generated .prof files.
+    """
+
+    status: str = Field(
+        ...,
+        description="Profiling status: 'started' (newly started) or 'already_running'",
+        json_schema_extra={"example": "started"},
+    )
+    started_at: str = Field(
+        ...,
+        description="ISO timestamp when profiling started (may be earlier if already running)",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable status message",
+        json_schema_extra={"example": "Profiling started successfully"},
+    )
 
 
 class ProfileStopResponse(BaseModel):
-    """Response for stopping profiling."""
+    """Response for stopping profiling.
 
-    status: str = Field(description="Profiling status ('stopped' or 'not_running')")
-    profile_path: str | None = Field(default=None, description="Path to saved profile file")
-    stopped_at: str = Field(description="ISO timestamp when profiling stopped")
-    message: str = Field(description="Human-readable status message")
+    Stops the profiler and saves the profile data to a .prof file.
+    The file path is returned for subsequent analysis with tools like
+    snakeviz (web UI) or py-spy (flame graphs).
+    """
+
+    status: str = Field(
+        ...,
+        description="Profiling status: 'stopped' (was running) or 'not_running'",
+        json_schema_extra={"example": "stopped"},
+    )
+    profile_path: str | None = Field(
+        default=None,
+        description="Absolute path to the saved .prof file (null if profiling wasn't running)",
+        json_schema_extra={"example": "/app/data/profiles/profile_20251230_103000.prof"},
+    )
+    stopped_at: str = Field(
+        ...,
+        description="ISO timestamp when profiling was stopped",
+        json_schema_extra={"example": "2025-12-30T10:35:00Z"},
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable status message with file path if saved",
+        json_schema_extra={
+            "example": "Profiling stopped. Profile saved to: /app/data/profiles/profile.prof"
+        },
+    )
 
 
 class ProfileStatsResponse(BaseModel):
-    """Response for profiling statistics."""
+    """Response for profiling statistics.
 
-    is_profiling: bool = Field(description="Whether profiling is currently active")
-    stats_text: str | None = Field(default=None, description="Human-readable profiling statistics")
-    last_profile_path: str | None = Field(default=None, description="Path to last saved profile")
-    timestamp: str = Field(description="ISO timestamp of response")
+    Returns the current profiling state and, if profiling has completed,
+    a human-readable summary of the profiling statistics from the last session.
+    """
+
+    is_profiling: bool = Field(
+        ...,
+        description="Whether profiling is currently active and collecting data",
+    )
+    stats_text: str | None = Field(
+        default=None,
+        description="Human-readable profiling statistics from last completed session (null if profiling active or never run)",
+    )
+    last_profile_path: str | None = Field(
+        default=None,
+        description="Path to the most recently saved .prof file",
+        json_schema_extra={"example": "/app/data/profiles/profile_20251230_103000.prof"},
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when statistics were retrieved",
+        json_schema_extra={"example": "2025-12-30T10:35:00Z"},
+    )
 
 
 @router.post(
@@ -846,39 +1119,145 @@ def _safe_recording_path(recording_id: str, base_dir: str = RECORDINGS_DIR) -> P
 
 
 class RecordingResponse(BaseModel):
-    """Response for a single recording."""
+    """Response for a single recording.
 
-    recording_id: str = Field(description="Unique recording ID")
-    timestamp: str = Field(description="ISO timestamp when recorded")
-    method: str = Field(description="HTTP method")
-    path: str = Field(description="Request path")
-    status_code: int = Field(description="HTTP response status code")
-    duration_ms: float = Field(description="Request duration in milliseconds")
-    body_truncated: bool = Field(default=False, description="Whether body was truncated")
+    Summarizes a recorded HTTP request for listing purposes.
+    Use the recording_id to retrieve full details or replay the request.
+    """
+
+    recording_id: str = Field(
+        ...,
+        description="Unique recording ID (alphanumeric with hyphens/underscores)",
+        json_schema_extra={"example": "rec_20251230_103000_abc123"},
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when the original request was recorded",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
+    method: str = Field(
+        ...,
+        description="HTTP method of the recorded request",
+        json_schema_extra={"example": "POST"},
+    )
+    path: str = Field(
+        ...,
+        description="Request path including query string if present",
+        json_schema_extra={"example": "/api/events?limit=10"},
+    )
+    status_code: int = Field(
+        ...,
+        description="HTTP response status code from the original request",
+        ge=100,
+        le=599,
+        json_schema_extra={"example": 200},
+    )
+    duration_ms: float = Field(
+        ...,
+        description="Original request duration in milliseconds",
+        ge=0,
+        json_schema_extra={"example": 45.2},
+    )
+    body_truncated: bool = Field(
+        default=False,
+        description="Whether the request/response body was truncated due to size limits",
+    )
 
 
 class RecordingsListResponse(BaseModel):
-    """Response for listing recordings."""
+    """Response for listing recordings.
 
-    recordings: list[RecordingResponse] = Field(description="List of recordings")
-    total: int = Field(description="Total number of recordings")
-    timestamp: str = Field(description="ISO timestamp of response")
+    Returns a paginated list of recorded HTTP requests, sorted by timestamp
+    with newest first. Use limit parameter to control page size.
+    """
+
+    recordings: list[RecordingResponse] = Field(
+        ...,
+        description="List of recording summaries (newest first)",
+    )
+    total: int = Field(
+        ...,
+        description="Total number of recordings returned (may be less than available if limited)",
+        ge=0,
+        json_schema_extra={"example": 25},
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when the list was retrieved",
+        json_schema_extra={"example": "2025-12-30T10:30:00Z"},
+    )
 
 
 class ReplayResponse(BaseModel):
-    """Response for request replay."""
+    """Response for request replay.
 
-    recording_id: str = Field(description="ID of the replayed recording")
-    original_status_code: int = Field(description="Original response status code")
-    replay_status_code: int = Field(description="Replay response status code")
-    replay_response: Any = Field(description="Response from replayed request")
-    replay_metadata: dict[str, Any] = Field(description="Metadata about the replay")
-    timestamp: str = Field(description="ISO timestamp of replay")
+    Compares the original recorded response with the replayed response,
+    useful for reproducing production issues, testing fixes, and debugging
+    intermittent failures.
+    """
+
+    recording_id: str = Field(
+        ...,
+        description="ID of the recording that was replayed",
+        json_schema_extra={"example": "rec_20251230_103000_abc123"},
+    )
+    original_status_code: int = Field(
+        ...,
+        description="HTTP status code from the original recorded request",
+        ge=100,
+        le=599,
+        json_schema_extra={"example": 500},
+    )
+    replay_status_code: int = Field(
+        ...,
+        description="HTTP status code from the replayed request",
+        ge=100,
+        le=599,
+        json_schema_extra={"example": 200},
+    )
+    replay_response: Any = Field(
+        ...,
+        description="Response body from the replayed request (JSON or text)",
+        json_schema_extra={"example": {"status": "ok", "data": []}},
+    )
+    replay_metadata: dict[str, Any] = Field(
+        ...,
+        description="Metadata about the replay including timing and original request details",
+        json_schema_extra={
+            "example": {
+                "original_timestamp": "2025-12-30T10:30:00Z",
+                "original_path": "/api/events",
+                "original_method": "GET",
+                "replay_duration_ms": 42.5,
+                "replayed_at": "2025-12-30T11:00:00Z",
+            }
+        },
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO timestamp when the replay completed",
+        json_schema_extra={"example": "2025-12-30T11:00:00Z"},
+    )
 
 
-@router.get("/recordings", response_model=RecordingsListResponse)
+@router.get(
+    "/recordings",
+    response_model=RecordingsListResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+    summary="List request recordings",
+    description="Returns a list of recorded HTTP requests sorted by timestamp (newest first). "
+    "Use the recording_id from the response to retrieve full details or replay a request.",
+)
 async def list_recordings(
-    limit: int = 50,
+    limit: int = Query(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of recordings to return (1-500)",
+    ),
     _debug: None = Depends(require_debug_mode),
 ) -> RecordingsListResponse:
     """List available request recordings.
@@ -887,12 +1266,6 @@ async def list_recordings(
     Use the recording_id to replay a specific request.
 
     NEM-1646: Request recording and replay for debugging
-
-    Args:
-        limit: Maximum number of recordings to return (default: 50)
-
-    Returns:
-        List of recordings with metadata
     """
     from pathlib import Path
 
@@ -936,7 +1309,36 @@ async def list_recordings(
     )
 
 
-@router.get("/recordings/{recording_id}")
+@router.get(
+    "/recordings/{recording_id}",
+    responses={
+        200: {
+            "description": "Full recording data including headers, body, and response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "recording_id": "rec_20251230_103000_abc123",
+                        "timestamp": "2025-12-30T10:30:00Z",
+                        "method": "POST",
+                        "path": "/api/events",
+                        "headers": {"content-type": "application/json"},
+                        "body": {"camera_id": "front_door"},
+                        "query_params": {},
+                        "status_code": 201,
+                        "response": {"id": 123, "status": "created"},
+                        "duration_ms": 45.2,
+                        "retrieved_at": "2025-12-30T11:00:00Z",
+                    }
+                }
+            },
+        },
+        404: {"description": "Recording not found or debug mode disabled"},
+        500: {"description": "Failed to read recording file"},
+    },
+    summary="Get recording details",
+    description="Returns the full recording data including request headers, body, query parameters, "
+    "and the original response. Useful for analyzing recorded requests before replaying them.",
+)
 async def get_recording(
     recording_id: str,
     _debug: None = Depends(require_debug_mode),
@@ -946,15 +1348,6 @@ async def get_recording(
     Returns the full recording data including headers, body, and response.
 
     NEM-1646: Request recording and replay for debugging
-
-    Args:
-        recording_id: ID of the recording to retrieve
-
-    Returns:
-        Full recording data
-
-    Raises:
-        HTTPException: 404 if recording not found
     """
     import json
 
@@ -983,7 +1376,19 @@ async def get_recording(
         ) from e
 
 
-@router.post("/replay/{recording_id}", response_model=ReplayResponse)
+@router.post(
+    "/replay/{recording_id}",
+    response_model=ReplayResponse,
+    responses={
+        404: {"description": "Recording not found or debug mode disabled"},
+        500: {"description": "Failed to read recording file or replay request failed"},
+    },
+    summary="Replay a recorded request",
+    description="Reconstructs the original request from the recording and executes it against "
+    "the current application. Useful for reproducing production issues locally, testing fixes "
+    "for error scenarios, and debugging intermittent failures. "
+    "The replayed request includes X-Replay-Request and X-Original-Recording-ID headers.",
+)
 async def replay_request(
     recording_id: str,
     request: Request,
@@ -1001,15 +1406,6 @@ async def replay_request(
     the request to pass through the debug mode gate.
 
     NEM-1646: Request recording and replay for debugging
-
-    Args:
-        recording_id: ID of the recording to replay
-
-    Returns:
-        Replay response with original and new status codes
-
-    Raises:
-        HTTPException: 404 if recording not found
     """
     import json
 
@@ -1112,7 +1508,26 @@ async def replay_request(
     )
 
 
-@router.delete("/recordings/{recording_id}")
+@router.delete(
+    "/recordings/{recording_id}",
+    responses={
+        200: {
+            "description": "Recording deleted successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Recording 'rec_20251230_103000_abc123' deleted successfully"
+                    }
+                }
+            },
+        },
+        404: {"description": "Recording not found or debug mode disabled"},
+        500: {"description": "Failed to delete recording file"},
+    },
+    summary="Delete a recording",
+    description="Permanently deletes a recorded request from the recordings directory. "
+    "This action cannot be undone.",
+)
 async def delete_recording(
     recording_id: str,
     _debug: None = Depends(require_debug_mode),
@@ -1120,15 +1535,6 @@ async def delete_recording(
     """Delete a specific recording.
 
     NEM-1646: Request recording management
-
-    Args:
-        recording_id: ID of the recording to delete
-
-    Returns:
-        Confirmation message
-
-    Raises:
-        HTTPException: 404 if recording not found
     """
     recording_path = _safe_recording_path(recording_id, RECORDINGS_DIR)
 

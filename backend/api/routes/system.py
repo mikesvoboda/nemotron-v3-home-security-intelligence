@@ -794,7 +794,16 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
         )
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    summary="Get System Health Status",
+    description="Comprehensive health check of all system components including database, Redis, and AI services.",
+    responses={
+        200: {"description": "System is healthy"},
+        503: {"description": "System is degraded or unhealthy"},
+    },
+)
 async def get_health(
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -901,7 +910,16 @@ async def get_health(
 # Use GET /health (root level) for liveness probes. It provides the same functionality.
 
 
-@router.get("/health/ready", response_model=ReadinessResponse)
+@router.get(
+    "/health/ready",
+    response_model=ReadinessResponse,
+    summary="Get Readiness Status",
+    description="Kubernetes-style readiness probe indicating if the application can receive traffic and process requests.",
+    responses={
+        200: {"description": "System is ready to receive traffic"},
+        503: {"description": "System is not ready (degraded or critical services down)"},
+    },
+)
 async def get_readiness(
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -1020,7 +1038,12 @@ async def get_readiness(
     )
 
 
-@router.get("/health/websocket", response_model=WebSocketHealthResponse)
+@router.get(
+    "/health/websocket",
+    response_model=WebSocketHealthResponse,
+    summary="Get WebSocket Health Status",
+    description="Health status of WebSocket broadcasters and their circuit breakers for real-time event distribution.",
+)
 async def get_websocket_health(
     _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
 ) -> WebSocketHealthResponse:
@@ -1086,7 +1109,12 @@ async def get_websocket_health(
     )
 
 
-@router.get("/gpu", response_model=GPUStatsResponse)
+@router.get(
+    "/gpu",
+    response_model=GPUStatsResponse,
+    summary="Get Current GPU Statistics",
+    description="Latest GPU metrics including utilization, memory usage, temperature, and inference performance.",
+)
 async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     """Get current GPU statistics.
 
@@ -1126,18 +1154,42 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     )
 
 
-@router.get("/gpu/history", response_model=GPUStatsHistoryResponse)
+@router.get(
+    "/gpu/history",
+    response_model=GPUStatsHistoryResponse,
+    summary="Get GPU Statistics History",
+    description="Time-series GPU metrics for charting historical utilization, memory, and temperature trends.",
+)
 async def get_gpu_stats_history(
-    since: datetime | None = None,
-    limit: int = 300,
+    since: datetime | None = Query(
+        default=None,
+        description="Optional lower bound for recorded_at (ISO datetime). If not provided, returns the most recent samples.",
+    ),
+    limit: int = Query(
+        default=300,
+        ge=1,
+        le=5000,
+        description="Maximum number of samples to return (1-5000, default 300)",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> GPUStatsHistoryResponse:
     """Get recent GPU stats samples as a time-series.
 
+    Returns GPU statistics samples in chronological order for charting.
+    Useful for visualizing GPU utilization trends, memory usage patterns,
+    and temperature changes over time.
+
+    The samples are returned in chronological order (oldest first) to
+    facilitate time-series visualization in charts.
+
     Args:
-        since: Optional lower bound for recorded_at (ISO datetime)
-        limit: Maximum number of samples to return (default 300)
+        since: Optional lower bound for recorded_at (ISO datetime).
+               If not provided, returns the most recent samples.
+        limit: Maximum number of samples to return (default 300, max 5000)
         db: Database session
+
+    Returns:
+        GPUStatsHistoryResponse with chronologically ordered samples
     """
     limit = max(limit, 1)
     limit = min(limit, 5000)
@@ -1169,7 +1221,12 @@ async def get_gpu_stats_history(
     return GPUStatsHistoryResponse(samples=samples, count=len(samples), limit=limit)
 
 
-@router.get("/config", response_model=ConfigResponse)
+@router.get(
+    "/config",
+    response_model=ConfigResponse,
+    summary="Get System Configuration",
+    description="Public configuration settings including retention period, batch processing, and detection thresholds.",
+)
 async def get_config() -> ConfigResponse:
     """Get public configuration settings.
 
@@ -1255,8 +1312,11 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
 @router.patch(
     "/config",
     response_model=ConfigResponse,
+    summary="Update System Configuration",
+    description="Partially update processing-related configuration. Requires API key authentication.",
     dependencies=[Depends(verify_api_key)],
     responses={
+        200: {"description": "Configuration updated successfully"},
         401: {"description": "Unauthorized - API key required"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -1361,7 +1421,10 @@ async def patch_config(
 @router.get(
     "/anomaly-config",
     response_model=AnomalyConfig,
+    summary="Get Anomaly Detection Configuration",
+    description="Current settings for baseline anomaly detection including thresholds and window parameters.",
     responses={
+        200: {"description": "Anomaly configuration retrieved successfully"},
         500: {"description": "Internal server error"},
     },
 )
@@ -1392,8 +1455,12 @@ async def get_anomaly_config() -> AnomalyConfig:
 @router.patch(
     "/anomaly-config",
     response_model=AnomalyConfig,
+    summary="Update Anomaly Detection Configuration",
+    description="Update anomaly detection thresholds and parameters. Requires API key authentication.",
     dependencies=[Depends(verify_api_key)],
     responses={
+        200: {"description": "Anomaly configuration updated successfully"},
+        400: {"description": "Invalid configuration values"},
         401: {"description": "Unauthorized - API key required"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
@@ -1488,7 +1555,12 @@ async def update_anomaly_config(
     )
 
 
-@router.get("/stats", response_model=SystemStatsResponse)
+@router.get(
+    "/stats",
+    response_model=SystemStatsResponse,
+    summary="Get System Statistics",
+    description="Aggregate statistics including camera count, event count, detection count, and application uptime.",
+)
 async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
     """Get system statistics.
 
@@ -1670,7 +1742,12 @@ async def get_latency_stats(redis: RedisClient) -> PipelineLatencies | None:
         return None
 
 
-@router.get("/telemetry", response_model=TelemetryResponse)
+@router.get(
+    "/telemetry",
+    response_model=TelemetryResponse,
+    summary="Get Pipeline Telemetry",
+    description="Real-time metrics for AI pipeline monitoring including queue depths and stage latencies.",
+)
 async def get_telemetry(
     redis: RedisClient = Depends(get_redis),
 ) -> TelemetryResponse:
@@ -1744,9 +1821,19 @@ def _stats_to_schema(stats: Mapping[str, Any]) -> PipelineStageLatency | None:
     )
 
 
-@router.get("/pipeline-latency", response_model=PipelineLatencyResponse)
+@router.get(
+    "/pipeline-latency",
+    response_model=PipelineLatencyResponse,
+    summary="Get Pipeline Latency Metrics",
+    description="Latency statistics with percentiles for each stage transition in the AI processing pipeline.",
+)
 async def get_pipeline_latency(
-    window_minutes: int = 60,
+    window_minutes: int = Query(
+        default=60,
+        ge=1,
+        le=1440,
+        description="Time window for statistics calculation in minutes (1-1440, default 60)",
+    ),
 ) -> PipelineLatencyResponse:
     """Get pipeline latency metrics with percentiles.
 
@@ -1786,7 +1873,12 @@ async def get_pipeline_latency(
     )
 
 
-@router.get("/pipeline-latency/history", response_model=PipelineLatencyHistoryResponse)
+@router.get(
+    "/pipeline-latency/history",
+    response_model=PipelineLatencyHistoryResponse,
+    summary="Get Pipeline Latency History",
+    description="Time-series latency data grouped into buckets for charting pipeline performance trends.",
+)
 async def get_pipeline_latency_history(
     since: int = Query(
         default=60,
@@ -1857,8 +1949,24 @@ async def get_pipeline_latency_history(
 # =============================================================================
 
 
-@router.post("/cleanup", response_model=CleanupResponse, dependencies=[Depends(verify_api_key)])
-async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
+@router.post(
+    "/cleanup",
+    response_model=CleanupResponse,
+    summary="Trigger Data Cleanup",
+    description="Manually trigger cleanup of old data based on retention settings. Requires API key authentication.",
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Cleanup completed successfully"},
+        401: {"description": "Unauthorized - API key required"},
+        500: {"description": "Cleanup operation failed"},
+    },
+)
+async def trigger_cleanup(
+    dry_run: bool = Query(
+        default=False,
+        description="If True, calculate and return what would be deleted without actually performing the deletion",
+    ),
+) -> CleanupResponse:
     """Trigger manual data cleanup based on retention settings.
 
     Requires API key authentication when api_key_enabled is True in settings.
@@ -1971,7 +2079,12 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
 # =============================================================================
 
 
-@router.get("/severity", response_model=SeverityMetadataResponse)
+@router.get(
+    "/severity",
+    response_model=SeverityMetadataResponse,
+    summary="Get Severity Metadata",
+    description="Severity level definitions, risk score thresholds, and color codes for UI display.",
+)
 async def get_severity_metadata() -> SeverityMetadataResponse:
     """Get severity level definitions and thresholds.
 
@@ -2024,7 +2137,17 @@ async def get_severity_metadata() -> SeverityMetadataResponse:
 
 
 @router.put(
-    "/severity", response_model=SeverityMetadataResponse, dependencies=[Depends(verify_api_key)]
+    "/severity",
+    response_model=SeverityMetadataResponse,
+    summary="Update Severity Thresholds",
+    description="Update risk score thresholds for severity level classification. Requires API key authentication.",
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Severity thresholds updated successfully"},
+        400: {"description": "Invalid threshold values (not strictly ordered)"},
+        401: {"description": "Unauthorized - API key required"},
+        422: {"description": "Validation error"},
+    },
 )
 async def update_severity_thresholds(
     request: Request,
@@ -2188,7 +2311,12 @@ def _get_directory_stats(directory: Path) -> tuple[int, int]:
     return total_size, file_count
 
 
-@router.get("/storage", response_model=StorageStatsResponse)
+@router.get(
+    "/storage",
+    response_model=StorageStatsResponse,
+    summary="Get Storage Statistics",
+    description="Disk usage, storage breakdown by category, and database record counts for capacity planning.",
+)
 async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsResponse:
     """Get storage statistics and disk usage metrics.
 
@@ -2293,7 +2421,12 @@ async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsR
 # =============================================================================
 
 
-@router.get("/circuit-breakers", response_model=CircuitBreakersResponse)
+@router.get(
+    "/circuit-breakers",
+    response_model=CircuitBreakersResponse,
+    summary="Get Circuit Breakers Status",
+    description="Current state and metrics for all circuit breakers protecting external services from cascading failures.",
+)
 async def get_circuit_breakers() -> CircuitBreakersResponse:
     """Get status of all circuit breakers in the system.
 
@@ -2353,7 +2486,15 @@ async def get_circuit_breakers() -> CircuitBreakersResponse:
 @router.post(
     "/circuit-breakers/{name}/reset",
     response_model=CircuitBreakerResetResponse,
+    summary="Reset Circuit Breaker",
+    description="Manually reset a circuit breaker to CLOSED state for recovery from transient failures. Requires API key authentication.",
     dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Circuit breaker reset successfully"},
+        400: {"description": "Invalid circuit breaker name"},
+        401: {"description": "Unauthorized - API key required"},
+        404: {"description": "Circuit breaker not found"},
+    },
 )
 async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
     """Reset a specific circuit breaker to CLOSED state.
@@ -2435,7 +2576,12 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
 # =============================================================================
 
 
-@router.get("/cleanup/status", response_model=CleanupStatusResponse)
+@router.get(
+    "/cleanup/status",
+    response_model=CleanupStatusResponse,
+    summary="Get Cleanup Service Status",
+    description="Current status of the automated cleanup service including retention settings and next scheduled run.",
+)
 async def get_cleanup_status() -> CleanupStatusResponse:
     """Get current status of the cleanup service.
 
@@ -2650,7 +2796,12 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
         return None
 
 
-@router.get("/pipeline", response_model=PipelineStatusResponse)
+@router.get(
+    "/pipeline",
+    response_model=PipelineStatusResponse,
+    summary="Get Pipeline Status",
+    description="Combined status of all AI pipeline operations including FileWatcher, BatchAggregator, and DegradationManager.",
+)
 async def get_pipeline_status(
     redis: RedisClient | None = Depends(get_redis_optional),
 ) -> PipelineStatusResponse:

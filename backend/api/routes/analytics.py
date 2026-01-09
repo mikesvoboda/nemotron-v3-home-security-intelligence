@@ -30,29 +30,86 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 @router.get(
     "/detection-trends",
     response_model=DetectionTrendsResponse,
+    summary="Get detection trends over time",
+    description="""
+Retrieve detection counts aggregated by day for a specified date range.
+
+This endpoint is useful for:
+- Monitoring detection activity over time
+- Identifying patterns in security events
+- Dashboard trend visualizations
+
+The response includes one data point per day, with zero-fill for days without detections.
+Date parameters should be in ISO 8601 format (YYYY-MM-DD).
+""",
+    operation_id="getDetectionTrends",
     responses={
-        400: {"description": "Bad request - Invalid date range"},
-        422: {"description": "Validation error"},
+        200: {
+            "description": "Successfully retrieved detection trends",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data_points": [
+                            {"date": "2025-01-01", "count": 20},
+                            {"date": "2025-01-02", "count": 25},
+                            {"date": "2025-01-03", "count": 18},
+                        ],
+                        "total_detections": 63,
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-01-03",
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Bad request - start_date is after end_date",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "start_date must be before or equal to end_date"}
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid date format or missing required parameters"
+        },
         500: {"description": "Internal server error"},
     },
 )
 async def get_detection_trends(
-    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
-    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    start_date: Date = Query(
+        ...,
+        description="Start date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-01"],
+    ),
+    end_date: Date = Query(
+        ...,
+        description="End date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-07"],
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> DetectionTrendsResponse:
     """Get detection counts aggregated by day.
 
     Returns daily detection counts for the specified date range.
-    Creates one data point per day even if there are no detections.
+    Creates one data point per day even if there are no detections,
+    ensuring consistent time series data for charting.
+
+    Use cases:
+    - Dashboard trend charts showing detection volume over time
+    - Security analysis to identify unusual activity patterns
+    - Historical reporting and auditing
 
     Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
-        db: Database session
+        start_date: Start date (inclusive), ISO 8601 format
+        end_date: End date (inclusive), ISO 8601 format
+        db: Database session (injected)
 
     Returns:
-        DetectionTrendsResponse with daily detection counts
+        DetectionTrendsResponse with:
+        - data_points: List of daily detection counts
+        - total_detections: Sum of all detections in range
+        - start_date: Requested start date
+        - end_date: Requested end date
 
     Raises:
         HTTPException: 400 if start_date is after end_date
@@ -107,29 +164,106 @@ async def get_detection_trends(
 @router.get(
     "/risk-history",
     response_model=RiskHistoryResponse,
+    summary="Get risk score distribution over time",
+    description="""
+Retrieve daily counts of events grouped by risk level for a specified date range.
+
+Risk levels:
+- **low**: Risk score 0-25 (routine activity)
+- **medium**: Risk score 26-50 (noteworthy events)
+- **high**: Risk score 51-75 (concerning activity)
+- **critical**: Risk score 76-100 (immediate attention required)
+
+This endpoint is useful for:
+- Security posture assessment over time
+- Risk trend analysis and reporting
+- Identifying periods of elevated security concern
+
+The response includes one data point per day, with zero counts for levels with no events.
+""",
+    operation_id="getRiskHistory",
     responses={
-        400: {"description": "Bad request - Invalid date range"},
-        422: {"description": "Validation error"},
+        200: {
+            "description": "Successfully retrieved risk history",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data_points": [
+                            {
+                                "date": "2025-01-01",
+                                "low": 10,
+                                "medium": 5,
+                                "high": 2,
+                                "critical": 1,
+                            },
+                            {
+                                "date": "2025-01-02",
+                                "low": 12,
+                                "medium": 4,
+                                "high": 3,
+                                "critical": 0,
+                            },
+                        ],
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-01-02",
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Bad request - start_date is after end_date",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "start_date must be before or equal to end_date"}
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid date format or missing required parameters"
+        },
         500: {"description": "Internal server error"},
     },
 )
 async def get_risk_history(
-    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
-    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    start_date: Date = Query(
+        ...,
+        description="Start date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-01"],
+    ),
+    end_date: Date = Query(
+        ...,
+        description="End date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-07"],
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> RiskHistoryResponse:
     """Get risk score distribution over time.
 
     Returns daily counts of events grouped by risk level (low, medium, high, critical).
-    Creates one data point per day even if there are no events.
+    Creates one data point per day even if there are no events, ensuring consistent
+    time series data for stacked bar charts and area graphs.
+
+    Risk level thresholds:
+    - low: 0-25 (routine, expected activity)
+    - medium: 26-50 (noteworthy but not urgent)
+    - high: 51-75 (concerning, requires attention)
+    - critical: 76-100 (immediate response required)
+
+    Use cases:
+    - Security dashboard risk trend visualization
+    - Compliance reporting on security posture
+    - Identifying periods requiring investigation
 
     Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
-        db: Database session
+        start_date: Start date (inclusive), ISO 8601 format
+        end_date: End date (inclusive), ISO 8601 format
+        db: Database session (injected)
 
     Returns:
-        RiskHistoryResponse with daily risk level counts
+        RiskHistoryResponse with:
+        - data_points: List of daily risk level counts
+        - start_date: Requested start date
+        - end_date: Requested end date
 
     Raises:
         HTTPException: 400 if start_date is after end_date
@@ -191,15 +325,74 @@ async def get_risk_history(
 @router.get(
     "/camera-uptime",
     response_model=CameraUptimeResponse,
+    summary="Get camera uptime statistics",
+    description="""
+Retrieve uptime percentage and detection counts for each camera over a specified date range.
+
+Uptime calculation:
+- A camera is considered "active" on a day if it recorded at least one detection
+- Uptime percentage = (active days / total days in range) * 100
+- Cameras with no detections in the range will show 0% uptime
+
+This endpoint is useful for:
+- Monitoring camera health and reliability
+- Identifying offline or malfunctioning cameras
+- Infrastructure maintenance planning
+
+All registered cameras are included in the response, even those with 0% uptime.
+""",
+    operation_id="getCameraUptime",
     responses={
-        400: {"description": "Bad request - Invalid date range"},
-        422: {"description": "Validation error"},
+        200: {
+            "description": "Successfully retrieved camera uptime statistics",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "cameras": [
+                            {
+                                "camera_id": "front_door",
+                                "camera_name": "Front Door",
+                                "uptime_percentage": 98.5,
+                                "detection_count": 150,
+                            },
+                            {
+                                "camera_id": "back_door",
+                                "camera_name": "Back Door",
+                                "uptime_percentage": 95.2,
+                                "detection_count": 120,
+                            },
+                        ],
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-01-07",
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Bad request - start_date is after end_date",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "start_date must be before or equal to end_date"}
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid date format or missing required parameters"
+        },
         500: {"description": "Internal server error"},
     },
 )
 async def get_camera_uptime(
-    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
-    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    start_date: Date = Query(
+        ...,
+        description="Start date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-01"],
+    ),
+    end_date: Date = Query(
+        ...,
+        description="End date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-07"],
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> CameraUptimeResponse:
     """Get uptime percentage per camera.
@@ -208,13 +401,24 @@ async def get_camera_uptime(
     Uptime is calculated based on the number of days with at least one detection
     divided by the total days in the date range.
 
+    A camera with 100% uptime recorded at least one detection every day.
+    A camera with 0% uptime had no detections in the entire date range.
+
+    Use cases:
+    - Camera health monitoring dashboard
+    - Maintenance scheduling and alerts
+    - SLA compliance reporting
+
     Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
-        db: Database session
+        start_date: Start date (inclusive), ISO 8601 format
+        end_date: End date (inclusive), ISO 8601 format
+        db: Database session (injected)
 
     Returns:
-        CameraUptimeResponse with per-camera uptime data
+        CameraUptimeResponse with:
+        - cameras: List of camera uptime data points
+        - start_date: Requested start date
+        - end_date: Requested end date
 
     Raises:
         HTTPException: 400 if start_date is after end_date
@@ -270,29 +474,95 @@ async def get_camera_uptime(
 @router.get(
     "/object-distribution",
     response_model=ObjectDistributionResponse,
+    summary="Get detection counts by object type",
+    description="""
+Retrieve detection counts grouped by object type for a specified date range.
+
+Common object types detected by RT-DETRv2:
+- **person**: Human beings
+- **car**, **truck**, **motorcycle**: Vehicles
+- **dog**, **cat**: Pets and animals
+- **bicycle**: Non-motorized vehicles
+
+This endpoint is useful for:
+- Understanding what types of objects trigger detections
+- Tuning detection sensitivity by object type
+- Security pattern analysis (e.g., vehicle vs pedestrian traffic)
+
+Results are sorted by count (highest first) and include percentage of total.
+Detections without an object_type are excluded from results.
+""",
+    operation_id="getObjectDistribution",
     responses={
-        400: {"description": "Bad request - Invalid date range"},
-        422: {"description": "Validation error"},
+        200: {
+            "description": "Successfully retrieved object distribution",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "object_types": [
+                            {"object_type": "person", "count": 120, "percentage": 45.5},
+                            {"object_type": "car", "count": 80, "percentage": 30.3},
+                            {"object_type": "dog", "count": 64, "percentage": 24.2},
+                        ],
+                        "total_detections": 264,
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-01-07",
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Bad request - start_date is after end_date",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "start_date must be before or equal to end_date"}
+                }
+            },
+        },
+        422: {
+            "description": "Validation error - invalid date format or missing required parameters"
+        },
         500: {"description": "Internal server error"},
     },
 )
 async def get_object_distribution(
-    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
-    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    start_date: Date = Query(
+        ...,
+        description="Start date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-01"],
+    ),
+    end_date: Date = Query(
+        ...,
+        description="End date for analytics (inclusive, ISO 8601 format: YYYY-MM-DD)",
+        examples=["2025-01-07"],
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> ObjectDistributionResponse:
     """Get detection counts by object type.
 
-    Returns detection counts grouped by object type with percentages.
-    Only includes detections with non-null object_type.
+    Returns detection counts grouped by object type with percentages,
+    sorted by count in descending order. Object types are determined
+    by the RT-DETRv2 detection model (COCO-based labels).
+
+    Common object types include: person, car, truck, motorcycle,
+    bicycle, dog, cat, bird, and other COCO dataset categories.
+
+    Use cases:
+    - Pie charts or bar graphs showing object type breakdown
+    - Detection filter tuning (e.g., ignore certain object types)
+    - Traffic pattern analysis
 
     Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
-        db: Database session
+        start_date: Start date (inclusive), ISO 8601 format
+        end_date: End date (inclusive), ISO 8601 format
+        db: Database session (injected)
 
     Returns:
-        ObjectDistributionResponse with object type counts and percentages
+        ObjectDistributionResponse with:
+        - object_types: List of object type counts with percentages
+        - total_detections: Sum of all detections with object types
+        - start_date: Requested start date
+        - end_date: Requested end date
 
     Raises:
         HTTPException: 400 if start_date is after end_date
