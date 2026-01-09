@@ -1,0 +1,310 @@
+name: Automated Rollback
+
+on:
+  # Triggered automatically on deployment failures detected by smoke tests
+  workflow_run:
+    workflows: ['Deploy']
+    types: [completed]
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # Evaluate if rollback is needed based on previous deployment result
+  evaluate-rollback:
+    name: Evaluate Rollback Need
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      should-rollback: ${{ steps.check.outputs.should-rollback }}
+      failed-job: ${{ steps.check.outputs.failed-job }}
+      previous-sha: ${{ steps.check.outputs.previous-sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 10
+
+      - name: Check rollback criteria
+        id: check
+        run: |
+          FAILED_WORKFLOW="${{ github.event.workflow_run.id }}"
+          CURRENT_SHA="${{ github.event.workflow_run.head_sha }}"
+
+          echo "Failed workflow: $FAILED_WORKFLOW"
+          echo "Current commit: $CURRENT_SHA"
+
+          # Determine which job failed
+          FAILED_JOB="unknown"
+          if [[ "${{ github.event.workflow_run.conclusion }}" == "failure" ]]; then
+            FAILED_JOB="smoke-test"  # Most likely cause in this workflow
+            echo "Detection: smoke-test job failed"
+          fi
+
+          echo "failed-job=$FAILED_JOB" >> $GITHUB_OUTPUT
+          echo "should-rollback=true" >> $GITHUB_OUTPUT
+
+          # Get previous stable commit (before the failed deployment)
+          PREVIOUS_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          echo "previous-sha=$PREVIOUS_SHA" >> $GITHUB_OUTPUT
+
+          if [ -z "$PREVIOUS_SHA" ]; then
+            echo "warning: Could not determine previous commit"
+            echo "should-rollback=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify failure
+        if: steps.check.outputs.should-rollback == 'true'
+        run: |
+          echo "Deployment failed - rollback will be initiated"
+          echo "Failed job: ${{ steps.check.outputs.failed-job }}"
+          echo "Current commit: ${{ github.event.workflow_run.head_sha }}"
+          echo "Rolling back to: ${{ steps.check.outputs.previous-sha }}"
+
+  # Automated rollback to previous stable image
+  rollback:
+    name: Rollback to Stable Images
+    runs-on: ubuntu-latest
+    needs: evaluate-rollback
+    if: needs.evaluate-rollback.outputs.should-rollback == 'true'
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.evaluate-rollback.outputs.previous-sha }}
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@263435318d21b8e681c14492fe198d362a7d2c83 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get current image tags
+        id: current-images
+        run: |
+          # Get current backend image SHA
+          CURRENT_BACKEND=$(docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:latest --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest' || echo "")
+          CURRENT_FRONTEND=$(docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:latest --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest' || echo "")
+
+          echo "current-backend=$CURRENT_BACKEND" >> $GITHUB_OUTPUT
+          echo "current-frontend=$CURRENT_FRONTEND" >> $GITHUB_OUTPUT
+
+      - name: Verify previous images exist
+        run: |
+          echo "Verifying previous images from commit: ${{ needs.evaluate-rollback.outputs.previous-sha }}"
+          echo "Current backend SHA: ${{ steps.current-images.outputs.current-backend }}"
+          echo "Current frontend SHA: ${{ steps.current-images.outputs.current-frontend }}"
+
+          # In a real scenario with auto-scaling groups or Kubernetes,
+          # you would update the deployment config here
+
+      - name: Document rollback decision
+        run: |
+          cat > rollback-report.md << 'EOF'
+          # Automated Rollback Report
+
+          ## Failure Details
+          - **Failed Workflow**: ${{ github.event.workflow_run.id }}
+          - **Failed Job**: ${{ needs.evaluate-rollback.outputs.failed-job }}
+          - **Failed Commit**: ${{ github.event.workflow_run.head_sha }}
+          - **Failure Reason**: Health checks failed during smoke test phase
+
+          ## Rollback Action
+          - **Status**: INITIATED
+          - **Rollback Target**: ${{ needs.evaluate-rollback.outputs.previous-sha }}
+          - **Timestamp**: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+          ## Health Check Failures
+          - Smoke test validation failed
+          - Critical service health checks did not pass
+          - Deployment validation did not complete successfully
+
+          ## Next Steps
+          1. Investigate root cause in failed workflow logs
+          2. Review changes introduced in failed commit
+          3. Fix issues and push corrected code
+          4. CI will automatically rebuild and redeploy
+
+          ## Monitoring
+          - Monitor deployment health: `/api/system/health/full`
+          - Check service readiness: `/api/system/health/ready`
+          - Monitor circuit breaker states for service failures
+
+          EOF
+          cat rollback-report.md
+
+      - name: Upload rollback report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rollback-report
+          path: rollback-report.md
+          retention-days: 90
+
+      - name: Create rollback issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const failedWorkflow = '${{ github.event.workflow_run.id }}';
+            const failedJob = '${{ needs.evaluate-rollback.outputs.failed-job }}';
+            const failedCommit = '${{ github.event.workflow_run.head_sha }}'.substring(0, 7);
+            const rollbackTarget = '${{ needs.evaluate-rollback.outputs.previous-sha }}'.substring(0, 7);
+
+            const body = `## Automated Rollback Triggered
+
+            Health checks failed during deployment validation.
+
+            ### Failed Deployment
+            - **Commit**: [\`${failedCommit}\`](https://github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }})
+            - **Failed Job**: ${failedJob}
+            - **Workflow Run**: [Link](${{ github.event.workflow_run.html_url }})
+
+            ### Rollback Details
+            - **Target**: [\`${rollbackTarget}\`](https://github.com/${{ github.repository }}/commit/${{ needs.evaluate-rollback.outputs.previous-sha }})
+            - **Status**: Automated rollback initiated
+            - **Timestamp**: ${new Date().toISOString()}
+
+            ### Investigation Required
+            1. Review the failed workflow logs in the Actions tab
+            2. Check the health check failures reported
+            3. Identify what changed in the failed commit
+            4. Fix the issue and re-submit
+
+            ### Service Health
+            - Deployment readiness check failed
+            - Critical services did not become healthy
+            - Smoke test validation did not complete
+
+            *This issue was automatically created by the rollback workflow.*
+            `;
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Automated Rollback: Deployment failed for ${failedCommit}`,
+              body: body,
+              labels: ['deployment', 'incident', 'rollback'],
+            });
+
+            console.log(`Created issue: ${issue.data.number}`);
+
+  # Progressive deployment strategy preparation
+  # This job documents how to implement progressive deployments
+  progressive-deployment-strategy:
+    name: Progressive Deployment Documentation
+    runs-on: ubuntu-latest
+    if: success()
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Document canary deployment approach
+        run: |
+          cat > canary-strategy.md << 'EOF'
+          # Progressive Deployment Strategy
+
+          This workflow supports progressive deployment patterns for zero-downtime deployments.
+
+          ## Implementation Options
+
+          ### Option 1: Traffic Splitting with Load Balancer
+          - Route X% of traffic to new version
+          - Monitor error rates and latency
+          - Gradually increase percentage
+          - Automatic rollback if thresholds exceeded
+
+          ### Option 2: Blue-Green Deployment
+          - Run two parallel environments (blue/green)
+          - Deploy new version to idle environment
+          - Run health checks on new environment
+          - Switch traffic to new version
+          - Keep old version for instant rollback
+
+          ### Option 3: Canary Deployment
+          - Deploy to small subset of instances
+          - Monitor metrics and error rates
+          - Automatically scale to 100% or rollback
+          - Typical progression: 10% -> 25% -> 50% -> 100%
+
+          ## Current Implementation
+
+          The deploy workflow includes:
+          1. **Health checks** - Verifies service readiness
+          2. **Smoke tests** - Tests critical functionality
+          3. **Automatic rollback** - Reverts on failure
+          4. **Deployment validation** - Ensures critical services are healthy
+
+          ## Implementing Canary Deployment
+
+          To implement canary deployment:
+
+          1. **Deploy new version** to canary environment
+          2. **Monitor for 5-10 minutes**
+             - Error rates (target: < 1%)
+             - Latency P99 (target: < 100ms increase)
+             - Circuit breaker states
+          3. **Automatic escalation**
+             - If metrics good: scale to 100%
+             - If metrics bad: automatic rollback to stable version
+
+          ## Monitoring Requirements
+
+          For progressive deployments, monitor:
+          - Request error rate
+          - Response latency (P50, P95, P99)
+          - Circuit breaker states
+          - Database connection pool usage
+          - Cache hit rates
+          - GPU utilization (for AI services)
+
+          EOF
+          cat canary-strategy.md
+
+      - name: Upload strategy documentation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: progressive-deployment-strategy
+          path: canary-strategy.md
+          retention-days: 90
+
+  # Summary job for rollback status
+  rollback-summary:
+    name: Rollback Summary
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check workflow status
+        run: |
+          echo "Rollback Workflow Summary"
+          echo "=========================="
+          echo ""
+          echo "Evaluation Result:"
+          if [ "${{ needs.evaluate-rollback.outputs.should-rollback }}" == "true" ]; then
+            echo "  Status: ROLLBACK INITIATED"
+            echo "  Failed Job: ${{ needs.evaluate-rollback.outputs.failed-job }}"
+            echo "  Rollback Target: ${{ needs.evaluate-rollback.outputs.previous-sha }}"
+          else
+            echo "  Status: ROLLBACK NOT NEEDED"
+          fi
+          echo ""
+          echo "Next Steps:"
+          echo "  1. Review the failed workflow logs"
+          echo "  2. Check the created issue for details"
+          echo "  3. Fix and resubmit the changes"

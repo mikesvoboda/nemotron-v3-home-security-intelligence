@@ -31,6 +31,12 @@ from backend.api.schemas.scene_change import (
     SceneChangeListResponse,
     SceneChangeResponse,
 )
+from backend.api.utils.field_filter import (
+    FieldFilterError,
+    filter_fields,
+    parse_fields_param,
+    validate_fields,
+)
 from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
@@ -51,6 +57,18 @@ router = APIRouter(prefix="/api/cameras", tags=["cameras"])
 # Rate limiter for snapshot endpoints (same tier as media)
 snapshot_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
+# Valid fields for sparse fieldsets on list_cameras endpoint (NEM-1434)
+VALID_CAMERA_LIST_FIELDS = frozenset(
+    {
+        "id",
+        "name",
+        "folder_path",
+        "status",
+        "created_at",
+        "last_seen_at",
+    }
+)
+
 # Allowed snapshot types
 _SNAPSHOT_TYPES = {
     ".jpg": "image/jpeg",
@@ -63,6 +81,11 @@ _SNAPSHOT_TYPES = {
 @router.get("", response_model=CameraListResponse)
 async def list_cameras(
     status_filter: str | None = Query(None, alias="status", description="Filter by camera status"),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to include in response (sparse fieldsets). "
+        "Valid fields: id, name, folder_path, status, created_at, last_seen_at",
+    ),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
@@ -71,14 +94,32 @@ async def list_cameras(
     Uses Redis cache with cache-aside pattern to improve performance
     and generate cache hit metrics.
 
+    Sparse Fieldsets (NEM-1434):
+    Use the `fields` parameter to request only specific fields in the response,
+    reducing payload size. Example: ?fields=id,name,status
+
     Args:
         status_filter: Optional status to filter cameras by (online, offline, error)
+        fields: Comma-separated list of fields to include (sparse fieldsets)
         db: Database session
         cache: Cache service injected via FastAPI DI
 
     Returns:
         CameraListResponse containing list of cameras and total count
+
+    Raises:
+        HTTPException: 400 if invalid fields are requested
     """
+    # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
+    requested_fields = parse_fields_param(fields)
+    try:
+        validated_fields = validate_fields(requested_fields, set(VALID_CAMERA_LIST_FIELDS))
+    except FieldFilterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
     # Generate cache key based on filter
     cache_key = CacheKeys.cameras_list_by_status(status_filter)
 
@@ -90,7 +131,13 @@ async def list_cameras(
                 sanitize_log_value(status_filter),
             )
             # Cast to expected type - cache stores dict[str, Any]
-            return dict(cached_data)
+            result_data = dict(cached_data)
+            # Apply field filtering to cached data (NEM-1434)
+            if validated_fields is not None:
+                result_data["cameras"] = [
+                    filter_fields(c, validated_fields) for c in result_data["cameras"]
+                ]
+            return result_data
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
@@ -122,11 +169,16 @@ async def list_cameras(
         "count": len(cameras_data),
     }
 
-    # Cache the result
+    # Cache the result (cache full data, filter on retrieval)
     try:
         await cache.set(cache_key, response, ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
+
+    # Apply field filtering before returning (NEM-1434)
+    if validated_fields is not None:
+        # cameras_data is known to be a list of dicts from the code above
+        response["cameras"] = [filter_fields(c, validated_fields) for c in cameras_data]
 
     return response
 

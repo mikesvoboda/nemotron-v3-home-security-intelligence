@@ -205,10 +205,67 @@ class NemotronAnalyzer:
         self._warmup_enabled = settings.ai_warmup_enabled
         self._cold_start_threshold = settings.ai_cold_start_threshold_seconds
         self._warmup_prompt = settings.nemotron_warmup_prompt
+
+        # A/B Testing support (NEM-1667)
+        self._ab_tester: Any | None = None  # PromptABTester when configured
+        self._ab_config: Any | None = None  # ABTestConfig when configured
+
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
             f"timeout={settings.nemotron_read_timeout}s"
         )
+
+    # =========================================================================
+    # A/B Testing Support (NEM-1667)
+    # =========================================================================
+
+    def set_ab_test_config(self, config: Any) -> None:
+        """Configure A/B testing for prompt versions.
+
+        Args:
+            config: ABTestConfig instance
+        """
+        from backend.services.prompt_service import ABTestConfig, PromptABTester
+
+        if not isinstance(config, ABTestConfig):
+            raise TypeError("config must be an ABTestConfig instance")
+
+        self._ab_config = config
+        self._ab_tester = PromptABTester(config)
+        logger.info(
+            f"A/B testing configured: control=v{config.control_version}, "
+            f"treatment=v{config.treatment_version}, split={config.traffic_split:.1%}"
+        )
+
+    async def get_prompt_version(self) -> tuple[int, bool]:
+        """Get the prompt version to use for this request.
+
+        Uses A/B testing if configured, otherwise returns default version.
+
+        Returns:
+            Tuple of (version_number, is_treatment)
+        """
+        if self._ab_tester is not None:
+            result: tuple[int, bool] = self._ab_tester.select_prompt_version()
+            return result
+        return (1, False)  # Default version
+
+    def _record_analysis_metrics(
+        self,
+        prompt_version: int,
+        latency_seconds: float,
+        risk_score: int | float,  # noqa: ARG002 - Reserved for future variance tracking
+    ) -> None:
+        """Record metrics for prompt analysis execution.
+
+        Args:
+            prompt_version: Prompt version used
+            latency_seconds: Execution latency in seconds
+            risk_score: Risk score returned (for future variance tracking)
+        """
+        from backend.core.metrics import record_prompt_latency
+
+        record_prompt_latency(f"v{prompt_version}", latency_seconds)
 
     def _get_context_enricher(self) -> ContextEnricher:
         """Get the context enricher, creating global singleton if needed.
