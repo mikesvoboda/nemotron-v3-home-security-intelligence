@@ -1252,7 +1252,16 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
     logger.info(f"Wrote runtime env to {path}: {sanitize_log_value(overrides)}")
 
 
-@router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])
+@router.patch(
+    "/config",
+    response_model=ConfigResponse,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        401: {"description": "Unauthorized - API key required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def patch_config(
     request: Request,
     update: ConfigUpdateRequest = Body(...),
@@ -1349,7 +1358,13 @@ async def patch_config(
     )
 
 
-@router.get("/anomaly-config", response_model=AnomalyConfig)
+@router.get(
+    "/anomaly-config",
+    response_model=AnomalyConfig,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_anomaly_config() -> AnomalyConfig:
     """Get current anomaly detection configuration.
 
@@ -1375,7 +1390,14 @@ async def get_anomaly_config() -> AnomalyConfig:
 
 
 @router.patch(
-    "/anomaly-config", response_model=AnomalyConfig, dependencies=[Depends(verify_api_key)]
+    "/anomaly-config",
+    response_model=AnomalyConfig,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        401: {"description": "Unauthorized - API key required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def update_anomaly_config(
     config_update: AnomalyConfigUpdate,

@@ -1427,6 +1427,7 @@ async def test_get_event_returns_reasoning_field() -> None:
 async def test_get_event_returns_none_reasoning_when_not_set() -> None:
     """Test that get_event returns None reasoning when not set."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1437,7 +1438,7 @@ async def test_get_event_returns_none_reasoning_when_not_set() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, db=db)
+    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
     assert response["reasoning"] is None
 

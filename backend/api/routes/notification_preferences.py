@@ -37,7 +37,13 @@ router = APIRouter(prefix="/api/notification-preferences", tags=["notification-p
 # =============================================================================
 
 
-@router.get("/", response_model=NotificationPreferencesResponse)
+@router.get(
+    "/",
+    response_model=NotificationPreferencesResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_notification_preferences(
     db: AsyncSession = Depends(get_db),
 ) -> NotificationPreferencesResponse:
@@ -76,7 +82,15 @@ async def get_notification_preferences(
     return NotificationPreferencesResponse.model_validate(prefs)
 
 
-@router.put("/", response_model=NotificationPreferencesResponse)
+@router.put(
+    "/",
+    response_model=NotificationPreferencesResponse,
+    responses={
+        400: {"description": "Bad request - Invalid sound or risk level value"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_notification_preferences(
     update: NotificationPreferencesUpdate,
     db: AsyncSession = Depends(get_db),
@@ -139,7 +153,13 @@ async def update_notification_preferences(
 # =============================================================================
 
 
-@router.get("/cameras", response_model=CameraNotificationSettingsListResponse)
+@router.get(
+    "/cameras",
+    response_model=CameraNotificationSettingsListResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_all_camera_settings(
     db: AsyncSession = Depends(get_db),
 ) -> CameraNotificationSettingsListResponse:
@@ -157,7 +177,14 @@ async def get_all_camera_settings(
     )
 
 
-@router.get("/cameras/{camera_id}", response_model=CameraNotificationSettingResponse)
+@router.get(
+    "/cameras/{camera_id}",
+    response_model=CameraNotificationSettingResponse,
+    responses={
+        404: {"description": "Camera notification setting not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_camera_setting(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
@@ -187,7 +214,15 @@ async def get_camera_setting(
     return CameraNotificationSettingResponse.model_validate(setting)
 
 
-@router.put("/cameras/{camera_id}", response_model=CameraNotificationSettingResponse)
+@router.put(
+    "/cameras/{camera_id}",
+    response_model=CameraNotificationSettingResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_camera_setting(
     camera_id: str,
     update: CameraNotificationSettingUpdate,
@@ -250,7 +285,13 @@ async def update_camera_setting(
 # =============================================================================
 
 
-@router.get("/quiet-hours", response_model=QuietHoursPeriodsListResponse)
+@router.get(
+    "/quiet-hours",
+    response_model=QuietHoursPeriodsListResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_quiet_hours(
     db: AsyncSession = Depends(get_db),
 ) -> QuietHoursPeriodsListResponse:
@@ -272,6 +313,11 @@ async def get_quiet_hours(
     "/quiet-hours",
     response_model=QuietHoursPeriodResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        400: {"description": "Bad request - Invalid time range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
 )
 async def create_quiet_hours_period(
     period: QuietHoursPeriodCreate,
@@ -318,7 +364,14 @@ async def create_quiet_hours_period(
     return QuietHoursPeriodResponse.model_validate(new_period)
 
 
-@router.delete("/quiet-hours/{period_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/quiet-hours/{period_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": "Quiet hours period not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def delete_quiet_hours_period(
     period_id: str,
     db: AsyncSession = Depends(get_db),

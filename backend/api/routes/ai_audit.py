@@ -156,7 +156,14 @@ def _audit_to_response(audit: EventAudit) -> EventAuditResponse:
     )
 
 
-@router.get("/events/{event_id}", response_model=EventAuditResponse)
+@router.get(
+    "/events/{event_id}",
+    response_model=EventAuditResponse,
+    responses={
+        404: {"description": "Event or audit not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_event_audit(
     event_id: int,
     db: AsyncSession = Depends(get_db),
@@ -199,7 +206,15 @@ async def get_event_audit(
     return _audit_to_response(audit)
 
 
-@router.post("/events/{event_id}/evaluate", response_model=EventAuditResponse)
+@router.post(
+    "/events/{event_id}/evaluate",
+    response_model=EventAuditResponse,
+    responses={
+        404: {"description": "Event or audit not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def evaluate_event(
     event_id: int,
     request: Request,
@@ -268,7 +283,14 @@ async def evaluate_event(
     return _audit_to_response(updated_audit)
 
 
-@router.get("/stats", response_model=AuditStatsResponse)
+@router.get(
+    "/stats",
+    response_model=AuditStatsResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_audit_stats(
     days: int = Query(7, ge=1, le=90, description="Number of days to include"),
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -302,7 +324,14 @@ async def get_audit_stats(
     )
 
 
-@router.get("/leaderboard", response_model=LeaderboardResponse)
+@router.get(
+    "/leaderboard",
+    response_model=LeaderboardResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_model_leaderboard(
     days: int = Query(7, ge=1, le=90, description="Number of days to include"),
     db: AsyncSession = Depends(get_db),
@@ -336,7 +365,14 @@ async def get_model_leaderboard(
     )
 
 
-@router.get("/recommendations", response_model=RecommendationsResponse)
+@router.get(
+    "/recommendations",
+    response_model=RecommendationsResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_recommendations(
     days: int = Query(7, ge=1, le=90, description="Number of days to include"),
     db: AsyncSession = Depends(get_db),
@@ -373,7 +409,14 @@ async def get_recommendations(
     )
 
 
-@router.post("/batch", response_model=BatchAuditResponse)
+@router.post(
+    "/batch",
+    response_model=BatchAuditResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def trigger_batch_audit(
     request: BatchAuditRequest,
     db: AsyncSession = Depends(get_db),
@@ -470,7 +513,13 @@ def _validate_model_name(model: str) -> None:
         )
 
 
-@router.get("/prompts", response_model=AllPromptsResponse)
+@router.get(
+    "/prompts",
+    response_model=AllPromptsResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_all_prompts() -> AllPromptsResponse:
     """Get current prompt configurations for all AI models.
 
@@ -499,7 +548,18 @@ async def get_all_prompts() -> AllPromptsResponse:
 # to prevent FastAPI from matching "history", "export", "test" as model names.
 
 
-@router.post("/test-prompt", response_model=CustomTestPromptResponse)
+@router.post(
+    "/test-prompt",
+    response_model=CustomTestPromptResponse,
+    responses={
+        400: {"description": "Bad request - Invalid or too long prompt"},
+        404: {"description": "Event not found"},
+        408: {"description": "Request timeout"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+        503: {"description": "AI service unavailable"},
+    },
+)
 async def test_custom_prompt(
     request: CustomTestPromptRequest,
     db: AsyncSession = Depends(get_db),
@@ -627,7 +687,16 @@ def _get_recommended_action(risk_level: str) -> str:
     return actions.get(risk_level, "Review event details")
 
 
-@router.post("/prompts/test", response_model=PromptTestResponse)
+@router.post(
+    "/prompts/test",
+    response_model=PromptTestResponse,
+    responses={
+        400: {"description": "Bad request - Invalid configuration"},
+        404: {"description": "Model or event not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def test_prompt(
     request: PromptTestRequest,
     db: AsyncSession = Depends(get_db),
@@ -693,7 +762,14 @@ async def test_prompt(
     )
 
 
-@router.get("/prompts/history", response_model=dict[str, PromptHistoryResponse])
+@router.get(
+    "/prompts/history",
+    response_model=dict[str, PromptHistoryResponse],
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_all_prompts_history(
     limit: int = Query(10, ge=1, le=100, description="Max versions per model"),
 ) -> dict[str, PromptHistoryResponse]:
@@ -732,7 +808,13 @@ async def get_all_prompts_history(
     return result
 
 
-@router.get("/prompts/export", response_model=PromptExportResponse)
+@router.get(
+    "/prompts/export",
+    response_model=PromptExportResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def export_prompts() -> PromptExportResponse:
     """Export all AI model configurations as JSON.
 
@@ -752,7 +834,15 @@ async def export_prompts() -> PromptExportResponse:
     )
 
 
-@router.post("/prompts/import", response_model=PromptImportResponse)
+@router.post(
+    "/prompts/import",
+    response_model=PromptImportResponse,
+    responses={
+        400: {"description": "Bad request - No prompts provided"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def import_prompts(request: PromptImportRequest) -> PromptImportResponse:
     """Import AI model configurations from JSON.
 
@@ -830,7 +920,15 @@ async def import_prompts(request: PromptImportRequest) -> PromptImportResponse:
 # Dynamic routes with path parameters must come AFTER static routes
 
 
-@router.get("/prompts/{model}", response_model=ModelPromptResponse)
+@router.get(
+    "/prompts/{model}",
+    response_model=ModelPromptResponse,
+    responses={
+        404: {"description": "Model not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_model_prompt(model: str) -> ModelPromptResponse:
     """Get current prompt configuration for a specific AI model.
 
@@ -856,7 +954,16 @@ async def get_model_prompt(model: str) -> ModelPromptResponse:
     )
 
 
-@router.put("/prompts/{model}", response_model=PromptUpdateResponse)
+@router.put(
+    "/prompts/{model}",
+    response_model=PromptUpdateResponse,
+    responses={
+        400: {"description": "Bad request - Invalid configuration"},
+        404: {"description": "Model not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_model_prompt(
     model: str,
     request: PromptUpdateRequest,
@@ -904,7 +1011,15 @@ async def update_model_prompt(
     )
 
 
-@router.get("/prompts/history/{model}", response_model=PromptHistoryResponse)
+@router.get(
+    "/prompts/history/{model}",
+    response_model=PromptHistoryResponse,
+    responses={
+        404: {"description": "Model not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_model_history(
     model: str,
     limit: int = Query(50, ge=1, le=100, description="Max versions to return"),
@@ -948,7 +1063,15 @@ async def get_model_history(
     )
 
 
-@router.post("/prompts/history/{version}", response_model=PromptRestoreResponse)
+@router.post(
+    "/prompts/history/{version}",
+    response_model=PromptRestoreResponse,
+    responses={
+        404: {"description": "Model or version not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def restore_prompt_version(
     version: int,
     model: str = Query(..., description="Model name to restore version for"),

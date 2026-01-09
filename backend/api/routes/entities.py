@@ -107,7 +107,14 @@ async def _get_redis_client() -> Redis | None:
     return None
 
 
-@router.get("", response_model=EntityListResponse)
+@router.get(
+    "",
+    response_model=EntityListResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_entities(
     entity_type: EntityTypeEnum | None = Query(
         None, description="Filter by entity type: 'person' or 'vehicle'"
@@ -198,7 +205,15 @@ async def list_entities(
     }
 
 
-@router.get("/{entity_id}", response_model=EntityDetail)
+@router.get(
+    "/{entity_id}",
+    response_model=EntityDetail,
+    responses={
+        404: {"description": "Entity not found"},
+        503: {"description": "Redis service unavailable"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_entity(
     entity_id: str,
     reid_service: ReIdentificationService = Depends(get_reid_service),
@@ -281,7 +296,15 @@ async def get_entity(
     )
 
 
-@router.get("/{entity_id}/history", response_model=EntityHistoryResponse)
+@router.get(
+    "/{entity_id}/history",
+    response_model=EntityHistoryResponse,
+    responses={
+        404: {"description": "Entity not found"},
+        503: {"description": "Redis service unavailable"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_entity_history(
     entity_id: str,
     reid_service: ReIdentificationService = Depends(get_reid_service),

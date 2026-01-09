@@ -73,7 +73,14 @@ async def _get_zone_or_404(zone_id: str, camera_id: str, db: AsyncSession) -> Zo
     return zone
 
 
-@router.get("/{camera_id}/zones", response_model=ZoneListResponse)
+@router.get(
+    "/{camera_id}/zones",
+    response_model=ZoneListResponse,
+    responses={
+        404: {"description": "Camera not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_zones(
     camera_id: str,
     enabled: bool | None = Query(None, description="Filter by enabled status"),

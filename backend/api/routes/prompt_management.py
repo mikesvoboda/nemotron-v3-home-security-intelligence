@@ -37,7 +37,13 @@ from backend.services.prompt_service import get_prompt_service
 router = APIRouter(prefix="/api/ai-audit/prompts", tags=["prompt-management"])
 
 
-@router.get("", response_model=AllPromptsResponse)
+@router.get(
+    "",
+    response_model=AllPromptsResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_all_prompts(
     db: AsyncSession = Depends(get_db),
 ) -> AllPromptsResponse:
@@ -60,7 +66,13 @@ async def get_all_prompts(
     )
 
 
-@router.get("/export", response_model=PromptsExportResponse)
+@router.get(
+    "/export",
+    response_model=PromptsExportResponse,
+    responses={
+        500: {"description": "Internal server error"},
+    },
+)
 async def export_prompts(
     db: AsyncSession = Depends(get_db),
 ) -> PromptsExportResponse:
@@ -83,7 +95,14 @@ async def export_prompts(
     )
 
 
-@router.get("/history", response_model=PromptHistoryResponse)
+@router.get(
+    "/history",
+    response_model=PromptHistoryResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_prompt_history(
     model: AIModelEnum | None = Query(None, description="Filter by specific model"),
     limit: int = Query(50, ge=1, le=100, description="Maximum results to return"),
@@ -126,7 +145,15 @@ async def get_prompt_history(
 prompt_test_rate_limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
 
 
-@router.post("/test", response_model=PromptTestResult)
+@router.post(
+    "/test",
+    response_model=PromptTestResult,
+    responses={
+        422: {"description": "Validation error - Invalid configuration"},
+        429: {"description": "Too many requests - Rate limit exceeded"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def test_prompt(
     request: PromptTestRequest,
     db: AsyncSession = Depends(get_db),
@@ -178,7 +205,14 @@ async def test_prompt(
     )
 
 
-@router.post("/import", response_model=PromptsImportResponse)
+@router.post(
+    "/import",
+    response_model=PromptsImportResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def import_prompts(
     request: PromptsImportRequest,
     db: AsyncSession = Depends(get_db),
@@ -239,7 +273,14 @@ def _compute_config_diff(
     return len(changes) > 0, changes
 
 
-@router.post("/import/preview", response_model=PromptsImportPreviewResponse)
+@router.post(
+    "/import/preview",
+    response_model=PromptsImportPreviewResponse,
+    responses={
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def preview_import_prompts(
     request: PromptsImportPreviewRequest,
     db: AsyncSession = Depends(get_db),
@@ -292,7 +333,15 @@ async def preview_import_prompts(
     )
 
 
-@router.post("/history/{version_id}", response_model=PromptRestoreResponse)
+@router.post(
+    "/history/{version_id}",
+    response_model=PromptRestoreResponse,
+    responses={
+        404: {"description": "Version not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def restore_prompt_version(
     version_id: int,
     db: AsyncSession = Depends(get_db),
@@ -330,7 +379,15 @@ async def restore_prompt_version(
 
 
 # Dynamic route comes AFTER all static routes to prevent path conflicts
-@router.get("/{model}", response_model=ModelPromptConfig)
+@router.get(
+    "/{model}",
+    response_model=ModelPromptConfig,
+    responses={
+        404: {"description": "Model configuration not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_prompt_for_model(
     model: AIModelEnum,
     db: AsyncSession = Depends(get_db),
@@ -357,7 +414,16 @@ async def get_prompt_for_model(
     )
 
 
-@router.put("/{model}", response_model=ModelPromptConfig)
+@router.put(
+    "/{model}",
+    response_model=ModelPromptConfig,
+    responses={
+        404: {"description": "Model not found"},
+        409: {"description": "Conflict - Concurrent modification detected"},
+        422: {"description": "Validation error - Invalid configuration"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def update_prompt_for_model(
     model: AIModelEnum,
     request: PromptUpdateRequest,
