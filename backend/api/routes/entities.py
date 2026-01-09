@@ -6,7 +6,6 @@ across multiple cameras using CLIP embeddings stored in Redis.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis.asyncio import Redis
@@ -124,7 +123,7 @@ async def list_entities(
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     reid_service: ReIdentificationService = Depends(get_reid_service),
-) -> dict[str, Any]:
+) -> EntityListResponse:
     """List tracked entities with optional filtering.
 
     Returns a paginated list of entities that have been tracked via
@@ -145,12 +144,12 @@ async def list_entities(
 
     if redis is None:
         logger.warning("Redis not available for entity list")
-        return {
-            "entities": [],
-            "count": 0,
-            "limit": limit,
-            "offset": offset,
-        }
+        return EntityListResponse(
+            entities=[],
+            count=0,
+            limit=limit,
+            offset=offset,
+        )
 
     # Determine which entity types to query
     entity_types = [entity_type.value] if entity_type else ["person", "vehicle"]
@@ -197,12 +196,12 @@ async def list_entities(
     # Apply pagination
     paginated = summaries[offset : offset + limit]
 
-    return {
-        "entities": paginated,
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-    }
+    return EntityListResponse(
+        entities=paginated,
+        count=total_count,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(

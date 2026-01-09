@@ -88,7 +88,7 @@ async def list_cameras(
     ),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> CameraListResponse:
     """List all cameras with optional status filter.
 
     Uses Redis cache with cache-aside pattern to improve performance
@@ -137,7 +137,7 @@ async def list_cameras(
                 result_data["cameras"] = [
                     filter_fields(c, validated_fields) for c in result_data["cameras"]
                 ]
-            return result_data
+            return CameraListResponse(cameras=result_data["cameras"], count=result_data["count"])
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
@@ -180,7 +180,7 @@ async def list_cameras(
         # cameras_data is known to be a list of dicts from the code above
         response["cameras"] = [filter_fields(c, validated_fields) for c in cameras_data]
 
-    return response
+    return CameraListResponse(cameras=response["cameras"], count=response["count"])
 
 
 @router.get("/{camera_id}", response_model=CameraResponse)

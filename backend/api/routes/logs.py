@@ -1,7 +1,6 @@
 """API routes for logs management."""
 
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import case, func, literal, select
@@ -42,7 +41,7 @@ async def list_logs(  # noqa: PLR0912
     offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> LogsResponse:
     """List logs with optional filtering and cursor-based pagination.
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
@@ -149,15 +148,15 @@ async def list_logs(  # noqa: PLR0912
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
-    return {
-        "logs": logs,
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "deprecation_warning": deprecation_warning,
-    }
+    return LogsResponse(
+        logs=logs,
+        count=total_count,
+        limit=limit,
+        offset=offset,
+        next_cursor=next_cursor,
+        has_more=has_more,
+        deprecation_warning=deprecation_warning,
+    )
 
 
 @router.get(
@@ -170,7 +169,7 @@ async def list_logs(  # noqa: PLR0912
 )
 async def get_log_stats(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> LogStats:
     """Get log statistics for dashboard.
 
     Optimized to use a single aggregation query with conditional counting
@@ -242,14 +241,14 @@ async def get_log_stats(
     # Top component is the first key after sorting
     top_component = next(iter(by_component.keys())) if by_component else None
 
-    return {
-        "total_today": total_today,
-        "errors_today": errors_today,
-        "warnings_today": warnings_today,
-        "by_component": by_component,
-        "by_level": by_level,
-        "top_component": top_component,
-    }
+    return LogStats(
+        total_today=total_today,
+        errors_today=errors_today,
+        warnings_today=warnings_today,
+        by_component=by_component,
+        by_level=by_level,
+        top_component=top_component,
+    )
 
 
 @router.get(

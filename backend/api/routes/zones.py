@@ -1,7 +1,6 @@
 """API routes for camera zone management."""
 
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
@@ -25,7 +24,7 @@ async def list_zones(
     camera_id: str,
     enabled: bool | None = Query(None, description="Filter by enabled status"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> ZoneListResponse:
     """List all zones for a camera with optional filtering.
 
     Args:
@@ -48,10 +47,7 @@ async def list_zones(
     result = await db.execute(query)
     zones = result.scalars().all()
 
-    return {
-        "zones": zones,
-        "count": len(zones),
-    }
+    return ZoneListResponse(zones=zones, count=len(zones))
 
 
 @router.post(

@@ -1,7 +1,6 @@
 """API routes for audit log management."""
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, literal, select, union_all
@@ -44,7 +43,7 @@ async def list_audit_logs(  # noqa: PLR0912
     offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> AuditLogListResponse:
     """List audit logs with optional filtering and cursor-based pagination.
 
     This endpoint is intended for admin use to review security-sensitive operations.
@@ -153,15 +152,15 @@ async def list_audit_logs(  # noqa: PLR0912
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
-    return {
-        "logs": logs,
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "deprecation_warning": deprecation_warning,
-    }
+    return AuditLogListResponse(
+        logs=logs,
+        count=total_count,
+        limit=limit,
+        offset=offset,
+        next_cursor=next_cursor,
+        has_more=has_more,
+        deprecation_warning=deprecation_warning,
+    )
 
 
 @router.get(
@@ -174,7 +173,7 @@ async def list_audit_logs(  # noqa: PLR0912
 )
 async def get_audit_stats(
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> AuditLogStats:
     """Get audit log statistics for dashboard.
 
     Returns aggregated statistics about audit logs including:
@@ -288,14 +287,14 @@ async def get_audit_stats(
     actors_result = await db.execute(actors_query)
     recent_actors = [row.actor for row in actors_result]
 
-    return {
-        "total_logs": total_logs,
-        "logs_today": logs_today,
-        "by_action": by_action,
-        "by_resource_type": by_resource_type,
-        "by_status": by_status,
-        "recent_actors": recent_actors,
-    }
+    return AuditLogStats(
+        total_logs=total_logs,
+        logs_today=logs_today,
+        by_action=by_action,
+        by_resource_type=by_resource_type,
+        by_status=by_status,
+        recent_actors=recent_actors,
+    )
 
 
 @router.get(
