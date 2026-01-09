@@ -31,6 +31,7 @@ from backend.api.schemas.clips import (
 from backend.api.schemas.detections import DetectionListResponse
 from backend.api.schemas.enrichment import EventEnrichmentsResponse
 from backend.api.schemas.events import (
+    DeletedEventsListResponse,
     EventListResponse,
     EventResponse,
     EventStatsResponse,
@@ -57,6 +58,7 @@ from backend.models.event import Event
 from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
+from backend.services.event_service import get_event_service
 from backend.services.search import SearchFilters, search_events
 
 logger = get_logger(__name__)
@@ -224,7 +226,7 @@ async def list_events(  # noqa: PLR0912
         "reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
     ),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> EventListResponse:
     """List events with optional filtering and cursor-based pagination.
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
@@ -406,15 +408,15 @@ async def list_events(  # noqa: PLR0912
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
-    return {
-        "events": events_with_counts,
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "deprecation_warning": deprecation_warning,
-    }
+    return EventListResponse(
+        events=events_with_counts,
+        count=total_count,
+        limit=limit,
+        offset=offset,
+        next_cursor=next_cursor,
+        has_more=has_more,
+        deprecation_warning=deprecation_warning,
+    )
 
 
 @router.get("/stats", response_model=EventStatsResponse)
@@ -423,7 +425,7 @@ async def get_event_stats(
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> EventStatsResponse:
     """Get aggregated event statistics.
 
     Returns statistics about events including:
@@ -461,7 +463,7 @@ async def get_event_stats(
         if cached_data is not None:
             logger.debug(f"Returning cached event stats for dates={start_str}:{end_str}")
             # Cast to expected type - cache stores dict[str, Any]
-            return dict(cached_data)
+            return EventStatsResponse(**dict(cached_data))
     except Exception as e:
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
@@ -533,7 +535,7 @@ async def get_event_stats(
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
 
-    return response
+    return EventStatsResponse(**response)
 
 
 @router.get("/search", response_model=SearchResponseSchema)
@@ -559,7 +561,7 @@ async def search_events_endpoint(
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> SearchResponseSchema:
     """Search events using full-text search.
 
     This endpoint provides PostgreSQL full-text search across event summaries,
@@ -623,8 +625,8 @@ async def search_events_endpoint(
     )
 
     # Convert to dict for response
-    return {
-        "results": [
+    return SearchResponseSchema(
+        results=[
             {
                 "id": r.id,
                 "camera_id": r.camera_id,
@@ -643,10 +645,10 @@ async def search_events_endpoint(
             }
             for r in search_response.results
         ],
-        "total_count": search_response.total_count,
-        "limit": search_response.limit,
-        "offset": search_response.offset,
-    }
+        total_count=search_response.total_count,
+        limit=search_response.limit,
+        offset=search_response.offset,
+    )
 
 
 @router.get("/export")
@@ -815,7 +817,7 @@ async def get_event(
     event_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> EventResponse:
     """Get a specific event by ID with HATEOAS links.
 
     Args:
@@ -840,22 +842,22 @@ async def get_event(
         f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
     )
 
-    return {
-        "id": event.id,
-        "camera_id": event.camera_id,
-        "started_at": event.started_at,
-        "ended_at": event.ended_at,
-        "risk_score": event.risk_score,
-        "risk_level": event.risk_level,
-        "summary": event.summary,
-        "reasoning": event.reasoning,
-        "reviewed": event.reviewed,
-        "notes": event.notes,
-        "detection_count": detection_count,
-        "detection_ids": parsed_detection_ids,
-        "thumbnail_url": thumbnail_url,
-        "links": build_event_links(request, event.id, event.camera_id),
-    }
+    return EventResponse(
+        id=event.id,
+        camera_id=event.camera_id,
+        started_at=event.started_at,
+        ended_at=event.ended_at,
+        risk_score=event.risk_score,
+        risk_level=event.risk_level,
+        summary=event.summary,
+        reasoning=event.reasoning,
+        reviewed=event.reviewed,
+        notes=event.notes,
+        detection_count=detection_count,
+        detection_ids=parsed_detection_ids,
+        thumbnail_url=thumbnail_url,
+        links=build_event_links(request, event.id, event.camera_id),
+    )
 
 
 @router.patch("/{event_id}", response_model=EventResponse)
@@ -865,7 +867,7 @@ async def update_event(
     request: Request,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> EventResponse:
     """Update an event (mark as reviewed).
 
     Args:
@@ -960,21 +962,21 @@ async def update_event(
         f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
     )
 
-    return {
-        "id": event.id,
-        "camera_id": event.camera_id,
-        "started_at": event.started_at,
-        "ended_at": event.ended_at,
-        "risk_score": event.risk_score,
-        "risk_level": event.risk_level,
-        "summary": event.summary,
-        "reasoning": event.reasoning,
-        "reviewed": event.reviewed,
-        "notes": event.notes,
-        "detection_count": detection_count,
-        "detection_ids": parsed_detection_ids,
-        "thumbnail_url": thumbnail_url,
-    }
+    return EventResponse(
+        id=event.id,
+        camera_id=event.camera_id,
+        started_at=event.started_at,
+        ended_at=event.ended_at,
+        risk_score=event.risk_score,
+        risk_level=event.risk_level,
+        summary=event.summary,
+        reasoning=event.reasoning,
+        reviewed=event.reviewed,
+        notes=event.notes,
+        detection_count=detection_count,
+        detection_ids=parsed_detection_ids,
+        thumbnail_url=thumbnail_url,
+    )
 
 
 @router.get("/{event_id}/detections", response_model=DetectionListResponse)
@@ -983,7 +985,7 @@ async def get_event_detections(
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> DetectionListResponse:
     """Get detections for a specific event.
 
     Args:
@@ -1005,12 +1007,12 @@ async def get_event_detections(
 
     # If no detections, return empty list
     if not detection_ids:
-        return {
-            "detections": [],
-            "count": 0,
-            "limit": limit,
-            "offset": offset,
-        }
+        return DetectionListResponse(
+            detections=[],
+            count=0,
+            limit=limit,
+            offset=offset,
+        )
 
     # Build query for detections
     query = select(Detection).where(Detection.id.in_(detection_ids))
@@ -1030,12 +1032,12 @@ async def get_event_detections(
     result = await db.execute(query)
     detections = result.scalars().all()
 
-    return {
-        "detections": detections,
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-    }
+    return DetectionListResponse(
+        detections=detections,
+        count=total_count,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{event_id}/enrichments", response_model=EventEnrichmentsResponse)
@@ -1044,7 +1046,7 @@ async def get_event_enrichments(
     limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),
     offset: int = Query(0, ge=0, description="Number of enrichments to skip"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> EventEnrichmentsResponse:
     """Get enrichment data for detections in an event with pagination.
 
     Returns structured vision model results from the enrichment pipeline for
@@ -1080,15 +1082,15 @@ async def get_event_enrichments(
 
     # If no detections, return empty response with pagination metadata
     if not detection_ids:
-        return {
-            "event_id": event.id,
-            "enrichments": [],
-            "count": 0,
-            "total": 0,
-            "limit": limit,
-            "offset": offset,
-            "has_more": False,
-        }
+        return EventEnrichmentsResponse(
+            event_id=event.id,
+            enrichments=[],
+            count=0,
+            total=0,
+            limit=limit,
+            offset=offset,
+            has_more=False,
+        )
 
     # Apply pagination to detection_ids before querying
     # This ensures we only fetch the detections we need
@@ -1096,15 +1098,15 @@ async def get_event_enrichments(
 
     # If offset is beyond available detections, return empty with metadata
     if not paginated_detection_ids:
-        return {
-            "event_id": event.id,
-            "enrichments": [],
-            "count": 0,
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-            "has_more": False,
-        }
+        return EventEnrichmentsResponse(
+            event_id=event.id,
+            enrichments=[],
+            count=0,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=False,
+        )
 
     # Get detections for this page using batch fetching
     # This handles potential PostgreSQL IN clause limits for large detection lists
@@ -1123,15 +1125,15 @@ async def get_event_enrichments(
     # Calculate has_more based on total and current position
     has_more = offset + len(enrichments) < total
 
-    return {
-        "event_id": event.id,
-        "enrichments": enrichments,
-        "count": len(enrichments),
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "has_more": has_more,
-    }
+    return EventEnrichmentsResponse(
+        event_id=event.id,
+        enrichments=enrichments,
+        count=len(enrichments),
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=has_more,
+    )
 
 
 @router.get("/{event_id}/clip", response_model=ClipInfoResponse)
@@ -1468,7 +1470,7 @@ async def bulk_create_events(
     request: EventBulkCreateRequest,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> EventBulkCreateResponse:
     """Create multiple events in a single request.
 
     Supports partial success - some events may succeed while others fail.
@@ -1566,13 +1568,13 @@ async def bulk_create_events(
                     succeeded -= 1
                     failed += 1
 
-    return {
-        "total": len(request.events),
-        "succeeded": succeeded,
-        "failed": failed,
-        "skipped": 0,
-        "results": results,
-    }
+    return EventBulkCreateResponse(
+        total=len(request.events),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
 
 
 @router.patch(
@@ -1590,7 +1592,7 @@ async def bulk_update_events(
     request: EventBulkUpdateRequest,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> BulkOperationResponse:
     """Update multiple events in a single request.
 
     Supports partial success - some updates may succeed while others fail.
@@ -1680,13 +1682,13 @@ async def bulk_update_events(
                     succeeded -= 1
                     failed += 1
 
-    return {
-        "total": len(request.events),
-        "succeeded": succeeded,
-        "failed": failed,
-        "skipped": 0,
-        "results": results,
-    }
+    return BulkOperationResponse(
+        total=len(request.events),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
 
 
 @router.delete(
@@ -1704,20 +1706,22 @@ async def bulk_delete_events(
     request: EventBulkDeleteRequest,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> dict[str, Any]:
+) -> BulkOperationResponse:
     """Delete multiple events in a single request.
 
     Supports partial success - some deletions may succeed while others fail.
     Returns HTTP 207 Multi-Status with per-item results.
 
-    By default uses soft delete (sets deleted_at timestamp). Use soft_delete=false
-    for permanent deletion.
+    By default uses soft delete (sets deleted_at timestamp) with cascade to
+    related detections. Use soft_delete=false for permanent deletion.
+    Use cascade=false to only delete the event without affecting detections.
 
     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
 
     Args:
         request: Bulk delete request with up to 100 event IDs
         db: Database session
+        cache: Cache service for invalidation
 
     Returns:
         BulkOperationResponse with per-item results
@@ -1726,31 +1730,24 @@ async def bulk_delete_events(
     succeeded = 0
     failed = 0
 
-    # Fetch all events in one query
-    query = select(Event).where(Event.id.in_(request.event_ids))
-    result = await db.execute(query)
-    events_map = {event.id: event for event in result.scalars().all()}
+    event_service = get_event_service()
 
     for idx, event_id in enumerate(request.event_ids):
         try:
-            event = events_map.get(event_id)
-            if not event:
-                results.append(
-                    {
-                        "index": idx,
-                        "status": BulkOperationStatus.FAILED,
-                        "id": event_id,
-                        "error": f"Event not found: {event_id}",
-                    }
-                )
-                failed += 1
-                continue
-
             if request.soft_delete:
-                # Soft delete - set deleted_at timestamp
-                event.deleted_at = datetime.now(UTC)
+                # Soft delete with optional cascade to related detections
+                await event_service.soft_delete_event(
+                    event_id=event_id,
+                    db=db,
+                    cascade=request.cascade,
+                )
             else:
-                # Hard delete
+                # Hard delete - fetch and delete directly
+                query = select(Event).where(Event.id == event_id)
+                result = await db.execute(query)
+                event = result.scalar_one_or_none()
+                if event is None:
+                    raise ValueError(f"Event not found: {event_id}")
                 await db.delete(event)
 
             results.append(
@@ -1762,6 +1759,18 @@ async def bulk_delete_events(
                 }
             )
             succeeded += 1
+
+        except ValueError as e:
+            # Event not found or already deleted
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": event_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
 
         except Exception as e:
             logger.error(f"Bulk delete event failed at index {idx}: {e}")
@@ -1797,10 +1806,209 @@ async def bulk_delete_events(
                     succeeded -= 1
                     failed += 1
 
+    return BulkOperationResponse(
+        total=len(request.event_ids),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
+
+
+# =============================================================================
+# Soft Delete Trash View Endpoint (NEM-1955)
+# =============================================================================
+
+
+@router.get(
+    "/deleted",
+    response_model=DeletedEventsListResponse,
+    summary="List all soft-deleted events",
+    responses={
+        200: {"description": "List of soft-deleted events"},
+    },
+)
+async def list_deleted_events(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List all soft-deleted events for trash view.
+
+    Returns events that have been soft-deleted (deleted_at is not null),
+    ordered by deleted_at descending (most recently deleted first).
+
+    This endpoint enables a "trash" view where users can see deleted events
+    and optionally restore them.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DeletedEventsListResponse containing list of deleted events and count
+    """
+    # Query for events where deleted_at is not null
+    query = select(Event).where(Event.deleted_at.isnot(None)).order_by(Event.deleted_at.desc())
+
+    result = await db.execute(query)
+    deleted_events = result.scalars().all()
+
+    # Build response with detection info
+    events_data = []
+    for event in deleted_events:
+        detection_ids = get_detection_ids_from_event(event)
+        thumbnail_url = f"/api/media/detections/{detection_ids[0]}" if detection_ids else None
+
+        events_data.append(
+            {
+                "id": event.id,
+                "camera_id": event.camera_id,
+                "started_at": event.started_at,
+                "ended_at": event.ended_at,
+                "risk_score": event.risk_score,
+                "risk_level": event.risk_level,
+                "summary": event.summary,
+                "reasoning": event.reasoning,
+                "llm_prompt": event.llm_prompt,
+                "reviewed": event.reviewed,
+                "notes": event.notes,
+                "detection_count": len(detection_ids),
+                "detection_ids": detection_ids,
+                "thumbnail_url": thumbnail_url,
+                "enrichment_status": None,
+            }
+        )
+
     return {
-        "total": len(request.event_ids),
-        "succeeded": succeeded,
-        "failed": failed,
-        "skipped": 0,
-        "results": results,
+        "events": events_data,
+        "count": len(events_data),
     }
+
+
+@router.delete(
+    "/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft delete a single event",
+    responses={
+        204: {"description": "Event deleted successfully"},
+        404: {"description": "Event not found"},
+        409: {"description": "Event already deleted"},
+    },
+)
+async def delete_event(
+    event_id: int,
+    cascade: bool = Query(True, description="Cascade soft delete to related detections"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> None:
+    """Soft delete a single event with optional cascade to related detections.
+
+    By default, cascade=True soft deletes all related detections using the same
+    timestamp as the event. This enables cascade restore by matching timestamps.
+
+    Args:
+        event_id: ID of the event to delete
+        cascade: If True, cascade soft delete to related detections
+        db: Database session
+        cache: Cache service for invalidation
+
+    Raises:
+        HTTPException: 404 if event not found, 409 if already deleted
+    """
+    event_service = get_event_service()
+
+    try:
+        await event_service.soft_delete_event(
+            event_id=event_id,
+            db=db,
+            cascade=cascade,
+        )
+        await db.commit()
+
+        # Invalidate event-related caches
+        try:
+            await cache.invalidate_events(reason="event_deleted")
+            await cache.invalidate_event_stats(reason="event_deleted")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed after delete: {e}")
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from e
+        if "already deleted" in error_msg.lower():
+            raise HTTPException(status_code=409, detail=error_msg) from e
+        raise HTTPException(status_code=400, detail=error_msg) from e
+
+
+@router.post(
+    "/{event_id}/restore",
+    response_model=EventResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Restore a soft-deleted event",
+    responses={
+        200: {"description": "Event restored successfully"},
+        404: {"description": "Event not found"},
+        409: {"description": "Event is not deleted"},
+    },
+)
+async def restore_event(
+    event_id: int,
+    cascade: bool = Query(True, description="Cascade restore to related detections"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> dict[str, Any]:
+    """Restore a soft-deleted event with optional cascade to related detections.
+
+    When cascade=True, this restores detections that were deleted at the same
+    timestamp as the event, indicating they were cascade-deleted together.
+
+    Args:
+        event_id: ID of the event to restore
+        cascade: If True, cascade restore to related detections
+        db: Database session
+        cache: Cache service for invalidation
+
+    Returns:
+        The restored event
+
+    Raises:
+        HTTPException: 404 if event not found, 409 if not deleted
+    """
+    event_service = get_event_service()
+
+    try:
+        event = await event_service.restore_event(
+            event_id=event_id,
+            db=db,
+            cascade=cascade,
+        )
+        await db.commit()
+
+        # Invalidate event-related caches
+        try:
+            await cache.invalidate_events(reason="event_restored")
+            await cache.invalidate_event_stats(reason="event_restored")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed after restore: {e}")
+
+        return {
+            "id": event.id,
+            "camera_id": event.camera_id,
+            "started_at": event.started_at,
+            "ended_at": event.ended_at,
+            "risk_score": event.risk_score,
+            "risk_level": event.risk_level,
+            "summary": event.summary,
+            "reasoning": event.reasoning,
+            "reviewed": event.reviewed,
+            "notes": event.notes,
+            "clip_path": event.clip_path,
+            "deleted_at": event.deleted_at,
+        }
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from e
+        if "not deleted" in error_msg.lower():
+            raise HTTPException(status_code=409, detail=error_msg) from e
+        raise HTTPException(status_code=400, detail=error_msg) from e
