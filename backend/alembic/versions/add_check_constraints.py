@@ -23,8 +23,8 @@ This migration adds database-level CHECK constraints for:
    - class_baselines.hour: 0-23 range
    - zones.priority: non-negative
    - zones.color: hex format (#RRGGBB)
-   - scene_changes.similarity_score: 0.0-1.0 range
    - event_audits quality scores: 1.0-5.0 range
+   (Note: scene_changes.similarity_score is handled in create_scene_changes_table)
    - alert_rules.risk_threshold: 0-100 range
    - alert_rules.min_confidence: 0.0-1.0 range
    - alert_rules.cooldown_seconds: non-negative
@@ -152,12 +152,9 @@ def upgrade() -> None:
         sa.text("color ~ '^#[0-9A-Fa-f]{6}$'"),
     )
 
-    # scene_changes.similarity_score: 0.0-1.0 range
-    op.create_check_constraint(
-        "ck_scene_changes_similarity_range",
-        "scene_changes",
-        sa.text("similarity_score >= 0.0 AND similarity_score <= 1.0"),
-    )
+    # NOTE: scene_changes.similarity_score constraint is created in
+    # create_scene_changes_table migration which creates the table with
+    # the CHECK constraint included. Do not duplicate here.
 
     # event_audits quality scores: 1.0-5.0 range (nullable)
     op.create_check_constraint(
@@ -245,7 +242,7 @@ def downgrade() -> None:
     op.drop_constraint("ck_event_audits_risk_justification_range", "event_audits", type_="check")
     op.drop_constraint("ck_event_audits_reasoning_score_range", "event_audits", type_="check")
     op.drop_constraint("ck_event_audits_context_score_range", "event_audits", type_="check")
-    op.drop_constraint("ck_scene_changes_similarity_range", "scene_changes", type_="check")
+    # NOTE: ck_scene_changes_similarity_range is managed by create_scene_changes_table migration
     op.drop_constraint("ck_zones_color_hex", "zones", type_="check")
     op.drop_constraint("ck_zones_priority_non_negative", "zones", type_="check")
     op.drop_constraint("ck_class_baselines_hour_range", "class_baselines", type_="check")

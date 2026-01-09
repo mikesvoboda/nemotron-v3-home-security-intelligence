@@ -776,7 +776,7 @@ class TestRequestRecorderEdgeCases:
                 with client.websocket_connect("/ws") as ws:
                     data = ws.receive_text()
                     assert data == "Hello"
-            except Exception:  # noqa: S110
+            except Exception:
                 # WebSocket handling varies by test client - expected to fail in some cases
                 pass
 

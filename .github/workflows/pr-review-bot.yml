@@ -1,0 +1,239 @@
+name: PR Review Bot - Test Enforcement
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ============================================================================
+  # Check for test stubs in PR
+  # ============================================================================
+
+  check-missing-tests:
+    name: Review Tests in PR Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@48d8f15b2aaa3d255ca5af3eba4870f807ce6b3c # v45
+
+      - name: Parse PR diff for test patterns
+        id: test-check
+        run: |
+          echo "Analyzing PR changes for test coverage..."
+
+          # Get list of new/modified source files
+          BACKEND_CHANGES=$(echo "${{ steps.changed-files.outputs.modified_files }}" | \
+            grep -E "^backend/(api|services|models|core)/" | \
+            grep -v test | grep "\.py$" || true)
+
+          FRONTEND_CHANGES=$(echo "${{ steps.changed-files.outputs.modified_files }}" | \
+            grep -E "^frontend/src/(components|hooks)/" | \
+            grep -v test | grep -E "\.(tsx?|jsx?)$" || true)
+
+          echo "BACKEND_CHANGES<<EOF" >> $GITHUB_ENV
+          echo "$BACKEND_CHANGES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "FRONTEND_CHANGES<<EOF" >> $GITHUB_ENV
+          echo "$FRONTEND_CHANGES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          # Check if test files were added
+          TEST_FILES=$(echo "${{ steps.changed-files.outputs.added_files }}" | \
+            grep -E "\.test\.(tsx?|jsx?|py)$" || true)
+
+          echo "TEST_FILES<<EOF" >> $GITHUB_ENV
+          echo "$TEST_FILES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Generate PR comment
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        env:
+          BACKEND_CHANGES: ${{ env.BACKEND_CHANGES }}
+          FRONTEND_CHANGES: ${{ env.FRONTEND_CHANGES }}
+          TEST_FILES: ${{ env.TEST_FILES }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const backendChanges = process.env.BACKEND_CHANGES || '';
+            const frontendChanges = process.env.FRONTEND_CHANGES || '';
+            const testFiles = process.env.TEST_FILES || '';
+
+            const hasBackendChanges = backendChanges.trim().length > 0;
+            const hasFrontendChanges = frontendChanges.trim().length > 0;
+            const hasTestFiles = testFiles.trim().length > 0;
+
+            let body = `## 🧪 Test Coverage Review\n\n`;
+
+            if (!hasBackendChanges && !hasFrontendChanges) {
+              body += `✅ No testable code changes detected\n`;
+            } else {
+              if (hasBackendChanges) {
+                body += `### Backend Changes\n`;
+                body += `**Files modified:**\n`;
+                backendChanges.split('\n').filter(f => f).forEach(f => {
+                  body += `- \`${f}\`\n`;
+                });
+                body += `\n`;
+              }
+
+              if (hasFrontendChanges) {
+                body += `### Frontend Changes\n`;
+                body += `**Files modified:**\n`;
+                frontendChanges.split('\n').filter(f => f).forEach(f => {
+                  body += `- \`${f}\`\n`;
+                });
+                body += `\n`;
+              }
+
+              if (hasTestFiles) {
+                body += `✅ **Tests found:** ${testFiles.split('\n').filter(f => f).length} test files added\n\n`;
+              } else if (hasBackendChanges || hasFrontendChanges) {
+                body += `⚠️ **No test files found** - Please add tests for your changes\n\n`;
+                body += `### 📝 How to Add Tests\n\n`;
+                body += `1. **Generate test stubs:**\n`;
+                body += `   \`\`\`bash\n`;
+                if (hasBackendChanges) {
+                  body += `   ./scripts/generate-test-stubs.py backend/api/routes/your_file.py\n`;
+                }
+                if (hasFrontendChanges) {
+                  body += `   ./scripts/generate-test-stubs.py frontend/src/components/YourComponent.tsx\n`;
+                }
+                body += `   \`\`\`\n\n`;
+                body += `2. **Implement test cases** - Replace TODO comments in generated tests\n\n`;
+                body += `3. **Verify coverage** - Run tests locally:\n`;
+                body += `   \`\`\`bash\n`;
+                body += `   ./scripts/validate.sh  # Full validation\n`;
+                body += `   \`\`\`\n\n`;
+              }
+
+              body += `### 📚 Testing Resources\n`;
+              body += `- [Testing Guide](../docs/TESTING_GUIDE.md) - Complete patterns and examples\n`;
+              body += `- [Backend Tests Docs](../backend/tests/AGENTS.md) - Infrastructure and fixtures\n`;
+              body += `- [TDD Approach](../CLAUDE.md) - Test-Driven Development workflow\n\n`;
+
+              body += `### ✨ Coverage Requirements\n`;
+              body += `- **API Routes**: 95% (unit + integration)\n`;
+              body += `- **Services**: 90% (unit + integration)\n`;
+              body += `- **Models**: 85% (unit)\n`;
+              body += `- **Frontend Components**: 80%+\n`;
+            }
+
+            // Try to find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.body.includes('🧪 Test Coverage Review')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+  # ============================================================================
+  # Check test file naming conventions
+  # ============================================================================
+
+  test-naming-convention:
+    name: Test File Naming Convention
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Get changed test files
+        id: test-files
+        uses: tj-actions/changed-files@48d8f15b2aaa3d255ca5af3eba4870f807ce6b3c # v45
+        with:
+          files: |
+            backend/tests/**
+            frontend/**/*.test.ts*
+
+      - name: Validate test file naming
+        if: steps.test-files.outputs.any_changed == 'true'
+        run: |
+          echo "Validating test file naming conventions..."
+          EXIT_CODE=0
+
+          for file in ${{ steps.test-files.outputs.all_changed_files }}; do
+            # Backend test files should be test_<name>.py or in test directories
+            if [[ $file =~ ^backend/tests/ ]]; then
+              if [[ ! $file =~ test_.+\.py$ ]] && [[ ! $file =~ \.py$ ]]; then
+                echo "⚠️ Backend test: $file (should be test_<name>.py or in tests/ dir)"
+                EXIT_CODE=1
+              fi
+            fi
+
+            # Frontend test files should be <name>.test.ts(x)
+            if [[ $file =~ ^frontend/ ]]; then
+              if [[ ! $file =~ \.test\.tsx?$ ]]; then
+                echo "⚠️ Frontend test: $file (should be <name>.test.ts/tsx)"
+                EXIT_CODE=1
+              fi
+            fi
+          done
+
+          exit $EXIT_CODE
+        continue-on-error: true
+
+  # ============================================================================
+  # Summary comment
+  # ============================================================================
+
+  summary:
+    name: PR Test Review Summary
+    runs-on: ubuntu-latest
+    needs: [check-missing-tests, test-naming-convention]
+    if: always()
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post summary
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            let summary = '## 🔍 Test Review Status\n\n';
+            summary += `- **Tests Found**: ${{ needs.check-missing-tests.result }}\n`;
+            summary += `- **Naming Convention**: ${{ needs.test-naming-convention.result }}\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary,
+            });

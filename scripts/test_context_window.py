@@ -29,7 +29,7 @@ def get_vram_stats() -> VRAMStats:
     nvidia_smi = shutil.which("nvidia-smi")
     if not nvidia_smi:
         return VRAMStats(used_mb=0, total_mb=0, free_mb=0)
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [
             nvidia_smi,
             "--query-gpu=memory.used,memory.total,memory.free",

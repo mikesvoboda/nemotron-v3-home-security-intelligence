@@ -916,5 +916,5 @@ class TestGlobalRegistry:
         try:
             registry = await get_service_registry()
             assert isinstance(registry, ServiceRegistry)
-        except Exception:  # noqa: S110  # Expected in test environment without Redis
+        except Exception:  # Expected in test environment without Redis
             pass

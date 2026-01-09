@@ -6,7 +6,7 @@ Run with: uv run pytest backend/tests/integration/repositories/test_camera_repos
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -723,3 +723,181 @@ class TestCameraRepositoryGetMany:
 
             assert len(cameras) == 1
             assert cameras[0].id == camera_id
+
+
+class TestCameraRepositoryOptimisticConcurrency:
+    """Test optimistic concurrency control for camera status updates.
+
+    These tests verify that concurrent status updates don't overwrite
+    newer data with stale data, using timestamp-based optimistic locking.
+    """
+
+    @pytest.mark.asyncio
+    async def test_update_status_optimistic_applies_newer_timestamp(self, test_db):
+        """Test that update succeeds when timestamp is newer than existing."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            # Create camera with NULL last_seen_at
+            camera = Camera(
+                id=camera_id,
+                name=f"Test Camera {camera_id}",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="offline",
+                last_seen_at=None,
+            )
+            await repo.create(camera)
+
+            # First update should succeed (last_seen_at is NULL)
+            new_time = datetime.now(UTC)
+            updated, result = await repo.update_status_optimistic(camera_id, "online", new_time)
+
+            assert updated is True
+            assert result is not None
+            assert result.status == "online"
+            assert result.last_seen_at == new_time
+
+    @pytest.mark.asyncio
+    async def test_update_status_optimistic_rejects_older_timestamp(self, test_db):
+        """Test that update is rejected when timestamp is older than existing."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            # Create camera with initial timestamp
+            base_time = datetime.now(UTC)
+            camera = Camera(
+                id=camera_id,
+                name=f"Test Camera {camera_id}",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="online",
+                last_seen_at=base_time,
+            )
+            await repo.create(camera)
+
+            # Try to update with older timestamp
+            older_time = base_time - timedelta(seconds=10)
+            updated, result = await repo.update_status_optimistic(camera_id, "offline", older_time)
+
+            # Update should be rejected
+            assert updated is False
+            assert result is not None
+            # Should return current state
+            assert result.status == "online"
+            assert result.last_seen_at == base_time
+
+    @pytest.mark.asyncio
+    async def test_update_status_optimistic_returns_none_for_missing_camera(self, test_db):
+        """Test that update returns (False, None) for non-existent camera."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+
+            updated, result = await repo.update_status_optimistic(
+                "nonexistent_camera", "online", datetime.now(UTC)
+            )
+
+            assert updated is False
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_concurrent_updates_last_write_wins(self, test_db):
+        """Test that concurrent updates result in last-write-wins based on timestamp.
+
+        This simulates a race condition where two updates arrive out of order:
+        - update2 (newer timestamp) arrives and is applied first
+        - update1 (older timestamp) arrives second but is rejected
+        """
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            # Create camera
+            camera = Camera(
+                id=camera_id,
+                name=f"Test Camera {camera_id}",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="unknown",
+                last_seen_at=None,
+            )
+            await repo.create(camera)
+
+            # Simulate concurrent updates with different timestamps
+            update1_time = datetime.now(UTC)
+            update2_time = update1_time + timedelta(seconds=1)
+
+            # Update2 arrives first (but has newer timestamp)
+            updated2, result2 = await repo.update_status_optimistic(
+                camera_id, "online", update2_time
+            )
+            assert updated2 is True
+            assert result2.status == "online"
+
+            # Update1 arrives second (but has older timestamp - should be rejected)
+            updated1, result1 = await repo.update_status_optimistic(
+                camera_id, "offline", update1_time
+            )
+            assert updated1 is False
+            # result1 should return current state (from update2)
+            assert result1.status == "online"
+
+            # Verify final state in database
+            final_camera = await repo.get_by_id(camera_id)
+            assert final_camera.status == "online"
+            assert final_camera.last_seen_at == update2_time
+
+    @pytest.mark.asyncio
+    async def test_sequential_updates_apply_in_order(self, test_db):
+        """Test that sequential updates with increasing timestamps all apply."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            # Create camera
+            camera = Camera(
+                id=camera_id,
+                name=f"Test Camera {camera_id}",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="unknown",
+                last_seen_at=None,
+            )
+            await repo.create(camera)
+
+            base_time = datetime.now(UTC)
+
+            # Apply updates in timestamp order
+            for i, status in enumerate(["offline", "online", "error", "online"]):
+                timestamp = base_time + timedelta(seconds=i)
+                updated, result = await repo.update_status_optimistic(camera_id, status, timestamp)
+                assert updated is True
+                assert result.status == status
+                assert result.last_seen_at == timestamp
+
+    @pytest.mark.asyncio
+    async def test_update_status_optimistic_updates_both_status_and_timestamp(self, test_db):
+        """Test that optimistic update sets both status and last_seen_at atomically."""
+        async with test_db() as session:
+            repo = CameraRepository(session)
+            camera_id = unique_id("camera")
+
+            initial_time = datetime.now(UTC) - timedelta(hours=1)
+            camera = Camera(
+                id=camera_id,
+                name=f"Test Camera {camera_id}",
+                folder_path=f"/export/foscam/{camera_id}",
+                status="online",
+                last_seen_at=initial_time,
+            )
+            await repo.create(camera)
+
+            new_time = datetime.now(UTC)
+            updated, result = await repo.update_status_optimistic(camera_id, "offline", new_time)
+
+            assert updated is True
+            assert result.status == "offline"
+            assert result.last_seen_at == new_time
+
+            # Verify in a fresh query
+            refreshed = await repo.get_by_id(camera_id)
+            assert refreshed.status == "offline"
+            assert refreshed.last_seen_at == new_time

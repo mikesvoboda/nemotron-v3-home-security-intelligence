@@ -1,7 +1,5 @@
 """API routes for events management."""
 
-import csv
-import io
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -651,7 +649,25 @@ async def search_events_endpoint(
     )
 
 
-@router.get("/export")
+@router.get(
+    "/export",
+    response_model=None,  # Required when returning StreamingResponse | Response union
+    responses={
+        200: {
+            "description": "Exported events file",
+            "content": {
+                "text/csv": {
+                    "schema": {"type": "string", "format": "binary"},
+                    "example": "event_id,camera_name,started_at,...",
+                },
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                    "schema": {"type": "string", "format": "binary"},
+                },
+            },
+        },
+        429: {"description": "Rate limit exceeded"},
+    },
+)
 async def export_events(
     request: Request,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
@@ -663,8 +679,13 @@ async def export_events(
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.EXPORT)),
-) -> StreamingResponse:
-    """Export events as CSV file for external analysis or record-keeping.
+) -> StreamingResponse | Response:
+    """Export events as CSV or Excel file for external analysis or record-keeping.
+
+    Supports content negotiation via HTTP Accept header:
+    - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+    - `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)
+    - `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)
 
     This endpoint is rate-limited to 10 requests per minute per client IP
     to prevent abuse and protect against data exfiltration attacks.
@@ -675,7 +696,7 @@ async def export_events(
     - Detection count, reviewed status
 
     Args:
-        request: FastAPI request object
+        request: FastAPI request object (includes Accept header for format selection)
         camera_id: Optional camera ID to filter by
         risk_level: Optional risk level to filter by (low, medium, high, critical)
         start_date: Optional start date for date range filter
@@ -685,14 +706,28 @@ async def export_events(
         _rate_limit: Rate limiter dependency (10 req/min, no burst)
 
     Returns:
-        StreamingResponse with CSV file containing exported events
+        StreamingResponse with CSV or Response with Excel file containing exported events
 
     Raises:
         HTTPException: 429 if rate limit exceeded
         HTTPException: 400 if start_date is after end_date
     """
+    from backend.services.export_service import (
+        EXPORT_MIME_TYPES,
+        EventExportRow,
+        ExportFormat,
+        events_to_csv,
+        events_to_excel,
+        generate_export_filename,
+        parse_accept_header,
+    )
+
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Determine export format from Accept header
+    accept_header = request.headers.get("Accept")
+    export_format = parse_accept_header(accept_header)
 
     # Build base query
     query = select(Event)
@@ -722,57 +757,31 @@ async def export_events(
     camera_result = await db.execute(camera_query)
     cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
 
-    # Create CSV in memory
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # Write header
-    writer.writerow(
-        [
-            "event_id",
-            "camera_name",
-            "started_at",
-            "ended_at",
-            "risk_score",
-            "risk_level",
-            "summary",
-            "detection_count",
-            "reviewed",
-        ]
-    )
-
-    # Write event rows
+    # Convert events to export rows
+    export_rows: list[EventExportRow] = []
     for event in events:
         camera_name = cameras.get(event.camera_id, "Unknown")
         detection_count = len(get_detection_ids_from_event(event))
 
-        # Format timestamps as ISO strings
-        started_at_str = event.started_at.isoformat() if event.started_at else ""
-        ended_at_str = event.ended_at.isoformat() if event.ended_at else ""
-
-        # Sanitize string fields to prevent CSV injection attacks
-        # Fields that could contain user-influenced data must be sanitized
-        safe_camera_name = sanitize_csv_value(camera_name)
-        safe_summary = sanitize_csv_value(event.summary)
-        safe_risk_level = sanitize_csv_value(event.risk_level)
-
-        writer.writerow(
-            [
-                event.id,
-                safe_camera_name,
-                started_at_str,
-                ended_at_str,
-                event.risk_score if event.risk_score is not None else "",
-                safe_risk_level,
-                safe_summary,
-                detection_count,
-                "Yes" if event.reviewed else "No",
-            ]
+        export_rows.append(
+            EventExportRow(
+                event_id=event.id,
+                camera_name=camera_name,
+                started_at=event.started_at,
+                ended_at=event.ended_at,
+                risk_score=event.risk_score,
+                risk_level=event.risk_level,
+                summary=event.summary,
+                detection_count=detection_count,
+                reviewed=event.reviewed,
+                object_types=event.object_types,
+                reasoning=event.reasoning,
+            )
         )
 
     # Generate filename with timestamp
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    filename = f"events_export_{timestamp}.csv"
+    filename = generate_export_filename("events_export", export_format)
+    content_type = EXPORT_MIME_TYPES[export_format]
 
     # Log the export action
     try:
@@ -782,7 +791,7 @@ async def export_events(
             resource_type="event",
             actor="anonymous",
             details={
-                "export_type": "csv",
+                "export_type": export_format.value,
                 "filters": {
                     "camera_id": camera_id,
                     "risk_level": risk_level,
@@ -803,13 +812,23 @@ async def export_events(
         await db.rollback()
         # Don't fail the main operation - audit is non-critical
 
-    # Return as streaming response with CSV content type
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    # Generate export content based on format
+    if export_format == ExportFormat.EXCEL:
+        # Excel format - return as bytes in Response
+        content = events_to_excel(export_rows)
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    else:
+        # CSV format - return as streaming response
+        csv_content = events_to_csv(export_rows)
+        return StreamingResponse(
+            iter([csv_content]),
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
 
 # =============================================================================

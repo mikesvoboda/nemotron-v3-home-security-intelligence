@@ -20,6 +20,17 @@ class AIModelEnum(str, Enum):
 class NemotronConfig(BaseModel):
     """Configuration for Nemotron risk analysis model."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "system_prompt": "You are a home security AI assistant analyzing camera detections for potential risks...",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "version": 3,
+            }
+        }
+    )
+
     system_prompt: str = Field(..., min_length=1, description="Full system prompt template")
     temperature: float = Field(
         default=0.7,
@@ -47,6 +58,18 @@ class NemotronConfig(BaseModel):
 class Florence2Config(BaseModel):
     """Configuration for Florence-2 scene analysis model."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "vqa_queries": [
+                    "What is this person wearing?",
+                    "Is this person carrying anything?",
+                    "What color is the vehicle?",
+                ]
+            }
+        }
+    )
+
     vqa_queries: list[str] = Field(
         ...,
         min_length=1,
@@ -64,6 +87,15 @@ class Florence2Config(BaseModel):
 
 class YoloWorldConfig(BaseModel):
     """Configuration for YOLO-World custom object detection."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "object_classes": ["person", "car", "truck", "bicycle", "dog", "cat"],
+                "confidence_threshold": 0.35,
+            }
+        }
+    )
 
     object_classes: list[str] = Field(
         ...,
@@ -89,6 +121,21 @@ class YoloWorldConfig(BaseModel):
 class XClipConfig(BaseModel):
     """Configuration for X-CLIP action recognition model."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "action_classes": [
+                    "walking",
+                    "running",
+                    "standing",
+                    "sitting",
+                    "driving",
+                    "entering",
+                ]
+            }
+        }
+    )
+
     action_classes: list[str] = Field(
         ...,
         min_length=1,
@@ -106,6 +153,20 @@ class XClipConfig(BaseModel):
 
 class FashionClipConfig(BaseModel):
     """Configuration for Fashion-CLIP clothing analysis model."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "clothing_categories": ["jacket", "shirt", "pants", "shorts", "dress", "hat"],
+                "suspicious_indicators": [
+                    "all black",
+                    "face mask",
+                    "hoodie up",
+                    "gloves at night",
+                ],
+            }
+        }
+    )
 
     clothing_categories: list[str] = Field(
         ...,
@@ -188,7 +249,23 @@ def validate_config_for_model(model: AIModelEnum, config: dict[str, Any]) -> lis
 class ModelPromptConfig(BaseModel):
     """Configuration for a specific AI model."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "model": "nemotron",
+                "config": {
+                    "system_prompt": "You are a home security AI assistant...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "version": 3,
+                "created_at": "2026-01-03T10:30:00Z",
+                "created_by": "admin",
+                "change_description": "Added weather context to prompt",
+            }
+        },
+    )
 
     model: AIModelEnum
     config: dict[str, Any] = Field(..., description="Model-specific configuration")
@@ -201,6 +278,28 @@ class ModelPromptConfig(BaseModel):
 class AllPromptsResponse(BaseModel):
     """Response containing prompts for all configurable models."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "version": "1.0",
+                "exported_at": "2026-01-03T10:30:00Z",
+                "prompts": {
+                    "nemotron": {
+                        "system_prompt": "You are a home security AI assistant...",
+                        "temperature": 0.7,
+                        "max_tokens": 2048,
+                    },
+                    "florence2": {
+                        "vqa_queries": [
+                            "What is this person wearing?",
+                            "Is this person carrying anything?",
+                        ],
+                    },
+                },
+            }
+        }
+    )
+
     version: str = Field("1.0", description="Export format version")
     exported_at: datetime = Field(..., description="Export timestamp")
     prompts: dict[str, dict[str, Any]] = Field(..., description="Configuration for each model")
@@ -212,6 +311,20 @@ class PromptUpdateRequest(BaseModel):
     Supports optimistic locking via expected_version field to prevent
     race conditions when multiple clients update simultaneously.
     """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "config": {
+                    "system_prompt": "You are a home security AI assistant with enhanced context awareness...",
+                    "temperature": 0.8,
+                    "max_tokens": 2048,
+                },
+                "change_description": "Increased temperature for more creative responses",
+                "expected_version": 3,
+            }
+        }
+    )
 
     config: dict[str, Any] = Field(..., description="New configuration for the model")
     change_description: str | None = Field(None, description="Optional description of what changed")
@@ -255,6 +368,21 @@ class PromptVersionConflictError(Exception):
 class PromptTestRequest(BaseModel):
     """Request to test a prompt with modified configuration."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model": "nemotron",
+                "config": {
+                    "system_prompt": "You are a home security AI assistant...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "event_id": 12345,
+                "image_path": None,
+            }
+        }
+    )
+
     model: AIModelEnum = Field(..., description="Model to test")
     config: dict[str, Any] = Field(..., description="Configuration to test")
     event_id: int | None = Field(None, description="Optional event ID to test against")
@@ -263,6 +391,29 @@ class PromptTestRequest(BaseModel):
 
 class PromptTestResult(BaseModel):
     """Result of a prompt test."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model": "nemotron",
+                "before_score": 65,
+                "after_score": 45,
+                "before_response": {
+                    "risk_score": 65,
+                    "risk_level": "medium",
+                    "summary": "Person detected at front door during evening hours",
+                },
+                "after_response": {
+                    "risk_score": 45,
+                    "risk_level": "low",
+                    "summary": "Regular visitor detected - matches known delivery pattern",
+                },
+                "improved": True,
+                "test_duration_ms": 1250,
+                "error": None,
+            }
+        }
+    )
 
     model: AIModelEnum
     before_score: int | None = Field(None, description="Risk score before changes")
@@ -277,7 +428,20 @@ class PromptTestResult(BaseModel):
 class PromptVersionInfo(BaseModel):
     """Information about a single prompt version."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 15,
+                "model": "nemotron",
+                "version": 3,
+                "created_at": "2026-01-03T10:30:00Z",
+                "created_by": "admin",
+                "change_description": "Added weather context to prompt",
+                "is_active": True,
+            }
+        },
+    )
 
     id: int
     model: AIModelEnum
@@ -291,6 +455,34 @@ class PromptVersionInfo(BaseModel):
 class PromptHistoryResponse(BaseModel):
     """Response containing version history for prompts."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "versions": [
+                    {
+                        "id": 15,
+                        "model": "nemotron",
+                        "version": 3,
+                        "created_at": "2026-01-03T10:30:00Z",
+                        "created_by": "admin",
+                        "change_description": "Added weather context to prompt",
+                        "is_active": True,
+                    },
+                    {
+                        "id": 12,
+                        "model": "nemotron",
+                        "version": 2,
+                        "created_at": "2026-01-02T14:00:00Z",
+                        "created_by": "system",
+                        "change_description": "Initial configuration",
+                        "is_active": False,
+                    },
+                ],
+                "total_count": 3,
+            }
+        }
+    )
+
     versions: list[PromptVersionInfo]
     total_count: int
 
@@ -298,11 +490,33 @@ class PromptHistoryResponse(BaseModel):
 class PromptRestoreRequest(BaseModel):
     """Request to restore a specific version."""
 
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "description": "Restoring to version 2 due to regression in analysis quality",
+            }
+        }
+    )
+
+    description: str | None = Field(
+        None,
+        description="Optional description for the restore action",
+    )
 
 
 class PromptRestoreResponse(BaseModel):
     """Response after restoring a prompt version."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "restored_version": 2,
+                "model": "nemotron",
+                "new_version": 4,
+                "message": "Successfully restored version 2 as new version 4",
+            }
+        }
+    )
 
     restored_version: int
     model: AIModelEnum
@@ -313,6 +527,29 @@ class PromptRestoreResponse(BaseModel):
 class PromptsExportResponse(BaseModel):
     """Export of all prompt configurations."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "version": "1.0",
+                "exported_at": "2026-01-03T10:30:00Z",
+                "prompts": {
+                    "nemotron": {
+                        "system_prompt": "You are a home security AI assistant...",
+                        "temperature": 0.7,
+                        "max_tokens": 2048,
+                    },
+                    "florence2": {
+                        "vqa_queries": ["What is this person wearing?"],
+                    },
+                    "yolo_world": {
+                        "object_classes": ["person", "car", "truck"],
+                        "confidence_threshold": 0.35,
+                    },
+                },
+            }
+        }
+    )
+
     version: str = Field("1.0", description="Export format version")
     exported_at: datetime
     prompts: dict[str, dict[str, Any]] = Field(..., description="All model configurations")
@@ -320,6 +557,24 @@ class PromptsExportResponse(BaseModel):
 
 class PromptsImportRequest(BaseModel):
     """Request to import prompt configurations."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "version": "1.0",
+                "prompts": {
+                    "nemotron": {
+                        "system_prompt": "You are a home security AI assistant...",
+                        "temperature": 0.7,
+                        "max_tokens": 2048,
+                    },
+                    "florence2": {
+                        "vqa_queries": ["What is this person wearing?"],
+                    },
+                },
+            }
+        }
+    )
 
     version: str = Field("1.0", description="Import format version")
     prompts: dict[str, dict[str, Any]] = Field(..., description="Model configurations to import")
@@ -336,6 +591,20 @@ class PromptsImportRequest(BaseModel):
 class PromptsImportResponse(BaseModel):
     """Response after importing prompt configurations."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "imported_models": ["nemotron", "florence2"],
+                "skipped_models": ["yolo_world"],
+                "new_versions": {
+                    "nemotron": 4,
+                    "florence2": 2,
+                },
+                "message": "Successfully imported 2 prompt configurations, skipped 1",
+            }
+        }
+    )
+
     imported_models: list[str]
     skipped_models: list[str] = Field(default_factory=list)
     new_versions: dict[str, int] = Field(
@@ -346,6 +615,30 @@ class PromptsImportResponse(BaseModel):
 
 class PromptDiffEntry(BaseModel):
     """Diff entry for a single model's configuration."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model": "nemotron",
+                "has_changes": True,
+                "current_version": 3,
+                "current_config": {
+                    "system_prompt": "You are a home security AI...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "imported_config": {
+                    "system_prompt": "You are a home security AI with enhanced context...",
+                    "temperature": 0.8,
+                    "max_tokens": 2048,
+                },
+                "changes": [
+                    "temperature: 0.7 -> 0.8",
+                    "system_prompt: modified (length: 40 -> 55 chars)",
+                ],
+            }
+        }
+    )
 
     model: str = Field(..., description="Model name")
     has_changes: bool = Field(..., description="Whether there are changes")
@@ -361,6 +654,21 @@ class PromptDiffEntry(BaseModel):
 class PromptsImportPreviewRequest(BaseModel):
     """Request to preview prompt configuration import without applying."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "version": "1.0",
+                "prompts": {
+                    "nemotron": {
+                        "system_prompt": "You are a home security AI assistant...",
+                        "temperature": 0.8,
+                        "max_tokens": 2048,
+                    },
+                },
+            }
+        }
+    )
+
     version: str = Field("1.0", description="Import format version")
     prompts: dict[str, dict[str, Any]] = Field(..., description="Model configurations to preview")
 
@@ -375,6 +683,34 @@ class PromptsImportPreviewRequest(BaseModel):
 
 class PromptsImportPreviewResponse(BaseModel):
     """Response with preview of import changes."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "version": "1.0",
+                "valid": True,
+                "validation_errors": [],
+                "diffs": [
+                    {
+                        "model": "nemotron",
+                        "has_changes": True,
+                        "current_version": 3,
+                        "current_config": {
+                            "system_prompt": "You are a home security AI...",
+                            "temperature": 0.7,
+                        },
+                        "imported_config": {
+                            "system_prompt": "You are a home security AI...",
+                            "temperature": 0.8,
+                        },
+                        "changes": ["temperature: 0.7 -> 0.8"],
+                    }
+                ],
+                "total_changes": 1,
+                "unknown_models": [],
+            }
+        }
+    )
 
     version: str = Field(..., description="Import format version")
     valid: bool = Field(..., description="Whether the import data is valid")

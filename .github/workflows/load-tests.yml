@@ -1,15 +1,21 @@
 name: Load Tests
 
 # Load testing verifies API performance under various traffic conditions.
-# Runs on merge to main and scheduled stress tests weekly (not on PRs to save runner capacity).
+# Runs on merge to main and scheduled stress tests weekly.
 #
-# Why main-only?
+# Main Branch Gate: BLOCKS merges if k6 thresholds fail
+# Scheduled/Manual: Informational only (non-blocking)
+#
+# Why main-only (not PRs)?
 # - Load test results can vary due to resource availability
-# - Failing thresholds don't always indicate real problems
-# - Performance baselines evolve over time
-# - Saves CI runner capacity for required checks on PRs
+# - Full load tests are expensive (20+ minutes)
+# - Benchmarks.yml handles PR gates with faster pytest-benchmark tests
 #
-# Use the results to identify performance regressions after merge.
+# Thresholds (defined in tests/load/config.js):
+# - 95% of requests < 500ms
+# - 99% of requests < 1000ms
+# - Error rate < 1%
+# - Throughput > 10 req/s
 
 on:
   push:
@@ -61,8 +67,8 @@ jobs:
   load-tests:
     name: k6 Load Tests
     runs-on: ubuntu-latest
-    # Non-blocking: failures are informational
-    continue-on-error: true
+    # Main branch gate: Block on threshold failures for main, informational for scheduled/manual
+    continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 20
 
     services:

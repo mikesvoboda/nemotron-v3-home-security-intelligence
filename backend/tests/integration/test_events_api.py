@@ -48,7 +48,7 @@ async def clean_events(integration_db):
             await conn.execute(text("DELETE FROM detections"))  # nosemgrep: avoid-sqlalchemy-text
             await conn.execute(text("DELETE FROM events"))  # nosemgrep: avoid-sqlalchemy-text
             await conn.execute(text("DELETE FROM cameras"))  # nosemgrep: avoid-sqlalchemy-text
-    except Exception:  # noqa: S110 - ignore cleanup errors
+    except Exception:
         pass
 
 
@@ -1027,15 +1027,15 @@ class TestExportEvents:
         # Should have header row only
         assert len(rows) == 1
         assert rows[0] == [
-            "event_id",
-            "camera_name",
-            "started_at",
-            "ended_at",
-            "risk_score",
-            "risk_level",
-            "summary",
-            "detection_count",
-            "reviewed",
+            "Event ID",
+            "Camera",
+            "Started At",
+            "Ended At",
+            "Risk Score",
+            "Risk Level",
+            "Summary",
+            "Detections",
+            "Reviewed",
         ]
 
     async def test_export_events_csv_with_data(self, async_client, sample_event):

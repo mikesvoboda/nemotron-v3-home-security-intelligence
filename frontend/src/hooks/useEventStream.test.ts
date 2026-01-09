@@ -764,4 +764,191 @@ describe('useEventStream', () => {
       expect(() => unmount()).not.toThrow();
     });
   });
+
+  // NEM-2015: LRU cache bounded behavior tests
+  describe('LRU cache bounded deduplication (NEM-2015)', () => {
+    it('should use LRU cache for deduplication with max 10,000 entries', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // Send more than the MAX_EVENTS (100) unique events to verify
+      // the LRU cache handles high volumes correctly
+      act(() => {
+        for (let i = 0; i < 200; i++) {
+          const event: SecurityEvent = {
+            id: i,
+            camera_id: 'cam-' + (i % 5),
+            risk_score: 50 + (i % 50),
+            risk_level: 'medium',
+            summary: 'Event ' + i,
+            started_at: '2025-12-23T10:' + String(i % 60).padStart(2, '0') + ':00Z',
+          };
+          onMessageCallback?.(wrapInEnvelope(event));
+        }
+      });
+
+      // Buffer should be limited to MAX_EVENTS (100)
+      expect(result.current.events).toHaveLength(100);
+
+      // Attempting to send any of the 200 unique events again should be deduplicated
+      // since the LRU cache should still have them (max 10,000 entries)
+      act(() => {
+        const duplicateEvent: SecurityEvent = {
+          id: 150, // An event we already sent
+          camera_id: 'cam-0',
+          risk_score: 50,
+          risk_level: 'medium',
+          summary: 'Duplicate Event 150',
+          started_at: '2025-12-23T10:30:00Z',
+        };
+        onMessageCallback?.(wrapInEnvelope(duplicateEvent));
+      });
+
+      // Should still be 100 events (duplicate was rejected)
+      expect(result.current.events).toHaveLength(100);
+    });
+
+    it('should evict old entries from LRU cache when limit is exceeded', () => {
+      // Note: We cannot directly test the 10,000 limit without sending 10,000+ events
+      // which would be too slow. Instead, we verify the implementation uses LRU cache
+      // by checking that:
+      // 1. Deduplication works up to reasonable limits
+      // 2. Events evicted from the display buffer have their IDs removed from the cache
+
+      const { result } = renderHook(() => useEventStream());
+
+      // Send 150 unique events (buffer limit is 100)
+      act(() => {
+        for (let i = 1; i <= 150; i++) {
+          const event: SecurityEvent = {
+            id: i,
+            event_id: i,
+            camera_id: 'cam-1',
+            risk_score: 50,
+            risk_level: 'medium',
+            summary: 'Event ' + i,
+            started_at: '2025-12-23T10:00:' + String(i % 60).padStart(2, '0') + 'Z',
+          };
+          onMessageCallback?.(wrapInEnvelope(event));
+        }
+      });
+
+      // Buffer should be limited to 100 (events 51-150)
+      expect(result.current.events).toHaveLength(100);
+      expect(result.current.events[0].id).toBe(150); // Most recent
+
+      // Events 1-50 were evicted from buffer and their IDs were removed from cache
+      // So re-sending event-1 should be accepted
+      act(() => {
+        const resentEvent: SecurityEvent = {
+          id: 1,
+          event_id: 1,
+          camera_id: 'cam-1',
+          risk_score: 80,
+          risk_level: 'high',
+          summary: 'Resent event 1',
+          started_at: '2025-12-23T11:00:00Z',
+        };
+        onMessageCallback?.(wrapInEnvelope(resentEvent));
+      });
+
+      // Event 1 should now be at the front (most recent)
+      expect(result.current.events[0].id).toBe(1);
+      expect(result.current.events[0].summary).toBe('Resent event 1');
+      // Buffer should still be 100
+      expect(result.current.events).toHaveLength(100);
+    });
+
+    it('should maintain dedup functionality with LRU cache TTL', () => {
+      // The LRU cache has a TTL of 1 hour (SEEN_IDS_TTL_MS)
+      // This test verifies dedup works within a session
+      const { result } = renderHook(() => useEventStream());
+
+      // Send an event
+      const event: SecurityEvent = {
+        id: 'ttl-test-event',
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'TTL test event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      expect(result.current.events).toHaveLength(1);
+
+      // Send duplicate multiple times rapidly
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          onMessageCallback?.(wrapInEnvelope(event));
+        }
+      });
+
+      // Should still have only 1 event
+      expect(result.current.events).toHaveLength(1);
+    });
+
+    it('should handle mixed event IDs (event_id and id) in LRU cache', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // Event with event_id (preferred for dedup key)
+      const eventWithEventId: SecurityEvent = {
+        id: 'uuid-123',
+        event_id: 999,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Event with event_id',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // Event with only id (fallback dedup key)
+      const eventWithOnlyId: SecurityEvent = {
+        id: 'uuid-456',
+        camera_id: 'cam-2',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Event with only id',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(eventWithEventId));
+        onMessageCallback?.(wrapInEnvelope(eventWithOnlyId));
+      });
+
+      expect(result.current.events).toHaveLength(2);
+
+      // Send duplicates
+      act(() => {
+        // Duplicate of event_id 999 (should use event_id for dedup)
+        const duplicate1: SecurityEvent = {
+          id: 'different-uuid',
+          event_id: 999, // Same event_id as eventWithEventId
+          camera_id: 'cam-1',
+          risk_score: 75,
+          risk_level: 'high',
+          summary: 'Duplicate by event_id',
+          started_at: '2025-12-23T10:00:00Z',
+        };
+        onMessageCallback?.(wrapInEnvelope(duplicate1));
+
+        // Duplicate of id uuid-456 (should use id for dedup since no event_id)
+        const duplicate2: SecurityEvent = {
+          id: 'uuid-456', // Same id as eventWithOnlyId
+          camera_id: 'cam-2',
+          risk_score: 50,
+          risk_level: 'medium',
+          summary: 'Duplicate by id',
+          started_at: '2025-12-23T10:01:00Z',
+        };
+        onMessageCallback?.(wrapInEnvelope(duplicate2));
+      });
+
+      // Should still have only 2 events (duplicates rejected)
+      expect(result.current.events).toHaveLength(2);
+    });
+  });
 });

@@ -132,10 +132,14 @@ def pytest_configure(config: pytest.Config) -> None:
         "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",  # pragma: allowlist secret
     )
 
-    # Register flaky marker to prevent warnings
+    # Register custom markers to prevent warnings
     config.addinivalue_line(
         "markers",
         "flaky: mark test as flaky (known to fail intermittently, quarantined)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "chaos: mark test as chaos engineering test (fault injection)",
     )
 
 

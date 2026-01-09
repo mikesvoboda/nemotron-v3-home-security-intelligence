@@ -1,0 +1,497 @@
+"""Export service for generating CSV and Excel exports of event data.
+
+This service provides reusable export functionality for security events,
+supporting multiple output formats via content negotiation.
+
+Supported formats:
+- CSV (text/csv) - Comma-separated values
+- Excel (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) - XLSX format
+
+Security:
+- All string fields are sanitized to prevent CSV injection attacks
+- File downloads include Content-Disposition headers with safe filenames
+"""
+
+import csv
+import io
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+
+from backend.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class ExportFormat(str, Enum):
+    """Supported export formats."""
+
+    CSV = "csv"
+    EXCEL = "excel"
+
+
+# MIME type mappings for export formats
+EXPORT_MIME_TYPES: dict[ExportFormat, str] = {
+    ExportFormat.CSV: "text/csv",
+    ExportFormat.EXCEL: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+# File extensions for export formats
+EXPORT_EXTENSIONS: dict[ExportFormat, str] = {
+    ExportFormat.CSV: ".csv",
+    ExportFormat.EXCEL: ".xlsx",
+}
+
+# Accept header values to format mapping
+ACCEPT_HEADER_MAPPING: dict[str, ExportFormat] = {
+    "text/csv": ExportFormat.CSV,
+    "application/csv": ExportFormat.CSV,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ExportFormat.EXCEL,
+    "application/vnd.ms-excel": ExportFormat.EXCEL,
+    "application/xlsx": ExportFormat.EXCEL,
+}
+
+# Characters that trigger formula injection in spreadsheet applications
+CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def sanitize_export_value(value: str | None) -> str:
+    """Sanitize a value for safe export to prevent formula injection.
+
+    CSV injection (also known as formula injection) occurs when data
+    exported to CSV/Excel is opened in spreadsheet applications. Cells
+    starting with certain characters (=, +, -, @, tab, carriage return)
+    can be interpreted as formulas, potentially executing malicious code.
+
+    This function prefixes dangerous values with a single quote (')
+    which tells spreadsheet applications to treat the cell as text.
+
+    Reference:
+    - OWASP CSV Injection: https://owasp.org/www-community/attacks/CSV_Injection
+
+    Args:
+        value: The string value to sanitize, or None
+
+    Returns:
+        The sanitized string value. Returns empty string if value is None.
+    """
+    if value is None:
+        return ""
+
+    if not value:
+        return value
+
+    # Check if the first character is a dangerous injection prefix
+    if value[0] in CSV_INJECTION_PREFIXES:
+        return f"'{value}"
+
+    return value
+
+
+@dataclass
+class EventExportRow:
+    """Represents a single row in an event export.
+
+    This is the canonical structure for export data, used by both
+    CSV and Excel export functions.
+    """
+
+    event_id: int
+    camera_name: str
+    started_at: datetime | None
+    ended_at: datetime | None
+    risk_score: int | None
+    risk_level: str | None
+    summary: str | None
+    detection_count: int
+    reviewed: bool
+    object_types: str | None = None
+    reasoning: str | None = None
+
+
+# Column definitions for exports
+EXPORT_COLUMNS: list[tuple[str, str]] = [
+    ("event_id", "Event ID"),
+    ("camera_name", "Camera"),
+    ("started_at", "Started At"),
+    ("ended_at", "Ended At"),
+    ("risk_score", "Risk Score"),
+    ("risk_level", "Risk Level"),
+    ("summary", "Summary"),
+    ("detection_count", "Detections"),
+    ("reviewed", "Reviewed"),
+]
+
+# Extended columns for detailed exports
+EXTENDED_EXPORT_COLUMNS: list[tuple[str, str]] = [
+    *EXPORT_COLUMNS,
+    ("object_types", "Object Types"),
+    ("reasoning", "Reasoning"),
+]
+
+
+def format_export_value(row: EventExportRow, field: str) -> str:
+    """Format a field value from an EventExportRow for export.
+
+    Args:
+        row: The export row
+        field: Field name to format
+
+    Returns:
+        Formatted string value, sanitized for export safety
+    """
+    value = getattr(row, field, None)
+
+    if value is None:
+        return ""
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+
+    if isinstance(value, int | float):
+        return str(value)
+
+    # String values get sanitized to prevent CSV injection
+    return sanitize_export_value(str(value))
+
+
+def generate_export_filename(prefix: str, export_format: ExportFormat) -> str:
+    """Generate a timestamped filename for export.
+
+    Args:
+        prefix: Filename prefix (e.g., "events_export")
+        export_format: Export format determining extension
+
+    Returns:
+        Filename with timestamp and appropriate extension
+    """
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    extension = EXPORT_EXTENSIONS[export_format]
+    return f"{prefix}_{timestamp}{extension}"
+
+
+def parse_accept_header(accept_header: str | None) -> ExportFormat:
+    """Parse Accept header to determine export format.
+
+    Supports content negotiation via standard HTTP Accept headers.
+    Falls back to CSV format if header is missing or unrecognized.
+
+    Args:
+        accept_header: HTTP Accept header value
+
+    Returns:
+        ExportFormat enum value
+
+    Examples:
+        >>> parse_accept_header("text/csv")
+        ExportFormat.CSV
+        >>> parse_accept_header("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        ExportFormat.EXCEL
+        >>> parse_accept_header(None)
+        ExportFormat.CSV
+    """
+    if not accept_header:
+        return ExportFormat.CSV
+
+    # Parse accept header - may contain quality values like "text/csv;q=0.9"
+    # We'll check each type in order of appearance
+    for accept_type in accept_header.split(","):
+        # Strip whitespace and quality value
+        mime_type = accept_type.split(";")[0].strip().lower()
+
+        if mime_type in ACCEPT_HEADER_MAPPING:
+            return ACCEPT_HEADER_MAPPING[mime_type]
+
+        # Check for wildcards
+        if mime_type in {"*/*", "text/*"}:
+            return ExportFormat.CSV
+
+    # Default to CSV if no match
+    return ExportFormat.CSV
+
+
+def events_to_csv(
+    events: Sequence[EventExportRow],
+    columns: list[tuple[str, str]] | None = None,
+) -> str:
+    """Convert events to CSV format.
+
+    Args:
+        events: Sequence of EventExportRow objects
+        columns: Optional list of (field_name, display_name) tuples.
+                 Defaults to EXPORT_COLUMNS if not provided.
+
+    Returns:
+        CSV string with headers and data rows
+    """
+    if columns is None:
+        columns = EXPORT_COLUMNS
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header row
+    header_row = [col[1] for col in columns]
+    writer.writerow(header_row)
+
+    # Write data rows
+    for event in events:
+        row = [format_export_value(event, col[0]) for col in columns]
+        writer.writerow(row)
+
+    return output.getvalue()
+
+
+def events_to_csv_streaming(
+    events: Sequence[EventExportRow],
+    columns: list[tuple[str, str]] | None = None,
+) -> Iterator[str]:
+    """Generate CSV content as an async iterator for streaming.
+
+    This is memory-efficient for large exports as it yields
+    rows one at a time instead of building the entire CSV in memory.
+
+    Args:
+        events: Sequence of EventExportRow objects
+        columns: Optional list of (field_name, display_name) tuples.
+
+    Yields:
+        CSV row strings (including newlines)
+    """
+    if columns is None:
+        columns = EXPORT_COLUMNS
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Yield header row
+    header_row = [col[1] for col in columns]
+    writer.writerow(header_row)
+    yield output.getvalue()
+    output.seek(0)
+    output.truncate()
+
+    # Yield data rows
+    for event in events:
+        row = [format_export_value(event, col[0]) for col in columns]
+        writer.writerow(row)
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate()
+
+
+def events_to_excel(
+    events: Sequence[EventExportRow],
+    columns: list[tuple[str, str]] | None = None,
+    sheet_name: str = "Events",
+) -> bytes:
+    """Convert events to Excel (XLSX) format.
+
+    Creates a professionally formatted Excel workbook with:
+    - Styled header row (bold, background color, borders)
+    - Auto-sized columns based on content width
+    - Alternating row colors for readability
+    - Proper column alignment based on data type
+
+    Args:
+        events: Sequence of EventExportRow objects
+        columns: Optional list of (field_name, display_name) tuples.
+                 Defaults to EXPORT_COLUMNS if not provided.
+        sheet_name: Name for the worksheet (default: "Events")
+
+    Returns:
+        Excel file content as bytes
+    """
+    if columns is None:
+        columns = EXPORT_COLUMNS
+
+    # Create workbook and select active sheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name  # type: ignore[union-attr]
+
+    # Define styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+    alt_row_fill = PatternFill(start_color="E9EDF5", end_color="E9EDF5", fill_type="solid")
+
+    # Track column widths for auto-sizing
+    column_widths: list[int] = [len(col[1]) for col in columns]
+
+    # Write header row
+    for col_idx, (_, display_name) in enumerate(columns, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=display_name)  # type: ignore[union-attr]
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+
+    # Write data rows
+    for row_idx, event in enumerate(events, start=2):
+        for col_idx, (field_name, _) in enumerate(columns, start=1):
+            value = format_export_value(event, field_name)
+
+            # For Excel, we can use the raw value (not sanitized)
+            # since openpyxl handles cell type properly
+            raw_value = getattr(event, field_name, None)
+
+            if isinstance(raw_value, datetime):
+                # Excel/openpyxl doesn't support timezone-aware datetimes
+                # Convert to naive datetime by removing tzinfo
+                cell_value: Any = raw_value.replace(tzinfo=None)
+            elif isinstance(raw_value, bool):
+                cell_value = "Yes" if raw_value else "No"
+            elif isinstance(raw_value, int | float):
+                cell_value = raw_value  # Excel handles numbers natively
+            elif raw_value is None:
+                cell_value = ""
+            else:
+                # Sanitize string values for Excel too
+                cell_value = sanitize_export_value(str(raw_value))
+
+            cell = ws.cell(row=row_idx, column=col_idx, value=cell_value)  # type: ignore[union-attr]
+            cell.border = thin_border
+
+            # Alternating row colors
+            if row_idx % 2 == 0:
+                cell.fill = alt_row_fill
+
+            # Update column width tracking
+            cell_len = len(str(value)) if value else 0
+            if cell_len > column_widths[col_idx - 1]:
+                column_widths[col_idx - 1] = min(cell_len, 50)  # Cap at 50 chars
+
+    # Auto-size columns
+    for col_idx, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = width + 2  # type: ignore[union-attr]
+
+    # Freeze header row
+    ws.freeze_panes = "A2"  # type: ignore[union-attr]
+
+    # Write to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.read()
+
+
+class ExportService:
+    """Service for exporting event data in multiple formats.
+
+    This service provides a high-level interface for exporting events,
+    handling format selection, content generation, and response preparation.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the export service."""
+        pass
+
+    def get_export_format(self, accept_header: str | None) -> ExportFormat:
+        """Determine export format from Accept header.
+
+        Args:
+            accept_header: HTTP Accept header value
+
+        Returns:
+            ExportFormat enum value
+        """
+        return parse_accept_header(accept_header)
+
+    def get_content_type(self, export_format: ExportFormat) -> str:
+        """Get MIME type for export format.
+
+        Args:
+            export_format: Export format
+
+        Returns:
+            MIME type string
+        """
+        return EXPORT_MIME_TYPES[export_format]
+
+    def get_filename(self, prefix: str, export_format: ExportFormat) -> str:
+        """Generate export filename.
+
+        Args:
+            prefix: Filename prefix
+            export_format: Export format
+
+        Returns:
+            Filename with timestamp and extension
+        """
+        return generate_export_filename(prefix, export_format)
+
+    def export_events(
+        self,
+        events: Sequence[EventExportRow],
+        export_format: ExportFormat,
+        columns: list[tuple[str, str]] | None = None,
+    ) -> bytes | str:
+        """Export events in the specified format.
+
+        Args:
+            events: Sequence of EventExportRow objects
+            export_format: Desired export format
+            columns: Optional column definitions
+
+        Returns:
+            Export content as bytes (Excel) or string (CSV)
+        """
+        if export_format == ExportFormat.EXCEL:
+            return events_to_excel(events, columns)
+        else:
+            return events_to_csv(events, columns)
+
+    def get_content_disposition_header(
+        self,
+        filename: str,
+        inline: bool = False,
+    ) -> str:
+        """Generate Content-Disposition header value.
+
+        Args:
+            filename: Export filename
+            inline: If True, use inline disposition; otherwise attachment
+
+        Returns:
+            Content-Disposition header value
+        """
+        disposition = "inline" if inline else "attachment"
+        return f'{disposition}; filename="{filename}"'
+
+
+# Global service instance
+_export_service: ExportService | None = None
+
+
+def get_export_service() -> ExportService:
+    """Get or create the global ExportService instance.
+
+    Returns:
+        ExportService singleton instance
+    """
+    global _export_service  # noqa: PLW0603
+    if _export_service is None:
+        _export_service = ExportService()
+    return _export_service
+
+
+def reset_export_service() -> None:
+    """Reset the global ExportService instance (for testing)."""
+    global _export_service  # noqa: PLW0603
+    _export_service = None

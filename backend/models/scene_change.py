@@ -21,6 +21,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -93,6 +94,13 @@ class SceneChange(Base):
             "ix_scene_changes_detected_at_brin",
             "detected_at",
             postgresql_using="brin",
+        ),
+        # Partial index for unacknowledged scene changes (dashboard queries)
+        # Only indexes rows where acknowledged = false for faster dashboard queries
+        Index(
+            "idx_scene_changes_acknowledged_false",
+            "acknowledged",
+            postgresql_where=text("acknowledged = false"),
         ),
         # CHECK constraint for business rules
         CheckConstraint(
