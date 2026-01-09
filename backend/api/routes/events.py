@@ -10,7 +10,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from backend.api.dependencies import get_cache_service_dep, get_event_or_404
+from backend.api.dependencies import (
+    get_cache_service_dep,
+    get_clip_generator_dep,
+    get_event_or_404,
+    get_nemotron_analyzer_dep,
+)
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.bulk import (
@@ -57,8 +62,14 @@ from backend.models.event import Event
 from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
+from backend.services.clip_generator import ClipGenerator
 from backend.services.event_service import get_event_service
+from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.search import SearchFilters, search_events
+
+# Type aliases for dependency injection
+ClipGeneratorDep = ClipGenerator
+NemotronAnalyzerDep = NemotronAnalyzer
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -1704,6 +1715,7 @@ async def generate_event_clip(
     request: ClipGenerateRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
+    clip_generator: ClipGeneratorDep = Depends(get_clip_generator_dep),
 ) -> ClipGenerateResponse:
     """Trigger video clip generation for an event.
 
@@ -1717,6 +1729,7 @@ async def generate_event_clip(
         event_id: Event ID
         request: Clip generation parameters
         db: Database session
+        clip_generator: ClipGenerator injected via Depends()
 
     Returns:
         ClipGenerateResponse with generation status and clip info
@@ -1728,7 +1741,6 @@ async def generate_event_clip(
     from pathlib import Path
 
     from backend.api.schemas.clips import ClipGenerateResponse, ClipStatus
-    from backend.services.clip_generator import get_clip_generator
 
     event = await get_event_or_404(event_id, db)
 
@@ -1769,8 +1781,7 @@ async def generate_event_clip(
             detail="Cannot generate clip: no detection images available",
         )
 
-    # Delete existing clip if force regeneration
-    clip_generator = get_clip_generator()
+    # Delete existing clip if force regeneration (clip_generator injected via DI)
     if request.force and event.clip_path:
         clip_generator.delete_clip(event.id)
 
@@ -1833,6 +1844,7 @@ async def analyze_batch_streaming(
     batch_id: str,
     camera_id: str | None = Query(None, description="Camera ID for the batch"),
     detection_ids: str | None = Query(None, description="Comma-separated detection IDs (optional)"),
+    analyzer: NemotronAnalyzerDep = Depends(get_nemotron_analyzer_dep),
 ) -> StreamingResponse:
     """Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).
 
@@ -1849,6 +1861,7 @@ async def analyze_batch_streaming(
         batch_id: Batch identifier to analyze
         camera_id: Optional camera ID (uses Redis lookup if not provided)
         detection_ids: Optional comma-separated detection IDs
+        analyzer: NemotronAnalyzer injected via Depends()
 
     Returns:
         StreamingResponse with SSE event stream (text/event-stream)
@@ -1860,49 +1873,37 @@ async def analyze_batch_streaming(
 
         data: {"event_type": "complete", "event_id": 123, "risk_score": 75, ...}
     """
-    from backend.core.redis import get_redis
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
+    # Capture the analyzer from the DI scope for use in the inner generator
+    injected_analyzer = analyzer
 
     async def event_generator() -> Any:
         """Generate SSE events from streaming analysis."""
         try:
-            # Get Redis client from async generator (FastAPI dependency pattern)
-            redis_gen = get_redis()
-            redis_client = await anext(redis_gen)
-            try:
-                analyzer = NemotronAnalyzer(redis_client=redis_client)
-
-                # Parse detection_ids if provided
-                parsed_detection_ids: list[int | str] | None = None
-                if detection_ids:
-                    try:
-                        parsed_detection_ids = [
-                            int(d.strip()) for d in detection_ids.split(",") if d.strip()
-                        ]
-                    except ValueError:
-                        # Return error event for invalid detection_ids
-                        error_event = {
-                            "event_type": "error",
-                            "error_code": "INVALID_DETECTION_IDS",
-                            "error_message": "Detection IDs must be numeric",
-                            "recoverable": False,
-                        }
-                        yield f"data: {json.dumps(error_event)}\n\n"
-                        return
-
-                # Stream analysis updates
-                async for update in analyzer.analyze_batch_streaming(
-                    batch_id=batch_id,
-                    camera_id=camera_id,
-                    detection_ids=parsed_detection_ids,
-                ):
-                    yield f"data: {json.dumps(update)}\n\n"
-            finally:
-                # Clean up the generator
+            # Parse detection_ids if provided
+            parsed_detection_ids: list[int | str] | None = None
+            if detection_ids:
                 try:
-                    await redis_gen.aclose()
-                except Exception as cleanup_err:
-                    logger.debug(f"Generator cleanup: {cleanup_err}")
+                    parsed_detection_ids = [
+                        int(d.strip()) for d in detection_ids.split(",") if d.strip()
+                    ]
+                except ValueError:
+                    # Return error event for invalid detection_ids
+                    error_event = {
+                        "event_type": "error",
+                        "error_code": "INVALID_DETECTION_IDS",
+                        "error_message": "Detection IDs must be numeric",
+                        "recoverable": False,
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+                    return
+
+            # Stream analysis updates (using injected analyzer)
+            async for update in injected_analyzer.analyze_batch_streaming(
+                batch_id=batch_id,
+                camera_id=camera_id,
+                detection_ids=parsed_detection_ids,
+            ):
+                yield f"data: {json.dumps(update)}\n\n"
 
         except Exception as e:
             logger.error(f"Streaming analysis error for batch {batch_id}: {e}", exc_info=True)

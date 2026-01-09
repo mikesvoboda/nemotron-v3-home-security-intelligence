@@ -7,11 +7,16 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_clip_generator_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.media import MediaErrorResponse
 from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.models.detection import Detection
+from backend.services.clip_generator import ClipGenerator
+
+# Type alias for dependency injection
+ClipGeneratorDep = ClipGenerator
 
 # Rate limiter for media endpoints
 media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
@@ -431,7 +436,9 @@ async def serve_detection_image(
     },
 )
 async def serve_clip(
-    filename: str, _rate_limit: None = Depends(media_rate_limiter)
+    filename: str,
+    _rate_limit: None = Depends(media_rate_limiter),
+    clip_generator: ClipGeneratorDep = Depends(get_clip_generator_dep),
 ) -> FileResponse:
     """
     Serve event video clips.
@@ -441,6 +448,7 @@ async def serve_clip(
 
     Args:
         filename: The clip filename (e.g., "123_clip.mp4")
+        clip_generator: ClipGenerator injected via Depends()
 
     Returns:
         FileResponse with appropriate content-type header
@@ -448,10 +456,7 @@ async def serve_clip(
     Raises:
         HTTPException: 403 for invalid paths, 404 for missing files
     """
-    from backend.services.clip_generator import get_clip_generator
-
-    # Get clips directory from clip generator
-    clip_generator = get_clip_generator()
+    # Get clips directory from injected clip generator
     base_path = clip_generator.clips_directory
 
     full_path = _validate_and_resolve_path(base_path, filename)
