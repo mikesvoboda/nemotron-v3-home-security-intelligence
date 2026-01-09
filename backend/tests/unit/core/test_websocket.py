@@ -38,11 +38,8 @@ class MockEventBroadcaster:
     - broadcast_event(event_data) -> int
     - broadcast_service_status(status_data) -> int
     - broadcast_scene_change(scene_change_data) -> int
-<<<<<<< HEAD
     - broadcast_camera_status(camera_status_data) -> int
-=======
     - broadcast_alert(alert_data, event_type) -> int
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
     - get_circuit_state() -> str
     - get_instance() -> EventBroadcaster (class method)
     """
@@ -221,25 +218,15 @@ class MockEventBroadcaster:
                 pass
         return count
 
-<<<<<<< HEAD
     async def broadcast_camera_status(self, camera_status_data: dict[str, Any]) -> int:
         """Broadcast a camera status change message to all connected WebSocket clients.
 
         Args:
             camera_status_data: Camera status data dictionary containing status details
-=======
-    async def broadcast_alert(self, alert_data: dict[str, Any], event_type: Any) -> int:
-        """Broadcast an alert message to all connected WebSocket clients.
-
-        Args:
-            alert_data: Alert data dictionary containing alert details
-            event_type: Type of alert event (ALERT_CREATED, ALERT_ACKNOWLEDGED, ALERT_DISMISSED)
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
 
         Returns:
             Number of clients that received the message
         """
-<<<<<<< HEAD
         # Ensure the message has the correct structure (matches real implementation)
         if "type" not in camera_status_data:
             camera_status_data = {"type": "camera_status", "data": camera_status_data}
@@ -249,7 +236,21 @@ class MockEventBroadcaster:
         for connection in self._connections:
             try:
                 await connection.send_json(camera_status_data)
-=======
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_alert(self, alert_data: dict[str, Any], event_type: Any) -> int:
+        """Broadcast an alert message to all connected WebSocket clients.
+
+        Args:
+            alert_data: Alert data dictionary containing alert details
+            event_type: Type of alert event (ALERT_CREATED, ALERT_ACKNOWLEDGED, ALERT_DISMISSED)
+
+        Returns:
+            Number of clients that received the message
+        """
         # Determine message type based on event_type
         type_mapping = {
             "alert_created": "alert_created",
@@ -264,14 +265,11 @@ class MockEventBroadcaster:
         for connection in self._connections:
             try:
                 await connection.send_json(message)
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
                 count += 1
-            except Exception:
+            except Exception:  # Intentionally ignore send failures
                 pass
         return count
 
-<<<<<<< HEAD
-=======
     @classmethod
     def get_instance(cls) -> MockEventBroadcaster:
         """Get the global mock event broadcaster instance.
@@ -281,7 +279,6 @@ class MockEventBroadcaster:
         """
         return cls()
 
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
     # Legacy test-only methods - NOT part of real EventBroadcaster interface
     # These are convenience methods used by existing tests in this file
     async def broadcast_new_event(self, event: dict[str, Any]) -> int:

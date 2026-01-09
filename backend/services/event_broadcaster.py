@@ -18,16 +18,13 @@ from fastapi import WebSocket
 from pydantic import ValidationError
 
 from backend.api.schemas.websocket import (
-<<<<<<< HEAD
-    WebSocketCameraStatusData,
-    WebSocketCameraStatusMessage,
-=======
     WebSocketAlertAcknowledgedMessage,
     WebSocketAlertCreatedMessage,
     WebSocketAlertData,
     WebSocketAlertDismissedMessage,
     WebSocketAlertEventType,
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
+    WebSocketCameraStatusData,
+    WebSocketCameraStatusMessage,
     WebSocketEventData,
     WebSocketEventMessage,
     WebSocketSceneChangeData,
@@ -600,7 +597,6 @@ class EventBroadcaster:
             logger.error(f"Failed to broadcast scene change: {e}")
             raise
 
-<<<<<<< HEAD
     async def broadcast_camera_status(self, camera_status_data: dict[str, Any]) -> int:
         """Broadcast a camera status change message to all connected WebSocket clients via Redis pub/sub.
 
@@ -616,26 +612,11 @@ class EventBroadcaster:
 
         Args:
             camera_status_data: Camera status data dictionary containing status details
-=======
-    async def broadcast_alert(
-        self, alert_data: dict[str, Any], event_type: WebSocketAlertEventType
-    ) -> int:
-        """Broadcast an alert message to all connected WebSocket clients via Redis pub/sub.
-
-        This method validates the alert data against the appropriate WebSocket message schema
-        based on the event type before publishing to Redis. This ensures all messages sent
-        to clients conform to the expected format for alert events.
-
-        Args:
-            alert_data: Alert data dictionary containing alert details
-            event_type: Type of alert event (ALERT_CREATED, ALERT_ACKNOWLEDGED, ALERT_DISMISSED)
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
 
         Returns:
             Number of Redis subscribers that received the message
 
         Raises:
-<<<<<<< HEAD
             ValueError: If the message fails schema validation
 
         Example camera_status_data:
@@ -668,7 +649,39 @@ class EventBroadcaster:
             except ValidationError as ve:
                 logger.error(f"Camera status message validation failed: {ve}")
                 raise ValueError(f"Invalid camera status message format: {ve}") from ve
-=======
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Camera status broadcast to Redis: {broadcast_data.get('type')} "
+                f"(camera_id: {data_dict.get('camera_id')}, status: {data_dict.get('status')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast camera status: {e}")
+            raise
+
+    async def broadcast_alert(
+        self, alert_data: dict[str, Any], event_type: WebSocketAlertEventType
+    ) -> int:
+        """Broadcast an alert message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the alert data against the appropriate WebSocket message schema
+        based on the event type before publishing to Redis. This ensures all messages sent
+        to clients conform to the expected format for alert events.
+
+        Args:
+            alert_data: Alert data dictionary containing alert details
+            event_type: Type of alert event (ALERT_CREATED, ALERT_ACKNOWLEDGED, ALERT_DISMISSED)
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
             ValueError: If the message fails schema validation or has unknown event type
 
         Example alert_data:
@@ -704,18 +717,10 @@ class EventBroadcaster:
 
             # Use the validated message for broadcasting
             broadcast_data = validated_message.model_dump(mode="json")
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
 
             # Publish validated message to Redis channel
             subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
             logger.debug(
-<<<<<<< HEAD
-                f"Camera status broadcast to Redis: {broadcast_data.get('type')} "
-                f"(camera_id: {data_dict.get('camera_id')}, status: {data_dict.get('status')}, "
-                f"subscribers: {subscriber_count})"
-            )
-            return subscriber_count
-=======
                 f"Alert broadcast to Redis: {broadcast_data.get('type')} "
                 f"(subscribers: {subscriber_count})"
             )
@@ -723,16 +728,11 @@ class EventBroadcaster:
         except ValidationError as ve:
             logger.error(f"Alert message validation failed: {ve}")
             raise ValueError(f"Invalid alert message format: {ve}") from ve
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
         except ValueError:
             # Re-raise validation errors
             raise
         except Exception as e:
-<<<<<<< HEAD
-            logger.error(f"Failed to broadcast camera status: {e}")
-=======
             logger.error(f"Failed to broadcast alert: {e}")
->>>>>>> 468926082 (feat: add WebSocket events for alert state changes (NEM-1981))
             raise
 
     def _enter_degraded_mode(self) -> None:
