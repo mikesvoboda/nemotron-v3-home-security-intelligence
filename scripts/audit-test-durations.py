@@ -206,8 +206,15 @@ def categorize_test(classname: str, name: str, filepath: str = "") -> str:
     if "e2e" in file_lower or ".spec." in full_path or "playwright" in file_lower:
         return "e2e"
 
-    if "integration" in full_path:
+    # Integration-level tests: explicit integration, contracts, chaos, gpu, security
+    # - Contract tests: API schema validation
+    # - Chaos tests: Fault injection with deliberate delays (30-120s)
+    # - GPU tests: Hardware-specific with longer runtimes
+    # - Security tests: Validation tests with extended runtimes
+    integration_patterns = ("integration", "contract", "chaos", "gpu", "security")
+    if any(pattern in full_path or pattern in file_lower for pattern in integration_patterns):
         return "integration"
+
     return "unit"
 
 
