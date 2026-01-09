@@ -22,7 +22,13 @@ from backend.core.metrics import get_metrics_response
 router = APIRouter(prefix="/api", tags=["metrics"])
 
 
-@router.get("/metrics")
+@router.get(
+    "/metrics",
+    responses={
+        200: {"description": "Prometheus metrics in exposition format"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def metrics() -> Response:
     """Return Prometheus metrics in exposition format.
 
