@@ -276,7 +276,7 @@ class TestLogContext:
         """Verify log_context adds context fields to log records."""
         logger = get_logger("test.log_context")
 
-        with caplog.at_level(logging.INFO):  # noqa: SIM117
+        with caplog.at_level(logging.INFO):
             with log_context(camera_id="front_door", operation="detect"):
                 logger.info("Processing detection")
 
@@ -308,7 +308,7 @@ class TestLogContext:
         """Verify nested log_context works correctly."""
         logger = get_logger("test.log_context_nested")
 
-        with caplog.at_level(logging.INFO), log_context(camera_id="front_door"):  # noqa: SIM117
+        with caplog.at_level(logging.INFO), log_context(camera_id="front_door"):
             with log_context(operation="detect", retry_count=1):
                 logger.info("Inner context")
 
@@ -323,7 +323,7 @@ class TestLogContext:
         """Verify inner log_context can override outer fields."""
         logger = get_logger("test.log_context_override")
 
-        with caplog.at_level(logging.INFO):  # noqa: SIM117
+        with caplog.at_level(logging.INFO):
             with log_context(camera_id="front_door", retry_count=0):
                 with log_context(retry_count=2):
                     logger.info("Overridden context")
@@ -337,7 +337,7 @@ class TestLogContext:
         """Verify outer context is restored after inner context exits."""
         logger = get_logger("test.log_context_restore")
 
-        with caplog.at_level(logging.INFO):  # noqa: SIM117
+        with caplog.at_level(logging.INFO):
             with log_context(camera_id="front_door", retry_count=0):
                 with log_context(retry_count=2):
                     pass  # Inner context exits here
@@ -458,7 +458,7 @@ class TestLogContext:
         """Verify explicit extra= parameter overrides log_context values."""
         logger = get_logger("test.log_context_extra_override")
 
-        with caplog.at_level(logging.INFO):  # noqa: SIM117
+        with caplog.at_level(logging.INFO):
             with log_context(camera_id="front_door", retry_count=1):
                 logger.info("Extra overrides context", extra={"retry_count": 5})
 
