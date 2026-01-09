@@ -1280,6 +1280,7 @@ async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
 async def test_get_event_returns_event_by_id() -> None:
     """Test that get_event returns the correct event."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(
         event_id=42,
@@ -1296,7 +1297,7 @@ async def test_get_event_returns_event_by_id() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=42, db=db)
+    response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
 
     assert response["id"] == 42
     assert response["camera_id"] == "cam-001"
@@ -1313,13 +1314,14 @@ async def test_get_event_returns_event_by_id() -> None:
 async def test_get_event_returns_404_when_not_found() -> None:
     """Test that get_event returns 404 when event doesn't exist."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     result = MagicMock()
     result.scalar_one_or_none.return_value = None
     db.execute = AsyncMock(return_value=result)
 
     with pytest.raises(Exception) as exc_info:
-        await events_routes.get_event(event_id=999, db=db)
+        await events_routes.get_event(event_id=999, request=mock_request, db=db)
 
     # Check that it's an HTTPException with 404 status
     assert exc_info.value.status_code == 404
@@ -1330,6 +1332,7 @@ async def test_get_event_returns_404_when_not_found() -> None:
 async def test_get_event_with_no_detection_ids() -> None:
     """Test that get_event handles events with no detection_ids."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(detection_ids=None)
 
@@ -1337,7 +1340,7 @@ async def test_get_event_with_no_detection_ids() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, db=db)
+    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
     assert response["detection_count"] == 0
     assert response["detection_ids"] == []
@@ -1347,6 +1350,7 @@ async def test_get_event_with_no_detection_ids() -> None:
 async def test_get_event_with_empty_detection_ids() -> None:
     """Test that get_event handles events with empty detection_ids."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(detection_ids="")
 
@@ -1354,7 +1358,7 @@ async def test_get_event_with_empty_detection_ids() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, db=db)
+    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
     assert response["detection_count"] == 0
     assert response["detection_ids"] == []
@@ -1364,6 +1368,7 @@ async def test_get_event_with_empty_detection_ids() -> None:
 async def test_get_event_includes_all_fields() -> None:
     """Test that get_event includes all required fields in response."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     now = datetime.now(UTC)
     ended = now + timedelta(minutes=5)
@@ -1385,7 +1390,7 @@ async def test_get_event_includes_all_fields() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, db=db)
+    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
     assert "id" in response
     assert "camera_id" in response
@@ -1406,6 +1411,7 @@ async def test_get_event_includes_all_fields() -> None:
 async def test_get_event_returns_reasoning_field() -> None:
     """Test that get_event returns the reasoning field."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(
         event_id=42,
@@ -1418,7 +1424,7 @@ async def test_get_event_returns_reasoning_field() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=42, db=db)
+    response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
 
     assert response["reasoning"] == "Person detected at unusual hour near restricted area"
 
@@ -1427,6 +1433,7 @@ async def test_get_event_returns_reasoning_field() -> None:
 async def test_get_event_returns_none_reasoning_when_not_set() -> None:
     """Test that get_event returns None reasoning when not set."""
     db = AsyncMock()
+    mock_request = MagicMock()
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1437,7 +1444,7 @@ async def test_get_event_returns_none_reasoning_when_not_set() -> None:
     result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=result)
 
-    response = await events_routes.get_event(event_id=1, db=db)
+    response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
     assert response["reasoning"] is None
 

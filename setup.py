@@ -297,6 +297,10 @@ def run_quick_mode() -> dict:
     print("-- Credentials " + "-" * 46)
     print("! SECURITY: Strong passwords are required for database access")
     postgres_password = prompt_for_password("Database password")
+    print("(Optional) Redis password for production use (press Enter to skip)")
+    redis_password = prompt_with_default("Redis password", "")
+    print("(Optional) Grafana admin password for monitoring (press Enter to skip)")
+    grafana_password = prompt_with_default("Grafana admin password", "")
     ftp_password = prompt_with_default("FTP password", generate_password(32))
     print()
 
@@ -315,6 +319,8 @@ def run_quick_mode() -> dict:
         "camera_path": camera_path,
         "ai_models_path": ai_models_path,
         "postgres_password": postgres_password,
+        "redis_password": redis_password,
+        "grafana_password": grafana_password,
         "ftp_password": ftp_password,
         "ports": ports,
     }
@@ -396,6 +402,15 @@ def run_guided_mode() -> dict:
     print("  for security reasons. You MUST set a password.")
     print()
     postgres_password = prompt_for_password("Database password")
+    print()
+    print("Optional credentials for production deployment:")
+    print("  - Redis password: Used for Redis authentication in production")
+    print("  - Grafana password: Used for Grafana monitoring dashboard (when enabled)")
+    print()
+    print("Press Enter to skip optional passwords (use environment variables instead).")
+    print()
+    redis_password = prompt_with_default("Redis password (optional)", "")
+    grafana_password = prompt_with_default("Grafana admin password (optional)", "")
     ftp_password = prompt_with_default("FTP password", generate_password(32))
     print()
 
@@ -437,6 +452,8 @@ def run_guided_mode() -> dict:
         "camera_path": camera_path,
         "ai_models_path": ai_models_path,
         "postgres_password": postgres_password,
+        "redis_password": redis_password,
+        "grafana_password": grafana_password,
         "ftp_password": ftp_password,
         "ports": ports,
     }
@@ -475,11 +492,23 @@ def write_config_files(
     secrets_path = None
     if create_secret_files:
         secrets_dir = create_secrets_directory(output_dir)
+
+        # Create PostgreSQL password secret
         postgres_password = config.get("postgres_password", "")
         if postgres_password:
-            secrets_path = write_secret_file(
-                secrets_dir, "postgres_password.txt", postgres_password
-            )
+            write_secret_file(secrets_dir, "postgres_password.txt", postgres_password)
+
+        # Create Redis password secret (optional, for production use)
+        redis_password = config.get("redis_password", "")
+        if redis_password:
+            write_secret_file(secrets_dir, "redis_password.txt", redis_password)
+
+        # Create Grafana admin password secret (optional, for monitoring)
+        grafana_password = config.get("grafana_password", "")
+        if grafana_password:
+            write_secret_file(secrets_dir, "grafana_admin_password.txt", grafana_password)
+
+        secrets_path = secrets_dir
 
     return env_path, override_path, secrets_path
 
@@ -553,9 +582,24 @@ def main() -> None:
     try:
         config = run_guided_mode() if args.guided else run_quick_mode()
 
+        # Ask about Docker secrets if not specified via command line
+        create_secrets = args.create_secrets
+        if not create_secrets:
+            print("\n" + "=" * 60)
+            print("Docker Secrets (Optional - Recommended for Production)")
+            print("=" * 60)
+            print()
+            print("Docker Secrets provide enhanced security for credentials:")
+            print("  - Stored separately from environment variables")
+            print("  - Not visible in 'docker inspect' output")
+            print("  - Easier credential rotation without image rebuild")
+            print()
+            answer = prompt_with_default("Create Docker secrets files?", "n")
+            create_secrets = answer.lower() in ("y", "yes")
+
         # Write configuration files
         env_path, override_path, secrets_path = write_config_files(
-            config, args.output_dir, create_secret_files=args.create_secrets
+            config, args.output_dir, create_secret_files=create_secrets
         )
 
         # Install pre-commit hooks after config files written
@@ -599,8 +643,25 @@ def main() -> None:
         print("  - POSTGRES_PASSWORD is required - containers will fail without it")
         print("  - Never commit .env or secrets/ to version control")
         if secrets_path:
-            print("  - Docker secrets file created with secure permissions (600)")
-            print("  - To use secrets, uncomment the secrets sections in docker-compose.prod.yml")
+            print()
+            print("  Docker Secrets Created:")
+            print(f"    - Directory: {secrets_path}/")
+            print("    - Files with secure permissions (600):")
+            print("      * postgres_password.txt (database authentication)")
+            if config.get("redis_password"):
+                print("      * redis_password.txt (Redis authentication)")
+            if config.get("grafana_password"):
+                print("      * grafana_admin_password.txt (Grafana dashboard)")
+            print()
+            print("  Next Steps to Enable Docker Secrets:")
+            print(
+                "    1. Uncomment the 'secrets:' section at the bottom of docker-compose.prod.yml"
+            )
+            print("    2. Uncomment the 'secrets:' subsections in each service")
+            print("    3. Validate configuration:")
+            print("       docker compose -f docker-compose.prod.yml config")
+            print("    4. Start services with secrets:")
+            print("       docker compose -f docker-compose.prod.yml up -d")
         print()
 
         # Offer firewall configuration on Linux
