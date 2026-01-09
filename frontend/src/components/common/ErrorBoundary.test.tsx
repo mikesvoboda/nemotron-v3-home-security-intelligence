@@ -241,6 +241,70 @@ describe('ErrorBoundary', () => {
         writable: true,
       });
     });
+
+    it('displays Report Issue button in fallback UI', () => {
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+      expect(screen.getByRole('button', { name: /report.*issue/i })).toBeInTheDocument();
+    });
+
+    it('opens GitHub issue URL when Report Issue is clicked', () => {
+      const openMock = vi.fn();
+      const originalOpen = window.open;
+      window.open = openMock;
+
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /report.*issue/i }));
+
+      expect(openMock).toHaveBeenCalledTimes(1);
+      const [url, target, features] = openMock.mock.calls[0];
+
+      // Verify URL structure
+      expect(url).toContain('/issues/new?');
+      expect(url).toContain('title=');
+      expect(url).toContain('body=');
+      // Labels may or may not have encoded comma depending on browser
+      expect(url).toMatch(/labels=bug[%2C,]user-reported/);
+
+      // Verify window open options
+      expect(target).toBe('_blank');
+      expect(features).toBe('noopener,noreferrer');
+
+      // Restore original
+      window.open = originalOpen;
+    });
+
+    it('includes error details in the GitHub issue URL', () => {
+      const openMock = vi.fn();
+      const originalOpen = window.open;
+      window.open = openMock;
+
+      render(
+        <ErrorBoundary>
+          <ThrowingComponent />
+        </ErrorBoundary>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /report.*issue/i }));
+
+      const url = openMock.mock.calls[0][0] as string;
+
+      // Verify error details are included in the URL
+      expect(url).toContain(encodeURIComponent('Test error message'));
+      expect(url).toContain(encodeURIComponent('Error Type'));
+      expect(url).toContain(encodeURIComponent('Stack Trace'));
+
+      // Restore original
+      window.open = originalOpen;
+    });
   });
 
   describe('accessibility', () => {
@@ -271,6 +335,7 @@ describe('ErrorBoundary', () => {
       );
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /refresh page/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /report.*issue/i })).toBeInTheDocument();
     });
 
     it('hides decorative icons from screen readers', () => {

@@ -1,8 +1,66 @@
-import { AlertOctagon, RefreshCw } from 'lucide-react';
+import { AlertOctagon, Bug, RefreshCw } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { logger } from '../../services/logger';
 import { captureError, isSentryEnabled } from '../../services/sentry';
+
+/**
+ * Generate a pre-filled GitHub issue URL for error reporting.
+ * NEM-1503: Provides users with a way to report errors directly from the UI.
+ *
+ * @param error - The error that occurred
+ * @param errorInfo - React error info with component stack
+ * @returns GitHub issue URL with pre-filled title and body
+ */
+function generateReportIssueUrl(error: Error, errorInfo: ErrorInfo | null): string {
+  const title = encodeURIComponent(`[Bug Report] ${error.name}: ${error.message.slice(0, 80)}`);
+
+  const body = encodeURIComponent(`## Error Details
+
+**Error Type:** ${error.name}
+**Error Message:** ${error.message}
+
+## Environment
+
+**URL:** ${window.location.href}
+**User Agent:** ${navigator.userAgent}
+**Timestamp:** ${new Date().toISOString()}
+
+## Stack Trace
+
+\`\`\`
+${error.stack || 'No stack trace available'}
+\`\`\`
+
+${
+  errorInfo?.componentStack
+    ? `## Component Stack
+
+\`\`\`
+${errorInfo.componentStack}
+\`\`\`
+`
+    : ''
+}
+## Steps to Reproduce
+
+1. [Please describe what you were doing when this error occurred]
+
+## Expected Behavior
+
+[What should have happened?]
+
+## Additional Context
+
+[Any other information that might be helpful]
+`);
+
+  // Use the repository URL from environment or fallback
+  const repoUrl =
+    (import.meta.env.VITE_GITHUB_REPO_URL as string | undefined) ||
+    'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence';
+  return `${repoUrl}/issues/new?title=${title}&body=${body}&labels=bug,user-reported`;
+}
 
 /**
  * Generates a fingerprint for an error to enable deduplication.
@@ -151,6 +209,18 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     window.location.reload();
   };
 
+  /**
+   * Open GitHub issue creation page with pre-filled error details.
+   * NEM-1503: Allows users to report errors directly from the error boundary UI.
+   */
+  handleReportIssue = (): void => {
+    const { error, errorInfo } = this.state;
+    if (error) {
+      const url = generateReportIssueUrl(error, errorInfo);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   render(): ReactNode {
     const { hasError, error, errorInfo } = this.state;
     const { children, fallback, title, description } = this.props;
@@ -189,7 +259,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               </pre>
             </details>
           )}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <button
               type="button"
               onClick={this.handleRetry}
@@ -204,6 +274,15 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               className="inline-flex items-center gap-2 rounded-md bg-gray-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900"
             >
               Refresh Page
+            </button>
+            <button
+              type="button"
+              onClick={this.handleReportIssue}
+              className="inline-flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+              aria-label="Report this issue on GitHub"
+            >
+              <Bug className="h-4 w-4" aria-hidden="true" />
+              Report Issue
             </button>
           </div>
         </div>
