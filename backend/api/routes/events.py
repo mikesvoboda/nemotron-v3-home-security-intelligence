@@ -864,6 +864,7 @@ async def update_event(
     update_data: EventUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
     """Update an event (mark as reviewed).
 
@@ -940,6 +941,14 @@ async def update_event(
             setattr(event, key, value)
         await db.commit()
     await db.refresh(event)
+
+    # Invalidate event-related caches after successful update (NEM-1950)
+    try:
+        await cache.invalidate_events(reason="event_updated")
+        await cache.invalidate_event_stats(reason="event_updated")
+    except Exception as e:
+        # Cache invalidation is non-critical - log but don't fail the request
+        logger.warning(f"Cache invalidation failed after event update: {e}")
 
     # Parse detection_ids and calculate count
     parsed_detection_ids = get_detection_ids_from_event(event)
@@ -1442,6 +1451,7 @@ async def analyze_batch_streaming(
 async def bulk_create_events(
     request: EventBulkCreateRequest,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
     """Create multiple events in a single request.
 
@@ -1522,6 +1532,13 @@ async def bulk_create_events(
     if succeeded > 0:
         try:
             await db.commit()
+            # Invalidate event-related caches after successful bulk create (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_created")
+                await cache.invalidate_event_stats(reason="event_created")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk create: {e}")
         except Exception as e:
             logger.error(f"Bulk create commit failed: {e}")
             await db.rollback()
@@ -1556,6 +1573,7 @@ async def bulk_create_events(
 async def bulk_update_events(
     request: EventBulkUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
     """Update multiple events in a single request.
 
@@ -1628,6 +1646,13 @@ async def bulk_update_events(
     if succeeded > 0:
         try:
             await db.commit()
+            # Invalidate event-related caches after successful bulk update (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_updated")
+                await cache.invalidate_event_stats(reason="event_updated")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk update: {e}")
         except Exception as e:
             logger.error(f"Bulk update commit failed: {e}")
             await db.rollback()
@@ -1662,6 +1687,7 @@ async def bulk_update_events(
 async def bulk_delete_events(
     request: EventBulkDeleteRequest,
     db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
     """Delete multiple events in a single request.
 
@@ -1737,6 +1763,13 @@ async def bulk_delete_events(
     if succeeded > 0:
         try:
             await db.commit()
+            # Invalidate event-related caches after successful bulk delete (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_deleted")
+                await cache.invalidate_event_stats(reason="event_deleted")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk delete: {e}")
         except Exception as e:
             logger.error(f"Bulk delete commit failed: {e}")
             await db.rollback()
