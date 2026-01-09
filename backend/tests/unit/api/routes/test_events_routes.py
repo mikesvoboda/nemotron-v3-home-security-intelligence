@@ -616,26 +616,35 @@ class TestAnalyzeBatchStreamingRoute:
         """Test that invalid detection_ids returns error event."""
         from backend.api.routes.events import analyze_batch_streaming
 
-        response = await analyze_batch_streaming(
-            batch_id="test_batch", camera_id="cam1", detection_ids="invalid,ids"
-        )
+        # Mock the Redis client to avoid actual connection
+        mock_redis = AsyncMock()
+        mock_redis._client = None  # Simulate unavailable Redis
 
-        # Get event generator
-        events = []
-        async for event in response.body_iterator:
-            if event:
-                # Parse SSE format: "data: {json}\n\n"
-                event_str = event.decode("utf-8") if isinstance(event, bytes) else event
-                if event_str.startswith("data: "):
-                    json_str = event_str[6:].strip()
-                    if json_str:
-                        events.append(json.loads(json_str))
+        async def mock_get_redis():
+            yield mock_redis
 
-        # Should have at least one error event
-        assert len(events) > 0
-        error_event = events[0]
-        assert error_event["event_type"] == "error"
-        assert error_event["error_code"] == "INVALID_DETECTION_IDS"
+        # Patch at the source module where get_redis is defined
+        with patch("backend.core.redis.get_redis", mock_get_redis):
+            response = await analyze_batch_streaming(
+                batch_id="test_batch", camera_id="cam1", detection_ids="invalid,ids"
+            )
+
+            # Get event generator
+            events = []
+            async for event in response.body_iterator:
+                if event:
+                    # Parse SSE format: "data: {json}\n\n"
+                    event_str = event.decode("utf-8") if isinstance(event, bytes) else event
+                    if event_str.startswith("data: "):
+                        json_str = event_str[6:].strip()
+                        if json_str:
+                            events.append(json.loads(json_str))
+
+            # Should have at least one error event
+            assert len(events) > 0
+            error_event = events[0]
+            assert error_event["event_type"] == "error"
+            assert error_event["error_code"] == "INVALID_DETECTION_IDS"
 
 
 class TestListEventsRouteComprehensive:
