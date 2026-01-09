@@ -45,6 +45,10 @@ def check_files_for_integration_tests(file_paths: list[str]) -> tuple[bool, list
     for file_path in file_paths:
         path = Path(file_path)
 
+        # Resolve to absolute path if relative
+        if not path.is_absolute():
+            path = project_root / path
+
         # Only check Python files
         if path.suffix != ".py" or path.name.startswith("test_"):
             continue
