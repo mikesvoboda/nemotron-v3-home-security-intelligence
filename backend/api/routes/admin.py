@@ -13,7 +13,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any  # Still used for cameras list in SeedCamerasResponse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -254,7 +254,7 @@ async def seed_cameras(
     request: SeedCamerasRequest,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
-) -> dict[str, Any]:
+) -> SeedCamerasResponse:
     """Seed test cameras into the database.
 
     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
@@ -324,11 +324,11 @@ async def seed_cameras(
 
     await db.commit()
 
-    return {
-        "created": created,
-        "cleared": cleared,
-        "cameras": cameras_created,
-    }
+    return SeedCamerasResponse(
+        created=created,
+        cleared=cleared,
+        cameras=cameras_created,
+    )
 
 
 @router.post(
@@ -348,7 +348,7 @@ async def seed_events(
     request: SeedEventsRequest,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
-) -> dict[str, Any]:
+) -> SeedEventsResponse:
     """Seed mock events and detections into the database.
 
     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
@@ -473,12 +473,12 @@ async def seed_events(
 
     await db.commit()
 
-    return {
-        "events_created": events_created,
-        "detections_created": detections_created,
-        "events_cleared": events_cleared,
-        "detections_cleared": detections_cleared,
-    }
+    return SeedEventsResponse(
+        events_created=events_created,
+        detections_created=detections_created,
+        events_cleared=events_cleared,
+        detections_cleared=detections_cleared,
+    )
 
 
 @router.delete(
@@ -496,7 +496,7 @@ async def clear_seeded_data(
     request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
-) -> dict[str, int]:
+) -> ClearDataResponse:
     """Clear all seeded data (cameras, events, detections).
 
     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
@@ -554,8 +554,8 @@ async def clear_seeded_data(
 
     await db.commit()
 
-    return {
-        "cameras_cleared": cameras_cleared,
-        "events_cleared": events_cleared,
-        "detections_cleared": detections_cleared,
-    }
+    return ClearDataResponse(
+        cameras_cleared=cameras_cleared,
+        events_cleared=events_cleared,
+        detections_cleared=detections_cleared,
+    )
