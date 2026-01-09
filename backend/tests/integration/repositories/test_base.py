@@ -602,7 +602,7 @@ class TestRepositoryErrorHandling:
         # Attempt to create another with same ID
         entity2 = SimpleModel(id=entity_id, name="Second")
 
-        with pytest.raises(Exception):  # noqa: B017 - SQLAlchemy IntegrityError
+        with pytest.raises(Exception):
             await repo.create(entity2)
 
     @pytest.mark.asyncio
@@ -617,7 +617,7 @@ class TestRepositoryErrorHandling:
         await session.close()
 
         # Attempt operation on closed session should raise error
-        with pytest.raises(Exception):  # noqa: B017 - SQLAlchemy session error
+        with pytest.raises(Exception):
             created.name = "Updated"
             await repo.update(created)
 
@@ -674,7 +674,7 @@ class TestRepositoryEdgeCases:
         duplicate = SimpleModel(id=entity_id, name="Duplicate")
         entity3 = SimpleModel(id=unique_id("valid"), name="Also Valid")
 
-        with pytest.raises(Exception):  # noqa: B017 - SQLAlchemy raises generic IntegrityError
+        with pytest.raises(Exception):
             await repo.create_many([duplicate, entity3])
 
     @pytest.mark.asyncio

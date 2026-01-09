@@ -330,7 +330,7 @@ class TestCameraPathTraversal:
             assert response.status_code != 200, (
                 f"Null byte injection not blocked for: {null_byte_path}"
             )
-        except Exception:  # noqa: S110 - HTTP parsing errors are acceptable here
+        except Exception:
             pass
 
     @pytest.mark.parametrize(
@@ -446,7 +446,7 @@ class TestThumbnailPathTraversal:
             assert response.status_code != 200, (
                 f"Null byte not blocked for thumbnail: {null_byte_path}"
             )
-        except Exception:  # noqa: S110 - HTTP parsing errors are acceptable here
+        except Exception:
             pass
 
 

@@ -148,13 +148,13 @@ def example_pr_description() -> None:
     # Get git diff (staged changes or last commit)
     git_path = shutil.which("git") or "/usr/bin/git"
     try:
-        diff = subprocess.check_output(  # noqa: S603
+        diff = subprocess.check_output(
             [git_path, "diff", "--cached"],
             cwd=PROJECT_ROOT,
             text=True,
         )
         if not diff.strip():
-            diff = subprocess.check_output(  # noqa: S603
+            diff = subprocess.check_output(
                 [git_path, "diff", "HEAD~1"],
                 cwd=PROJECT_ROOT,
                 text=True,

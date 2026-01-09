@@ -29,7 +29,7 @@ async def clean_logs(integration_db):
     try:
         async with get_engine().begin() as conn:
             await conn.execute(text("DELETE FROM logs"))
-    except Exception:  # noqa: S110 - ignore cleanup errors
+    except Exception:
         pass
 
 
