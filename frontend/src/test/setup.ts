@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
+import { resetCounter } from './factories';
 import { server } from '../mocks/server';
 
 /**
@@ -96,6 +97,9 @@ afterEach(() => {
 
   // Unstub all global mocks (fetch, WebSocket, etc.)
   vi.unstubAllGlobals();
+
+  // Reset factory counter to ensure unique IDs across tests
+  resetCounter();
 });
 
 /**
