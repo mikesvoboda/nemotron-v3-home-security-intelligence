@@ -492,3 +492,184 @@ class WebSocketSceneChangeMessage(BaseModel):
             }
         }
     )
+
+
+# Job tracking WebSocket schemas
+
+
+class WebSocketJobStatus(StrEnum):
+    """Valid job status values for WebSocket job tracking messages."""
+
+    PENDING = auto()
+    RUNNING = auto()
+    COMPLETED = auto()
+    FAILED = auto()
+
+
+class WebSocketJobProgressData(BaseModel):
+    """Data payload for job progress messages.
+
+    Broadcast when a background job's progress changes (throttled to 10% increments).
+    """
+
+    job_id: str = Field(..., description="Unique job identifier")
+    job_type: str = Field(..., description="Type of job (export, cleanup, backup, sync)")
+    progress: int = Field(..., ge=0, le=100, description="Job progress percentage (0-100)")
+    status: str = Field(..., description="Current job status")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "job_type": "export",
+                "progress": 50,
+                "status": "running",
+            }
+        }
+    )
+
+
+class WebSocketJobProgressMessage(BaseModel):
+    """Complete job progress message envelope.
+
+    Format:
+        {
+            "type": "job_progress",
+            "data": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "job_type": "export",
+                "progress": 50,
+                "status": "running"
+            }
+        }
+    """
+
+    type: Literal["job_progress"] = Field(
+        default="job_progress",
+        description="Message type, always 'job_progress' for job progress messages",
+    )
+    data: WebSocketJobProgressData = Field(..., description="Job progress data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "job_progress",
+                "data": {
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "job_type": "export",
+                    "progress": 50,
+                    "status": "running",
+                },
+            }
+        }
+    )
+
+
+class WebSocketJobCompletedData(BaseModel):
+    """Data payload for job completed messages.
+
+    Broadcast when a background job finishes successfully.
+    """
+
+    job_id: str = Field(..., description="Unique job identifier")
+    job_type: str = Field(..., description="Type of job (export, cleanup, backup, sync)")
+    result: Any = Field(None, description="Optional result data from the job")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "job_type": "export",
+                "result": {"file_path": "/exports/events_2026-01-09.json"},
+            }
+        }
+    )
+
+
+class WebSocketJobCompletedMessage(BaseModel):
+    """Complete job completed message envelope.
+
+    Format:
+        {
+            "type": "job_completed",
+            "data": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "job_type": "export",
+                "result": {"file_path": "/exports/events_2026-01-09.json"}
+            }
+        }
+    """
+
+    type: Literal["job_completed"] = Field(
+        default="job_completed",
+        description="Message type, always 'job_completed' for job completed messages",
+    )
+    data: WebSocketJobCompletedData = Field(..., description="Job completed data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "job_completed",
+                "data": {
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "job_type": "export",
+                    "result": {"file_path": "/exports/events_2026-01-09.json"},
+                },
+            }
+        }
+    )
+
+
+class WebSocketJobFailedData(BaseModel):
+    """Data payload for job failed messages.
+
+    Broadcast when a background job fails.
+    """
+
+    job_id: str = Field(..., description="Unique job identifier")
+    job_type: str = Field(..., description="Type of job (export, cleanup, backup, sync)")
+    error: str = Field(..., description="Error message describing the failure")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "job_type": "export",
+                "error": "Database connection failed",
+            }
+        }
+    )
+
+
+class WebSocketJobFailedMessage(BaseModel):
+    """Complete job failed message envelope.
+
+    Format:
+        {
+            "type": "job_failed",
+            "data": {
+                "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "job_type": "export",
+                "error": "Database connection failed"
+            }
+        }
+    """
+
+    type: Literal["job_failed"] = Field(
+        default="job_failed",
+        description="Message type, always 'job_failed' for job failed messages",
+    )
+    data: WebSocketJobFailedData = Field(..., description="Job failed data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "job_failed",
+                "data": {
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "job_type": "export",
+                    "error": "Database connection failed",
+                },
+            }
+        }
+    )

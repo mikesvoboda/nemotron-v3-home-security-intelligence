@@ -414,6 +414,12 @@ describe('Type Inference', () => {
         case 'error':
           // TypeScript knows message is ErrorMessage here
           return `Error: ${message.message}`;
+        case 'job_progress':
+          return `Job Progress: ${message.data.progress}%`;
+        case 'job_completed':
+          return `Job Completed: ${message.data.job_id}`;
+        case 'job_failed':
+          return `Job Failed: ${message.data.error}`;
       }
     }
 
@@ -476,6 +482,12 @@ describe('assertNever', () => {
           return 'pong';
         case 'error':
           return 'error';
+        case 'job_progress':
+          return 'job_progress';
+        case 'job_completed':
+          return 'job_completed';
+        case 'job_failed':
+          return 'job_failed';
         default:
           // TypeScript knows this is never reached if all cases are covered
           return assertNever(message);
@@ -539,6 +551,12 @@ describe('assertNeverSoft', () => {
           return 'handled pong';
         case 'error':
           return 'handled error';
+        case 'job_progress':
+          return 'handled job_progress';
+        case 'job_completed':
+          return 'handled job_completed';
+        case 'job_failed':
+          return 'handled job_failed';
         default:
           assertNeverSoft(message, 'WebSocket message');
           return 'unknown';
