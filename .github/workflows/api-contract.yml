@@ -141,7 +141,7 @@ jobs:
 
       - name: Comment PR with contract test results
         if: always()
-        uses: actions/github-script@7a5f60ed311485811f4a8e801bae3e39eaa9775a # v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         with:
           script: |
             const fs = require('fs');
