@@ -26,6 +26,10 @@ Jobs move to the DLQ when they fail repeatedly. Common causes include:
 
 ### DLQ Architecture
 
+![DLQ Architecture](../images/architecture/dlq-architecture.png)
+
+_Dead Letter Queue flow showing message lifecycle, retry mechanism, and manual review path._
+
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │  File Watcher   │────▶│ detection_queue │────▶│    RT-DETR      │

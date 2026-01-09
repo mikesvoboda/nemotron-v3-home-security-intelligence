@@ -63,6 +63,10 @@ These components help operators:
 
 The `PipelineFlowVisualization` component (`frontend/src/components/system/PipelineFlowVisualization.tsx`) renders a visual representation of the four-stage AI pipeline.
 
+![System Page Wireframe](../images/architecture/system-page-wireframe.png)
+
+_System page wireframe showing the pipeline visualization, infrastructure status grid, and metrics panels layout._
+
 ### Visual Layout
 
 ```

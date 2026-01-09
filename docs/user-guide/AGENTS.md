@@ -4,14 +4,9 @@
 
 This directory contains end-user documentation for the Home Security Intelligence dashboard. These guides are written for non-technical users who want to understand and operate the security system.
 
-> **Note: Two Documentation Structures Exist**
+> **Consolidated User Documentation**
 >
-> This project has two user documentation directories:
->
-> - `docs/user-guide/` (this directory) = Comprehensive standalone documentation with detailed guides
-> - `docs/user/` = Hub-and-spoke structure with standardized shorter templates linked from `user-hub.md`
->
-> **Choose one approach, not both.** The `user-guide/` docs are more comprehensive and standalone, while `user/` docs follow a consistent template and integrate with the User Hub. Pick the structure that best fits your documentation needs.
+> This directory is the canonical location for all end-user documentation. The previous `docs/user/` directory has been consolidated into this directory.
 
 ## Directory Contents
 
@@ -19,8 +14,13 @@ This directory contains end-user documentation for the Home Security Intelligenc
 user-guide/
   AGENTS.md                   # This file
   accessibility.md            # Accessibility features for users (screen readers, keyboard)
+  ai-audit.md                 # AI quality metrics and recommendations (from user/)
+  ai-enrichment.md            # Advanced AI analysis in event details (from user/)
+  ai-performance.md           # AI model performance and Model Zoo (from user/)
   alerts-notifications.md     # Alerts and notifications guide
+  dashboard-basics.md         # Dashboard layout, header, sidebar, quick stats (from user/)
   dashboard-overview.md       # Dashboard overview
+  dashboard-settings.md       # Configuration and quick reference (from user/)
   event-investigation.md      # Video clips, entity tracking, timeline visualization
   event-timeline.md           # Event timeline guide
   getting-started.md          # Quick start guide for new users
@@ -31,8 +31,10 @@ user-guide/
   mobile-pwa.md               # PWA installation, push notifications, mobile features
   search.md                   # Search functionality guide
   settings.md                 # Settings page guide
+  system-monitoring.md        # System health, circuit breakers, troubleshooting (from user/)
   understanding-alerts.md     # Risk levels and alert interpretation
   using-the-dashboard.md      # Comprehensive dashboard guide
+  viewing-events.md           # Activity feed, timeline, event details (from user/)
 ```
 
 ## Key Files

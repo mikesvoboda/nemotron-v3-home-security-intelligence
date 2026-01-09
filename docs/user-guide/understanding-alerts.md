@@ -182,6 +182,10 @@ The AI provides context about:
 
 ---
 
+![Risk Analysis Decision Tree](../images/architecture/risk-analysis-decision-tree.png)
+
+_Risk analysis decision tree showing how the AI evaluates detection context to determine risk scores._
+
 ## Decision Flowchart: What Should I Do?
 
 Use this flowchart when you receive an alert:

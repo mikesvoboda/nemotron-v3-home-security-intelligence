@@ -10,6 +10,20 @@ This document covers three key architectural patterns used in the backend:
 
 ---
 
+## Architecture Diagrams
+
+![Backend Layered Architecture](../images/architecture/backend-layered-architecture.png)
+
+_Backend layered architecture showing the separation between API routes, services, repositories, and database._
+
+![Backend Init Lifecycle](../images/architecture/backend-init-lifecycle.png)
+
+_Backend initialization lifecycle showing the startup sequence and dependency injection._
+
+![Middleware Chain](../images/architecture/middleware-chain.png)
+
+_API middleware chain showing request processing through authentication, rate limiting, and error handling._
+
 ## Table of Contents
 
 - [Repository Pattern](#repository-pattern)

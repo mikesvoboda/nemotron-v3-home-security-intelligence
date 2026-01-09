@@ -287,14 +287,7 @@ This project follows **Test-Driven Development (TDD)** for all feature implement
 2. **GREEN** - Write the minimum code necessary to make the test pass
 3. **REFACTOR** - Improve the code while keeping tests green
 
-```
-┌─────────┐     ┌─────────┐     ┌──────────┐
-│   RED   │ ──▶ │  GREEN  │ ──▶ │ REFACTOR │
-│  (fail) │     │ (pass)  │     │ (improve)│
-└─────────┘     └─────────┘     └──────────┘
-      ▲                               │
-      └───────────────────────────────┘
-```
+![TDD Cycle](docs/images/architecture/tdd-cycle.png)
 
 ### Pre-Implementation Checklist
 

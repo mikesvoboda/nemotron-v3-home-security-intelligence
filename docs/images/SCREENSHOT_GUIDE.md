@@ -17,7 +17,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 1. placeholder-dashboard-overview.png
 
-**File:** `docs/user/dashboard-basics.md`
+**File:** `docs/user-guide/dashboard-basics.md`
 **Location:** Main dashboard page (http://localhost:5173/)
 **Size:** 1400x900 pixels (16:9 aspect ratio)
 
@@ -37,7 +37,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 2. placeholder-header-health.png
 
-**File:** `docs/user/dashboard-basics.md`
+**File:** `docs/user-guide/dashboard-basics.md`
 **Location:** Top header bar of the dashboard
 **Size:** 800x200 pixels (4:1 aspect ratio)
 
@@ -56,7 +56,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 3. placeholder-quick-stats.png
 
-**File:** `docs/user/dashboard-basics.md`
+**File:** `docs/user-guide/dashboard-basics.md`
 **Location:** Below the page title on main dashboard
 **Size:** 1200x150 pixels (8:1 aspect ratio)
 
@@ -74,7 +74,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 4. placeholder-risk-gauge.png
 
-**File:** `docs/user/dashboard-basics.md`
+**File:** `docs/user-guide/dashboard-basics.md`
 **Location:** Top-left area of main dashboard content
 **Size:** 400x400 pixels (1:1 aspect ratio)
 
@@ -91,7 +91,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 5. placeholder-risk-gauge-states.png
 
-**File:** `docs/user/dashboard-basics.md`
+**File:** `docs/user-guide/dashboard-basics.md`
 **Location:** N/A - composite image
 **Size:** 800x250 pixels (3.2:1 aspect ratio)
 
@@ -111,7 +111,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 6. placeholder-camera-grid.png
 
-**File:** `docs/user/dashboard-basics.md`
+**File:** `docs/user-guide/dashboard-basics.md`
 **Location:** Middle section of main dashboard
 **Size:** 1000x350 pixels (2.9:1 aspect ratio)
 
@@ -133,7 +133,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 7. placeholder-activity-feed.png
 
-**File:** `docs/user/viewing-events.md`
+**File:** `docs/user-guide/viewing-events.md`
 **Location:** Bottom section of main dashboard
 **Size:** 600x500 pixels (1.2:1 aspect ratio)
 
@@ -154,7 +154,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 8. placeholder-event-timeline.png
 
-**File:** `docs/user/viewing-events.md`
+**File:** `docs/user-guide/viewing-events.md`
 **Location:** Timeline page (click Timeline in sidebar)
 **Size:** 1200x800 pixels (3:2 aspect ratio)
 
@@ -173,7 +173,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 9. placeholder-timeline-filters.png
 
-**File:** `docs/user/viewing-events.md`
+**File:** `docs/user-guide/viewing-events.md`
 **Location:** Filter panel on Timeline page (expanded)
 **Size:** 1000x200 pixels (5:1 aspect ratio)
 
@@ -194,7 +194,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 10. placeholder-event-detail-modal.png
 
-**File:** `docs/user/viewing-events.md`
+**File:** `docs/user-guide/viewing-events.md`
 **Location:** Modal popup when clicking any event
 **Size:** 900x800 pixels (9:8 aspect ratio)
 
@@ -215,7 +215,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 11. placeholder-detection-image.png
 
-**File:** `docs/user/viewing-events.md`
+**File:** `docs/user-guide/viewing-events.md`
 **Location:** Image section of Event Detail Modal
 **Size:** 700x500 pixels (7:5 aspect ratio)
 
@@ -233,7 +233,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 12. placeholder-alerts-page.png
 
-**File:** `docs/user/understanding-alerts.md`
+**File:** `docs/user-guide/understanding-alerts.md`
 **Location:** Alerts page (click Alerts in sidebar)
 **Size:** 1200x700 pixels (12:7 aspect ratio)
 
@@ -251,7 +251,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 13. placeholder-risk-level-guide.png
 
-**File:** `docs/user/understanding-alerts.md`
+**File:** `docs/user-guide/understanding-alerts.md`
 **Location:** N/A - infographic
 **Size:** 1000x200 pixels (5:1 aspect ratio)
 
@@ -272,7 +272,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 14. placeholder-alert-cards-comparison.png
 
-**File:** `docs/user/understanding-alerts.md`
+**File:** `docs/user-guide/understanding-alerts.md`
 **Location:** N/A - composite showing 4 sample alert cards
 **Size:** 1000x400 pixels (2.5:1 aspect ratio)
 
@@ -295,7 +295,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 15. placeholder-settings-page.png
 
-**File:** `docs/user/dashboard-settings.md`
+**File:** `docs/user-guide/dashboard-settings.md`
 **Location:** Settings page (click Settings in sidebar)
 **Size:** 1200x700 pixels (12:7 aspect ratio)
 
@@ -315,7 +315,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 16. placeholder-settings-cameras.png
 
-**File:** `docs/user/dashboard-settings.md`
+**File:** `docs/user-guide/dashboard-settings.md`
 **Location:** Settings page > Cameras tab
 **Size:** 1000x400 pixels (2.5:1 aspect ratio)
 
@@ -331,7 +331,7 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 ### 17. placeholder-settings-ai-models.png
 
-**File:** `docs/user/dashboard-settings.md`
+**File:** `docs/user-guide/dashboard-settings.md`
 **Location:** Settings page > AI Models tab
 **Size:** 1000x500 pixels (2:1 aspect ratio)
 

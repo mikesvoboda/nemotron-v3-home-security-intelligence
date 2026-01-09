@@ -1,5 +1,11 @@
 # Backend Agent Guide
 
+## Request/Response Flow
+
+![API Request Flow](../docs/images/architecture/request-response-flow.png)
+
+_Sequence diagram showing typical request flow through Browser, Nginx, FastAPI, PostgreSQL, Redis, and AI services._
+
 ## Purpose
 
 The backend is a FastAPI-based REST API server for an AI-powered home security monitoring system. It orchestrates:

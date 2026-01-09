@@ -553,27 +553,26 @@ This documentation directory contains comprehensive coverage of the project:
 
 All 19 AGENTS.md files in the docs directory:
 
-| Path                                       | Purpose                         |
-| ------------------------------------------ | ------------------------------- |
-| `docs/AGENTS.md`                           | Documentation root navigation   |
-| `docs/admin-guide/AGENTS.md`               | Admin guide directory           |
-| `docs/api-reference/AGENTS.md`             | API reference directory         |
-| `docs/architecture/AGENTS.md`              | Architecture directory          |
-| `docs/benchmarks/AGENTS.md`                | Benchmarks directory            |
-| `docs/decisions/AGENTS.md`                 | ADR directory                   |
-| `docs/developer/AGENTS.md`                 | Developer docs directory        |
-| `docs/development/AGENTS.md`               | Development workflow directory  |
-| `docs/getting-started/AGENTS.md`           | Quick start guides directory    |
-| `docs/images/AGENTS.md`                    | Visual assets directory         |
-| `docs/operator/AGENTS.md`                  | Operator docs directory         |
-| `docs/plans/AGENTS.md`                     | Plans directory                 |
-| `docs/reference/AGENTS.md`                 | Reference root directory        |
-| `docs/reference/api/AGENTS.md`             | Reference API subdirectory      |
-| `docs/reference/config/AGENTS.md`          | Configuration reference         |
-| `docs/reference/troubleshooting/AGENTS.md` | Troubleshooting guides          |
-| `docs/testing/AGENTS.md`                   | Testing guides directory        |
-| `docs/user/AGENTS.md`                      | User docs (hub-and-spoke)       |
-| `docs/user-guide/AGENTS.md`                | User guide (original structure) |
+| Path                                       | Purpose                        |
+| ------------------------------------------ | ------------------------------ |
+| `docs/AGENTS.md`                           | Documentation root navigation  |
+| `docs/admin-guide/AGENTS.md`               | Admin guide directory          |
+| `docs/api-reference/AGENTS.md`             | API reference directory        |
+| `docs/architecture/AGENTS.md`              | Architecture directory         |
+| `docs/benchmarks/AGENTS.md`                | Benchmarks directory           |
+| `docs/decisions/AGENTS.md`                 | ADR directory                  |
+| `docs/developer/AGENTS.md`                 | Developer docs directory       |
+| `docs/development/AGENTS.md`               | Development workflow directory |
+| `docs/getting-started/AGENTS.md`           | Quick start guides directory   |
+| `docs/images/AGENTS.md`                    | Visual assets directory        |
+| `docs/operator/AGENTS.md`                  | Operator docs directory        |
+| `docs/plans/AGENTS.md`                     | Plans directory                |
+| `docs/reference/AGENTS.md`                 | Reference root directory       |
+| `docs/reference/api/AGENTS.md`             | Reference API subdirectory     |
+| `docs/reference/config/AGENTS.md`          | Configuration reference        |
+| `docs/reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
+| `docs/testing/AGENTS.md`                   | Testing guides directory       |
+| `docs/user-guide/AGENTS.md`                | User guide (consolidated)      |
 
 ## Related Documentation
 
