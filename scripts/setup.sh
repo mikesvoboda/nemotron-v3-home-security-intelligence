@@ -257,15 +257,20 @@ print_success "All required prerequisites are installed"
 
 print_header "Step 2: Setting Up Backend"
 
+# Check for uv (mandatory)
+print_step "Checking for uv package manager..."
+if ! check_command uv; then
+    print_error "uv is required but not installed."
+    print_info "Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    print_info "Or with Homebrew: brew install uv"
+    exit 1
+fi
+print_success "uv found: $(uv --version)"
+
 # Create virtual environment
 print_step "Creating Python virtual environment..."
 if [ ! -d ".venv" ]; then
-    if check_command uv; then
-        print_info "Using uv for faster installation"
-        uv venv .venv
-    else
-        python3 -m venv .venv
-    fi
+    uv venv .venv
     print_success "Virtual environment created"
 else
     print_info "Virtual environment already exists"
@@ -276,33 +281,11 @@ print_step "Activating virtual environment..."
 source .venv/bin/activate
 print_success "Virtual environment activated"
 
-# Upgrade pip
-print_step "Upgrading pip..."
-if check_command uv; then
-    uv pip install --upgrade pip
-else
-    python -m pip install --upgrade pip --quiet
-fi
-print_success "pip upgraded"
-
 # Install backend dependencies using uv
+# uv sync installs all dependencies from pyproject.toml including dev extras
 print_step "Installing backend dependencies..."
-if check_command uv; then
-    uv sync --extra dev
-    print_success "Backend dependencies installed"
-else
-    print_error "uv not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-    exit 1
-fi
-
-# Install development tools
-print_step "Installing development tools (pre-commit, ruff, mypy)..."
-if check_command uv; then
-    uv pip install pre-commit ruff mypy
-else
-    pip install pre-commit ruff mypy --quiet
-fi
-print_success "Development tools installed"
+uv sync --extra dev
+print_success "Backend dependencies installed (includes pre-commit, ruff, mypy)"
 
 # Create .env file if it doesn't exist
 print_step "Setting up environment configuration..."

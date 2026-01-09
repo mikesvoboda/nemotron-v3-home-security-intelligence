@@ -281,7 +281,7 @@ class TestEventsAPIContract:
     async def test_get_event_not_found_returns_404(
         self, client: AsyncClient, mock_session: MagicMock
     ):
-        """Test GET /api/events/{id} returns 404 for non-existent event."""
+        """Test GET /api/events/{id} returns 404 for non-existent event (RFC 7807 format)."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -290,9 +290,12 @@ class TestEventsAPIContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert "error" in data
-        assert "code" in data["error"]
-        assert "message" in data["error"]
+        # RFC 7807 Problem Details format
+        assert "type" in data
+        assert "title" in data
+        assert "status" in data
+        assert "detail" in data
+        assert data["status"] == 404
 
 
 # =============================================================================
@@ -365,7 +368,7 @@ class TestCamerasAPIContract:
     async def test_get_camera_not_found_returns_404(
         self, client: AsyncClient, mock_session: MagicMock
     ):
-        """Test GET /api/cameras/{id} returns 404 for non-existent camera."""
+        """Test GET /api/cameras/{id} returns 404 for non-existent camera (RFC 7807 format)."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -374,9 +377,12 @@ class TestCamerasAPIContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert "error" in data
-        assert "code" in data["error"]
-        assert "message" in data["error"]
+        # RFC 7807 Problem Details format
+        assert "type" in data
+        assert "title" in data
+        assert "status" in data
+        assert "detail" in data
+        assert data["status"] == 404
 
 
 # =============================================================================
@@ -504,9 +510,12 @@ class TestDetectionsAPIContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert "error" in data
-        assert "code" in data["error"]
-        assert "message" in data["error"]
+        # RFC 7807 Problem Details format
+        assert "type" in data
+        assert "title" in data
+        assert "status" in data
+        assert "detail" in data
+        assert data["status"] == 404
 
 
 # =============================================================================
@@ -534,11 +543,15 @@ class TestAIAuditAPIContract:
 
 
 class TestErrorResponseContracts:
-    """Contract tests for error response formats."""
+    """Contract tests for error response formats.
+
+    Note: 404/403/401 errors use RFC 7807 Problem Details format,
+    while 422 validation errors use the legacy error format.
+    """
 
     @pytest.mark.asyncio
     async def test_404_error_format_events(self, client: AsyncClient, mock_session: MagicMock):
-        """Test 404 errors return consistent standardized error format."""
+        """Test 404 errors return RFC 7807 Problem Details format."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -546,16 +559,23 @@ class TestErrorResponseContracts:
         response = await client.get("/api/events/99999")
 
         assert response.status_code == 404
+        # RFC 7807 uses application/problem+json
+        content_type = response.headers.get("content-type", "")
+        assert "json" in content_type
         data = response.json()
-        assert "error" in data
-        assert "code" in data["error"]
-        assert "message" in data["error"]
-        assert isinstance(data["error"]["code"], str)
-        assert isinstance(data["error"]["message"], str)
+        # RFC 7807 Problem Details format
+        assert "type" in data
+        assert "title" in data
+        assert "status" in data
+        assert "detail" in data
+        assert isinstance(data["type"], str)
+        assert isinstance(data["title"], str)
+        assert data["status"] == 404
+        assert isinstance(data["detail"], str)
 
     @pytest.mark.asyncio
     async def test_404_error_format_cameras(self, client: AsyncClient, mock_session: MagicMock):
-        """Test 404 errors return consistent standardized error format for cameras."""
+        """Test 404 errors return RFC 7807 Problem Details format for cameras."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -564,15 +584,19 @@ class TestErrorResponseContracts:
 
         assert response.status_code == 404
         data = response.json()
-        assert "error" in data
-        assert "code" in data["error"]
-        assert "message" in data["error"]
-        assert isinstance(data["error"]["code"], str)
-        assert isinstance(data["error"]["message"], str)
+        # RFC 7807 Problem Details format
+        assert "type" in data
+        assert "title" in data
+        assert "status" in data
+        assert "detail" in data
+        assert isinstance(data["type"], str)
+        assert isinstance(data["title"], str)
+        assert data["status"] == 404
+        assert isinstance(data["detail"], str)
 
     @pytest.mark.asyncio
     async def test_404_error_format_detections(self, client: AsyncClient, mock_session: MagicMock):
-        """Test 404 errors return consistent standardized error format for detections."""
+        """Test 404 errors return RFC 7807 Problem Details format for detections."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
@@ -581,11 +605,15 @@ class TestErrorResponseContracts:
 
         assert response.status_code == 404
         data = response.json()
-        assert "error" in data
-        assert "code" in data["error"]
-        assert "message" in data["error"]
-        assert isinstance(data["error"]["code"], str)
-        assert isinstance(data["error"]["message"], str)
+        # RFC 7807 Problem Details format
+        assert "type" in data
+        assert "title" in data
+        assert "status" in data
+        assert "detail" in data
+        assert isinstance(data["type"], str)
+        assert isinstance(data["title"], str)
+        assert data["status"] == 404
+        assert isinstance(data["detail"], str)
 
     @pytest.mark.asyncio
     async def test_422_validation_error_format(self, client: AsyncClient):

@@ -6,6 +6,10 @@ Tests the domain-specific exception hierarchy per NEM-1598:
 - DataError -> DetectionNotFoundError, EventNotFoundError, CameraNotFoundError
 - ConfigurationError
 - ResourceExhaustedError
+
+Tests for ServiceRequestContext per NEM-1446:
+- ServiceRequestContext dataclass for operational context
+- to_log_dict() method for structured logging
 """
 
 from backend.core.exceptions import (
@@ -40,6 +44,7 @@ from backend.core.exceptions import (
     ResourceExhaustedError,
     SceneBaselineError,
     SecurityIntelligenceError,
+    ServiceRequestContext,
     SSRFValidationError,
     TLSConfigurationError,
     TLSError,
@@ -577,3 +582,207 @@ class TestConsolidatedExceptionsHierarchy:
         assert isinstance(clip, ProcessingError)
         assert isinstance(alert, ProcessingError)
         assert isinstance(llm, ProcessingError)
+
+
+# =============================================================================
+# NEM-1446 ServiceRequestContext Tests
+# =============================================================================
+
+
+class TestServiceRequestContext:
+    """Test ServiceRequestContext dataclass per NEM-1446."""
+
+    def test_basic_initialization(self) -> None:
+        """ServiceRequestContext stores basic operational data."""
+        context = ServiceRequestContext(
+            service_name="rtdetr",
+            endpoint="/detect",
+            method="POST",
+            duration_ms=150.5,
+            attempt_number=1,
+            max_attempts=3,
+        )
+        assert context.service_name == "rtdetr"
+        assert context.endpoint == "/detect"
+        assert context.method == "POST"
+        assert context.duration_ms == 150.5
+        assert context.attempt_number == 1
+        assert context.max_attempts == 3
+        assert context.circuit_state is None
+
+    def test_with_circuit_state(self) -> None:
+        """ServiceRequestContext includes circuit breaker state when provided."""
+        context = ServiceRequestContext(
+            service_name="nemotron",
+            endpoint="/completion",
+            method="POST",
+            duration_ms=2500.0,
+            attempt_number=3,
+            max_attempts=3,
+            circuit_state="half_open",
+        )
+        assert context.circuit_state == "half_open"
+
+    def test_to_dict(self) -> None:
+        """ServiceRequestContext serializes to dictionary."""
+        context = ServiceRequestContext(
+            service_name="enrichment",
+            endpoint="/vehicle-classify",
+            method="POST",
+            duration_ms=45.2,
+            attempt_number=2,
+            max_attempts=3,
+            circuit_state="closed",
+        )
+        result = context.to_dict()
+        assert result["service_name"] == "enrichment"
+        assert result["endpoint"] == "/vehicle-classify"
+        assert result["method"] == "POST"
+        assert result["duration_ms"] == 45.2
+        assert result["attempt_number"] == 2
+        assert result["max_attempts"] == 3
+        assert result["circuit_state"] == "closed"
+
+
+class TestServiceUnavailableErrorContext:
+    """Test ServiceUnavailableError with context per NEM-1446."""
+
+    def test_detector_unavailable_with_context(self) -> None:
+        """DetectorUnavailableError includes request context."""
+        context = ServiceRequestContext(
+            service_name="rtdetr",
+            endpoint="/detect",
+            method="POST",
+            duration_ms=60500.0,
+            attempt_number=3,
+            max_attempts=3,
+            circuit_state="open",
+        )
+        original = TimeoutError("Request timed out")
+        exc = DetectorUnavailableError(
+            "RT-DETR detection failed after 3 attempts",
+            original_error=original,
+            context=context,
+        )
+        assert exc.context is context
+        assert exc.original_error is original
+        assert exc.service_name == "rtdetr"
+
+    def test_analyzer_unavailable_with_context(self) -> None:
+        """AnalyzerUnavailableError includes request context."""
+        context = ServiceRequestContext(
+            service_name="nemotron",
+            endpoint="/completion",
+            method="POST",
+            duration_ms=120500.0,
+            attempt_number=3,
+            max_attempts=3,
+        )
+        exc = AnalyzerUnavailableError(
+            "Nemotron analysis failed",
+            context=context,
+        )
+        assert exc.context is context
+        assert exc.service_name == "nemotron"
+
+    def test_enrichment_unavailable_with_context(self) -> None:
+        """EnrichmentUnavailableError includes request context."""
+        context = ServiceRequestContext(
+            service_name="enrichment",
+            endpoint="/vehicle-classify",
+            method="POST",
+            duration_ms=30200.0,
+            attempt_number=2,
+            max_attempts=3,
+            circuit_state="half_open",
+        )
+        exc = EnrichmentUnavailableError(
+            "Enrichment service unavailable",
+            original_error=ConnectionError("Connection refused"),
+            context=context,
+        )
+        assert exc.context is context
+        assert exc.service_name == "enrichment"
+
+    def test_to_log_dict_with_context(self) -> None:
+        """to_log_dict() includes all context for structured logging."""
+        context = ServiceRequestContext(
+            service_name="rtdetr",
+            endpoint="/detect",
+            method="POST",
+            duration_ms=45000.0,
+            attempt_number=3,
+            max_attempts=3,
+            circuit_state="open",
+        )
+        original = TimeoutError("Request timed out after 45s")
+        exc = DetectorUnavailableError(
+            "Detection failed after retries",
+            original_error=original,
+            context=context,
+        )
+        log_dict = exc.to_log_dict()
+
+        # Check exception info
+        assert log_dict["error_code"] == "DETECTOR_UNAVAILABLE"
+        assert log_dict["message"] == "Detection failed after retries"
+        assert log_dict["service_name"] == "rtdetr"
+        assert log_dict["status_code"] == 503
+
+        # Check context info
+        assert log_dict["context"]["service_name"] == "rtdetr"
+        assert log_dict["context"]["endpoint"] == "/detect"
+        assert log_dict["context"]["method"] == "POST"
+        assert log_dict["context"]["duration_ms"] == 45000.0
+        assert log_dict["context"]["attempt_number"] == 3
+        assert log_dict["context"]["max_attempts"] == 3
+        assert log_dict["context"]["circuit_state"] == "open"
+
+        # Check original error info
+        assert "original_error" in log_dict
+        assert log_dict["original_error"]["type"] == "TimeoutError"
+        assert "Request timed out" in log_dict["original_error"]["message"]
+
+    def test_to_log_dict_without_context(self) -> None:
+        """to_log_dict() works without context."""
+        exc = DetectorUnavailableError("Service down")
+        log_dict = exc.to_log_dict()
+
+        assert log_dict["error_code"] == "DETECTOR_UNAVAILABLE"
+        assert log_dict["message"] == "Service down"
+        assert log_dict["service_name"] == "rtdetr"
+        assert log_dict["context"] is None
+        assert log_dict["original_error"] is None
+
+    def test_to_log_dict_with_only_original_error(self) -> None:
+        """to_log_dict() includes original error without context."""
+        original = ConnectionError("Connection refused")
+        exc = AnalyzerUnavailableError(
+            "Nemotron unreachable",
+            original_error=original,
+        )
+        log_dict = exc.to_log_dict()
+
+        assert log_dict["service_name"] == "nemotron"
+        assert log_dict["context"] is None
+        assert log_dict["original_error"]["type"] == "ConnectionError"
+        assert "Connection refused" in log_dict["original_error"]["message"]
+
+    def test_backward_compatibility(self) -> None:
+        """Exceptions work without context parameter (backward compatibility)."""
+        # DetectorUnavailableError
+        exc1 = DetectorUnavailableError()
+        assert exc1.context is None
+        assert exc1.original_error is None
+
+        exc2 = DetectorUnavailableError("Custom message", original_error=ValueError("test"))
+        assert exc2.context is None
+        assert isinstance(exc2.original_error, ValueError)
+
+        # AnalyzerUnavailableError
+        exc3 = AnalyzerUnavailableError()
+        assert exc3.context is None
+
+        # EnrichmentUnavailableError
+        exc4 = EnrichmentUnavailableError()
+        assert exc4.context is None

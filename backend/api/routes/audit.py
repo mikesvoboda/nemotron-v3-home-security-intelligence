@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.audit import (
     AuditLogListResponse,
     AuditLogResponse,
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 
 @router.get("", response_model=AuditLogListResponse)
-async def list_audit_logs(
+async def list_audit_logs(  # noqa: PLR0912
     action: str | None = Query(None, description="Filter by action type"),
     resource_type: str | None = Query(None, description="Filter by resource type"),
     resource_id: str | None = Query(None, description="Filter by resource ID"),
@@ -32,12 +33,16 @@ async def list_audit_logs(
     start_date: datetime | None = Query(None, description="Filter from date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter to date (ISO format)"),
     limit: int = Query(100, ge=1, le=1000, description="Page size"),
-    offset: int = Query(0, ge=0, description="Page offset"),
+    offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
+    cursor: str | None = Query(None, description="Pagination cursor from previous response"),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """List audit logs with optional filtering and pagination.
+    """List audit logs with optional filtering and cursor-based pagination.
 
     This endpoint is intended for admin use to review security-sensitive operations.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Cursor-based pagination offers better performance for large datasets.
 
     Args:
         action: Optional action type to filter by
@@ -48,7 +53,8 @@ async def list_audit_logs(
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         limit: Maximum number of results to return (1-1000, default 100)
-        offset: Number of results to skip for pagination (default 0)
+        offset: Number of results to skip (deprecated, use cursor instead)
+        cursor: Pagination cursor from previous response's next_cursor field
         db: Database session
 
     Returns:
@@ -56,28 +62,97 @@ async def list_audit_logs(
 
     Raises:
         HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if cursor is invalid
     """
     # Validate date range
     validate_date_range(start_date, end_date)
 
-    logs, total_count = await AuditService.get_audit_logs(
-        db=db,
-        action=action,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        actor=actor,
-        status=status_filter,
-        start_date=start_date,
-        end_date=end_date,
-        limit=limit,
-        offset=offset,
-    )
+    # Decode cursor if provided
+    cursor_data: CursorData | None = None
+    if cursor:
+        try:
+            cursor_data = decode_cursor(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor: {e}",
+            ) from e
+
+    # Build base query
+    query = select(AuditLog)
+
+    # Apply filters
+    if action:
+        query = query.where(AuditLog.action == action)
+    if resource_type:
+        query = query.where(AuditLog.resource_type == resource_type)
+    if resource_id:
+        query = query.where(AuditLog.resource_id == resource_id)
+    if actor:
+        query = query.where(AuditLog.actor == actor)
+    if status_filter:
+        query = query.where(AuditLog.status == status_filter)
+    if start_date:
+        query = query.where(AuditLog.timestamp >= start_date)
+    if end_date:
+        query = query.where(AuditLog.timestamp <= end_date)
+
+    # Apply cursor-based pagination filter (takes precedence over offset)
+    if cursor_data:
+        # For descending order by timestamp, we want records where:
+        # - timestamp < cursor's created_at, OR
+        # - timestamp == cursor's created_at AND id < cursor's id (tie-breaker)
+        query = query.where(
+            (AuditLog.timestamp < cursor_data.created_at)
+            | ((AuditLog.timestamp == cursor_data.created_at) & (AuditLog.id < cursor_data.id))
+        )
+
+    # Get total count (before pagination) - only when not using cursor
+    # With cursor pagination, total count becomes expensive and less meaningful
+    total_count: int = 0
+    if not cursor_data:
+        count_query = select(func.count()).select_from(query.subquery())
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
+
+    # Sort by timestamp descending (newest first), then by id descending for consistency
+    query = query.order_by(AuditLog.timestamp.desc(), AuditLog.id.desc())
+
+    # Apply pagination - fetch one extra to determine if there are more results
+    if cursor_data:  # noqa: SIM108
+        # Cursor-based: fetch limit + 1 to check for more
+        query = query.limit(limit + 1)
+    else:
+        # Offset-based (deprecated): apply offset
+        query = query.limit(limit + 1).offset(offset)
+
+    # Execute query
+    result = await db.execute(query)
+    logs = list(result.scalars().all())
+
+    # Determine if there are more results
+    has_more = len(logs) > limit
+    if has_more:
+        logs = logs[:limit]  # Trim to requested limit
+
+    # Generate next cursor from the last log
+    next_cursor: str | None = None
+    if has_more and logs:
+        last_log = logs[-1]
+        cursor_data_next = CursorData(id=last_log.id, created_at=last_log.timestamp)
+        next_cursor = encode_cursor(cursor_data_next)
+
+    # Get deprecation warning if using offset without cursor
+    deprecation_warning = get_deprecation_warning(cursor, offset)
 
     return {
         "logs": logs,
         "count": total_count,
         "limit": limit,
         "offset": offset,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "deprecation_warning": deprecation_warning,
     }
 
 

@@ -587,17 +587,20 @@ class TestErrorResponseFormat:
 
     @pytest.mark.asyncio
     async def test_error_responses_are_json(self, client, mock_redis):
-        """Test that all error responses are JSON formatted."""
+        """Test that all error responses are JSON formatted (RFC 7807 problem+json)."""
         # 404 error - use a valid UUID format
         fake_uuid = str(uuid.uuid4())
         response_404 = await client.get(f"/api/cameras/{fake_uuid}")
         assert response_404.status_code == 404
-        assert "application/json" in response_404.headers.get("content-type", "")
+        # RFC 7807 uses application/problem+json for error responses
+        content_type_404 = response_404.headers.get("content-type", "")
+        assert "json" in content_type_404, f"Expected JSON content-type, got: {content_type_404}"
 
         # 403 error
         response_403 = await client.post("/api/admin/seed/cameras", json={"count": 1})
         assert response_403.status_code == 403
-        assert "application/json" in response_403.headers.get("content-type", "")
+        content_type_403 = response_403.headers.get("content-type", "")
+        assert "json" in content_type_403, f"Expected JSON content-type, got: {content_type_403}"
 
 
 # =============================================================================

@@ -63,6 +63,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# DEPRECATED: Use dependency-groups below for granular control
+# Kept for backward compatibility: `uv sync --extra dev` still works
 dev = [
     # Linting & Formatting
     "ruff>=0.8.0",
@@ -104,6 +106,85 @@ dev = [
     "snakeviz>=2.2.0",  # Visualize cProfile output as flamegraphs
     # Note: py-spy requires system installation (not pip) - install with:
     # pip install py-spy  # or cargo install py-spy
+]
+
+# =============================================================================
+# PEP 735 Dependency Groups (uv 0.5.0+)
+# =============================================================================
+# Granular dependency management for different development workflows.
+# Usage: uv sync --group <name> or uv sync --group lint --group test
+#
+# Groups:
+#   lint      - Linting and formatting tools (ruff, mypy)
+#   test      - Core testing framework and utilities
+#   benchmark - Performance benchmarking tools
+#   security  - Security scanning tools
+#   mutation  - Mutation testing tools
+#   dev       - All development dependencies (includes all groups above)
+# =============================================================================
+
+[dependency-groups]
+# Linting & Formatting
+lint = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+# Core Testing Framework
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-timeout>=2.3.0",
+    "pytest-rerunfailures>=14.0",  # Flaky test detection - auto-retry failures
+    "pytest-sugar>=1.0.0",  # Pretty progress bar and improved output
+    "pytest-clarity>=1.0.0",  # Better assertion diffs
+    "pytest-randomly>=4.0.0",  # Randomize test execution order
+    "pytest-deadfixtures>=3.0.0",  # Detect unused fixtures
+    "fakeredis>=2.20.0",
+    "testcontainers>=4.0.0",
+    "hypothesis>=6.100.0",  # Property-based testing
+    "factory-boy>=3.3.0",  # Test fixture factories
+    # Video processing (needed for video service tests)
+    "ffmpeg-python>=0.2.0",
+    # XML parsing (secure - needed for test fixtures)
+    "defusedxml>=0.7.0",
+]
+
+# Performance Benchmarking
+benchmark = [
+    "pytest-benchmark>=4.0.0",
+    "pytest-memray>=1.5.0",
+    "snakeviz>=2.2.0",  # Visualize cProfile output as flamegraphs
+    # CI/CD - Big-O analysis
+    "big-o>=0.11.0",
+]
+
+# Security Scanning
+security = [
+    "bandit>=1.7.0",
+]
+
+# Mutation Testing
+mutation = [
+    "mutmut>=3.2.0",
+]
+
+# Code Quality Analysis (complexity, dead code)
+quality = [
+    "wily>=1.25.0",  # Note: radon is provided by wily dependency (5.1.x)
+    "vulture>=2.11",
+]
+
+# All Development Dependencies (combines all groups above)
+dev = [
+    {include-group = "lint"},
+    {include-group = "test"},
+    {include-group = "benchmark"},
+    {include-group = "security"},
+    {include-group = "mutation"},
+    {include-group = "quality"},
 ]
 
 [tool.ruff]

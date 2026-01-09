@@ -637,6 +637,54 @@ Pre-push hook runs `pytest backend/tests/unit/ -v`.
 - Backend path is auto-added in conftest.py
 - Check module names match file structure
 
+### Reproducing Hypothesis Failures
+
+When a Hypothesis test fails in CI, you can reproduce it locally using these methods:
+
+#### Method 1: Using the Falsifying Example Blob
+
+1. **Copy the blob** from CI output: Look for `Falsifying example: <blob>` in the test failure output
+2. **Add to local test** using the `@example` decorator:
+
+   ```python
+   from hypothesis import example, given
+   from hypothesis import strategies as st
+
+   @example(<paste-blob-here>)  # Add the blob from CI
+   @given(st.integers())
+   def test_something(value):
+       # The @example decorator runs first with the exact failing input
+       assert some_property(value)
+   ```
+
+#### Method 2: Using the Seed
+
+1. **Find the seed** in CI output: Look for `You can reproduce this with: --hypothesis-seed=<seed>`
+2. **Run locally with the seed**:
+
+   ```bash
+   pytest backend/tests/unit/path/to/test.py --hypothesis-seed=12345
+   ```
+
+#### Why CI Uses These Settings
+
+CI configures Hypothesis with `database = "none"` and `print_blob = true` in `pyproject.toml`:
+
+- **`database = "none"`**: Prevents storing/loading examples between CI runs, ensuring each run starts fresh and tests don't pass due to cached "good" examples
+- **`print_blob = true`**: Ensures the exact failing input is always printed, making reproduction possible even without a local Hypothesis database
+
+This means CI runs are stateless and reproducible, while local development can still benefit from Hypothesis's example database for faster iteration.
+
+#### Local Development Tips
+
+For local development, you may want to keep the Hypothesis database enabled (the default) so that:
+
+- Failing examples are automatically saved and replayed
+- You don't need to manually add `@example` decorators
+- The database persists known edge cases across test runs
+
+The database is stored in `.hypothesis/` (gitignored).
+
 ## Async Testing Best Practices
 
 ### Framework Decision: pytest-asyncio vs pytest-anyio

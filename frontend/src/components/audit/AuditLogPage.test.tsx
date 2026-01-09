@@ -55,6 +55,7 @@ describe('AuditLogPage', () => {
     count: 3,
     limit: 50,
     offset: 0,
+    has_more: false,
   };
 
   const mockEmptyResponse: AuditLogListResponse = {
@@ -62,6 +63,7 @@ describe('AuditLogPage', () => {
     count: 0,
     limit: 50,
     offset: 0,
+    has_more: false,
   };
 
   const mockStats: AuditLogStats = {
