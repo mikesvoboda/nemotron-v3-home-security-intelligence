@@ -394,13 +394,16 @@ test.describe('Zones Page Accessibility', () => {
 });
 
 test.describe('System Monitoring Page Accessibility', () => {
+  let systemPage: SystemPage;
+
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
+    systemPage = new SystemPage(page);
   });
 
   test('system monitoring page has no accessibility violations', async ({ page }) => {
-    await page.goto('/system');
-    await expect(page.getByRole('heading', { name: /System Monitoring/i })).toBeVisible();
+    await systemPage.goto();
+    await systemPage.waitForSystemLoad();
 
     const results = await runA11yCheck(page);
 

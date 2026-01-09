@@ -426,7 +426,14 @@ def _get_all_circuit_breakers() -> dict[str, dict[str, Any]]:
 # =============================================================================
 
 
-@router.get("/config", response_model=DebugConfigResponse)
+@router.get(
+    "/config",
+    response_model=DebugConfigResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_config(
     _debug: None = Depends(require_debug_mode),
 ) -> DebugConfigResponse:
@@ -446,7 +453,14 @@ async def get_config(
     )
 
 
-@router.get("/redis/info", response_model=RedisInfoResponse)
+@router.get(
+    "/redis/info",
+    response_model=RedisInfoResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_redis_info(
     redis: RedisClient | None = Depends(get_redis_optional),
     _debug: None = Depends(require_debug_mode),
@@ -468,7 +482,14 @@ async def get_redis_info(
     )
 
 
-@router.get("/websocket/connections", response_model=WebSocketConnectionsResponse)
+@router.get(
+    "/websocket/connections",
+    response_model=WebSocketConnectionsResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_websocket_connections(
     _debug: None = Depends(require_debug_mode),
 ) -> WebSocketConnectionsResponse:
@@ -488,7 +509,14 @@ async def get_websocket_connections(
     )
 
 
-@router.get("/circuit-breakers", response_model=DebugCircuitBreakersResponse)
+@router.get(
+    "/circuit-breakers",
+    response_model=DebugCircuitBreakersResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_circuit_breakers(
     _debug: None = Depends(require_debug_mode),
 ) -> DebugCircuitBreakersResponse:
@@ -507,7 +535,14 @@ async def get_circuit_breakers(
     )
 
 
-@router.get("/pipeline-state", response_model=PipelineStateResponse)
+@router.get(
+    "/pipeline-state",
+    response_model=PipelineStateResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_pipeline_state(
     request: Request,
     response: Response,
@@ -542,7 +577,14 @@ async def get_pipeline_state(
     )
 
 
-@router.get("/log-level", response_model=LogLevelResponse)
+@router.get(
+    "/log-level",
+    response_model=LogLevelResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_log_level(
     _debug: None = Depends(require_debug_mode),
 ) -> LogLevelResponse:
@@ -559,7 +601,16 @@ async def get_log_level(
     )
 
 
-@router.post("/log-level", response_model=LogLevelResponse)
+@router.post(
+    "/log-level",
+    response_model=LogLevelResponse,
+    responses={
+        400: {"description": "Bad request - Invalid log level"},
+        404: {"description": "Not found - Debug mode disabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def set_log_level(
     request: LogLevelRequest,
     _debug: None = Depends(require_debug_mode),
@@ -643,7 +694,14 @@ class ProfileStatsResponse(BaseModel):
     timestamp: str = Field(description="ISO timestamp of response")
 
 
-@router.post("/profile/start", response_model=ProfileStartResponse)
+@router.post(
+    "/profile/start",
+    response_model=ProfileStartResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def start_profiling(
     _debug: None = Depends(require_debug_mode),
 ) -> ProfileStartResponse:
@@ -678,7 +736,14 @@ async def start_profiling(
     )
 
 
-@router.post("/profile/stop", response_model=ProfileStopResponse)
+@router.post(
+    "/profile/stop",
+    response_model=ProfileStopResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def stop_profiling(
     _debug: None = Depends(require_debug_mode),
 ) -> ProfileStopResponse:
@@ -714,7 +779,14 @@ async def stop_profiling(
     )
 
 
-@router.get("/profile/stats", response_model=ProfileStatsResponse)
+@router.get(
+    "/profile/stats",
+    response_model=ProfileStatsResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_profile_stats(
     _debug: None = Depends(require_debug_mode),
 ) -> ProfileStatsResponse:

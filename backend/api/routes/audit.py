@@ -21,7 +21,15 @@ from backend.models.audit import AuditLog
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 
-@router.get("", response_model=AuditLogListResponse)
+@router.get(
+    "",
+    response_model=AuditLogListResponse,
+    responses={
+        400: {"description": "Invalid date range or cursor"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_audit_logs(  # noqa: PLR0912
     action: str | None = Query(None, description="Filter by action type"),
     resource_type: str | None = Query(None, description="Filter by resource type"),
@@ -156,7 +164,14 @@ async def list_audit_logs(  # noqa: PLR0912
     }
 
 
-@router.get("/stats", response_model=AuditLogStats)
+@router.get(
+    "/stats",
+    response_model=AuditLogStats,
+    responses={
+        400: {"description": "Invalid date range"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_audit_stats(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -283,7 +298,14 @@ async def get_audit_stats(
     }
 
 
-@router.get("/{audit_id}", response_model=AuditLogResponse)
+@router.get(
+    "/{audit_id}",
+    response_model=AuditLogResponse,
+    responses={
+        404: {"description": "Audit log not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_audit_log(
     audit_id: int,
     db: AsyncSession = Depends(get_db),

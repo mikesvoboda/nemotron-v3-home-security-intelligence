@@ -1751,7 +1751,7 @@ export async function testNotification(
       channel,
     };
 
-  if (recipients && recipients.length > 0) {
+  if (recipients?.length) {
     body.email_recipients = recipients;
   }
 

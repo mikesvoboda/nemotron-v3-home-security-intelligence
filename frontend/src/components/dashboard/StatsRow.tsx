@@ -151,7 +151,7 @@ export default function StatsRow({
   }, [systemStatus]);
 
   // Check if we should show the sparkline
-  const showSparkline = riskHistory && riskHistory.length > 1;
+  const showSparkline = (riskHistory?.length ?? 0) > 1;
 
   return (
     <div
@@ -235,13 +235,13 @@ export default function StatsRow({
               >
                 {/* Background area */}
                 <path
-                  d={generateSparklinePath(riskHistory, 60, 24, true)}
+                  d={generateSparklinePath(riskHistory ?? [], 60, 24, true)}
                   fill={`${riskColor}20`}
                   stroke="none"
                 />
                 {/* Line */}
                 <path
-                  d={generateSparklinePath(riskHistory, 60, 24, false)}
+                  d={generateSparklinePath(riskHistory ?? [], 60, 24, false)}
                   fill="none"
                   stroke={riskColor}
                   strokeWidth="1.5"

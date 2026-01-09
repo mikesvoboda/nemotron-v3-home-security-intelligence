@@ -14,6 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.dependencies import get_detection_or_404
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
+from backend.api.schemas.bulk import (
+    BulkOperationResponse,
+    BulkOperationStatus,
+    DetectionBulkCreateRequest,
+    DetectionBulkCreateResponse,
+    DetectionBulkDeleteRequest,
+    DetectionBulkUpdateRequest,
+)
 from backend.api.schemas.detections import (
     DetectionListResponse,
     DetectionResponse,
@@ -32,10 +40,14 @@ from backend.api.utils.field_filter import (
 )
 from backend.api.validators import validate_date_range
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
+from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.thumbnail_generator import ThumbnailGenerator
 from backend.services.video_processor import VideoProcessor
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
 
@@ -1098,3 +1110,342 @@ async def get_video_thumbnail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read video thumbnail: {e!s}",
         ) from e
+
+
+# =============================================================================
+# Bulk Operations (NEM-1433)
+# =============================================================================
+# Rate limiting note: Bulk operations should be rate-limited more aggressively
+# than single-item operations. Consider implementing:
+# - RateLimiter(tier=RateLimitTier.BULK) with lower limits (e.g., 10 req/min)
+# - Per-IP rate limiting to prevent abuse
+# - Request size limits enforced at the schema level (max 100 items)
+
+
+@router.post(
+    "/bulk",
+    response_model=DetectionBulkCreateResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk create detections",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_create_detections(
+    request: DetectionBulkCreateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Create multiple detections in a single request.
+
+    Supports partial success - some detections may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk create request with up to 100 detections
+        db: Database session
+
+    Returns:
+        DetectionBulkCreateResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Validate all camera_ids exist before processing
+    camera_ids = {item.camera_id for item in request.detections}
+    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    valid_camera_ids = {row[0] for row in camera_result.all()}
+
+    for idx, item in enumerate(request.detections):
+        try:
+            # Validate camera exists
+            if item.camera_id not in valid_camera_ids:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": None,
+                        "error": f"Camera not found: {item.camera_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Create detection
+            detection = Detection(
+                camera_id=item.camera_id,
+                object_type=item.object_type,
+                confidence=item.confidence,
+                detected_at=item.detected_at,
+                file_path=item.file_path,
+                bbox_x=item.bbox_x,
+                bbox_y=item.bbox_y,
+                bbox_width=item.bbox_width,
+                bbox_height=item.bbox_height,
+                enrichment_data=item.enrichment_data,
+            )
+            db.add(detection)
+            await db.flush()  # Get the ID without committing
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": detection.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk create detection failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": None,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Bulk create commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for result in results:
+                if result["status"] == BulkOperationStatus.SUCCESS:
+                    result["status"] = BulkOperationStatus.FAILED
+                    result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return {
+        "total": len(request.detections),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+        "results": results,
+    }
+
+
+@router.patch(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk update detections",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_update_detections(
+    request: DetectionBulkUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Update multiple detections in a single request.
+
+    Supports partial success - some updates may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk update request with up to 100 detection updates
+        db: Database session
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Fetch all detections in one query
+    detection_ids = [item.id for item in request.detections]
+    query = select(Detection).where(Detection.id.in_(detection_ids))
+    result = await db.execute(query)
+    detections_map = {det.id: det for det in result.scalars().all()}
+
+    for idx, item in enumerate(request.detections):
+        try:
+            detection = detections_map.get(item.id)
+            if not detection:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": item.id,
+                        "error": f"Detection not found: {item.id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Update fields if provided
+            if item.object_type is not None:
+                detection.object_type = item.object_type
+            if item.confidence is not None:
+                detection.confidence = item.confidence
+            if item.enrichment_data is not None:
+                detection.enrichment_data = item.enrichment_data
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": detection.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk update detection failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": item.id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Bulk update commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return {
+        "total": len(request.detections),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+        "results": results,
+    }
+
+
+@router.delete(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk delete detections",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+    },
+)
+async def bulk_delete_detections(
+    request: DetectionBulkDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Delete multiple detections in a single request.
+
+    Supports partial success - some deletions may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Note: Detection deletion is always hard delete as detections are raw data
+    and soft-delete is not supported.
+
+    Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+
+    Args:
+        request: Bulk delete request with up to 100 detection IDs
+        db: Database session
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Fetch all detections in one query
+    query = select(Detection).where(Detection.id.in_(request.detection_ids))
+    result = await db.execute(query)
+    detections_map = {det.id: det for det in result.scalars().all()}
+
+    for idx, detection_id in enumerate(request.detection_ids):
+        try:
+            detection = detections_map.get(detection_id)
+            if not detection:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": detection_id,
+                        "error": f"Detection not found: {detection_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Hard delete (detections don't support soft delete)
+            await db.delete(detection)
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": detection_id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk delete detection failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": detection_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Bulk delete commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return {
+        "total": len(request.detection_ids),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+        "results": results,
+    }

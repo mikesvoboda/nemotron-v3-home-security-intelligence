@@ -1947,6 +1947,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/detections/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk create detections
+         * @description Create multiple detections in a single request.
+         *
+         *     Supports partial success - some detections may succeed while others fail.
+         *     Returns HTTP 207 Multi-Status with per-item results.
+         *
+         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *
+         *     Args:
+         *         request: Bulk create request with up to 100 detections
+         *         db: Database session
+         *
+         *     Returns:
+         *         DetectionBulkCreateResponse with per-item results
+         */
+        post: operations["bulk_create_detections_api_detections_bulk_post"];
+        /**
+         * Bulk delete detections
+         * @description Delete multiple detections in a single request.
+         *
+         *     Supports partial success - some deletions may succeed while others fail.
+         *     Returns HTTP 207 Multi-Status with per-item results.
+         *
+         *     Note: Detection deletion is always hard delete as detections are raw data
+         *     and soft-delete is not supported.
+         *
+         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *
+         *     Args:
+         *         request: Bulk delete request with up to 100 detection IDs
+         *         db: Database session
+         *
+         *     Returns:
+         *         BulkOperationResponse with per-item results
+         */
+        delete: operations["bulk_delete_detections_api_detections_bulk_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Bulk update detections
+         * @description Update multiple detections in a single request.
+         *
+         *     Supports partial success - some updates may succeed while others fail.
+         *     Returns HTTP 207 Multi-Status with per-item results.
+         *
+         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *
+         *     Args:
+         *         request: Bulk update request with up to 100 detection updates
+         *         db: Database session
+         *
+         *     Returns:
+         *         BulkOperationResponse with per-item results
+         */
+        patch: operations["bulk_update_detections_api_detections_bulk_patch"];
+        trace?: never;
+    };
     "/api/detections/stats": {
         parameters: {
             query?: never;
@@ -2525,6 +2592,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk create events
+         * @description Create multiple events in a single request.
+         *
+         *     Supports partial success - some events may succeed while others fail.
+         *     Returns HTTP 207 Multi-Status with per-item results.
+         *
+         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *
+         *     Args:
+         *         request: Bulk create request with up to 100 events
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventBulkCreateResponse with per-item results
+         */
+        post: operations["bulk_create_events_api_events_bulk_post"];
+        /**
+         * Bulk delete events
+         * @description Delete multiple events in a single request.
+         *
+         *     Supports partial success - some deletions may succeed while others fail.
+         *     Returns HTTP 207 Multi-Status with per-item results.
+         *
+         *     By default uses soft delete (sets deleted_at timestamp). Use soft_delete=false
+         *     for permanent deletion.
+         *
+         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *
+         *     Args:
+         *         request: Bulk delete request with up to 100 event IDs
+         *         db: Database session
+         *
+         *     Returns:
+         *         BulkOperationResponse with per-item results
+         */
+        delete: operations["bulk_delete_events_api_events_bulk_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Bulk update events
+         * @description Update multiple events in a single request.
+         *
+         *     Supports partial success - some updates may succeed while others fail.
+         *     Returns HTTP 207 Multi-Status with per-item results.
+         *
+         *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
+         *
+         *     Args:
+         *         request: Bulk update request with up to 100 event updates
+         *         db: Database session
+         *
+         *     Returns:
+         *         BulkOperationResponse with per-item results
+         */
+        patch: operations["bulk_update_events_api_events_bulk_patch"];
+        trace?: never;
+    };
     "/api/events/export": {
         parameters: {
             query?: never;
@@ -2669,14 +2803,15 @@ export interface paths {
         };
         /**
          * Get Event
-         * @description Get a specific event by ID.
+         * @description Get a specific event by ID with HATEOAS links.
          *
          *     Args:
          *         event_id: Event ID
+         *         request: FastAPI request object for building HATEOAS links
          *         db: Database session
          *
          *     Returns:
-         *         Event object with detection count
+         *         Event object with detection count and HATEOAS links
          *
          *     Raises:
          *         HTTPException: 404 if event not found
@@ -5610,6 +5745,82 @@ export interface components {
             started_at: number;
         };
         /**
+         * BulkItemResult
+         * @description Result for a single item in a bulk operation.
+         *
+         *     Attributes:
+         *         index: Zero-based index of the item in the request array
+         *         status: Operation status (success, failed, skipped)
+         *         id: ID of the created/updated resource (for successful operations)
+         *         error: Error message (for failed operations)
+         */
+        BulkItemResult: {
+            /**
+             * Error
+             * @description Error message for failed operations
+             */
+            error?: string | null;
+            /**
+             * Id
+             * @description ID of the created/updated resource
+             */
+            id?: number | null;
+            /**
+             * Index
+             * @description Zero-based index of the item in the request
+             */
+            index: number;
+            /** @description Operation status */
+            status: components["schemas"]["BulkOperationStatus"];
+        };
+        /**
+         * BulkOperationResponse
+         * @description Base response for bulk operations with partial success support.
+         *
+         *     Uses HTTP 207 Multi-Status when some operations succeed and others fail.
+         *
+         *     Attributes:
+         *         total: Total number of items in the request
+         *         succeeded: Number of successful operations
+         *         failed: Number of failed operations
+         *         skipped: Number of skipped operations
+         *         results: Per-item results with status and error details
+         */
+        BulkOperationResponse: {
+            /**
+             * Failed
+             * @description Number of failed operations
+             */
+            failed: number;
+            /**
+             * Results
+             * @description Per-item results
+             */
+            results?: components["schemas"]["BulkItemResult"][];
+            /**
+             * Skipped
+             * @description Number of skipped operations
+             * @default 0
+             */
+            skipped: number;
+            /**
+             * Succeeded
+             * @description Number of successful operations
+             */
+            succeeded: number;
+            /**
+             * Total
+             * @description Total number of items in the request
+             */
+            total: number;
+        };
+        /**
+         * BulkOperationStatus
+         * @description Status of individual items in a bulk operation.
+         * @enum {string}
+         */
+        BulkOperationStatus: "success" | "failed" | "skipped";
+        /**
          * CameraCreate
          * @description Schema for creating a new camera.
          * @example {
@@ -7172,6 +7383,190 @@ export interface components {
             estimated_distance_m?: number | null;
         };
         /**
+         * DetectionBulkCreateItem
+         * @description Schema for a single detection in a bulk create request.
+         *
+         *     Attributes:
+         *         camera_id: Camera ID that captured this detection
+         *         object_type: Type of detected object (person, vehicle, etc.)
+         *         confidence: Detection confidence score (0.0-1.0)
+         *         detected_at: Detection timestamp
+         *         file_path: Path to the detection image
+         *         bbox_x: Bounding box X coordinate
+         *         bbox_y: Bounding box Y coordinate
+         *         bbox_width: Bounding box width
+         *         bbox_height: Bounding box height
+         *         enrichment_data: Optional enrichment pipeline results
+         */
+        DetectionBulkCreateItem: {
+            /**
+             * Bbox Height
+             * @description Bounding box height
+             */
+            bbox_height: number;
+            /**
+             * Bbox Width
+             * @description Bounding box width
+             */
+            bbox_width: number;
+            /**
+             * Bbox X
+             * @description Bounding box X coordinate
+             */
+            bbox_x: number;
+            /**
+             * Bbox Y
+             * @description Bounding box Y coordinate
+             */
+            bbox_y: number;
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Confidence score (0.0-1.0)
+             */
+            confidence: number;
+            /**
+             * Detected At
+             * Format: date-time
+             * @description Detection timestamp
+             */
+            detected_at: string;
+            /**
+             * Enrichment Data
+             * @description Enrichment pipeline results
+             */
+            enrichment_data?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * File Path
+             * @description Image file path
+             */
+            file_path: string;
+            /**
+             * Object Type
+             * @description Object type (person, vehicle, etc.)
+             */
+            object_type: string;
+        };
+        /**
+         * DetectionBulkCreateRequest
+         * @description Request schema for bulk detection creation.
+         *
+         *     Attributes:
+         *         detections: List of detections to create (max 100 per request)
+         */
+        DetectionBulkCreateRequest: {
+            /**
+             * Detections
+             * @description Detections to create (max 100)
+             */
+            detections: components["schemas"]["DetectionBulkCreateItem"][];
+        };
+        /**
+         * DetectionBulkCreateResponse
+         * @description Response schema for bulk detection creation.
+         *
+         *     Extends BulkOperationResponse with created detection IDs.
+         */
+        DetectionBulkCreateResponse: {
+            /**
+             * Failed
+             * @description Number of failed operations
+             */
+            failed: number;
+            /**
+             * Results
+             * @description Per-item results
+             */
+            results?: components["schemas"]["BulkItemResult"][];
+            /**
+             * Skipped
+             * @description Number of skipped operations
+             * @default 0
+             */
+            skipped: number;
+            /**
+             * Succeeded
+             * @description Number of successful operations
+             */
+            succeeded: number;
+            /**
+             * Total
+             * @description Total number of items in the request
+             */
+            total: number;
+        };
+        /**
+         * DetectionBulkDeleteRequest
+         * @description Request schema for bulk detection deletion.
+         *
+         *     Note: Detection deletion is always hard delete as detections
+         *     are raw data and soft-delete is not supported.
+         *
+         *     Attributes:
+         *         detection_ids: List of detection IDs to delete (max 100 per request)
+         */
+        DetectionBulkDeleteRequest: {
+            /**
+             * Detection Ids
+             * @description Detection IDs to delete (max 100)
+             */
+            detection_ids: number[];
+        };
+        /**
+         * DetectionBulkUpdateItem
+         * @description Schema for a single detection update in a bulk update request.
+         *
+         *     Attributes:
+         *         id: Detection ID to update
+         *         object_type: Updated object type
+         *         confidence: Updated confidence score
+         *         enrichment_data: Updated enrichment data
+         */
+        DetectionBulkUpdateItem: {
+            /**
+             * Confidence
+             * @description Confidence score
+             */
+            confidence?: number | null;
+            /**
+             * Enrichment Data
+             * @description Enrichment pipeline results
+             */
+            enrichment_data?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Id
+             * @description Detection ID to update
+             */
+            id: number;
+            /**
+             * Object Type
+             * @description Object type
+             */
+            object_type?: string | null;
+        };
+        /**
+         * DetectionBulkUpdateRequest
+         * @description Request schema for bulk detection updates.
+         *
+         *     Attributes:
+         *         detections: List of detection updates (max 100 per request)
+         */
+        DetectionBulkUpdateRequest: {
+            /**
+             * Detections
+             * @description Detection updates (max 100)
+             */
+            detections: components["schemas"]["DetectionBulkUpdateItem"][];
+        };
+        /**
          * DetectionListResponse
          * @description Schema for detection list response with pagination.
          *
@@ -8005,6 +8400,172 @@ export interface components {
             scores: components["schemas"]["QualityScores"];
             /** Self Eval Critique */
             self_eval_critique?: string | null;
+        };
+        /**
+         * EventBulkCreateItem
+         * @description Schema for a single event in a bulk create request.
+         *
+         *     Attributes:
+         *         camera_id: Camera ID that generated this event
+         *         started_at: Event start timestamp
+         *         ended_at: Optional event end timestamp
+         *         risk_score: Risk score from 0-100
+         *         risk_level: Risk level (low, medium, high, critical)
+         *         summary: Brief event summary
+         *         reasoning: Detailed reasoning from LLM analysis
+         *         detection_ids: List of detection IDs associated with this event
+         */
+        EventBulkCreateItem: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Detection Ids
+             * @description Associated detection IDs
+             */
+            detection_ids?: number[];
+            /**
+             * Ended At
+             * @description Event end timestamp
+             */
+            ended_at?: string | null;
+            /**
+             * Reasoning
+             * @description LLM reasoning
+             */
+            reasoning?: string | null;
+            /**
+             * Risk Level
+             * @description Risk level
+             */
+            risk_level: string;
+            /**
+             * Risk Score
+             * @description Risk score (0-100)
+             */
+            risk_score: number;
+            /**
+             * Started At
+             * Format: date-time
+             * @description Event start timestamp
+             */
+            started_at: string;
+            /**
+             * Summary
+             * @description Event summary
+             */
+            summary: string;
+        };
+        /**
+         * EventBulkCreateRequest
+         * @description Request schema for bulk event creation.
+         *
+         *     Attributes:
+         *         events: List of events to create (max 100 per request)
+         */
+        EventBulkCreateRequest: {
+            /**
+             * Events
+             * @description Events to create (max 100)
+             */
+            events: components["schemas"]["EventBulkCreateItem"][];
+        };
+        /**
+         * EventBulkCreateResponse
+         * @description Response schema for bulk event creation.
+         *
+         *     Extends BulkOperationResponse with created event IDs.
+         */
+        EventBulkCreateResponse: {
+            /**
+             * Failed
+             * @description Number of failed operations
+             */
+            failed: number;
+            /**
+             * Results
+             * @description Per-item results
+             */
+            results?: components["schemas"]["BulkItemResult"][];
+            /**
+             * Skipped
+             * @description Number of skipped operations
+             * @default 0
+             */
+            skipped: number;
+            /**
+             * Succeeded
+             * @description Number of successful operations
+             */
+            succeeded: number;
+            /**
+             * Total
+             * @description Total number of items in the request
+             */
+            total: number;
+        };
+        /**
+         * EventBulkDeleteRequest
+         * @description Request schema for bulk event deletion.
+         *
+         *     Attributes:
+         *         event_ids: List of event IDs to delete (max 100 per request)
+         *         soft_delete: If true, mark as deleted instead of removing
+         */
+        EventBulkDeleteRequest: {
+            /**
+             * Event Ids
+             * @description Event IDs to delete (max 100)
+             */
+            event_ids: number[];
+            /**
+             * Soft Delete
+             * @description Soft delete (default) vs hard delete
+             * @default true
+             */
+            soft_delete: boolean;
+        };
+        /**
+         * EventBulkUpdateItem
+         * @description Schema for a single event update in a bulk update request.
+         *
+         *     Attributes:
+         *         id: Event ID to update
+         *         reviewed: Mark event as reviewed/dismissed
+         *         notes: Optional notes for the event
+         */
+        EventBulkUpdateItem: {
+            /**
+             * Id
+             * @description Event ID to update
+             */
+            id: number;
+            /**
+             * Notes
+             * @description Notes
+             */
+            notes?: string | null;
+            /**
+             * Reviewed
+             * @description Mark as reviewed
+             */
+            reviewed?: boolean | null;
+        };
+        /**
+         * EventBulkUpdateRequest
+         * @description Request schema for bulk event updates.
+         *
+         *     Attributes:
+         *         events: List of event updates (max 100 per request)
+         */
+        EventBulkUpdateRequest: {
+            /**
+             * Events
+             * @description Event updates (max 100)
+             */
+            events: components["schemas"]["EventBulkUpdateItem"][];
         };
         /**
          * EventEnrichmentsResponse
@@ -13268,14 +13829,33 @@ export interface operations {
                     "application/json": components["schemas"]["SeedCamerasResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13303,6 +13883,27 @@ export interface operations {
                     "application/json": components["schemas"]["ClearDataResponse"];
                 };
             };
+            /** @description Bad request - Confirmation required */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13311,6 +13912,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -13338,14 +13946,40 @@ export interface operations {
                     "application/json": components["schemas"]["SeedEventsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - No cameras found */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13371,14 +14005,19 @@ export interface operations {
                     "application/json": components["schemas"]["BatchAuditResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13402,6 +14041,13 @@ export interface operations {
                     "application/json": components["schemas"]["EventAuditResponse"];
                 };
             };
+            /** @description Event or audit not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13410,6 +14056,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -13436,14 +14089,26 @@ export interface operations {
                     "application/json": components["schemas"]["EventAuditResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Event or audit not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13468,14 +14133,19 @@ export interface operations {
                     "application/json": components["schemas"]["LeaderboardResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13563,6 +14233,13 @@ export interface operations {
                     "application/json": components["schemas"]["AllPromptsResponse"];
                 };
             };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     export_prompts_api_ai_audit_prompts_export_get: {
@@ -13582,6 +14259,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PromptExportResponse"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -13608,14 +14292,19 @@ export interface operations {
                     };
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13644,14 +14333,26 @@ export interface operations {
                     "application/json": components["schemas"]["PromptHistoryResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13682,14 +14383,26 @@ export interface operations {
                     "application/json": components["schemas"]["PromptRestoreResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Model or version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13715,14 +14428,26 @@ export interface operations {
                     "application/json": components["schemas"]["PromptImportResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - No prompts provided */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13748,14 +14473,33 @@ export interface operations {
                     "application/json": components["schemas"]["PromptTestResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Model or event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13779,14 +14523,26 @@ export interface operations {
                     "application/json": components["schemas"]["ModelPromptResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13814,14 +14570,33 @@ export interface operations {
                     "application/json": components["schemas"]["PromptUpdateResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13846,14 +14621,19 @@ export interface operations {
                     "application/json": components["schemas"]["RecommendationsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13880,14 +14660,19 @@ export interface operations {
                     "application/json": components["schemas"]["AuditStatsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13913,14 +14698,47 @@ export interface operations {
                     "application/json": components["schemas"]["CustomTestPromptResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid or too long prompt */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
+            };
+            /** @description AI service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -13951,14 +14769,19 @@ export interface operations {
                     "application/json": components["schemas"]["AlertRuleListResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -13984,14 +14807,19 @@ export interface operations {
                     "application/json": components["schemas"]["AlertRuleResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14015,6 +14843,13 @@ export interface operations {
                     "application/json": components["schemas"]["AlertRuleResponse"];
                 };
             };
+            /** @description Alert rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14023,6 +14858,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14079,6 +14921,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Alert rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14087,6 +14936,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14114,14 +14970,26 @@ export interface operations {
                     "application/json": components["schemas"]["RuleTestResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Alert rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14148,14 +15016,26 @@ export interface operations {
                     "application/json": components["schemas"]["CameraUptimeResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14182,14 +15062,26 @@ export interface operations {
                     "application/json": components["schemas"]["DetectionTrendsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14216,14 +15108,26 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectDistributionResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14250,14 +15154,26 @@ export interface operations {
                     "application/json": components["schemas"]["RiskHistoryResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14300,14 +15216,26 @@ export interface operations {
                     "application/json": components["schemas"]["AuditLogListResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid date range or cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -14328,6 +15256,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AuditLogStats"];
                 };
+            };
+            /** @description Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14351,6 +15293,13 @@ export interface operations {
                     "application/json": components["schemas"]["AuditLogResponse"];
                 };
             };
+            /** @description Audit log not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14359,6 +15308,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14971,6 +15927,20 @@ export interface operations {
                     "application/json": components["schemas"]["DebugCircuitBreakersResponse"];
                 };
             };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_config_api_debug_config_get: {
@@ -14991,6 +15961,20 @@ export interface operations {
                     "application/json": components["schemas"]["DebugConfigResponse"];
                 };
             };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_log_level_api_debug_log_level_get: {
@@ -15010,6 +15994,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LogLevelResponse"];
                 };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15035,14 +16033,33 @@ export interface operations {
                     "application/json": components["schemas"]["LogLevelResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid log level */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -15064,6 +16081,20 @@ export interface operations {
                     "application/json": components["schemas"]["PipelineStateResponse"];
                 };
             };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     start_profiling_api_debug_profile_start_post: {
@@ -15083,6 +16114,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProfileStartResponse"];
                 };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15104,6 +16149,20 @@ export interface operations {
                     "application/json": components["schemas"]["ProfileStatsResponse"];
                 };
             };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     stop_profiling_api_debug_profile_stop_post: {
@@ -15123,6 +16182,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProfileStopResponse"];
                 };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15241,6 +16314,20 @@ export interface operations {
                     "application/json": components["schemas"]["RedisInfoResponse"];
                 };
             };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     replay_request_api_debug_replay__recording_id__post: {
@@ -15292,6 +16379,20 @@ export interface operations {
                     "application/json": components["schemas"]["WebSocketConnectionsResponse"];
                 };
             };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     list_detections_api_detections_get: {
@@ -15339,6 +16440,120 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    bulk_create_detections_api_detections_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DetectionBulkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Multi-status response with per-item results */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionBulkCreateResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bulk_delete_detections_api_detections_bulk_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DetectionBulkDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Multi-status response with per-item results */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkOperationResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bulk_update_detections_api_detections_bulk_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DetectionBulkUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Multi-status response with per-item results */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkOperationResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15625,14 +16840,19 @@ export interface operations {
                     "application/json": components["schemas"]["DLQJobsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -15660,14 +16880,26 @@ export interface operations {
                     "application/json": components["schemas"]["DLQRequeueResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized - API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -15695,14 +16927,26 @@ export interface operations {
                     "application/json": components["schemas"]["DLQRequeueResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized - API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -15723,6 +16967,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DLQStatsResponse"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15750,14 +17001,26 @@ export interface operations {
                     "application/json": components["schemas"]["DLQClearResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized - API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -15790,14 +17053,19 @@ export interface operations {
                     "application/json": components["schemas"]["EntityListResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -15821,6 +17089,13 @@ export interface operations {
                     "application/json": components["schemas"]["EntityDetail"];
                 };
             };
+            /** @description Entity not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15829,6 +17104,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redis service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15852,6 +17141,13 @@ export interface operations {
                     "application/json": components["schemas"]["EntityHistoryResponse"];
                 };
             };
+            /** @description Entity not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15860,6 +17156,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redis service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15946,6 +17256,120 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    bulk_create_events_api_events_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventBulkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Multi-status response with per-item results */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventBulkCreateResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bulk_delete_events_api_events_bulk_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventBulkDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Multi-status response with per-item results */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkOperationResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bulk_update_events_api_events_bulk_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventBulkUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Multi-status response with per-item results */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkOperationResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16316,14 +17740,26 @@ export interface operations {
                     "application/json": components["schemas"]["LogsResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Invalid date range or cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -16351,14 +17787,19 @@ export interface operations {
                     };
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -16379,6 +17820,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LogStats"];
                 };
+            };
+            /** @description Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16402,6 +17857,13 @@ export interface operations {
                     "application/json": components["schemas"]["LogEntry"];
                 };
             };
+            /** @description Log entry not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16410,6 +17872,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16639,7 +18108,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Prometheus metrics in exposition format */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16647,6 +18116,13 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16667,6 +18143,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["NotificationPreferencesResponse"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16692,14 +18175,26 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationPreferencesResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid sound or risk level value */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -16720,6 +18215,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CameraNotificationSettingsListResponse"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16743,6 +18245,13 @@ export interface operations {
                     "application/json": components["schemas"]["CameraNotificationSettingResponse"];
                 };
             };
+            /** @description Camera notification setting not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16751,6 +18260,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16778,14 +18294,26 @@ export interface operations {
                     "application/json": components["schemas"]["CameraNotificationSettingResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -16806,6 +18334,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["QuietHoursPeriodsListResponse"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16831,14 +18366,26 @@ export interface operations {
                     "application/json": components["schemas"]["QuietHoursPeriodResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request - Invalid time range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -16860,6 +18407,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Quiet hours period not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16868,6 +18422,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16946,14 +18507,19 @@ export interface operations {
                     "application/json": components["schemas"]["RUMIngestResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -16974,6 +18540,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AnomalyConfig"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -17001,14 +18574,26 @@ export interface operations {
                     "application/json": components["schemas"]["AnomalyConfig"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized - API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -17162,14 +18747,26 @@ export interface operations {
                     "application/json": components["schemas"]["ConfigResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unauthorized - API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
     };
@@ -17533,6 +19130,20 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Container orchestrator not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     disable_service_api_system_services__name__disable_post: {
@@ -17555,6 +19166,13 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17563,6 +19181,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Container orchestrator not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -17586,6 +19218,13 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17594,6 +19233,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Container orchestrator not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -17617,6 +19270,20 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
+            /** @description Bad request - Service is disabled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17625,6 +19292,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Container orchestrator not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -17648,6 +19329,20 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
+            /** @description Bad request - Service already running or disabled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17656,6 +19351,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Container orchestrator not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
