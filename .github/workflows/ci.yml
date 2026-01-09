@@ -129,11 +129,9 @@ jobs:
         # Combined coverage (unit + integration) should reach 95%
         # -n auto enables xdist parallelization with worksteal scheduler
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
-        # Repository tests excluded - they run serially in next step
         # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
         run: |
           uv run pytest backend/tests/unit/ \
-            --ignore=backend/tests/unit/repositories/ \
             -n auto --dist=worksteal \
             --timeout=0 \
             --cov=backend \
@@ -141,25 +139,6 @@ jobs:
             --cov-fail-under=0 \
             --cov-report=term-missing \
             --junit-xml=test-results-unit-parallel.xml \
-            --durations=20 \
-            -v
-
-      - name: Run repository unit tests with coverage (serial)
-        # Repository tests share database state and cannot be parallelized
-        # They must run serially (-n0) to avoid database deadlocks
-        # These tests use the test_db fixture which does not provide
-        # per-worker database isolation like integration tests
-        # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
-        run: |
-          uv run pytest backend/tests/unit/repositories/ \
-            -n0 \
-            --timeout=0 \
-            --cov=backend \
-            --cov-config=pyproject.toml \
-            --cov-fail-under=0 \
-            --cov-append \
-            --cov-report=term-missing \
-            --junit-xml=test-results-unit-serial.xml \
             --durations=20 \
             -v
 
