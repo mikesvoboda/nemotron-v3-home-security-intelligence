@@ -115,6 +115,17 @@ repos:
         additional_dependencies:
           - prettier@3.2.4
 
+  # OpenAPI spec generation - auto-regenerates docs/openapi.json on backend changes
+  # Runs before commit so the generated spec is included in the commit
+  - repo: local
+    hooks:
+      - id: generate-openapi
+        name: Generate OpenAPI Spec
+        entry: bash -c 'uv run python scripts/generate-openapi.py && git add docs/openapi.json'
+        language: system
+        files: ^backend/(api|models|schemas)/.*\.py$
+        pass_filenames: false
+
   # Frontend Prettier - Uses local prettier with tailwindcss plugin
   # Handles all frontend files: TS/TSX/JS/JSX plus CSS/JSON/MD
   - repo: local
