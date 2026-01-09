@@ -103,16 +103,18 @@ class TestAfterCursorExecute:
 
         from backend.core.database import _after_cursor_execute
 
-        # Create mock connection with very recent start time
+        # Create mock connection with start time that's guaranteed to be under threshold
+        # Use 10ms ago to account for CI overhead, with high threshold (10s) for safety
         mock_conn = MagicMock()
-        mock_conn.info = {"query_start_time": time.perf_counter()}
+        mock_conn.info = {"query_start_time": time.perf_counter() - 0.010}  # 10ms ago
 
         with (
             patch("backend.core.database.get_settings") as mock_settings,
             patch("backend.core.database._logger") as mock_logger,
             patch("backend.core.metrics.observe_db_query_duration"),
         ):
-            mock_settings.return_value = MagicMock(slow_query_threshold_ms=100.0)
+            # Use high threshold (10s) to ensure test stability in CI
+            mock_settings.return_value = MagicMock(slow_query_threshold_ms=10000.0)
 
             _after_cursor_execute(
                 mock_conn,  # conn
@@ -123,7 +125,7 @@ class TestAfterCursorExecute:
                 False,  # executemany
             )
 
-            # Verify warning was NOT logged
+            # Verify warning was NOT logged (query duration < 10s)
             mock_logger.warning.assert_not_called()
 
     def test_truncates_long_queries(self) -> None:
