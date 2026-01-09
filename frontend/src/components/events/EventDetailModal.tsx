@@ -462,7 +462,7 @@ export default function EventDetailModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all" data-testid="event-detail-modal">
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-gray-800 p-6">
                   <div className="flex-1">
@@ -470,11 +470,12 @@ export default function EventDetailModal({
                       as="h2"
                       className="text-2xl font-bold text-white"
                       id="event-detail-title"
+                      data-testid="detection-camera"
                     >
                       {event.camera_name}
                     </Dialog.Title>
                     <div className="mt-2 flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-gray-400" data-testid="detection-timestamp">
                         <Clock className="h-4 w-4" />
                         <span>{formatTimestamp(event.timestamp)}</span>
                       </div>
@@ -493,16 +494,19 @@ export default function EventDetailModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <RiskBadge
-                      level={riskLevel}
-                      score={event.risk_score}
-                      showScore={true}
-                      size="lg"
-                    />
+                    <div data-testid="risk-score">
+                      <RiskBadge
+                        level={riskLevel}
+                        score={event.risk_score}
+                        showScore={true}
+                        size="lg"
+                      />
+                    </div>
                     <button
                       onClick={onClose}
                       className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
                       aria-label="Close modal"
+                      data-testid="close-modal-button"
                     >
                       <X className="h-6 w-6" />
                     </button>
@@ -631,7 +635,7 @@ export default function EventDetailModal({
                   </div>
 
                   {/* AI Summary */}
-                  <div className="mb-6">
+                  <div className="mb-6" data-testid="ai-analysis-section">
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                         AI Summary
@@ -664,7 +668,7 @@ export default function EventDetailModal({
 
                   {/* AI Reasoning */}
                   {event.reasoning && (
-                    <div className="mb-6">
+                    <div className="mb-6" data-testid="ai-reasoning">
                       <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
                         AI Reasoning
                       </h3>
@@ -676,7 +680,7 @@ export default function EventDetailModal({
 
                   {/* Detections with Color-Coded Confidence */}
                   {event.detections.length > 0 && (
-                    <div className="mb-6">
+                    <div className="mb-6" data-testid="detection-objects">
                       <div className="mb-3 flex items-center justify-between">
                         <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                           Detected Objects ({event.detections.length})
@@ -844,7 +848,7 @@ export default function EventDetailModal({
                         <dt className="text-gray-400">Status</dt>
                         <dd className="text-gray-300">
                           {event.reviewed ? (
-                            <span className="inline-flex items-center gap-1 text-green-500">
+                            <span className="inline-flex items-center gap-1 text-green-500" data-testid="status-reviewed">
                               <CheckCircle2 className="h-4 w-4" />
                               Reviewed
                             </span>
@@ -966,6 +970,7 @@ export default function EventDetailModal({
                         onClick={() => onMarkReviewed(event.id)}
                         className="flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
                         aria-label="Mark event as reviewed"
+                        data-testid="mark-reviewed"
                       >
                         <CheckCircle2 className="h-4 w-4" />
                         Mark as Reviewed
