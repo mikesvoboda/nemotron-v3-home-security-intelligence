@@ -344,6 +344,7 @@ async def test_list_events_returns_empty_list_when_no_events() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -380,6 +381,7 @@ async def test_list_events_returns_events_with_detection_count() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -416,6 +418,7 @@ async def test_list_events_returns_detection_ids_array() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -451,6 +454,7 @@ async def test_list_events_with_empty_detection_ids() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -485,6 +489,7 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -519,6 +524,7 @@ async def test_list_events_with_camera_id_filter() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -553,6 +559,7 @@ async def test_list_events_with_risk_level_filter() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -591,6 +598,7 @@ async def test_list_events_with_date_filters() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -624,6 +632,7 @@ async def test_list_events_with_reviewed_filter_true() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -658,6 +667,7 @@ async def test_list_events_with_reviewed_filter_false() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -693,6 +703,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -724,6 +735,7 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -759,6 +771,7 @@ async def test_list_events_with_object_type_filter_single_value() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -793,6 +806,7 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -832,6 +846,7 @@ async def test_list_events_object_type_escapes_wildcard_characters() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -869,6 +884,7 @@ async def test_list_events_pagination_with_custom_limit() -> None:
         limit=3,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -903,6 +919,7 @@ async def test_list_events_pagination_with_offset() -> None:
         limit=50,
         offset=5,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -941,6 +958,7 @@ async def test_list_events_multiple_events() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -975,6 +993,7 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -1012,6 +1031,7 @@ async def test_list_events_returns_reasoning_field() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -1049,6 +1069,7 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -1899,6 +1920,7 @@ async def test_list_events_with_all_filters_combined() -> None:
         limit=10,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -1957,6 +1979,7 @@ async def test_list_events_count_returns_zero_on_none() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 
@@ -2414,6 +2437,7 @@ async def test_list_events_equal_dates_is_valid() -> None:
         limit=50,
         offset=0,
         cursor=None,
+        fields=None,
         db=db,
     )
 

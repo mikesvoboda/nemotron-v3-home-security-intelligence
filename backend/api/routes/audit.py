@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_audit_log_or_404
 from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.audit import (
     AuditLogListResponse,
@@ -16,7 +17,6 @@ from backend.api.schemas.audit import (
 from backend.api.validators import validate_date_range
 from backend.core.database import get_db
 from backend.models.audit import AuditLog
-from backend.services.audit import AuditService
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
@@ -300,12 +300,4 @@ async def get_audit_log(
     Raises:
         HTTPException: 404 if audit log not found
     """
-    log = await AuditService.get_audit_log_by_id(db, audit_id)
-
-    if not log:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Audit log {audit_id} not found",
-        )
-
-    return log
+    return await get_audit_log_or_404(audit_id, db)

@@ -75,6 +75,7 @@ class TestListEventsEagerLoading:
             limit=50,
             offset=0,
             cursor=None,
+            fields=None,
             db=mock_db,
         )
 
@@ -152,6 +153,7 @@ class TestListEventsEagerLoading:
             limit=50,
             offset=0,
             cursor=cursor,
+            fields=None,
             db=mock_db,
         )
 
@@ -222,6 +224,7 @@ class TestListEventsEagerLoading:
             limit=50,
             offset=0,
             cursor=None,
+            fields=None,
             db=mock_db,
         )
 
@@ -292,6 +295,7 @@ class TestListEventsEagerLoading:
             limit=50,
             offset=0,
             cursor=None,
+            fields=None,
             db=mock_db,
         )
 
