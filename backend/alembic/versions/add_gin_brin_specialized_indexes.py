@@ -37,9 +37,9 @@ Tables receiving BRIN indexes on their timestamp columns:
 - events.started_at (append-only security events)
 - logs.timestamp (append-only application logs)
 - audit_logs.timestamp (append-only audit trail)
-- scene_changes.detected_at (append-only tampering alerts)
 
 Note: gpu_stats.recorded_at already has BRIN index from a previous migration.
+Note: scene_changes.detected_at BRIN index is handled by create_scene_changes_table migration.
 """
 
 from collections.abc import Sequence
@@ -110,20 +110,14 @@ def upgrade() -> None:
         postgresql_using="brin",
     )
 
-    # scene_changes.detected_at - BRIN for time-series queries
-    op.create_index(
-        "ix_scene_changes_detected_at_brin",
-        "scene_changes",
-        ["detected_at"],
-        unique=False,
-        postgresql_using="brin",
-    )
+    # NOTE: scene_changes.detected_at BRIN index is handled by create_scene_changes_table
+    # migration which creates all scene_changes indexes including the BRIN index.
 
 
 def downgrade() -> None:
     """Remove GIN and BRIN indexes."""
     # Remove BRIN indexes
-    op.drop_index("ix_scene_changes_detected_at_brin", table_name="scene_changes")
+    # NOTE: ix_scene_changes_detected_at_brin is managed by create_scene_changes_table
     op.drop_index("ix_audit_logs_timestamp_brin", table_name="audit_logs")
     op.drop_index("ix_logs_timestamp_brin", table_name="logs")
     op.drop_index("ix_events_started_at_brin", table_name="events")
