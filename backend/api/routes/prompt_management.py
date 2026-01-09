@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import get_prompt_version_or_404
 from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.schemas.prompt_management import (
     AIModelEnum,
@@ -302,6 +302,10 @@ async def restore_prompt_version(
     Creates a new version with the configuration from the specified version,
     making it the active configuration.
     """
+    # Verify the version exists before attempting restore
+    original = await get_prompt_version_or_404(version_id, db)
+    original_version = original.version
+
     service = get_prompt_service()
 
     try:
@@ -314,12 +318,6 @@ async def restore_prompt_version(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
-
-    from backend.models.prompt_version import PromptVersion
-
-    result = await db.execute(select(PromptVersion).where(PromptVersion.id == version_id))
-    original = result.scalar_one_or_none()
-    original_version = original.version if original else 0
 
     return PromptRestoreResponse(
         restored_version=original_version,
