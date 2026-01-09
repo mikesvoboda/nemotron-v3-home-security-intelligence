@@ -11,21 +11,22 @@
  * Test Structure:
  * ---------------
  * This file is organized into 9 describe blocks, each testing a specific
- * aspect of the dashboard. Each describe block has its own beforeEach hook
- * that sets up API mocks with the appropriate configuration:
+ * aspect of the dashboard. Describe blocks using the same mock configuration
+ * share page state via serial mode for performance optimization:
  *
  * - defaultMockConfig: Standard dashboard with cameras, events, stats
  * - emptyMockConfig: Empty state testing (no events)
- * - errorMockConfig: API failure scenarios
+ * - errorMockConfig: API failure scenarios (uses beforeEach for isolation)
  * - highAlertMockConfig: High risk/alert state testing
  *
  * Performance Notes:
+ * - Serial mode blocks share a single page instance to reduce setup overhead
  * - Timeouts are tuned for CI environments (5-8 seconds max)
  * - Uses waitForLoadState instead of fixed delays where possible
- * - Each describe block is independent and can run in parallel
+ * - Error state tests use beforeEach for proper isolation
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { DashboardPage } from '../pages';
 import {
   setupApiMocks,
@@ -34,58 +35,67 @@ import {
   errorMockConfig,
   highAlertMockConfig,
 } from '../fixtures';
-import { mockSystemStats, mockEventStats } from '../fixtures';
 
 test.describe('Dashboard Stats Row', () => {
   let dashboardPage: DashboardPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     dashboardPage = new DashboardPage(page);
+    await dashboardPage.goto();
+    await dashboardPage.waitForDashboardLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.close();
   });
 
   test('displays active cameras stat', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     await expect(dashboardPage.activeCamerasStat).toBeVisible();
   });
 
   test('displays events today stat', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     await expect(dashboardPage.eventsTodayStat).toBeVisible();
   });
 
   test('displays current risk stat', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 
   test('displays system status stat', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     await expect(dashboardPage.systemStatusStat).toBeVisible();
   });
 });
 
 test.describe('Dashboard Risk Gauge', () => {
   let dashboardPage: DashboardPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     dashboardPage = new DashboardPage(page);
+    await dashboardPage.goto();
+    await dashboardPage.waitForDashboardLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.close();
   });
 
   test('risk score card is visible', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 
   test('risk score card shows risk value', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     // Risk score is displayed in the StatsRow risk card
     const riskScore = await dashboardPage.getRiskScoreText();
     expect(riskScore).not.toBeNull();
@@ -94,42 +104,43 @@ test.describe('Dashboard Risk Gauge', () => {
 
 test.describe('Dashboard Camera Grid', () => {
   let dashboardPage: DashboardPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     dashboardPage = new DashboardPage(page);
+    await dashboardPage.goto();
+    await dashboardPage.waitForDashboardLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.close();
   });
 
   test('camera grid section is visible', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
   test('displays Front Door camera', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     const hasFrontDoor = await dashboardPage.hasCameraByName('Front Door');
     expect(hasFrontDoor).toBe(true);
   });
 
   test('displays Back Yard camera', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     const hasBackYard = await dashboardPage.hasCameraByName('Back Yard');
     expect(hasBackYard).toBe(true);
   });
 
   test('displays Garage camera', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     const hasGarage = await dashboardPage.hasCameraByName('Garage');
     expect(hasGarage).toBe(true);
   });
 
   test('displays Driveway camera', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     const hasDriveway = await dashboardPage.hasCameraByName('Driveway');
     expect(hasDriveway).toBe(true);
   });
@@ -140,21 +151,32 @@ test.describe('Dashboard Camera Grid', () => {
 
 test.describe('Dashboard Empty State', () => {
   let dashboardPage: DashboardPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, emptyMockConfig);
     dashboardPage = new DashboardPage(page);
+    await dashboardPage.goto();
+    await dashboardPage.waitForDashboardLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.close();
   });
 
   test('dashboard loads with empty event data', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
     // Verify dashboard loads without crashing when there are no events
     await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 });
 
 test.describe('Dashboard Error State', () => {
+  // Error tests need fresh page state for each test to properly test error handling
+  // Keep using beforeEach for isolation
   let dashboardPage: DashboardPage;
 
   test.beforeEach(async ({ page }) => {
@@ -191,15 +213,26 @@ test.describe('Dashboard Error State', () => {
 
 test.describe('Dashboard High Alert State', () => {
   let dashboardPage: DashboardPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, highAlertMockConfig);
     dashboardPage = new DashboardPage(page);
+    await dashboardPage.goto();
+    await dashboardPage.waitForDashboardLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.close();
   });
 
   test('dashboard loads with high alert config', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
+    // Page already loaded in beforeAll, just verify it worked
+    await expect(dashboardPage.riskScoreStat).toBeVisible();
   });
 });
 

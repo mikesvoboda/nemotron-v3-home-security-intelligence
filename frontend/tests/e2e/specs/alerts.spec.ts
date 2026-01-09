@@ -7,9 +7,12 @@
  * - Refresh functionality
  * - Pagination
  * - Empty and error states
+ *
+ * Optimization: Uses serial mode with shared page setup to reduce test execution time.
+ * Each describe block shares a single page instance across its tests.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { AlertsPage } from '../pages';
 import {
   setupApiMocks,
@@ -21,44 +24,58 @@ import {
 
 test.describe('Alerts Page Load', () => {
   let alertsPage: AlertsPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     alertsPage = new AlertsPage(page);
+    await alertsPage.goto();
+    await alertsPage.waitForAlertsLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.context().close();
   });
 
   test('alerts page loads successfully', async () => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
+    // Page already loaded in beforeAll
+    await expect(alertsPage.pageTitle).toBeVisible();
   });
 
   test('alerts displays page title', async () => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
     await expect(alertsPage.pageTitle).toBeVisible();
   });
 
   test('alerts displays page subtitle', async () => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
     await expect(alertsPage.pageSubtitle).toBeVisible();
   });
 
   test('alerts title says Alerts', async () => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
     await expect(alertsPage.pageTitle).toHaveText(/Alerts/i);
   });
 });
 
 test.describe('Alerts Filter', () => {
   let alertsPage: AlertsPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     alertsPage = new AlertsPage(page);
     await alertsPage.goto();
     await alertsPage.waitForAlertsLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.context().close();
   });
 
   test('risk filter dropdown is visible', async () => {
@@ -83,12 +100,21 @@ test.describe('Alerts Filter', () => {
 
 test.describe('Alerts Refresh', () => {
   let alertsPage: AlertsPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     alertsPage = new AlertsPage(page);
     await alertsPage.goto();
     await alertsPage.waitForAlertsLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.context().close();
   });
 
   test('refresh button is visible', async () => {
@@ -103,15 +129,24 @@ test.describe('Alerts Refresh', () => {
 
 test.describe('Alerts Pagination', () => {
   let alertsPage: AlertsPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, defaultMockConfig);
     alertsPage = new AlertsPage(page);
     await alertsPage.goto();
     await alertsPage.waitForAlertsLoad();
   });
 
-  test('pagination shows when multiple pages exist', async ({ page }) => {
+  test.afterAll(async () => {
+    await page?.context().close();
+  });
+
+  test('pagination shows when multiple pages exist', async () => {
     // Pagination only shows when totalPages > 1
     // With default mock data, pagination may or may not be visible
     const pagination = page.locator('button').filter({ hasText: /Previous|Next/i });
@@ -123,15 +158,24 @@ test.describe('Alerts Pagination', () => {
 
 test.describe('Alerts Empty State', () => {
   let alertsPage: AlertsPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, emptyMockConfig);
     alertsPage = new AlertsPage(page);
-  });
-
-  test('page loads with empty data', async ({ page }) => {
     await alertsPage.goto();
     await alertsPage.waitForAlertsLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.context().close();
+  });
+
+  test('page loads with empty data', async () => {
     // With empty data, either show "No Alerts" or "0 alerts found"
     const noAlertsVisible = await alertsPage.noAlertsMessage.isVisible().catch(() => false);
     const zeroAlertsText = await page.getByText(/0 alerts? found/i).isVisible().catch(() => false);
@@ -139,15 +183,15 @@ test.describe('Alerts Empty State', () => {
     expect(noAlertsVisible || zeroAlertsText || true).toBe(true);
   });
 
-  test('page shows appropriate empty state', async ({ page }) => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
+  test('page shows appropriate empty state', async () => {
     // Just verify page loaded without error
     await expect(alertsPage.pageTitle).toBeVisible();
   });
 });
 
 test.describe('Alerts Error State', () => {
+  // Error state tests need fresh page setup to properly test error handling
+  // Keep beforeEach for isolation
   let alertsPage: AlertsPage;
 
   test.beforeEach(async ({ page }) => {
@@ -174,20 +218,29 @@ test.describe('Alerts Error State', () => {
 
 test.describe('Alerts High Alert Mode', () => {
   let alertsPage: AlertsPage;
+  let page: Page;
 
-  test.beforeEach(async ({ page }) => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext();
+    page = await context.newPage();
     await setupApiMocks(page, highAlertMockConfig);
     alertsPage = new AlertsPage(page);
+    await alertsPage.goto();
+    await alertsPage.waitForAlertsLoad();
+  });
+
+  test.afterAll(async () => {
+    await page?.context().close();
   });
 
   test('loads with high alert config', async () => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
+    // Page already loaded in beforeAll
+    await expect(alertsPage.pageTitle).toBeVisible();
   });
 
   test('displays alert cards when alerts exist', async () => {
-    await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
     const count = await alertsPage.getAlertCount();
     expect(count).toBeGreaterThanOrEqual(0);
   });

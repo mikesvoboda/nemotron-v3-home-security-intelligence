@@ -3,8 +3,12 @@
 #
 # Usage: uv run vulture backend/ vulture_whitelist.py --min-confidence 80
 
+# Protocol method parameters (required by abstract signature)
+_.input_data
+
 # Test fixtures that are injected by pytest
 _.isolated_db
+_.reset_fallback_service
 _.integration_db
 _.benchmark_db
 _.memory_test_db
