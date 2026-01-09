@@ -3222,9 +3222,9 @@ export interface paths {
          *     - Must remain under configured base directories
          *
          *     Mapping rules:
-         *     - `cameras/<camera_id>/<filename...>` → camera media
-         *     - `thumbnails/<filename>` → thumbnails
-         *     - `detections/<id>` → detection images
+         *     - `cameras/<camera_id>/<filename...>` -> camera media
+         *     - `thumbnails/<filename>` -> thumbnails
+         *     - `detections/<id>` -> detection images
          */
         get: operations["serve_media_compat_api_media__path__get"];
         put?: never;

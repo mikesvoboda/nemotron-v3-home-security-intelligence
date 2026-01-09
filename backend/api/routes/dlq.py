@@ -13,7 +13,7 @@ when api_key_enabled is set to True in settings.
 import hashlib
 from enum import Enum
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
 from backend.api.schemas.dlq import (
     DLQClearResponse,
@@ -69,7 +69,7 @@ async def verify_api_key(
     # Require API key when authentication is enabled
     if not key:
         raise HTTPException(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key required. Provide via X-API-Key header or api_key query parameter.",
         )
 
@@ -79,7 +79,7 @@ async def verify_api_key(
 
     if key_hash not in valid_hashes:
         raise HTTPException(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
         )
 

@@ -4,7 +4,7 @@ import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.exception_handlers import register_exception_handlers
@@ -726,7 +726,7 @@ async def ready() -> Response:
     if db_status is None:
         return JSONResponse(
             content=SimpleReadinessResponse(ready=False, status="not_ready").model_dump(),
-            status_code=503,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     # Get Redis client (optional - it's a generator that returns None if unavailable)
@@ -745,12 +745,12 @@ async def ready() -> Response:
     if db_healthy and redis_healthy and pipeline_workers_healthy:
         return JSONResponse(
             content=SimpleReadinessResponse(ready=True, status="ready").model_dump(),
-            status_code=200,
+            status_code=status.HTTP_200_OK,
         )
     else:
         return JSONResponse(
             content=SimpleReadinessResponse(ready=False, status="not_ready").model_dump(),
-            status_code=503,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 

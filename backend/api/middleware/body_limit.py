@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
+from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -86,7 +87,7 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
                 body_size = int(content_length)
                 if body_size > self.max_body_size:
                     return JSONResponse(
-                        status_code=413,
+                        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                         content={
                             "error_code": "PAYLOAD_TOO_LARGE",
                             "message": "Request body too large",

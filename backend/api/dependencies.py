@@ -112,7 +112,7 @@ async def get_orchestrator(request: Request) -> ContainerOrchestrator:
     orchestrator = getattr(request.app.state, "orchestrator", None)
     if orchestrator is None:
         raise HTTPException(
-            status_code=503,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Container orchestrator not available",
         )
     # Import at runtime to avoid circular imports

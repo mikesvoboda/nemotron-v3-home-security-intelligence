@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
 from backend.api.schemas.system import QueueDepths
@@ -62,7 +62,7 @@ def require_debug_mode() -> None:
     settings = get_settings()
     if not settings.debug:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Not Found",
         )
 
@@ -472,10 +472,10 @@ async def get_redis_info(
 
     NEM-1642: Debug endpoint for Redis diagnostics
     """
-    status, info, pubsub = await _get_redis_info(redis)
+    status_str, info, pubsub = await _get_redis_info(redis)
 
     return RedisInfoResponse(
-        status=status,
+        status=status_str,
         info=info,
         pubsub=pubsub,
         timestamp=datetime.now(UTC).isoformat(),
@@ -635,7 +635,7 @@ async def set_log_level(
 
     if level not in VALID_LOG_LEVELS:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid log level: {request.level}. "
             f"Valid levels: {', '.join(sorted(VALID_LOG_LEVELS))}",
         )
@@ -962,7 +962,7 @@ async def get_recording(
 
     if recording_path is None or not recording_path.exists():
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Recording '{recording_id}' not found",
         )
 
@@ -978,7 +978,7 @@ async def get_recording(
     except Exception as e:
         logger.error(f"Failed to read recording {recording_id}: {e}")
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read recording: {e}",
         ) from e
 
@@ -1019,7 +1019,7 @@ async def replay_request(
 
     if recording_path is None or not recording_path.exists():
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Recording '{recording_id}' not found",
         )
 
@@ -1030,7 +1030,7 @@ async def replay_request(
     except Exception as e:
         logger.error(f"Failed to read recording {recording_id}: {e}")
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read recording: {e}",
         ) from e
 
@@ -1134,7 +1134,7 @@ async def delete_recording(
 
     if recording_path is None or not recording_path.exists():
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Recording '{recording_id}' not found",
         )
 
@@ -1144,6 +1144,6 @@ async def delete_recording(
     except Exception as e:
         logger.error(f"Failed to delete recording {recording_id}: {e}")
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete recording: {e}",
         ) from e

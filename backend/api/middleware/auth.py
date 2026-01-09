@@ -244,7 +244,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Reject if no API key provided
         if not api_key:
             return JSONResponse(
-                status_code=401,
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
                     "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
                 },
@@ -254,7 +254,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         key_hash = self._hash_key(api_key)
         if key_hash not in self.valid_key_hashes:
             return JSONResponse(
-                status_code=401,
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "Invalid API key"},
             )
 
