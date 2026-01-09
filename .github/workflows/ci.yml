@@ -17,9 +17,7 @@ env:
   UV_VERSION: '0.9.18' # Update this single location to change uv version across all workflows
 
 jobs:
-  # ============================================================================
   # Backend Jobs
-  # ============================================================================
 
   lint:
     name: Backend Lint (Ruff) - Python ${{ matrix.python-version }}
@@ -711,9 +709,7 @@ jobs:
               }
             }'
 
-  # ============================================================================
   # Frontend Jobs
-  # ============================================================================
 
   api-types-check:
     name: API Types Contract Check
@@ -751,6 +747,9 @@ jobs:
 
       - name: Check WebSocket types are current
         run: uv run python scripts/generate-ws-types.py --check
+
+      - name: Check OpenAPI spec is current
+        run: uv run python scripts/generate-openapi.py --check
 
       - name: Validate API type contract consistency
         run: ./scripts/validate-api-types.sh --verbose
@@ -1042,10 +1041,8 @@ jobs:
               }
             }'
 
-  # ============================================================================
   # Build Jobs (main-only - verify Docker builds after merge)
   # Separate jobs for backend/frontend to avoid disk space issues
-  # ============================================================================
 
   build-backend:
     name: Build Docker (backend)
@@ -1144,9 +1141,7 @@ jobs:
               }
             }'
 
-  # ============================================================================
   # Security Validation Job (main-only)
-  # ============================================================================
 
   # Main-only: security tests verify DEBUG=false enforcement post-merge
   security-validation:
@@ -1244,9 +1239,7 @@ jobs:
               }
             }'
 
-  # ============================================================================
   # Test Performance Audit Job (main-only)
-  # ============================================================================
 
   test-performance-audit:
     name: Test Performance Audit
@@ -1314,10 +1307,8 @@ jobs:
               }
             }'
 
-  # ============================================================================
   # Test Count Verification Job (main-only)
   # Prevents accidental test deletion by comparing against baseline counts
-  # ============================================================================
 
   test-count-verification:
     name: Test Count Verification
@@ -1425,9 +1416,7 @@ jobs:
               }
             }'
 
-  # ============================================================================
   # Security Scanning Jobs (Matrix Strategy for Parallelization)
-  # ============================================================================
 
   # Consolidated Trivy scans using matrix for parallel execution
   trivy-scan:
@@ -1562,9 +1551,7 @@ jobs:
             -v \
             --tb=short
 
-  # ============================================================================
   # TDD Compliance Tracking (PR-only, non-blocking)
-  # ============================================================================
   # Analyzes commit patterns to detect TDD practice compliance
   # Reports warnings for potential test-after-implementation patterns
   tdd-compliance:
@@ -1671,9 +1658,7 @@ jobs:
           echo "test_files=$TOTAL_TEST_FILES" >> $GITHUB_OUTPUT
           echo "impl_files=$TOTAL_IMPL_FILES" >> $GITHUB_OUTPUT
 
-  # ============================================================================
   # CI Gate - Aggregates all required checks for branch protection
-  # ============================================================================
   # This job provides a single status check that depends on all required jobs.
   # Use this as the required check in branch protection to simplify configuration.
   # Non-blocking workflows can use workflow_run trigger on CI completion.

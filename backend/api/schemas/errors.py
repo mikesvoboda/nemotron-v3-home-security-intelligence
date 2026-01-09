@@ -17,13 +17,14 @@ Standard Error Response Format:
     }
 
 Usage in routes:
+    from fastapi import status
     from backend.api.schemas.errors import ErrorCode, raise_http_error
 
     @router.get("/{id}")
     async def get_item(id: int) -> Item:
         if not item:
             raise_http_error(
-                status_code=404,
+                status_code=status.HTTP_404_NOT_FOUND,
                 error_code=ErrorCode.ITEM_NOT_FOUND,
                 message=f"Item with id {id} not found",
                 details={"item_id": id},
@@ -45,10 +46,11 @@ class ErrorCode:
     They follow the pattern: RESOURCE_ACTION or CATEGORY_DESCRIPTION.
 
     Usage:
+        from fastapi import status
         from backend.api.schemas.errors import ErrorCode, raise_http_error
 
         raise_http_error(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             error_code=ErrorCode.CAMERA_NOT_FOUND,
             message="Camera 'front_door' not found",
         )
@@ -162,18 +164,19 @@ def raise_http_error(
         HTTPException: Always raises with the provided status code and error details
 
     Example:
+        from fastapi import status
         from backend.api.schemas.errors import ErrorCode, raise_http_error
 
         # Simple 404 error
         raise_http_error(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             error_code=ErrorCode.CAMERA_NOT_FOUND,
             message="Camera 'front_door' not found in database",
         )
 
         # Error with details and request_id
         raise_http_error(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             error_code=ErrorCode.INVALID_DATE_RANGE,
             message="Start date must be before end date",
             details={"start_date": "2024-01-15", "end_date": "2024-01-10"},

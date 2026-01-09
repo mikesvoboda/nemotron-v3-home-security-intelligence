@@ -14,6 +14,7 @@ Security considerations:
 from collections.abc import Awaitable, Callable
 from typing import ClassVar
 
+from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -164,7 +165,7 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
                 },
             )
             return JSONResponse(
-                status_code=415,
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 content={
                     "detail": "Missing Content-Type header. Use application/json or multipart/form-data",
                     "error": "unsupported_media_type",
@@ -182,7 +183,7 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
                 },
             )
             return JSONResponse(
-                status_code=415,
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 content={
                     "detail": f"Unsupported Media Type: {base_type}. Use application/json or multipart/form-data",
                     "error": "unsupported_media_type",
