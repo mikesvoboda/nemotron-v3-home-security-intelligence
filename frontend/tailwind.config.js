@@ -60,7 +60,7 @@ export default {
         text: {
           primary: '#FFFFFF',
           secondary: '#B0B0B0', // Changed from #A0A0A0 for 5.17:1 contrast on gray-700
-          muted: '#8A8A8A', // Changed from #707070 for better contrast
+          muted: '#919191', // Changed from #8A8A8A for 4.81:1 contrast on #222222
         },
 
         // Additional Grays for UI Elements (WCAG 2 AA compliant)

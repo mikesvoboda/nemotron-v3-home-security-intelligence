@@ -240,6 +240,7 @@ ignore = [
     "PLR2004",# magic values ok in tests
     "B007",   # unused loop control variable ok in tests
     "ERA001", # section headers and documentation comments ok in tests
+    "SIM117", # nested with statements more readable with pytest.raises and patches
 ]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples

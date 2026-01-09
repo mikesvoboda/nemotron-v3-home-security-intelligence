@@ -395,6 +395,9 @@ class TestValidatedUploadFile:
 
         assert exc_info.value.status_code == 400
         assert "does not match" in exc_info.value.detail
+        # Verify detailed error message includes both types
+        assert "image/jpeg" in exc_info.value.detail
+        assert "image/png" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_disallowed_claimed_type_raises_400(self, mock_upload_file):
@@ -447,6 +450,97 @@ class TestValidatedUploadFile:
 
         assert exc_info.value.status_code == 400
         assert "does not match" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_unknown_file_type_rejected(self, mock_upload_file):
+        """Test file with unknown/unrecognized format is rejected."""
+        # Unknown format that can't be detected, but claim it as an allowed type
+        unknown_content = b"UNKNOWN_FORMAT_HEADER_DATA" + b"\x00" * 100
+        file = mock_upload_file(unknown_content, "image/jpeg")
+        validator = ValidatedUploadFile(allowed_types={"image/jpeg", "image/png"})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validator(file)
+
+        assert exc_info.value.status_code == 400
+        # When detection fails (detected_type is None), we get generic error message
+        assert "does not match" in exc_info.value.detail
+        # Should NOT include the detected type in the error since it's None
+        assert exc_info.value.detail == "File content does not match declared type"
+
+    @pytest.mark.asyncio
+    async def test_detected_type_not_in_allowed_no_compatible(self, mock_upload_file):
+        """Test detected type not in allowed types and no compatible types."""
+        # Upload QuickTime/MP4 file, claim as video/quicktime, but only allow video/webm
+        # video/quicktime is compatible with video/mp4, but neither is in allowed types
+        file = mock_upload_file(MOV_HEADER + b"\x00" * 100, "video/quicktime")
+        validator = ValidatedUploadFile(allowed_types={"video/webm"})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validator(file)
+
+        assert exc_info.value.status_code == 400
+        assert "not allowed" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_detected_type_with_compatible_in_allowed(self, mock_upload_file):
+        """Test detected type not in allowed but compatible type is allowed."""
+        # Upload QuickTime file (detected as video/quicktime or video/mp4)
+        # Only allow video/mp4 (which is compatible)
+        file = mock_upload_file(MOV_HEADER + b"\x00" * 100, "video/mp4")
+        validator = ValidatedUploadFile(allowed_types={"video/mp4"})
+
+        # Should pass because MOV and MP4 are compatible
+        # This tests lines 403-406 when detected=quicktime but mp4 is in allowed (compatible)
+        result = await validator(file)
+        assert result is file
+
+    @pytest.mark.asyncio
+    async def test_detected_matroska_compatible_webm_in_allowed(self, mock_upload_file):
+        """Test MKV file (detected as x-matroska) passes when webm is in allowed."""
+        # Upload MKV file (detected as video/x-matroska)
+        # Claim as video/webm (compatible, and in allowed)
+        # Only allow video/webm
+        file = mock_upload_file(MKV_HEADER + b"\x00" * 100, "video/webm")
+        validator = ValidatedUploadFile(allowed_types={"video/webm"})
+
+        # Should pass: detected=x-matroska, claimed=webm, compatible and webm is in allowed
+        # This tests lines 403-406: detected not in allowed but has compatible that is
+        result = await validator(file)
+        assert result is file
+
+    @pytest.mark.asyncio
+    async def test_detected_type_not_allowed_no_compatible_match(self, mock_upload_file):
+        """Test detected type not in allowed and compatible types also not allowed."""
+        # Upload MKV (detected as video/x-matroska, compatible with video/webm)
+        # Claim as video/x-matroska
+        # Only allow video/mp4 (not compatible)
+        file = mock_upload_file(MKV_HEADER + b"\x00" * 100, "video/x-matroska")
+        validator = ValidatedUploadFile(allowed_types={"video/mp4"})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await validator(file)
+
+        assert exc_info.value.status_code == 400
+        assert "not allowed" in exc_info.value.detail
+        assert "video/x-matroska" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_strict_mode_rejects_detected_not_in_allowed(self, mock_upload_file):
+        """Test strict mode rejects detected type not in allowed even with compatible."""
+        # Upload MKV (detected as video/x-matroska)
+        # Claim as video/webm (compatible but not exact match)
+        file = mock_upload_file(MKV_HEADER + b"\x00" * 100, "video/webm")
+        validator = ValidatedUploadFile(allowed_types={"video/webm"}, strict=True)
+
+        # In strict mode, should reject because detected != claimed exactly
+        with pytest.raises(HTTPException) as exc_info:
+            await validator(file)
+
+        assert exc_info.value.status_code == 400
+        assert "does not match" in exc_info.value.detail
+        assert "video/x-matroska" in exc_info.value.detail
+        assert "video/webm" in exc_info.value.detail
 
 
 # =============================================================================

@@ -852,29 +852,32 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
 
 @pytest.mark.asyncio
 async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_instance):
-    """Test that fast path creates analyzer if not provided."""
+    """Test that fast path creates analyzer if not provided (lazy initialization)."""
     camera_id = "back_door"
     detection_id = 456  # Use integer detection ID (matches database model)
 
-    # Ensure analyzer is None
+    # Ensure analyzer is None to trigger lazy initialization
     batch_aggregator._analyzer = None
 
-    # Instead of mocking the class, just check that analyzer is called
-    # Since we can't easily mock the import inside the function, we'll test
-    # the behavior by providing a mock analyzer after the first call
-    mock_analyzer = AsyncMock(spec=NemotronAnalyzer)
-    mock_analyzer.analyze_detection_fast_path = AsyncMock()
+    # Mock the NemotronAnalyzer class - it's imported inside _process_fast_path
+    with patch("backend.services.nemotron_analyzer.NemotronAnalyzer") as MockAnalyzer:
+        mock_analyzer_instance = AsyncMock(spec=NemotronAnalyzer)
+        mock_analyzer_instance.analyze_detection_fast_path = AsyncMock()
+        MockAnalyzer.return_value = mock_analyzer_instance
 
-    # Set up the analyzer manually to test it gets used
-    batch_aggregator._analyzer = mock_analyzer
+        await batch_aggregator._process_fast_path(camera_id, detection_id)
 
-    await batch_aggregator._process_fast_path(camera_id, detection_id)
+        # Should have created the analyzer with redis_client
+        MockAnalyzer.assert_called_once_with(redis_client=mock_redis_instance)
 
-    # Should call analyze method
-    mock_analyzer.analyze_detection_fast_path.assert_called_once_with(
-        camera_id=camera_id,
-        detection_id=detection_id,
-    )
+        # Should have called the analyze method
+        mock_analyzer_instance.analyze_detection_fast_path.assert_called_once_with(
+            camera_id=camera_id,
+            detection_id=detection_id,
+        )
+
+        # Verify analyzer was stored for reuse
+        assert batch_aggregator._analyzer == mock_analyzer_instance
 
 
 @pytest.mark.asyncio
@@ -1464,6 +1467,480 @@ async def test_close_batch_handles_partial_gather_failure(batch_aggregator, mock
     # Verify we still get a valid summary
     assert summary["batch_id"] == batch_id
     assert summary["camera_id"] == camera_id
+
+
+# =============================================================================
+# GPU Monitor and Memory Pressure Tests (NEM-1727)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_set_gpu_monitor():
+    """Test setting GPU monitor for backpressure checks."""
+    from backend.services.batch_aggregator import set_gpu_monitor
+
+    # Mock GPU monitor
+    mock_monitor = MagicMock()
+
+    # Should set global monitor
+    set_gpu_monitor(mock_monitor)
+
+    # Verify it was set (we can't directly access _gpu_monitor, but we can test side effects)
+    # The function should complete without error and log debug message
+
+
+@pytest.mark.asyncio
+async def test_get_memory_pressure_level_without_monitor():
+    """Test get_memory_pressure_level returns NORMAL when no GPU monitor is set."""
+    # Ensure global monitor is None
+    import backend.services.batch_aggregator as module
+    from backend.services.batch_aggregator import get_memory_pressure_level
+
+    original_monitor = module._gpu_monitor
+    try:
+        module._gpu_monitor = None
+
+        # Should return NORMAL when monitor is None
+        pressure = await get_memory_pressure_level()
+
+        from backend.services.gpu_monitor import MemoryPressureLevel
+
+        assert pressure == MemoryPressureLevel.NORMAL
+    finally:
+        module._gpu_monitor = original_monitor
+
+
+@pytest.mark.asyncio
+async def test_get_memory_pressure_level_monitor_raises_exception():
+    """Test get_memory_pressure_level returns NORMAL when monitor check fails."""
+    from backend.services.batch_aggregator import get_memory_pressure_level
+
+    # Mock GPU monitor that raises exception
+    mock_monitor = MagicMock()
+    mock_monitor.check_memory_pressure = AsyncMock(side_effect=RuntimeError("GPU check failed"))
+
+    import backend.services.batch_aggregator as module
+
+    original_monitor = module._gpu_monitor
+    try:
+        module._gpu_monitor = mock_monitor
+
+        # Should return NORMAL even when monitor raises exception
+        pressure = await get_memory_pressure_level()
+
+        from backend.services.gpu_monitor import MemoryPressureLevel
+
+        assert pressure == MemoryPressureLevel.NORMAL
+    finally:
+        module._gpu_monitor = original_monitor
+
+
+@pytest.mark.asyncio
+async def test_should_apply_backpressure_handles_exception(batch_aggregator):
+    """Test should_apply_backpressure returns False when memory pressure check fails."""
+    # Mock get_memory_pressure_level to raise exception
+    with patch(
+        "backend.services.batch_aggregator.get_memory_pressure_level",
+        side_effect=Exception("GPU monitor error"),
+    ):
+        # Should return False on exception (no backpressure)
+        result = await batch_aggregator.should_apply_backpressure()
+        assert result is False
+
+
+@pytest.mark.asyncio
+async def test_should_apply_backpressure_critical_pressure(batch_aggregator):
+    """Test should_apply_backpressure returns True for CRITICAL pressure."""
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    # Mock get_memory_pressure_level to return CRITICAL
+    with patch(
+        "backend.services.batch_aggregator.get_memory_pressure_level",
+        return_value=MemoryPressureLevel.CRITICAL,
+    ):
+        # Should return True for CRITICAL pressure
+        result = await batch_aggregator.should_apply_backpressure()
+        assert result is True
+
+
+@pytest.mark.asyncio
+async def test_should_apply_backpressure_normal_pressure(batch_aggregator):
+    """Test should_apply_backpressure returns False for NORMAL pressure."""
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    # Mock get_memory_pressure_level to return NORMAL
+    with patch(
+        "backend.services.batch_aggregator.get_memory_pressure_level",
+        return_value=MemoryPressureLevel.NORMAL,
+    ):
+        # Should return False for NORMAL pressure
+        result = await batch_aggregator.should_apply_backpressure()
+        assert result is False
+
+
+# =============================================================================
+# Batch Already Closed Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_close_batch_already_closed_by_another_coroutine(
+    batch_aggregator, mock_redis_instance
+):
+    """Test close_batch handles case where batch was already closed by another coroutine."""
+    batch_id = "batch_already_closed"
+    camera_id = "front_door"
+
+    # First get returns camera_id, second get (after lock) returns None (already closed)
+    call_count = [0]
+
+    async def mock_get(key):
+        call_count[0] += 1
+        if key == f"batch:{batch_id}:camera_id":
+            if call_count[0] == 1:
+                return camera_id  # First call returns camera_id
+            else:
+                return None  # Second call returns None (already closed)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Close batch - should detect it was already closed
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Should return summary with already_closed flag
+    assert summary["batch_id"] == batch_id
+    assert summary["camera_id"] == camera_id
+    assert summary["detection_count"] == 0
+    assert summary.get("already_closed") is True
+
+    # Should NOT push to queue (already closed)
+    assert not mock_redis_instance.add_to_queue_safe.called
+
+
+# =============================================================================
+# JSON Deserialization Tests (lines 471-472, 475-476)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_check_batch_timeouts_handles_json_deserialization():
+    """Test that check_batch_timeouts handles JSON-deserialized Redis values."""
+    import json
+
+    from backend.core.redis import RedisClient
+
+    mock_redis_instance = MagicMock(spec=RedisClient)
+    mock_redis_client = AsyncMock(spec=Redis)
+
+    batch_id = "batch_json"
+    camera_id = "front_door"
+    start_time = time.time() - 100  # Exceeds window timeout
+    last_activity = time.time() - 20
+
+    # Mock scan_iter
+    mock_redis_client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
+
+    # Phase 1 pipeline: returns JSON-serialized batch_id (as RedisClient.set() does)
+    json_batch_id = json.dumps(batch_id)
+    phase1_pipe = create_mock_pipeline([json_batch_id.encode()])
+
+    # Phase 2 pipeline: returns JSON-serialized timestamps
+    json_started_at = json.dumps(str(start_time))
+    json_last_activity = json.dumps(str(last_activity))
+    phase2_pipe = create_mock_pipeline([json_started_at.encode(), json_last_activity.encode()])
+
+    call_count = [0]
+
+    def create_pipe():
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return phase1_pipe
+        return phase2_pipe
+
+    mock_redis_client.pipeline = MagicMock(side_effect=create_pipe)
+    mock_redis_instance._client = mock_redis_client
+
+    # Mock get for camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_client.lrange = AsyncMock(return_value=["1", "2"])
+    mock_redis_instance.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
+    mock_redis_instance.delete = AsyncMock(return_value=1)
+
+    aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+    # Should handle JSON-deserialized values
+    closed_batches = await aggregator.check_batch_timeouts()
+
+    # Should close the batch (exceeded window timeout)
+    assert batch_id in closed_batches
+
+
+@pytest.mark.asyncio
+async def test_check_batch_timeouts_handles_non_json_values():
+    """Test that check_batch_timeouts handles non-JSON values gracefully."""
+    from backend.core.redis import RedisClient
+
+    mock_redis_instance = MagicMock(spec=RedisClient)
+    mock_redis_client = AsyncMock(spec=Redis)
+
+    batch_id = "batch_plain"
+    camera_id = "back_door"
+    start_time = time.time() - 100  # Exceeds window timeout
+    last_activity = time.time() - 20
+
+    # Mock scan_iter
+    mock_redis_client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
+
+    # Phase 1 pipeline: returns plain (non-JSON) batch_id
+    phase1_pipe = create_mock_pipeline([batch_id.encode()])
+
+    # Phase 2 pipeline: returns plain timestamps (not JSON-wrapped)
+    phase2_pipe = create_mock_pipeline([str(start_time).encode(), str(last_activity).encode()])
+
+    call_count = [0]
+
+    def create_pipe():
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return phase1_pipe
+        return phase2_pipe
+
+    mock_redis_client.pipeline = MagicMock(side_effect=create_pipe)
+    mock_redis_instance._client = mock_redis_client
+
+    # Mock get for camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_client.lrange = AsyncMock(return_value=["1", "2"])
+    mock_redis_instance.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
+    mock_redis_instance.delete = AsyncMock(return_value=1)
+
+    aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+    # Should handle plain (non-JSON) values
+    closed_batches = await aggregator.check_batch_timeouts()
+
+    # Should close the batch
+    assert batch_id in closed_batches
+
+
+# =============================================================================
+# Close Batch Exception Handling (TaskGroup)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_close_batch_handles_taskgroup_exceptions(batch_aggregator, mock_redis_instance):
+    """Test close_batch handles exceptions during parallel data fetching (TaskGroup)."""
+    batch_id = "batch_taskgroup_fail"
+    camera_id = "garage"
+
+    # First call returns camera_id, second call also returns camera_id
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            # Raise exception during parallel fetch
+            raise RuntimeError("Redis connection lost during fetch")
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    # Should raise the first exception from TaskGroup
+    with pytest.raises(RuntimeError, match="Redis connection lost"):
+        await batch_aggregator.close_batch(batch_id)
+
+
+# =============================================================================
+# _close_batch_for_size_limit Tests (NEM-1726)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_camera_not_found(batch_aggregator, mock_redis_instance):
+    """Test _close_batch_for_size_limit returns None when camera_id not found."""
+    batch_id = "batch_no_camera"
+
+    # Mock: camera_id not found
+    mock_redis_instance.get.return_value = None
+
+    # Should return None
+    result = await batch_aggregator._close_batch_for_size_limit(batch_id)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_handles_bytes_detections(
+    batch_aggregator, mock_redis_instance
+):
+    """Test _close_batch_for_size_limit handles bytes detection IDs from Redis."""
+    batch_id = "batch_bytes"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Mock lrange to return bytes (as Redis does)
+    mock_redis_instance._client.lrange.return_value = [b"1", b"2", b"3"]
+
+    # Should handle bytes and convert to ints
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    assert summary is not None
+    assert summary["batch_id"] == batch_id
+    assert summary["camera_id"] == camera_id
+    assert summary["detection_ids"] == [1, 2, 3]
+    assert summary["reason"] == "max_size"
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_handles_string_detections(
+    batch_aggregator, mock_redis_instance
+):
+    """Test _close_batch_for_size_limit handles string detection IDs from Redis."""
+    batch_id = "batch_strings"
+    camera_id = "back_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Mock lrange to return strings
+    mock_redis_instance._client.lrange.return_value = ["10", "20", "30"]
+
+    # Should handle strings and convert to ints
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    assert summary is not None
+    assert summary["detection_ids"] == [10, 20, 30]
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_includes_pipeline_start_time(
+    batch_aggregator, mock_redis_instance
+):
+    """Test _close_batch_for_size_limit includes pipeline_start_time when available."""
+    batch_id = "batch_with_pipeline_time"
+    camera_id = "garage"
+    pipeline_start_time = "2025-12-28T10:00:00.000000"
+
+    # Mock camera_id and timestamps
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        elif key == f"batch:{batch_id}:pipeline_start_time":
+            return pipeline_start_time
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    # Should include pipeline_start_time in summary
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    assert summary is not None
+    assert summary["pipeline_start_time"] == pipeline_start_time
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_empty_detections_no_queue_push(
+    batch_aggregator, mock_redis_instance
+):
+    """Test _close_batch_for_size_limit skips queue push when no detections."""
+    batch_id = "batch_empty_size_limit"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Mock lrange to return empty list
+    mock_redis_instance._client.lrange.return_value = []
+
+    # Should not push to queue when no detections
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    assert summary is not None
+    assert summary["detection_ids"] == []
+
+    # Should NOT have pushed to queue
+    assert not mock_redis_instance.add_to_queue_safe.called
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_queue_warning_logged(
+    batch_aggregator, mock_redis_instance, caplog
+):
+    """Test _close_batch_for_size_limit logs warning when queue has backpressure."""
+    import logging
+
+    batch_id = "batch_queue_warning"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    # Mock queue with backpressure warning
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=9000,
+        moved_to_dlq_count=2,
+        warning="Moved 2 items to DLQ due to overflow",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    # Verify warning was logged
+    assert any("overflow" in record.message.lower() for record in caplog.records)
 
 
 # =============================================================================
