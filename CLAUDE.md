@@ -816,6 +816,26 @@ Each Linear issue should result in exactly one PR:
 - **PR title format:** `<type>: <issue title> (NEM-<id>)`
 - **Example:** `fix: resolve WebSocket broadcast error (NEM-123)`
 
+**PR description must include closing keywords** to auto-close Linear issues on merge:
+
+```markdown
+## Summary
+
+[Description of changes]
+
+Closes NEM-123
+
+## Test plan
+
+[Testing checklist]
+```
+
+For multiple issues in one PR (related tasks only):
+
+```markdown
+Closes NEM-123, NEM-124, NEM-125
+```
+
 **Anti-patterns (do not do):**
 
 | Bad PR Title                        | Problem                    |
