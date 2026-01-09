@@ -1,23 +1,23 @@
 # Pre-commit hooks configuration
-# Install: pip install pre-commit && pre-commit install
+# Install: pip install pre-commit && pre-commit install && pre-commit install --hook-type pre-push
 # Run all: pre-commit run --all-files
 #
 # Performance Notes:
 # -----------------
 # Pre-commit runs fast linting/formatting checks (ruff, eslint, prettier, mypy).
-# Full test suites are intentionally NOT run on pre-commit due to ~2min execution time.
+# Pre-push runs unit tests with 85% coverage enforcement to catch failures before CI/CD.
 #
 # Test Strategy:
 #   - pre-commit: Linting, formatting, type-checking only (~10-30 seconds)
-#   - pre-push: Run fast tests for critical paths (optional, see below)
-#   - CI: Full test suite with coverage enforcement
+#   - pre-push: Unit tests with 85% coverage enforcement (~2-3 minutes)
+#   - CI: Full test suite (unit + integration + E2E)
 #   - Local dev: Use ./scripts/validate.sh for full validation before PRs
 #
 # Skipping Hooks (emergencies only):
-#   SKIP=fast-test git commit -m "message"  # Skip specific hook
-#   git commit --no-verify -m "message"      # Skip ALL hooks (use sparingly!)
+#   SKIP=fast-test git push             # Skip coverage check on push
+#   git push --no-verify                 # Skip ALL pre-push hooks (use sparingly!)
 #
-# To run full tests manually before committing:
+# To run full tests manually before pushing:
 #   ./scripts/validate.sh              # Full backend + frontend validation
 #   ./scripts/validate.sh --backend    # Backend only
 #
@@ -153,17 +153,16 @@ repos:
         always_run: true
         stages: [pre-push]
 
-      # Fast test hook - DISABLED by default for pre-commit performance (~2 min)
-      # To run tests on pre-push instead, use: pre-commit install --hook-type pre-push
-      # Or run manually: pytest backend/tests/unit/ -m "not slow" -q --fail-fast
+      # Unit tests with coverage enforcement - runs before push to catch failures early
+      # Enforces 85% coverage for unit tests alone (95% is for combined unit+integration, verified in CI)
+      # Uses parallel execution for speed (~2-3 min)
+      # Skip with: SKIP=fast-test git push
       - id: fast-test
         name: Quick Backend Tests (Unit Only)
-        # -n0 disables xdist parallelization (avoids scheduler race conditions)
-        # Excludes slow and integration tests (integration tests require real database)
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; uv run pytest backend/tests/unit/ -m "not slow and not integration" -q --tb=no -x -n0'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; uv run pytest backend/tests/unit/ -m "not slow and not integration" --cov=backend --cov-report=term-missing:skip-covered --cov-fail-under=85 -q --tb=short -n auto --dist=worksteal'
         language: system
         pass_filenames: false
-        stages: [pre-push] # Changed from pre-commit to pre-push for faster commits
+        stages: [pre-push]
 
       - id: api-types-contract
         name: API Types Contract Check

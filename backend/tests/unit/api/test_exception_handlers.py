@@ -6,25 +6,45 @@ Tests cover:
 - Media type is application/problem+json
 - Custom HTTPException detail messages are preserved
 - Edge cases and error scenarios
+- Comprehensive exception handler coverage for all handler types
 
 NEM-1425: Standardize error response format with RFC 7807 Problem Details
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError as PydanticValidationError
+from pydantic_core import ErrorDetails
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.testclient import TestClient
 
 from backend.api.exception_handlers import (
     build_error_response,
+    circuit_breaker_exception_handler,
+    external_service_exception_handler,
+    generic_exception_handler,
     get_request_id,
+    http_exception_handler,
     problem_details_exception_handler,
+    pydantic_validation_handler,
+    rate_limit_exception_handler,
     register_exception_handlers,
+    security_intelligence_exception_handler,
+    validation_exception_handler,
+)
+from backend.core.exceptions import (
+    CircuitBreakerOpenError,
+    ExternalServiceError,
+    RateLimitError,
+    SecurityIntelligenceError,
+    ValidationError,
 )
 
 # Mark as unit tests - no database required
@@ -899,3 +919,901 @@ class TestDatabaseRedisExceptionHandlersIntegration:
 
         body = response.json()
         assert body["error"]["code"] == "CACHE_UNAVAILABLE"
+
+    @patch("backend.api.exception_handlers.datetime")
+    def test_build_error_response_includes_timestamp(self, mock_datetime: Mock) -> None:
+        """Test that error response includes ISO timestamp."""
+        mock_now = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        mock_datetime.now.return_value = mock_now
+
+        response = build_error_response(
+            error_code="ERROR",
+            message="Test",
+            status_code=500,
+        )
+
+        content = response.body.decode()
+        assert "2024-01-01T12:00:00" in content
+
+
+# =============================================================================
+# SecurityIntelligenceExceptionHandler Tests
+# =============================================================================
+
+
+class TestSecurityIntelligenceExceptionHandler:
+    """Tests for security_intelligence_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_500_error_with_error_logging(self) -> None:
+        """Test that 5xx errors are logged with error level."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = SecurityIntelligenceError(
+            "Internal server error",
+            error_code="INTERNAL_ERROR",
+            status_code=500,
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await security_intelligence_exception_handler(request, exc)
+
+            # Should log as error for 5xx
+            mock_logger.error.assert_called_once()
+            call_args = mock_logger.error.call_args
+            assert "Internal error" in call_args[0][0]
+            assert call_args[1]["extra"]["status_code"] == 500
+
+        assert response.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_handles_429_error_with_warning_logging(self) -> None:
+        """Test that 429 rate limit errors are logged with warning level."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock()
+        request.state.request_id = "req-123"
+
+        exc = RateLimitError("Rate limit exceeded")
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await security_intelligence_exception_handler(request, exc)
+
+            mock_logger.warning.assert_called_once()
+            call_args = mock_logger.warning.call_args
+            assert "Rate limit exceeded" in call_args[0][0]
+
+        assert response.status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_handles_400_error_with_info_logging(self) -> None:
+        """Test that 4xx client errors are logged with info level."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/cameras/invalid"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = ValidationError("Invalid input", status_code=400)
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await security_intelligence_exception_handler(request, exc)
+
+            mock_logger.info.assert_called_once()
+            call_args = mock_logger.info.call_args
+            assert "Client error" in call_args[0][0]
+
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_includes_details_in_response(self) -> None:
+        """Test that exception details are included in response."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        details = {"field": "email", "value": "invalid"}
+        exc = ValidationError(
+            "Validation failed",
+            status_code=400,
+            details=details,
+        )
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await security_intelligence_exception_handler(request, exc)
+
+        content = response.body.decode()
+        assert "field" in content
+        assert "email" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_other_status_code_with_debug_logging(self) -> None:
+        """Test that non-4xx/5xx status codes are logged with debug level."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = SecurityIntelligenceError(
+            "Informational message",
+            error_code="INFO",
+            status_code=200,  # 2xx status code (not 4xx or 5xx)
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await security_intelligence_exception_handler(request, exc)
+
+            # Should log as debug for non-error status codes
+            mock_logger.debug.assert_called_once()
+            call_args = mock_logger.debug.call_args
+            assert "Exception handled" in call_args[0][0]
+
+        assert response.status_code == 200
+
+
+# =============================================================================
+# HttpExceptionHandler Tests
+# =============================================================================
+
+
+class TestHttpExceptionHandler:
+    """Tests for http_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_404_not_found(self) -> None:
+        """Test handling 404 Not Found exceptions."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/cameras/missing"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(status_code=404, detail="Camera not found")
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await http_exception_handler(request, exc)
+
+            mock_logger.info.assert_called_once()
+
+        assert response.status_code == 404
+        content = response.body.decode()
+        assert "NOT_FOUND" in content
+        assert "Camera not found" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_401_unauthorized(self) -> None:
+        """Test handling 401 Unauthorized exceptions."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/admin"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(
+            status_code=401,
+            detail="Authentication required",
+        )
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await http_exception_handler(request, exc)
+
+        assert response.status_code == 401
+        content = response.body.decode()
+        assert "AUTHENTICATION_REQUIRED" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_500_internal_error(self) -> None:
+        """Test handling 500 Internal Server Error with error logging."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(
+            status_code=500,
+            detail="Internal server error",
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await http_exception_handler(request, exc)
+
+            # Should log as error for 5xx
+            mock_logger.error.assert_called_once()
+
+        assert response.status_code == 500
+        content = response.body.decode()
+        assert "INTERNAL_ERROR" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_503_service_unavailable(self) -> None:
+        """Test handling 503 Service Unavailable."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/detections"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable",
+        )
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await http_exception_handler(request, exc)
+
+        assert response.status_code == 503
+        content = response.body.decode()
+        assert "SERVICE_UNAVAILABLE" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_exception_with_custom_headers(self) -> None:
+        """Test that custom headers from exception are preserved."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(
+            status_code=429,
+            detail="Rate limit exceeded",
+            headers={"Retry-After": "60"},
+        )
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await http_exception_handler(request, exc)
+
+        assert response.headers.get("Retry-After") == "60"
+
+    @pytest.mark.asyncio
+    async def test_handles_unknown_status_code(self) -> None:
+        """Test handling exception with unmapped status code."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(status_code=418, detail="I'm a teapot")
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await http_exception_handler(request, exc)
+
+        assert response.status_code == 418
+        content = response.body.decode()
+        assert "ERROR" in content  # Default error code
+
+    @pytest.mark.asyncio
+    async def test_handles_exception_with_request_id_in_header(self) -> None:
+        """Test that request ID from header is included in logs."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {"X-Request-ID": "header-req-999"}
+
+        exc = StarletteHTTPException(status_code=400, detail="Bad request")
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await http_exception_handler(request, exc)
+
+            call_args = mock_logger.info.call_args
+            assert call_args[1]["extra"]["request_id"] == "header-req-999"
+
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_handles_300_status_code(self) -> None:
+        """Test handling 3xx status code (not 4xx or 5xx)."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/redirect"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = StarletteHTTPException(
+            status_code=301,
+            detail="Moved Permanently",
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await http_exception_handler(request, exc)
+
+            # Should not call error, warning, or info for 3xx
+            mock_logger.error.assert_not_called()
+            mock_logger.warning.assert_not_called()
+            mock_logger.info.assert_not_called()
+
+        assert response.status_code == 301
+
+
+# =============================================================================
+# ValidationExceptionHandler Tests
+# =============================================================================
+
+
+class TestValidationExceptionHandler:
+    """Tests for validation_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_single_validation_error(self) -> None:
+        """Test handling single validation error with field details."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/cameras"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        # Create validation error
+        error: ErrorDetails = {
+            "type": "value_error",
+            "loc": ("body", "name"),
+            "msg": "Field required",
+            "input": None,
+        }
+        exc = RequestValidationError([error])
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await validation_exception_handler(request, exc)
+
+            mock_logger.info.assert_called_once()
+            call_args = mock_logger.info.call_args
+            assert "Request validation failed" in call_args[0][0]
+
+        assert response.status_code == 422
+        content = response.body.decode()
+        assert "VALIDATION_ERROR" in content
+        assert "body.name" in content
+        assert "Field required" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_multiple_validation_errors(self) -> None:
+        """Test handling multiple validation errors."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/events"
+        request.method = "GET"
+        request.state = Mock()
+        request.state.request_id = "req-xyz"
+
+        errors: list[ErrorDetails] = [
+            {
+                "type": "value_error",
+                "loc": ("query", "start_date"),
+                "msg": "Invalid date format",
+                "input": "not-a-date",
+            },
+            {
+                "type": "value_error",
+                "loc": ("query", "limit"),
+                "msg": "Must be positive",
+                "input": -5,
+            },
+        ]
+        exc = RequestValidationError(errors)
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await validation_exception_handler(request, exc)
+
+        content = response.body.decode()
+        assert "query.start_date" in content
+        assert "query.limit" in content
+        assert "Invalid date format" in content
+        assert "Must be positive" in content
+        assert "req-xyz" in content
+
+    @pytest.mark.asyncio
+    async def test_truncates_long_values(self) -> None:
+        """Test that long input values are truncated."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        long_value = "x" * 200
+        error: ErrorDetails = {
+            "type": "value_error",
+            "loc": ("body", "field"),
+            "msg": "Too long",
+            "input": long_value,
+        }
+        exc = RequestValidationError([error])
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await validation_exception_handler(request, exc)
+
+        content = response.body.decode()
+        # Value should be truncated to 100 characters
+        assert long_value[:100] in content
+        # Full value should NOT be in response (only first 100 chars)
+        assert long_value not in content
+
+
+# =============================================================================
+# PydanticValidationHandler Tests
+# =============================================================================
+
+
+class TestPydanticValidationHandler:
+    """Tests for pydantic_validation_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_response_serialization_error(self) -> None:
+        """Test handling Pydantic validation error during response serialization."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/cameras"
+        request.method = "GET"
+        request.state = Mock()
+        request.state.request_id = "req-123"
+
+        # Create a mock Pydantic validation error
+        # Use try/except to generate a real validation error
+        try:
+            from pydantic import BaseModel, Field
+
+            class TestModel(BaseModel):
+                required_field: str = Field(...)
+
+            # This will raise ValidationError
+            TestModel()
+        except PydanticValidationError as e:
+            exc = e
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await pydantic_validation_handler(request, exc)
+
+            # Should log as error since it's a server-side bug
+            mock_logger.error.assert_called_once()
+            call_args = mock_logger.error.call_args
+            assert "Response serialization failed" in call_args[0][0]
+            assert call_args[1]["extra"]["error_count"] == 1
+
+        assert response.status_code == 500
+        content = response.body.decode()
+        assert "INTERNAL_ERROR" in content
+        assert "internal error occurred" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_error_without_request_id(self) -> None:
+        """Test handling error when request has no request ID."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        # Create a validation error
+        try:
+            from pydantic import BaseModel
+
+            class TestModel(BaseModel):
+                required: str
+
+            TestModel()
+        except PydanticValidationError as e:
+            exc = e
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await pydantic_validation_handler(request, exc)
+
+            # Should log without request_id
+            call_args = mock_logger.error.call_args
+            log_extra = call_args[1]["extra"]
+            assert "request_id" not in log_extra
+
+        assert response.status_code == 500
+
+
+# =============================================================================
+# GenericExceptionHandler Tests
+# =============================================================================
+
+
+class TestGenericExceptionHandler:
+    """Tests for generic_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_unhandled_exception(self) -> None:
+        """Test handling any unhandled exception."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = ValueError("Unexpected error occurred")
+
+        with (
+            patch("backend.api.exception_handlers.logger") as mock_logger,
+            patch("backend.api.exception_handlers.sanitize_error_for_response") as mock_sanitize,
+        ):
+            mock_sanitize.return_value = "A safe error message"
+
+            response = await generic_exception_handler(request, exc)
+
+            # Should sanitize the error
+            mock_sanitize.assert_called_once_with(exc)
+
+            # Should log with full exception info
+            mock_logger.error.assert_called_once()
+            call_args = mock_logger.error.call_args
+            assert "Unhandled exception" in call_args[0][0]
+            assert call_args[1]["exc_info"] is True
+
+        assert response.status_code == 500
+        content = response.body.decode()
+        assert "INTERNAL_ERROR" in content
+        assert "safe error message" in content
+
+    @pytest.mark.asyncio
+    async def test_includes_exception_type_in_logs(self) -> None:
+        """Test that exception type is logged for debugging."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock()
+        request.state.request_id = "req-abc"
+
+        exc = KeyError("missing_key")
+
+        with (
+            patch("backend.api.exception_handlers.logger") as mock_logger,
+            patch("backend.api.exception_handlers.sanitize_error_for_response") as mock_sanitize,
+        ):
+            mock_sanitize.return_value = "Sanitized error message"
+
+            await generic_exception_handler(request, exc)
+
+            call_args = mock_logger.error.call_args
+            log_extra = call_args[1]["extra"]
+            assert log_extra["exception_type"] == "KeyError"
+            assert log_extra["request_id"] == "req-abc"
+
+
+# =============================================================================
+# CircuitBreakerExceptionHandler Tests
+# =============================================================================
+
+
+class TestCircuitBreakerExceptionHandler:
+    """Tests for circuit_breaker_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_circuit_breaker_error(self) -> None:
+        """Test handling circuit breaker open error."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/detections"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = CircuitBreakerOpenError(
+            service_name="rtdetr",
+            recovery_timeout=30.0,
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await circuit_breaker_exception_handler(request, exc)
+
+            mock_logger.warning.assert_called_once()
+            call_args = mock_logger.warning.call_args
+            assert "Circuit breaker open for rtdetr" in call_args[0][0]
+            assert call_args[1]["extra"]["service"] == "rtdetr"
+
+        assert response.status_code == 503
+        content = response.body.decode()
+        assert "CIRCUIT_BREAKER_OPEN" in content
+        assert "rtdetr" in content
+
+    @pytest.mark.asyncio
+    async def test_includes_retry_after_header(self) -> None:
+        """Test that Retry-After header is added with recovery timeout."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = CircuitBreakerOpenError(
+            service_name="nemotron",
+            recovery_timeout=60.0,
+        )
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await circuit_breaker_exception_handler(request, exc)
+
+        # Should include Retry-After header with recovery timeout
+        assert response.headers.get("Retry-After") == "60"
+
+    @pytest.mark.asyncio
+    async def test_handles_circuit_breaker_without_timeout(self) -> None:
+        """Test handling circuit breaker without recovery timeout."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = CircuitBreakerOpenError(service_name="service")
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await circuit_breaker_exception_handler(request, exc)
+
+        # Should not have Retry-After header if no timeout
+        assert "Retry-After" not in response.headers
+
+    @pytest.mark.asyncio
+    async def test_handles_circuit_breaker_with_request_id_in_header(self) -> None:
+        """Test circuit breaker handler with request ID from header."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {"X-Request-ID": "cb-req-123"}
+
+        exc = CircuitBreakerOpenError(service_name="database")
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await circuit_breaker_exception_handler(request, exc)
+
+            call_args = mock_logger.warning.call_args
+            assert call_args[1]["extra"]["request_id"] == "cb-req-123"
+
+        assert response.status_code == 503
+
+
+# =============================================================================
+# RateLimitExceptionHandler Tests
+# =============================================================================
+
+
+class TestRateLimitExceptionHandler:
+    """Tests for rate_limit_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_rate_limit_error(self) -> None:
+        """Test handling rate limit error."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/events"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = RateLimitError(
+            "Rate limit exceeded",
+            retry_after=30,
+            limit=100,
+            window_seconds=60,
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await rate_limit_exception_handler(request, exc)
+
+            mock_logger.warning.assert_called_once()
+            call_args = mock_logger.warning.call_args
+            assert "Rate limit exceeded" in call_args[0][0]
+
+        assert response.status_code == 429
+        content = response.body.decode()
+        assert "RATE_LIMIT_EXCEEDED" in content
+        assert "retry_after" in content
+
+    @pytest.mark.asyncio
+    async def test_includes_retry_after_header(self) -> None:
+        """Test that Retry-After header is included."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = RateLimitError(retry_after=120)
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await rate_limit_exception_handler(request, exc)
+
+        assert response.headers.get("Retry-After") == "120"
+
+    @pytest.mark.asyncio
+    async def test_handles_rate_limit_without_retry_after(self) -> None:
+        """Test handling rate limit error without retry_after."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = RateLimitError("Too many requests")
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await rate_limit_exception_handler(request, exc)
+
+        # Should not have Retry-After header if not specified
+        assert "Retry-After" not in response.headers
+
+    @pytest.mark.asyncio
+    async def test_handles_rate_limit_with_request_id_in_header(self) -> None:
+        """Test rate limit handler with request ID from header."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "POST"
+        request.state = Mock(spec=[])
+        request.headers = {"X-Request-ID": "rl-req-456"}
+
+        exc = RateLimitError("Rate limit hit", retry_after=30)
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await rate_limit_exception_handler(request, exc)
+
+            call_args = mock_logger.warning.call_args
+            assert call_args[1]["extra"]["request_id"] == "rl-req-456"
+
+        assert response.status_code == 429
+
+
+# =============================================================================
+# ExternalServiceExceptionHandler Tests
+# =============================================================================
+
+
+class TestExternalServiceExceptionHandler:
+    """Tests for external_service_exception_handler."""
+
+    @pytest.mark.asyncio
+    async def test_handles_external_service_error(self) -> None:
+        """Test handling external service error."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/detections"
+        request.method = "POST"
+        request.state = Mock()
+        request.state.request_id = "req-ext-123"
+
+        exc = ExternalServiceError(
+            "Service unavailable",
+            service_name="rtdetr",
+            details={"reason": "timeout"},
+        )
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            response = await external_service_exception_handler(request, exc)
+
+            mock_logger.error.assert_called_once()
+            call_args = mock_logger.error.call_args
+            assert "External service error (rtdetr)" in call_args[0][0]
+            assert call_args[1]["extra"]["service"] == "rtdetr"
+            assert call_args[1]["exc_info"] is True
+
+        assert response.status_code == 503
+        content = response.body.decode()
+        assert "SERVICE_UNAVAILABLE" in content
+        assert "req-ext-123" in content
+
+    @pytest.mark.asyncio
+    async def test_includes_service_details(self) -> None:
+        """Test that service details are included in response."""
+        request = Mock(spec=Request)
+        request.url = Mock()
+        request.url.path = "/api/test"
+        request.method = "GET"
+        request.state = Mock(spec=[])
+        request.headers = {}
+
+        exc = ExternalServiceError(
+            "Database connection failed",
+            service_name="postgresql",
+            details={"error": "connection timeout", "host": "db.example.com"},
+        )
+
+        with patch("backend.api.exception_handlers.logger"):
+            response = await external_service_exception_handler(request, exc)
+
+        content = response.body.decode()
+        assert "error" in content
+        assert "connection timeout" in content
+
+
+# =============================================================================
+# RegisterExceptionHandlers Tests
+# =============================================================================
+
+
+class TestRegisterExceptionHandlers:
+    """Tests for register_exception_handlers function."""
+
+    def test_registers_all_handlers(self) -> None:
+        """Test that all exception handlers are registered with the app."""
+        app = FastAPI()
+
+        with patch("backend.api.exception_handlers.logger") as mock_logger:
+            register_exception_handlers(app)
+
+            # Should log that handlers were registered
+            mock_logger.info.assert_called_once_with("Exception handlers registered")
+
+        # Verify handlers were added to the app
+        # FastAPI stores handlers in app.exception_handlers dict
+        assert len(app.exception_handlers) > 0
+
+        # Check for specific exception types
+        from fastapi.exceptions import RequestValidationError
+        from pydantic import ValidationError as PydanticValidationError
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        from backend.core.exceptions import (
+            CircuitBreakerOpenError,
+            ExternalServiceError,
+            RateLimitError,
+            SecurityIntelligenceError,
+        )
+
+        assert CircuitBreakerOpenError in app.exception_handlers
+        assert RateLimitError in app.exception_handlers
+        assert ExternalServiceError in app.exception_handlers
+        assert SecurityIntelligenceError in app.exception_handlers
+        assert RequestValidationError in app.exception_handlers
+        assert PydanticValidationError in app.exception_handlers
+        assert StarletteHTTPException in app.exception_handlers
+        assert Exception in app.exception_handlers
+
+    def test_handlers_are_registered_in_correct_order(self) -> None:
+        """Test that handlers are registered from most specific to least specific."""
+        app = FastAPI()
+        register_exception_handlers(app)
+
+        # The order matters for exception handling - more specific exceptions
+        # should be registered before more general ones.
+        # We can't easily test the order, but we can verify all are present.
+        handler_keys = list(app.exception_handlers.keys())
+
+        from backend.core.exceptions import (
+            CircuitBreakerOpenError,
+            ExternalServiceError,
+            SecurityIntelligenceError,
+        )
+
+        # CircuitBreakerOpenError should be registered (subclass of ExternalServiceError)
+        assert CircuitBreakerOpenError in handler_keys
+        # ExternalServiceError should be registered
+        assert ExternalServiceError in handler_keys
+        # SecurityIntelligenceError should be registered (base class)
+        assert SecurityIntelligenceError in handler_keys
+        # Generic Exception handler should be registered
+        assert Exception in handler_keys
