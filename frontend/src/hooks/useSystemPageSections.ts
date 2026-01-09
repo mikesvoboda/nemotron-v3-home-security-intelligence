@@ -11,6 +11,7 @@ export type SystemSectionId =
   | 'pipeline-metrics'
   | 'databases'
   | 'workers'
+  | 'background-jobs'
   | 'containers'
   | 'host-system'
   | 'circuit-breakers'
@@ -35,6 +36,7 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'pipeline-metrics': true,
   'databases': false,
   'workers': false,
+  'background-jobs': true,
   'containers': true,
   'host-system': true,
   'circuit-breakers': false,

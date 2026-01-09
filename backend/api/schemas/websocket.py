@@ -416,6 +416,95 @@ class WebSocketServiceStatusMessage(BaseModel):
     )
 
 
+class WebSocketCameraStatus(StrEnum):
+    """Valid camera status values for WebSocket messages."""
+
+    ONLINE = auto()
+    OFFLINE = auto()
+    ERROR = auto()
+    UNKNOWN = auto()
+
+
+class WebSocketCameraStatusData(BaseModel):
+    """Data payload for camera status messages.
+
+    Broadcast when a camera's status changes (online, offline, error, unknown).
+    """
+
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    status: WebSocketCameraStatus = Field(..., description="Current camera status")
+    previous_status: WebSocketCameraStatus | None = Field(
+        None, description="Previous camera status before this change"
+    )
+    reason: str | None = Field(None, description="Optional reason for the status change")
+
+    @field_validator("status", "previous_status", mode="before")
+    @classmethod
+    def validate_status(cls, v: str | WebSocketCameraStatus | None) -> WebSocketCameraStatus | None:
+        """Validate and convert status to WebSocketCameraStatus enum."""
+        if v is None:
+            return None
+        if isinstance(v, WebSocketCameraStatus):
+            return v
+        if isinstance(v, str):
+            try:
+                return WebSocketCameraStatus(v.lower())
+            except ValueError:
+                valid_values = [s.value for s in WebSocketCameraStatus]
+                raise ValueError(f"Invalid status '{v}'. Must be one of: {valid_values}") from None
+        raise ValueError(f"status must be a string or WebSocketCameraStatus enum, got {type(v)}")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "camera_id": "front_door",
+                "status": "offline",
+                "previous_status": "online",
+                "reason": "No activity detected for 5 minutes",
+            }
+        }
+    )
+
+
+class WebSocketCameraStatusMessage(BaseModel):
+    """Complete camera status message envelope.
+
+    This is the canonical format for camera status messages broadcast via WebSocket.
+    Consistent with other message types, data is wrapped in a standard envelope.
+
+    Format:
+        {
+            "type": "camera_status",
+            "data": {
+                "camera_id": "front_door",
+                "status": "offline",
+                "previous_status": "online",
+                "reason": "No activity detected"
+            }
+        }
+    """
+
+    type: Literal["camera_status"] = Field(
+        default="camera_status",
+        description="Message type, always 'camera_status' for camera status messages",
+    )
+    data: WebSocketCameraStatusData = Field(..., description="Camera status data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "camera_status",
+                "data": {
+                    "camera_id": "front_door",
+                    "status": "offline",
+                    "previous_status": "online",
+                    "reason": "No activity detected for 5 minutes",
+                },
+            }
+        }
+    )
+
+
 class WebSocketSceneChangeData(BaseModel):
     """Data payload for scene change messages broadcast to /ws/events clients.
 

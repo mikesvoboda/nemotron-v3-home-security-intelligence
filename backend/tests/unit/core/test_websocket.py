@@ -38,6 +38,7 @@ class MockEventBroadcaster:
     - broadcast_event(event_data) -> int
     - broadcast_service_status(status_data) -> int
     - broadcast_scene_change(scene_change_data) -> int
+    - broadcast_camera_status(camera_status_data) -> int
     - get_circuit_state() -> str
     """
 
@@ -210,6 +211,29 @@ class MockEventBroadcaster:
         for connection in self._connections:
             try:
                 await connection.send_json(scene_change_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_camera_status(self, camera_status_data: dict[str, Any]) -> int:
+        """Broadcast a camera status change message to all connected WebSocket clients.
+
+        Args:
+            camera_status_data: Camera status data dictionary containing status details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in camera_status_data:
+            camera_status_data = {"type": "camera_status", "data": camera_status_data}
+
+        self.messages.append(camera_status_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(camera_status_data)
                 count += 1
             except Exception:
                 pass

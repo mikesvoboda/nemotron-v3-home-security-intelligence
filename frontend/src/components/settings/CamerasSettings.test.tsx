@@ -192,13 +192,26 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Name must be at least 2 characters')).toBeInTheDocument();
+        // Updated to match backend validation (min_length=1)
+        expect(screen.getByText('Name is required')).toBeInTheDocument();
       });
 
       expect(screen.getByText('Folder path is required')).toBeInTheDocument();
     });
 
-    it('should validate name length', async () => {
+    it('should accept single character name (aligned with backend min_length=1)', async () => {
+      const newCamera: Camera = {
+        id: 'cam-3',
+        name: 'A',
+        folder_path: '/export/foscam/test',
+        status: 'online',
+        created_at: '2025-01-10T00:00:00Z',
+        last_seen_at: null,
+      };
+
+      vi.mocked(api.fetchCameras).mockResolvedValueOnce([]).mockResolvedValueOnce([newCamera]);
+      vi.mocked(api.createCamera).mockResolvedValue(newCamera);
+
       render(<CamerasSettings />);
 
       await waitFor(() => {
@@ -213,7 +226,10 @@ describe('CamerasSettings', () => {
       });
 
       const nameInput = screen.getByLabelText('Camera Name');
+      const folderInput = screen.getByLabelText('Folder Path');
+
       await user.type(nameInput, 'A');
+      await user.type(folderInput, '/export/foscam/test');
 
       const submitButton = within(screen.getByRole('dialog')).getByRole('button', {
         name: 'Add Camera',
@@ -221,11 +237,13 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Name must be at least 2 characters')).toBeInTheDocument();
+        expect(api.createCamera).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'A' })
+        );
       });
     });
 
-    it('should validate folder path format', async () => {
+    it('should validate folder path with path traversal (aligned with backend security)', async () => {
       render(<CamerasSettings />);
 
       await waitFor(() => {
@@ -243,7 +261,7 @@ describe('CamerasSettings', () => {
       const folderInput = screen.getByLabelText('Folder Path');
 
       await user.type(nameInput, 'Test Camera');
-      await user.type(folderInput, 'invalid path');
+      await user.type(folderInput, '/export/../etc/passwd');
 
       const submitButton = within(screen.getByRole('dialog')).getByRole('button', {
         name: 'Add Camera',
@@ -251,7 +269,8 @@ describe('CamerasSettings', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Folder path must be a valid path format')).toBeInTheDocument();
+        // Updated to match backend security validation
+        expect(screen.getByText('Path traversal (..) is not allowed in folder path')).toBeInTheDocument();
       });
     });
 

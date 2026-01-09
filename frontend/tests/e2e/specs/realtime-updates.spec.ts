@@ -152,7 +152,7 @@ test.describe('Real-time Dashboard Updates - Timeline', () => {
 });
 
 test.describe('Real-time Dashboard Updates - Stats Counters', () => {
-  test('Events Today counter increments on new event', async ({ page, browserName }) => {
+  test('Events Today counter increments on new event @flaky', async ({ page, browserName }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -178,7 +178,10 @@ test.describe('Real-time Dashboard Updates - Stats Counters', () => {
 
     await wsMock.sendSecurityEvent(newEvent);
 
-    // Wait for counter to increment using poll (more reliable than fixed timeout)
+    // Wait for processing
+    await waitForWSProcessing(page, browserName);
+
+    // Verify the counter incremented (use poll for reliability with async updates)
     await expect
       .poll(
         async () => {

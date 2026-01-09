@@ -192,7 +192,8 @@ export class AlertRulesPage extends BasePage {
     this.submitButton = page.getByLabel(/Alert Rule/i).getByRole('button', { name: /Add Rule|Update Rule/i });
 
     // Form Validation - use text patterns within the modal form
-    this.nameError = this.ruleModal.getByText(/Name must be at least 2 characters/i);
+    // Note: "Name is required" aligns with backend min_length=1 constraint
+    this.nameError = this.ruleModal.getByText(/Name is required/i);
     this.riskThresholdError = this.ruleModal.getByText(
       /Risk threshold must be between 0 and 100/i
     );

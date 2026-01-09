@@ -97,8 +97,22 @@ describe('ZoneForm', () => {
       expect(defaultProps.onSubmit).not.toHaveBeenCalled();
     });
 
-    it('should show error when name is too short', async () => {
+    it('should show error when name is empty (aligned with backend min_length=1)', async () => {
       render(<ZoneForm {...defaultProps} />);
+
+      // Leave name empty by not typing anything
+      const submitButton = screen.getByRole('button', { name: 'Save Zone' });
+      await userEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Name is required')).toBeInTheDocument();
+      });
+      expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('should accept single character name (aligned with backend min_length=1)', async () => {
+      const onSubmit = vi.fn();
+      render(<ZoneForm {...defaultProps} onSubmit={onSubmit} />);
 
       const nameInput = screen.getByLabelText('Zone Name');
       await userEvent.type(nameInput, 'A');
@@ -107,9 +121,8 @@ describe('ZoneForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Name must be at least 2 characters')).toBeInTheDocument();
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'A' }));
       });
-      expect(defaultProps.onSubmit).not.toHaveBeenCalled();
     });
 
     it('should trim whitespace from name', async () => {
