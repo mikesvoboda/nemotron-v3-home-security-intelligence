@@ -2129,3 +2129,129 @@ def observe_rum_fcp(value_ms: float, path: str = "/", rating: str = "unknown") -
     safe_rating = sanitize_metric_label(rating, max_length=20)
     RUM_FCP_SECONDS.labels(path=safe_path, rating=safe_rating).observe(value_ms / 1000.0)
     RUM_METRICS_TOTAL.labels(metric_name="FCP", rating=safe_rating).inc()
+
+
+# =============================================================================
+# Prompt A/B Testing Metrics (NEM-1667)
+# =============================================================================
+
+# Latency histogram for prompt versions
+PROMPT_VERSION_LATENCY_BUCKETS = (
+    0.1,  # 100ms
+    0.25,  # 250ms
+    0.5,  # 500ms
+    1.0,  # 1s
+    2.5,  # 2.5s
+    5.0,  # 5s
+    10.0,  # 10s
+    30.0,  # 30s
+    60.0,  # 60s
+    120.0,  # 2min
+)
+
+prompt_version_latency_seconds = Histogram(
+    "hsi_prompt_version_latency_seconds",
+    "Latency of prompt versions in seconds",
+    labelnames=["version"],
+    buckets=PROMPT_VERSION_LATENCY_BUCKETS,
+    registry=_registry,
+)
+
+# Risk score variance gauge between prompt versions
+prompt_version_risk_score_variance = Gauge(
+    "hsi_prompt_version_risk_score_variance",
+    "Risk score variance between prompt versions",
+    labelnames=["control_version", "treatment_version"],
+    registry=_registry,
+)
+
+# A/B test traffic counter
+PROMPT_AB_TRAFFIC_TOTAL = Counter(
+    "hsi_prompt_ab_traffic_total",
+    "Total requests routed through prompt A/B testing",
+    labelnames=["version", "is_treatment"],
+    registry=_registry,
+)
+
+# Shadow mode comparison counter
+PROMPT_SHADOW_COMPARISONS_TOTAL = Counter(
+    "hsi_prompt_shadow_comparisons_total",
+    "Total shadow mode prompt comparisons",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+# Rollback events counter
+PROMPT_ROLLBACKS_TOTAL = Counter(
+    "hsi_prompt_rollbacks_total",
+    "Total prompt rollback events triggered by performance degradation",
+    labelnames=["model", "reason"],
+    registry=_registry,
+)
+
+
+def record_prompt_latency(version: str, latency_seconds: float) -> None:
+    """Record latency for a specific prompt version.
+
+    Args:
+        version: Prompt version identifier (e.g., "v1", "v2")
+        latency_seconds: Request latency in seconds
+    """
+    safe_version = sanitize_metric_label(version, max_length=32)
+    prompt_version_latency_seconds.labels(version=safe_version).observe(latency_seconds)
+
+
+def record_risk_score_variance(
+    control_version: str,
+    treatment_version: str,
+    variance: float,
+) -> None:
+    """Record risk score variance between two prompt versions.
+
+    Args:
+        control_version: Control prompt version identifier
+        treatment_version: Treatment prompt version identifier
+        variance: Variance in risk scores between versions
+    """
+    safe_control = sanitize_metric_label(control_version, max_length=32)
+    safe_treatment = sanitize_metric_label(treatment_version, max_length=32)
+    prompt_version_risk_score_variance.labels(
+        control_version=safe_control,
+        treatment_version=safe_treatment,
+    ).set(variance)
+
+
+def record_prompt_ab_traffic(version: str, is_treatment: bool) -> None:
+    """Record A/B test traffic routing decision.
+
+    Args:
+        version: Prompt version that received the request
+        is_treatment: Whether this was the treatment (new) version
+    """
+    safe_version = sanitize_metric_label(version, max_length=32)
+    PROMPT_AB_TRAFFIC_TOTAL.labels(
+        version=safe_version,
+        is_treatment=str(is_treatment).lower(),
+    ).inc()
+
+
+def record_shadow_comparison(model: str) -> None:
+    """Record a shadow mode comparison execution.
+
+    Args:
+        model: Model name (e.g., "nemotron")
+    """
+    safe_model = sanitize_metric_label(model, max_length=32)
+    PROMPT_SHADOW_COMPARISONS_TOTAL.labels(model=safe_model).inc()
+
+
+def record_prompt_rollback(model: str, reason: str) -> None:
+    """Record a prompt rollback event.
+
+    Args:
+        model: Model name (e.g., "nemotron")
+        reason: Reason for rollback (e.g., "latency", "variance")
+    """
+    safe_model = sanitize_metric_label(model, max_length=32)
+    safe_reason = sanitize_metric_label(reason, max_length=32)
+    PROMPT_ROLLBACKS_TOTAL.labels(model=safe_model, reason=safe_reason).inc()

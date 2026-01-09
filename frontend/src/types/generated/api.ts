@@ -1065,13 +1065,21 @@ export interface paths {
          *     Uses Redis cache with cache-aside pattern to improve performance
          *     and generate cache hit metrics.
          *
+         *     Sparse Fieldsets (NEM-1434):
+         *     Use the `fields` parameter to request only specific fields in the response,
+         *     reducing payload size. Example: ?fields=id,name,status
+         *
          *     Args:
          *         status_filter: Optional status to filter cameras by (online, offline, error)
+         *         fields: Comma-separated list of fields to include (sparse fieldsets)
          *         db: Database session
          *         cache: Cache service injected via FastAPI DI
          *
          *     Returns:
          *         CameraListResponse containing list of cameras and total count
+         *
+         *     Raises:
+         *         HTTPException: 400 if invalid fields are requested
          */
         get: operations["list_cameras_api_cameras_get"];
         put?: never;
@@ -1723,6 +1731,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recordings
+         * @description List available request recordings.
+         *
+         *     Returns a list of recorded requests, sorted by timestamp (newest first).
+         *     Use the recording_id to replay a specific request.
+         *
+         *     NEM-1646: Request recording and replay for debugging
+         *
+         *     Args:
+         *         limit: Maximum number of recordings to return (default: 50)
+         *
+         *     Returns:
+         *         List of recordings with metadata
+         */
+        get: operations["list_recordings_api_debug_recordings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/recordings/{recording_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recording
+         * @description Get details of a specific recording.
+         *
+         *     Returns the full recording data including headers, body, and response.
+         *
+         *     NEM-1646: Request recording and replay for debugging
+         *
+         *     Args:
+         *         recording_id: ID of the recording to retrieve
+         *
+         *     Returns:
+         *         Full recording data
+         *
+         *     Raises:
+         *         HTTPException: 404 if recording not found
+         */
+        get: operations["get_recording_api_debug_recordings__recording_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Recording
+         * @description Delete a specific recording.
+         *
+         *     NEM-1646: Request recording management
+         *
+         *     Args:
+         *         recording_id: ID of the recording to delete
+         *
+         *     Returns:
+         *         Confirmation message
+         *
+         *     Raises:
+         *         HTTPException: 404 if recording not found
+         */
+        delete: operations["delete_recording_api_debug_recordings__recording_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/debug/redis/info": {
         parameters: {
             query?: never;
@@ -1742,6 +1829,46 @@ export interface paths {
         get: operations["get_redis_info_api_debug_redis_info_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/replay/{recording_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replay Request
+         * @description Replay a recorded request for debugging.
+         *
+         *     Reconstructs the original request from the recording and executes it
+         *     against the current application. This is useful for:
+         *     - Reproducing production issues locally
+         *     - Testing fixes for error scenarios
+         *     - Debugging intermittent failures
+         *
+         *     SECURITY: This endpoint is only available when debug=True and requires
+         *     the request to pass through the debug mode gate.
+         *
+         *     NEM-1646: Request recording and replay for debugging
+         *
+         *     Args:
+         *         recording_id: ID of the recording to replay
+         *
+         *     Returns:
+         *         Replay response with original and new status codes
+         *
+         *     Raises:
+         *         HTTPException: 404 if recording not found
+         */
+        post: operations["replay_request_api_debug_replay__recording_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1787,6 +1914,10 @@ export interface paths {
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Cursor-based pagination offers better performance for large datasets.
          *
+         *     Sparse Fieldsets (NEM-1434):
+         *     Use the `fields` parameter to request only specific fields in the response,
+         *     reducing payload size. Example: ?fields=id,camera_id,object_type,confidence
+         *
          *     Args:
          *         camera_id: Optional camera ID to filter by
          *         object_type: Optional object type to filter by (person, car, etc.)
@@ -1796,6 +1927,7 @@ export interface paths {
          *         limit: Maximum number of results to return (1-100, default 50)
          *         offset: Number of results to skip (deprecated, use cursor instead)
          *         cursor: Pagination cursor from previous response's next_cursor field
+         *         fields: Comma-separated list of fields to include (sparse fieldsets)
          *         db: Database session
          *
          *     Returns:
@@ -1804,6 +1936,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          *         HTTPException: 400 if cursor is invalid
+         *         HTTPException: 400 if invalid fields are requested
          */
         get: operations["list_detections_api_detections_get"];
         put?: never;
@@ -2381,6 +2514,10 @@ export interface paths {
          *     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
          *     Cursor-based pagination offers better performance for large datasets.
          *
+         *     Sparse Fieldsets (NEM-1434):
+         *     Use the `fields` parameter to request only specific fields in the response,
+         *     reducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed
+         *
          *     Args:
          *         camera_id: Optional camera ID to filter by
          *         risk_level: Optional risk level to filter by (low, medium, high, critical)
@@ -2391,6 +2528,7 @@ export interface paths {
          *         limit: Maximum number of results to return (1-100, default 50)
          *         offset: Number of results to skip (deprecated, use cursor instead)
          *         cursor: Pagination cursor from previous response's next_cursor field
+         *         fields: Comma-separated list of fields to include (sparse fieldsets)
          *         db: Database session
          *
          *     Returns:
@@ -2399,6 +2537,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          *         HTTPException: 400 if cursor is invalid
+         *         HTTPException: 400 if invalid fields are requested
          */
         get: operations["list_events_api_events_get"];
         put?: never;
@@ -11656,6 +11795,69 @@ export interface components {
             total_events_analyzed: number;
         };
         /**
+         * RecordingResponse
+         * @description Response for a single recording.
+         */
+        RecordingResponse: {
+            /**
+             * Body Truncated
+             * @description Whether body was truncated
+             * @default false
+             */
+            body_truncated: boolean;
+            /**
+             * Duration Ms
+             * @description Request duration in milliseconds
+             */
+            duration_ms: number;
+            /**
+             * Method
+             * @description HTTP method
+             */
+            method: string;
+            /**
+             * Path
+             * @description Request path
+             */
+            path: string;
+            /**
+             * Recording Id
+             * @description Unique recording ID
+             */
+            recording_id: string;
+            /**
+             * Status Code
+             * @description HTTP response status code
+             */
+            status_code: number;
+            /**
+             * Timestamp
+             * @description ISO timestamp when recorded
+             */
+            timestamp: string;
+        };
+        /**
+         * RecordingsListResponse
+         * @description Response for listing recordings.
+         */
+        RecordingsListResponse: {
+            /**
+             * Recordings
+             * @description List of recordings
+             */
+            recordings: components["schemas"]["RecordingResponse"][];
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+            /**
+             * Total
+             * @description Total number of recordings
+             */
+            total: number;
+        };
+        /**
          * RedisInfoResponse
          * @description Response for Redis connection stats.
          */
@@ -11682,6 +11884,44 @@ export interface components {
             /**
              * Timestamp
              * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
+         * ReplayResponse
+         * @description Response for request replay.
+         */
+        ReplayResponse: {
+            /**
+             * Original Status Code
+             * @description Original response status code
+             */
+            original_status_code: number;
+            /**
+             * Recording Id
+             * @description ID of the replayed recording
+             */
+            recording_id: string;
+            /**
+             * Replay Metadata
+             * @description Metadata about the replay
+             */
+            replay_metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Replay Response
+             * @description Response from replayed request
+             */
+            replay_response: unknown;
+            /**
+             * Replay Status Code
+             * @description Replay response status code
+             */
+            replay_status_code: number;
+            /**
+             * Timestamp
+             * @description ISO timestamp of replay
              */
             timestamp: string;
         };
@@ -15083,6 +15323,8 @@ export interface operations {
             query?: {
                 /** @description Filter by camera status */
                 status?: string | null;
+                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, name, folder_path, status, created_at, last_seen_at */
+                fields?: string | null;
             };
             header?: never;
             path?: never;
@@ -15957,6 +16199,103 @@ export interface operations {
             };
         };
     };
+    list_recordings_api_debug_recordings_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recording_api_debug_recordings__recording_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recording_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_recording_api_debug_recordings__recording_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recording_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_redis_info_api_debug_redis_info_get: {
         parameters: {
             query?: never;
@@ -15988,6 +16327,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    replay_request_api_debug_replay__recording_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recording_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -16044,6 +16414,8 @@ export interface operations {
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
+                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, video_codec, video_width, video_height, enrichment_data */
+                fields?: string | null;
             };
             header?: never;
             path?: never;
@@ -16822,6 +17194,8 @@ export interface operations {
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
+                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, reasoning, reviewed, detection_count, detection_ids, thumbnail_url */
+                fields?: string | null;
             };
             header?: never;
             path?: never;

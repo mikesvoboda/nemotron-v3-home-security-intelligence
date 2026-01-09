@@ -320,7 +320,7 @@ class TestGetAuditLog:
     def test_get_audit_log_success(self, client: TestClient, sample_audit_log: AuditLog) -> None:
         """Test getting a specific audit log."""
         with patch(
-            "backend.api.routes.audit.AuditService.get_audit_log_by_id",
+            "backend.api.routes.audit.get_audit_log_or_404",
             new_callable=AsyncMock,
         ) as mock_get_log:
             mock_get_log.return_value = sample_audit_log
@@ -334,11 +334,16 @@ class TestGetAuditLog:
 
     def test_get_audit_log_not_found(self, client: TestClient) -> None:
         """Test getting non-existent audit log returns 404."""
+        from fastapi import HTTPException, status
+
         with patch(
-            "backend.api.routes.audit.AuditService.get_audit_log_by_id",
+            "backend.api.routes.audit.get_audit_log_or_404",
             new_callable=AsyncMock,
         ) as mock_get_log:
-            mock_get_log.return_value = None
+            mock_get_log.side_effect = HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Audit log not found",
+            )
 
             response = client.get("/api/audit/999")
 

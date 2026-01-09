@@ -3,11 +3,13 @@
 Tests for reusable entity lookup functions in backend/api/dependencies.py
 that provide consistent 404 handling across route handlers.
 
-Test cases:
+Test cases cover:
 - get_alert_rule_or_404: Alert rule lookup and 404 handling
 - get_zone_or_404: Zone lookup with optional camera filter
 - get_prompt_version_or_404: Prompt version lookup
 - get_event_audit_or_404: Event audit lookup by event_id
+- get_audit_log_or_404: Audit log lookup
+- get_or_404_factory: Generic factory for entity lookups
 """
 
 from __future__ import annotations
@@ -20,7 +22,9 @@ from fastapi import HTTPException
 
 from backend.api.dependencies import (
     get_alert_rule_or_404,
+    get_audit_log_or_404,
     get_event_audit_or_404,
+    get_or_404_factory,
     get_prompt_version_or_404,
     get_zone_or_404,
 )
@@ -298,3 +302,201 @@ class TestGetEventAuditOr404:
 
         # Should match the format "No audit found for event {event_id}"
         assert "No audit found for event" in exc_info.value.detail
+
+
+class TestGetAuditLogOr404:
+    """Tests for get_audit_log_or_404 dependency function."""
+
+    @pytest.mark.asyncio
+    async def test_returns_log_when_found(self) -> None:
+        """Test that function returns AuditLog when found in database."""
+        mock_log = MagicMock()
+        mock_log.id = 123
+        mock_log.action = "camera_created"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_log
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_audit_log_or_404(123, mock_db)
+
+        assert result == mock_log
+        mock_db.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_raises_404_when_not_found(self) -> None:
+        """Test that function raises HTTPException 404 when log not found."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_audit_log_or_404(999, mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert "Audit log" in exc_info.value.detail
+        assert "999" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_accepts_integer_id(self) -> None:
+        """Test that function accepts integer IDs (AuditLog uses int primary key)."""
+        mock_log = MagicMock()
+        mock_log.id = 42
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_log
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_audit_log_or_404(42, mock_db)
+
+        assert result == mock_log
+
+
+class TestGetOr404Factory:
+    """Tests for the generic get_or_404_factory function."""
+
+    @pytest.mark.asyncio
+    async def test_factory_creates_working_function(self) -> None:
+        """Test that factory creates a functional get_or_404 function."""
+        from backend.models import Camera
+
+        get_camera = get_or_404_factory(Camera, "Camera")
+
+        mock_camera = MagicMock()
+        mock_camera.id = "test-cam"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_camera("test-cam", mock_db)
+
+        assert result == mock_camera
+
+    @pytest.mark.asyncio
+    async def test_factory_function_raises_404_when_not_found(self) -> None:
+        """Test that factory-generated function raises 404 when entity not found."""
+        from backend.models import Camera
+
+        get_camera = get_or_404_factory(Camera, "Camera")
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_camera("missing-id", mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert "Camera" in exc_info.value.detail
+        assert "missing-id" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_factory_uses_custom_id_field(self) -> None:
+        """Test that factory can use a custom ID field name."""
+        from backend.models import Camera
+
+        get_camera_by_name = get_or_404_factory(Camera, "Camera", id_field="name")
+
+        mock_camera = MagicMock()
+        mock_camera.name = "front_door"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_camera_by_name("front_door", mock_db)
+
+        assert result == mock_camera
+
+    @pytest.mark.asyncio
+    async def test_factory_preserves_entity_name_in_error(self) -> None:
+        """Test that factory includes entity name in error message."""
+        from backend.models import Detection
+
+        get_detection = get_or_404_factory(Detection, "Detection")
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_detection(123, mock_db)
+
+        assert "Detection" in exc_info.value.detail
+        assert "123" in exc_info.value.detail
+
+
+class TestExistingDependencies:
+    """Tests to verify existing dependency functions still work correctly."""
+
+    @pytest.mark.asyncio
+    async def test_get_camera_or_404_still_works(self) -> None:
+        """Test that existing get_camera_or_404 function still works."""
+        from backend.api.dependencies import get_camera_or_404
+        from backend.models import Camera
+
+        mock_camera = MagicMock(spec=Camera)
+        mock_camera.id = "test-camera"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_camera_or_404("test-camera", mock_db)
+
+        assert result == mock_camera
+
+    @pytest.mark.asyncio
+    async def test_get_event_or_404_still_works(self) -> None:
+        """Test that existing get_event_or_404 function still works."""
+        from backend.api.dependencies import get_event_or_404
+        from backend.models import Event
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_event
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_event_or_404(1, mock_db)
+
+        assert result == mock_event
+
+    @pytest.mark.asyncio
+    async def test_get_detection_or_404_still_works(self) -> None:
+        """Test that existing get_detection_or_404 function still works."""
+        from backend.api.dependencies import get_detection_or_404
+        from backend.models import Detection
+
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 42
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await get_detection_or_404(42, mock_db)
+
+        assert result == mock_detection
