@@ -113,14 +113,126 @@ Validation errors include detailed field-level information:
 
 ## Pagination
 
-List endpoints support pagination with consistent query parameters:
+The API supports two pagination methods: **cursor-based** (recommended) and **offset-based** (deprecated).
+
+### Cursor-Based Pagination (Recommended)
+
+Cursor-based pagination offers better performance for large datasets by avoiding the performance degradation of OFFSET for large offsets.
+
+| Parameter | Type    | Default | Max  | Description                                          |
+| --------- | ------- | ------- | ---- | ---------------------------------------------------- |
+| `limit`   | integer | 100     | 1000 | Maximum number of results to return                  |
+| `cursor`  | string  | null    | -    | Opaque cursor from previous response's `next_cursor` |
+
+**Request Example:**
+
+```bash
+# First request (no cursor)
+GET /api/events?limit=50
+
+# Subsequent requests (use next_cursor from previous response)
+GET /api/events?limit=50&cursor=eyJpZCI6IDEyMywgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==
+```
+
+**Response Format with Cursor:**
+
+```json
+{
+  "events": [...],
+  "count": 150,
+  "limit": 50,
+  "offset": 0,
+  "next_cursor": "eyJpZCI6IDEyMywgImNyZWF0ZWRfYXQiOiAiMjAyNS0xMi0yM1QxMjowMDowMFoifQ==", // pragma: allowlist secret
+  "has_more": true,
+  "deprecation_warning": null
+}
+```
+
+**Response Fields:**
+
+| Field                 | Type    | Description                                               |
+| --------------------- | ------- | --------------------------------------------------------- |
+| `next_cursor`         | string  | Opaque cursor for the next page (null if no more results) |
+| `has_more`            | boolean | Whether more results are available                        |
+| `deprecation_warning` | string  | Warning message if using deprecated offset pagination     |
+
+**How Cursors Work:**
+
+The cursor is a base64-encoded JSON object containing:
+
+- `id`: The ID of the last item in the current page
+- `created_at`: The timestamp of the last item (for tie-breaking)
+
+Cursors are opaque - clients should treat them as strings and pass them back unchanged.
+
+### Offset-Based Pagination (Deprecated)
+
+> **Warning:** Offset pagination is deprecated and will be removed in a future version. Use cursor-based pagination instead.
 
 | Parameter | Type    | Default | Max  | Description                         |
 | --------- | ------- | ------- | ---- | ----------------------------------- |
-| `limit`   | integer | 50      | 1000 | Maximum number of results to return |
+| `limit`   | integer | 100     | 1000 | Maximum number of results to return |
 | `offset`  | integer | 0       | -    | Number of results to skip           |
 
-### Paginated Response Format
+Using offset without cursor triggers a deprecation warning in the response:
+
+```json
+{
+  "events": [...],
+  "count": 150,
+  "limit": 50,
+  "offset": 50,
+  "deprecation_warning": "Offset pagination is deprecated and will be removed in a future version. Please use cursor-based pagination instead by using the 'cursor' parameter with the 'next_cursor' value from the response."
+}
+```
+
+### Endpoints Supporting Cursor Pagination
+
+The following endpoints support cursor-based pagination:
+
+- `GET /api/events` - Security events
+- `GET /api/detections` - Object detections
+- `GET /api/audit` - Audit logs
+- `GET /api/logs` - System logs
+
+### Pagination Best Practices
+
+1. **Always use cursor pagination** for new integrations
+2. **Store the cursor** between requests, not page numbers
+3. **Don't modify cursors** - treat them as opaque strings
+4. **Check `has_more`** to know when to stop iterating
+5. **Handle cursor expiration** - cursors may become invalid if underlying data changes significantly
+
+### Example: Iterating Through All Events
+
+```python
+import requests
+
+def get_all_events():
+    events = []
+    cursor = None
+
+    while True:
+        params = {"limit": 100}
+        if cursor:
+            params["cursor"] = cursor
+
+        response = requests.get("http://localhost:8000/api/events", params=params)
+        data = response.json()
+
+        events.extend(data["events"])
+
+        if not data.get("has_more"):
+            break
+
+        cursor = data.get("next_cursor")
+
+    return events
+```
+
+### Paginated Response Format (Legacy)
+
+For compatibility, the basic response format remains:
 
 ```json
 {
@@ -358,6 +470,53 @@ See [zones.md](zones.md) for full documentation.
 | GET    | `/api/audit/{audit_id}` | Get specific audit entry |
 
 See [audit.md](audit.md) for full documentation.
+
+### Analytics API
+
+| Method | Endpoint                             | Description                         |
+| ------ | ------------------------------------ | ----------------------------------- |
+| GET    | `/api/analytics/detection-trends`    | Get detection counts by day         |
+| GET    | `/api/analytics/risk-history`        | Get risk score distribution         |
+| GET    | `/api/analytics/camera-uptime`       | Get uptime percentage per camera    |
+| GET    | `/api/analytics/object-distribution` | Get detection counts by object type |
+
+See [analytics.md](analytics.md) for full documentation.
+
+### Services API (Container Orchestrator)
+
+| Method | Endpoint                              | Description                  |
+| ------ | ------------------------------------- | ---------------------------- |
+| GET    | `/api/system/services`                | List all managed services    |
+| POST   | `/api/system/services/{name}/restart` | Manually restart a service   |
+| POST   | `/api/system/services/{name}/enable`  | Re-enable a disabled service |
+| POST   | `/api/system/services/{name}/disable` | Disable a service            |
+| POST   | `/api/system/services/{name}/start`   | Start a stopped service      |
+
+See [services.md](services.md) for full documentation.
+
+### Notification Preferences API
+
+| Method | Endpoint                                         | Description                            |
+| ------ | ------------------------------------------------ | -------------------------------------- |
+| GET    | `/api/notification-preferences`                  | Get global notification preferences    |
+| PUT    | `/api/notification-preferences`                  | Update global notification preferences |
+| GET    | `/api/notification-preferences/cameras`          | Get all camera notification settings   |
+| GET    | `/api/notification-preferences/cameras/{id}`     | Get notification setting for a camera  |
+| PUT    | `/api/notification-preferences/cameras/{id}`     | Update camera notification setting     |
+| GET    | `/api/notification-preferences/quiet-hours`      | Get all quiet hours periods            |
+| POST   | `/api/notification-preferences/quiet-hours`      | Create a new quiet hours period        |
+| DELETE | `/api/notification-preferences/quiet-hours/{id}` | Delete a quiet hours period            |
+
+See [notification-preferences.md](notification-preferences.md) for full documentation.
+
+### Prompt Configuration API (Database-backed)
+
+| Method | Endpoint                              | Description                             |
+| ------ | ------------------------------------- | --------------------------------------- |
+| GET    | `/api/ai-audit/prompt-config/{model}` | Get prompt configuration for a model    |
+| PUT    | `/api/ai-audit/prompt-config/{model}` | Update prompt configuration for a model |
+
+See [prompts.md](prompts.md) for database-backed prompt management.
 
 ## Rate Limiting
 

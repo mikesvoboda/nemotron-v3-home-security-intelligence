@@ -4,460 +4,654 @@
 
 This document specifies the exact message formats for all WebSocket communication between frontend and backend. These contracts ensure type safety and enable validation testing across protocol boundaries.
 
-## WebSocket Endpoint
+The frontend implements a **typed event emitter pattern** for type-safe WebSocket message handling, with compile-time type checking for event subscriptions and payloads.
 
-**URL:** `ws://localhost:8000/ws`
+## WebSocket Endpoints
 
-**Authentication:** None (local single-user deployment)
+The system exposes two dedicated WebSocket channels:
 
-**Upgrade Headers:**
+| Endpoint     | Purpose                                    | Update Frequency |
+| ------------ | ------------------------------------------ | ---------------- |
+| `/ws/events` | Security events, detections, scene changes | Real-time        |
+| `/ws/system` | System status, GPU metrics, service health | Every 5 seconds  |
+
+### Connection URLs
 
 ```
-GET /ws HTTP/1.1
-Upgrade: websocket
-Connection: Upgrade
-Sec-WebSocket-Key: ...
-Sec-WebSocket-Version: 13
+Events Channel: ws://localhost:8000/ws/events
+System Channel: ws://localhost:8000/ws/system
 ```
+
+### Authentication
+
+Two authentication methods are supported (both optional, can be used together):
+
+1. **API Key Authentication** (when `api_key_enabled=true`):
+
+   - Query parameter: `ws://host/ws/events?api_key=YOUR_KEY`
+   - Sec-WebSocket-Protocol header: `api-key.YOUR_KEY`
+
+2. **Token Authentication** (when `WEBSOCKET_TOKEN` is configured):
+   - Query parameter: `ws://host/ws/events?token=YOUR_TOKEN`
+
+Connections without valid authentication (when required) will be rejected with code 1008 (Policy Violation).
 
 ## Connection Lifecycle
 
 ### Handshake
 
-1. Client initiates WebSocket upgrade to `/ws`
-2. Server accepts connection
-3. Server sends initial `connected` message
+1. Client initiates WebSocket upgrade to `/ws/events` or `/ws/system`
+2. Server validates authentication (if enabled)
+3. Server accepts connection
+4. For `/ws/system`: Server sends initial system status immediately
 
-### Keepalive
+### Server-Initiated Heartbeat
 
-- Client sends ping every 30 seconds
-- Server responds with pong
-- If no pong within 10 seconds, client reconnects
+- Server sends `{"type":"ping"}` every 30 seconds (configurable via `websocket_ping_interval_seconds`)
+- Client should respond with `{"type":"pong"}`
+- Keeps connections alive through proxies/load balancers
 
-### Graceful Shutdown
+### Client Keepalive
 
-- Server sends `shutdown` message before closing
-- Client gracefully closes after cleanup
-- Automatic reconnection on unexpected close
+- Client can send `{"type":"ping"}` at any time
+- Server responds with `{"type":"pong"}`
+- Legacy string `"ping"` also supported for backward compatibility
 
-## Message Format
+### Idle Timeout
+
+- Connections without messages for 300 seconds (configurable) are automatically closed
+- Send periodic ping messages to keep connections alive
+
+### Graceful Reconnection
+
+The frontend implements exponential backoff with jitter:
+
+- Default: 15 reconnection attempts
+- Base interval: 1 second
+- Max interval: 30 seconds
+- Provides ~8+ minutes of retry window for backend restarts
+
+## Message Envelope Format
 
 All WebSocket messages follow this envelope structure:
 
 ```typescript
 interface WebSocketMessage<T = unknown> {
-  // Message type - determines how to parse payload
+  // Message type discriminant - determines payload schema
   type: string;
-
-  // Timestamp when message was created (ISO 8601)
-  timestamp: string;
-
-  // Unique message ID for correlation/deduplication
-  id: string;
 
   // Actual message content (type-specific schema)
   data: T;
 
-  // Optional: Error details if type='error'
-  error?: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
+  // Optional: Timestamp (ISO 8601) - present on some message types
+  timestamp?: string;
 }
+```
+
+**Note:** Unlike some WebSocket implementations, messages do NOT include `id` fields. Deduplication is handled client-side using event IDs when applicable.
+
+## Typed Event Emitter Pattern
+
+The frontend uses a `TypedWebSocketEmitter` class for type-safe WebSocket message handling. This provides compile-time type checking for event names and their associated payload types.
+
+### Event Map Definition
+
+```typescript
+// frontend/src/types/websocket-events.ts
+
+interface WebSocketEventMap {
+  /** Security event from the events channel */
+  event: SecurityEventData;
+  /** Service status update (e.g., AI service health) */
+  service_status: ServiceStatusData;
+  /** System status broadcast */
+  system_status: SystemStatusData;
+  /** Server heartbeat ping */
+  ping: HeartbeatPayload;
+  /** GPU statistics */
+  gpu_stats: GpuStatsPayload;
+  /** WebSocket error */
+  error: WebSocketErrorPayload;
+  /** Pong response */
+  pong: PongPayload;
+}
+
+// All valid event keys
+type WebSocketEventKey = keyof WebSocketEventMap;
+// 'event' | 'service_status' | 'system_status' | 'ping' | 'gpu_stats' | 'error' | 'pong'
+```
+
+### TypedWebSocketEmitter Class
+
+```typescript
+// frontend/src/hooks/typedEventEmitter.ts
+
+class TypedWebSocketEmitter {
+  // Subscribe to an event with type-safe handler
+  on<K extends WebSocketEventKey>(
+    event: K,
+    handler: (data: WebSocketEventMap[K]) => void
+  ): () => void;
+
+  // Unsubscribe from an event
+  off<K extends WebSocketEventKey>(event: K, handler: (data: WebSocketEventMap[K]) => void): void;
+
+  // Emit an event with typed payload
+  emit<K extends WebSocketEventKey>(event: K, data: WebSocketEventMap[K]): void;
+
+  // Subscribe to an event that fires only once
+  once<K extends WebSocketEventKey>(
+    event: K,
+    handler: (data: WebSocketEventMap[K]) => void
+  ): () => void;
+
+  // Handle raw WebSocket message by extracting type and emitting
+  handleMessage(message: unknown): boolean;
+
+  // Utility methods
+  has(event: WebSocketEventKey): boolean;
+  listenerCount(event: WebSocketEventKey): number;
+  removeAllListeners(event: WebSocketEventKey): void;
+  clear(): void;
+  events(): WebSocketEventKey[];
+}
+```
+
+### Usage Example
+
+```typescript
+import { TypedWebSocketEmitter } from './typedEventEmitter';
+
+const emitter = new TypedWebSocketEmitter();
+
+// Type-safe subscription - TypeScript knows the payload type
+const unsubscribe = emitter.on('event', (data) => {
+  // data is typed as SecurityEventData
+  console.log(data.risk_score); // OK
+  console.log(data.invalid); // TypeScript error!
+});
+
+// Handle raw WebSocket messages
+ws.onmessage = (e) => {
+  const message = JSON.parse(e.data);
+  emitter.handleMessage(message); // Routes to correct handler
+};
+
+// Cleanup
+unsubscribe();
+```
+
+### Typed Subscription Integration
+
+The `createTypedSubscription` function combines connection management with typed events:
+
+```typescript
+import { createTypedSubscription } from './webSocketManager';
+
+const subscription = createTypedSubscription(
+  'ws://localhost:8000/ws/events',
+  {
+    reconnect: true,
+    reconnectInterval: 1000,
+    maxReconnectAttempts: 15,
+    connectionTimeout: 10000,
+    autoRespondToHeartbeat: true,
+  },
+  {
+    onOpen: () => console.log('Connected'),
+    onClose: () => console.log('Disconnected'),
+  }
+);
+
+// Type-safe event subscription
+subscription.on('event', (data) => {
+  console.log(`Risk: ${data.risk_score}, Camera: ${data.camera_id}`);
+});
+
+subscription.on('system_status', (data) => {
+  console.log(`GPU: ${data.gpu.utilization}%`);
+});
+
+// Cleanup
+subscription.unsubscribe();
 ```
 
 ## Message Types
 
-### Connection Management
+### Events Channel (`/ws/events`)
 
-#### `connected`
+#### `event` - Security Event
 
 **Direction:** Server → Client
-**When:** Upon successful WebSocket handshake
+**When:** New security event is created (after AI analysis)
 
 ```typescript
-interface ConnectedMessage {
-  type: 'connected';
-  timestamp: string;
-  id: string;
-  data: {
-    client_id: string; // Unique client identifier
-    server_time: string; // Server's current time (ISO 8601)
-    protocol_version: string; // e.g., "1.0"
-    features: string[]; // Supported features
-  };
+interface SecurityEventData {
+  id: string | number; // Unique event identifier
+  event_id?: number; // Legacy alias for id (backward compatibility)
+  batch_id?: string; // Detection batch identifier
+  camera_id: string; // Normalized camera ID (e.g., "front_door")
+  camera_name?: string; // Human-readable camera name
+  risk_score: number; // AI-determined risk score (0-100)
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  summary: string; // AI-generated event summary
+  timestamp?: string; // Event timestamp (ISO 8601)
+  started_at?: string; // When the event started (ISO 8601)
+}
+// Note: The backend sends a 'reasoning' field with LLM analysis, but the
+// frontend SecurityEventData type does not currently include it. If you need
+// the reasoning field, access it from the raw message data.
+
+// Message envelope
+interface EventMessage {
+  type: 'event';
+  data: SecurityEventData;
 }
 ```
 
-#### `ping`
+**Example payload:**
 
-**Direction:** Client → Server
-**When:** Every 30 seconds (client-side keepalive)
+```json
+{
+  "type": "event",
+  "data": {
+    "id": 1,
+    "event_id": 1,
+    "batch_id": "batch_abc123",
+    "camera_id": "front_door",
+    "risk_score": 75,
+    "risk_level": "high",
+    "summary": "Person detected at front door",
+    "started_at": "2026-01-09T12:00:00Z"
+  }
+}
+```
+
+> **Backend also sends:** The backend includes additional fields like `reasoning` (LLM analysis)
+> in the actual message. See `backend/api/schemas/websocket.py` for the complete backend schema.
+
+#### `scene_change` - Camera View Change
+
+**Direction:** Server → Client
+**When:** Camera view change or tampering is detected
+
+> **Note:** This message type is defined in the backend schema but is NOT currently
+> included in the frontend `WebSocketEventMap`. If you need to handle scene_change
+> messages, you'll need to process them manually from raw WebSocket messages or
+> extend the typed event emitter.
 
 ```typescript
-interface PingMessage {
+interface SceneChangeData {
+  id: number; // Unique scene change identifier
+  camera_id: string; // Normalized camera ID
+  detected_at: string; // ISO 8601 timestamp
+  change_type: 'view_blocked' | 'angle_changed' | 'view_tampered' | 'unknown';
+  similarity_score: number; // SSIM score (0-1, lower = more different)
+}
+
+interface SceneChangeMessage {
+  type: 'scene_change';
+  data: SceneChangeData;
+}
+```
+
+#### `service_status` - Service Health Update
+
+**Direction:** Server → Client
+**When:** AI service status changes (via health monitor)
+
+```typescript
+// Backend sends these status values:
+type ServiceStatus = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+
+// Frontend defines ContainerStatus (note: values differ from backend ServiceStatus):
+type ContainerStatus = 'running' | 'starting' | 'unhealthy' | 'stopped' | 'error' | 'unknown';
+
+interface ServiceStatusData {
+  service: string; // Service name (redis, rtdetr, nemotron)
+  status: ServiceStatus | ContainerStatus; // Status from either backend or container orchestrator
+  message?: string; // Optional descriptive message
+}
+
+interface ServiceStatusMessage {
+  type: 'service_status';
+  data: ServiceStatusData;
+  timestamp: string; // ISO 8601
+}
+```
+
+### System Channel (`/ws/system`)
+
+#### `system_status` - Full System Status
+
+**Direction:** Server → Client
+**When:** Periodic broadcast (every 5 seconds)
+
+```typescript
+interface GpuStatusData {
+  utilization: number | null; // GPU utilization percentage (0-100)
+  memory_used: number | null; // GPU memory used in bytes
+  memory_total: number | null; // Total GPU memory in bytes
+  temperature: number | null; // GPU temperature in Celsius
+  inference_fps: number | null; // Current inference FPS
+}
+
+interface CameraStatusData {
+  active: number; // Number of active/online cameras
+  total: number; // Total configured cameras
+}
+
+interface QueueStatusData {
+  pending: number; // Items pending processing
+  processing: number; // Items currently being processed
+}
+
+type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
+
+interface SystemStatusData {
+  gpu: GpuStatusData;
+  cameras: CameraStatusData;
+  queue: QueueStatusData;
+  health: HealthStatus;
+}
+
+interface SystemStatusMessage {
+  type: 'system_status';
+  data: SystemStatusData;
+  timestamp: string; // ISO 8601
+}
+```
+
+**Example payload:**
+
+```json
+{
+  "type": "system_status",
+  "data": {
+    "gpu": {
+      "utilization": 45.5,
+      "memory_used": 8192000000,
+      "memory_total": 24576000000,
+      "temperature": 65.0,
+      "inference_fps": 30.5
+    },
+    "cameras": {
+      "active": 4,
+      "total": 6
+    },
+    "queue": {
+      "pending": 2,
+      "processing": 1
+    },
+    "health": "healthy"
+  },
+  "timestamp": "2026-01-09T10:30:00.000Z"
+}
+```
+
+#### `performance_update` - Detailed Performance Metrics
+
+**Direction:** Server → Client
+**When:** Periodic broadcast with detailed metrics (via PerformanceCollector)
+
+```typescript
+interface PerformanceUpdate {
+  timestamp: string;
+  gpu: GpuMetrics | null;
+  ai_models: Record<string, AIModelMetrics>;
+  nemotron: NemotronMetrics | null;
+  inference: InferenceMetrics | null;
+  databases: Record<string, DatabaseMetrics>;
+  host: HostMetrics | null;
+  containers: ContainerMetrics[];
+  alerts: PerformanceAlert[];
+}
+
+interface PerformanceUpdateMessage {
+  type: 'performance_update';
+  data: PerformanceUpdate;
+}
+```
+
+#### `circuit_breaker_update` - Circuit Breaker States
+
+**Direction:** Server → Client
+**When:** Circuit breaker state changes or periodic broadcast
+
+```typescript
+interface CircuitBreakerUpdate {
+  timestamp: string;
+  summary: {
+    total: number;
+    open: number;
+    half_open: number;
+    closed: number;
+  };
+  breakers: Record<
+    string,
+    {
+      state: 'closed' | 'open' | 'half_open';
+      failure_count: number;
+    }
+  >;
+}
+
+interface CircuitBreakerMessage {
+  type: 'circuit_breaker_update';
+  data: CircuitBreakerUpdate;
+}
+```
+
+### Bidirectional Messages
+
+#### `ping` / `pong` - Heartbeat
+
+**Direction:** Bidirectional
+
+```typescript
+interface HeartbeatMessage {
   type: 'ping';
-  timestamp: string;
-  id: string;
-  data: {
-    // Empty
-  };
 }
-```
 
-**Server Response:**
-
-```typescript
 interface PongMessage {
   type: 'pong';
-  timestamp: string;
-  id: string; // Echoes ping ID for correlation
-  data: {
-    // Empty
-  };
 }
 ```
 
-#### `shutdown`
+The server sends `ping` every 30 seconds. Clients should respond with `pong`. Clients can also initiate ping/pong for connection health checks.
+
+#### `error` - Error Response
 
 **Direction:** Server → Client
-**When:** Server is shutting down gracefully
-
-```typescript
-interface ShutdownMessage {
-  type: 'shutdown';
-  timestamp: string;
-  id: string;
-  data: {
-    reason: string; // e.g., "maintenance", "restart"
-    grace_period_ms: number; // Milliseconds until hard close
-  };
-}
-```
-
-### Real-time Data Updates
-
-#### `event:new`
-
-**Direction:** Server → Client
-**When:** New event is created
-
-```typescript
-interface EventNewMessage {
-  type: 'event:new';
-  timestamp: string;
-  id: string;
-  data: {
-    id: number;
-    camera_id: string;
-    started_at: string; // ISO 8601
-    ended_at: string; // ISO 8601
-    risk_score: number; // 0-100
-    risk_level: 'low' | 'medium' | 'high' | 'critical';
-    summary: string;
-    reasoning: string;
-    object_types: string[]; // e.g., ["person", "dog"]
-  };
-}
-```
-
-#### `event:updated`
-
-**Direction:** Server → Client
-**When:** Event is updated (reviewed, notes added, etc.)
-
-```typescript
-interface EventUpdatedMessage {
-  type: 'event:updated';
-  timestamp: string;
-  id: string;
-  data: {
-    event_id: number;
-    changes: {
-      reviewed?: boolean;
-      notes?: string | null;
-      risk_score?: number;
-    };
-  };
-}
-```
-
-#### `detection:new`
-
-**Direction:** Server → Client
-**When:** New detection is created
-
-```typescript
-interface DetectionNewMessage {
-  type: 'detection:new';
-  timestamp: string;
-  id: string;
-  data: {
-    id: number;
-    camera_id: string;
-    detected_at: string; // ISO 8601
-    object_type: string; // e.g., "person"
-    confidence: number; // 0.0-1.0
-    bbox: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    };
-    file_path: string;
-    media_type: 'image' | 'video';
-  };
-}
-```
-
-#### `detections:batch`
-
-**Direction:** Server → Client
-**When:** Multiple detections in same batch window (90 seconds)
-
-```typescript
-interface DetectionsBatchMessage {
-  type: 'detections:batch';
-  timestamp: string;
-  id: string;
-  data: {
-    camera_id: string;
-    batch_id: string;
-    detection_count: number;
-    detections: Array<{
-      id: number;
-      object_type: string;
-      confidence: number;
-    }>;
-  };
-}
-```
-
-#### `gpu:stats`
-
-**Direction:** Server → Client
-**When:** GPU metrics are updated (every 10 seconds)
-
-```typescript
-interface GPUStatsMessage {
-  type: 'gpu:stats';
-  timestamp: string;
-  id: string;
-  data: {
-    gpu_name: string;
-    gpu_utilization: number; // Percentage 0-100
-    memory_used: number; // MB
-    memory_total: number; // MB
-    memory_percent: number; // Percentage 0-100
-    temperature: number; // Celsius
-    power_usage: number; // Watts
-    inference_fps: number; // Detections per second
-  };
-}
-```
-
-#### `status:ready`
-
-**Direction:** Server → Client
-**When:** All services are operational
-
-```typescript
-interface StatusReadyMessage {
-  type: 'status:ready';
-  timestamp: string;
-  id: string;
-  data: {
-    database: 'healthy' | 'degraded' | 'unhealthy';
-    redis: 'healthy' | 'degraded' | 'unhealthy';
-    gpu: 'healthy' | 'degraded' | 'unavailable';
-  };
-}
-```
-
-#### `status:warning`
-
-**Direction:** Server → Client
-**When:** Service degradation detected
-
-```typescript
-interface StatusWarningMessage {
-  type: 'status:warning';
-  timestamp: string;
-  id: string;
-  data: {
-    service: string; // e.g., "gpu", "redis", "database"
-    issue: string; // Human-readable description
-    severity: 'warning' | 'critical';
-  };
-}
-```
-
-### System Events
-
-#### `system:alert`
-
-**Direction:** Server → Client
-**When:** Alert condition triggered
-
-```typescript
-interface SystemAlertMessage {
-  type: 'system:alert';
-  timestamp: string;
-  id: string;
-  data: {
-    alert_id: string;
-    rule_id: number;
-    severity: 'info' | 'warning' | 'critical';
-    title: string;
-    description: string;
-    condition: string; // Rule that triggered alert
-  };
-}
-```
-
-#### `queue:depth`
-
-**Direction:** Server → Client
-**When:** Processing queue depth changes (batch processing)
-
-```typescript
-interface QueueDepthMessage {
-  type: 'queue:depth';
-  timestamp: string;
-  id: string;
-  data: {
-    queue_name: string; // e.g., "detections", "processing"
-    depth: number;
-    max_depth: number;
-    wait_time_ms: number; // Estimated time to process queue
-  };
-}
-```
-
-#### `pipeline:latency`
-
-**Direction:** Server → Client
-**When:** Pipeline latency metrics updated
-
-```typescript
-interface PipelineLatencyMessage {
-  type: 'pipeline:latency';
-  timestamp: string;
-  id: string;
-  data: {
-    stage: string; // e.g., "detection", "analysis", "storage"
-    latency_ms: number;
-    p95_latency_ms: number;
-    p99_latency_ms: number;
-  };
-}
-```
-
-### Error Handling
-
-#### `error`
-
-**Direction:** Either direction
-**When:** An error occurs during message processing
+**When:** Message validation or processing fails
 
 ```typescript
 interface ErrorMessage {
   type: 'error';
-  timestamp: string;
-  id: string;
-  data: {
-    // Empty - use envelope.error field
-  };
-  error: {
-    code: string; // e.g., "INVALID_MESSAGE", "INTERNAL_ERROR"
-    message: string;
-    details?: {
-      field?: string; // For validation errors
-      expected?: string;
-      received?: string;
-    };
-  };
+  code?: string; // Error code for programmatic handling
+  message: string; // Human-readable error message
+  details?: Record<string, unknown>;
 }
 ```
 
 **Error Codes:**
 
-| Code                  | Meaning                | Recovery          |
-| --------------------- | ---------------------- | ----------------- |
-| `PROTOCOL_ERROR`      | Invalid message format | Reconnect         |
-| `INVALID_MESSAGE`     | Message parsing failed | Check format      |
-| `UNAUTHORIZED`        | Auth failed            | N/A (no auth)     |
-| `SERVER_ERROR`        | Server error           | Reconnect         |
-| `TIMEOUT`             | Request timeout        | Retry             |
-| `SUBSCRIPTION_FAILED` | Cannot subscribe       | Check permissions |
+| Code                     | Meaning                      | Recovery           |
+| ------------------------ | ---------------------------- | ------------------ |
+| `invalid_json`           | Message is not valid JSON    | Fix message format |
+| `invalid_message_format` | Message doesn't match schema | Check schema       |
+| `unknown_message_type`   | Unknown message type         | Update client      |
+| `validation_error`       | Payload validation failed    | Check field values |
 
-## Subscription Model
+### Client → Server Messages
 
-The server broadcasts all messages to all connected clients. Clients can optionally subscribe to specific message types.
-
-### Client Subscription Filter (Optional)
+#### `subscribe` / `unsubscribe` - Channel Filtering (Future)
 
 ```typescript
 interface SubscribeMessage {
   type: 'subscribe';
-  timestamp: string;
-  id: string;
-  data: {
-    channels: string[]; // Message types to receive
-    // Examples:
-    // - "event:*"        (all event messages)
-    // - "detection:*"    (all detection messages)
-    // - "gpu:stats"      (only GPU stats)
-    // - "*"              (all messages, default)
-  };
+  channels: string[]; // Channel names (max 10)
+}
+
+interface UnsubscribeMessage {
+  type: 'unsubscribe';
+  channels: string[];
 }
 ```
 
-## Client Implementation Example
+**Note:** Subscription filtering is reserved for future use. Currently, all connected clients receive all messages for their channel.
+
+## Discriminated Union Types
+
+The frontend uses TypeScript discriminated unions for exhaustive message handling:
 
 ```typescript
-// Establish connection
-const ws = new WebSocket('ws://localhost:8000/ws');
+// All messages from /ws/events channel
+type EventsChannelMessage = EventMessage | HeartbeatMessage | ErrorMessage;
 
-// Handle incoming message
-ws.onmessage = (event) => {
-  const message: WebSocketMessage = JSON.parse(event.data);
+// All messages from /ws/system channel
+type SystemChannelMessage =
+  | SystemStatusMessage
+  | ServiceStatusMessage
+  | HeartbeatMessage
+  | ErrorMessage;
 
+// All possible WebSocket messages
+type WebSocketMessage =
+  | EventMessage
+  | SystemStatusMessage
+  | ServiceStatusMessage
+  | HeartbeatMessage
+  | PongMessage
+  | ErrorMessage;
+```
+
+### Type Guards
+
+```typescript
+// frontend/src/types/websocket.ts
+
+function isEventMessage(value: unknown): value is EventMessage;
+function isSystemStatusMessage(value: unknown): value is SystemStatusMessage;
+function isServiceStatusMessage(value: unknown): value is ServiceStatusMessage;
+function isHeartbeatMessage(value: unknown): value is HeartbeatMessage;
+function isPongMessage(value: unknown): value is PongMessage;
+function isErrorMessage(value: unknown): value is ErrorMessage;
+function isWebSocketMessage(value: unknown): value is WebSocketMessage;
+```
+
+### Exhaustive Pattern Matching
+
+```typescript
+import { assertNever } from '../types/websocket';
+
+function handleMessage(message: WebSocketMessage) {
   switch (message.type) {
-    case 'connected':
-      console.log('Connected:', message.data);
+    case 'event':
+      // message.data is typed as SecurityEventData
+      console.log(message.data.risk_score);
       break;
-
-    case 'event:new':
-      handleNewEvent(message as EventNewMessage);
+    case 'system_status':
+      // message.data is typed as SystemStatusData
+      console.log(message.data.gpu.utilization);
       break;
-
-    case 'detection:new':
-      handleNewDetection(message as DetectionNewMessage);
+    case 'service_status':
+      console.log(message.data.service, message.data.status);
       break;
-
-    case 'gpu:stats':
-      handleGPUStats(message as GPUStatsMessage);
+    case 'ping':
+      // Send pong response
       break;
-
+    case 'pong':
+      // Heartbeat acknowledged
+      break;
     case 'error':
-      handleError(message as ErrorMessage);
+      console.error(message.message);
       break;
+    default:
+      // TypeScript will error if any case is missed
+      assertNever(message);
   }
-};
+}
+```
 
-// Send keepalive ping
-setInterval(() => {
-  ws.send(
-    JSON.stringify({
-      type: 'ping',
-      timestamp: new Date().toISOString(),
-      id: crypto.randomUUID(),
-      data: {},
-    })
+## React Hook Usage
+
+### useEventStream
+
+```typescript
+import { useEventStream } from './hooks';
+
+function EventList() {
+  const { events, isConnected, latestEvent, clearEvents } = useEventStream();
+
+  return (
+    <div>
+      <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
+      {latestEvent && (
+        <p>Latest: {latestEvent.summary} (Risk: {latestEvent.risk_score})</p>
+      )}
+      <ul>
+        {events.map((e) => (
+          <li key={e.id}>{e.summary}</li>
+        ))}
+      </ul>
+    </div>
   );
-}, 30000);
+}
+```
+
+### useSystemStatus
+
+```typescript
+import { useSystemStatus } from './hooks';
+
+function SystemStatusPanel() {
+  const { status, isConnected } = useSystemStatus();
+
+  if (!status) return <p>Loading...</p>;
+
+  return (
+    <div>
+      <p>Health: {status.health}</p>
+      <p>GPU: {status.gpu_utilization ?? 'N/A'}%</p>
+      <p>Active Cameras: {status.active_cameras}</p>
+    </div>
+  );
+}
+```
+
+### useWebSocket (Low-level)
+
+```typescript
+import { useWebSocket } from './hooks';
+
+function CustomWebSocket() {
+  const {
+    isConnected,
+    lastMessage,
+    send,
+    hasExhaustedRetries,
+    reconnectCount,
+    lastHeartbeat,
+  } = useWebSocket({
+    url: 'ws://localhost:8000/ws/events',
+    onMessage: (data) => console.log('Received:', data),
+    onHeartbeat: () => console.log('Heartbeat received'),
+    reconnect: true,
+    reconnectInterval: 1000,
+    reconnectAttempts: 15,
+    connectionTimeout: 10000,
+    autoRespondToHeartbeat: true,
+  });
+
+  return (
+    <div>
+      <p>Connected: {isConnected ? 'Yes' : 'No'}</p>
+      <p>Reconnect attempts: {reconnectCount}</p>
+      <p>Last heartbeat: {lastHeartbeat?.toISOString()}</p>
+    </div>
+  );
+}
 ```
 
 ## Validation Rules
@@ -465,75 +659,96 @@ setInterval(() => {
 ### Message Timestamps
 
 - Must be ISO 8601 format: `YYYY-MM-DDTHH:mm:ss.fffZ`
-- Server timestamps may differ slightly from client (clock skew tolerance: 5 seconds)
 - UTC timezone only
-
-### Message IDs
-
-- Must be UUID v4 format or similar unique string
-- Used for deduplication across network boundaries
-- Client should ignore duplicate IDs within 1-minute window
+- Server timestamps may differ slightly from client (clock skew tolerance: 5 seconds)
 
 ### Numeric Fields
 
-- GPU percentages: 0-100 (inclusive)
+- GPU utilization: 0-100 (inclusive, percentage)
+- Memory values: bytes (positive integers)
 - Confidence scores: 0.0-1.0 (inclusive)
-- Risk scores: 0-100 (inclusive)
-- Any out-of-range values indicate data corruption
+- Risk scores: 0-100 (inclusive, integer)
+- Temperature: Celsius (typically 0-100)
 
 ### String Fields
 
 - `camera_id`: Alphanumeric + underscores, max 50 chars
-- `object_type`: Enum values only (person, dog, cat, etc.)
-- Text fields (summary, reasoning): UTF-8, max 2000 chars
+- `risk_level`: Must be one of: `low`, `medium`, `high`, `critical`
+- `summary`, `reasoning`: UTF-8, max 2000 chars
 
-## Contract Testing
+### Validation Errors
 
-E2E contract tests validate these schemas:
+Invalid messages receive an error response:
 
-```typescript
-// frontend/tests/contract/api-contract.test.ts
-test('event:new message matches schema', async ({ page }) => {
-  const eventMessage = await page.waitForEvent('websocket', (msg) => msg.type === 'event:new');
-
-  const data = JSON.parse(eventMessage.data);
-  expect(data).toMatchSchema(EventNewMessageSchema);
-});
+```json
+{
+  "type": "error",
+  "error": "invalid_message_format",
+  "message": "Message does not match expected schema",
+  "details": {
+    "validation_errors": [{ "loc": ["data", "risk_score"], "msg": "value is not a valid integer" }]
+  }
+}
 ```
 
-## Message Format Validation
+## Connection Management
 
-A message is valid if:
+### WebSocketManager
 
-1. Envelope contains `type`, `timestamp`, `id`, `data`
-2. Timestamp is ISO 8601 UTC
-3. Type matches one of the defined types
-4. Data matches type-specific schema
-5. All required fields are present
-6. No unknown fields in payload
+The frontend uses a singleton `WebSocketManager` for connection deduplication:
+
+- Multiple components subscribing to the same URL share one connection
+- Reference counting ensures connection closes only when all subscribers disconnect
+- Automatic reconnection with exponential backoff
+
+### Connection States
+
+```typescript
+type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
+
+interface ChannelStatus {
+  name: string;
+  state: ConnectionState;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+  lastMessageTime: Date | null;
+}
+```
+
+## Performance Considerations
+
+- Messages are JSON compact (no pretty-printing in production)
+- Batch operations use grouped messages instead of individual updates
+- GPU/system stats throttled to 5-10 second intervals
+- Client should debounce rapid updates using `useThrottledValue`
+- Event buffer limited to 100 most recent events to prevent memory issues
 
 ## Backward Compatibility
 
 - New message types can be added without breaking existing clients
-- Clients must ignore unknown message types
+- Clients MUST ignore unknown message types (use `assertNeverSoft` for logging)
 - Payload fields can be added but never removed or renamed
-- Schema changes bump protocol version in `connected` message
-
-## Performance Considerations
-
-- Messages should be JSON compact (no pretty-printing)
-- Batch operations use `detections:batch` instead of individual `detection:new`
-- GPU stats throttled to 10-second intervals to avoid client overload
-- Client should debounce rapid updates (e.g., GPU stats)
+- Legacy string `"ping"` still supported alongside `{"type":"ping"}`
+- `event_id` field maintained alongside `id` for backward compatibility
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2026-01-08
+**Version:** 2.0
+**Last Updated:** 2026-01-09
 **Status:** Stable
 
-See also:
+## Related Files
 
-- `frontend/src/types/websocket.ts` - TypeScript definitions
-- `backend/api/routes/websocket.py` - Server implementation
-- `frontend/tests/e2e/specs/websocket.spec.ts` - E2E tests
+| File                                      | Purpose                                 |
+| ----------------------------------------- | --------------------------------------- |
+| `frontend/src/types/websocket.ts`         | Discriminated union types, type guards  |
+| `frontend/src/types/websocket-events.ts`  | Event map, typed event utilities        |
+| `frontend/src/hooks/typedEventEmitter.ts` | TypedWebSocketEmitter class             |
+| `frontend/src/hooks/webSocketManager.ts`  | Connection manager, typed subscriptions |
+| `frontend/src/hooks/useWebSocket.ts`      | Low-level WebSocket hook                |
+| `frontend/src/hooks/useEventStream.ts`    | Events channel hook                     |
+| `frontend/src/hooks/useSystemStatus.ts`   | System channel hook                     |
+| `backend/api/routes/websocket.py`         | Server WebSocket endpoints              |
+| `backend/api/schemas/websocket.py`        | Pydantic message schemas                |
+| `backend/services/event_broadcaster.py`   | Event broadcasting service              |
+| `backend/services/system_broadcaster.py`  | System status broadcasting service      |

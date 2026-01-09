@@ -11,8 +11,9 @@ Welcome! This system watches your security cameras around the clock and alerts y
 **New to the system?** Follow this path to get started:
 
 1. [Getting Started](user-guide/getting-started.md) - What the system does and how to open it (~5 min read)
-2. [Dashboard Overview](user-guide/dashboard-overview.md) - Understanding what you see on screen (~8 min read)
-3. [Understanding Alerts](user-guide/understanding-alerts.md) - What the risk levels mean and when to take action (~10 min read)
+2. [Product Tour & Setup](user-guide/getting-started-tour.md) - Interactive tour walkthrough and first-time setup (~8 min read)
+3. [Dashboard Overview](user-guide/dashboard-overview.md) - Understanding what you see on screen (~8 min read)
+4. [Understanding Alerts](user-guide/understanding-alerts.md) - What the risk levels mean and when to take action (~10 min read)
 
 ---
 
@@ -28,15 +29,17 @@ These guides help you understand what you see when you open the app.
 
 **Dashboard Deep Dives (Focused Guides):**
 
-| Guide                                                | Description                                      | Time    |
-| ---------------------------------------------------- | ------------------------------------------------ | ------- |
-| [Dashboard Basics](user/dashboard-basics.md)         | Layout, header, sidebar, quick stats             | ~8 min  |
-| [Viewing Events](user/viewing-events.md)             | Activity feed, timeline, event details           | ~10 min |
-| [AI Enrichment Data](user/ai-enrichment.md)          | Advanced AI analysis in event details            | ~8 min  |
-| [AI Audit Dashboard](user/ai-audit.md)               | AI quality metrics and recommendations           | ~8 min  |
-| [Understanding Alerts](user/understanding-alerts.md) | Risk levels and how to respond                   | ~8 min  |
-| [Dashboard Settings](user/dashboard-settings.md)     | Configuration and quick reference                | ~5 min  |
-| [System Monitoring](user/system-monitoring.md)       | System health, circuit breakers, troubleshooting | ~12 min |
+| Guide                                                            | Description                                      | Time    |
+| ---------------------------------------------------------------- | ------------------------------------------------ | ------- |
+| [Dashboard Basics](user/dashboard-basics.md)                     | Layout, header, sidebar, quick stats             | ~8 min  |
+| [Dashboard Customization](user-guide/dashboard-customization.md) | Widgets, heatmaps, and analytics charts          | ~15 min |
+| [Viewing Events](user/viewing-events.md)                         | Activity feed, timeline, event details           | ~10 min |
+| [AI Enrichment Data](user/ai-enrichment.md)                      | Advanced AI analysis in event details            | ~8 min  |
+| [AI Audit Dashboard](user/ai-audit.md)                           | AI quality metrics and recommendations           | ~8 min  |
+| [Prompt Playground](user-guide/prompt-playground.md)             | Edit, test, and A/B test AI prompts              | ~15 min |
+| [Understanding Alerts](user/understanding-alerts.md)             | Risk levels and how to respond                   | ~8 min  |
+| [Dashboard Settings](user/dashboard-settings.md)                 | Configuration and quick reference                | ~5 min  |
+| [System Monitoring](user/system-monitoring.md)                   | System health, circuit breakers, troubleshooting | ~12 min |
 
 ---
 
@@ -83,10 +86,11 @@ No system is perfect. Pets, delivery drivers, and weather can sometimes trigger 
 
 All activity detected by your cameras is saved for 30 days. These guides help you find and review past events.
 
-| Guide                                          | Description                           | Time   |
-| ---------------------------------------------- | ------------------------------------- | ------ |
-| [Event Timeline](user-guide/event-timeline.md) | Browse, filter, and review all events | ~8 min |
-| [Full-Text Search](user-guide/search.md)       | Find specific events by keyword       | ~6 min |
+| Guide                                                    | Description                                     | Time    |
+| -------------------------------------------------------- | ----------------------------------------------- | ------- |
+| [Event Timeline](user-guide/event-timeline.md)           | Browse, filter, and review all events           | ~8 min  |
+| [Event Investigation](user-guide/event-investigation.md) | Video clips, entity tracking, and deep analysis | ~12 min |
+| [Full-Text Search](user-guide/search.md)                 | Find specific events by keyword                 | ~6 min  |
 
 ### What You Can Do With Events
 
@@ -116,6 +120,43 @@ Customize how the system works for you.
 
 ---
 
+## Mobile and PWA
+
+Use the dashboard on your phone or tablet and receive push notifications.
+
+| Guide                                            | Description                                         | Time    |
+| ------------------------------------------------ | --------------------------------------------------- | ------- |
+| [Mobile and PWA Guide](user-guide/mobile-pwa.md) | Install as an app, push notifications, offline mode | ~10 min |
+
+### Quick Features
+
+- **Install as an app** - Add to home screen on iOS, Android, or desktop
+- **Push notifications** - Receive alerts for high-risk security events
+- **Touch-friendly** - Swipe gestures, bottom navigation, large tap targets
+- **Offline access** - View cached events when network is unavailable
+
+---
+
+## Accessibility
+
+The dashboard is designed to be accessible to everyone, including users who rely on assistive technologies.
+
+| Guide                                                 | Description                                  | Time   |
+| ----------------------------------------------------- | -------------------------------------------- | ------ |
+| [Accessibility Features](user-guide/accessibility.md) | Screen readers, keyboard-only use, WCAG info | ~8 min |
+
+### Quick Accessibility Features
+
+- **Skip link** - Press Tab on page load to skip navigation
+- **Keyboard navigation** - Full operation without a mouse
+- **Screen reader support** - VoiceOver, NVDA, JAWS compatible
+- **High contrast** - WCAG 2.1 AA compliant color contrast
+- **Reduced motion** - Respects system motion preferences
+
+For the complete keyboard reference, press `?` anywhere or see [Keyboard Shortcuts](user-guide/keyboard-shortcuts.md).
+
+---
+
 ## Quick Reference
 
 ### Color Guide
@@ -138,13 +179,49 @@ Customize how the system works for you.
 
 ### Keyboard Shortcuts
 
-When viewing event details:
+For a complete guide, see [Keyboard Shortcuts](user-guide/keyboard-shortcuts.md).
 
-| Key         | Action          |
-| ----------- | --------------- |
-| Left Arrow  | Previous event  |
-| Right Arrow | Next event      |
-| Escape      | Close the popup |
+**Command Palette (Quick Navigation):**
+
+| Shortcut       | Action                                             |
+| -------------- | -------------------------------------------------- |
+| `Cmd/Ctrl + K` | Open command palette - search and jump to any page |
+| `?`            | Show keyboard shortcuts help                       |
+| `Escape`       | Close modal / Cancel                               |
+
+**Navigation Chords (press `g` then the second key):**
+
+| Chord | Destination |
+| ----- | ----------- |
+| `g d` | Dashboard   |
+| `g t` | Timeline    |
+| `g a` | Analytics   |
+| `g l` | Alerts      |
+| `g e` | Entities    |
+| `g o` | Logs        |
+| `g s` | System      |
+| `g ,` | Settings    |
+
+**List Navigation:**
+
+| Key          | Action              |
+| ------------ | ------------------- |
+| `j` / `Down` | Move down / Next    |
+| `k` / `Up`   | Move up / Previous  |
+| `Home`       | Jump to first item  |
+| `End`        | Jump to last item   |
+| `Enter`      | Select current item |
+
+**When Viewing Images/Videos:**
+
+| Key           | Action             |
+| ------------- | ------------------ |
+| `Left Arrow`  | Previous image     |
+| `Right Arrow` | Next image         |
+| `Space`       | Play/Pause (video) |
+| `f`           | Fullscreen (video) |
+| `m`           | Mute (video)       |
+| `Escape`      | Close viewer       |
 
 ---
 
@@ -182,19 +259,27 @@ The AI is designed to help you, not replace your judgment:
 
 Complete list of guides for using the system:
 
-| Guide                                                        | Description                        |
-| ------------------------------------------------------------ | ---------------------------------- |
-| [Getting Started](user-guide/getting-started.md)             | Introduction and first steps       |
-| [Dashboard Overview](user-guide/dashboard-overview.md)       | Main screen layout and components  |
-| [Using the Dashboard](user-guide/using-the-dashboard.md)     | Complete feature walkthrough       |
-| [Understanding Alerts](user-guide/understanding-alerts.md)   | Risk levels and how to respond     |
-| [Alerts & Notifications](user-guide/alerts-notifications.md) | Alert page and notification setup  |
-| [Event Timeline](user-guide/event-timeline.md)               | Browsing and filtering events      |
-| [Full-Text Search](user-guide/search.md)                     | Finding specific events            |
-| [Settings](user-guide/settings.md)                           | Configuring the system             |
-| [AI Audit Dashboard](user/ai-audit.md)                       | AI quality metrics and auditing    |
-| [System Monitoring](user/system-monitoring.md)               | System health and circuit breakers |
-| [Risk Levels Reference](reference/config/risk-levels.md)     | Official risk score definitions    |
+| Guide                                                            | Description                             |
+| ---------------------------------------------------------------- | --------------------------------------- |
+| [Getting Started](user-guide/getting-started.md)                 | Introduction and first steps            |
+| [Product Tour & Setup](user-guide/getting-started-tour.md)       | Interactive tour and first-time setup   |
+| [Dashboard Overview](user-guide/dashboard-overview.md)           | Main screen layout and components       |
+| [Using the Dashboard](user-guide/using-the-dashboard.md)         | Complete feature walkthrough            |
+| [Dashboard Customization](user-guide/dashboard-customization.md) | Widgets, heatmaps, and analytics charts |
+| [Interface Guide](user-guide/interface-guide.md)                 | Toasts, loading states, visual feedback |
+| [Understanding Alerts](user-guide/understanding-alerts.md)       | Risk levels and how to respond          |
+| [Alerts & Notifications](user-guide/alerts-notifications.md)     | Alert page and notification setup       |
+| [Event Timeline](user-guide/event-timeline.md)                   | Browsing and filtering events           |
+| [Full-Text Search](user-guide/search.md)                         | Finding specific events                 |
+| [Mobile and PWA](user-guide/mobile-pwa.md)                       | Install app, push notifications         |
+| [Keyboard Shortcuts](user-guide/keyboard-shortcuts.md)           | Command palette and navigation          |
+| [Accessibility Features](user-guide/accessibility.md)            | Screen readers, keyboard-only, WCAG     |
+| [Event Investigation](user-guide/event-investigation.md)         | Video clips, entity tracking, deep dive |
+| [Settings](user-guide/settings.md)                               | Configuring the system                  |
+| [AI Audit Dashboard](user/ai-audit.md)                           | AI quality metrics and auditing         |
+| [Prompt Playground](user-guide/prompt-playground.md)             | Edit, test, and A/B test AI prompts     |
+| [System Monitoring](user/system-monitoring.md)                   | System health and circuit breakers      |
+| [Risk Levels Reference](reference/config/risk-levels.md)         | Official risk score definitions         |
 
 ---
 
