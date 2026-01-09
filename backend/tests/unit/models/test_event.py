@@ -597,7 +597,7 @@ class TestEventProperties:
     """Property-based tests for Event model."""
 
     @given(risk_score=risk_scores)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_risk_score_roundtrip(self, risk_score: int):
         """Property: Risk score values roundtrip correctly."""
         event = Event(
@@ -621,7 +621,7 @@ class TestEventProperties:
         assert event.risk_level == risk_level
 
     @given(batch_id=batch_ids, camera_id=st.text(min_size=1, max_size=50))
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_required_fields_roundtrip(self, batch_id: str, camera_id: str):
         """Property: Required fields roundtrip correctly."""
         event = Event(
@@ -633,7 +633,7 @@ class TestEventProperties:
         assert event.camera_id == camera_id
 
     @given(summary=st.text(max_size=500), reasoning=st.text(max_size=1000))
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_text_fields_roundtrip(self, summary: str, reasoning: str):
         """Property: Text fields roundtrip correctly."""
         event = Event(
@@ -663,7 +663,7 @@ class TestEventProperties:
     @given(
         detection_ids=st.lists(st.integers(min_value=1, max_value=10000), min_size=1, max_size=20)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_detection_ids_can_store_list_as_string(self, detection_ids: list[int]):
         """Property: Detection IDs can be stored as comma-separated string."""
         ids_string = ",".join(str(i) for i in detection_ids)

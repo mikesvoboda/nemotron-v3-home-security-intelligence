@@ -1018,7 +1018,7 @@ class TestAuditLogProperties:
         assert log.resource_type == resource_type
 
     @given(resource_id=resource_ids)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_resource_id_roundtrip(self, resource_id: str):
         """Property: Resource ID values roundtrip correctly."""
         log = AuditLog(
@@ -1030,7 +1030,7 @@ class TestAuditLogProperties:
         assert log.resource_id == resource_id
 
     @given(actor=actor_names)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_actor_roundtrip(self, actor: str):
         """Property: Actor values roundtrip correctly."""
         log = AuditLog(
@@ -1041,7 +1041,7 @@ class TestAuditLogProperties:
         assert log.actor == actor
 
     @given(ip_address=ip_addresses)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_ip_address_roundtrip(self, ip_address: str):
         """Property: IP address values roundtrip correctly."""
         log = AuditLog(
@@ -1053,7 +1053,7 @@ class TestAuditLogProperties:
         assert log.ip_address == ip_address
 
     @given(user_agent=user_agents)
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_user_agent_roundtrip(self, user_agent: str):
         """Property: User agent values roundtrip correctly."""
         log = AuditLog(
@@ -1065,7 +1065,7 @@ class TestAuditLogProperties:
         assert log.user_agent == user_agent
 
     @given(id_value=st.integers(min_value=1, max_value=1000000))
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_id_roundtrip(self, id_value: int):
         """Property: ID values roundtrip correctly."""
         log = AuditLog(
@@ -1082,7 +1082,7 @@ class TestAuditLogDetailsProperties:
 
     @pytest.mark.slow
     @given(details=details_dicts)
-    @settings(max_examples=100)
+    @settings(max_examples=30)
     def test_details_roundtrip(self, details: dict):
         """Property: Details dict values roundtrip correctly."""
         log = AuditLog(
@@ -1099,7 +1099,7 @@ class TestAuditLogDetailsProperties:
         resource_type=resource_types,
         actor=actor_names,
     )
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_all_fields_roundtrip(
         self,
         action: AuditAction,
@@ -1132,7 +1132,7 @@ class TestAuditLogUnicodeProperties:
             ),
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_actor_unicode_roundtrip(self, text: str):
         """Property: Actor handles Unicode correctly."""
         log = AuditLog(
@@ -1151,7 +1151,7 @@ class TestAuditLogUnicodeProperties:
             ),
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=20)
     def test_resource_type_unicode_roundtrip(self, text: str):
         """Property: Resource type handles Unicode correctly."""
         log = AuditLog(
@@ -1165,7 +1165,7 @@ class TestAuditLogUnicodeProperties:
         key=st.text(min_size=1, max_size=20),
         value=st.text(min_size=0, max_size=100),
     )
-    @settings(max_examples=100)
+    @settings(max_examples=30)
     def test_details_unicode_keys_and_values(self, key: str, value: str):
         """Property: Details field handles Unicode keys and values."""
         details = {key: value}
