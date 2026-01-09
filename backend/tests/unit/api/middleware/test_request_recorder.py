@@ -6,7 +6,7 @@ This module provides comprehensive tests for:
 - Sensitive field redaction using SENSITIVE_FIELD_NAMES
 - Configurable sampling and recording triggers
 
-Tests follow TDD approach - written before implementation.
+Tests verify request recording, redaction, and replay functionality.
 """
 
 import json
@@ -20,26 +20,17 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-# Import will fail until implementation exists - this is expected for TDD
-try:
-    from backend.api.middleware.request_recorder import (
-        RequestRecorderMiddleware,
-        RequestRecording,
-        redact_request_body,
-    )
-except ImportError:
-    # TDD: These will be implemented
-    RequestRecorderMiddleware = None  # type: ignore
-    RequestRecording = None  # type: ignore
-    redact_request_body = None  # type: ignore
-
+from backend.api.middleware.request_recorder import (
+    RequestRecorderMiddleware,
+    RequestRecording,
+    redact_request_body,
+)
 
 # =============================================================================
 # RequestRecording Data Class Tests
 # =============================================================================
 
 
-@pytest.mark.skipif(RequestRecording is None, reason="Implementation not yet created")
 class TestRequestRecording:
     """Tests for RequestRecording data class."""
 
@@ -123,7 +114,6 @@ class TestRequestRecording:
 # =============================================================================
 
 
-@pytest.mark.skipif(redact_request_body is None, reason="Implementation not yet created")
 class TestRedaction:
     """Tests for sensitive field redaction."""
 
@@ -230,7 +220,6 @@ class TestRedaction:
 # =============================================================================
 
 
-@pytest.mark.skipif(RequestRecorderMiddleware is None, reason="Implementation not yet created")
 class TestRequestRecorderMiddleware:
     """Tests for RequestRecorderMiddleware class."""
 
@@ -515,7 +504,6 @@ class TestRequestRecorderMiddleware:
 # =============================================================================
 
 
-@pytest.mark.skipif(RequestRecorderMiddleware is None, reason="Implementation not yet created")
 class TestRequestRecorderConfiguration:
     """Tests for middleware configuration options."""
 
@@ -572,7 +560,6 @@ class TestRequestRecorderConfiguration:
 # =============================================================================
 
 
-@pytest.mark.skipif(RequestRecorderMiddleware is None, reason="Implementation not yet created")
 class TestRecordingStorage:
     """Tests for recording storage functionality."""
 
@@ -658,7 +645,6 @@ class TestRecordingStorage:
 # =============================================================================
 
 
-@pytest.mark.skipif(RequestRecorderMiddleware is None, reason="Implementation not yet created")
 class TestRequestRecorderEdgeCases:
     """Edge case tests for request recorder middleware."""
 
@@ -804,7 +790,6 @@ class TestRequestRecorderEdgeCases:
 # =============================================================================
 
 
-@pytest.mark.skipif(RequestRecorderMiddleware is None, reason="Implementation not yet created")
 class TestReplayEndpoint:
     """Tests for the debug replay endpoint.
 
