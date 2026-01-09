@@ -13841,8 +13841,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Cameras created successfully */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13958,8 +13958,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Events and detections created successfully */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17683,7 +17683,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Clip already exists */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17691,6 +17691,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClipGenerateResponse"];
                 };
+            };
+            /** @description Clip created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClipGenerateResponse"];
+                };
+            };
+            /** @description Cannot generate clip - event has no detections */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -241,7 +241,9 @@ def require_admin_access(x_admin_api_key: str | None = Header(default=None)) -> 
 @router.post(
     "/seed/cameras",
     response_model=SeedCamerasResponse,
+    status_code=status.HTTP_201_CREATED,
     responses={
+        201: {"description": "Cameras created successfully"},
         401: {"description": "Unauthorized - Admin API key required"},
         403: {"description": "Forbidden - Debug mode or admin not enabled"},
         422: {"description": "Validation error"},
@@ -332,7 +334,9 @@ async def seed_cameras(
 @router.post(
     "/seed/events",
     response_model=SeedEventsResponse,
+    status_code=status.HTTP_201_CREATED,
     responses={
+        201: {"description": "Events and detections created successfully"},
         400: {"description": "Bad request - No cameras found"},
         401: {"description": "Unauthorized - Admin API key required"},
         403: {"description": "Forbidden - Debug mode or admin not enabled"},

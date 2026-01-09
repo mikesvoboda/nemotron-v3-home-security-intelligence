@@ -284,7 +284,7 @@ async def test_admin_api_key_valid(admin_api_key_client, clean_seed_data):
         headers={"X-Admin-API-Key": "test-secret-key-12345"},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["created"] == 2
 
 
@@ -297,7 +297,7 @@ async def test_seed_cameras_success(debug_client, clean_seed_data):
     """Test successful camera seeding with full admin access."""
     response = await debug_client.post("/api/admin/seed/cameras", json={"count": 3})
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["created"] == 3
     assert data["cleared"] == 0
@@ -327,7 +327,7 @@ async def test_seed_cameras_clear_existing(debug_client, clean_seed_data):
         json={"count": 4, "clear_existing": True},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["cleared"] == 2
     assert data["created"] == 4
@@ -345,7 +345,7 @@ async def test_seed_cameras_skips_existing(debug_client, clean_seed_data):
     # Try to seed 5 cameras (should skip existing 3, create remaining 2)
     response2 = await debug_client.post("/api/admin/seed/cameras", json={"count": 5})
 
-    assert response2.status_code == 200
+    assert response2.status_code == 201
     data = response2.json()
     assert data["created"] == 2  # Only 2 new cameras created
     assert data["cleared"] == 0
@@ -361,7 +361,7 @@ async def test_seed_cameras_max_count(debug_client, clean_seed_data):
     """Test seeding the maximum number of cameras."""
     response = await debug_client.post("/api/admin/seed/cameras", json={"count": 6})
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["created"] == 6
     assert len(data["cameras"]) == 6
@@ -393,7 +393,7 @@ async def test_seed_events_success(debug_client, clean_seed_data):
     # Seed events
     response = await debug_client.post("/api/admin/seed/events", json={"count": 10})
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["events_created"] == 10
     assert data["detections_created"] > 0  # At least 1 detection per event
@@ -426,7 +426,7 @@ async def test_seed_events_clear_existing(debug_client, clean_seed_data):
         json={"count": 3, "clear_existing": True},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["events_created"] == 3
     assert data["events_cleared"] == 5  # Previous events cleared
@@ -601,7 +601,7 @@ async def test_seed_cameras_default_values(debug_client, clean_seed_data):
     # POST with empty body uses defaults (clean_seed_data ensures no existing cameras)
     response = await debug_client.post("/api/admin/seed/cameras", json={})
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["created"] == 6  # Default count
     assert data["cleared"] == 0  # Default clear_existing=false
@@ -617,7 +617,7 @@ async def test_seed_events_default_values(debug_client, clean_seed_data):
     # POST with empty body uses defaults
     response = await debug_client.post("/api/admin/seed/events", json={})
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["events_created"] == 15  # Default count
     assert data["events_cleared"] == 0  # Default clear_existing=false
@@ -634,7 +634,7 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
         "/api/admin/seed/cameras",
         json={"count": 3},
     )
-    assert cameras_response.status_code == 200
+    assert cameras_response.status_code == 201
     assert cameras_response.json()["created"] == 3
 
     # Step 2: Seed events
@@ -642,7 +642,7 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
         "/api/admin/seed/events",
         json={"count": 8},
     )
-    assert events_response.status_code == 200
+    assert events_response.status_code == 201
     assert events_response.json()["events_created"] == 8
 
     # Step 3: Verify data exists
@@ -910,7 +910,7 @@ class TestAdminAPIKeySecurityCI:
             json={"count": 1},
             headers={"X-Admin-API-Key": "test-secret-key-12345"},
         )
-        assert response.status_code == 200, "Request with correct API key should succeed"
+        assert response.status_code == 201, "Request with correct API key should succeed"
 
     @pytest.mark.asyncio
     @pytest.mark.slow

@@ -6,7 +6,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1206,10 +1206,21 @@ async def get_event_clip(
     )
 
 
-@router.post("/{event_id}/clip/generate", response_model=ClipGenerateResponse)
+@router.post(
+    "/{event_id}/clip/generate",
+    response_model=ClipGenerateResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        200: {"description": "Clip already exists", "model": ClipGenerateResponse},
+        201: {"description": "Clip created successfully", "model": ClipGenerateResponse},
+        400: {"description": "Cannot generate clip - event has no detections"},
+        404: {"description": "Event not found"},
+    },
+)
 async def generate_event_clip(
     event_id: int,
     request: ClipGenerateRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> ClipGenerateResponse:
     """Trigger video clip generation for an event.
@@ -1248,6 +1259,8 @@ async def generate_event_clip(
             clip_filename = clip_path.name
             clip_url = f"/api/media/clips/{clip_filename}"
 
+            # Return 200 OK for existing clip (not creating a new resource)
+            response.status_code = status.HTTP_200_OK
             return ClipGenerateResponse(
                 event_id=event.id,
                 status=ClipStatus.COMPLETED,
@@ -1299,6 +1312,8 @@ async def generate_event_clip(
             clip_filename = generated_clip_path.name
             clip_url = f"/api/media/clips/{clip_filename}"
 
+            # Add Location header for the newly created resource (201 Created)
+            response.headers["Location"] = clip_url
             return ClipGenerateResponse(
                 event_id=event.id,
                 status=ClipStatus.COMPLETED,
