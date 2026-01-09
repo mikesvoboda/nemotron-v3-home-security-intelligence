@@ -3112,3 +3112,266 @@ def test_batch_should_split_when_at_or_above_limit(
 
         # Verify the logic
         assert (current_size >= aggregator._batch_max_detections) == should_split
+
+
+# =============================================================================
+# Batch Closure Race Condition Prevention Tests (NEM-2013)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_atomic_close_batch_uses_setnx_for_closure_marker(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that close_batch uses atomic SETNX to prevent double-close race condition.
+
+    NEM-2013: When multiple processes attempt to close the same batch concurrently,
+    only one should succeed in processing. This is achieved by using Redis SETNX
+    (SET if Not eXists) to atomically claim the batch for closure.
+    """
+    batch_id = "batch_atomic_close"
+    camera_id = "front_door"
+    closure_marker_key = f"batch:{batch_id}:closing"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+
+    # Mock SETNX to return True (we got the lock)
+    mock_redis_instance._client.setnx = AsyncMock(return_value=True)
+    mock_redis_instance._client.expire = AsyncMock(return_value=True)
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Verify SETNX was called with closure marker key
+    mock_redis_instance._client.setnx.assert_called_once_with(closure_marker_key, "1")
+
+    # Batch should be closed successfully
+    assert summary["batch_id"] == batch_id
+    assert summary["detection_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_atomic_close_batch_returns_already_closing_when_setnx_fails(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that close_batch returns early when SETNX fails (another process claimed the batch).
+
+    NEM-2013: When SETNX returns False, it means another process is already closing
+    this batch. The current process should return without processing.
+    """
+    batch_id = "batch_contested_close"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup (first call before SETNX check)
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Mock SETNX to return False (another process already claimed it)
+    mock_redis_instance._client.setnx = AsyncMock(return_value=False)
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Should return with already_closing flag
+    assert summary["batch_id"] == batch_id
+    assert summary.get("already_closing") is True
+    assert summary["detection_count"] == 0
+
+    # Should NOT push to analysis queue
+    assert not mock_redis_instance.add_to_queue_safe.called
+
+    # Should NOT delete batch keys (another process will handle cleanup)
+    assert not mock_redis_instance.delete.called
+
+
+@pytest.mark.asyncio
+async def test_concurrent_close_batch_only_processes_once():
+    """Test that concurrent close_batch calls only process the batch once.
+
+    NEM-2013: Simulate race condition where two coroutines try to close
+    the same batch. Only one should succeed in processing.
+    """
+    import asyncio
+
+    from backend.core.redis import QueueAddResult, RedisClient
+    from backend.services.batch_aggregator import BatchAggregator
+
+    batch_id = "batch_concurrent_race"
+    camera_id = "front_door"
+
+    # Track how many times the batch was actually processed
+    process_count = [0]
+
+    # Create a mock Redis client
+    mock_redis_instance = MagicMock(spec=RedisClient)
+    mock_redis_client = AsyncMock()
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get = AsyncMock(side_effect=mock_get)
+    mock_redis_instance._client = mock_redis_client
+
+    # Use a real asyncio.Event to synchronize concurrent access
+    setnx_results = [True, False]  # First caller wins, second loses
+    setnx_call_count = [0]
+
+    async def mock_setnx(key, value):
+        index = setnx_call_count[0]
+        setnx_call_count[0] += 1
+
+        # Small delay to interleave operations
+        await asyncio.sleep(0.001)
+
+        if index < len(setnx_results):
+            return setnx_results[index]
+        return False
+
+    mock_redis_client.setnx = mock_setnx
+    mock_redis_client.expire = AsyncMock(return_value=True)
+    mock_redis_client.lrange = AsyncMock(return_value=["1", "2", "3"])
+
+    # Track queue pushes (indicates batch was processed)
+    async def mock_add_to_queue(*args, **kwargs):
+        process_count[0] += 1
+        return QueueAddResult(success=True, queue_length=1)
+
+    mock_redis_instance.add_to_queue_safe = mock_add_to_queue
+    mock_redis_instance.delete = AsyncMock(return_value=1)
+
+    aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+    # Run two close_batch calls concurrently
+    results = await asyncio.gather(
+        aggregator.close_batch(batch_id),
+        aggregator.close_batch(batch_id),
+        return_exceptions=True,
+    )
+
+    # Only one should have processed the batch (pushed to queue)
+    assert process_count[0] == 1, f"Expected 1 process, got {process_count[0]}"
+
+    # Both calls should return without error
+    assert not any(isinstance(r, Exception) for r in results)
+
+    # One should be successful, one should indicate already closing
+    successful = sum(1 for r in results if r.get("detection_count", 0) > 0)
+    already_closing = sum(1 for r in results if r.get("already_closing"))
+    assert successful == 1, f"Expected 1 successful close, got {successful}"
+    assert already_closing == 1, f"Expected 1 already_closing, got {already_closing}"
+
+
+@pytest.mark.asyncio
+async def test_close_batch_cleans_up_closure_marker_on_success(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that the closure marker is cleaned up after successful batch close.
+
+    NEM-2013: The closure marker key should be deleted along with other batch
+    keys after processing to prevent stale markers.
+    """
+    batch_id = "batch_cleanup_marker"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
+    mock_redis_instance._client.setnx = AsyncMock(return_value=True)
+    mock_redis_instance._client.expire = AsyncMock(return_value=True)
+
+    await batch_aggregator.close_batch(batch_id)
+
+    # Verify delete was called and includes the closure marker key
+    delete_call = mock_redis_instance.delete.call_args
+    deleted_keys = delete_call[0] if delete_call else []
+
+    # The closing marker should be in the list of deleted keys
+    assert f"batch:{batch_id}:closing" in deleted_keys
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_uses_atomic_closure(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that _close_batch_for_size_limit also uses atomic closure marker.
+
+    NEM-2013: The size limit closure path should also use SETNX to prevent
+    race conditions when max size is reached.
+    """
+    batch_id = "batch_size_limit_atomic"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = [b"1", b"2"]
+    mock_redis_instance._client.setnx = AsyncMock(return_value=True)
+    mock_redis_instance._client.expire = AsyncMock(return_value=True)
+
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    # Should use SETNX for atomic closure
+    mock_redis_instance._client.setnx.assert_called_once()
+
+    # Should return valid summary
+    assert summary is not None
+    assert summary["batch_id"] == batch_id
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_returns_none_when_contested(
+    batch_aggregator, mock_redis_instance
+):
+    """Test _close_batch_for_size_limit returns None when another process is closing.
+
+    NEM-2013: When SETNX fails in size limit closure, return None to indicate
+    the batch is being handled by another process.
+    """
+    batch_id = "batch_size_contested"
+    camera_id = "front_door"
+
+    # Mock camera_id lookup
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.setnx = AsyncMock(return_value=False)
+
+    result = await batch_aggregator._close_batch_for_size_limit(batch_id)
+
+    # Should return None when contested
+    assert result is None
+
+    # Should NOT push to queue
+    assert not mock_redis_instance.add_to_queue_safe.called
