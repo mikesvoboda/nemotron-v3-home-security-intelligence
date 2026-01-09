@@ -26,6 +26,7 @@ from backend.api.schemas.camera import (
     CameraResponse,
     CameraUpdate,
 )
+from backend.api.schemas.restore import CameraRestoreResponse
 from backend.api.schemas.scene_change import (
     SceneChangeAcknowledgeResponse,
     SceneChangeListResponse,
@@ -43,6 +44,7 @@ from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.models.scene_change import SceneChange
+from backend.repositories.camera_repository import CameraRepository
 from backend.services.audit import AuditService
 from backend.services.baseline import get_baseline_service
 from backend.services.cache_service import (
@@ -142,7 +144,8 @@ async def list_cameras(
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
     # Cache miss - query database
-    query = select(Camera)
+    # Filter out soft-deleted cameras
+    query = select(Camera).where(Camera.deleted_at.is_(None))
 
     # Apply status filter if provided
     if status_filter:
@@ -223,24 +226,37 @@ async def create_camera(
     Raises:
         HTTPException: 409 if camera with same name or folder_path already exists
     """
-    # Check if a camera with the same name already exists
+    # Check if a camera with the same name already exists (including soft-deleted)
+    # We include soft-deleted to prevent conflicts - user should restore instead of recreate
     existing_name_result = await db.execute(select(Camera).where(Camera.name == camera_data.name))
     existing_name_camera = existing_name_result.scalar_one_or_none()
 
     if existing_name_camera:
+        if existing_name_camera.is_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Camera with name '{camera_data.name}' exists but is deleted "
+                f"(id: {existing_name_camera.id}). Use POST /api/cameras/{existing_name_camera.id}/restore to restore it.",
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Camera with name '{camera_data.name}' already exists "
             f"(id: {existing_name_camera.id})",
         )
 
-    # Check if a camera with the same folder_path already exists
+    # Check if a camera with the same folder_path already exists (including soft-deleted)
     existing_path_result = await db.execute(
         select(Camera).where(Camera.folder_path == camera_data.folder_path)
     )
     existing_path_camera = existing_path_result.scalar_one_or_none()
 
     if existing_path_camera:
+        if existing_path_camera.is_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Camera with folder_path '{camera_data.folder_path}' exists but is deleted "
+                f"(id: {existing_path_camera.id}). Use POST /api/cameras/{existing_path_camera.id}/restore to restore it.",
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Camera with folder_path '{camera_data.folder_path}' already exists "
@@ -380,16 +396,23 @@ async def update_camera(
 async def delete_camera(
     camera_id: str,
     request: Request,
+    cascade: bool = Query(
+        default=True,
+        description="If True, cascade soft delete to related events and detections",
+    ),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> None:
-    """Delete a camera.
+    """Soft delete a camera.
 
-    This operation cascades to all related detections and events.
+    This operation uses cascade soft delete to mark the camera and optionally
+    all related events and detections as deleted (setting deleted_at timestamp)
+    without permanently removing data.
 
     Args:
         camera_id: Normalized camera ID (e.g., "front_door", "backyard")
         request: FastAPI request for audit logging
+        cascade: If True (default), also soft delete related events and detections
         db: Database session
 
     Raises:
@@ -397,7 +420,17 @@ async def delete_camera(
     """
     camera = await get_camera_or_404(camera_id, db)
 
-    # Log the audit entry before deletion
+    # Use repository for cascade soft delete
+    repo = CameraRepository(db)
+    try:
+        result = await repo.soft_delete(camera_id, cascade=cascade)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+
+    # Log the audit entry after soft deletion
     try:
         await AuditService.log_action(
             db=db,
@@ -409,11 +442,12 @@ async def delete_camera(
                 "name": camera.name,
                 "folder_path": camera.folder_path,
                 "status": camera.status,
+                "cascade": cascade,
+                "events_deleted": result.events_deleted,
+                "detections_deleted": result.detections_deleted,
             },
             request=request,
         )
-        # Delete camera (cascade will handle related data)
-        await db.delete(camera)
         await db.commit()
     except Exception:
         logger.error(
@@ -422,9 +456,18 @@ async def delete_camera(
             extra={"action": "camera_deleted", "camera_id": camera_id},
         )
         await db.rollback()
-        # Retry deletion without audit log - deletion is the primary operation
-        await db.delete(camera)
+        # Soft delete already happened, commit without audit log
         await db.commit()
+
+    logger.info(
+        "Camera soft deleted with cascade",
+        extra={
+            "camera_id": camera_id,
+            "cascade": cascade,
+            "events_deleted": result.events_deleted,
+            "detections_deleted": result.detections_deleted,
+        },
+    )
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
@@ -599,7 +642,8 @@ async def validate_camera_paths(
     settings = get_settings()
     base_root = Path(settings.foscam_base_path).resolve()
 
-    result = await db.execute(select(Camera))
+    # Filter out soft-deleted cameras for path validation
+    result = await db.execute(select(Camera).where(Camera.deleted_at.is_(None)))
     cameras = result.scalars().all()
 
     valid_cameras: list[dict[str, Any]] = []
@@ -930,8 +974,11 @@ async def get_camera_scene_changes(
     scene_changes = list(changes_result.unique().scalars().all())
 
     # If no results, verify camera exists (fallback query only when needed)
+    # Filter out soft-deleted cameras
     if not scene_changes:
-        camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
+        camera_result = await db.execute(
+            select(Camera).where(Camera.id == camera_id, Camera.deleted_at.is_(None))
+        )
         camera = camera_result.scalar_one_or_none()
         if not camera:
             raise HTTPException(
@@ -1014,7 +1061,10 @@ async def acknowledge_scene_change(
     if not scene_change:
         # Scene change not found - need to determine if it's because camera doesn't exist
         # or because scene change doesn't exist for this camera
-        camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
+        # Filter out soft-deleted cameras
+        camera_result = await db.execute(
+            select(Camera).where(Camera.id == camera_id, Camera.deleted_at.is_(None))
+        )
         camera = camera_result.scalar_one_or_none()
 
         if not camera:
@@ -1073,4 +1123,133 @@ async def acknowledge_scene_change(
         id=scene_change.id,
         acknowledged=scene_change.acknowledged,
         acknowledged_at=scene_change.acknowledged_at,
+    )
+
+
+@router.post(
+    "/{camera_id}/restore",
+    response_model=CameraRestoreResponse,
+    responses={
+        200: {"description": "Camera restored successfully"},
+        400: {"description": "Camera is not deleted"},
+        404: {"description": "Camera not found"},
+    },
+    summary="Restore a soft-deleted camera",
+    description="Restore a camera that was previously soft-deleted by clearing its deleted_at timestamp.",
+)
+async def restore_camera(
+    camera_id: str,
+    request: Request,
+    cascade: bool = Query(
+        default=True,
+        description="If True, cascade restore to related events and detections",
+    ),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> CameraRestoreResponse:
+    """Restore a soft-deleted camera.
+
+    This endpoint restores a camera that was previously soft-deleted by clearing
+    its deleted_at timestamp. If cascade=True (default), also restores related
+    events and detections that were soft-deleted at the same time.
+
+    Args:
+        camera_id: Normalized camera ID (e.g., "front_door", "backyard")
+        request: FastAPI request for audit logging
+        cascade: If True (default), also restore related events and detections
+        db: Database session
+        cache: Cache service for cache invalidation
+
+    Returns:
+        CameraRestoreResponse with restored camera details
+
+    Raises:
+        HTTPException: 404 if camera not found
+        HTTPException: 400 if camera is not deleted
+    """
+    # Query for the camera including soft-deleted records
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Check if the camera is actually deleted
+    if not camera.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Camera with id {camera_id} is not deleted",
+        )
+
+    # Use repository for cascade restore
+    repo = CameraRepository(db)
+    try:
+        restore_result = await repo.restore(camera_id, cascade=cascade)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+
+    # Refresh camera to get updated state
+    await db.refresh(camera)
+
+    # Log the audit entry
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.CAMERA_RESTORED,
+            resource_type="camera",
+            resource_id=camera_id,
+            actor="anonymous",
+            details={
+                "name": camera.name,
+                "folder_path": camera.folder_path,
+                "status": camera.status,
+                "cascade": cascade,
+                "events_restored": restore_result.events_deleted,  # Field reused for restore count
+                "detections_restored": restore_result.detections_deleted,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "camera_restored", "camera_id": camera_id},
+        )
+        await db.rollback()
+        # Restore already happened, commit without audit log
+        await db.commit()
+
+    logger.info(
+        "Camera restored with cascade",
+        extra={
+            "camera_id": camera_id,
+            "cascade": cascade,
+            "events_restored": restore_result.events_deleted,
+            "detections_restored": restore_result.detections_deleted,
+        },
+    )
+
+    # Invalidate cameras cache
+    try:
+        await cache.invalidate_cameras(reason="camera_restored")
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed: {e}")
+
+    return CameraRestoreResponse(
+        id=camera.id,
+        name=camera.name,
+        folder_path=camera.folder_path,
+        status=camera.status,
+        created_at=camera.created_at,
+        last_seen_at=camera.last_seen_at,
+        deleted_at=camera.deleted_at,
+        restored=True,
+        message="Camera restored successfully",
     )

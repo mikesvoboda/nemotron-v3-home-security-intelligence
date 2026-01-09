@@ -132,23 +132,33 @@ async def get_orchestrator(request: Request) -> ContainerOrchestrator:
 async def get_camera_or_404(
     camera_id: str,
     db: AsyncSession,
+    *,
+    include_deleted: bool = False,
 ) -> Camera:
     """Get a camera by ID or raise 404 if not found.
 
     This utility function queries the database for a camera with the given ID
     and raises an HTTPException with status 404 if not found.
 
+    By default, soft-deleted cameras are excluded. Use include_deleted=True
+    to include soft-deleted cameras.
+
     Args:
         camera_id: The camera ID to look up
         db: Database session
+        include_deleted: If True, include soft-deleted cameras. Default False.
 
     Returns:
-        Camera object if found
+        Camera object if found (and not soft-deleted unless include_deleted=True)
 
     Raises:
-        HTTPException: 404 if camera not found
+        HTTPException: 404 if camera not found (or soft-deleted without include_deleted=True)
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    stmt = select(Camera).where(Camera.id == camera_id)
+    # Filter out soft-deleted cameras unless explicitly requested
+    if not include_deleted:
+        stmt = stmt.where(Camera.deleted_at.is_(None))
+    result = await db.execute(stmt)
     camera = result.scalar_one_or_none()
 
     if not camera:
@@ -163,23 +173,33 @@ async def get_camera_or_404(
 async def get_event_or_404(
     event_id: int,
     db: AsyncSession,
+    *,
+    include_deleted: bool = False,
 ) -> Event:
     """Get an event by ID or raise 404 if not found.
 
     This utility function queries the database for an event with the given ID
     and raises an HTTPException with status 404 if not found.
 
+    By default, soft-deleted events are excluded. Use include_deleted=True
+    to include soft-deleted events.
+
     Args:
         event_id: The event ID to look up
         db: Database session
+        include_deleted: If True, include soft-deleted events. Default False.
 
     Returns:
-        Event object if found
+        Event object if found (and not soft-deleted unless include_deleted=True)
 
     Raises:
-        HTTPException: 404 if event not found
+        HTTPException: 404 if event not found (or soft-deleted without include_deleted=True)
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    stmt = select(Event).where(Event.id == event_id)
+    # Filter out soft-deleted events unless explicitly requested
+    if not include_deleted:
+        stmt = stmt.where(Event.deleted_at.is_(None))
+    result = await db.execute(stmt)
     event = result.scalar_one_or_none()
 
     if not event:
@@ -262,6 +282,8 @@ async def get_zone_or_404(
 
     This utility function queries the database for a zone with the given ID
     and raises an HTTPException with status 404 if not found.
+
+    Note: Zone model does not currently support soft delete.
 
     Args:
         zone_id: The zone ID to look up
@@ -378,6 +400,9 @@ def get_or_404_factory[ModelT](
     by ID and raises a 404 HTTPException if not found. It provides a consistent
     pattern for entity lookup across different models.
 
+    For models with soft delete (deleted_at column), soft-deleted records are
+    automatically excluded from results.
+
     Args:
         model_class: The SQLAlchemy model class to query
         entity_name: Human-readable name for error messages (e.g., "Camera", "Event")
@@ -396,6 +421,8 @@ def get_or_404_factory[ModelT](
         # Usage in route:
         rule = await get_alert_rule_or_404(rule_id, db)
     """
+    # Check if model supports soft delete
+    has_soft_delete = hasattr(model_class, "deleted_at")
 
     async def get_or_404(
         resource_id: str | int,
@@ -403,18 +430,27 @@ def get_or_404_factory[ModelT](
     ) -> ModelT:
         """Get an entity by ID or raise 404 if not found.
 
+        Soft-deleted records are automatically excluded for models with soft delete.
+
         Args:
             resource_id: The ID to look up
             db: Database session
 
         Returns:
-            Entity object if found
+            Entity object if found (and not soft-deleted for models with soft delete)
 
         Raises:
-            HTTPException: 404 if entity not found
+            HTTPException: 404 if entity not found (or soft-deleted)
         """
         id_column = getattr(model_class, id_field)
-        result = await db.execute(select(model_class).where(id_column == resource_id))
+        stmt = select(model_class).where(id_column == resource_id)
+
+        # Filter out soft-deleted records for models with soft delete
+        if has_soft_delete:
+            deleted_at_col = model_class.deleted_at  # type: ignore[attr-defined]
+            stmt = stmt.where(deleted_at_col.is_(None))
+
+        result = await db.execute(stmt)
         entity = result.scalar_one_or_none()
 
         if not entity:

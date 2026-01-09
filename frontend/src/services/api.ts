@@ -3199,3 +3199,86 @@ export function getEventClipUrl(clipFilename: string): string {
   }
   return clipFilename;
 }
+
+// ============================================================================
+// Trash Endpoints (Soft Delete Support)
+// ============================================================================
+
+/**
+ * Deleted camera with deleted_at timestamp
+ */
+export interface DeletedCamera extends Camera {
+  deleted_at: string;
+}
+
+/**
+ * Deleted event with deleted_at timestamp
+ */
+export interface DeletedEvent extends Event {
+  deleted_at: string;
+}
+
+/**
+ * Response for fetching deleted items
+ */
+export interface TrashListResponse {
+  cameras: DeletedCamera[];
+  events: DeletedEvent[];
+  camera_count: number;
+  event_count: number;
+}
+
+/**
+ * Fetch all soft-deleted items (cameras and events).
+ *
+ * @returns TrashListResponse containing deleted cameras and events
+ */
+export async function fetchDeletedItems(): Promise<TrashListResponse> {
+  return fetchApi<TrashListResponse>('/api/trash');
+}
+
+/**
+ * Restore a soft-deleted camera.
+ *
+ * @param cameraId - The ID of the camera to restore
+ * @returns The restored camera
+ */
+export async function restoreCamera(cameraId: string): Promise<Camera> {
+  return fetchApi<Camera>(`/api/trash/cameras/${encodeURIComponent(cameraId)}/restore`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Restore a soft-deleted event.
+ *
+ * @param eventId - The ID of the event to restore
+ * @returns The restored event
+ */
+export async function restoreEvent(eventId: number): Promise<Event> {
+  return fetchApi<Event>(`/api/trash/events/${eventId}/restore`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Permanently delete a soft-deleted camera.
+ *
+ * @param cameraId - The ID of the camera to permanently delete
+ */
+export async function permanentlyDeleteCamera(cameraId: string): Promise<void> {
+  return fetchApi<void>(`/api/trash/cameras/${encodeURIComponent(cameraId)}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Permanently delete a soft-deleted event.
+ *
+ * @param eventId - The ID of the event to permanently delete
+ */
+export async function permanentlyDeleteEvent(eventId: number): Promise<void> {
+  return fetchApi<void>(`/api/trash/events/${eventId}`, {
+    method: 'DELETE',
+  });
+}

@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -37,6 +37,7 @@ from backend.api.schemas.events import (
     EventUpdate,
 )
 from backend.api.schemas.hateoas import build_event_links
+from backend.api.schemas.restore import EventRestoreResponse
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.api.utils.field_filter import (
     FieldFilterError,
@@ -54,6 +55,7 @@ from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.repositories.event_repository import EventRepository
 from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
@@ -293,7 +295,8 @@ async def list_events(  # noqa: PLR0912
             ) from e
 
     # Build base query with eager loading for camera relationship (NEM-1619)
-    query = select(Event).options(joinedload(Event.camera))
+    # Filter out soft-deleted events
+    query = select(Event).options(joinedload(Event.camera)).where(Event.deleted_at.is_(None))
 
     # Apply filters
     if camera_id:
@@ -466,7 +469,8 @@ async def get_event_stats(
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
     # Build date filter conditions (reused across queries)
-    date_filters = []
+    # Always filter out soft-deleted events
+    date_filters: list[ColumnElement[bool]] = [Event.deleted_at.is_(None)]
     if start_date:
         date_filters.append(Event.started_at >= start_date)
     if end_date:
@@ -500,9 +504,11 @@ async def get_event_stats(
             risk_level_counts[risk_level] = count
 
     # Get events by camera using SQL GROUP BY with JOIN to get camera names
+    # Filter out soft-deleted cameras as well
     camera_stats_query = (
         select(Event.camera_id, Camera.name.label("camera_name"), func.count().label("event_count"))
         .join(Camera, Event.camera_id == Camera.id, isouter=True)
+        .where(Camera.deleted_at.is_(None) | Camera.id.is_(None))  # Allow NULL for outer join
         .group_by(Event.camera_id, Camera.name)
         .order_by(func.count().desc())
     )
@@ -692,8 +698,8 @@ async def export_events(
     # Validate date range
     validate_date_range(start_date, end_date)
 
-    # Build base query
-    query = select(Event)
+    # Build base query - filter out soft-deleted events
+    query = select(Event).where(Event.deleted_at.is_(None))
 
     # Apply filters
     if camera_id:
@@ -714,9 +720,9 @@ async def export_events(
     result = await db.execute(query)
     events = result.scalars().all()
 
-    # Get all camera IDs to fetch camera names
+    # Get all camera IDs to fetch camera names (filter out soft-deleted cameras)
     camera_ids = {event.camera_id for event in events}
-    camera_query = select(Camera).where(Camera.id.in_(camera_ids))
+    camera_query = select(Camera).where(Camera.id.in_(camera_ids), Camera.deleted_at.is_(None))
     camera_result = await db.execute(camera_query)
     cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
 
@@ -1487,9 +1493,9 @@ async def bulk_create_events(
     succeeded = 0
     failed = 0
 
-    # Validate all camera_ids exist before processing
+    # Validate all camera_ids exist before processing (filter out soft-deleted cameras)
     camera_ids = {item.camera_id for item in request.events}
-    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
+    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids), Camera.deleted_at.is_(None))
     camera_result = await db.execute(camera_query)
     valid_camera_ids = {row[0] for row in camera_result.all()}
 
@@ -1609,9 +1615,9 @@ async def bulk_update_events(
     succeeded = 0
     failed = 0
 
-    # Fetch all events in one query
+    # Fetch all events in one query (filter out soft-deleted events)
     event_ids = [item.id for item in request.events]
-    query = select(Event).where(Event.id.in_(event_ids))
+    query = select(Event).where(Event.id.in_(event_ids), Event.deleted_at.is_(None))
     result = await db.execute(query)
     events_map = {event.id: event for event in result.scalars().all()}
 
@@ -1702,6 +1708,10 @@ async def bulk_update_events(
 )
 async def bulk_delete_events(
     request: EventBulkDeleteRequest,
+    cascade: bool = Query(
+        default=True,
+        description="If True, cascade soft delete to related detections",
+    ),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> dict[str, Any]:
@@ -1710,13 +1720,15 @@ async def bulk_delete_events(
     Supports partial success - some deletions may succeed while others fail.
     Returns HTTP 207 Multi-Status with per-item results.
 
-    By default uses soft delete (sets deleted_at timestamp). Use soft_delete=false
-    for permanent deletion.
+    By default uses soft delete with cascade (sets deleted_at timestamp on events
+    and related detections). Use soft_delete=false for permanent deletion.
+    Use cascade=false to only soft delete events without affecting detections.
 
     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
 
     Args:
         request: Bulk delete request with up to 100 event IDs
+        cascade: If True (default), also soft delete related detections
         db: Database session
 
     Returns:
@@ -1726,10 +1738,12 @@ async def bulk_delete_events(
     succeeded = 0
     failed = 0
 
-    # Fetch all events in one query
-    query = select(Event).where(Event.id.in_(request.event_ids))
+    # Fetch all events in one query (filter out already soft-deleted events)
+    query = select(Event).where(Event.id.in_(request.event_ids), Event.deleted_at.is_(None))
     result = await db.execute(query)
     events_map = {event.id: event for event in result.scalars().all()}
+
+    total_detections_deleted = 0
 
     for idx, event_id in enumerate(request.event_ids):
         try:
@@ -1747,8 +1761,22 @@ async def bulk_delete_events(
                 continue
 
             if request.soft_delete:
-                # Soft delete - set deleted_at timestamp
-                event.deleted_at = datetime.now(UTC)
+                # Soft delete with optional cascade
+                repo = EventRepository(db)
+                try:
+                    cascade_result = await repo.soft_delete(event_id, cascade=cascade)
+                    total_detections_deleted += cascade_result.detections_deleted
+                except ValueError as e:
+                    results.append(
+                        {
+                            "index": idx,
+                            "status": BulkOperationStatus.FAILED,
+                            "id": event_id,
+                            "error": str(e),
+                        }
+                    )
+                    failed += 1
+                    continue
             else:
                 # Hard delete
                 await db.delete(event)
@@ -1779,6 +1807,14 @@ async def bulk_delete_events(
     if succeeded > 0:
         try:
             await db.commit()
+            logger.info(
+                "Bulk deleted events with cascade",
+                extra={
+                    "event_count": succeeded,
+                    "cascade": cascade,
+                    "detections_deleted": total_detections_deleted,
+                },
+            )
             # Invalidate event-related caches after successful bulk delete (NEM-1950)
             try:
                 await cache.invalidate_events(reason="event_deleted")
@@ -1804,3 +1840,134 @@ async def bulk_delete_events(
         "skipped": 0,
         "results": results,
     }
+
+
+@router.post(
+    "/{event_id}/restore",
+    response_model=EventRestoreResponse,
+    responses={
+        200: {"description": "Event restored successfully"},
+        400: {"description": "Event is not deleted"},
+        404: {"description": "Event not found"},
+    },
+    summary="Restore a soft-deleted event",
+    description="Restore an event that was previously soft-deleted by clearing its deleted_at timestamp.",
+)
+async def restore_event(
+    event_id: int,
+    request: Request,
+    cascade: bool = Query(
+        default=True,
+        description="If True, cascade restore to related detections",
+    ),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> EventRestoreResponse:
+    """Restore a soft-deleted event.
+
+    This endpoint restores an event that was previously soft-deleted by clearing
+    its deleted_at timestamp. If cascade=True (default), also restores related
+    detections that were soft-deleted at the same time.
+
+    Args:
+        event_id: Event ID
+        request: FastAPI request for audit logging
+        cascade: If True (default), also restore related detections
+        db: Database session
+        cache: Cache service for cache invalidation
+
+    Returns:
+        EventRestoreResponse with restored event details
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 400 if event is not deleted
+    """
+    # Query for the event including soft-deleted records
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found",
+        )
+
+    # Check if the event is actually deleted
+    if not event.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Event with id {event_id} is not deleted",
+        )
+
+    # Use repository for cascade restore
+    repo = EventRepository(db)
+    try:
+        restore_result = await repo.restore(event_id, cascade=cascade)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+
+    # Refresh event to get updated state
+    await db.refresh(event)
+
+    # Log the audit entry
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.EVENT_RESTORED,
+            resource_type="event",
+            resource_id=str(event_id),
+            actor="anonymous",
+            details={
+                "camera_id": event.camera_id,
+                "risk_level": event.risk_level,
+                "risk_score": event.risk_score,
+                "cascade": cascade,
+                "detections_restored": restore_result.detections_deleted,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "event_restored", "event_id": event_id},
+        )
+        await db.rollback()
+        # Restore already happened, commit without audit log
+        await db.commit()
+
+    logger.info(
+        "Event restored with cascade",
+        extra={
+            "event_id": event_id,
+            "cascade": cascade,
+            "detections_restored": restore_result.detections_deleted,
+        },
+    )
+    await db.refresh(event)
+
+    # Invalidate event-related caches
+    try:
+        await cache.invalidate_events(reason="event_restored")
+        await cache.invalidate_event_stats(reason="event_restored")
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed: {e}")
+
+    return EventRestoreResponse(
+        id=event.id,
+        camera_id=event.camera_id,
+        started_at=event.started_at,
+        ended_at=event.ended_at,
+        risk_score=event.risk_score,
+        risk_level=event.risk_level,
+        summary=event.summary,
+        reviewed=event.reviewed,
+        deleted_at=event.deleted_at,
+        restored=True,
+        message="Event restored successfully",
+    )

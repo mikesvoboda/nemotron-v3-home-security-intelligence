@@ -720,23 +720,48 @@ class TestUpdateCamera:
 
 
 class TestDeleteCamera:
-    """Tests for DELETE /api/cameras/{camera_id} endpoint."""
+    """Tests for DELETE /api/cameras/{camera_id} endpoint.
+
+    NEM-1956: Camera deletion now uses cascade soft delete, which sets
+    deleted_at timestamp instead of permanently removing records.
+    """
 
     def test_delete_camera_success(
         self, client: TestClient, mock_db_session: AsyncMock, sample_camera: Camera
     ) -> None:
-        """Test successful camera deletion."""
+        """Test successful camera soft deletion.
+
+        NEM-1956: Now uses cascade soft delete instead of hard delete.
+        The camera's deleted_at is set rather than calling db.delete().
+        """
+        # Set up mock for initial get_camera_or_404 call
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        # Set up mock rowcount for UPDATE operations
+        mock_update_result = MagicMock()
+        mock_update_result.rowcount = 0  # No related events/detections
+
+        # Make execute return different results for SELECT vs UPDATE
+        async def mock_execute(query):
+            # Check if it's a SELECT or UPDATE query by looking at query string representation
+            query_str = str(query)
+            if "UPDATE" in query_str:
+                return mock_update_result
+            return mock_result
+
+        mock_db_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_db_session.flush = AsyncMock()
 
         response = client.delete(f"/api/cameras/{sample_camera.id}")
 
         assert response.status_code == 204
         assert response.content == b""  # No content for 204
-        # Verify delete was called
-        mock_db_session.delete.assert_called_once_with(sample_camera)
-        mock_db_session.commit.assert_called_once()
+        # NEM-1956: Soft delete sets deleted_at, doesn't call db.delete()
+        mock_db_session.delete.assert_not_called()
+        # commit should still be called
+        mock_db_session.commit.assert_called()
 
     def test_delete_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test deleting a non-existent camera returns 404."""

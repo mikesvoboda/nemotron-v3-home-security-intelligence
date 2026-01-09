@@ -1161,13 +1161,16 @@ export interface paths {
         post?: never;
         /**
          * Delete Camera
-         * @description Delete a camera.
+         * @description Soft delete a camera.
          *
-         *     This operation cascades to all related detections and events.
+         *     This operation uses cascade soft delete to mark the camera and optionally
+         *     all related events and detections as deleted (setting deleted_at timestamp)
+         *     without permanently removing data.
          *
          *     Args:
          *         camera_id: Normalized camera ID (e.g., "front_door", "backyard")
          *         request: FastAPI request for audit logging
+         *         cascade: If True (default), also soft delete related events and detections
          *         db: Database session
          *
          *     Raises:
@@ -1327,6 +1330,26 @@ export interface paths {
         get: operations["get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a soft-deleted camera
+         * @description Restore a camera that was previously soft-deleted by clearing its deleted_at timestamp.
+         */
+        post: operations["restore_camera_api_cameras__camera_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2645,13 +2668,15 @@ export interface paths {
          *     Supports partial success - some deletions may succeed while others fail.
          *     Returns HTTP 207 Multi-Status with per-item results.
          *
-         *     By default uses soft delete (sets deleted_at timestamp). Use soft_delete=false
-         *     for permanent deletion.
+         *     By default uses soft delete with cascade (sets deleted_at timestamp on events
+         *     and related detections). Use soft_delete=false for permanent deletion.
+         *     Use cascade=false to only soft delete events without affecting detections.
          *
          *     Rate limiting: Consider implementing RateLimitTier.BULK for production use.
          *
          *     Args:
          *         request: Bulk delete request with up to 100 event IDs
+         *         cascade: If True (default), also soft delete related detections
          *         db: Database session
          *
          *     Returns:
@@ -3001,6 +3026,26 @@ export interface paths {
         get: operations["get_event_enrichments_api_events__event_id__enrichments_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{event_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a soft-deleted event
+         * @description Restore an event that was previously soft-deleted by clearing its deleted_at timestamp.
+         */
+        post: operations["restore_event_api_events__event_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6024,6 +6069,72 @@ export interface components {
             status: components["schemas"]["CameraStatus"];
         };
         /**
+         * CameraRestoreResponse
+         * @description Schema for camera restore response.
+         *
+         *     Returns the restored camera details after clearing the deleted_at timestamp.
+         * @example {
+         *       "created_at": "2025-12-23T10:00:00Z",
+         *       "folder_path": "/export/foscam/front_door",
+         *       "id": "front_door",
+         *       "last_seen_at": "2025-12-23T12:00:00Z",
+         *       "message": "Camera restored successfully",
+         *       "name": "Front Door Camera",
+         *       "restored": true,
+         *       "status": "offline"
+         *     }
+         */
+        CameraRestoreResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description Timestamp when camera was created
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description Deletion timestamp (always None after restore)
+             */
+            deleted_at?: null;
+            /**
+             * Folder Path
+             * @description File system path for camera uploads
+             */
+            folder_path: string;
+            /**
+             * Id
+             * @description Normalized camera ID derived from folder name (e.g., 'front_door')
+             */
+            id: string;
+            /**
+             * Last Seen At
+             * @description Last time camera was active
+             */
+            last_seen_at?: string | null;
+            /**
+             * Message
+             * @description Human-readable confirmation message
+             * @default Camera restored successfully
+             */
+            message: string;
+            /**
+             * Name
+             * @description Camera name
+             */
+            name: string;
+            /**
+             * Restored
+             * @description Indicates the record was successfully restored
+             * @default true
+             */
+            restored: boolean;
+            /**
+             * Status
+             * @description Camera status (online, offline, error, unknown)
+             */
+            status: string;
+        };
+        /**
          * CameraStatus
          * @description Camera status values.
          *
@@ -8858,6 +8969,85 @@ export interface components {
              * @description URL to thumbnail image (first detection's media)
              */
             thumbnail_url?: string | null;
+        };
+        /**
+         * EventRestoreResponse
+         * @description Schema for event restore response.
+         *
+         *     Returns the restored event details after clearing the deleted_at timestamp.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "ended_at": "2025-12-23T12:02:30Z",
+         *       "id": 123,
+         *       "message": "Event restored successfully",
+         *       "restored": true,
+         *       "reviewed": false,
+         *       "risk_level": "medium",
+         *       "risk_score": 75,
+         *       "started_at": "2025-12-23T12:00:00Z",
+         *       "summary": "Person detected near front entrance"
+         *     }
+         */
+        EventRestoreResponse: {
+            /**
+             * Camera Id
+             * @description Normalized camera ID (e.g., 'front_door')
+             */
+            camera_id: string;
+            /**
+             * Deleted At
+             * @description Deletion timestamp (always None after restore)
+             */
+            deleted_at?: null;
+            /**
+             * Ended At
+             * @description Event end timestamp
+             */
+            ended_at?: string | null;
+            /**
+             * Id
+             * @description Event ID
+             */
+            id: number;
+            /**
+             * Message
+             * @description Human-readable confirmation message
+             * @default Event restored successfully
+             */
+            message: string;
+            /**
+             * Restored
+             * @description Indicates the record was successfully restored
+             * @default true
+             */
+            restored: boolean;
+            /**
+             * Reviewed
+             * @description Whether event has been reviewed
+             * @default false
+             */
+            reviewed: boolean;
+            /**
+             * Risk Level
+             * @description Risk level (low, medium, high, critical)
+             */
+            risk_level?: string | null;
+            /**
+             * Risk Score
+             * @description Risk score (0-100)
+             */
+            risk_score?: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             * @description Event start timestamp
+             */
+            started_at: string;
+            /**
+             * Summary
+             * @description LLM-generated event summary
+             */
+            summary?: string | null;
         };
         /**
          * EventStatsResponse
@@ -15461,7 +15651,10 @@ export interface operations {
     };
     delete_camera_api_cameras__camera_id__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description If True, cascade soft delete to related events and detections */
+                cascade?: boolean;
+            };
             header?: never;
             path: {
                 camera_id: string;
@@ -15638,6 +15831,54 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassBaselineResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_camera_api_cameras__camera_id__restore_post: {
+        parameters: {
+            query?: {
+                /** @description If True, cascade restore to related events and detections */
+                cascade?: boolean;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Camera restored successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraRestoreResponse"];
+                };
+            };
+            /** @description Camera is not deleted */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -17373,7 +17614,10 @@ export interface operations {
     };
     bulk_delete_events_api_events_bulk_delete: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description If True, cascade soft delete to related detections */
+                cascade?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17786,6 +18030,54 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventEnrichmentsResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_event_api_events__event_id__restore_post: {
+        parameters: {
+            query?: {
+                /** @description If True, cascade restore to related detections */
+                cascade?: boolean;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event restored successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventRestoreResponse"];
+                };
+            };
+            /** @description Event is not deleted */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

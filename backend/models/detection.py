@@ -68,6 +68,11 @@ class Detection(Base):
     # clothing, violence, weather, image quality, pet classification, etc.
     enrichment_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
+    # Soft delete timestamp for preserving referential integrity
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")
     # Junction table relationship for normalized event associations
@@ -117,6 +122,35 @@ class Detection(Base):
             f"<Detection(id={self.id}, camera_id={self.camera_id!r}, "
             f"object_type={self.object_type!r}, confidence={self.confidence})>"
         )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if this detection is soft-deleted.
+
+        Returns:
+            True if deleted_at is set, False otherwise
+        """
+        return self.deleted_at is not None
+
+    def soft_delete(self) -> None:
+        """Soft delete this detection by setting deleted_at timestamp.
+
+        This marks the detection as deleted without removing it from the database,
+        preserving referential integrity with related records.
+        """
+        self.deleted_at = datetime.now(UTC)
+
+    def restore(self) -> None:
+        """Restore a soft-deleted detection by clearing deleted_at timestamp."""
+        self.deleted_at = None
+
+    async def hard_delete(self, session: object) -> None:
+        """Hard delete this detection, permanently removing it from the database.
+
+        Args:
+            session: SQLAlchemy async session to use for deletion
+        """
+        await session.delete(self)  # type: ignore[attr-defined]
 
     def validate_enrichment_data(self) -> tuple[bool, list[str]]:
         """Validate the enrichment_data field using EnrichmentDataSchema.

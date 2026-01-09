@@ -303,10 +303,11 @@ class TestCreateCamera:
             status="online",
         )
 
-        # Mock existing camera with same name
+        # Mock existing camera with same name (not soft-deleted)
         mock_existing = MagicMock(spec=Camera)
         mock_existing.id = "existing_camera"
         mock_existing.name = "Existing Camera"
+        mock_existing.is_deleted = False  # Not soft-deleted
 
         mock_name_result = MagicMock()
         mock_name_result.scalar_one_or_none.return_value = mock_existing
@@ -346,10 +347,11 @@ class TestCreateCamera:
         mock_name_result = MagicMock()
         mock_name_result.scalar_one_or_none.return_value = None
 
-        # Mock existing camera with same path
+        # Mock existing camera with same path (not soft-deleted)
         mock_existing = MagicMock(spec=Camera)
         mock_existing.id = "existing_camera"
         mock_existing.folder_path = "/cameras/existing_path"
+        mock_existing.is_deleted = False  # Not soft-deleted
 
         mock_path_result = MagicMock()
         mock_path_result.scalar_one_or_none.return_value = mock_existing
@@ -608,8 +610,9 @@ class TestDeleteCamera:
 
     @pytest.mark.asyncio
     async def test_delete_camera_success(self) -> None:
-        """Test successfully deleting a camera."""
+        """Test successfully soft deleting a camera with cascade."""
         from backend.api.routes.cameras import delete_camera
+        from backend.services.cascade_delete import CascadeDeleteResult
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
@@ -621,21 +624,32 @@ class TestDeleteCamera:
         mock_camera.folder_path = "/cameras/front_door"
         mock_camera.status = "online"
 
-        mock_db.delete = AsyncMock()
         mock_db.commit = AsyncMock()
 
+        # Mock the cascade delete result
+        mock_result = CascadeDeleteResult(
+            parent_deleted=True, events_deleted=2, detections_deleted=5
+        )
+
         with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
-                mock_audit.log_action = AsyncMock()
-                result = await delete_camera(
-                    camera_id="front_door",
-                    request=mock_request,
-                    db=mock_db,
-                    cache=mock_cache,
-                )
+            with patch("backend.api.routes.cameras.CameraRepository") as mock_repo_class:
+                mock_repo = MagicMock()
+                mock_repo.soft_delete = AsyncMock(return_value=mock_result)
+                mock_repo_class.return_value = mock_repo
+                with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+                    mock_audit.log_action = AsyncMock()
+                    result = await delete_camera(
+                        camera_id="front_door",
+                        request=mock_request,
+                        db=mock_db,
+                        cache=mock_cache,
+                    )
 
         assert result is None
-        mock_db.delete.assert_called_once_with(mock_camera)
+        mock_repo.soft_delete.assert_called_once()
+        # Verify soft_delete was called with correct camera_id
+        call_args = mock_repo.soft_delete.call_args
+        assert call_args[0][0] == "front_door"
         mock_cache.invalidate_cameras.assert_called_once_with(reason="camera_deleted")
 
     @pytest.mark.asyncio
@@ -665,8 +679,9 @@ class TestDeleteCamera:
 
     @pytest.mark.asyncio
     async def test_delete_camera_audit_failure_recovers(self) -> None:
-        """Test camera deletion continues on audit log failure."""
+        """Test camera soft deletion continues on audit log failure."""
         from backend.api.routes.cameras import delete_camera
+        from backend.services.cascade_delete import CascadeDeleteResult
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
@@ -678,32 +693,42 @@ class TestDeleteCamera:
         mock_camera.folder_path = "/cameras/front_door"
         mock_camera.status = "online"
 
-        mock_db.delete = AsyncMock()
         mock_db.commit = AsyncMock()
         mock_db.rollback = AsyncMock()
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
-                mock_audit.log_action = AsyncMock()
-                # First commit fails (audit log failure)
-                mock_db.commit.side_effect = [Exception("Audit error"), None]
+        # Mock the cascade delete result
+        mock_result = CascadeDeleteResult(
+            parent_deleted=True, events_deleted=0, detections_deleted=0
+        )
 
-                result = await delete_camera(
-                    camera_id="front_door",
-                    request=mock_request,
-                    db=mock_db,
-                    cache=mock_cache,
-                )
+        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
+            with patch("backend.api.routes.cameras.CameraRepository") as mock_repo_class:
+                mock_repo = MagicMock()
+                mock_repo.soft_delete = AsyncMock(return_value=mock_result)
+                mock_repo_class.return_value = mock_repo
+                with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+                    mock_audit.log_action = AsyncMock()
+                    # First commit fails (audit log failure)
+                    mock_db.commit.side_effect = [Exception("Audit error"), None]
+
+                    result = await delete_camera(
+                        camera_id="front_door",
+                        request=mock_request,
+                        db=mock_db,
+                        cache=mock_cache,
+                    )
 
         assert result is None
         assert mock_db.rollback.called
-        # Should delete twice (once with audit failure, once recovery)
-        assert mock_db.delete.call_count == 2
+        # Soft delete is called once, then commit is retried after rollback
+        mock_repo.soft_delete.assert_called_once()
+        assert mock_db.commit.call_count == 2
 
     @pytest.mark.asyncio
     async def test_delete_camera_cache_invalidation_failure(self) -> None:
-        """Test camera deletion continues on cache invalidation failure."""
+        """Test camera soft deletion continues on cache invalidation failure."""
         from backend.api.routes.cameras import delete_camera
+        from backend.services.cascade_delete import CascadeDeleteResult
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
@@ -711,25 +736,37 @@ class TestDeleteCamera:
 
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
+        mock_camera.name = "Front Door"
+        mock_camera.folder_path = "/cameras/front_door"
+        mock_camera.status = "online"
 
-        mock_db.delete = AsyncMock()
         mock_db.commit = AsyncMock()
+
+        # Mock the cascade delete result
+        mock_result = CascadeDeleteResult(
+            parent_deleted=True, events_deleted=0, detections_deleted=0
+        )
 
         # Mock cache invalidation failure
         mock_cache.invalidate_cameras.side_effect = Exception("Cache error")
 
         with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
-                mock_audit.log_action = AsyncMock()
-                result = await delete_camera(
-                    camera_id="front_door",
-                    request=mock_request,
-                    db=mock_db,
-                    cache=mock_cache,
-                )
+            with patch("backend.api.routes.cameras.CameraRepository") as mock_repo_class:
+                mock_repo = MagicMock()
+                mock_repo.soft_delete = AsyncMock(return_value=mock_result)
+                mock_repo_class.return_value = mock_repo
+                with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+                    mock_audit.log_action = AsyncMock()
+                    result = await delete_camera(
+                        camera_id="front_door",
+                        request=mock_request,
+                        db=mock_db,
+                        cache=mock_cache,
+                    )
 
         # Should still succeed despite cache error
         assert result is None
+        mock_repo.soft_delete.assert_called_once()
 
 
 class TestGetCameraSnapshot:

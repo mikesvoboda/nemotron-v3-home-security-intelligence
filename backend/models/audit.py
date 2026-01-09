@@ -37,6 +37,10 @@ class AuditAction(str, Enum):
     CAMERA_CREATED = "camera_created"
     CAMERA_UPDATED = "camera_updated"
     CAMERA_DELETED = "camera_deleted"
+    CAMERA_RESTORED = "camera_restored"
+
+    # Event actions (restore)
+    EVENT_RESTORED = "event_restored"
 
     # Authentication actions
     LOGIN = "login"
