@@ -12592,6 +12592,12 @@
           "403": {
             "description": "Forbidden - Debug mode or admin not enabled"
           },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
           "422": {
             "description": "Validation error"
           },
@@ -12715,6 +12721,15 @@
               }
             },
             "description": "Events and detections created successfully"
+          },
+          "400": {
+            "description": "Bad request - No cameras found"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
           },
           "400": {
             "description": "Bad request - No cameras found"
