@@ -697,15 +697,20 @@ async def test_analyze_batch_success(
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
     # Configure mock session to return appropriate results based on query
+    # NEM-1998: ON CONFLICT DO NOTHING adds 2 extra execute calls for event_detections
     call_count = 0
+    mock_insert_result = MagicMock()
 
     async def mock_execute(query):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
             return mock_camera_result
-        else:
+        elif call_count == 2:
             return mock_detections_result
+        else:
+            # NEM-1998: ON CONFLICT INSERT calls return generic result
+            return mock_insert_result
 
     mock_session.execute = mock_execute
     mock_session.add = MagicMock()
@@ -747,8 +752,9 @@ async def test_analyze_batch_success(
     assert event.reviewed is False
 
     # Verify session operations were called
-    # Event + EventDetection records (2) + EventAudit are all added
-    assert mock_session.add.call_count == 4  # Event + 2 EventDetections + EventAudit
+    # NEM-1998: EventDetection records now use ON CONFLICT INSERT via execute()
+    # Event + EventAudit are added via session.add()
+    assert mock_session.add.call_count == 2  # Event + EventAudit (EventDetections use execute)
     assert mock_session.commit.await_count == 3  # Commit for Event, EventDetections, EventAudit
     assert mock_session.refresh.await_count == 2  # Refresh for Event and EventAudit
 
@@ -1905,8 +1911,17 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
-        # Setup execute to return camera first, then detections
-        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        # Setup execute to return camera first, then detections, then ON CONFLICT inserts
+        # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
+        mock_insert_result = MagicMock()  # Result from ON CONFLICT INSERT
+        mock_session.execute = AsyncMock(
+            side_effect=[
+                mock_camera_result,
+                mock_det_result,
+                mock_insert_result,
+                mock_insert_result,
+            ]
+        )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
@@ -2018,7 +2033,16 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
-        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
+        mock_insert_result = MagicMock()
+        mock_session.execute = AsyncMock(
+            side_effect=[
+                mock_camera_result,
+                mock_det_result,
+                mock_insert_result,
+                mock_insert_result,
+            ]
+        )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
@@ -2127,7 +2151,16 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
-        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
+        mock_insert_result = MagicMock()
+        mock_session.execute = AsyncMock(
+            side_effect=[
+                mock_camera_result,
+                mock_det_result,
+                mock_insert_result,
+                mock_insert_result,
+            ]
+        )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
@@ -2319,7 +2352,16 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
-        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
+        mock_insert_result = MagicMock()
+        mock_session.execute = AsyncMock(
+            side_effect=[
+                mock_camera_result,
+                mock_det_result,
+                mock_insert_result,
+                mock_insert_result,
+            ]
+        )
         mock_session.add = MagicMock()
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
