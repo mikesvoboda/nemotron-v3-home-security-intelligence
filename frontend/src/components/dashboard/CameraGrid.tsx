@@ -337,6 +337,7 @@ export default function CameraGrid({
       )}
       role="group"
       aria-label="Camera grid"
+      data-testid="camera-grid"
     >
       {cameras.map((camera) => (
         <CameraCard

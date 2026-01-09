@@ -965,3 +965,842 @@ class TestEventStructure:
         managed_service.enabled = False
         event = create_service_status_event(managed_service, "Test")
         assert event["data"]["enabled"] is False
+
+
+# =============================================================================
+# Additional Coverage Tests for Missing Lines
+# =============================================================================
+
+
+class TestEnableServiceFallback:
+    """Tests for enable_service fallback path without lifecycle manager."""
+
+    @pytest.mark.asyncio
+    async def test_enable_service_fallback_without_lifecycle_manager(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test enable_service fallback when lifecycle manager is None."""
+        managed_service.enabled = False
+        managed_service.failure_count = 3
+        managed_service.status = ContainerServiceStatus.DISABLED
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        result = await orchestrator.enable_service("ai-detector")
+
+        assert result is True
+        service = orchestrator.get_service("ai-detector")
+        assert service is not None
+        assert service.enabled is True
+        assert service.failure_count == 0
+        assert service.status == ContainerServiceStatus.STOPPED
+
+        # Should broadcast status change
+        mock_broadcast_fn.assert_called()
+
+
+class TestDisableServiceFallback:
+    """Tests for disable_service fallback path without lifecycle manager."""
+
+    @pytest.mark.asyncio
+    async def test_disable_service_fallback_without_lifecycle_manager(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test disable_service fallback when lifecycle manager is None."""
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        result = await orchestrator.disable_service("ai-detector")
+
+        assert result is True
+        service = orchestrator.get_service("ai-detector")
+        assert service is not None
+        assert service.enabled is False
+        assert service.status == ContainerServiceStatus.DISABLED
+
+        # Should broadcast status change
+        mock_broadcast_fn.assert_called()
+
+
+class TestRestartServiceAdvanced:
+    """Advanced tests for restart_service covering all code paths."""
+
+    @pytest.mark.asyncio
+    async def test_restart_service_with_reset_failures(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+    ) -> None:
+        """Test restart_service with reset_failures=True."""
+        managed_service.failure_count = 3
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None to test fallback
+        orchestrator._lifecycle_manager = None
+
+        await orchestrator.restart_service("ai-detector", reset_failures=True)
+
+        service = orchestrator.get_service("ai-detector")
+        assert service is not None
+        assert service.failure_count == 0
+
+    @pytest.mark.asyncio
+    async def test_restart_service_with_lifecycle_manager_success(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service with lifecycle manager succeeds."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager restart to succeed
+        with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is True
+        # Should broadcast restart succeeded
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("succeeded" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_restart_service_with_lifecycle_manager_failure(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service with lifecycle manager fails."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager restart to fail
+        with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=False):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is False
+        # Should broadcast restart failed
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("failed" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_restart_service_fallback_success(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service fallback path succeeds."""
+        mock_docker_client.restart_container.return_value = True
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        result = await orchestrator.restart_service("ai-detector")
+
+        assert result is True
+        mock_docker_client.restart_container.assert_called_once_with(managed_service.container_id)
+
+        service = orchestrator.get_service("ai-detector")
+        assert service is not None
+        assert service.restart_count > 0
+
+        # Should broadcast restart succeeded
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("succeeded" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_restart_service_fallback_failure(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service fallback path fails."""
+        mock_docker_client.restart_container.return_value = False
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        result = await orchestrator.restart_service("ai-detector")
+
+        assert result is False
+        # Should broadcast restart failed
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("failed" in msg.lower() for msg in messages)
+
+
+class TestStartServiceAdvanced:
+    """Advanced tests for start_service covering all code paths."""
+
+    @pytest.mark.asyncio
+    async def test_start_service_with_lifecycle_manager_success(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test start_service with lifecycle manager succeeds."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager start to succeed
+        with patch.object(orchestrator._lifecycle_manager, "start_service", return_value=True):
+            result = await orchestrator.start_service("ai-detector")
+
+        assert result is True
+        # Should broadcast service started
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("started" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_start_service_with_lifecycle_manager_failure(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+    ) -> None:
+        """Test start_service with lifecycle manager fails."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager start to fail
+        with patch.object(orchestrator._lifecycle_manager, "start_service", return_value=False):
+            result = await orchestrator.start_service("ai-detector")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_start_service_fallback_success(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test start_service fallback path succeeds."""
+        mock_docker_client.start_container.return_value = True
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        result = await orchestrator.start_service("ai-detector")
+
+        assert result is True
+        mock_docker_client.start_container.assert_called_once_with(managed_service.container_id)
+
+        service = orchestrator.get_service("ai-detector")
+        assert service is not None
+        assert service.status == ContainerServiceStatus.STARTING
+
+        # Should broadcast service started
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("started" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_start_service_fallback_failure(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+    ) -> None:
+        """Test start_service fallback path fails."""
+        mock_docker_client.start_container.return_value = False
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        result = await orchestrator.start_service("ai-detector")
+
+        assert result is False
+
+
+class TestHealthChangeCallbackAdvanced:
+    """Advanced tests for health change callback covering all code paths."""
+
+    @pytest.mark.asyncio
+    async def test_health_change_delegates_to_lifecycle_manager_stopped(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test health change callback delegates to lifecycle manager when stopped."""
+        managed_service.status = ContainerServiceStatus.STOPPED
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager handle_stopped
+        with patch.object(
+            orchestrator._lifecycle_manager, "handle_stopped", new_callable=AsyncMock
+        ) as mock_handle_stopped:
+            await orchestrator._on_health_change(managed_service, False)
+
+        mock_handle_stopped.assert_called_once_with(managed_service)
+        # Should broadcast health check failed
+        mock_broadcast_fn.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_health_change_delegates_to_lifecycle_manager_unhealthy(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test health change callback delegates to lifecycle manager when unhealthy."""
+        managed_service.status = ContainerServiceStatus.RUNNING
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager handle_unhealthy
+        with patch.object(
+            orchestrator._lifecycle_manager, "handle_unhealthy", new_callable=AsyncMock
+        ) as mock_handle_unhealthy:
+            await orchestrator._on_health_change(managed_service, False)
+
+        mock_handle_unhealthy.assert_called_once_with(managed_service)
+        # Should broadcast health check failed
+        mock_broadcast_fn.assert_called()
+
+
+class TestCallbackBroadcasts:
+    """Tests for callback broadcast functionality."""
+
+    @pytest.mark.asyncio
+    async def test_on_disabled_callback_broadcasts(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test on_disabled callback broadcasts status change."""
+        orchestrator._registry.register(managed_service)
+
+        await orchestrator._on_disabled(managed_service)
+
+        # Should broadcast "Service disabled - max failures reached"
+        mock_broadcast_fn.assert_called()
+        call_args = mock_broadcast_fn.call_args[0][0]
+        assert "disabled" in call_args.get("message", "").lower()
+        assert "max failures" in call_args.get("message", "").lower()
+
+
+class TestStopHealthMonitorCleanup:
+    """Tests for stop method health monitor cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_stop_cleans_up_health_monitor(
+        self,
+        orchestrator: ContainerOrchestrator,
+        mock_docker_client: AsyncMock,
+        discovered_service: DiscoveredService,
+    ) -> None:
+        """Test stop method properly cleans up health monitor."""
+        mock_docker_client.connect.return_value = True
+
+        with patch.object(
+            orchestrator._discovery_service,
+            "discover_all",
+            return_value=[discovered_service],
+        ):
+            await orchestrator.start()
+
+        assert orchestrator._health_monitor is not None
+
+        # Mock health monitor stop
+        with patch.object(
+            orchestrator._health_monitor, "stop", new_callable=AsyncMock
+        ) as mock_stop:
+            await orchestrator.stop()
+            mock_stop.assert_called_once()
+
+        assert orchestrator._health_monitor is None
+        assert orchestrator.is_running is False
+
+
+class TestHealthChangeWithoutLifecycleManager:
+    """Tests for health change callback without lifecycle manager."""
+
+    @pytest.mark.asyncio
+    async def test_health_change_unhealthy_without_lifecycle_manager(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test health change callback when lifecycle manager is None."""
+        orchestrator._registry.register(managed_service)
+
+        # Ensure lifecycle manager is None
+        orchestrator._lifecycle_manager = None
+
+        await orchestrator._on_health_change(managed_service, False)
+
+        # Should still broadcast health check failed
+        mock_broadcast_fn.assert_called()
+        call_args = mock_broadcast_fn.call_args[0][0]
+        assert "health check failed" in call_args.get("message", "").lower()
+
+
+class TestBroadcastEdgeCases:
+    """Tests for broadcast edge cases where service might not exist."""
+
+    @pytest.mark.asyncio
+    async def test_enable_service_broadcast_after_service_removed(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test enable_service handles case where service is removed before broadcast."""
+        orchestrator._registry.register(managed_service)
+        orchestrator._lifecycle_manager = None
+
+        # Mock get to return None after enable operation (simulating concurrent removal)
+        original_get = orchestrator._registry.get
+
+        def mock_get_none_second_call(name: str):
+            # First call returns service, second call returns None
+            if not hasattr(mock_get_none_second_call, "call_count"):
+                mock_get_none_second_call.call_count = 0
+            mock_get_none_second_call.call_count += 1
+
+            if mock_get_none_second_call.call_count == 1:
+                return original_get(name)
+            return None
+
+        with patch.object(orchestrator._registry, "get", side_effect=mock_get_none_second_call):
+            result = await orchestrator.enable_service("ai-detector")
+
+        # Should still return True (operation succeeded)
+        assert result is True
+        # Broadcast should not be called since service was None
+        assert mock_broadcast_fn.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_disable_service_broadcast_after_service_removed(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test disable_service handles case where service is removed before broadcast."""
+        orchestrator._registry.register(managed_service)
+        orchestrator._lifecycle_manager = None
+
+        # Mock get to return None after disable operation
+        original_get = orchestrator._registry.get
+
+        def mock_get_none_second_call(name: str):
+            if not hasattr(mock_get_none_second_call, "call_count"):
+                mock_get_none_second_call.call_count = 0
+            mock_get_none_second_call.call_count += 1
+
+            if mock_get_none_second_call.call_count == 1:
+                return original_get(name)
+            return None
+
+        with patch.object(orchestrator._registry, "get", side_effect=mock_get_none_second_call):
+            result = await orchestrator.disable_service("ai-detector")
+
+        assert result is True
+        assert mock_broadcast_fn.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_restart_service_broadcast_after_service_removed_with_lifecycle_manager(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service handles service removal with lifecycle manager."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock lifecycle manager restart to succeed, but service becomes None afterward
+        original_get = orchestrator._registry.get
+
+        def mock_get_for_restart(name: str):
+            if not hasattr(mock_get_for_restart, "call_count"):
+                mock_get_for_restart.call_count = 0
+            mock_get_for_restart.call_count += 1
+
+            # First two calls return service (initial check and restart initiated)
+            # Third call returns None (after restart success)
+            if mock_get_for_restart.call_count <= 2:
+                return original_get(name)
+            return None
+
+        with (
+            patch.object(orchestrator._registry, "get", side_effect=mock_get_for_restart),
+            patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True),
+        ):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_restart_service_fallback_broadcast_after_service_removed(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service fallback handles service removal before broadcast."""
+        mock_docker_client.restart_container.return_value = True
+        orchestrator._registry.register(managed_service)
+        orchestrator._lifecycle_manager = None
+
+        # Mock get to return None after restart
+        original_get = orchestrator._registry.get
+
+        def mock_get_for_fallback(name: str):
+            if not hasattr(mock_get_for_fallback, "call_count"):
+                mock_get_for_fallback.call_count = 0
+            mock_get_for_fallback.call_count += 1
+
+            # First two calls return service, third returns None
+            if mock_get_for_fallback.call_count <= 2:
+                return original_get(name)
+            return None
+
+        with patch.object(orchestrator._registry, "get", side_effect=mock_get_for_fallback):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_start_service_with_lifecycle_manager_broadcast_after_removal(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test start_service with lifecycle manager handles service removal."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Mock get to return None after start
+        original_get = orchestrator._registry.get
+
+        def mock_get_for_start(name: str):
+            if not hasattr(mock_get_for_start, "call_count"):
+                mock_get_for_start.call_count = 0
+            mock_get_for_start.call_count += 1
+
+            # First call returns service, second returns None
+            if mock_get_for_start.call_count == 1:
+                return original_get(name)
+            return None
+
+        with (
+            patch.object(orchestrator._registry, "get", side_effect=mock_get_for_start),
+            patch.object(orchestrator._lifecycle_manager, "start_service", return_value=True),
+        ):
+            result = await orchestrator.start_service("ai-detector")
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_start_service_fallback_broadcast_after_service_removed(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test start_service fallback handles service removal before broadcast."""
+        mock_docker_client.start_container.return_value = True
+        orchestrator._registry.register(managed_service)
+        orchestrator._lifecycle_manager = None
+
+        # Mock get to return None after start
+        original_get = orchestrator._registry.get
+
+        def mock_get_for_fallback_start(name: str):
+            if not hasattr(mock_get_for_fallback_start, "call_count"):
+                mock_get_for_fallback_start.call_count = 0
+            mock_get_for_fallback_start.call_count += 1
+
+            # First call returns service, second returns None
+            if mock_get_for_fallback_start.call_count == 1:
+                return original_get(name)
+            return None
+
+        with patch.object(orchestrator._registry, "get", side_effect=mock_get_for_fallback_start):
+            result = await orchestrator.start_service("ai-detector")
+
+        assert result is True
+
+
+class TestStopPersistStateIteration:
+    """Tests for stop method persist state iteration."""
+
+    @pytest.mark.asyncio
+    async def test_stop_persists_multiple_services(
+        self,
+        orchestrator: ContainerOrchestrator,
+        mock_docker_client: AsyncMock,
+        discovered_service: DiscoveredService,
+    ) -> None:
+        """Test stop persists state for multiple services."""
+        mock_docker_client.connect.return_value = True
+
+        # Create multiple discovered services
+        service2 = DiscoveredService(
+            name="ai-analyzer",
+            display_name="Nemotron",
+            container_id="xyz789abc012",
+            image="ghcr.io/example/nemotron:latest",
+            port=8091,
+            category=ServiceCategory.AI,
+            health_endpoint="/health",
+            max_failures=5,
+            restart_backoff_base=5.0,
+            restart_backoff_max=300.0,
+            startup_grace_period=60,
+        )
+
+        with patch.object(
+            orchestrator._discovery_service,
+            "discover_all",
+            return_value=[discovered_service, service2],
+        ):
+            await orchestrator.start()
+
+        # Mock persist_state to track calls
+        with patch.object(
+            orchestrator._registry, "persist_state", new_callable=AsyncMock
+        ) as mock_persist:
+            await orchestrator.stop()
+
+            # Should persist state for both services
+            assert mock_persist.call_count == 2
+            persisted_names = [call[0][0] for call in mock_persist.call_args_list]
+            assert "ai-detector" in persisted_names
+            assert "ai-analyzer" in persisted_names
+
+    @pytest.mark.asyncio
+    async def test_stop_without_health_monitor(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+    ) -> None:
+        """Test stop method when health monitor is None."""
+        orchestrator._registry.register(managed_service)
+        orchestrator._running = True
+
+        # Ensure health monitor is None
+        orchestrator._health_monitor = None
+
+        # Mock persist_state to verify it's called
+        with patch.object(
+            orchestrator._registry, "persist_state", new_callable=AsyncMock
+        ) as mock_persist:
+            await orchestrator.stop()
+
+            # Should still persist state
+            mock_persist.assert_called_once_with("ai-detector")
+
+        assert orchestrator.is_running is False
+
+
+class TestRestartFailureBroadcasts:
+    """Tests for restart failure broadcast edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_restart_service_with_lifecycle_manager_failure_broadcasts(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service broadcasts failure when lifecycle manager fails."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Clear previous broadcast calls
+        mock_broadcast_fn.reset_mock()
+
+        # Mock lifecycle manager restart to fail
+        with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=False):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is False
+        # Should broadcast restart initiated and restart failed
+        assert mock_broadcast_fn.call_count >= 2
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("initiated" in msg.lower() for msg in messages)
+        assert any("failed" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_restart_service_fallback_failure_broadcasts(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service fallback broadcasts failure."""
+        mock_docker_client.restart_container.return_value = False
+        orchestrator._registry.register(managed_service)
+        orchestrator._lifecycle_manager = None
+
+        # Clear previous calls
+        mock_broadcast_fn.reset_mock()
+
+        result = await orchestrator.restart_service("ai-detector")
+
+        assert result is False
+        # Should broadcast restart initiated and restart failed
+        assert mock_broadcast_fn.call_count >= 2
+        calls = [call[0][0] for call in mock_broadcast_fn.call_args_list]
+        messages = [call.get("message", "") for call in calls]
+        assert any("initiated" in msg.lower() for msg in messages)
+        assert any("failed" in msg.lower() for msg in messages)
+
+    @pytest.mark.asyncio
+    async def test_restart_service_with_lifecycle_manager_success_no_broadcast(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service with lifecycle manager success but service removed."""
+        orchestrator._registry.register(managed_service)
+
+        # Create lifecycle manager
+        mock_docker_client.connect.return_value = True
+        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+            await orchestrator.start()
+
+        # Clear previous calls
+        mock_broadcast_fn.reset_mock()
+
+        # Mock get to return None after restart success (service removed concurrently)
+        original_get = orchestrator._registry.get
+        call_count = {"count": 0}
+
+        def mock_get_with_removal(name: str):
+            call_count["count"] += 1
+            # First two calls return service (initial check, restart initiated)
+            # Third call returns None (after restart succeeds)
+            if call_count["count"] <= 2:
+                return original_get(name)
+            return None
+
+        with (
+            patch.object(orchestrator._registry, "get", side_effect=mock_get_with_removal),
+            patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True),
+        ):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is True
+        # Should have broadcast initiated but not succeeded (service was None)
+        assert mock_broadcast_fn.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_restart_service_fallback_success_no_broadcast(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Test restart_service fallback success but service removed before broadcast."""
+        mock_docker_client.restart_container.return_value = True
+        orchestrator._registry.register(managed_service)
+        orchestrator._lifecycle_manager = None
+
+        # Clear previous calls
+        mock_broadcast_fn.reset_mock()
+
+        # Mock get to return None after restart
+        original_get = orchestrator._registry.get
+        call_count = {"count": 0}
+
+        def mock_get_fallback_removal(name: str):
+            call_count["count"] += 1
+            # First two calls return service (initial check, restart initiated)
+            # Third call (after persist_state) returns None
+            if call_count["count"] <= 2:
+                return original_get(name)
+            return None
+
+        with patch.object(orchestrator._registry, "get", side_effect=mock_get_fallback_removal):
+            result = await orchestrator.restart_service("ai-detector")
+
+        assert result is True
+        # Should have broadcast initiated but not succeeded
+        assert mock_broadcast_fn.call_count >= 1

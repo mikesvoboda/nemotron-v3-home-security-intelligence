@@ -21,6 +21,8 @@ Example:
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class FieldFilterError(Exception):
     """Exception raised when invalid fields are requested.
@@ -45,14 +47,14 @@ class FieldFilterError(Exception):
         super().__init__(message)
 
 
-def parse_fields_param(fields: str | None) -> set[str] | None:
+def parse_fields_param(fields: str | None | Any) -> set[str] | None:
     """Parse the fields query parameter into a set of field names.
 
     Handles comma-separated field names with optional whitespace.
     Field names are normalized to lowercase.
 
     Args:
-        fields: Comma-separated string of field names, or None
+        fields: Comma-separated string of field names, None, or a FastAPI Query object
 
     Returns:
         Set of lowercase field names, or None if no fields specified
@@ -68,7 +70,11 @@ def parse_fields_param(fields: str | None) -> set[str] | None:
         >>> parse_fields_param("")
         None
     """
-    if fields is None or fields.strip() == "":
+    # Handle FastAPI Query objects (occurs when tests call route handlers directly)
+    if hasattr(fields, "default"):
+        fields = fields.default  # type: ignore[union-attr]
+
+    if fields is None or (isinstance(fields, str) and fields.strip() == ""):
         return None
 
     # Split by comma, strip whitespace, normalize to lowercase, filter empty
