@@ -77,7 +77,20 @@ export function useEventStream(): UseEventStreamReturn {
         const newEvents = [event, ...prevEvents];
 
         // Keep only the most recent MAX_EVENTS
-        return newEvents.slice(0, MAX_EVENTS);
+        const trimmedEvents = newEvents.slice(0, MAX_EVENTS);
+
+        // NEM-1998: Bound the seen IDs set to prevent memory leaks
+        // When events are evicted from the array, remove their IDs from the set
+        // This ensures the set doesn't grow unbounded over time
+        if (newEvents.length > MAX_EVENTS) {
+          const evictedEvents = newEvents.slice(MAX_EVENTS);
+          for (const evictedEvent of evictedEvents) {
+            const evictedKey = getEventKey(evictedEvent);
+            seenEventIdsRef.current.delete(evictedKey);
+          }
+        }
+
+        return trimmedEvents;
       });
       return;
     }

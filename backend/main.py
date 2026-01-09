@@ -531,6 +531,28 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Close performance collector (cleanup HTTP client and pynvml)
     await performance_collector.close()
     print("Performance collector closed")
+
+    # Unload AI models from GPU memory and clear CUDA cache (NEM-1996)
+    # This prevents GPU memory leaks on shutdown and ensures clean restarts
+    try:
+        from backend.services.model_zoo import get_model_manager
+
+        model_manager = get_model_manager()
+        await model_manager.unload_all()
+        print("AI models unloaded from GPU")
+
+        # Clear CUDA cache after model unload for complete GPU memory cleanup
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                print("CUDA cache cleared")
+        except ImportError:
+            pass  # torch not installed, skip CUDA cleanup
+    except Exception as e:
+        print(f"Warning: Error unloading models: {e}")
+
     await close_db()
     print("Database connections closed")
     await close_redis()
