@@ -8,6 +8,25 @@ from pydantic import BaseModel, ConfigDict, Field
 class ModelContributions(BaseModel):
     """Model contribution flags."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "rtdetr": True,
+                "florence": True,
+                "clip": False,
+                "violence": False,
+                "clothing": True,
+                "vehicle": False,
+                "pet": False,
+                "weather": True,
+                "image_quality": True,
+                "zones": True,
+                "baseline": False,
+                "cross_camera": False,
+            }
+        }
+    )
+
     rtdetr: bool = Field(False, description="RT-DETR object detection")
     florence: bool = Field(False, description="Florence-2 vision attributes")
     clip: bool = Field(False, description="CLIP embeddings")
@@ -25,6 +44,18 @@ class ModelContributions(BaseModel):
 class QualityScores(BaseModel):
     """Self-evaluation quality scores (1-5 scale)."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "context_usage": 4.2,
+                "reasoning_coherence": 4.5,
+                "risk_justification": 3.8,
+                "consistency": 4.0,
+                "overall": 4.1,
+            }
+        }
+    )
+
     context_usage: float | None = Field(None, ge=1, le=5)
     reasoning_coherence: float | None = Field(None, ge=1, le=5)
     risk_justification: float | None = Field(None, ge=1, le=5)
@@ -34,6 +65,18 @@ class QualityScores(BaseModel):
 
 class PromptImprovements(BaseModel):
     """Prompt improvement suggestions from self-evaluation."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "missing_context": ["Time since last motion event", "Weather conditions"],
+                "confusing_sections": ["Zone overlap handling unclear"],
+                "unused_data": ["Vehicle color data not utilized"],
+                "format_suggestions": ["Add structured detection summary"],
+                "model_gaps": ["Pet detection model not active"],
+            }
+        }
+    )
 
     missing_context: list[str] = Field(default_factory=list)
     confusing_sections: list[str] = Field(default_factory=list)
@@ -45,7 +88,51 @@ class PromptImprovements(BaseModel):
 class EventAuditResponse(BaseModel):
     """Full audit response for a single event."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 456,
+                "event_id": 12345,
+                "audited_at": "2026-01-03T10:30:00Z",
+                "is_fully_evaluated": True,
+                "contributions": {
+                    "rtdetr": True,
+                    "florence": True,
+                    "clip": False,
+                    "violence": False,
+                    "clothing": True,
+                    "vehicle": False,
+                    "pet": False,
+                    "weather": True,
+                    "image_quality": True,
+                    "zones": True,
+                    "baseline": False,
+                    "cross_camera": False,
+                },
+                "prompt_length": 2048,
+                "prompt_token_estimate": 512,
+                "enrichment_utilization": 0.85,
+                "scores": {
+                    "context_usage": 4.2,
+                    "reasoning_coherence": 4.5,
+                    "risk_justification": 3.8,
+                    "consistency": 4.0,
+                    "overall": 4.1,
+                },
+                "consistency_risk_score": 62,
+                "consistency_diff": 3,
+                "self_eval_critique": "More historical context would improve analysis.",
+                "improvements": {
+                    "missing_context": ["Time since last motion event"],
+                    "confusing_sections": [],
+                    "unused_data": [],
+                    "format_suggestions": [],
+                    "model_gaps": [],
+                },
+            }
+        },
+    )
 
     id: int
     event_id: int
@@ -77,6 +164,30 @@ class EventAuditResponse(BaseModel):
 class AuditStatsResponse(BaseModel):
     """Aggregate audit statistics."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_events": 1250,
+                "audited_events": 1100,
+                "fully_evaluated_events": 950,
+                "avg_quality_score": 4.1,
+                "avg_consistency_rate": 0.92,
+                "avg_enrichment_utilization": 0.78,
+                "model_contribution_rates": {
+                    "rtdetr": 0.98,
+                    "florence": 0.85,
+                    "clothing": 0.72,
+                    "weather": 0.95,
+                },
+                "audits_by_day": [
+                    {"date": "2026-01-01", "count": 45},
+                    {"date": "2026-01-02", "count": 52},
+                    {"date": "2026-01-03", "count": 38},
+                ],
+            }
+        }
+    )
+
     total_events: int
     audited_events: int
     fully_evaluated_events: int
@@ -95,6 +206,17 @@ class AuditStatsResponse(BaseModel):
 class ModelLeaderboardEntry(BaseModel):
     """Single entry in model leaderboard."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "florence",
+                "contribution_rate": 0.85,
+                "quality_correlation": 0.72,
+                "event_count": 1050,
+            }
+        }
+    )
+
     model_name: str
     contribution_rate: float
     quality_correlation: float | None
@@ -104,12 +226,45 @@ class ModelLeaderboardEntry(BaseModel):
 class LeaderboardResponse(BaseModel):
     """Model leaderboard response."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entries": [
+                    {
+                        "model_name": "rtdetr",
+                        "contribution_rate": 0.98,
+                        "quality_correlation": 0.85,
+                        "event_count": 1200,
+                    },
+                    {
+                        "model_name": "florence",
+                        "contribution_rate": 0.85,
+                        "quality_correlation": 0.72,
+                        "event_count": 1050,
+                    },
+                ],
+                "period_days": 30,
+            }
+        }
+    )
+
     entries: list[ModelLeaderboardEntry]
     period_days: int
 
 
 class RecommendationItem(BaseModel):
     """Single recommendation item."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "category": "missing_context",
+                "suggestion": "Add time since last motion event to prompt",
+                "frequency": 25,
+                "priority": "high",
+            }
+        }
+    )
 
     category: str  # missing_context, unused_data, model_gaps, etc.
     suggestion: str
@@ -254,12 +409,44 @@ class EnrichedSuggestion(BaseModel):
 class RecommendationsResponse(BaseModel):
     """Aggregated recommendations response."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "recommendations": [
+                    {
+                        "category": "missing_context",
+                        "suggestion": "Add time since last motion event",
+                        "frequency": 25,
+                        "priority": "high",
+                    },
+                    {
+                        "category": "model_gaps",
+                        "suggestion": "Enable pet detection model",
+                        "frequency": 12,
+                        "priority": "medium",
+                    },
+                ],
+                "total_events_analyzed": 500,
+            }
+        }
+    )
+
     recommendations: list[RecommendationItem]
     total_events_analyzed: int
 
 
 class BatchAuditRequest(BaseModel):
     """Request for batch audit processing."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "limit": 100,
+                "min_risk_score": 50,
+                "force_reevaluate": False,
+            }
+        }
+    )
 
     limit: int = Field(100, ge=1, le=1000)
     min_risk_score: int | None = Field(None, ge=0, le=100)
@@ -268,6 +455,15 @@ class BatchAuditRequest(BaseModel):
 
 class BatchAuditResponse(BaseModel):
     """Response for batch audit request."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "queued_count": 75,
+                "message": "Queued 75 events for audit processing",
+            }
+        }
+    )
 
     queued_count: int
     message: str
@@ -296,6 +492,16 @@ class ModelName(str):
 class NemotronConfig(BaseModel):
     """Configuration for Nemotron LLM risk analyzer."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "system_prompt": "You are a home security AI assistant analyzing camera detections...",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+            }
+        }
+    )
+
     system_prompt: str = Field(..., description="Full system prompt text for risk analysis")
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="LLM temperature setting")
     max_tokens: int = Field(2048, ge=100, le=8192, description="Maximum tokens in response")
@@ -303,6 +509,18 @@ class NemotronConfig(BaseModel):
 
 class Florence2Config(BaseModel):
     """Configuration for Florence-2 VQA model."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "vqa_queries": [
+                    "What is this person wearing?",
+                    "Is this person carrying anything?",
+                    "What color is the vehicle?",
+                ]
+            }
+        }
+    )
 
     vqa_queries: list[str] = Field(
         ...,
@@ -313,6 +531,15 @@ class Florence2Config(BaseModel):
 
 class YoloWorldConfig(BaseModel):
     """Configuration for YOLO-World object detection."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "object_classes": ["person", "car", "truck", "bicycle", "dog", "cat"],
+                "confidence_threshold": 0.5,
+            }
+        }
+    )
 
     object_classes: list[str] = Field(
         ...,
@@ -330,6 +557,21 @@ class YoloWorldConfig(BaseModel):
 class XClipConfig(BaseModel):
     """Configuration for X-CLIP action recognition."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "action_classes": [
+                    "walking",
+                    "running",
+                    "standing",
+                    "sitting",
+                    "driving",
+                    "entering",
+                ]
+            }
+        }
+    )
+
     action_classes: list[str] = Field(
         ...,
         description="List of action classes to recognize",
@@ -339,6 +581,20 @@ class XClipConfig(BaseModel):
 
 class FashionClipConfig(BaseModel):
     """Configuration for FashionCLIP clothing analysis."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "clothing_categories": ["jacket", "shirt", "pants", "shorts", "dress", "hat"],
+                "suspicious_indicators": [
+                    "all black",
+                    "face mask",
+                    "hoodie up",
+                    "gloves at night",
+                ],
+            }
+        }
+    )
 
     clothing_categories: list[str] = Field(
         ...,
@@ -354,6 +610,22 @@ class FashionClipConfig(BaseModel):
 class PromptConfigUnion(BaseModel):
     """Union type for model configurations."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "nemotron": {
+                    "system_prompt": "You are a home security AI...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "florence2": None,
+                "yolo_world": None,
+                "xclip": None,
+                "fashion_clip": None,
+            }
+        }
+    )
+
     nemotron: NemotronConfig | None = None
     florence2: Florence2Config | None = None
     yolo_world: YoloWorldConfig | None = None
@@ -364,7 +636,17 @@ class PromptConfigUnion(BaseModel):
 class PromptVersionInfo(BaseModel):
     """Version information for a prompt configuration."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "version": 3,
+                "created_at": "2026-01-03T10:30:00Z",
+                "created_by": "admin",
+                "description": "Added weather context to prompt",
+            }
+        },
+    )
 
     version: int = Field(..., ge=1, description="Version number (1-indexed)")
     created_at: datetime = Field(..., description="When this version was created")
@@ -375,7 +657,21 @@ class PromptVersionInfo(BaseModel):
 class ModelPromptResponse(BaseModel):
     """Response for a single model's prompt configuration."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "model_name": "nemotron",
+                "config": {
+                    "system_prompt": "You are a home security AI...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "version": 3,
+                "updated_at": "2026-01-03T10:30:00Z",
+            }
+        },
+    )
 
     model_name: str = Field(..., description="Name of the AI model")
     config: dict = Field(..., description="Current configuration for this model")
@@ -386,6 +682,27 @@ class ModelPromptResponse(BaseModel):
 class AllPromptsResponse(BaseModel):
     """Response containing prompts for all models."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "prompts": {
+                    "nemotron": {
+                        "model_name": "nemotron",
+                        "config": {"system_prompt": "...", "temperature": 0.7},
+                        "version": 3,
+                        "updated_at": "2026-01-03T10:30:00Z",
+                    },
+                    "florence2": {
+                        "model_name": "florence2",
+                        "config": {"vqa_queries": ["What is this?"]},
+                        "version": 1,
+                        "updated_at": "2026-01-01T08:00:00Z",
+                    },
+                }
+            }
+        }
+    )
+
     prompts: dict[str, ModelPromptResponse] = Field(
         ...,
         description="Dictionary mapping model names to their configurations",
@@ -395,12 +712,40 @@ class AllPromptsResponse(BaseModel):
 class PromptUpdateRequest(BaseModel):
     """Request to update a model's prompt configuration."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "config": {
+                    "system_prompt": "Updated system prompt with new context...",
+                    "temperature": 0.8,
+                    "max_tokens": 2048,
+                },
+                "description": "Added weather context to improve analysis",
+            }
+        }
+    )
+
     config: dict = Field(..., description="New configuration for the model")
     description: str | None = Field(None, description="Description of the changes")
 
 
 class PromptUpdateResponse(BaseModel):
     """Response after updating a model's prompt."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "nemotron",
+                "version": 4,
+                "message": "Prompt configuration updated successfully",
+                "config": {
+                    "system_prompt": "Updated system prompt...",
+                    "temperature": 0.8,
+                    "max_tokens": 2048,
+                },
+            }
+        }
+    )
 
     model_name: str
     version: int
@@ -411,6 +756,20 @@ class PromptUpdateResponse(BaseModel):
 class PromptTestRequest(BaseModel):
     """Request to test a modified prompt against an event."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model": "nemotron",
+                "config": {
+                    "system_prompt": "Modified prompt for testing...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "event_id": 12345,
+            }
+        }
+    )
+
     model: str = Field(..., description="Model name to test (nemotron, florence2, etc.)")
     config: dict = Field(..., description="Modified configuration to test")
     event_id: int = Field(..., ge=1, description="Event ID to test against")
@@ -418,6 +777,16 @@ class PromptTestRequest(BaseModel):
 
 class PromptTestResultBefore(BaseModel):
     """Result from the original (current) prompt."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "score": 65,
+                "risk_level": "medium",
+                "summary": "Person detected at front door during evening hours",
+            }
+        }
+    )
 
     score: int = Field(..., ge=0, le=100, description="Risk score from original prompt")
     risk_level: str = Field(..., description="Risk level (low, medium, high, critical)")
@@ -427,6 +796,16 @@ class PromptTestResultBefore(BaseModel):
 class PromptTestResultAfter(BaseModel):
     """Result from the modified prompt."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "score": 45,
+                "risk_level": "low",
+                "summary": "Regular visitor detected - matches known delivery pattern",
+            }
+        }
+    )
+
     score: int = Field(..., ge=0, le=100, description="Risk score from modified prompt")
     risk_level: str = Field(..., description="Risk level (low, medium, high, critical)")
     summary: str = Field(..., description="Summary from modified analysis")
@@ -434,6 +813,25 @@ class PromptTestResultAfter(BaseModel):
 
 class PromptTestResponse(BaseModel):
     """Response from testing a modified prompt."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "before": {
+                    "score": 65,
+                    "risk_level": "medium",
+                    "summary": "Person detected at front door during evening hours",
+                },
+                "after": {
+                    "score": 45,
+                    "risk_level": "low",
+                    "summary": "Regular visitor detected - matches known delivery pattern",
+                },
+                "improved": True,
+                "inference_time_ms": 1250,
+            }
+        }
+    )
 
     before: PromptTestResultBefore = Field(..., description="Results from original prompt")
     after: PromptTestResultAfter = Field(..., description="Results from modified prompt")
@@ -444,7 +842,22 @@ class PromptTestResponse(BaseModel):
 class PromptHistoryEntry(BaseModel):
     """A single entry in prompt version history."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "version": 2,
+                "config": {
+                    "system_prompt": "Previous version of prompt...",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                },
+                "created_at": "2026-01-02T14:00:00Z",
+                "created_by": "admin",
+                "description": "Initial prompt configuration",
+            }
+        },
+    )
 
     version: int = Field(..., ge=1, description="Version number")
     config: dict = Field(..., description="Configuration at this version")
@@ -456,6 +869,31 @@ class PromptHistoryEntry(BaseModel):
 class PromptHistoryResponse(BaseModel):
     """Response containing version history for a model's prompts."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "nemotron",
+                "versions": [
+                    {
+                        "version": 3,
+                        "config": {"system_prompt": "...", "temperature": 0.8},
+                        "created_at": "2026-01-03T10:30:00Z",
+                        "created_by": "admin",
+                        "description": "Added weather context",
+                    },
+                    {
+                        "version": 2,
+                        "config": {"system_prompt": "...", "temperature": 0.7},
+                        "created_at": "2026-01-02T14:00:00Z",
+                        "created_by": "system",
+                        "description": "Initial configuration",
+                    },
+                ],
+                "total_versions": 3,
+            }
+        }
+    )
+
     model_name: str
     versions: list[PromptHistoryEntry]
     total_versions: int
@@ -463,6 +901,14 @@ class PromptHistoryResponse(BaseModel):
 
 class PromptRestoreRequest(BaseModel):
     """Request to restore a specific version of a prompt."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "description": "Restoring to version 2 due to regression in analysis quality",
+            }
+        }
+    )
 
     description: str | None = Field(
         None,
@@ -473,6 +919,17 @@ class PromptRestoreRequest(BaseModel):
 class PromptRestoreResponse(BaseModel):
     """Response after restoring a prompt version."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "nemotron",
+                "restored_version": 2,
+                "new_version": 4,
+                "message": "Successfully restored version 2 as new version 4",
+            }
+        }
+    )
+
     model_name: str
     restored_version: int
     new_version: int
@@ -481,6 +938,25 @@ class PromptRestoreResponse(BaseModel):
 
 class PromptExportResponse(BaseModel):
     """Response containing all prompt configurations for export."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "exported_at": "2026-01-03T10:30:00Z",
+                "version": "1.0",
+                "prompts": {
+                    "nemotron": {
+                        "system_prompt": "You are a home security AI...",
+                        "temperature": 0.7,
+                        "max_tokens": 2048,
+                    },
+                    "florence2": {
+                        "vqa_queries": ["What is this person wearing?"],
+                    },
+                },
+            }
+        }
+    )
 
     exported_at: datetime = Field(..., description="When the export was created")
     version: str = Field("1.0", description="Export format version")
@@ -492,6 +968,21 @@ class PromptExportResponse(BaseModel):
 
 class PromptImportRequest(BaseModel):
     """Request to import prompt configurations."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "prompts": {
+                    "nemotron": {
+                        "system_prompt": "Imported system prompt...",
+                        "temperature": 0.7,
+                        "max_tokens": 2048,
+                    },
+                },
+                "overwrite": True,
+            }
+        }
+    )
 
     prompts: dict[str, dict] = Field(
         ...,
@@ -505,6 +996,17 @@ class PromptImportRequest(BaseModel):
 
 class PromptImportResponse(BaseModel):
     """Response after importing prompt configurations."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "imported_count": 3,
+                "skipped_count": 1,
+                "errors": [],
+                "message": "Successfully imported 3 prompt configurations",
+            }
+        }
+    )
 
     imported_count: int = Field(..., ge=0, description="Number of models imported")
     skipped_count: int = Field(..., ge=0, description="Number of models skipped")
@@ -524,7 +1026,17 @@ class PromptConfigRequest(BaseModel):
     prompt configurations to the database.
     """
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "systemPrompt": "You are a home security AI assistant...",
+                "temperature": 0.7,
+                "maxTokens": 2048,
+            }
+        },
+    )
 
     system_prompt: str = Field(
         ...,
@@ -553,7 +1065,20 @@ class PromptConfigResponse(BaseModel):
     Returned when retrieving or updating prompt configurations.
     """
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "model": "nemotron",
+                "systemPrompt": "You are a home security AI assistant...",
+                "temperature": 0.7,
+                "maxTokens": 2048,
+                "version": 3,
+                "updatedAt": "2026-01-03T10:30:00Z",
+            }
+        },
+    )
 
     model: str = Field(..., description="Model name")
     system_prompt: str = Field(
@@ -587,6 +1112,18 @@ class CustomTestPromptRequest(BaseModel):
     modified prompt without persisting results to the database.
     """
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "event_id": 12345,
+                "custom_prompt": "You are a home security AI with enhanced context...",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "model": "nemotron",
+            }
+        }
+    )
+
     event_id: int = Field(..., ge=1, description="Event ID to test the prompt against")
     custom_prompt: str = Field(..., min_length=1, description="Custom prompt text to test")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="LLM temperature setting")
@@ -599,6 +1136,22 @@ class CustomTestPromptResponse(BaseModel):
 
     Results are NOT persisted - this is for A/B testing only.
     """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "risk_score": 45,
+                "risk_level": "low",
+                "reasoning": "The detected person matches the expected delivery pattern based on time and approach direction.",
+                "summary": "Delivery person detected at front door during expected hours",
+                "entities": [{"type": "person", "confidence": 0.95}],
+                "flags": [],
+                "recommended_action": "No action required",
+                "processing_time_ms": 1250,
+                "tokens_used": 512,
+            }
+        }
+    )
 
     risk_score: int = Field(..., ge=0, le=100, description="Computed risk score (0-100)")
     risk_level: str = Field(..., description="Risk level: low, medium, high, or critical")
