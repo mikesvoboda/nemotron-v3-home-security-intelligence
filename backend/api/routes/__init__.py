@@ -1,5 +1,6 @@
 """API route handlers."""
 
+from .alerts import alerts_instance_router
 from .alerts import router as alerts_router
 from .audit import router as audit_router
 from .entities import router as entities_router
@@ -10,6 +11,7 @@ from .services import router as services_router
 from .zones import router as zones_router
 
 __all__ = [
+    "alerts_instance_router",
     "alerts_router",
     "audit_router",
     "entities_router",

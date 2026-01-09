@@ -1,26 +1,32 @@
-"""API routes for alert rules management.
+"""API routes for alert rules and alert instance management.
 
 This module provides CRUD endpoints for managing alert rules, as well as
 a test endpoint for validating rule configuration against historical events.
+Also includes endpoints for managing individual alert instances (acknowledge, dismiss).
 
-Endpoints:
+Alert Rules Endpoints:
     GET    /api/alerts/rules              - List all rules
     POST   /api/alerts/rules              - Create rule
     GET    /api/alerts/rules/{rule_id}    - Get rule
     PUT    /api/alerts/rules/{rule_id}    - Update rule
     DELETE /api/alerts/rules/{rule_id}    - Delete rule
     POST   /api/alerts/rules/{rule_id}/test - Test rule against historical events
+
+Alert Instance Endpoints (NEM-1981):
+    POST   /api/alerts/{alert_id}/acknowledge - Acknowledge an alert
+    POST   /api/alerts/{alert_id}/dismiss     - Dismiss an alert
 """
 
 from datetime import UTC, datetime
-from typing import Any  # Still used for _rule_to_response helper return type
+from typing import Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_alert_rule_or_404, get_cache_service_dep
 from backend.api.schemas.alerts import (
+    AlertResponse,
     AlertRuleCreate,
     AlertRuleListResponse,
     AlertRuleResponse,
@@ -30,12 +36,15 @@ from backend.api.schemas.alerts import (
     RuleTestResponse,
 )
 from backend.api.schemas.pagination import PaginationMeta
+from backend.api.schemas.websocket import WebSocketAlertEventType
 from backend.core.database import get_db
 from backend.core.logging import get_logger
-from backend.models import AlertRule, Event
+from backend.models import Alert, AlertRule, Event
 from backend.models import AlertSeverity as ModelAlertSeverity
+from backend.models.alert import AlertStatusEnum
 from backend.services.alert_engine import AlertRuleEngine
 from backend.services.cache_service import CacheService
+from backend.services.event_broadcaster import EventBroadcaster
 
 logger = get_logger(__name__)
 
@@ -425,3 +434,162 @@ async def test_rule(
         match_rate=events_matched / events_tested if events_tested > 0 else 0.0,
         results=results,
     )
+
+
+# =============================================================================
+# Alert Instance Endpoints (NEM-1981)
+# =============================================================================
+
+alerts_instance_router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+
+def _alert_to_response_dict(alert: Alert) -> dict[str, Any]:
+    """Convert an Alert model to response dict."""
+    return {
+        "id": alert.id,
+        "event_id": alert.event_id,
+        "rule_id": alert.rule_id,
+        "severity": alert.severity.value if hasattr(alert.severity, "value") else alert.severity,
+        "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+        "created_at": alert.created_at,
+        "updated_at": alert.updated_at,
+        "delivered_at": alert.delivered_at,
+        "channels": alert.channels or [],
+        "dedup_key": alert.dedup_key,
+        "alert_metadata": alert.alert_metadata,
+    }
+
+
+def _alert_to_websocket_data(alert: Alert) -> dict[str, Any]:
+    """Convert an Alert model to WebSocket broadcast data."""
+    return {
+        "id": alert.id,
+        "event_id": alert.event_id,
+        "rule_id": alert.rule_id,
+        "severity": alert.severity.value if hasattr(alert.severity, "value") else alert.severity,
+        "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+        "dedup_key": alert.dedup_key,
+        "created_at": alert.created_at.isoformat() if alert.created_at else None,
+        "updated_at": alert.updated_at.isoformat() if alert.updated_at else None,
+    }
+
+
+async def _get_alert_or_404(alert_id: str, db: AsyncSession) -> Alert:
+    """Get an alert by ID or raise 404."""
+    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    alert = result.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
+    return alert
+
+
+@alerts_instance_router.post(
+    "/{alert_id}/acknowledge",
+    response_model=AlertResponse,
+    responses={
+        404: {"description": "Alert not found"},
+        409: {"description": "Alert cannot be acknowledged (wrong status)"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def acknowledge_alert(
+    alert_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> AlertResponse:
+    """Acknowledge an alert.
+
+    Marks an alert as acknowledged and broadcasts the state change via WebSocket.
+    Only alerts with status PENDING or DELIVERED can be acknowledged.
+
+    Args:
+        alert_id: Alert UUID
+        db: Database session
+
+    Returns:
+        Updated AlertResponse
+
+    Raises:
+        HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged
+    """
+    alert = await _get_alert_or_404(alert_id, db)
+
+    # Check if alert can be acknowledged
+    if alert.status not in (AlertStatusEnum.PENDING, AlertStatusEnum.DELIVERED):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Alert cannot be acknowledged. Current status: {alert.status.value}",
+        )
+
+    # Update alert status
+    alert.status = AlertStatusEnum.ACKNOWLEDGED
+    await db.commit()
+    await db.refresh(alert)
+
+    # Broadcast WebSocket event
+    try:
+        broadcaster = EventBroadcaster.get_instance()
+        await broadcaster.broadcast_alert(
+            _alert_to_websocket_data(alert),
+            WebSocketAlertEventType.ALERT_ACKNOWLEDGED,
+        )
+    except Exception as e:
+        # Log but don't fail the request if broadcast fails
+        logger.warning(f"Failed to broadcast alert acknowledgment: {e}")
+
+    return AlertResponse(**_alert_to_response_dict(alert))
+
+
+@alerts_instance_router.post(
+    "/{alert_id}/dismiss",
+    response_model=AlertResponse,
+    responses={
+        404: {"description": "Alert not found"},
+        409: {"description": "Alert cannot be dismissed (wrong status)"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def dismiss_alert(
+    alert_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> AlertResponse:
+    """Dismiss an alert.
+
+    Marks an alert as dismissed and broadcasts the state change via WebSocket.
+    Only alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.
+
+    Args:
+        alert_id: Alert UUID
+        db: Database session
+
+    Returns:
+        Updated AlertResponse
+
+    Raises:
+        HTTPException: 404 if alert not found, 409 if alert cannot be dismissed
+    """
+    alert = await _get_alert_or_404(alert_id, db)
+
+    # Check if alert can be dismissed (only DISMISSED alerts cannot be dismissed again)
+    if alert.status == AlertStatusEnum.DISMISSED:
+        raise HTTPException(
+            status_code=409,
+            detail="Alert is already dismissed",
+        )
+
+    # Update alert status
+    alert.status = AlertStatusEnum.DISMISSED
+    await db.commit()
+    await db.refresh(alert)
+
+    # Broadcast WebSocket event
+    try:
+        broadcaster = EventBroadcaster.get_instance()
+        await broadcaster.broadcast_alert(
+            _alert_to_websocket_data(alert),
+            WebSocketAlertEventType.ALERT_DISMISSED,
+        )
+    except Exception as e:
+        # Log but don't fail the request if broadcast fails
+        logger.warning(f"Failed to broadcast alert dismissal: {e}")
+
+    return AlertResponse(**_alert_to_response_dict(alert))
