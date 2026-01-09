@@ -532,7 +532,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     await performance_collector.close()
     print("Performance collector closed")
 
-    # Unload AI models from GPU memory and clear CUDA cache (NEM-1996)
+    # Unload AI models from GPU memory (NEM-1996)
     # This prevents GPU memory leaks on shutdown and ensures clean restarts
     try:
         from backend.services.model_zoo import get_model_manager
@@ -540,18 +540,26 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
         model_manager = get_model_manager()
         await model_manager.unload_all()
         print("AI models unloaded from GPU")
-
-        # Clear CUDA cache after model unload for complete GPU memory cleanup
-        try:
-            import torch
-
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                print("CUDA cache cleared")
-        except ImportError:
-            pass  # torch not installed, skip CUDA cleanup
     except Exception as e:
         print(f"Warning: Error unloading models: {e}")
+
+    # Clear CUDA cache after model unload (NEM-2022)
+    # Separated from model unloading for better error isolation
+    # This ensures CUDA cleanup errors don't affect other shutdown steps
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()  # Wait for all GPU operations to complete
+            torch.cuda.empty_cache()  # Release cached memory back to GPU
+            print("CUDA cache cleared")
+        else:
+            print("CUDA not available, skipping cache clear")
+    except ImportError:
+        print("torch not installed, skipping CUDA cleanup")
+    except Exception as e:
+        # Log but don't prevent shutdown - CUDA cleanup is best-effort
+        print(f"Warning: Error clearing CUDA cache: {e}")
 
     await close_db()
     print("Database connections closed")

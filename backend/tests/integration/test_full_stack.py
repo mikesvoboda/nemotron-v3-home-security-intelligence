@@ -38,7 +38,7 @@ async def clean_full_stack(integration_db):
             await conn.execute(text("DELETE FROM detections"))
             await conn.execute(text("DELETE FROM events"))
             await conn.execute(text("DELETE FROM cameras"))
-    except Exception:  # noqa: S110 - ignore cleanup errors
+    except Exception:
         pass
 
 

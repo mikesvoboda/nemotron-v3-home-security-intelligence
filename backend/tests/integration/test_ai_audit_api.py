@@ -65,7 +65,7 @@ async def _clean_ai_audit_tables(integration_db: str):
             await conn.execute(text("DELETE FROM detections"))
             await conn.execute(text("DELETE FROM events"))
             await conn.execute(text("DELETE FROM cameras"))
-    except Exception:  # noqa: S110 - ignore cleanup errors
+    except Exception:
         pass
 
 

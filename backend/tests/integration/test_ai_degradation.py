@@ -140,7 +140,7 @@ class TestCircuitBreakerIntegration:
             try:
                 async with circuit_breaker_rtdetr:
                     raise Exception("Simulated failure")
-            except Exception:  # noqa: S110 - intentional for testing
+            except Exception:
                 pass
 
         assert circuit_breaker_rtdetr.get_state() == CircuitState.OPEN
@@ -175,7 +175,7 @@ class TestCircuitBreakerIntegration:
             try:
                 async with cb:
                     raise Exception("Simulated failure")
-            except Exception:  # noqa: S110 - intentional for testing
+            except Exception:
                 pass
 
         # Wait for recovery timeout
@@ -186,7 +186,7 @@ class TestCircuitBreakerIntegration:
         try:
             async with cb:
                 pass  # This will transition to half-open
-        except Exception:  # noqa: S110 - intentional for testing
+        except Exception:
             pass
 
         # Circuit should be half-open after timeout

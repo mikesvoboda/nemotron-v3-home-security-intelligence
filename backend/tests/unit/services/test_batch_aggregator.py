@@ -609,7 +609,7 @@ async def test_check_batch_timeouts_exception_handling(batch_aggregator, mock_re
         closed_batches = await batch_aggregator.check_batch_timeouts()
         # If no exception, should return empty list
         assert closed_batches == []
-    except Exception:  # noqa: S110 - Expected behavior for pipeline exception test
+    except Exception:
         # Exception during pipeline execution is also acceptable
         # The test verifies the system handles exceptions gracefully
         pass
@@ -1428,7 +1428,7 @@ async def test_add_detection_handles_partial_redis_failure(batch_aggregator, moc
             _batch_id = await batch_aggregator.add_detection(camera_id, detection_id, file_path)
             # If return_exceptions=True is implemented, this may succeed
             # or raise based on how exceptions are handled
-        except Exception:  # noqa: S110 - Expected behavior for partial failure test
+        except Exception:
             # Without return_exceptions=True, this will raise
             # The test verifies the system handles partial failures
             pass

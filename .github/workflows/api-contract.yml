@@ -1,0 +1,258 @@
+name: API Contract Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/api/**'
+      - 'backend/models/**'
+      - 'backend/main.py'
+      - 'docs/openapi.json'
+      - 'scripts/generate-openapi.py'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  UV_VERSION: '0.9.18'
+
+jobs:
+  # ============================================================================
+  # Contract Testing
+  # Enforces API contract stability and prevents breaking changes
+  # ============================================================================
+
+  contract-tests:
+    name: API Contract Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Install oasdiff
+        run: |
+          # Install oasdiff for OpenAPI schema comparison
+          OASDIFF_VERSION="1.10.25"
+          DOWNLOAD_URL="https://github.com/Tufin/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+
+          # Download with retry and error checking
+          for i in 1 2 3; do
+            echo "Attempt $i: Downloading oasdiff v${OASDIFF_VERSION}..."
+            if curl -fsSL --retry 3 "$DOWNLOAD_URL" -o /tmp/oasdiff.tar.gz; then
+              # Verify it's actually a gzip file
+              if file /tmp/oasdiff.tar.gz | grep -q gzip; then
+                tar xzf /tmp/oasdiff.tar.gz -C /tmp
+                sudo mv /tmp/oasdiff /usr/local/bin/
+                oasdiff --version
+                exit 0
+              else
+                echo "Downloaded file is not a valid gzip archive"
+              fi
+            fi
+            echo "Download failed, retrying in 5 seconds..."
+            sleep 5
+          done
+
+          echo "::error::Failed to download oasdiff after 3 attempts"
+          exit 1
+
+      - name: Generate current branch OpenAPI spec
+        id: current-spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          echo "Generating OpenAPI spec from current branch..."
+          uv run python scripts/generate-openapi.py --output /tmp/spec-current.json
+          echo "Generated OpenAPI spec from current branch"
+
+      - name: Fetch base branch OpenAPI spec
+        id: base-spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          echo "Fetching OpenAPI spec from base branch..."
+
+          # Get the base branch spec from the docs/openapi.json file on main
+          if git show origin/main:docs/openapi.json > /tmp/spec-base.json 2>/dev/null; then
+            echo "✓ Base branch OpenAPI spec fetched"
+          else
+            echo "::warning::Could not fetch base spec from main, using current"
+            cp /tmp/spec-current.json /tmp/spec-base.json
+          fi
+
+      - name: Run contract breaking change detection
+        id: breaking-changes
+        continue-on-error: true
+        run: |
+          echo "Checking for breaking changes in API contract..."
+
+          # Run oasdiff breaking check - returns non-zero if breaking changes found
+          if oasdiff breaking /tmp/spec-base.json /tmp/spec-current.json \
+            --format json > breaking-changes.json 2>&1; then
+            echo "contract_result=PASS" >> $GITHUB_OUTPUT
+            echo "No breaking changes detected ✓"
+          else
+            echo "contract_result=FAIL" >> $GITHUB_OUTPUT
+            echo "Breaking changes detected ✗"
+            cat breaking-changes.json
+          fi
+
+      - name: Generate API changelog
+        id: changelog
+        run: |
+          echo "Generating API changelog..."
+
+          # Generate detailed changelog of all changes
+          oasdiff changelog /tmp/spec-base.json /tmp/spec-current.json \
+            --format markdown > api-changelog.md 2>&1 || true
+
+          if [ -s api-changelog.md ]; then
+            echo "has_changelog=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changelog=false" >> $GITHUB_OUTPUT
+            echo "No API changes detected" > api-changelog.md
+          fi
+
+      - name: Generate diff report
+        run: |
+          echo "Generating detailed API diff..."
+
+          # Generate full diff for PR comment
+          oasdiff diff /tmp/spec-base.json /tmp/spec-current.json \
+            --format markdown > api-diff.md 2>&1 || true
+
+      - name: Comment PR with contract test results
+        if: always()
+        uses: actions/github-script@7a5f60ed311485811f4a8e801bae3e39eaa9775a # v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Read the changelog
+            let changelog = '';
+            try {
+              changelog = fs.readFileSync('api-changelog.md', 'utf8');
+            } catch (e) {
+              changelog = 'No changelog generated';
+            }
+
+            // Read the full diff
+            let fullDiff = '';
+            try {
+              fullDiff = fs.readFileSync('api-diff.md', 'utf8');
+            } catch (e) {
+              fullDiff = 'No diff available';
+            }
+
+            // Determine the status emoji
+            const contractStatus = '${{ steps.breaking-changes.outputs.contract_result }}';
+            const statusEmoji = contractStatus === 'PASS' ? '✅' : '❌';
+
+            // Build the comment
+            let comment = `## ${statusEmoji} API Contract Test Results\n\n`;
+
+            if (contractStatus === 'PASS') {
+              comment += '### Status\nNo breaking changes detected in API contract.\n\n';
+            } else {
+              comment += '### Status\n**Breaking changes detected!** The following changes would break the API contract:\n\n';
+
+              // Parse breaking changes from JSON
+              try {
+                const breaking = JSON.parse(fs.readFileSync('breaking-changes.json', 'utf8'));
+                if (breaking && typeof breaking === 'object') {
+                  if (typeof breaking === 'string') {
+                    comment += '```\n' + breaking + '\n```\n\n';
+                  } else {
+                    // Pretty print the JSON
+                    comment += '```json\n' + JSON.stringify(breaking, null, 2).substring(0, 1000) + '\n```\n\n';
+                  }
+                }
+              } catch (e) {
+                // Try reading as text
+                try {
+                  const content = fs.readFileSync('breaking-changes.json', 'utf8');
+                  if (content) {
+                    comment += '```\n' + content.substring(0, 1000) + '\n```\n\n';
+                  }
+                } catch (e2) {
+                  comment += 'Could not read breaking changes details.\n\n';
+                }
+              }
+            }
+
+            // Add changelog section
+            comment += '### API Changes\n\n';
+            if (changelog && changelog.trim() !== 'No API changes detected') {
+              // Limit changelog to 2000 chars to avoid huge comments
+              const truncated = changelog.substring(0, 2000);
+              comment += truncated;
+              if (changelog.length > 2000) {
+                comment += '\n\n*(changelog truncated, see artifacts for full details)*';
+              }
+            } else {
+              comment += 'No API changes detected.';
+            }
+
+            // Add collapsible diff section if changes exist
+            if (fullDiff && fullDiff.trim() !== 'No diff available') {
+              comment += '\n\n<details>\n<summary>📋 Full API Diff</summary>\n\n';
+              const truncated = fullDiff.substring(0, 2000);
+              comment += truncated;
+              if (fullDiff.length > 2000) {
+                comment += '\n\n*(diff truncated, see artifacts for full details)*';
+              }
+              comment += '\n\n</details>';
+            }
+
+            // Post the comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: api-contract-test-results
+          path: |
+            /tmp/spec-base.json
+            /tmp/spec-current.json
+            breaking-changes.json
+            api-changelog.md
+            api-diff.md
+          retention-days: 30
+
+      - name: Enforce contract test (fail on breaking changes)
+        if: steps.breaking-changes.outputs.contract_result == 'FAIL'
+        run: |
+          echo "::error::API contract test failed - breaking changes detected"
+          echo ""
+          echo "Breaking changes prevent merging this PR. You must either:"
+          echo "1. Revert the breaking change"
+          echo "2. Increase the API version (e.g., /v2/)"
+          echo "3. Add API deprecation warnings and maintain backward compatibility"
+          echo ""
+          echo "See the PR comment above for details on what changed."
+          exit 1

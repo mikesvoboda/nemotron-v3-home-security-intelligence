@@ -96,7 +96,7 @@ def get_gpu_stats() -> GPUStats:
         return GPUStats()
 
     try:
-        result = subprocess.run(  # noqa: S603 - nvidia-smi is trusted
+        result = subprocess.run(
             [
                 nvidia_smi,
                 "--query-gpu=memory.used,memory.total,memory.free,utilization.gpu",

@@ -254,7 +254,7 @@ async def real_redis_client(
             keys = await redis_client.keys("orchestrator:*")
             if keys:
                 await redis_client.delete(*keys)
-        except Exception:  # noqa: S110
+        except Exception:
             pass  # Ignore cleanup errors - best effort
         await client.disconnect()
 

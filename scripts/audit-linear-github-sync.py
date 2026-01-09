@@ -177,7 +177,7 @@ def get_github_issues(limit: int | None = None) -> list[GitHubIssue]:
     else:
         cmd.extend(["--limit", "1000"])  # Get all
 
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)  # noqa: S603
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
     issues_data = json.loads(result.stdout)
 
     return [
@@ -208,16 +208,16 @@ def close_github_issue(issue_number: int, reason: str, rate_limit: float = 1.0) 
     try:
         # Add comment explaining the closure
         comment = f"Closing: {reason}\n\nThis issue has been migrated to Linear for tracking."
-        subprocess.run(  # noqa: S603
-            ["gh", "issue", "comment", str(issue_number), "--body", comment],  # noqa: S607
+        subprocess.run(
+            ["gh", "issue", "comment", str(issue_number), "--body", comment],
             capture_output=True,
             check=True,
         )
         time.sleep(rate_limit / 2)  # Small delay between comment and close
 
         # Close the issue
-        subprocess.run(  # noqa: S603
-            ["gh", "issue", "close", str(issue_number), "--reason", "completed"],  # noqa: S607
+        subprocess.run(
+            ["gh", "issue", "close", str(issue_number), "--reason", "completed"],
             capture_output=True,
             check=True,
         )
@@ -509,7 +509,7 @@ def main() -> int:
 
     # Verify gh CLI is available
     try:
-        subprocess.run(["gh", "--version"], capture_output=True, check=True)  # noqa: S607
+        subprocess.run(["gh", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("Error: gh CLI not found or not authenticated", file=sys.stderr)
         print("Install: https://cli.github.com/", file=sys.stderr)
