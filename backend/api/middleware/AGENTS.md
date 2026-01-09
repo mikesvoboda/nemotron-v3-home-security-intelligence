@@ -13,6 +13,8 @@ Package initialization with public exports:
 - `AuthMiddleware` - HTTP API key authentication middleware
 - `authenticate_websocket` - WebSocket authentication helper
 - `validate_websocket_api_key` - WebSocket API key validation
+- `IdempotencyMiddleware` - Idempotency-Key header support for mutations (NEM-2018)
+- `compute_request_fingerprint` - Fingerprint requests for collision detection
 - `RateLimiter` - FastAPI dependency for rate limiting
 - `RateLimitTier` - Rate limit tier enum (DEFAULT, MEDIA, WEBSOCKET, SEARCH)
 - `check_websocket_rate_limit` - WebSocket connection rate limiting
@@ -211,6 +213,76 @@ Ensures that POST/PUT/PATCH requests include proper Content-Type headers and val
 | Class                            | Purpose                        |
 | -------------------------------- | ------------------------------ |
 | `ContentTypeValidatorMiddleware` | Validates Content-Type headers |
+
+### `idempotency.py`
+
+Idempotency-Key header support for mutation endpoints (NEM-2018).
+
+**Purpose:**
+
+Provides Idempotency-Key header support for POST, PUT, PATCH, and DELETE requests. Implements industry-standard idempotency patterns to prevent duplicate resource creation from retried requests.
+
+**Classes:**
+
+| Class                   | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `IdempotencyMiddleware` | Caches responses by Idempotency-Key header |
+
+**Functions:**
+
+| Function                      | Purpose                                              |
+| ----------------------------- | ---------------------------------------------------- |
+| `compute_request_fingerprint` | Generate SHA-256 fingerprint for collision detection |
+
+**Features:**
+
+- Caches responses for requests with Idempotency-Key headers in Redis
+- Returns cached response on replay with `Idempotency-Replayed: true` header
+- Returns 422 Unprocessable Entity if same key used with different request body
+- Configurable TTL (default: 24 hours)
+- Fails open (passes through) when Redis is unavailable
+
+**Configuration:**
+
+```python
+app.add_middleware(
+    IdempotencyMiddleware,
+    ttl=86400,           # 24 hours (default from settings)
+    key_prefix="idempotency",  # Redis key prefix
+)
+```
+
+**Environment Variables:**
+
+- `IDEMPOTENCY_ENABLED` - Enable/disable idempotency support (default: true)
+- `IDEMPOTENCY_TTL_SECONDS` - TTL for cached responses (default: 86400)
+
+**Usage:**
+
+```bash
+# First request - creates resource
+curl -X POST http://localhost:8000/api/cameras \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: unique-key-abc123" \
+  -d '{"name": "Front Door"}'
+# Returns: {"id": "cam-1", "name": "Front Door"}
+
+# Retry with same key and body - returns cached response
+curl -X POST http://localhost:8000/api/cameras \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: unique-key-abc123" \
+  -d '{"name": "Front Door"}'
+# Returns: {"id": "cam-1", "name": "Front Door"}
+# Header: Idempotency-Replayed: true
+
+# Same key with different body - returns 422
+curl -X POST http://localhost:8000/api/cameras \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: unique-key-abc123" \
+  -d '{"name": "Back Door"}'
+# Returns: 422 Unprocessable Entity
+# Body: {"detail": "Idempotency key collision..."}
+```
 
 ### `file_validator.py`
 

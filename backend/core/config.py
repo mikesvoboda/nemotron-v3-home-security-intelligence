@@ -942,6 +942,21 @@ class Settings(BaseSettings):
         "'172.16.0.0/12' (private), '192.168.0.0/16' (private)",
     )
 
+    # Idempotency settings (NEM-2018)
+    idempotency_enabled: bool = Field(
+        default=True,
+        description="Enable Idempotency-Key header support for mutation endpoints (POST, PUT, PATCH, DELETE). "
+        "When enabled, requests with Idempotency-Key headers are cached to prevent duplicate operations.",
+    )
+    idempotency_ttl_seconds: int = Field(
+        default=86400,
+        ge=60,
+        le=604800,
+        description="Time-to-live in seconds for idempotency key cache entries. "
+        "Default: 86400 (24 hours). Max: 604800 (7 days). "
+        "After TTL expires, the same idempotency key can be reused.",
+    )
+
     # WebSocket settings
     websocket_idle_timeout_seconds: int = Field(
         default=300,
