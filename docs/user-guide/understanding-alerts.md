@@ -48,19 +48,7 @@ The system groups risk scores into four levels, each with a distinct color to he
 
 > **Note:** For the canonical definition of risk score ranges and thresholds, see the [Risk Levels Reference](../reference/config/risk-levels.md).
 
-```mermaid
-graph LR
-    subgraph Risk Scale
-        A[0-29<br/>LOW] --> B[30-59<br/>MEDIUM]
-        B --> C[60-84<br/>HIGH]
-        C --> D[85-100<br/>CRITICAL]
-    end
-
-    style A fill:#76B900,color:#000
-    style B fill:#FFB800,color:#000
-    style C fill:#E74856,color:#fff
-    style D fill:#ef4444,color:#fff
-```
+![Risk Scale showing four levels: LOW (0-29) in green, MEDIUM (30-59) in yellow, HIGH (60-84) in orange, CRITICAL (85-100) in red](../images/user-guide/risk-scale.png)
 
 ### LOW Risk (0-29) - Green
 
@@ -190,36 +178,7 @@ _Risk analysis decision tree showing how the AI evaluates detection context to d
 
 Use this flowchart when you receive an alert:
 
-```mermaid
-flowchart TD
-    A[Alert Received] --> B{What is the<br/>risk level?}
-
-    B -->|LOW<br/>Green| C[No action needed<br/>Informational only]
-
-    B -->|MEDIUM<br/>Yellow| D{Do you<br/>recognize the<br/>person/vehicle?}
-    D -->|Yes| E[No action needed]
-    D -->|No| F{Has this happened<br/>multiple times?}
-    F -->|No| G[Note it and<br/>move on]
-    F -->|Yes| H[Review footage<br/>more carefully]
-
-    B -->|HIGH<br/>Orange| I[Review footage<br/>promptly]
-    I --> J{Does it look<br/>genuinely<br/>suspicious?}
-    J -->|No| K[Mark as reviewed<br/>and add notes]
-    J -->|Yes| L[Consider calling<br/>non-emergency police<br/>or trusted neighbor]
-
-    B -->|CRITICAL<br/>Red| M{Are you<br/>home?}
-    M -->|Yes| N[Stay inside<br/>Lock doors<br/>Call 911 if threat active]
-    M -->|No| O[Call neighbor or<br/>police for welfare check]
-
-    style C fill:#76B900,color:#000
-    style E fill:#76B900,color:#000
-    style G fill:#FFB800,color:#000
-    style H fill:#FFB800,color:#000
-    style K fill:#E74856,color:#fff
-    style L fill:#E74856,color:#fff
-    style N fill:#ef4444,color:#fff
-    style O fill:#ef4444,color:#fff
-```
+![Decision flowchart showing how to respond to alerts based on risk level, from LOW (no action) through MEDIUM (recognize person?) to HIGH (review footage) and CRITICAL (stay safe, call for help)](../images/user-guide/decision-flowchart.png)
 
 ---
 

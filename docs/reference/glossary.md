@@ -2,7 +2,7 @@
 
 > Definitions of key terms used throughout the Home Security Intelligence documentation.
 
-**Time to read:** ~8 min
+**Time to read:** ~12 min
 
 ---
 
@@ -24,6 +24,10 @@ Background worker process that sends detection batches to the Nemotron LLM for r
 
 A collection of detections from a single camera grouped within a time window. Batches are sent to Nemotron for analysis as a unit. Controlled by `BATCH_WINDOW_SECONDS` and `BATCH_IDLE_TIMEOUT_SECONDS`.
 
+### Batch Aggregation
+
+The process of collecting individual detections over configurable time windows before sending them as a batch for AI analysis. This reduces API calls and allows the LLM to analyze patterns across multiple detections. See [Batch Aggregator](#batch-aggregator).
+
 ### Batch Aggregator
 
 Service that groups individual detections into batches based on camera and time proximity. Batches are closed when either the time window expires or idle timeout is reached.
@@ -39,6 +43,14 @@ The rectangular region in an image where an object was detected. Defined by X/Y 
 ### Camera
 
 A physical security camera device that uploads images via FTP to the configured `FOSCAM_BASE_PATH`. Each camera has a unique folder where images are stored.
+
+### CDI (Container Device Interface)
+
+A specification for exposing hardware devices (like GPUs) to containers in a standardized way. Used by container runtimes to provide GPU access to AI services. See also [NVIDIA CDI](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html).
+
+### CI/CD (Continuous Integration/Continuous Deployment)
+
+Automated software development practices where code changes are automatically built, tested, and deployed. This project uses GitHub Actions for CI/CD with automated testing, container builds, and deployment verification.
 
 ### Circuit Breaker
 
@@ -76,9 +88,21 @@ A single object instance identified by RT-DETRv2 in an image. Contains object ty
 
 Background worker process that sends images to RT-DETRv2 for object detection. Part of the [Pipeline](#pipeline).
 
+### Domain Sharding
+
+A test parallelization strategy that splits tests by functional domain (API, WebSocket, services, models) rather than arbitrary file distribution. Enables independent CI jobs to run tests in parallel with optimal caching and isolation. See also [Worksteal](#worksteal).
+
 ---
 
 ## E
+
+### Embedding
+
+A vector representation of data (such as an image or text) in a high-dimensional space where similar items are positioned close together. Used for similarity search and re-identification. See [CLIP](#clip), [Re-identification](#re-identification-re-id).
+
+### Entity Re-ID
+
+See [Re-identification (Re-ID)](#re-identification-re-id).
 
 ### Event
 
@@ -150,6 +174,14 @@ The process of running an AI model on input data to produce predictions. For thi
 
 ---
 
+## J
+
+### JWT (JSON Web Token)
+
+A compact, URL-safe token format for securely transmitting claims between parties. Commonly used for authentication and authorization. While this system does not use authentication, JWT is mentioned in security documentation for future multi-user scenarios.
+
+---
+
 ## L
 
 ### llama.cpp
@@ -175,6 +207,10 @@ NVIDIA's family of large language models. This system uses Nemotron-Mini-4B-Inst
 ### Object Type
 
 The classification label assigned to a detected object (e.g., "person", "car", "dog"). Corresponds to [COCO Classes](#coco-classes).
+
+### OWASP (Open Web Application Security Project)
+
+A nonprofit foundation focused on improving software security. OWASP publishes security guidelines, vulnerability classifications (like the OWASP Top 10), and testing methodologies used in this project's security scanning.
 
 ---
 
@@ -235,6 +271,15 @@ An in-memory data store used for:
 
 The number of days that events, detections, and other data are kept before automatic cleanup. Set by `RETENTION_DAYS`.
 
+### RFC (Request for Comments)
+
+A formal document from standards organizations (like IETF) that describes internet protocols and best practices. This project follows several RFCs including:
+
+- **RFC 7807**: Problem Details for HTTP APIs (error response format)
+- **RFC 9457**: Updated Problem Details specification
+- **RFC 7234**: HTTP Caching
+- **RFC 6455**: WebSocket Protocol
+
 ### Risk Level
 
 A categorical classification derived from the risk score:
@@ -257,6 +302,10 @@ A state-of-the-art real-time object detection model. Uses a transformer architec
 ---
 
 ## S
+
+### SBOM (Software Bill of Materials)
+
+A formal inventory of all software components, libraries, and dependencies used in an application. Generated during CI/CD builds for security auditing and vulnerability tracking.
 
 ### Scene Change Detection
 
@@ -285,6 +334,18 @@ A smaller version of a detection image with bounding box overlays. Stored in `VI
 ### Time Window
 
 The maximum duration for grouping detections into a batch. Set by `BATCH_WINDOW_SECONDS`.
+
+### TLS (Transport Layer Security)
+
+A cryptographic protocol that provides secure communication over networks. Used for HTTPS connections and secure WebSocket (WSS) communication. Successor to SSL.
+
+---
+
+## U
+
+### UUID (Universally Unique Identifier)
+
+A 128-bit identifier that is unique across space and time. Used extensively in this system for entity IDs (events, detections, cameras, alerts) to ensure no collisions across distributed systems. Format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 
 ---
 
@@ -315,6 +376,10 @@ A background process that performs asynchronous tasks. The system has several wo
 - GPU Monitor
 - Cleanup Service
 - System Broadcaster
+
+### Worksteal
+
+A work distribution strategy used by pytest-xdist where test workers "steal" tests from other workers that have finished their assigned work. Results in more efficient parallel test execution compared to static distribution. Enabled with `--dist=worksteal`. See also [Domain Sharding](#domain-sharding).
 
 ---
 

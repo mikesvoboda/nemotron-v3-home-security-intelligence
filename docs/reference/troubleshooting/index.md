@@ -31,30 +31,11 @@ If all services show "healthy" and containers are running, proceed to the specif
 
 ## Fast Triage Flow (Health → Fix)
 
-Use this when you’re not sure where to start.
+Use this when you're not sure where to start.
 
-```mermaid
-flowchart TD
-  H[GET /api/system/health] -->|overall = healthy| OK[System is healthy<br/>Check UI filters/time range]
-  H -->|overall != healthy| S{Which services are failing?}
+![Troubleshooting Decision Tree](../../images/troubleshooting-decision-tree.png)
 
-  S -->|database / redis| DBR[Go to: database-issues.md / connection-issues.md]
-
-  S -->|rtdetr / nemotron / florence / clip / enrichment| AI{Can backend reach AI endpoints?}
-
-  AI -->|Not sure| CFG[Check backend config:<br/>GET /api/system/config]
-  CFG --> MODE[Pick the right deployment mode and URLs]
-  MODE --> DOC[Read: operator/deployment-modes.md]
-
-  AI -->|No (connection refused / timeout)| NET[Most likely: wrong hostname for this mode]
-  NET --> DOC
-
-  AI -->|Yes (AI healthy) but pipeline stuck| PIPE[Check workers + queues:<br/>GET /api/system/health/ready<br/>GET /api/system/telemetry]
-  PIPE --> AIISS[Read: ai-issues.md]
-
-  OK --> DONE[If still broken, collect logs + open an issue]
-  AIISS --> DONE
-```
+_Decision tree for diagnosing system health issues: Start with health check, follow the path based on which services are failing._
 
 ---
 
