@@ -8,7 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from backend.models.enums import CameraStatus
 
 # Re-export CameraStatus for convenient imports from this module
-__all__ = ["CameraCreate", "CameraListResponse", "CameraResponse", "CameraStatus", "CameraUpdate"]
+__all__ = [
+    "CameraCreate",
+    "CameraListResponse",
+    "CameraResponse",
+    "CameraStatus",
+    "CameraUpdate",
+    "DeletedCamerasListResponse",
+]
 
 # Regex pattern for forbidden path characters (beyond path traversal)
 # Allow alphanumeric, underscore, hyphen, slash, and dots (but not ..)
@@ -153,3 +160,32 @@ class CameraListResponse(BaseModel):
 
     cameras: list[CameraResponse] = Field(..., description="List of cameras")
     count: int = Field(..., description="Total number of cameras")
+
+
+class DeletedCamerasListResponse(BaseModel):
+    """Schema for listing soft-deleted cameras (trash view).
+
+    NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
+    Cameras are ordered by deleted_at descending (most recently deleted first).
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "cameras": [
+                    {
+                        "id": "front_door",
+                        "name": "Front Door Camera",
+                        "folder_path": "/export/foscam/front_door",
+                        "status": "offline",
+                        "created_at": "2025-12-23T10:00:00Z",
+                        "last_seen_at": "2025-12-23T12:00:00Z",
+                    }
+                ],
+                "count": 1,
+            }
+        }
+    )
+
+    cameras: list[CameraResponse] = Field(..., description="List of soft-deleted cameras")
+    count: int = Field(..., description="Total number of deleted cameras")
