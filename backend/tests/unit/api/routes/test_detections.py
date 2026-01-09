@@ -559,11 +559,11 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result["count"] == 2
-        assert len(result["detections"]) == 2
-        assert result["limit"] == 50
-        assert result["offset"] == 0
-        assert result["has_more"] is False
+        assert result.count == 2
+        assert len(result.detections) == 2
+        assert result.limit == 50
+        assert result.offset == 0
+        assert result.has_more is False
 
     @pytest.mark.asyncio
     async def test_list_detections_with_filters(self, mock_db_session):
@@ -597,8 +597,8 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result["count"] == 1
-        assert len(result["detections"]) == 1
+        assert result.count == 1
+        assert len(result.detections) == 1
 
     @pytest.mark.asyncio
     async def test_list_detections_with_date_range(self, mock_db_session):
@@ -628,7 +628,7 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result["count"] == 0
+        assert result.count == 0
 
     @pytest.mark.asyncio
     async def test_list_detections_invalid_date_range(self, mock_db_session):
@@ -676,10 +676,10 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert len(result["detections"]) == 1
-        assert result["has_more"] is False
+        assert len(result.detections) == 1
+        assert result.has_more is False
         # No count query when using cursor
-        assert result["count"] == 0
+        assert result.count == 0
 
     @pytest.mark.asyncio
     async def test_list_detections_invalid_cursor(self, mock_db_session):
@@ -718,9 +718,9 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result["has_more"] is True
-        assert len(result["detections"]) == 50
-        assert result["next_cursor"] is not None
+        assert result.has_more is True
+        assert len(result.detections) == 50
+        assert result.next_cursor is not None
 
     @pytest.mark.asyncio
     async def test_list_detections_with_offset_deprecation_warning(self, mock_db_session):
@@ -747,8 +747,8 @@ class TestListDetections:
             db=mock_db_session,
         )
 
-        assert result["deprecation_warning"] is not None
-        assert "deprecated" in result["deprecation_warning"].lower()
+        assert result.deprecation_warning is not None
+        assert "deprecated" in result.deprecation_warning.lower()
 
 
 class TestGetDetectionStats:
@@ -786,11 +786,11 @@ class TestGetDetectionStats:
 
         result = await get_detection_stats(db=mock_db_session)
 
-        assert result["total_detections"] == 100
-        assert result["detections_by_class"]["person"] == 50
-        assert result["detections_by_class"]["car"] == 30
-        assert result["detections_by_class"]["truck"] == 20
-        assert result["average_confidence"] == 0.90
+        assert result.total_detections == 100
+        assert result.detections_by_class["person"] == 50
+        assert result.detections_by_class["car"] == 30
+        assert result.detections_by_class["truck"] == 20
+        assert result.average_confidence == 0.90
 
     @pytest.mark.asyncio
     async def test_get_stats_no_detections(self, mock_db_session):
@@ -802,9 +802,9 @@ class TestGetDetectionStats:
 
         result = await get_detection_stats(db=mock_db_session)
 
-        assert result["total_detections"] == 0
-        assert result["detections_by_class"] == {}
-        assert result["average_confidence"] is None
+        assert result.total_detections == 0
+        assert result.detections_by_class == {}
+        assert result.average_confidence is None
 
 
 class TestGetDetection:
@@ -854,9 +854,9 @@ class TestGetDetectionEnrichment:
         ):
             result = await get_detection_enrichment(detection_id=1, db=mock_db_session)
 
-        assert result["detection_id"] == 1
-        assert result["license_plate"]["detected"] is True
-        assert result["license_plate"]["text"] == "ABC123"
+        assert result.detection_id == 1
+        assert result.license_plate.detected is True
+        assert result.license_plate.text == "ABC123"
 
     @pytest.mark.asyncio
     async def test_get_enrichment_no_enrichment_data(self, mock_db_session):
@@ -869,9 +869,9 @@ class TestGetDetectionEnrichment:
         ):
             result = await get_detection_enrichment(detection_id=1, db=mock_db_session)
 
-        assert result["detection_id"] == 1
-        assert result["license_plate"]["detected"] is False
-        assert result["face"]["detected"] is False
+        assert result.detection_id == 1
+        assert result.license_plate.detected is False
+        assert result.face.detected is False
 
 
 class TestGetDetectionImage:
