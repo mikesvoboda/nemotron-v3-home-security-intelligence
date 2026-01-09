@@ -47,6 +47,7 @@ frontend/
 | `eslint.config.mjs` | ESLint flat config (TypeScript, React, a11y)        |
 | `.prettierrc`       | Prettier formatting (single quotes, 100 char width) |
 | `.prettierignore`   | Files excluded from Prettier                        |
+| `stryker.config.mjs`| Stryker mutation testing configuration              |
 
 ### Docker and Deployment
 
@@ -103,10 +104,21 @@ npm run test:e2e         # Run Playwright E2E tests
 npm run test:e2e:headed  # Run E2E tests with browser visible
 npm run test:e2e:debug   # Debug E2E tests
 npm run test:e2e:report  # Show Playwright test report
+npm run test:mutation    # Run Stryker mutation testing
 
 # Type Generation
 npm run generate-types        # Regenerate TypeScript types from backend OpenAPI
 npm run generate-types:check  # Check if types are up to date
+
+# Code Quality
+npm run dead-code        # Run Knip dead code detection
+
+# Bundle Analysis
+npm run analyze          # Generate bundle size visualization (stats.html)
+
+# Documentation
+npm run docs             # Generate TypeDoc documentation
+npm run docs:watch       # Watch mode for documentation
 
 # Full Validation
 npm run validate         # typecheck + lint + test with coverage
@@ -123,27 +135,38 @@ npm run validate         # typecheck + lint + test with coverage
 | `react-router-dom`  | ^7.11.0  | Client-side routing           |
 | `@tremor/react`     | ^3.17.4  | Data visualization components |
 | `@headlessui/react` | ^2.2.9   | Accessible UI components      |
+| `@tanstack/react-query` | ^5.90.16 | Server state management   |
 | `lucide-react`      | ^0.562.0 | Icon library                  |
 | `clsx`              | ^2.1.0   | Conditional class names       |
+| `framer-motion`     | ^12.24.10| Animation library             |
+| `sonner`            | ^2.0.7   | Toast notifications           |
+| `vite-plugin-pwa`   | ^1.2.0   | PWA service worker            |
+| `workbox-window`    | ^7.4.0   | Service worker client         |
+| `web-vitals`        | ^5.1.0   | Performance metrics           |
 
 ### Development
 
-| Package                       | Version | Purpose                        |
-| ----------------------------- | ------- | ------------------------------ |
-| `vite`                        | ^7.3.0  | Build tool and dev server      |
-| `vitest`                      | ^4.0.16 | Testing framework              |
-| `typescript`                  | ^5.3.3  | Type checking                  |
-| `@vitejs/plugin-react`        | ^4.4.1  | Vite React plugin              |
-| `tailwindcss`                 | ^3.4.1  | CSS framework                  |
-| `eslint`                      | ^8.56.0 | Linting                        |
-| `prettier`                    | ^3.2.4  | Code formatting                |
-| `@playwright/test`            | ^1.57.0 | E2E testing                    |
-| `msw`                         | ^2.12.7 | Mock Service Worker for tests  |
-| `@testing-library/react`      | ^16.3.1 | React testing utilities        |
-| `@testing-library/jest-dom`   | ^6.2.0  | DOM matchers                   |
-| `@testing-library/user-event` | ^14.5.2 | User interaction simulation    |
-| `jsdom`                       | ^27.3.0 | Browser environment simulation |
-| `@vitest/coverage-v8`         | ^4.0.16 | Code coverage                  |
+| Package                         | Version | Purpose                        |
+| ------------------------------- | ------- | ------------------------------ |
+| `vite`                          | ^7.3.0  | Build tool and dev server      |
+| `vitest`                        | ^4.0.16 | Testing framework              |
+| `typescript`                    | ^5.3.3  | Type checking                  |
+| `@vitejs/plugin-react`          | ^4.4.1  | Vite React plugin              |
+| `tailwindcss`                   | ^3.4.1  | CSS framework                  |
+| `eslint`                        | ^9.39.2 | Linting (flat config)          |
+| `prettier`                      | ^3.2.4  | Code formatting                |
+| `@playwright/test`              | ^1.57.0 | E2E testing (multi-browser)    |
+| `msw`                           | ^2.12.7 | Mock Service Worker for tests  |
+| `@testing-library/react`        | ^16.3.1 | React testing utilities        |
+| `@testing-library/jest-dom`     | ^6.2.0  | DOM matchers                   |
+| `@testing-library/user-event`   | ^14.5.2 | User interaction simulation    |
+| `jsdom`                         | ^27.3.0 | Browser environment simulation |
+| `@vitest/coverage-v8`           | ^4.0.16 | Code coverage                  |
+| `@stryker-mutator/core`         | ^8.7.1  | Mutation testing core          |
+| `@stryker-mutator/vitest-runner`| ^9.4.0  | Stryker Vitest integration     |
+| `knip`                          | ^5.79.0 | Dead code detection            |
+| `rollup-plugin-visualizer`      | ^6.0.5  | Bundle size analysis           |
+| `@axe-core/playwright`          | ^4.11.0 | Accessibility testing          |
 
 ## Vite Configuration
 
@@ -283,16 +306,225 @@ Key rules:
 }
 ```
 
+## PWA Configuration
+
+The application is a Progressive Web App (PWA) with offline support:
+
+### Manifest (`public/manifest.json`)
+
+| Property           | Value                                    |
+| ------------------ | ---------------------------------------- |
+| Name               | Nemotron Security Dashboard              |
+| Short Name         | Nemotron                                 |
+| Theme Color        | `#76B900` (NVIDIA Green)                 |
+| Background Color   | `#1a1a2e`                                |
+| Display            | standalone                               |
+| Orientation        | any                                      |
+
+### Icons
+
+| Icon                   | Size    | Purpose           |
+| ---------------------- | ------- | ----------------- |
+| `icons/icon-192.png`   | 192x192 | Standard + Maskable |
+| `icons/icon-512.png`   | 512x512 | Standard + Maskable |
+| `icons/badge-72.png`   | 72x72   | Monochrome badge  |
+| `favicon.svg`          | any     | Vector favicon    |
+
+### App Shortcuts
+
+- **View Events** (`/events`) - Quick access to security events
+- **Settings** (`/settings`) - Dashboard configuration
+
+### Service Worker (Workbox)
+
+Configured in `vite.config.ts` via `vite-plugin-pwa`:
+
+| Cache Strategy  | URL Pattern              | TTL       | Purpose               |
+| --------------- | ------------------------ | --------- | --------------------- |
+| CacheFirst      | Google Fonts             | 1 year    | Font caching          |
+| NetworkFirst    | `/api/*`                 | 5 minutes | API with offline fallback |
+| CacheFirst      | Images (png, jpg, svg)   | 30 days   | Asset caching         |
+
+**Features:**
+- Auto-update registration (`registerType: 'autoUpdate'`)
+- Skip waiting and claim clients immediately
+- Precaches app shell (JS, CSS, HTML, icons)
+- PWA enabled in development for testing
+
+## Stryker Mutation Testing
+
+Mutation testing verifies test effectiveness by introducing code mutations:
+
+### Configuration (`stryker.config.mjs`)
+
+```bash
+npm run test:mutation
+```
+
+### Target Modules
+
+| Module                    | Purpose                           |
+| ------------------------- | --------------------------------- |
+| `src/utils/risk.ts`       | Risk score to level conversion    |
+| `src/utils/time.ts`       | Time formatting utilities         |
+| `src/utils/confidence.ts` | Confidence score utilities        |
+
+### Thresholds
+
+| Level | Score | Meaning                        |
+| ----- | ----- | ------------------------------ |
+| High  | 80%   | Excellent test coverage        |
+| Low   | 60%   | Acceptable but needs improvement |
+| Break | null  | No CI gate (informational)     |
+
+### Output
+
+- **Console**: Progress and clear-text summary
+- **HTML Report**: `reports/mutation/mutation-report.html`
+
+### Performance Settings
+
+- **Concurrency**: 4 parallel mutants
+- **Timeout**: 30 seconds per mutant
+- **TypeScript checker**: Validates type correctness
+
+## Knip Dead Code Detection
+
+Knip finds unused code, exports, and dependencies:
+
+```bash
+npm run dead-code
+```
+
+### What It Detects
+
+- Unused exports (functions, types, constants)
+- Unused dependencies in `package.json`
+- Unused files not referenced by any entry point
+- Unused devDependencies
+- Duplicate exports
+
+### Integration with CI
+
+Knip runs in CI to catch dead code before merge. Fix findings by:
+
+1. Removing unused exports/files
+2. Moving dev-only deps to `devDependencies`
+3. Adding legitimate entry points to configuration
+
+## Bundle Size Monitoring
+
+Track and optimize production bundle sizes:
+
+```bash
+npm run analyze
+```
+
+### Target Sizes (NEM-1562)
+
+| Metric              | Target    | Purpose                    |
+| ------------------- | --------- | -------------------------- |
+| Main bundle         | < 500KB   | Vendor + app (gzipped)     |
+| Largest chunk       | < 250KB   | Single chunk limit         |
+| Total initial load  | < 750KB   | First contentful paint     |
+
+### Bundle Analysis
+
+The visualizer generates `stats.html` with:
+
+- **Treemap view**: Size proportional blocks
+- **Gzip sizes**: Realistic transfer sizes
+- **Brotli sizes**: Modern compression comparison
+
+### Manual Chunk Splitting
+
+Configured in `vite.config.ts`:
+
+| Chunk          | Contents                                       |
+| -------------- | ---------------------------------------------- |
+| `vendor-react` | react, react-dom, react-router-dom             |
+| `vendor-ui`    | @tremor/react, @headlessui/react, lucide-react |
+| `vendor-utils` | clsx, tailwind-merge                           |
+
+### Monitoring Workflow
+
+1. Run `npm run analyze` after significant changes
+2. Review `stats.html` for bundle growth
+3. Add manual chunks for new large dependencies
+4. Keep chunk sizes under warning limit (500KB)
+
 ## Playwright E2E Testing
 
 Configuration in `playwright.config.ts`:
 
-- Test directory: `./tests/e2e`
-- Browser: Chromium only (for smoke tests)
-- Base URL: `http://localhost:5173`
-- Auto-starts dev server before tests
-- Captures screenshots/videos on failure
-- Trace collection on first retry
+- **Test directory**: `./tests/e2e`
+- **Base URL**: `http://localhost:5173`
+- **Auto-starts dev server**: Uses `npm run dev:e2e` before tests
+- **Artifacts**: Screenshots, videos, and traces on failure
+- **Global setup**: Disables product tour via `tests/e2e/global-setup.ts`
+
+### Multi-Browser Configuration
+
+The project runs E2E tests across multiple browsers:
+
+| Project          | Browser          | Purpose                              |
+| ---------------- | ---------------- | ------------------------------------ |
+| `chromium`       | Desktop Chrome   | Primary browser, 4 CI shards         |
+| `firefox`        | Desktop Firefox  | Cross-browser compatibility          |
+| `webkit`         | Desktop Safari   | macOS/iOS compatibility              |
+| `mobile-chrome`  | Pixel 5          | Mobile Android viewport              |
+| `mobile-safari`  | iPhone 12        | Mobile iOS viewport                  |
+| `tablet`         | iPad (gen 7)     | Tablet viewport                      |
+| `visual-chromium`| Desktop Chrome   | Visual regression tests              |
+| `smoke`          | Desktop Chrome   | Tests tagged with `@smoke`           |
+| `critical`       | Desktop Chrome   | Tests tagged with `@critical`        |
+
+### Test Tagging
+
+Tests can be tagged in titles for selective execution:
+
+- `@smoke` - Critical path tests (run on every commit)
+- `@critical` - High-priority core functionality
+- `@slow` - Long-running tests
+- `@flaky` - Known flaky tests (tracked for stability)
+- `@network` - Network simulation tests
+
+```bash
+# Run by tag
+npm run test:e2e -- --grep @smoke
+npm run test:e2e -- --grep @critical
+npm run test:e2e -- --grep-invert @slow
+
+# Run specific browser
+npm run test:e2e -- --project=chromium
+npm run test:e2e -- --project=firefox
+npm run test:e2e -- --project=webkit
+```
+
+### CI Sharding
+
+In CI, Chromium tests are sharded across 4 parallel jobs:
+
+```bash
+npx playwright test --project=chromium --shard=1/4
+npx playwright test --project=chromium --shard=2/4
+npx playwright test --project=chromium --shard=3/4
+npx playwright test --project=chromium --shard=4/4
+```
+
+### Browser-Specific Timeouts
+
+| Browser  | Action Timeout | Navigation Timeout | Test Timeout |
+| -------- | -------------- | ------------------ | ------------ |
+| Chromium | 5s             | 10s                | 15s          |
+| Firefox  | 8s             | 20s                | 30s          |
+| WebKit   | 8s             | 10s                | 30s          |
+
+### Retry Configuration
+
+- **CI**: 2 retries with complete browser isolation
+- **Local**: No retries for faster feedback
+- **Flaky detection**: JSON reporter enables post-run analysis
 
 ## API Types
 
@@ -345,9 +577,10 @@ Defined in `src/App.tsx`:
 
 1. **Start here**: Read this file for configuration overview
 2. **Source code**: Navigate to `src/AGENTS.md` for component structure
-3. **Configuration**: Check `vite.config.ts`, `tsconfig.json`, `.eslintrc.cjs`
+3. **Configuration**: Check `vite.config.ts`, `tsconfig.json`, `eslint.config.mjs`
 4. **Styling**: Examine `tailwind.config.js` for NVIDIA theme
 5. **Testing**: Review `TESTING.md` for test patterns
+6. **PWA**: Check `public/manifest.json` and Workbox config in `vite.config.ts`
 
 ## Notes for AI Agents
 
@@ -359,3 +592,8 @@ Defined in `src/App.tsx`:
 - **Type safety**: Use generated types from backend OpenAPI spec
 - **No inline styles**: Use Tailwind utilities or custom CSS classes
 - **Accessibility**: jsx-a11y rules are enforced
+- **PWA support**: App works offline with Workbox service worker caching
+- **Multi-browser E2E**: Tests run on Chromium, Firefox, and WebKit in CI
+- **Dead code detection**: Run `npm run dead-code` before PRs to catch unused exports
+- **Bundle monitoring**: Run `npm run analyze` after adding large dependencies
+- **Mutation testing**: Run `npm run test:mutation` to verify test effectiveness

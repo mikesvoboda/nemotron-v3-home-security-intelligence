@@ -84,7 +84,7 @@ jobs:
           ref: ${{ needs.evaluate-rollback.outputs.previous-sha }}
 
       - name: Log in to Container Registry
-        uses: docker/login-action@263435318d21b8e681c14492fe198d362a7d2c83 # v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

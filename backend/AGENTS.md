@@ -15,6 +15,18 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 - **TLS/HTTPS** - Optional TLS support with self-signed certificate generation
 - **Audit logging** - Security-sensitive operation tracking for compliance
 
+## Architecture Summary
+
+| Component           | Count | Description                                     |
+| ------------------- | ----- | ----------------------------------------------- |
+| API Routes          | 22    | REST endpoints organized by domain              |
+| Services            | 89    | Business logic, AI pipeline, background workers |
+| Models              | 19    | SQLAlchemy ORM models                           |
+| Schemas             | 37    | Pydantic request/response schemas               |
+| Middleware          | 14    | Request processing pipeline                     |
+| Repositories        | 4     | Data access abstraction layer                   |
+| Core Infrastructure | 27    | Database, Redis, config, logging, etc.          |
+
 ## Running the Backend
 
 ```bash
@@ -33,16 +45,21 @@ podman-compose -f docker-compose.prod.yml up -d backend
 
 ```
 backend/
-├── main.py                 # FastAPI application entry point
+├── main.py                 # FastAPI application entry point (600+ lines)
 ├── __init__.py             # Package initialization
 ├── Dockerfile              # Container configuration (uv-based, works with Docker/Podman)
 ├── .dockerignore           # Docker build exclusions
 ├── alembic.ini             # Alembic configuration
 ├── alembic/                # Database migrations (Alembic)
-├── api/                    # REST API routes, schemas, and middleware
-├── core/                   # Infrastructure (database, Redis, config, logging, metrics, TLS)
-├── models/                 # SQLAlchemy ORM models
-├── services/               # Business logic and AI pipeline
+├── api/                    # REST API layer
+│   ├── routes/             # 22 API route modules
+│   ├── schemas/            # 37 Pydantic schema modules
+│   └── middleware/         # 14 middleware components
+├── core/                   # Infrastructure (27 modules)
+├── models/                 # SQLAlchemy ORM models (19 models)
+├── repositories/           # Data access layer (4 repositories)
+├── services/               # Business logic and AI pipeline (89 modules)
+│   └── orchestrator/       # Service orchestration subsystem
 ├── tests/                  # Unit and integration tests
 ├── data/                   # Runtime data (sample images, thumbnails)
 ├── examples/               # Example scripts (Redis usage)
@@ -62,21 +79,26 @@ backend/
 - Authentication middleware (optional API key validation via `AuthMiddleware`)
 - Request ID middleware for log correlation (`RequestIDMiddleware`)
 - Health check endpoints (`/`, `/health`)
-- Router registration for all API modules:
-  - `admin` - Admin operations
-  - `ai_audit` - AI pipeline audit endpoints
-  - `alerts` - Alert rule management
-  - `audit` - Audit logging
-  - `cameras` - Camera CRUD
-  - `detections` - Detection management
+- Router registration for 21 API modules:
+  - `admin` - Admin operations and cache management
+  - `ai_audit` - AI pipeline audit and prompt management
+  - `alerts` - Alert rule CRUD and evaluation
+  - `analytics` - Detection and event analytics
+  - `audit` - Security audit logging
+  - `cameras` - Camera CRUD and status
+  - `debug` - Debug endpoints for development
+  - `detections` - Detection queries with filtering
   - `dlq` - Dead-letter queue management
-  - `entities` - Entity management endpoints
-  - `events` - Event management
+  - `entities` - Entity tracking (people, vehicles)
+  - `events` - Event management and review workflow
   - `logs` - Log querying and frontend log ingestion
-  - `media` - Secure file serving
+  - `media` - Secure file serving for images/videos
   - `metrics` - Prometheus metrics endpoint
   - `notification` - Notification channel management
-  - `system` - System health and status
+  - `notification_preferences` - User notification preferences
+  - `rum` - Real User Monitoring data collection
+  - `services` - Service management and control
+  - `system` - Health checks, GPU stats, pipeline status
   - `websocket` - Real-time event streaming
   - `zones` - Zone management for camera areas
 - Database and Redis initialization
@@ -96,7 +118,9 @@ backend/
 
 ## Core Infrastructure (`core/`)
 
-See `core/AGENTS.md` for detailed documentation.
+See `core/AGENTS.md` for detailed documentation. The core layer contains 27 modules providing foundational infrastructure.
+
+### Configuration and Settings
 
 **`config.py`** - Pydantic Settings for configuration:
 
@@ -114,6 +138,10 @@ See `core/AGENTS.md` for detailed documentation.
 - Severity threshold configuration
 - Cached singleton pattern via `@lru_cache`
 
+**`constants.py`** - Application-wide constants and magic values.
+
+### Data Layer
+
 **`database.py`** - SQLAlchemy 2.0 async database layer:
 
 - `Base` - Declarative base for all models
@@ -121,20 +149,6 @@ See `core/AGENTS.md` for detailed documentation.
 - `get_db()` - FastAPI dependency for database sessions
 - `get_session()` - Async context manager for services
 - PostgreSQL connection pooling with asyncpg driver
-
-**`tls.py`** - TLS/SSL configuration and certificate management:
-
-- `TLSMode` enum: DISABLED, SELF_SIGNED, PROVIDED
-- `TLSConfig` dataclass for configuration
-- Self-signed certificate generation with SANs
-- SSL context creation for uvicorn
-- Certificate validation and info extraction
-
-**`mime_types.py`** - MIME type utilities:
-
-- Image and video MIME type mappings
-- Extension-to-MIME conversion
-- File type normalization
 
 **`redis.py`** - Redis async client wrapper:
 
@@ -145,6 +159,28 @@ See `core/AGENTS.md` for detailed documentation.
 - Pub/Sub operations (publish, subscribe, listen)
 - Cache operations (get, set, delete, exists, expire)
 - Retry logic with exponential backoff and jitter
+
+**`container.py`** - Dependency injection container for service resolution.
+
+**`dependencies.py`** - FastAPI dependency injection utilities.
+
+### Resilience and Error Handling
+
+**`circuit_breaker.py`** - Circuit breaker pattern for fault tolerance:
+
+- State management (CLOSED, OPEN, HALF_OPEN)
+- Configurable failure thresholds and recovery timeouts
+- Async context manager support
+
+**`websocket_circuit_breaker.py`** - WebSocket-specific circuit breaker.
+
+**`retry.py`** - Retry logic with exponential backoff and jitter.
+
+**`exceptions.py`** - Custom exception hierarchy for the application.
+
+**`error_context.py`** - Error context enrichment for debugging.
+
+### Observability
 
 **`logging.py`** - Centralized logging infrastructure:
 
@@ -162,69 +198,383 @@ See `core/AGENTS.md` for detailed documentation.
 - Error counters by type
 - `PipelineLatencyTracker` - In-memory latency tracking with percentile calculations
 
+**`telemetry.py`** - Distributed tracing and telemetry collection.
+
+**`profiling.py`** - Performance profiling utilities.
+
+**`query_explain.py`** - SQL query analysis and EXPLAIN plan utilities.
+
+### Async Utilities
+
+**`async_context.py`** - Async context management utilities.
+
+**`async_utils.py`** - Common async helper functions.
+
+### Security
+
+**`tls.py`** - TLS/SSL configuration and certificate management:
+
+- `TLSMode` enum: DISABLED, SELF_SIGNED, PROVIDED
+- `TLSConfig` dataclass for configuration
+- Self-signed certificate generation with SANs
+- SSL context creation for uvicorn
+- Certificate validation and info extraction
+
+**`sanitization.py`** - Input sanitization for security.
+
+**`url_validation.py`** - URL validation and safety checks.
+
+### Utilities
+
+**`mime_types.py`** - MIME type utilities:
+
+- Image and video MIME type mappings
+- Extension-to-MIME conversion
+- File type normalization
+
+**`json_utils.py`** - JSON serialization utilities.
+
+**`time_utils.py`** - Time and datetime utilities.
+
+**`protocols.py`** - Protocol definitions for type checking.
+
+**`docker_client.py`** - Docker/Podman client abstraction.
+
 ## Database Models (`models/`)
 
-See `models/AGENTS.md` for detailed documentation.
+See `models/AGENTS.md` for detailed documentation. The data layer contains 19 SQLAlchemy models using 2.0 `Mapped` type hints.
 
-All models use SQLAlchemy 2.0 `Mapped` type hints:
+### Core Domain Models
 
 - **`Camera`** - Camera entity with detections/events relationships
 - **`Detection`** - Object detection results with bounding boxes and video metadata
 - **`Event`** - Security events with LLM risk analysis
+- **`Zone`** - Camera monitoring zones/areas
+
+### Event and Detection Extensions
+
+- **`EventDetection`** - Many-to-many relationship between events and detections
+- **`EventAudit`** - Event review and audit trail
+- **`EventFeedback`** - User feedback on event classification
+
+### AI and Analysis
+
+- **`PromptConfig`** - LLM prompt configuration storage
+- **`PromptVersion`** - Prompt versioning for A/B testing
+- **`Baseline`** - Scene baseline for anomaly detection
+- **`SceneChange`** - Detected scene changes
+
+### User and System
+
+- **`UserCalibration`** - User-specific calibration settings
+- **`NotificationPreferences`** - User notification preferences
+- **`APIKey`** - API key management for authentication
+
+### Alerting
+
+- **`Alert`** - Alert rule definitions and thresholds
+
+### Monitoring
+
 - **`GPUStats`** - GPU performance time-series data
 - **`Log`** - Structured application logs
-- **`Zone`** - Camera monitoring zones/areas
+- **`Audit`** - Security audit records
+
+### Supporting
+
+- **`enums.py`** - Shared enum definitions (severity levels, statuses, etc.)
 
 ## API Routes (`api/routes/`)
 
-See `api/routes/AGENTS.md` for detailed documentation.
+See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 22 route modules (21 registered in main.py).
 
-- **`cameras.py`** - Camera CRUD operations
-- **`detections.py`** - Detection queries with filtering
-- **`events.py`** - Event management and review workflow
-- **`media.py`** - Secure file serving for images/videos
-- **`system.py`** - Health checks, GPU stats, pipeline status
-- **`websocket.py`** - WebSocket real-time connections
-- **`logs.py`** - Log queries and frontend log ingestion
-- **`dlq.py`** - Dead-letter queue management
-- **`metrics.py`** - Prometheus metrics endpoint
-- **`admin.py`** - Admin operations
+### Core Domain Routes
+
+| Route           | Prefix            | Description                                        |
+| --------------- | ----------------- | -------------------------------------------------- |
+| `cameras.py`    | `/api/cameras`    | Camera CRUD, status, and configuration             |
+| `detections.py` | `/api/detections` | Detection queries with filtering and pagination    |
+| `events.py`     | `/api/events`     | Event management, review workflow, bulk operations |
+| `zones.py`      | `/api/cameras`    | Zone management for camera areas                   |
+| `entities.py`   | `/api/entities`   | Entity tracking (people, vehicles)                 |
+
+### AI and Analysis Routes
+
+| Route                  | Prefix                  | Description                               |
+| ---------------------- | ----------------------- | ----------------------------------------- |
+| `ai_audit.py`          | `/api/ai-audit`         | AI pipeline audit and performance metrics |
+| `prompt_management.py` | `/api/ai-audit/prompts` | LLM prompt version management             |
+| `analytics.py`         | `/api/analytics`        | Detection and event analytics             |
+
+### System and Infrastructure Routes
+
+| Route         | Prefix                 | Description                               |
+| ------------- | ---------------------- | ----------------------------------------- |
+| `system.py`   | `/api/system`          | Health checks, GPU stats, pipeline status |
+| `services.py` | `/api/system/services` | Service management and control            |
+| `metrics.py`  | `/api`                 | Prometheus metrics endpoint               |
+| `dlq.py`      | `/api/dlq`             | Dead-letter queue management              |
+| `admin.py`    | `/api/admin`           | Admin operations and cache management     |
+| `debug.py`    | `/api/debug`           | Debug endpoints for development           |
+
+### Media and Logging Routes
+
+| Route      | Prefix       | Description                            |
+| ---------- | ------------ | -------------------------------------- |
+| `media.py` | `/api/media` | Secure file serving for images/videos  |
+| `logs.py`  | `/api/logs`  | Log queries and frontend log ingestion |
+| `rum.py`   | `/api/rum`   | Real User Monitoring data collection   |
+
+### Notification and Alerting Routes
+
+| Route                         | Prefix                          | Description                     |
+| ----------------------------- | ------------------------------- | ------------------------------- |
+| `alerts.py`                   | `/api/alerts/rules`             | Alert rule CRUD and evaluation  |
+| `notification.py`             | `/api/notification`             | Notification channel management |
+| `notification_preferences.py` | `/api/notification-preferences` | User notification preferences   |
+
+### Security and Compliance Routes
+
+| Route      | Prefix       | Description            |
+| ---------- | ------------ | ---------------------- |
+| `audit.py` | `/api/audit` | Security audit logging |
+
+### Real-time Routes
+
+| Route          | Prefix | Description                     |
+| -------------- | ------ | ------------------------------- |
+| `websocket.py` | `/ws`  | WebSocket real-time connections |
+
+## API Middleware (`api/middleware/`)
+
+The middleware layer contains 14 components for request processing:
+
+| Middleware                  | Purpose                                 |
+| --------------------------- | --------------------------------------- |
+| `auth.py`                   | API key authentication                  |
+| `websocket_auth.py`         | WebSocket authentication                |
+| `rate_limit.py`             | Request rate limiting                   |
+| `request_id.py`             | Request ID generation and propagation   |
+| `correlation.py`            | Correlation ID for distributed tracing  |
+| `request_logging.py`        | Request/response logging                |
+| `request_timing.py`         | Request duration metrics                |
+| `request_recorder.py`       | Request recording for debugging         |
+| `security_headers.py`       | Security headers (CSP, HSTS, etc.)      |
+| `body_limit.py`             | Request body size limiting              |
+| `content_type_validator.py` | Content-Type validation                 |
+| `file_validator.py`         | File upload validation                  |
+| `exception_handler.py`      | Global exception handling with RFC 7807 |
+
+## API Schemas (`api/schemas/`)
+
+The schema layer contains 37 Pydantic models for request/response validation:
+
+- **Domain schemas:** `camera.py`, `detections.py`, `events.py`, `zone.py`, `entities.py`
+- **AI schemas:** `ai_audit.py`, `llm.py`, `llm_response.py`, `enrichment.py`, `enrichment_data.py`
+- **System schemas:** `system.py`, `health.py`, `services.py`, `queue.py`, `performance.py`
+- **Notification schemas:** `notification.py`, `notification_preferences.py`, `alerts.py`
+- **Media schemas:** `media.py`, `clips.py`, `streaming.py`
+- **Error handling:** `errors.py`, `problem_details.py` (RFC 7807)
+- **Utilities:** `bulk.py`, `hateoas.py`, `search.py`, `baseline.py`, `calibration.py`
+
+## Repositories (`repositories/`)
+
+The repository layer provides data access abstraction with a generic base class:
+
+- **`base.py`** - Generic `Repository[T]` base class with:
+
+  - `get_by_id()` - Retrieve by primary key
+  - `get_all()` - Retrieve all entities
+  - `list_paginated()` - Paginated queries with skip/limit
+  - `count()` - Count entities
+  - `create()` / `update()` / `delete()` - CRUD operations
+  - `merge()` - Upsert operations
+  - `save()` - Persist changes
+
+- **`camera_repository.py`** - Camera-specific queries
+- **`detection_repository.py`** - Detection-specific queries
+- **`event_repository.py`** - Event-specific queries
 
 ## Services (`services/`)
 
-See `services/AGENTS.md` for detailed documentation.
+See `services/AGENTS.md` for detailed documentation. The service layer contains 89 modules organized by function.
 
-**Core AI Pipeline:**
+### Core AI Pipeline
 
-- `file_watcher.py` - Monitors camera directories for new uploads
-- `detector_client.py` - RT-DETRv2 HTTP client for object detection
-- `batch_aggregator.py` - Groups detections into time-based batches
-- `nemotron_analyzer.py` - LLM risk analysis via llama.cpp
-- `thumbnail_generator.py` - Detection visualization with bounding boxes
-- `dedupe.py` - File deduplication using content hashes
+| Service                  | Purpose                                     |
+| ------------------------ | ------------------------------------------- |
+| `file_watcher.py`        | Monitors camera directories for new uploads |
+| `detector_client.py`     | RT-DETRv2 HTTP client for object detection  |
+| `batch_aggregator.py`    | Groups detections into time-based batches   |
+| `nemotron_analyzer.py`   | LLM risk analysis via llama.cpp             |
+| `nemotron_streaming.py`  | Streaming LLM responses                     |
+| `thumbnail_generator.py` | Detection visualization with bounding boxes |
+| `dedupe.py`              | File deduplication using content hashes     |
+| `vision_extractor.py`    | Visual feature extraction                   |
 
-**Pipeline Workers:**
+### AI Model Loaders (Lazy Loading)
 
-- `pipeline_workers.py` - Background worker processes (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager)
+| Service                        | Model                         |
+| ------------------------------ | ----------------------------- |
+| `clip_loader.py`               | CLIP embeddings               |
+| `clip_client.py`               | CLIP client interface         |
+| `florence_loader.py`           | Florence-2 vision-language    |
+| `florence_client.py`           | Florence client interface     |
+| `florence_extractor.py`        | Florence feature extraction   |
+| `depth_anything_loader.py`     | Depth estimation              |
+| `segformer_loader.py`          | Semantic segmentation         |
+| `vitpose_loader.py`            | Pose estimation               |
+| `yolo_world_loader.py`         | YOLO-World detection          |
+| `xclip_loader.py`              | X-CLIP video understanding    |
+| `fashion_clip_loader.py`       | Fashion-specific CLIP         |
+| `pet_classifier_loader.py`     | Pet/animal classification     |
+| `vehicle_classifier_loader.py` | Vehicle classification        |
+| `vehicle_damage_loader.py`     | Vehicle damage detection      |
+| `violence_loader.py`           | Violence detection            |
+| `weather_loader.py`            | Weather classification        |
+| `image_quality_loader.py`      | Image quality assessment      |
+| `model_loader_base.py`         | Base class for model loaders  |
+| `model_zoo.py`                 | Model registry and management |
 
-**Broadcasting:**
+### Detection Enrichment Pipeline
 
-- `event_broadcaster.py` - WebSocket event distribution via Redis pub/sub
-- `system_broadcaster.py` - Periodic system status broadcasting
+| Service                  | Purpose                            |
+| ------------------------ | ---------------------------------- |
+| `enrichment_pipeline.py` | Detection enrichment orchestration |
+| `enrichment_client.py`   | Enrichment service client          |
+| `context_enricher.py`    | Context-aware enrichment           |
+| `face_detector.py`       | Face detection                     |
+| `plate_detector.py`      | License plate detection            |
+| `ocr_service.py`         | Optical character recognition      |
+| `reid_service.py`        | Person re-identification           |
+| `bbox_validation.py`     | Bounding box validation            |
 
-**Background Services:**
+### Scene Analysis
 
-- `gpu_monitor.py` - NVIDIA GPU statistics monitoring
-- `cleanup_service.py` - Data retention and disk cleanup
-- `health_monitor.py` - Service health monitoring with auto-recovery
+| Service                    | Purpose                   |
+| -------------------------- | ------------------------- |
+| `scene_baseline.py`        | Scene baseline management |
+| `scene_change_detector.py` | Scene change detection    |
+| `baseline.py`              | Baseline calculation      |
 
-**Infrastructure:**
+### Pipeline Workers
 
-- `retry_handler.py` - Exponential backoff and dead-letter queue support
-- `service_managers.py` - Strategy pattern for service management (Shell/Docker)
-- `prompts.py` - LLM prompt templates
+| Service                   | Purpose                                                                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `pipeline_workers.py`     | Background workers (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager) |
+| `evaluation_queue.py`     | Evaluation queue management                                                                                                   |
+| `background_evaluator.py` | Background evaluation processing                                                                                              |
+| `batch_fetch.py`          | Batch data fetching                                                                                                           |
+
+### Broadcasting and Real-time
+
+| Service                 | Purpose                                        |
+| ----------------------- | ---------------------------------------------- |
+| `event_broadcaster.py`  | WebSocket event distribution via Redis pub/sub |
+| `system_broadcaster.py` | Periodic system status broadcasting            |
+
+### Video Processing
+
+| Service              | Purpose                               |
+| -------------------- | ------------------------------------- |
+| `video_processor.py` | Video processing and frame extraction |
+| `clip_generator.py`  | Video clip generation                 |
+
+### Background Services
+
+| Service                          | Purpose                                      |
+| -------------------------------- | -------------------------------------------- |
+| `gpu_monitor.py`                 | NVIDIA GPU statistics monitoring             |
+| `cleanup_service.py`             | Data retention and disk cleanup              |
+| `health_monitor.py`              | Service health monitoring with auto-recovery |
+| `health_monitor_orchestrator.py` | Health monitor coordination                  |
+| `performance_collector.py`       | AI service performance metrics               |
+
+### Alerting and Notifications
+
+| Service                  | Purpose                      |
+| ------------------------ | ---------------------------- |
+| `alert_engine.py`        | Alert rule evaluation engine |
+| `alert_dedup.py`         | Alert deduplication          |
+| `notification.py`        | Notification dispatch        |
+| `notification_filter.py` | Notification filtering rules |
+| `severity.py`            | Severity calculation         |
+
+### Prompt Management
+
+| Service                     | Purpose                        |
+| --------------------------- | ------------------------------ |
+| `prompts.py`                | LLM prompt templates           |
+| `prompt_parser.py`          | Prompt parsing                 |
+| `prompt_sanitizer.py`       | Prompt input sanitization      |
+| `prompt_storage.py`         | Prompt persistence             |
+| `prompt_version_service.py` | Prompt versioning              |
+| `prompt_service.py`         | Prompt service facade          |
+| `typed_prompt_config.py`    | Type-safe prompt configuration |
+| `token_counter.py`          | Token counting for prompts     |
+
+### Resilience and Fault Tolerance
+
+| Service                  | Purpose                             |
+| ------------------------ | ----------------------------------- |
+| `circuit_breaker.py`     | Circuit breaker pattern             |
+| `retry_handler.py`       | Exponential backoff and DLQ support |
+| `ai_fallback.py`         | AI service fallback strategies      |
+| `degradation_manager.py` | Graceful degradation                |
+| `inference_semaphore.py` | Inference concurrency control       |
+
+### Service Management
+
+| Service                     | Purpose                                                |
+| --------------------------- | ------------------------------------------------------ |
+| `service_managers.py`       | Strategy pattern for service management (Shell/Docker) |
+| `service_registry.py`       | Service registration and discovery                     |
+| `managed_service.py`        | Managed service base class                             |
+| `lifecycle_manager.py`      | Service lifecycle management                           |
+| `container_discovery.py`    | Container discovery                                    |
+| `container_orchestrator.py` | Container orchestration                                |
+
+### Data Access
+
+| Service            | Purpose                       |
+| ------------------ | ----------------------------- |
+| `search.py`        | Full-text and semantic search |
+| `cache_service.py` | Caching layer                 |
+| `zone_service.py`  | Zone management               |
+
+### Audit and Compliance
+
+| Service                             | Purpose                    |
+| ----------------------------------- | -------------------------- |
+| `audit.py`                          | Audit service              |
+| `audit_logger.py`                   | Audit logging              |
+| `pipeline_quality_audit_service.py` | Pipeline quality auditing  |
+| `cost_tracker.py`                   | AI inference cost tracking |
+
+### Calibration
+
+| Service          | Purpose               |
+| ---------------- | --------------------- |
+| `calibration.py` | Detection calibration |
+
+### Database Management
+
+| Service                | Purpose            |
+| ---------------------- | ------------------ |
+| `partition_manager.py` | Table partitioning |
+
+### Orchestrator Subsystem (`services/orchestrator/`)
+
+| Module        | Purpose                  |
+| ------------- | ------------------------ |
+| `__init__.py` | Orchestrator exports     |
+| `enums.py`    | Orchestrator enums       |
+| `models.py`   | Orchestrator data models |
+| `registry.py` | Service registry         |
 
 ## Data Flow
+
+### Detection Pipeline
 
 ```
 Camera uploads -> FileWatcher -> detection_queue (Redis)
@@ -233,31 +583,83 @@ Camera uploads -> FileWatcher -> detection_queue (Redis)
                                       |
                                DetectorClient -> RT-DETRv2
                                       |
-                               Detection (DB) -> BatchAggregator
-                                      |               |
-                         ThumbnailGenerator   analysis_queue (Redis)
-                                                      |
-                                          AnalysisQueueWorker
-                                                      |
-                                             NemotronAnalyzer -> Nemotron LLM
-                                                      |
-                                                 Event (DB)
-                                                      |
-                                           EventBroadcaster (Redis pub/sub)
-                                                      |
-                                             WebSocket clients
+                               Detection (DB)
+                                      |
+                    ┌─────────────────┼─────────────────┐
+                    |                 |                 |
+           ThumbnailGenerator   BatchAggregator   EnrichmentPipeline
+                                      |                 |
+                               analysis_queue     [CLIP, Florence,
+                                      |            Face, Plate, OCR]
+                                      |
+                          AnalysisQueueWorker
+                                      |
+                             NemotronAnalyzer -> Nemotron LLM
+                                      |
+                                 Event (DB)
+                                      |
+                    ┌─────────────────┼─────────────────┐
+                    |                 |                 |
+             AlertEngine     EventBroadcaster   NotificationService
+                    |          (Redis pub/sub)         |
+              Alert (DB)              |           [Email, Webhook]
+                             WebSocket clients
+```
 
+### System Monitoring Flow
+
+```
 GPU stats (pynvml) -> GPUMonitor -> GPUStats (DB) -> SystemBroadcaster -> WebSocket
 
+Health checks -> HealthMonitor -> ServiceHealthMonitor -> auto-recovery
+
+Performance -> PerformanceCollector -> Prometheus metrics -> /api/metrics
+```
+
+### Background Services Flow
+
+```
 Scheduled cleanup -> CleanupService -> Delete old records -> Remove files
 
+Scene analysis -> SceneChangeDetector -> SceneBaseline -> Anomaly detection
+
+Cost tracking -> CostTracker -> Usage metrics -> /api/ai-audit
+```
+
+### Logging Flow
+
+```
 Backend operations -> get_logger() -> SQLiteHandler -> Log (DB)
                                    -> RotatingFileHandler -> security.log
                                    -> StreamHandler -> console
 
 Frontend logs -> POST /api/logs/frontend -> Log (DB)
 
-Failed jobs -> RetryHandler (with backoff) -> DLQ (Redis) -> /api/dlq/* endpoints
+RUM events -> POST /api/rum -> Performance metrics (DB)
+```
+
+### Error Handling Flow
+
+```
+Failed jobs -> RetryHandler (exponential backoff)
+                    |
+           ┌───────┴───────┐
+           |               |
+      Retry (N times)   DLQ (Redis)
+                           |
+                   /api/dlq/* endpoints
+                           |
+                   Manual review/replay
+```
+
+### Resilience Patterns
+
+```
+AI Service Request -> CircuitBreaker -> InferenceSemaphore -> AI Service
+                           |                   |
+                    [OPEN: fallback]    [Rate limiting]
+                           |
+                    AIFallback -> DegradationManager
 ```
 
 ## Configuration Patterns
@@ -325,23 +727,45 @@ All database and Redis operations are **fully async**:
 
 ## Testing
 
-Test structure mirrors source code:
+Test structure mirrors source code with comprehensive coverage:
 
 ```
 backend/tests/
-├── unit/                  # Unit tests for individual modules
-│   ├── test_config.py
-│   ├── test_database.py
-│   ├── test_redis.py
-│   └── test_models.py
-└── integration/           # Integration tests for API endpoints
+├── unit/                  # 8,229 unit tests
+│   ├── api/               # API route tests
+│   ├── core/              # Core infrastructure tests
+│   ├── models/            # Model tests
+│   ├── services/          # Service tests
+│   └── repositories/      # Repository tests
+└── integration/           # 1,556 integration tests (4 shards)
+    ├── api/               # API integration tests
+    ├── websocket/         # WebSocket tests
+    ├── services/          # Service integration tests
+    └── models/            # Model integration tests
 ```
 
-Run tests with `pytest`:
+**Running Tests:**
 
 ```bash
-pytest backend/tests/ -v
+# Unit tests (parallel, ~10s)
+uv run pytest backend/tests/unit/ -n auto --dist=worksteal
+
+# Integration tests (serial, ~70s)
+uv run pytest backend/tests/integration/ -n0
+
+# Full test suite with coverage
+uv run pytest backend/tests/ --cov=backend --cov-report=term-missing
+
+# Specific test file
+uv run pytest backend/tests/unit/api/routes/test_cameras.py -v
 ```
+
+**Coverage Requirements:**
+
+| Test Type | Minimum |
+| --------- | ------- |
+| Unit      | 85%     |
+| Combined  | 95%     |
 
 ## Environment Variables
 
@@ -401,10 +825,26 @@ The backend provides three health endpoints for different use cases:
 
 ## Related Documentation
 
-- `/backend/alembic/AGENTS.md` - Database migration documentation
-- `/backend/core/AGENTS.md` - Core infrastructure documentation
-- `/backend/models/AGENTS.md` - Database model documentation
-- `/backend/services/AGENTS.md` - Service layer documentation
-- `/backend/api/routes/AGENTS.md` - API endpoint documentation
-- `/backend/tests/AGENTS.md` - Test infrastructure documentation
-- `/backend/data/AGENTS.md` - Runtime data directory documentation
+### Backend Subdirectories
+
+| Path                                | Purpose                            |
+| ----------------------------------- | ---------------------------------- |
+| `/backend/alembic/AGENTS.md`        | Database migration documentation   |
+| `/backend/core/AGENTS.md`           | Core infrastructure (27 modules)   |
+| `/backend/models/AGENTS.md`         | Database models (19 models)        |
+| `/backend/services/AGENTS.md`       | Service layer (89 modules)         |
+| `/backend/api/routes/AGENTS.md`     | API endpoints (22 routes)          |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (37 schemas)      |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (14 modules) |
+| `/backend/repositories/AGENTS.md`   | Repository pattern                 |
+| `/backend/tests/AGENTS.md`          | Test infrastructure                |
+| `/backend/data/AGENTS.md`           | Runtime data directory             |
+
+### Project-Level Documentation
+
+| Path                                | Purpose                        |
+| ----------------------------------- | ------------------------------ |
+| `/CLAUDE.md`                        | Project-wide instructions      |
+| `/docs/TESTING_GUIDE.md`            | Comprehensive testing patterns |
+| `/docs/TEST_PERFORMANCE_METRICS.md` | Test performance baselines     |
+| `/docs/ROADMAP.md`                  | Post-MVP enhancements          |
