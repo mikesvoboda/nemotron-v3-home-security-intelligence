@@ -36,6 +36,7 @@ from backend.api.schemas.events import (
     EventUpdate,
 )
 from backend.api.schemas.hateoas import build_event_links
+from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.api.utils.field_filter import (
     FieldFilterError,
@@ -407,12 +408,15 @@ async def list_events(  # noqa: PLR0912
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
     return EventListResponse(
-        events=events_with_counts,
-        count=total_count,
-        limit=limit,
-        offset=offset,
-        next_cursor=next_cursor,
-        has_more=has_more,
+        items=events_with_counts,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset if offset else None,
+            cursor=cursor,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        ),
         deprecation_warning=deprecation_warning,
     )
 
@@ -896,8 +900,15 @@ async def list_deleted_events(
         )
 
     return {
-        "events": events_data,
-        "count": len(events_data),
+        "items": events_data,
+        "pagination": PaginationMeta(
+            total=len(events_data),
+            limit=1000,  # No pagination limit for deleted events list
+            offset=None,
+            cursor=None,
+            next_cursor=None,
+            has_more=False,
+        ).model_dump(),
     }
 
 

@@ -710,11 +710,11 @@ class TestListEventsRouteComprehensive:
             db=mock_db,
         )
 
-        assert result.count == 10
-        assert len(result.events) == 1
-        assert result.events[0].id == 1
-        assert result.events[0].detection_count == 3
-        assert result.has_more is False
+        assert result.pagination.total == 10
+        assert len(result.items) == 1
+        assert result.items[0].id == 1
+        assert result.items[0].detection_count == 3
+        assert result.pagination.has_more is False
 
     @pytest.mark.asyncio
     async def test_list_events_with_object_type_filter(self):
@@ -744,8 +744,8 @@ class TestListEventsRouteComprehensive:
             db=mock_db,
         )
 
-        assert result.count == 0
-        assert result.events == []
+        assert result.pagination.total == 0
+        assert result.items == []
 
 
 class TestGetEventStatsRouteComprehensive:
