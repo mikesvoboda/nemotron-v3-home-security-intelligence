@@ -1,7 +1,7 @@
-"""Unit tests for CameraRepository.
+"""Integration tests for CameraRepository.
 
 Tests follow TDD approach - these tests are written BEFORE the implementation.
-Run with: uv run pytest backend/tests/unit/repositories/test_camera_repository.py -v
+Run with: uv run pytest backend/tests/integration/repositories/test_camera_repository.py -v
 """
 
 from __future__ import annotations

@@ -52,6 +52,16 @@ from .context_enricher import (
     get_context_enricher,
     reset_context_enricher,
 )
+from .cost_tracker import (
+    BudgetStatus,
+    CloudPricing,
+    CostModel,
+    CostTracker,
+    DailyUsage,
+    UsageRecord,
+    get_cost_tracker,
+    reset_cost_tracker,
+)
 from .dedupe import DedupeService, compute_file_hash, get_dedupe_service, reset_dedupe_service
 from .degradation_manager import (
     DegradationManager,
@@ -254,7 +264,13 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "ClipGenerationError",
     "ClipGenerator",
     "ContextEnricher",
+    "CostModel",
+    "CostTracker",
     "CrossCameraActivity",
+    "CloudPricing",
+    "BudgetStatus",
+    "DailyUsage",
+    "UsageRecord",
     "DLQStats",
     "DedupResult",
     "DedupeService",
@@ -334,6 +350,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_circuit_breaker",
     "get_clip_generator",
     "get_context_enricher",
+    "get_cost_tracker",
     "get_db_audit_service",
     "get_dedupe_service",
     "get_degradation_manager",
@@ -372,6 +389,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_service_registry",
     "reset_clip_generator",
     "reset_context_enricher",
+    "reset_cost_tracker",
     "reset_db_audit_service",
     "reset_dedupe_service",
     "reset_degradation_manager",

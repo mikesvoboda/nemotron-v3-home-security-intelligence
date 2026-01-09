@@ -197,7 +197,7 @@ class TestGetEventAudit:
         response = client.get("/api/ai-audit/events/999")
 
         assert response.status_code == 404
-        assert "Event 999 not found" in response.json()["detail"]
+        assert "Event with id 999 not found" in response.json()["detail"]
 
     def test_get_event_audit_audit_not_found(
         self,
@@ -430,7 +430,7 @@ class TestEvaluateEvent:
         response = client.post("/api/ai-audit/events/999/evaluate")
 
         assert response.status_code == 404
-        assert "Event 999 not found" in response.json()["detail"]
+        assert "Event with id 999 not found" in response.json()["detail"]
 
     def test_evaluate_event_audit_not_found(
         self,
