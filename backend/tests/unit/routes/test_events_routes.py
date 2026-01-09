@@ -292,6 +292,8 @@ def create_mock_detection(
     mock.camera_id = camera_id
     mock.file_path = file_path
     mock.file_type = "image/jpeg"
+    mock.media_type = "image"
+    mock.video_codec = None
     mock.detected_at = detected_at or datetime.now(UTC)
     mock.object_type = object_type
     mock.confidence = confidence
@@ -300,6 +302,7 @@ def create_mock_detection(
     mock.bbox_width = 200
     mock.bbox_height = 400
     mock.thumbnail_path = "/data/thumbnails/thumb.jpg"
+    mock.enrichment_data = {}
     return mock
 
 
@@ -348,10 +351,10 @@ async def test_list_events_returns_empty_list_when_no_events() -> None:
         db=db,
     )
 
-    assert response["events"] == []
-    assert response["count"] == 0
-    assert response["limit"] == 50
-    assert response["offset"] == 0
+    assert response.events == []
+    assert response.count == 0
+    assert response.limit == 50
+    assert response.offset == 0
 
 
 @pytest.mark.asyncio
@@ -385,10 +388,10 @@ async def test_list_events_returns_events_with_detection_count() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["id"] == 1
-    assert response["events"][0]["detection_count"] == 3
-    assert response["count"] == 1
+    assert len(response.events) == 1
+    assert response.events[0].id == 1
+    assert response.events[0].detection_count == 3
+    assert response.count == 1
 
 
 @pytest.mark.asyncio
@@ -422,9 +425,9 @@ async def test_list_events_returns_detection_ids_array() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["detection_ids"] == [10, 20, 30]
-    assert response["events"][0]["detection_count"] == 3
+    assert len(response.events) == 1
+    assert response.events[0].detection_ids == [10, 20, 30]
+    assert response.events[0].detection_count == 3
 
 
 @pytest.mark.asyncio
@@ -458,8 +461,8 @@ async def test_list_events_with_empty_detection_ids() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["detection_count"] == 0
+    assert len(response.events) == 1
+    assert response.events[0].detection_count == 0
 
 
 @pytest.mark.asyncio
@@ -493,8 +496,8 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["detection_count"] == 0
+    assert len(response.events) == 1
+    assert response.events[0].detection_count == 0
 
 
 @pytest.mark.asyncio
@@ -528,8 +531,8 @@ async def test_list_events_with_camera_id_filter() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["camera_id"] == "cam-001"
+    assert len(response.events) == 1
+    assert response.events[0].camera_id == "cam-001"
 
 
 @pytest.mark.asyncio
@@ -563,8 +566,8 @@ async def test_list_events_with_risk_level_filter() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["risk_level"] == "high"
+    assert len(response.events) == 1
+    assert response.events[0].risk_level == "high"
 
 
 @pytest.mark.asyncio
@@ -602,7 +605,7 @@ async def test_list_events_with_date_filters() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
+    assert len(response.events) == 1
 
 
 @pytest.mark.asyncio
@@ -636,8 +639,8 @@ async def test_list_events_with_reviewed_filter_true() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["reviewed"] is True
+    assert len(response.events) == 1
+    assert response.events[0].reviewed is True
 
 
 @pytest.mark.asyncio
@@ -671,8 +674,8 @@ async def test_list_events_with_reviewed_filter_false() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["reviewed"] is False
+    assert len(response.events) == 1
+    assert response.events[0].reviewed is False
 
 
 @pytest.mark.asyncio
@@ -707,7 +710,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
+    assert len(response.events) == 1
 
 
 @pytest.mark.asyncio
@@ -739,8 +742,8 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 0
-    assert response["count"] == 0
+    assert len(response.events) == 0
+    assert response.count == 0
 
 
 @pytest.mark.asyncio
@@ -775,7 +778,7 @@ async def test_list_events_with_object_type_filter_single_value() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
+    assert len(response.events) == 1
 
 
 @pytest.mark.asyncio
@@ -810,7 +813,7 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
+    assert len(response.events) == 1
 
 
 @pytest.mark.asyncio
@@ -854,7 +857,7 @@ async def test_list_events_object_type_escapes_wildcard_characters() -> None:
     assert db.execute.called
 
     # The function should return results (mock returns 1 event)
-    assert len(response["events"]) == 1
+    assert len(response.events) == 1
 
 
 @pytest.mark.asyncio
@@ -888,8 +891,8 @@ async def test_list_events_pagination_with_custom_limit() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 3
-    assert response["limit"] == 3
+    assert len(response.events) == 3
+    assert response.limit == 3
 
 
 @pytest.mark.asyncio
@@ -923,8 +926,8 @@ async def test_list_events_pagination_with_offset() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 5
-    assert response["offset"] == 5
+    assert len(response.events) == 5
+    assert response.offset == 5
 
 
 @pytest.mark.asyncio
@@ -962,8 +965,8 @@ async def test_list_events_multiple_events() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 3
-    assert response["count"] == 3
+    assert len(response.events) == 3
+    assert response.count == 3
 
 
 @pytest.mark.asyncio
@@ -997,8 +1000,8 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["detection_count"] == 4
+    assert len(response.events) == 1
+    assert response.events[0].detection_count == 4
 
 
 @pytest.mark.asyncio
@@ -1035,8 +1038,8 @@ async def test_list_events_returns_reasoning_field() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["reasoning"] == "Multiple persons detected during late night hours"
+    assert len(response.events) == 1
+    assert response.events[0].reasoning == "Multiple persons detected during late night hours"
 
 
 @pytest.mark.asyncio
@@ -1073,8 +1076,8 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
-    assert response["events"][0]["reasoning"] is None
+    assert len(response.events) == 1
+    assert response.events[0].reasoning is None
 
 
 # =============================================================================
@@ -1117,12 +1120,12 @@ async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
-    assert response["total_events"] == 0
-    assert response["events_by_risk_level"]["critical"] == 0
-    assert response["events_by_risk_level"]["high"] == 0
-    assert response["events_by_risk_level"]["medium"] == 0
-    assert response["events_by_risk_level"]["low"] == 0
-    assert response["events_by_camera"] == []
+    assert response.total_events == 0
+    assert response.events_by_risk_level.critical == 0
+    assert response.events_by_risk_level.high == 0
+    assert response.events_by_risk_level.medium == 0
+    assert response.events_by_risk_level.low == 0
+    assert response.events_by_camera == []
 
 
 @pytest.mark.asyncio
@@ -1153,11 +1156,11 @@ async def test_get_event_stats_counts_events_by_risk_level() -> None:
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
-    assert response["total_events"] == 7
-    assert response["events_by_risk_level"]["critical"] == 2
-    assert response["events_by_risk_level"]["high"] == 1
-    assert response["events_by_risk_level"]["medium"] == 3
-    assert response["events_by_risk_level"]["low"] == 1
+    assert response.total_events == 7
+    assert response.events_by_risk_level.critical == 2
+    assert response.events_by_risk_level.high == 1
+    assert response.events_by_risk_level.medium == 3
+    assert response.events_by_risk_level.low == 1
 
 
 @pytest.mark.asyncio
@@ -1187,13 +1190,13 @@ async def test_get_event_stats_counts_events_by_camera() -> None:
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
-    assert len(response["events_by_camera"]) == 2
+    assert len(response.events_by_camera) == 2
     # Results should be sorted by event count descending (from SQL ORDER BY)
-    assert response["events_by_camera"][0]["camera_id"] == "cam-001"
-    assert response["events_by_camera"][0]["event_count"] == 3
-    assert response["events_by_camera"][0]["camera_name"] == "Front Door"
-    assert response["events_by_camera"][1]["camera_id"] == "cam-002"
-    assert response["events_by_camera"][1]["event_count"] == 2
+    assert response.events_by_camera[0].camera_id == "cam-001"
+    assert response.events_by_camera[0].event_count == 3
+    assert response.events_by_camera[0].camera_name == "Front Door"
+    assert response.events_by_camera[1].camera_id == "cam-002"
+    assert response.events_by_camera[1].event_count == 2
 
 
 @pytest.mark.asyncio
@@ -1219,8 +1222,8 @@ async def test_get_event_stats_with_unknown_camera() -> None:
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
-    assert len(response["events_by_camera"]) == 1
-    assert response["events_by_camera"][0]["camera_name"] == "Unknown"
+    assert len(response.events_by_camera) == 1
+    assert response.events_by_camera[0].camera_name == "Unknown"
 
 
 @pytest.mark.asyncio
@@ -1253,7 +1256,7 @@ async def test_get_event_stats_with_date_filters() -> None:
         start_date=start, end_date=end, db=db, cache=mock_cache
     )
 
-    assert response["total_events"] == 1
+    assert response.total_events == 1
 
 
 @pytest.mark.asyncio
@@ -1284,12 +1287,12 @@ async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
-    assert response["total_events"] == 3
-    assert response["events_by_risk_level"]["high"] == 1
+    assert response.total_events == 3
+    assert response.events_by_risk_level.high == 1
     # Invalid and None risk levels should not be counted
-    assert response["events_by_risk_level"]["critical"] == 0
-    assert response["events_by_risk_level"]["medium"] == 0
-    assert response["events_by_risk_level"]["low"] == 0
+    assert response.events_by_risk_level.critical == 0
+    assert response.events_by_risk_level.medium == 0
+    assert response.events_by_risk_level.low == 0
 
 
 # =============================================================================
@@ -1320,15 +1323,15 @@ async def test_get_event_returns_event_by_id() -> None:
 
     response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
 
-    assert response["id"] == 42
-    assert response["camera_id"] == "cam-001"
-    assert response["risk_score"] == 85
-    assert response["risk_level"] == "high"
-    assert response["summary"] == "Person detected"
-    assert response["reviewed"] is True
-    assert response["notes"] == "Verified"
-    assert response["detection_count"] == 3
-    assert response["detection_ids"] == [1, 2, 3]
+    assert response.id == 42
+    assert response.camera_id == "cam-001"
+    assert response.risk_score == 85
+    assert response.risk_level == "high"
+    assert response.summary == "Person detected"
+    assert response.reviewed is True
+    assert response.notes == "Verified"
+    assert response.detection_count == 3
+    assert response.detection_ids == [1, 2, 3]
 
 
 @pytest.mark.asyncio
@@ -1363,8 +1366,8 @@ async def test_get_event_with_no_detection_ids() -> None:
 
     response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
-    assert response["detection_count"] == 0
-    assert response["detection_ids"] == []
+    assert response.detection_count == 0
+    assert response.detection_ids == []
 
 
 @pytest.mark.asyncio
@@ -1381,8 +1384,8 @@ async def test_get_event_with_empty_detection_ids() -> None:
 
     response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
-    assert response["detection_count"] == 0
-    assert response["detection_ids"] == []
+    assert response.detection_count == 0
+    assert response.detection_ids == []
 
 
 @pytest.mark.asyncio
@@ -1413,19 +1416,19 @@ async def test_get_event_includes_all_fields() -> None:
 
     response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
-    assert "id" in response
-    assert "camera_id" in response
-    assert "started_at" in response
-    assert "ended_at" in response
-    assert "risk_score" in response
-    assert "risk_level" in response
-    assert "summary" in response
-    assert "reasoning" in response
-    assert "reviewed" in response
-    assert "notes" in response
-    assert "detection_count" in response
-    assert "detection_ids" in response
-    assert response["detection_ids"] == [1, 2]
+    assert hasattr(response, "id")
+    assert hasattr(response, "camera_id")
+    assert hasattr(response, "started_at")
+    assert hasattr(response, "ended_at")
+    assert hasattr(response, "risk_score")
+    assert hasattr(response, "risk_level")
+    assert hasattr(response, "summary")
+    assert hasattr(response, "reasoning")
+    assert hasattr(response, "reviewed")
+    assert hasattr(response, "notes")
+    assert hasattr(response, "detection_count")
+    assert hasattr(response, "detection_ids")
+    assert response.detection_ids == [1, 2]
 
 
 @pytest.mark.asyncio
@@ -1447,7 +1450,7 @@ async def test_get_event_returns_reasoning_field() -> None:
 
     response = await events_routes.get_event(event_id=42, request=mock_request, db=db)
 
-    assert response["reasoning"] == "Person detected at unusual hour near restricted area"
+    assert response.reasoning == "Person detected at unusual hour near restricted area"
 
 
 @pytest.mark.asyncio
@@ -1467,7 +1470,7 @@ async def test_get_event_returns_none_reasoning_when_not_set() -> None:
 
     response = await events_routes.get_event(event_id=1, request=mock_request, db=db)
 
-    assert response["reasoning"] is None
+    assert response.reasoning is None
 
 
 # =============================================================================
@@ -1637,18 +1640,18 @@ async def test_update_event_returns_correct_response() -> None:
         event_id=1, update_data=update_data, request=mock_request, db=db
     )
 
-    assert response["id"] == 1
-    assert response["camera_id"] == "cam-001"
-    assert response["detection_count"] == 3
-    assert response["detection_ids"] == [1, 2, 3]
-    assert "started_at" in response
-    assert "ended_at" in response
-    assert "risk_score" in response
-    assert "risk_level" in response
-    assert "summary" in response
-    assert "reasoning" in response
-    assert "reviewed" in response
-    assert "notes" in response
+    assert response.id == 1
+    assert response.camera_id == "cam-001"
+    assert response.detection_count == 3
+    assert response.detection_ids == [1, 2, 3]
+    assert hasattr(response, "started_at")
+    assert hasattr(response, "ended_at")
+    assert hasattr(response, "risk_score")
+    assert hasattr(response, "risk_level")
+    assert hasattr(response, "summary")
+    assert hasattr(response, "reasoning")
+    assert hasattr(response, "reviewed")
+    assert hasattr(response, "notes")
 
 
 @pytest.mark.asyncio
@@ -1674,7 +1677,7 @@ async def test_update_event_preserves_reasoning_field() -> None:
         event_id=1, update_data=update_data, request=mock_request, db=db
     )
 
-    assert response["reasoning"] == "Original reasoning for risk score"
+    assert response.reasoning == "Original reasoning for risk score"
 
 
 @pytest.mark.asyncio
@@ -1698,7 +1701,7 @@ async def test_update_event_with_no_changes() -> None:
     )
 
     # Should still return a valid response
-    assert response["id"] == 1
+    assert response.id == 1
 
 
 # =============================================================================
@@ -1735,10 +1738,10 @@ async def test_get_event_detections_returns_detections() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert len(response["detections"]) == 3
-    assert response["count"] == 3
-    assert response["limit"] == 50
-    assert response["offset"] == 0
+    assert len(response.detections) == 3
+    assert response.count == 3
+    assert response.limit == 50
+    assert response.offset == 0
 
 
 @pytest.mark.asyncio
@@ -1770,8 +1773,8 @@ async def test_get_event_detections_returns_empty_list_when_no_detections() -> N
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert response["detections"] == []
-    assert response["count"] == 0
+    assert response.detections == []
+    assert response.count == 0
 
 
 @pytest.mark.asyncio
@@ -1787,8 +1790,8 @@ async def test_get_event_detections_returns_empty_list_when_empty_string() -> No
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert response["detections"] == []
-    assert response["count"] == 0
+    assert response.detections == []
+    assert response.count == 0
 
 
 @pytest.mark.asyncio
@@ -1819,10 +1822,10 @@ async def test_get_event_detections_with_pagination() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=2, offset=2, db=db)
 
-    assert len(response["detections"]) == 2
-    assert response["count"] == 5
-    assert response["limit"] == 2
-    assert response["offset"] == 2
+    assert len(response.detections) == 2
+    assert response.count == 5
+    assert response.limit == 2
+    assert response.offset == 2
 
 
 @pytest.mark.asyncio
@@ -1854,8 +1857,8 @@ async def test_get_event_detections_handles_whitespace_in_detection_ids() -> Non
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert len(response["detections"]) == 3
-    assert response["count"] == 3
+    assert len(response.detections) == 3
+    assert response.count == 3
 
 
 @pytest.mark.asyncio
@@ -1883,8 +1886,8 @@ async def test_get_event_detections_custom_limit() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=5, offset=0, db=db)
 
-    assert len(response["detections"]) == 5
-    assert response["limit"] == 5
+    assert len(response.detections) == 5
+    assert response.limit == 5
 
 
 # =============================================================================
@@ -1931,7 +1934,7 @@ async def test_list_events_with_all_filters_combined() -> None:
         db=db,
     )
 
-    assert len(response["events"]) == 1
+    assert len(response.events) == 1
 
 
 @pytest.mark.asyncio
@@ -1957,8 +1960,8 @@ async def test_get_event_stats_empty_camera_list() -> None:
     # Pass cache directly via DI pattern (NEM-1659)
     response = await events_routes.get_event_stats(db=db, cache=mock_cache)
 
-    assert response["total_events"] == 1
-    assert response["events_by_camera"][0]["camera_name"] == "Unknown"
+    assert response.total_events == 1
+    assert response.events_by_camera[0].camera_name == "Unknown"
 
 
 @pytest.mark.asyncio
@@ -1990,7 +1993,7 @@ async def test_list_events_count_returns_zero_on_none() -> None:
         db=db,
     )
 
-    assert response["count"] == 0
+    assert response.count == 0
 
 
 @pytest.mark.asyncio
@@ -2016,7 +2019,7 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
-    assert response["count"] == 0
+    assert response.count == 0
 
 
 # =============================================================================
@@ -2448,7 +2451,7 @@ async def test_list_events_equal_dates_is_valid() -> None:
         db=db,
     )
 
-    assert response["count"] == 1
+    assert response.count == 1
 
 
 @pytest.mark.asyncio
