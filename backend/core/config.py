@@ -1177,6 +1177,30 @@ class Settings(BaseSettings):
         "Files can be analyzed with 'snakeviz <file>.prof' or converted to flamegraphs.",
     )
 
+    # Request recording settings (NEM-1646)
+    # Enable request recording for debugging production issues
+    request_recording_enabled: bool = Field(
+        default=False,
+        description="Enable request recording for debugging. When enabled, requests can be "
+        "recorded based on error status, sampling rate, or X-Debug-Record header. "
+        "SECURITY: Disabled by default. Enable only in debug/development environments.",
+    )
+    request_recording_sample_rate: float = Field(
+        default=0.01,
+        ge=0.0,
+        le=1.0,
+        description="Fraction of successful requests to sample for recording (0.0-1.0). "
+        "Error responses (5xx) are always recorded when request_recording_enabled is True. "
+        "Default: 0.01 (1% of successful requests).",
+    )
+    request_recording_max_body_size: int = Field(
+        default=10_000,
+        ge=0,
+        le=1_000_000,
+        description="Maximum request/response body size to record in bytes. "
+        "Bodies exceeding this limit are truncated. Default: 10KB. Max: 1MB.",
+    )
+
     # HSTS (HTTP Strict Transport Security) settings
     hsts_preload: bool = Field(
         default=False,

@@ -138,6 +138,9 @@ def sanitize_error_for_response(error: Exception, context: str = "") -> str:
     - Stack traces
     - Internal module names
     - Database connection details
+    - URL credentials (user:password@host)
+    - JSON password values
+    - Windows paths
 
     Args:
         error: The exception to sanitize
@@ -148,22 +151,68 @@ def sanitize_error_for_response(error: Exception, context: str = "") -> str:
     """
     # Get the error message
     error_msg = str(error)
+    sanitized = error_msg
 
-    # Pattern to match file paths
-    path_pattern = re.compile(r"(/[^\s:]+)+")
+    # FIRST: Handle URL credentials BEFORE path sanitization
+    # This preserves URL structure while redacting credentials
+    # Pattern matches: protocol://user:pass@host  # pragma: allowlist secret
+    url_credentials_pattern = re.compile(
+        r"([a-zA-Z][a-zA-Z0-9+.-]*://)?([^:@\s/]+):([^@\s/]+)@([^\s]+)", re.IGNORECASE
+    )
 
-    # Replace full paths with just filename
-    def replace_path(match: re.Match[str]) -> str:
+    def replace_url_credentials(match: re.Match[str]) -> str:
+        protocol = match.group(1) or ""
+        # Groups 2 and 3 are user and password - we don't use them, just redact
+        host_and_rest = match.group(4)
+        return f"{protocol}[CREDENTIALS_REDACTED]@{host_and_rest}"
+
+    sanitized = url_credentials_pattern.sub(replace_url_credentials, sanitized)
+
+    # Pattern to match Unix file paths (must start with / but NOT //)
+    # The negative lookbehind prevents matching after protocol:// or other scheme
+    unix_path_pattern = re.compile(r"(?<![a-zA-Z0-9:])(/(?!/)[^\s:]+)+")
+
+    # Pattern to match Windows paths (C:\, D:\, etc.)
+    windows_path_pattern = re.compile(r"[A-Za-z]:\\[^\s]+")
+
+    # Replace Unix paths with just filename
+    def replace_unix_path(match: re.Match[str]) -> str:
         path = match.group(0)
         return sanitize_path_for_error(path)
 
-    sanitized = path_pattern.sub(replace_path, error_msg)
+    # Replace Windows paths with just filename
+    def replace_windows_path(match: re.Match[str]) -> str:
+        path = match.group(0)
+        # For Windows paths, use rsplit on backslash
+        parts = path.rsplit("\\", 1)
+        filename = parts[-1] if parts else "[unknown]"
+        if not filename:
+            return "[unknown]"
+        if len(filename) > 100:
+            filename = filename[:97] + "..."
+        return filename
+
+    sanitized = unix_path_pattern.sub(replace_unix_path, sanitized)
+    sanitized = windows_path_pattern.sub(replace_windows_path, sanitized)
 
     # Remove common sensitive patterns
+    # Order matters - more specific patterns should come first
     sensitive_patterns = [
+        # JSON-style pw values: "pw": "value"  # pragma: allowlist secret
+        (
+            re.compile(r'(["\'])password\1\s*:\s*["\'][^"\']*["\']', re.IGNORECASE),
+            '"password": "[REDACTED]"',
+        ),
+        # Key-value password patterns: password=value or password: value
         (re.compile(r"password[=:]\s*\S+", re.IGNORECASE), "password=[REDACTED]"),
+        # Bearer tokens
         (re.compile(r"Bearer\s+\S+", re.IGNORECASE), "Bearer [REDACTED]"),
+        # API keys in various formats
         (re.compile(r"api[_-]?key[=:]\s*\S+", re.IGNORECASE), "api_key=[REDACTED]"),
+        # Secret/token values
+        (re.compile(r"secret[=:]\s*\S+", re.IGNORECASE), "secret=[REDACTED]"),
+        (re.compile(r"token[=:]\s*\S+", re.IGNORECASE), "token=[REDACTED]"),
+        # IPv4 addresses (comes last to not interfere with URL patterns)
         (re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"), "[IP_REDACTED]"),
     ]
 
