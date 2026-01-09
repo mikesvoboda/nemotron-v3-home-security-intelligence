@@ -353,7 +353,7 @@ Real-time updates use WebSocket via `EventBroadcaster` for event notifications.
 - [Risk Analysis](risk-analysis.md) - How risk scores are generated
 - [Risk Levels Reference](../reference/config/risk-levels.md) - Risk score definitions
 - [Database Management](../operator/database.md) - Alert table maintenance
-- [Understanding Alerts](../user/understanding-alerts.md) - User perspective on alerts
+- [Understanding Alerts](../user-guide/understanding-alerts.md) - User perspective on alerts
 
 ---
 

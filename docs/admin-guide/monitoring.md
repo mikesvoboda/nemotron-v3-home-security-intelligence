@@ -35,51 +35,9 @@ The system provides comprehensive monitoring across three domains:
 2. **Service Health** - AI services, Redis, database connectivity
 3. **Dead Letter Queue** - Failed job inspection and recovery
 
-```mermaid
-flowchart TB
-    subgraph Monitoring["Monitoring Services"]
-        GPU[GPUMonitor<br/>pynvml polling]
-        HM[ServiceHealthMonitor<br/>health checks]
-        DLQ[RetryHandler<br/>DLQ management]
-    end
+![Monitoring Stack](../images/admin/monitoring-stack.png)
 
-    subgraph Data["Data Storage"]
-        DB[(PostgreSQL)]
-        RD[(Redis)]
-        MEM[In-Memory<br/>History]
-    end
-
-    subgraph Delivery["Real-time Delivery"]
-        WS[WebSocket<br/>Broadcast]
-        API[REST API<br/>Endpoints]
-    end
-
-    subgraph Frontend["Dashboard"]
-        GPUD[GPU Stats Widget]
-        HSD[Health Status]
-        DLQD[DLQ Monitor]
-    end
-
-    GPU --> DB
-    GPU --> MEM
-    GPU --> WS
-
-    HM --> WS
-
-    DLQ --> RD
-
-    MEM --> API
-    DB --> API
-    RD --> API
-
-    WS --> GPUD
-    WS --> HSD
-    API --> DLQD
-
-    style GPU fill:#76B900,color:#fff
-    style HM fill:#76B900,color:#fff
-    style DLQ fill:#E74856,color:#fff
-```
+_Monitoring stack showing GPUMonitor, ServiceHealthMonitor, and RetryHandler services with data storage (PostgreSQL, Redis, in-memory), real-time delivery (WebSocket, REST API), and frontend dashboard components._
 
 ---
 
@@ -405,57 +363,9 @@ Navigate to **Settings** in the web interface to access the DLQ Monitor.
 
 ## Monitoring Flow
 
-```mermaid
-flowchart TB
-    subgraph Sources["Event Sources"]
-        GPU_HW[GPU Hardware<br/>pynvml]
-        AI_SVC[AI Services<br/>HTTP health]
-        REDIS[Redis Queues<br/>DLQ]
-    end
+![Alert Delivery Pipeline](../images/admin/alert-delivery-pipeline.png)
 
-    subgraph Collection["Data Collection"]
-        GPU_MON[GPUMonitor<br/>poll loop]
-        HEALTH_MON[ServiceHealthMonitor<br/>check loop]
-        DLQ_API[DLQ Stats<br/>on-demand]
-    end
-
-    subgraph Storage["Storage"]
-        PG[(PostgreSQL<br/>GPU history)]
-        MEM[Memory<br/>circular buffer]
-        REDIS_DLQ[(Redis<br/>DLQ data)]
-    end
-
-    subgraph Delivery["Delivery"]
-        WS_BROADCAST[WebSocket<br/>real-time]
-        REST_API[REST API<br/>on-demand]
-    end
-
-    subgraph Consumers["Consumers"]
-        DASHBOARD[Web Dashboard]
-        ALERTS[Alert System]
-        EXTERNAL[External<br/>Monitoring]
-    end
-
-    GPU_HW --> GPU_MON --> PG
-    GPU_MON --> MEM
-    GPU_MON --> WS_BROADCAST
-
-    AI_SVC --> HEALTH_MON --> WS_BROADCAST
-
-    REDIS --> DLQ_API --> REST_API
-
-    MEM --> REST_API
-    PG --> REST_API
-
-    WS_BROADCAST --> DASHBOARD
-    REST_API --> DASHBOARD
-    WS_BROADCAST --> ALERTS
-    REST_API --> EXTERNAL
-
-    style GPU_MON fill:#76B900,color:#fff
-    style HEALTH_MON fill:#76B900,color:#fff
-    style DLQ_API fill:#E74856,color:#fff
-```
+_Alert delivery pipeline showing event sources (GPU hardware, AI services, Redis queues), data collection (GPUMonitor, ServiceHealthMonitor, DLQ Stats), storage (PostgreSQL, memory buffer, Redis), delivery (WebSocket, REST API), and consumers (dashboard, alerts, external monitoring)._
 
 ---
 

@@ -13,10 +13,14 @@ development/
   code-quality.md        # Code quality tooling and standards
   contributing.md        # Contribution guidelines
   coverage.md            # Coverage reporting and analysis
+  git-workflow.md        # Git safety protocols and pre-commit rules
+  git-worktree-workflow.md # Git worktree patterns for parallel development
   hooks.md               # Git hooks configuration
+  linear-integration.md  # Linear MCP tools and workflow states
   patterns.md            # Code patterns and conventions
   setup.md               # Development environment setup
   testing.md             # Testing guide
+  testing-workflow.md    # TDD workflow and test patterns by layer
 ```
 
 ## Key Files
@@ -82,6 +86,49 @@ development/
 - CI integration
 
 **When to use:** Understanding coverage requirements, analyzing coverage gaps, tracking coverage trends.
+
+### git-workflow.md
+
+**Purpose:** Git safety protocols, pre-commit rules, and the NEVER DISABLE TESTING policy.
+
+**Topics Covered:**
+
+- Git safety protocol and forbidden commands
+- Test strategy (pre-commit, pre-push, CI)
+- NEVER DISABLE TESTING absolute rule
+- Required hooks that must remain active
+- Pre-commit setup instructions
+- Emergency hook skip procedures
+
+**When to use:** Understanding git workflow rules, setting up pre-commit hooks, troubleshooting hook issues.
+
+### linear-integration.md
+
+**Purpose:** Linear MCP tools, workflow state UUIDs, and usage examples.
+
+**Topics Covered:**
+
+- Linear MCP tools reference table
+- Workflow state UUIDs for the NEM team
+- Usage examples for listing, getting, creating, and updating issues
+- Querying workflow states via GraphQL API
+
+**When to use:** Working with Linear issues, updating issue status, creating new issues.
+
+### testing-workflow.md
+
+**Purpose:** TDD workflow guide with the RED-GREEN-REFACTOR cycle and test patterns.
+
+**Topics Covered:**
+
+- TDD cycle: RED-GREEN-REFACTOR
+- Pre-implementation checklist
+- Test patterns by layer (API routes, services, components, E2E)
+- Using the TDD skill
+- Integration with Linear TDD-labeled issues
+- PR checklist for TDD verification
+
+**When to use:** Following TDD practices, writing tests before implementation, understanding test patterns.
 
 ### hooks.md
 

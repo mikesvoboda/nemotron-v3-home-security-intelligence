@@ -31,33 +31,9 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 - **No cloud connectivity** - All processing is local
 - **No internet exposure** - Designed for LAN access only
 
-```mermaid
-flowchart TB
-    subgraph Trusted["Trusted Network (LAN)"]
-        USER[User Browser]
-        FE[Frontend]
-        BE[Backend API]
-        AI[AI Services]
-        DB[(PostgreSQL)]
-        RD[(Redis)]
-    end
+![Security Architecture](../images/admin/security-architecture.png)
 
-    subgraph Untrusted["Internet"]
-        ATK[Potential Attackers]
-    end
-
-    USER --> FE
-    FE --> BE
-    BE --> AI
-    BE --> DB
-    BE --> RD
-
-    ATK -.->|Blocked| FE
-
-    style Trusted fill:#76B900,color:#fff
-    style Untrusted fill:#E74856,color:#fff
-    style ATK fill:#E74856,color:#fff
-```
+_Security architecture showing trusted LAN network with user browser, frontend, backend API, AI services, and databases. Internet attackers are blocked from accessing the trusted zone._
 
 ---
 
@@ -380,23 +356,9 @@ TLS_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
 
 **Critical:** AI service URLs use HTTP by default, which is vulnerable to MITM attacks.
 
-```mermaid
-flowchart TB
-    subgraph Insecure["HTTP (Insecure)"]
-        BE1[Backend] -->|Plain Text| AI1[AI Service]
-        ATK1[Attacker] -.->|Can Intercept| BE1
-    end
+![Authentication Flow](../images/admin/authentication-flow.png)
 
-    subgraph Secure["HTTPS (Secure)"]
-        BE2[Backend] -->|Encrypted| AI2[AI Service]
-        ATK2[Attacker] -.->|Cannot Read| BE2
-    end
-
-    style Insecure fill:#E74856,color:#fff
-    style Secure fill:#76B900,color:#fff
-    style ATK1 fill:#E74856,color:#fff
-    style ATK2 fill:#E74856,color:#fff
-```
+_Comparison of insecure HTTP (attackers can intercept) versus secure HTTPS (encrypted communication) for AI service connections._
 
 | Environment        | Protocol | Acceptable     |
 | ------------------ | -------- | -------------- |
@@ -440,34 +402,9 @@ ufw enable
 
 ### Network Isolation
 
-```mermaid
-flowchart TB
-    subgraph Public["Public Zone"]
-        USER[Users]
-    end
+![Network Isolation](../images/admin/network-isolation.png)
 
-    subgraph DMZ["DMZ"]
-        FE[Frontend<br/>:80/:443]
-        BE[Backend API<br/>:8000]
-    end
-
-    subgraph Internal["Internal Zone"]
-        DB[(PostgreSQL<br/>:5432)]
-        RD[(Redis<br/>:6379)]
-        AI[AI Services<br/>:8090/:8091]
-    end
-
-    USER --> FE
-    USER --> BE
-    FE --> BE
-    BE --> DB
-    BE --> RD
-    BE --> AI
-
-    style Public fill:#3B82F6,color:#fff
-    style DMZ fill:#76B900,color:#fff
-    style Internal fill:#A855F7,color:#fff
-```
+_Network isolation showing public zone (users), DMZ (frontend and backend API), and internal zone (PostgreSQL, Redis, AI services) with proper port segregation._
 
 ### Docker Network Security
 

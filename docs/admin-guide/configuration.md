@@ -31,20 +31,9 @@ The application loads configuration in this order (later sources override earlie
 
 See [`get_settings()`](../../backend/core/config.py:618) for the loading implementation.
 
-```mermaid
-flowchart TB
-    subgraph Loading["Configuration Loading Order"]
-        D[Default Values<br/>config.py] --> E[.env File]
-        E --> R[runtime.env]
-        R --> ENV[Environment Variables]
-    end
+![Configuration Hierarchy](../images/admin/configuration-hierarchy.png)
 
-    ENV --> S[Settings Object]
-
-    style D fill:#A855F7,color:#fff
-    style ENV fill:#76B900,color:#fff
-    style S fill:#3B82F6,color:#fff
-```
+_Configuration loading order: Default values (config.py) are overridden by .env file, then runtime.env, then environment variables (highest priority), resulting in the final Settings object._
 
 ---
 
