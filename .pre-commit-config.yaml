@@ -40,6 +40,8 @@ repos:
         exclude: ^docs/images/.*\.png$
       - id: check-merge-conflict
       - id: detect-private-key
+        # Exclude test files that contain mock/fake private keys for testing
+        exclude: ^backend/tests/.*test_config\.py$
 
   # Secret detection - prevents committing secrets and credentials
   # Uses .secrets.baseline for known false positives
