@@ -368,13 +368,10 @@ Start with the [Developer Hub](docs/developer-hub.md).
 ./scripts/validate.sh
 ```
 
-This project uses **bd (beads)** for task tracking:
+This project uses **[Linear](https://linear.app/nemotron-v3-home-security)** for task tracking:
 
-```bash
-bd ready
-bd show <id>
-bd update <id> --status in_progress
-```
+- [Active Issues](https://linear.app/nemotron-v3-home-security/team/NEM/active)
+- [Project Board](https://linear.app/nemotron-v3-home-security/team/NEM/board)
 
 ## License
 

@@ -58,14 +58,50 @@ Error responses follow a consistent format:
 }
 ```
 
-## Common Query Parameters
+## Pagination
 
-Many list endpoints support:
+The API supports two pagination methods: **cursor-based** (recommended) and **offset-based** (deprecated).
 
-| Parameter | Type | Description                                        |
-| --------- | ---- | -------------------------------------------------- |
-| `limit`   | int  | Maximum results to return (default: 50, max: 1000) |
-| `offset`  | int  | Number of results to skip for pagination           |
+### Cursor-Based Pagination (Recommended)
+
+| Parameter | Type   | Description                                          |
+| --------- | ------ | ---------------------------------------------------- |
+| `limit`   | int    | Maximum results to return (default: 100, max: 1000)  |
+| `cursor`  | string | Opaque cursor from previous response's `next_cursor` |
+
+**Example Request:**
+
+```bash
+# First request (no cursor)
+GET /api/events?limit=50
+
+# Subsequent requests
+GET /api/events?limit=50&cursor=eyJpZCI6IDEyMywiY3JlYXRlZF9hdCI6ICIyMDI1LTEyLTIzVDEyOjAwOjAwWiJ9
+```
+
+**Response includes:**
+
+```json
+{
+  "events": [...],
+  "count": 150,
+  "limit": 50,
+  "offset": 0,
+  "next_cursor": "eyJpZCI6IDEyMywiY3JlYXRlZF9hdCI6ICIyMDI1LTEyLTIzVDEyOjAwOjAwWiJ9", // pragma: allowlist secret
+  "has_more": true
+}
+```
+
+### Offset-Based Pagination (Deprecated)
+
+| Parameter | Type | Description                                         |
+| --------- | ---- | --------------------------------------------------- |
+| `limit`   | int  | Maximum results to return (default: 100, max: 1000) |
+| `offset`  | int  | Number of results to skip for pagination            |
+
+> **Warning:** Offset pagination is deprecated. Use cursor-based pagination for better performance on large datasets.
+
+See [API Reference Overview](../../api-reference/overview.md#pagination) for detailed pagination documentation
 
 ## API Groups
 
@@ -84,16 +120,20 @@ The API is organized into these resource groups:
 
 ### Additional APIs
 
-| Group        | Prefix              | Description                                |
-| ------------ | ------------------- | ------------------------------------------ |
-| Media        | `/api/media`        | Serve camera images/videos with protection |
-| Audit        | `/api/audit`        | Audit log access (admin operations)        |
-| DLQ          | `/api/dlq`          | Dead-letter queue inspection and requeue   |
-| Logs         | `/api/logs`         | Application log streaming                  |
-| Zones        | `/api/zones`        | Detection zone configuration               |
-| Notification | `/api/notification` | Push notification settings                 |
-| Metrics      | `/api/metrics`      | Prometheus-format metrics export           |
-| Admin        | `/api/admin`        | Administrative operations                  |
+| Group                    | Prefix                          | Description                                 |
+| ------------------------ | ------------------------------- | ------------------------------------------- |
+| Media                    | `/api/media`                    | Serve camera images/videos with protection  |
+| Audit                    | `/api/audit`                    | Audit log access (admin operations)         |
+| DLQ                      | `/api/dlq`                      | Dead-letter queue inspection and requeue    |
+| Logs                     | `/api/logs`                     | Application log streaming                   |
+| Zones                    | `/api/cameras/{id}/zones`       | Detection zone configuration                |
+| Entities                 | `/api/entities`                 | Tracked entity management                   |
+| Analytics                | `/api/analytics`                | Detection trends, risk history, uptime      |
+| Services                 | `/api/system/services`          | Container orchestrator management           |
+| Notification Preferences | `/api/notification-preferences` | Global and per-camera notification settings |
+| AI Audit                 | `/api/ai-audit`                 | AI pipeline audit and prompt management     |
+| Metrics                  | `/api/metrics`                  | Prometheus-format metrics export            |
+| Admin                    | `/api/admin`                    | Administrative operations                   |
 
 ## Health Endpoints
 

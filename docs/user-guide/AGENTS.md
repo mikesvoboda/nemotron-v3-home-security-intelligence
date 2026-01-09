@@ -17,16 +17,22 @@ This directory contains end-user documentation for the Home Security Intelligenc
 
 ```
 user-guide/
-  AGENTS.md                 # This file
-  alerts-notifications.md   # Alerts and notifications guide
-  dashboard-overview.md     # Dashboard overview
-  event-timeline.md         # Event timeline guide
-  getting-started.md        # Quick start guide for new users
-  logs-dashboard.md         # Logs dashboard guide
-  search.md                 # Search functionality guide
-  settings.md               # Settings page guide
-  understanding-alerts.md   # Risk levels and alert interpretation
-  using-the-dashboard.md    # Comprehensive dashboard guide
+  AGENTS.md                   # This file
+  accessibility.md            # Accessibility features for users (screen readers, keyboard)
+  alerts-notifications.md     # Alerts and notifications guide
+  dashboard-overview.md       # Dashboard overview
+  event-investigation.md      # Video clips, entity tracking, timeline visualization
+  event-timeline.md           # Event timeline guide
+  getting-started.md          # Quick start guide for new users
+  getting-started-tour.md     # Product tour walkthrough and first-time setup
+  interface-guide.md          # Toast notifications, loading states, visual feedback
+  keyboard-shortcuts.md       # Command palette and keyboard navigation
+  logs-dashboard.md           # Logs dashboard guide
+  mobile-pwa.md               # PWA installation, push notifications, mobile features
+  search.md                   # Search functionality guide
+  settings.md                 # Settings page guide
+  understanding-alerts.md     # Risk levels and alert interpretation
+  using-the-dashboard.md      # Comprehensive dashboard guide
 ```
 
 ## Key Files
@@ -58,6 +64,39 @@ user-guide/
 - AI image generation prompts for documentation visuals
 
 **When to use:** First-time user onboarding, sharing with family members.
+
+### getting-started-tour.md
+
+**Purpose:** Guide to the interactive product tour and first-time setup steps.
+
+**Target Audience:** New users who want to understand the product tour and complete initial setup.
+
+**Topics Covered:**
+
+- How to start/restart the product tour
+- Explanation of each tour step
+- First-time configuration checklist
+- Detection zone setup
+- Notification setup
+- Keyboard shortcuts quick reference
+
+**When to use:** First-time onboarding, restarting the tour, initial configuration.
+
+### accessibility.md
+
+**Purpose:** Guide to accessibility features for users who need assistive technologies.
+
+**Target Audience:** Users with disabilities, screen reader users, keyboard-only users.
+
+**Topics Covered:**
+
+- Keyboard navigation (Tab, shortcuts, command palette)
+- Screen reader compatibility (VoiceOver, NVDA, JAWS)
+- Visual accessibility (contrast, focus indicators, text sizing)
+- Mobile accessibility (touch targets, TalkBack, VoiceOver)
+- Reduced motion preferences
+
+**When to use:** Understanding accessibility features, configuring assistive technology.
 
 ### understanding-alerts.md
 
@@ -121,6 +160,24 @@ user-guide/
 
 **When to use:** Getting a quick orientation to the dashboard.
 
+### event-investigation.md
+
+**Purpose:** Deep-dive guide for investigating security events using video clips, entity tracking, and timeline features.
+
+**Target Audience:** Users who want to thoroughly investigate security incidents.
+
+**Topics Covered:**
+
+- Event video clips (generation, viewing, downloading)
+- Entity re-identification (how matching works, similarity scores)
+- Viewing entity history across cameras
+- Timeline visualization features
+- Detection sequence strips
+- AI enrichment data interpretation
+- Investigation workflow recommendations
+
+**When to use:** Detailed event investigation, tracking persons/vehicles across cameras, understanding what happened during an incident.
+
 ### event-timeline.md
 
 **Purpose:** Guide to using the event timeline page.
@@ -160,6 +217,42 @@ user-guide/
 
 **When to use:** Finding specific events or patterns.
 
+### interface-guide.md
+
+**Purpose:** Guide to understanding visual feedback patterns in the dashboard.
+
+**Target Audience:** All users who want to understand loading states, notifications, and visual feedback.
+
+**Topics Covered:**
+
+- Toast notification types (success, error, warning, info, loading)
+- Toast appearance, duration, and dismissal
+- Skeleton loading placeholders
+- Page transitions and animations
+- Status indicators (connection, camera, risk)
+- Interactive feedback (buttons, forms, cards)
+- Accessibility features (reduced motion, screen reader support)
+
+**When to use:** Understanding what visual indicators mean, troubleshooting interface issues.
+
+### keyboard-shortcuts.md
+
+**Purpose:** Comprehensive guide to keyboard navigation and command palette.
+
+**Target Audience:** Users who prefer keyboard navigation over mouse/touch.
+
+**Topics Covered:**
+
+- Command palette (Cmd/Ctrl + K)
+- Navigation chords (g + key combinations)
+- List navigation (j/k, arrow keys)
+- Modal shortcuts (Escape)
+- Video player shortcuts (Space, f, m)
+- Lightbox navigation (arrow keys)
+- Search bar shortcuts
+
+**When to use:** Learning keyboard shortcuts, improving navigation efficiency.
+
 ### settings.md
 
 **Purpose:** Guide to settings configuration.
@@ -172,6 +265,22 @@ user-guide/
 - System preferences
 
 **When to use:** Configuring the system, adjusting preferences.
+
+### mobile-pwa.md
+
+**Purpose:** Guide to PWA installation, push notifications, and mobile-optimized features.
+
+**Target Audience:** Users who want to access the dashboard on mobile devices or receive push notifications.
+
+**Topics Covered:**
+
+- Installing as a PWA on iOS, Android, and desktop
+- Enabling and managing push notifications
+- Mobile-optimized features (bottom navigation, swipe gestures)
+- Offline capabilities and cached events
+- Troubleshooting installation and notification issues
+
+**When to use:** Setting up the dashboard on mobile devices, enabling push notifications, understanding offline mode.
 
 ## Writing Style Guidelines
 

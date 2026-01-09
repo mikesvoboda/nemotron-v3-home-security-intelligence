@@ -1,4 +1,4 @@
-# Home Security Intelligence — Roadmap (Post-MVP Ideas)
+# Home Security Intelligence - Roadmap
 
 **Audience:** Agents/engineers continuing work after the MVP phases in `docs/plans/`.
 
@@ -7,7 +7,7 @@ This document captures **ideas beyond the MVP** and provides enough context to h
 - understand _why_ an idea matters,
 - identify _where_ it would land in the codebase,
 - estimate complexity / prerequisites,
-- and avoid “nice idea, unclear next step” traps.
+- and avoid "nice idea, unclear next step" traps.
 
 ---
 
@@ -18,7 +18,7 @@ The MVP architecture is already oriented around **event-based reasoning**:
 - Camera uploads arrive via FTP into `/export/foscam/{camera_name}/`
 - A file watcher detects new media
 - RT-DETRv2 produces per-frame detections
-- Redis batching groups detections into an “event window”
+- Redis batching groups detections into an "event window"
 - Nemotron produces a risk score + summary + reasoning
 - Results persist in PostgreSQL and are surfaced via APIs/WebSockets to the dashboard
 
@@ -32,263 +32,264 @@ This makes the system naturally extensible in three directions:
 
 ## Guiding principles (to keep scope sane)
 
-If you’re an agent picking up roadmap work, treat these as constraints:
+If you're an agent picking up roadmap work, treat these as constraints:
 
 - **Local-first**: default to single-machine, PostgreSQL + Redis, minimal ops burden.
 - **Privacy-aware**: cameras are sensitive; prefer opt-in for identity features (faces/plates).
-- **Event-centric**: keep “event” as the unit of human attention; avoid raw-frame firehose UX.
+- **Event-centric**: keep "event" as the unit of human attention; avoid raw-frame firehose UX.
 - **Measurable wins**: prioritize changes that reduce false positives, increase recall, or improve time-to-action.
 - **Operational robustness**: a home system must recover from restarts, partial outages, and storage constraints.
 
 ---
 
-## Roadmap Themes (Recommended ordering)
+## Implemented Features (Post-MVP Complete)
 
-### 1) Alerting & escalation (turn insights into action)
+The following features originally planned for post-MVP have been implemented:
 
-**Why it matters**
+### 1) Alerting & Escalation - IMPLEMENTED
 
-- Without notifications and dedupe, the MVP stays a dashboard you have to watch.
-- “Actionability” is the difference between a demo and a home security system.
+**Location:** `backend/services/alert_engine.py`, `backend/services/notification.py`, `backend/models/alert.py`
 
-**Key ideas**
+**What's implemented:**
 
-- **Configurable alert rules**
+- **Alert rules engine** with multiple condition types:
   - Risk threshold (e.g., alert on `risk_score >= 70`)
-  - Object-based rules (e.g., “person” near entryway after midnight)
-  - Camera selection (some cameras are higher priority)
-  - Schedules (quiet hours, vacation mode)
-  - Cooldowns/deduping (avoid spam when someone is lingering)
-- **Notification channels**
-  - Email / push (mobile) / SMS
-  - Optional local integrations: Home Assistant, webhook, MQTT
-- **Severity taxonomy**
-  - MVP uses low/medium/high; consider adding **critical** with explicit semantics
-  - Provide a stable mapping from risk_score → severity for downstream systems
+  - Object-based rules (person, vehicle, animal)
+  - Camera selection (specific cameras or all)
+  - Time range/schedule support
+  - Zone-based conditions
+  - Minimum confidence thresholds
+- **Alert deduplication** with cooldown/suppression logic (`backend/services/alert_dedup.py`)
+- **Notification channels:**
+  - Email via SMTP
+  - Webhooks (HTTP POST with SSRF protection)
+  - Push notifications (stubbed)
+- **Severity taxonomy:** LOW, MEDIUM, HIGH, CRITICAL
+- **Frontend:** AlertRulesSettings component, NotificationSettings
 
-**Implementation notes**
+### 2) Spatial Intelligence & Zones - IMPLEMENTED
 
-- Backend: a notification service + rule evaluation; store alert deliveries to prevent duplicates
-- Frontend: “Alerts” section (already in mock navigation), notification settings
-- Data model: add an `alerts` table or event annotations (delivered_at, channels, etc.)
+**Location:** `backend/models/zone.py`, `backend/services/zone_service.py`, `backend/api/routes/zones.py`
 
-**Risks**
+**What's implemented:**
 
-- Over-alerting kills trust. Dedupe and suppression logic is not optional.
+- **Per-camera zones** with polygon/rectangle support
+- **Zone types:** entry_point, driveway, sidewalk, yard, other
+- **Normalized coordinates** (0-1 range) stored as JSONB
+- **Spatial heuristics:**
+  - Ray casting algorithm for point-in-polygon testing
+  - Dwell time tracking
+  - Line crossing detection
+  - Approach vector calculation (direction, speed, ETA)
+- **Zone context in alerts:** Rules can filter by zone_ids
 
----
+### 3) Entity Continuity (ReID-lite) - IMPLEMENTED
 
-### 2) Spatial intelligence & zones (reduce false positives)
+**Location:** `backend/services/reid_service.py`, `backend/services/clip_client.py`
 
-**Why it matters**
+**What's implemented:**
 
-- Pure “person detected” is not enough; “person near door/window at 2am” is.
-- Zone context reduces LLM ambiguity and makes risk more consistent.
+- **CLIP ViT-L embeddings** (768-dimensional vectors) via ai-clip HTTP service
+- **Cross-camera entity matching** with configurable similarity threshold (default: 0.85)
+- **Redis storage** for embeddings with 24-hour TTL
+- **Concurrency-based rate limiting** to prevent resource exhaustion
+- **Entity attributes tracking** (clothing, color from vision extraction)
 
-**Key ideas**
+### 4) Pattern-of-Life / Anomaly Detection - IMPLEMENTED
 
-- **Per-camera zones**
-  - Define polygons/rectangles (door, driveway, sidewalk)
-  - Store as normalized coordinates relative to image size
-  - Tag detections as “in zone” or “near zone”
-- **Lightweight heuristics**
-  - Dwell time: “person present continuously for >N seconds”
-  - Line crossing (entering property)
-  - Approach vector (moving toward entry points)
+**Location:** `backend/services/baseline.py`, `backend/models/baseline.py`
 
-**Implementation notes**
+**What's implemented:**
 
-- Add a “zones” concept tied to camera config (DB + settings UI)
-- Enrich detection/event payload with zone tags and derived metrics
-- Feed zone context into Nemotron prompt (“Person in DOOR_ZONE, distance approx …”)
+- **Baseline activity modeling** with exponential moving average and configurable decay
+- **Per-camera activity rates** by hour and day-of-week
+- **Class-specific frequencies** (e.g., "vehicles after midnight are rare")
+- **Rolling 30-day window** for baseline calculations
+- **Anomaly scoring** with configurable threshold (default: 2.0 standard deviations)
+- **Minimum sample requirements** for reliable detection
 
-**Risks**
+### 5) Search & Investigations - IMPLEMENTED
 
-- Zone UI can be surprisingly time-consuming; start with simple rectangles first.
+**Location:** `backend/services/search.py`, `backend/api/routes/events.py`
 
----
+**What's implemented:**
 
-### 3) Entity continuity (ReID-lite) and “same actor” reasoning
+- **PostgreSQL full-text search** with tsvector/tsquery
+- **Search across:** summary, reasoning, object types, camera names
+- **Phrase search** using double quotes
+- **Boolean operators:** AND, OR, NOT
+- **Filtering:** time range, camera IDs, severity levels, object types, reviewed status
+- **Relevance-ranked results** with scores
 
-**Why it matters**
+### 6) Better Media Handling (Clips) - IMPLEMENTED
 
-- Real threats are about sequences (driveway → porch → backyard), not single frames.
-- Continuity enables smarter summaries and fewer duplicate events.
+**Location:** `backend/services/clip_generator.py`, `backend/services/video_processor.py`
 
-**Key ideas**
+**What's implemented:**
 
-- **Within-camera tracking**
-  - Track object IDs across consecutive detections (IoU association is a simple start)
-  - Use these tracks to compute behavior features (loitering, repeated approach)
-- **Cross-camera continuity (optional, harder)**
-  - Re-identification embeddings to correlate a person/vehicle across cameras
-  - This can start as “probable same subject” rather than hard IDs
+- **Event clip generation** from video files using ffmpeg
+- **Image sequence to video** conversion (MP4/GIF)
+- **Configurable pre/post roll** (0-300 seconds)
+- **Secure path validation** preventing command injection
+- **Output formats:** mp4, gif with H.264 codec
 
-**Implementation notes**
+### 7) Reliability & Operations - IMPLEMENTED
 
-- Start with heuristics: IoU + time gap constraints
-- Later: add an embedding model and store embeddings per detection
+**Location:** `backend/services/circuit_breaker.py`, `backend/services/retry_handler.py`, `backend/core/redis.py`
 
-**Risks**
+**What's implemented:**
 
-- ReID quality varies; avoid promising “identity” in UX without high confidence.
+- **Circuit breaker pattern** with CLOSED/OPEN/HALF_OPEN states
+- **Prometheus metrics** for circuit breaker monitoring
+- **Retry handler** with exponential backoff and jitter
+- **Dead-letter queue (DLQ)** for failed jobs with inspection API
+- **Health endpoints** at `/api/system/health/*`
+- **Pipeline latency metrics** and observability
 
----
+### 8) Security Hardening - IMPLEMENTED
 
-### 4) Pattern-of-life / anomaly detection (context beyond the frame)
+**Location:** `backend/api/middleware/auth.py`, `backend/api/middleware/rate_limit.py`, `backend/models/audit.py`
 
-**Why it matters**
+**What's implemented:**
 
-- The best security signal is “unusual” relative to your own home’s norms.
-- Works even when detection classes are imperfect.
-
-**Key ideas**
-
-- **Baseline activity modeling**
-  - Per camera: activity rate by hour/day-of-week
-  - Per class: “vehicles after midnight are rare”
-  - Seasonal drift: allow rolling windows and decays
-- **Anomaly scoring**
-  - Combine anomaly score with Nemotron risk (e.g., risk floor increases when anomaly is high)
-  - Use anomaly score to prioritize events in the UI
-
-**Implementation notes**
-
-- Keep it lightweight: SQL aggregates or periodic rollups into a small table
-- Expose “anomaly evidence” to LLM prompt (e.g., “This time is in bottom 2% activity”)
-
-**Risks**
-
-- Avoid “ML for ML’s sake”; start with transparent stats and simple thresholds.
-
----
-
-### 5) Search & investigations (make history usable)
-
-**Why it matters**
-
-- Users often ask: “When did this happen last?” and “Show me all night-time people.”
-- Investigation workflows reduce time-to-understanding after an incident.
-
-**Key ideas**
-
-- **Full-text search**
-  - Search over event summary/reasoning/notes, camera name, object types
-- **Semantic search (optional)**
-  - Embed event summaries and query in natural language
-- **Case / incident workflow**
-  - “Create case”, attach events, annotate, export timeline
-  - Generate a consolidated “incident report” (LLM summarization)
-
-**Implementation notes**
-
-- Begin with PostgreSQL full-text search (fastest win)
-- Consider a separate index only if needed (keep infra minimal)
+- **API key authentication** (opt-in via `API_KEY_ENABLED`)
+- **SHA-256 hashed key storage**
+- **WebSocket authentication** via query parameter or Sec-WebSocket-Protocol
+- **Rate limiting** using Redis sliding window algorithm
+- **Audit logging** with comprehensive action types:
+  - Event actions (reviewed, dismissed)
+  - Settings changes
+  - Authentication (login/logout)
+  - API key management
+  - Security events (rate limit exceeded, file magic rejected)
+- **SSRF protection** for webhooks
 
 ---
 
-### 6) Better media handling (clips, pre/post roll, video)
+## Future Enhancements (Not Yet Implemented)
 
-**Why it matters**
+### Natural language "chat with your security history" (RAG)
 
-- Images are good; clips are better for confirmation.
-- Practical security review often requires context immediately before/after detection.
+**Why it matters:**
 
-**Key ideas**
-
-- **Event clip generation**
-  - On event close: create a short clip around detected frames (if video source exists)
-  - Or stitch a sequence of images into an animation
-- **Scrubber UX**
-  - Display detection sequence with timestamps
-  - Allow exporting media for law enforcement / insurance
-
-**Implementation notes**
-
-- If cameras upload videos, use ffmpeg to cut around timestamps
-- If only images, create short MP4/GIF from frame sequence
-
-**Risks**
-
-- Storage growth; must integrate with retention and disk usage monitoring.
-
----
-
-### 7) Reliability & operations (home-grade robustness)
-
-**Why it matters**
-
-- Home systems reboot, disks fill, networks flap.
-- A system that fails silently is worse than one that’s noisy.
-
-**Key ideas**
-
-- **Backpressure & retries**
-  - Clear semantics for Redis queues (dead-letter queue, retry policy)
-  - Idempotency keys for processing steps
-- **Observability**
-  - Pipeline latency metrics (watch → detect → batch → analyze)
-  - Health surfaces in `/api/system/*` and UI
-- **Storage / retention tooling**
-  - Disk usage dashboard
-  - User-triggered cleanup (“clear old data now”)
-
-**Implementation notes**
-
-- Keep metrics simple: store periodic snapshots in PostgreSQL or expose via endpoints
-
----
-
-### 8) Security hardening (even for “local”)
-
-**Why it matters**
-
-- Cameras and home security data are highly sensitive.
-- “Local” deployments often still have LAN exposure.
-
-**Key ideas**
-
-- **Auth** (already planned in Phase 8): API keys / basic auth
-- **Audit logging**
-  - Who changed settings, who marked events reviewed, etc.
-- **Rate limiting**
-  - Protect endpoints like media serving and WebSockets
-
----
-
-## Bigger bets (longer-term / researchy)
-
-These are compelling but should be treated as optional “bets” after core value is proven.
-
-### Natural language “chat with your security history” (RAG)
-
-- Query: “Did any unknown vehicles park in the driveway this week?”
+- Query: "Did any unknown vehicles park in the driveway this week?"
 - Requires: event/detection index + retrieval + summarization
 
-### NIM / standardized inference deployment
+**Implementation ideas:**
 
-- Replace ad-hoc llama.cpp process management with a production inference service/container
-- Helps scaling and consistency; adds deployment complexity
+- Embed event summaries using existing CLIP service
+- Vector similarity search for relevant events
+- LLM summarization of retrieved context
 
-### Digital twin reconstruction (USD / Omniverse)
+**Complexity:** Medium-High (requires RAG infrastructure)
+
+---
+
+### NIM / Standardized Inference Deployment
+
+**Why it matters:**
+
+- Replace ad-hoc llama.cpp process management with production inference service
+- Better scaling, consistency, and model versioning
+
+**Implementation ideas:**
+
+- NVIDIA NIM containers for standardized inference
+- Model registry for version management
+- Blue-green deployment for model updates
+
+**Complexity:** Medium (deployment infrastructure)
+
+---
+
+### Digital Twin Reconstruction (USD / Omniverse)
+
+**Why it matters:**
 
 - Generate structured 3D event reconstructions for replay/forensics
 - Very cool demo; likely not a practical priority early
 
-### Face recognition / license plates (privacy-sensitive)
+**Prerequisites:**
 
-- High user value, but high risk (ethics, accuracy, consent, compliance)
-- Strongly recommend explicit opt-in and strong local-only guarantees
+- Accurate depth estimation (Depth Anything V2 already in model zoo)
+- Camera calibration data
+- 3D scene understanding
+
+**Complexity:** High (requires significant new infrastructure)
 
 ---
 
-## How to pick “what next” (a pragmatic rubric)
+### Face Recognition / License Plates (Privacy-Sensitive)
 
-If you’re choosing roadmap work, prioritize items that:
+**Why it matters:**
 
-1. **Reduce false positives** (zones, anomaly scoring, dedupe)
-2. **Reduce time-to-action** (alerts + escalation + better event summaries)
-3. **Increase usability of history** (search, timeline workflows)
-4. **Reduce operational friction** (model downloads, setup, reliability)
+- High user value for identifying known vs unknown visitors
+- Requires careful privacy handling
 
-Avoid jumping into “big bets” until the above are solid.
+**Current state:**
+
+- YOLO Face model (41 MB) in model zoo for detection
+- YOLO License Plate model (656 MB) in model zoo
+- PaddleOCR (12 MB) for text recognition
+
+**What's needed:**
+
+- Opt-in consent flow and UI
+- Face/plate database management
+- Matching confidence thresholds
+- Data retention policies
+
+**Complexity:** Medium (models exist, need privacy-aware UX)
+
+---
+
+### Advanced Behavior Analysis
+
+**Why it matters:**
+
+- Detect complex behaviors like loitering patterns, tailgating, repeated visits
+- Goes beyond single-event analysis
+
+**Implementation ideas:**
+
+- Temporal graph of entity movements
+- Pattern matching on behavior sequences
+- Long-term entity history
+
+**Complexity:** High (requires temporal reasoning infrastructure)
+
+---
+
+### Home Automation Integration
+
+**Why it matters:**
+
+- Trigger smart home actions on security events
+- Integration with Home Assistant, MQTT, etc.
+
+**Implementation ideas:**
+
+- MQTT publisher for events
+- Home Assistant webhook integration
+- Custom action rules based on event types
+
+**Complexity:** Low-Medium (well-defined integration patterns)
+
+---
+
+## How to Pick "What Next" (A Pragmatic Rubric)
+
+If you're choosing roadmap work, prioritize items that:
+
+1. **Reduce false positives** (already done: zones, anomaly scoring, dedupe)
+2. **Reduce time-to-action** (already done: alerts, notifications, search)
+3. **Increase usability of history** (already done: search, timeline)
+4. **Reduce operational friction** (already done: model downloads, setup, reliability)
+
+The remaining items are truly "nice to have" enhancements. Focus on:
+
+1. **User-requested features** - If users are asking for something specific
+2. **Privacy-safe wins** - Home automation is lower risk than face recognition
+3. **Demo value** - RAG/chat interface is impressive but complex
+
+Avoid jumping into "big bets" until core stability is proven in production use.
