@@ -501,11 +501,86 @@ def _before_cursor_execute(
     conn.info["query_start_time"] = time.perf_counter()
 
 
+def _sanitize_single_value(
+    value: Any,
+    max_string_length: int,
+) -> Any:
+    """Sanitize a single parameter value for logging.
+
+    Args:
+        value: The value to sanitize
+        max_string_length: Maximum string length before truncation
+
+    Returns:
+        Sanitized value
+    """
+    if isinstance(value, str) and len(value) > max_string_length:
+        return value[:max_string_length] + "..."
+    if isinstance(value, bytes):
+        return f"<bytes length={len(value)}>"
+    return value
+
+
+def _is_sensitive_key(key: str) -> bool:
+    """Check if a parameter key contains sensitive data indicators."""
+    sensitive_patterns = ("password", "secret", "token", "key", "auth")
+    return any(pattern in key.lower() for pattern in sensitive_patterns)
+
+
+def _sanitize_query_parameters(
+    parameters: Any,
+    max_string_length: int = 100,
+    max_items: int = 10,
+) -> dict[str, Any] | list[Any] | str:
+    """Sanitize query parameters for safe logging.
+
+    NEM-1503: Sanitizes parameters to prevent logging sensitive data while
+    maintaining debugging utility. Truncates long strings and limits collection sizes.
+
+    Args:
+        parameters: The query parameters (dict, tuple, list, or scalar)
+        max_string_length: Maximum length for string values before truncation
+        max_items: Maximum number of items to include from collections
+
+    Returns:
+        Sanitized parameters safe for logging
+    """
+    if parameters is None:
+        return {}
+
+    # Handle dict-style parameters
+    if isinstance(parameters, dict):
+        result: dict[str, Any] = {}
+        for i, (key, value) in enumerate(parameters.items()):
+            if i >= max_items:
+                result["..."] = f"({len(parameters) - max_items} more items)"
+                break
+            key_str = str(key)
+            if _is_sensitive_key(key_str):
+                result[key_str] = "[REDACTED]"
+            else:
+                result[key_str] = _sanitize_single_value(value, max_string_length)
+        return result
+
+    # Handle tuple/list-style positional parameters
+    if isinstance(parameters, (list, tuple)):
+        result_list: list[Any] = []
+        for i, value in enumerate(parameters):
+            if i >= max_items:
+                result_list.append(f"...({len(parameters) - max_items} more items)")
+                break
+            result_list.append(_sanitize_single_value(value, max_string_length))
+        return result_list
+
+    # Handle single scalar value
+    return str(_sanitize_single_value(parameters, max_string_length))
+
+
 def _after_cursor_execute(
     conn: Any,
     _cursor: Any,
     statement: str,
-    _parameters: Any,
+    parameters: Any,
     _context: Any,
     executemany: bool,
 ) -> None:
@@ -514,11 +589,13 @@ def _after_cursor_execute(
     Calculates query duration and logs a warning if it exceeds the configured
     threshold. Also records metrics for all queries.
 
+    NEM-1503: Now includes sanitized query parameters in slow query logs.
+
     Args:
         conn: The database connection
         _cursor: The database cursor (unused, required by SQLAlchemy event signature)
         statement: The SQL statement that was executed
-        _parameters: Query parameters (unused, required by SQLAlchemy event signature)
+        parameters: Query parameters (included in slow query logs)
         _context: Execution context (unused, required by SQLAlchemy event signature)
         executemany: Whether this was an executemany call
     """
@@ -554,10 +631,14 @@ def _after_cursor_execute(
         if len(statement) > 500:
             truncated_query += "..."
 
+        # NEM-1503: Include sanitized parameters for debugging
+        sanitized_params = _sanitize_query_parameters(parameters)
+
         _logger.warning(
             "Slow query detected",
             extra={
                 "query": truncated_query,
+                "parameters": sanitized_params,
                 "duration_ms": round(duration_ms, 2),
                 "threshold_ms": threshold_ms,
                 "executemany": executemany,

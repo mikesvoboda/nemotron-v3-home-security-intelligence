@@ -69,6 +69,7 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.core.mime_types import get_mime_type_with_default
+from backend.core.telemetry import get_trace_id
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.baseline import get_baseline_service
@@ -799,6 +800,8 @@ class DetectorClient:
         Raises:
             DetectorUnavailableError: If all retries exhausted for transient failures
         """
+        # NEM-1503: Include trace_id in logs for distributed tracing correlation
+        trace_id = get_trace_id()
         start_time = time.time()
 
         # Validate image file exists
@@ -1006,15 +1009,16 @@ class DetectorClient:
                 duration_ms = int((time.time() - start_time) * 1000)
                 # Record detection metrics
                 record_detection_processed(count=len(detections))
-                logger.info(
-                    "Stored detections",
-                    extra={
-                        "camera_id": camera_id,
-                        "file_path": image_path,
-                        "detection_count": len(detections),
-                        "duration_ms": duration_ms,
-                    },
-                )
+                # NEM-1503: Include trace_id for distributed tracing correlation
+                log_extra: dict[str, Any] = {
+                    "camera_id": camera_id,
+                    "file_path": image_path,
+                    "detection_count": len(detections),
+                    "duration_ms": duration_ms,
+                }
+                if trace_id:
+                    log_extra["trace_id"] = trace_id
+                logger.info("Stored detections", extra=log_extra)
             else:
                 duration_ms = int((time.time() - start_time) * 1000)
                 logger.debug(
