@@ -12576,7 +12576,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -12584,7 +12584,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Cameras created successfully"
           },
           "401": {
             "description": "Unauthorized - Admin API key required"
@@ -12706,7 +12706,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -12714,7 +12714,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Events and detections created successfully"
           },
           "400": {
             "description": "Bad request - No cameras found"
@@ -17601,7 +17601,7 @@
         "tags": ["events"]
       },
       "patch": {
-        "description": "Update an event (mark as reviewed).\n\nArgs:\n    event_id: Event ID\n    update_data: Update data (reviewed field)\n    request: FastAPI request for audit logging\n    db: Database session\n\nReturns:\n    Updated event object\n\nRaises:\n    HTTPException: 404 if event not found",
+        "description": "Update an event (mark as reviewed).\n\nArgs:\n    event_id: Event ID\n    update_data: Update data (reviewed field)\n    request: FastAPI request for audit logging\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1938)\n\nReturns:\n    Updated event object\n\nRaises:\n    HTTPException: 404 if event not found",
         "operationId": "update_event_api_events__event_id__patch",
         "parameters": [
           {
@@ -17725,7 +17725,23 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Clip already exists"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClipGenerateResponse"
+                }
+              }
+            },
+            "description": "Clip created successfully"
+          },
+          "400": {
+            "description": "Cannot generate clip - event has no detections"
+          },
+          "404": {
+            "description": "Event not found"
           },
           "422": {
             "content": {
