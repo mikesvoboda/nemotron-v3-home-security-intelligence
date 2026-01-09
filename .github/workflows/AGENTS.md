@@ -23,6 +23,9 @@ workflows/
   gitleaks.yml           # Secret detection scanning
   trivy.yml              # Container vulnerability scanning
   weekly-audit.yml       # Weekly security and code quality audits
+  test-coverage-gate.yml # PR gate: enforce test coverage requirements (NEM-2102)
+  pr-review-bot.yml      # PR review bot: comment on missing tests (NEM-2102)
+  weekly-test-report.yml # Weekly test coverage and quality report (NEM-2102)
 ```
 
 ## Workflow Files
@@ -393,6 +396,187 @@ docker compose -f docker-compose.preview.yml up -d
 - Vulture (Python dead code)
 - Radon (cyclomatic complexity)
 - Knip (TypeScript/JS dead code)
+
+### test-coverage-gate.yml - Test Coverage Enforcement (NEM-2102)
+
+**Trigger:** Pull request to main branch (opened, synchronized, reopened)
+
+**Purpose:** Enforce test coverage requirements on new/modified code to prevent untested features from merging.
+
+**Jobs:**
+
+| Job                     | Duration | Description                                       |
+| ----------------------- | -------- | ------------------------------------------------- |
+| test-coverage-gate      | ~2m      | Detect files without tests, coverage checks       |
+| check-integration-tests | ~1m      | Verify API/service changes have integration tests |
+| api-test-generation     | ~1m      | Check if tests can be generated from OpenAPI      |
+| test-coverage-summary   | ~30s     | Summarize test coverage results                   |
+
+**Requirements Enforced:**
+
+| Component Type     | Required Tests     | Min Coverage | Enforcement        |
+| ------------------ | ------------------ | ------------ | ------------------ |
+| API Route          | Unit + Integration | 95%          | Blocks PR (strict) |
+| Service            | Unit + Integration | 90%          | Blocks PR (strict) |
+| ORM Model          | Unit               | 85%          | Warning            |
+| Frontend Component | Unit               | 80%          | Warning            |
+
+**How It Works:**
+
+1. Gets list of changed files in PR
+2. For each file type, checks if corresponding test file exists
+3. Validates coverage requirements are met
+4. Generates helpful PR comment if tests are missing
+5. Blocks merge if strict requirements not met
+
+**PR Comment:**
+
+When tests are missing, the workflow posts a helpful comment with:
+
+- List of files without tests
+- Links to test generation tools
+- Examples of test patterns
+- Links to testing documentation
+
+**For Developers:**
+
+If your PR is blocked:
+
+```bash
+# Generate test stubs for new files
+./scripts/generate-test-stubs.py path/to/new_file.py
+
+# Or generate from OpenAPI spec
+./scripts/generate-api-tests.py
+
+# Run full validation
+./scripts/validate.sh
+```
+
+### pr-review-bot.yml - PR Review Bot (NEM-2102)
+
+**Trigger:** Pull request events (opened, synchronized)
+
+**Purpose:** Automated PR review bot that checks for test coverage and provides helpful guidance.
+
+**Jobs:**
+
+| Job                    | Description                           |
+| ---------------------- | ------------------------------------- |
+| check-missing-tests    | Review test files in PR changes       |
+| test-naming-convention | Validate test file naming conventions |
+| summary                | Post summary comment on PR            |
+
+**Features:**
+
+- **Test Detection**: Identifies source files without corresponding test files
+- **Helpful Comments**: Posts interactive comments with test generation tips
+- **Naming Convention**: Ensures test files follow project patterns
+  - Backend: `test_<name>.py`
+  - Frontend: `<name>.test.tsx` or `<name>.test.ts`
+- **Comment Updates**: Updates PR comment on each push (no duplicates)
+
+**Test Categories Identified:**
+
+- **Backend API routes**: `backend/api/routes/*.py`
+- **Backend services**: `backend/services/*.py`
+- **Frontend components**: `frontend/src/components/*.tsx`
+- **Frontend hooks**: `frontend/src/hooks/*.ts`
+
+**Example PR Comment:**
+
+```
+🧪 Test Coverage Review
+
+Backend Changes
+- `backend/api/routes/events.py`
+- `backend/services/detector.py`
+
+⚠️ No test files found - Please add tests for your changes
+
+📝 How to Add Tests
+
+1. Generate test stubs:
+   ./scripts/generate-test-stubs.py backend/api/routes/events.py
+
+2. Implement test cases - Replace TODO comments
+
+3. Verify coverage:
+   ./scripts/validate.sh
+```
+
+### weekly-test-report.yml - Weekly Test Report (NEM-2102)
+
+**Trigger:** Weekly schedule (Monday 9 AM UTC) + manual dispatch
+
+**Purpose:** Generate comprehensive weekly test coverage and quality metrics report.
+
+**Jobs:**
+
+| Job                      | Duration | Description                             |
+| ------------------------ | -------- | --------------------------------------- |
+| weekly-report            | ~15m     | Run full test suite and collect metrics |
+| analyze-flaky-tests      | ~2m      | Detect intermittently failing tests     |
+| coverage-threshold-check | ~1m      | Verify coverage meets thresholds        |
+| cleanup-old-reports      | ~1m      | Delete artifacts older than 90 days     |
+
+**Metrics Collected:**
+
+- **Coverage**: Backend unit, integration, combined coverage %
+- **Test Counts**: Total, passed, failed, skipped by suite
+- **Execution Time**: Duration of each test suite
+- **Flaky Tests**: Tests with variable pass/fail rates
+- **Coverage Gaps**: Code paths with <80% coverage
+- **Performance**: Test execution time trends
+
+**What Gets Generated:**
+
+1. **Console Summary**: Formatted output with key metrics
+2. **JSON Report**: Machine-readable report for trend analysis
+3. **Test Artifacts**: Coverage data, test reports, logs
+4. **Slack Integration**: Optional notification to team channel (requires webhook)
+
+**Report Locations:**
+
+- Console output: GitHub Actions job summary
+- JSON report: `weekly-test-report.json` (artifact)
+- Coverage data: `.coverage` file (artifact)
+- Test reports: `backend-unit-report.json`, `backend-integration-report.json`
+
+**Report Contents:**
+
+```json
+{
+  "timestamp": "2026-01-13T09:00:00Z",
+  "backend_coverage": {
+    "coverage_percentage": 92.5,
+    "covered_lines": 4250,
+    "total_lines": 4600,
+    "missing_lines": 350
+  },
+  "backend_metrics": {
+    "total_tests": 1234,
+    "passed_tests": 1230,
+    "failed_tests": 0,
+    "skipped_tests": 4
+  },
+  "flaky_tests": [...],
+  "test_gaps": [...],
+  "summary": {...}
+}
+```
+
+**Accessing Reports:**
+
+1. View in GitHub Actions: Artifacts section of weekly-test-report job
+2. Download JSON: Use GitHub CLI: `gh run download <run-id> -n test-reports`
+3. Analyze trends: Compare weekly reports over time
+
+**Automatic Cleanup:**
+
+- Reports older than 90 days automatically deleted
+- Keeps storage costs manageable
+- Latest 12 weeks of reports always available
 
 ## Common Patterns
 
