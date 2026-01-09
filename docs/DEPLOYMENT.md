@@ -15,6 +15,14 @@ This document describes the production deployment strategy for the Home Security
 
 ## Overview
 
+### Deployment Topology
+
+![Deployment Topology](images/architecture/deployment-topology.png)
+
+_Comparison of development (Docker Desktop, local volumes) vs production (Podman, GPU passthrough, NFS storage) deployment topologies._
+
+### Strategy Overview
+
 The deployment strategy implements several layers of protection to ensure zero-downtime deployments with automatic rollback on failures:
 
 1. **Container Image Building** - Multi-arch builds for all platforms
@@ -25,6 +33,10 @@ The deployment strategy implements several layers of protection to ensure zero-d
 6. **Post-Deployment Monitoring** - Real-time health and circuit breaker tracking
 
 ## Deployment Pipeline
+
+![CI/CD Pipeline DAG](images/architecture/ci-cd-pipeline-dag.png)
+
+_GitHub Actions workflow DAG showing job dependencies, parallelization, and deployment stages._
 
 ### Stage 1: Build (Native Architecture)
 

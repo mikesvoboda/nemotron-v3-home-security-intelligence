@@ -1,5 +1,11 @@
 # API Middleware
 
+## Middleware Chain
+
+![API Middleware Chain](../../../docs/images/architecture/middleware-chain.png)
+
+_HTTP request/response flow through the middleware chain showing execution order._
+
 ## Authentication Middleware
 
 Basic API key authentication middleware for securing API endpoints.

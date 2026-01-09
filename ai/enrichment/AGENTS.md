@@ -1,5 +1,9 @@
 # Combined Enrichment Service
 
+![Context Enrichment Pipeline](../../docs/images/architecture/enrichment-pipeline.png)
+
+_Fan-out enrichment pipeline showing parallel model inference for detection context._
+
 ## Purpose
 
 HTTP server hosting multiple classification models for enriching RT-DETRv2 detections with additional attributes. Consolidates vehicle, pet, clothing, depth, and pose analysis into a single containerized service to reduce VRAM fragmentation and simplify deployment.

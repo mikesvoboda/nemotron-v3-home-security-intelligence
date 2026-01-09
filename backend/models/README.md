@@ -2,6 +2,12 @@
 
 SQLAlchemy 2.0 models for the home security intelligence system.
 
+## Entity Relationship Diagram
+
+![Database Cascade Delete ERD](../../docs/images/architecture/database-cascade-delete.png)
+
+_Database schema showing cascade delete relationships between Camera, Event, Detection, and related tables._
+
 ## Models
 
 ### Camera (`camera.py`)

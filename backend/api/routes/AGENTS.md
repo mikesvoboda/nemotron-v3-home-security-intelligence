@@ -1,5 +1,11 @@
 # API Routes
 
+## Endpoint Relationships Graph
+
+![API Endpoint Graph](../../../docs/images/architecture/api-endpoint-graph.png)
+
+_Complete API endpoint relationship graph showing all route groups and their HTTP methods._
+
 ## Purpose
 
 The `backend/api/routes/` directory contains FastAPI router modules that define HTTP endpoints for the home security monitoring system. Each file groups related endpoints by resource type (cameras, events, detections, system, media, WebSocket, DLQ, metrics, analytics, notification preferences, RUM, services, and more).

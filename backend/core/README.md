@@ -2,6 +2,12 @@
 
 This directory contains core infrastructure components for the Home Security Intelligence application.
 
+## Initialization Lifecycle
+
+![Backend Initialization Lifecycle](../../docs/images/architecture/backend-init-lifecycle.png)
+
+_Complete startup sequence from environment loading through application ready state._
+
 ## Modules
 
 ### config.py

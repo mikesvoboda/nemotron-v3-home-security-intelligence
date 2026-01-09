@@ -25,6 +25,10 @@ no text overlays"
 
 ## Overview
 
+![Monitoring Stack Architecture](../images/architecture/monitoring-stack.png)
+
+_Observability stack showing Prometheus metrics collection, Grafana dashboards, and Jaeger distributed tracing._
+
 The system provides comprehensive monitoring across three domains:
 
 1. **GPU Monitoring** - Utilization, memory, temperature, power
