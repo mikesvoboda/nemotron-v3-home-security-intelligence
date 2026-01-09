@@ -184,9 +184,9 @@ export type DetectionEndpoint =
 /**
  * Enrichment API endpoints
  *
- * - `/api/enrichment/:id` - Get enrichment for detection
+ * - `/api/detections/:id/enrichment` - Get enrichment for detection
  */
-export type EnrichmentEndpoint = `/api/enrichment/${NumericId}`;
+export type EnrichmentEndpoint = `/api/detections/${NumericId}/enrichment`;
 
 // ============================================================================
 // Alert Rule Endpoints
@@ -451,7 +451,7 @@ export type EndpointResponseType<T extends string> =
                                                           ? AlertRule
                                                           : T extends `/api/audit/${infer _}`
                                                             ? AuditLogResponse
-                                                            : T extends `/api/enrichment/${infer _}`
+                                                            : T extends `/api/detections/${infer _}/enrichment`
                                                               ? EnrichmentResponse
                                                               : unknown;
 
@@ -494,7 +494,7 @@ export type ExtractIdFromEndpoint<T extends string> =
                         ? Id
                         : T extends `/api/audit/${infer Id}`
                           ? Id
-                          : T extends `/api/enrichment/${infer Id}`
+                          : T extends `/api/detections/${infer Id}/enrichment`
                             ? Id
                             : never;
 
@@ -559,7 +559,7 @@ const ENDPOINT_PATTERNS = {
   detectionVideoThumbnail: /^\/api\/detections\/(\d+)\/video\/thumbnail$/,
 
   // Enrichment endpoints
-  enrichment: /^\/api\/enrichment\/(\d+)$/,
+  enrichment: /^\/api\/detections\/(\d+)\/enrichment$/,
 
   // Alert rule endpoints
   alertRules: /^\/api\/alerts\/rules$/,
@@ -767,10 +767,10 @@ export function parseEndpoint(endpoint: string): ParsedEndpoint | null {
     return { resource: 'detections', action: 'video', id: match[1], subResource: undefined, subId: undefined };
   }
 
-  // Enrichment endpoints
+  // Enrichment endpoints (nested under detections)
   match = endpoint.match(ENDPOINT_PATTERNS.enrichment);
   if (match) {
-    return { resource: 'enrichment', action: 'detail', id: match[1], subResource: undefined, subId: undefined };
+    return { resource: 'detections', action: 'enrichment', id: match[1], subResource: undefined, subId: undefined };
   }
 
   // Alert rule endpoints
@@ -888,7 +888,7 @@ export function eventEndpoint(id?: number, action?: 'detections' | 'stats' | 'se
  * Builds detection API endpoints with type safety.
  *
  * @param id - Optional detection ID
- * @param action - Action (stats, image, video, video/thumbnail)
+ * @param action - Action (stats, image, video, video/thumbnail, enrichment)
  * @returns Type-safe endpoint string
  *
  * @example
@@ -896,18 +896,35 @@ export function eventEndpoint(id?: number, action?: 'detections' | 'stats' | 'se
  * detectionEndpoint(undefined, 'stats'); // '/api/detections/stats'
  * detectionEndpoint(123, 'image'); // '/api/detections/123/image'
  * detectionEndpoint(123, 'video'); // '/api/detections/123/video'
+ * detectionEndpoint(123, 'enrichment'); // '/api/detections/123/enrichment'
  * ```
  */
 export function detectionEndpoint(id: undefined, action: 'stats'): '/api/detections/stats';
+export function detectionEndpoint(id: number, action: 'enrichment'): EnrichmentEndpoint;
 export function detectionEndpoint(id: number, action: 'image' | 'video' | 'video/thumbnail'): DetectionEndpoint;
 export function detectionEndpoint(
   id?: number,
-  action?: 'stats' | 'image' | 'video' | 'video/thumbnail'
-): DetectionEndpoint {
+  action?: 'stats' | 'image' | 'video' | 'video/thumbnail' | 'enrichment'
+): DetectionEndpoint | EnrichmentEndpoint {
   if (id === undefined && action === 'stats') {
     return '/api/detections/stats';
   }
-  return `/api/detections/${id}/${action}` as DetectionEndpoint;
+  return `/api/detections/${id}/${action}` as DetectionEndpoint | EnrichmentEndpoint;
+}
+
+/**
+ * Builds enrichment API endpoints with type safety.
+ *
+ * @param detectionId - Detection ID
+ * @returns Type-safe endpoint string
+ *
+ * @example
+ * ```ts
+ * enrichmentEndpoint(123); // '/api/detections/123/enrichment'
+ * ```
+ */
+export function enrichmentEndpoint(detectionId: number): EnrichmentEndpoint {
+  return `/api/detections/${detectionId}/enrichment` as EnrichmentEndpoint;
 }
 
 /**

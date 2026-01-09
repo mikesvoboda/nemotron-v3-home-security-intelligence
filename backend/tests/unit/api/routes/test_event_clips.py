@@ -140,6 +140,8 @@ class TestGenerateEventClip:
     @pytest.mark.asyncio
     async def test_generate_clip_event_not_found(self) -> None:
         """Test that generate endpoint returns 404 for non-existent event."""
+        from fastapi import Response
+
         from backend.api.routes.events import generate_event_clip
 
         mock_db = AsyncMock()
@@ -148,15 +150,21 @@ class TestGenerateEventClip:
         mock_db.execute.return_value = mock_result
 
         request = ClipGenerateRequest()
+        mock_response = MagicMock(spec=Response)
+        mock_response.headers = {}
 
         with pytest.raises(Exception) as exc_info:
-            await generate_event_clip(event_id=99999, request=request, db=mock_db)
+            await generate_event_clip(
+                event_id=99999, request=request, response=mock_response, db=mock_db
+            )
 
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_generate_clip_already_exists(self) -> None:
         """Test generate endpoint returns existing clip info without regenerating."""
+        from fastapi import Response, status
+
         from backend.api.routes.events import generate_event_clip
 
         mock_db = AsyncMock()
@@ -182,18 +190,26 @@ class TestGenerateEventClip:
         mock_path_instance.stat.return_value = mock_stat
 
         request = ClipGenerateRequest()
+        mock_response = MagicMock(spec=Response)
+        mock_response.headers = {}
 
         with patch("pathlib.Path", return_value=mock_path_instance):
-            result = await generate_event_clip(event_id=123, request=request, db=mock_db)
+            result = await generate_event_clip(
+                event_id=123, request=request, response=mock_response, db=mock_db
+            )
 
         assert isinstance(result, ClipGenerateResponse)
         assert result.event_id == 123
         assert result.status == ClipStatus.COMPLETED
         assert result.clip_url == "/api/media/clips/123_clip.mp4"
+        # When clip already exists, should return 200 OK (not 201 Created)
+        assert mock_response.status_code == status.HTTP_200_OK
 
     @pytest.mark.asyncio
     async def test_generate_clip_triggers_generation(self) -> None:
         """Test generate endpoint triggers clip generation for event without clip."""
+        from fastapi import Response
+
         from backend.api.routes.events import generate_event_clip
 
         mock_db = AsyncMock()
@@ -216,6 +232,8 @@ class TestGenerateEventClip:
             start_offset_seconds=-15,
             end_offset_seconds=30,
         )
+        mock_response = MagicMock(spec=Response)
+        mock_response.headers = {}
 
         # Mock clip generator
         mock_clip_path = MagicMock(spec=Path)
@@ -238,16 +256,22 @@ class TestGenerateEventClip:
                 return_value=["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"],
             ),
         ):
-            result = await generate_event_clip(event_id=456, request=request, db=mock_db)
+            result = await generate_event_clip(
+                event_id=456, request=request, response=mock_response, db=mock_db
+            )
 
         assert isinstance(result, ClipGenerateResponse)
         assert result.event_id == 456
         # Since generation is async, it may return COMPLETED
         assert result.status == ClipStatus.COMPLETED
+        # New clip created should have Location header set
+        assert mock_response.headers.get("Location") == "/api/media/clips/456_clip.mp4"
 
     @pytest.mark.asyncio
     async def test_generate_clip_with_force_regenerate(self) -> None:
         """Test generate endpoint regenerates clip when force=True."""
+        from fastapi import Response
+
         from backend.api.routes.events import generate_event_clip
 
         mock_db = AsyncMock()
@@ -267,6 +291,8 @@ class TestGenerateEventClip:
         mock_db.execute = AsyncMock(return_value=mock_event_result)
 
         request = ClipGenerateRequest(force=True)
+        mock_response = MagicMock(spec=Response)
+        mock_response.headers = {}
 
         # Mock clip generator
         mock_clip_path = MagicMock(spec=Path)
@@ -290,7 +316,9 @@ class TestGenerateEventClip:
                 return_value=["/path/to/image1.jpg", "/path/to/image2.jpg"],
             ),
         ):
-            result = await generate_event_clip(event_id=789, request=request, db=mock_db)
+            result = await generate_event_clip(
+                event_id=789, request=request, response=mock_response, db=mock_db
+            )
 
         # Should trigger regeneration
         mock_generator.generate_clip_from_images.assert_called_once()
@@ -299,6 +327,8 @@ class TestGenerateEventClip:
     @pytest.mark.asyncio
     async def test_generate_clip_no_detections(self) -> None:
         """Test generate endpoint handles event with no detections."""
+        from fastapi import Response
+
         from backend.api.routes.events import generate_event_clip
 
         mock_db = AsyncMock()
@@ -315,9 +345,13 @@ class TestGenerateEventClip:
         mock_db.execute.return_value = mock_event_result
 
         request = ClipGenerateRequest()
+        mock_response = MagicMock(spec=Response)
+        mock_response.headers = {}
 
         with pytest.raises(Exception) as exc_info:
-            await generate_event_clip(event_id=111, request=request, db=mock_db)
+            await generate_event_clip(
+                event_id=111, request=request, response=mock_response, db=mock_db
+            )
 
         # Should return error - no source material for clip
         assert exc_info.value.status_code == 400

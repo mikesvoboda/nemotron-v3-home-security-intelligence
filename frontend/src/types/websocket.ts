@@ -5,6 +5,14 @@
  * The `type` field serves as the discriminant, enabling TypeScript to narrow the message
  * type and provide proper type inference for the data payload.
  *
+ * NOTE: Core message types are now generated from backend Pydantic schemas.
+ * See `frontend/src/types/generated/websocket.ts` for the auto-generated types.
+ * This file extends those types with application-specific types and maintains
+ * backward compatibility with existing code.
+ *
+ * To regenerate types from backend schemas:
+ *   ./scripts/generate-ws-types.py
+ *
  * @example
  * ```ts
  * function handleMessage(message: WebSocketMessage) {
@@ -25,20 +33,62 @@
  * ```
  */
 
+// ============================================================================
+// Import and Re-export Generated Types from Backend Schemas
+// ============================================================================
+
+// Import types that are used locally in this file
+import type { RiskLevel as GeneratedRiskLevel } from './generated/websocket';
+
+// Re-export for consumers
+// Core types generated from backend/api/schemas/websocket.py
+export type {
+  // Enums
+  RiskLevel,
+  WebSocketMessageType as GeneratedWebSocketMessageType,
+  WebSocketServiceStatus,
+  WebSocketErrorCodeType,
+  // Data payloads
+  WebSocketEventData,
+  WebSocketServiceStatusData,
+  WebSocketSceneChangeData,
+  // Message envelopes
+  WebSocketPingMessage,
+  WebSocketPongResponse,
+  WebSocketSubscribeMessage,
+  WebSocketUnsubscribeMessage,
+  WebSocketErrorResponse,
+  WebSocketEventMessage,
+  WebSocketServiceStatusMessage,
+  WebSocketSceneChangeMessage,
+  // Discriminated unions
+  WebSocketServerMessage,
+  WebSocketClientMessage,
+  AnyWebSocketMessage,
+  MessageByType as GeneratedMessageByType,
+  MessageHandler as GeneratedMessageHandler,
+  MessageHandlerMap as GeneratedMessageHandlerMap,
+} from './generated/websocket';
+
+// Re-export type guards and utilities from generated file
+// Note: Some are aliased to avoid conflicts with local definitions that work
+// with app-specific message types (e.g., SystemStatusMessage with GPU data)
+export {
+  WebSocketErrorCode,
+  isEventMessage as isGeneratedEventMessage,
+  isServiceStatusMessage as isGeneratedServiceStatusMessage,
+  isSceneChangeMessage,
+  isPingMessage as isGeneratedPingMessage,
+  isPongMessage as isGeneratedPongMessage,
+  isErrorMessage as isGeneratedErrorMessage,
+  createMessageDispatcher as createGeneratedMessageDispatcher,
+  assertNever as generatedAssertNever,
+} from './generated/websocket';
+
 // Note: Branded types are available but not used in message definitions
 // to maintain backward compatibility with existing WebSocket message parsing.
 // The types use plain string/number for IDs, but consumers can wrap them
 // using the branded type factory functions when needed.
-
-// ============================================================================
-// Risk Level Types
-// ============================================================================
-
-/**
- * Risk level classification from the AI analysis.
- * Uses literal types for compile-time safety.
- */
-export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 // ============================================================================
 // Event Message Types
@@ -62,7 +112,7 @@ export interface SecurityEventData {
   /** AI-determined risk score (0-100) */
   risk_score: number;
   /** Categorical risk level */
-  risk_level: RiskLevel;
+  risk_level: GeneratedRiskLevel;
   /** AI-generated event summary */
   summary: string;
   /** Event timestamp (ISO format) */

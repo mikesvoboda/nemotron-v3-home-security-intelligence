@@ -2411,7 +2411,7 @@ export interface EnrichmentResponse {
  * @returns EnrichmentResponse with AI-generated context about the detection
  */
 export async function fetchDetectionEnrichment(detectionId: number): Promise<EnrichmentResponse> {
-  return fetchApi<EnrichmentResponse>(`/api/enrichment/${detectionId}`);
+  return fetchApi<EnrichmentResponse>(`/api/detections/${detectionId}/enrichment`);
 }
 
 // ============================================================================

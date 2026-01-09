@@ -588,10 +588,14 @@ class TestGenerateEventClipRoute:
     @pytest.mark.asyncio
     async def test_generate_event_clip_no_detections_raises(self):
         """Test that generating clip with no detections raises HTTPException."""
+        from fastapi import Response
+
         from backend.api.routes.events import generate_event_clip
         from backend.api.schemas.clips import ClipGenerateRequest
 
         mock_db = AsyncMock(spec=AsyncSession)
+        mock_response = Mock(spec=Response)
+        mock_response.headers = {}
 
         # Mock event with no detections
         mock_event = Mock(spec=Event)
@@ -604,7 +608,9 @@ class TestGenerateEventClipRoute:
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             with pytest.raises(HTTPException) as exc_info:
-                await generate_event_clip(event_id=1, request=request, db=mock_db)
+                await generate_event_clip(
+                    event_id=1, request=request, response=mock_response, db=mock_db
+                )
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "no detections" in exc_info.value.detail
