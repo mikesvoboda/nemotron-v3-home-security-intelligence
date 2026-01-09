@@ -35,6 +35,23 @@ from .baseline import (
     HourlyPattern,
     ObjectBaseline,
 )
+from .bulk import (
+    BulkItemResult,
+    BulkOperationResponse,
+    BulkOperationStatus,
+    DetectionBulkCreateItem,
+    DetectionBulkCreateRequest,
+    DetectionBulkCreateResponse,
+    DetectionBulkDeleteRequest,
+    DetectionBulkUpdateItem,
+    DetectionBulkUpdateRequest,
+    EventBulkCreateItem,
+    EventBulkCreateRequest,
+    EventBulkCreateResponse,
+    EventBulkDeleteRequest,
+    EventBulkUpdateItem,
+    EventBulkUpdateRequest,
+)
 from .camera import CameraCreate, CameraListResponse, CameraResponse, CameraStatus, CameraUpdate
 from .clips import (
     ClipGenerateRequest,
@@ -73,6 +90,15 @@ from .errors import (
     ValidationErrorDetail,
     ValidationErrorResponse,
     raise_http_error,
+)
+from .hateoas import (
+    Link,
+    LinkRel,
+    build_camera_links,
+    build_detection_links,
+    build_detection_video_links,
+    build_event_links,
+    build_link,
 )
 from .health import (
     CheckResult,
@@ -163,6 +189,10 @@ __all__ = [
     "AnomalyEvent",
     "AnomalyListResponse",
     "BaselineSummaryResponse",
+    # Bulk operation schemas (NEM-1433)
+    "BulkItemResult",
+    "BulkOperationResponse",
+    "BulkOperationStatus",
     "CameraCreate",
     "CameraListResponse",
     "CameraResponse",
@@ -184,6 +214,12 @@ __all__ = [
     "DedupCheckResponse",
     "DeliveryResultResponse",
     "DepthEnrichment",
+    "DetectionBulkCreateItem",
+    "DetectionBulkCreateRequest",
+    "DetectionBulkCreateResponse",
+    "DetectionBulkDeleteRequest",
+    "DetectionBulkUpdateItem",
+    "DetectionBulkUpdateRequest",
     "DeviationInterpretation",
     "EnrichedSuggestion",
     "EnrichmentDataSchema",
@@ -191,6 +227,12 @@ __all__ = [
     "ErrorCode",
     "ErrorDetail",
     "ErrorResponse",
+    "EventBulkCreateItem",
+    "EventBulkCreateRequest",
+    "EventBulkCreateResponse",
+    "EventBulkDeleteRequest",
+    "EventBulkUpdateItem",
+    "EventBulkUpdateRequest",
     "EventEnrichmentsResponse",
     "ExampleImprovement",
     "FaceEnrichment",
@@ -202,6 +244,8 @@ __all__ = [
     "LLMRiskLevel",
     "LLMRiskResponse",
     "LicensePlateEnrichment",
+    "Link",
+    "LinkRel",
     "LivenessResponse",
     "NotificationChannel",
     "NotificationConfigResponse",
@@ -259,6 +303,11 @@ __all__ = [
     "ZoneResponse",
     "ZoneUpdate",
     # Functions and utilities (sorted separately)
+    "build_camera_links",
+    "build_detection_links",
+    "build_detection_video_links",
+    "build_event_links",
+    "build_link",
     "get_status_phrase",
     "raise_http_error",
 ]
