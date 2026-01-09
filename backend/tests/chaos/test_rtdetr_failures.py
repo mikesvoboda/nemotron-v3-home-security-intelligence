@@ -26,6 +26,7 @@ import httpx
 import pytest
 from PIL import Image
 
+from backend.core.exceptions import DetectorUnavailableError
 from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -33,7 +34,7 @@ from backend.services.circuit_breaker import (
     CircuitState,
     reset_circuit_breaker_registry,
 )
-from backend.services.detector_client import DetectorClient, DetectorUnavailableError
+from backend.services.detector_client import DetectorClient
 
 
 @pytest.fixture(autouse=True)
@@ -47,12 +48,12 @@ def test_image_path() -> Generator[str]:
     """Create a temporary valid image file for testing.
 
     The detector client validates image files before sending, so we need
-    a real image file that passes validation.
+    a real image file that passes validation (>10KB).
     """
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-        # Create a valid RGB image (100x100 pixels)
-        img = Image.new("RGB", (100, 100), color="red")
-        img.save(tmp.name, "JPEG")
+        # Create a large enough RGB image (1920x1080 - exceeds 10KB minimum)
+        img = Image.new("RGB", (1920, 1080), color="red")
+        img.save(tmp.name, "JPEG", quality=95)
         yield tmp.name
     # Clean up after test
     try:
@@ -83,7 +84,8 @@ class TestRTDETRTimeout:
                     session=mock_session,
                 )
 
-            assert "timeout" in str(exc_info.value).lower()
+            # After retries, error message is "Detection failed after N attempts"
+            assert "failed after" in str(exc_info.value).lower()
 
     @pytest.mark.chaos
     @pytest.mark.asyncio
@@ -165,7 +167,8 @@ class TestRTDETRConnectionError:
                     session=mock_session,
                 )
 
-            assert "connect" in str(exc_info.value).lower()
+            # After retries, error message is wrapped
+            assert "failed after" in str(exc_info.value).lower()
 
     @pytest.mark.chaos
     @pytest.mark.asyncio
@@ -205,7 +208,8 @@ class TestRTDETRServerError:
                     session=mock_session,
                 )
 
-            assert "500" in str(exc_info.value)
+            # After retries, error message is "Detection failed after N attempts"
+            assert "failed after" in str(exc_info.value).lower()
 
     @pytest.mark.chaos
     @pytest.mark.asyncio
@@ -256,7 +260,7 @@ class TestRTDETRCircuitBreakerIntegration:
         for _ in range(config.failure_threshold):
             try:
                 await breaker.call(failing_op)
-            except Exception:  # noqa: S110
+            except Exception:
                 pass  # Chaos test: intentionally suppress exception
 
         assert breaker.state == CircuitState.OPEN
@@ -292,7 +296,7 @@ class TestRTDETRCircuitBreakerIntegration:
         for _ in range(config.failure_threshold):
             try:
                 await breaker.call(failing_op)
-            except Exception:  # noqa: S110
+            except Exception:
                 pass  # Chaos test: intentionally suppress exception
 
         assert breaker.state == CircuitState.OPEN
@@ -303,7 +307,7 @@ class TestRTDETRCircuitBreakerIntegration:
         # Fail in HALF_OPEN
         try:
             await breaker.call(failing_op)
-        except Exception:  # noqa: S110
+        except Exception:
             pass  # Chaos test: intentionally suppress exception
 
         # Should be back to OPEN
@@ -373,7 +377,7 @@ class TestRTDETRRecovery:
         for _ in range(config.failure_threshold):
             try:
                 await breaker.call(failing)
-            except Exception:  # noqa: S110
+            except Exception:
                 pass  # Chaos test: intentionally suppress exception
 
         # Wait for recovery
@@ -400,7 +404,7 @@ class TestRTDETRRecovery:
 
         try:
             await breaker.call(failing)
-        except Exception:  # noqa: S110
+        except Exception:
             pass  # Chaos test: intentionally suppress exception
 
         assert breaker.failure_count == 1

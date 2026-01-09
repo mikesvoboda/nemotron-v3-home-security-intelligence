@@ -241,6 +241,11 @@ ignore = [
     "B007",   # unused loop control variable ok in tests
     "ERA001", # section headers and documentation comments ok in tests
     "SIM117", # nested with statements more readable with pytest.raises and patches
+    "F841",   # unused variables ok in tests (e.g., documenting expected values)
+    "PLW2901",# loop variable reassignment is common pattern in tests
+    "PTH101", # os.chmod is necessary for permission tests
+    "S110",   # try-except-pass ok in test cleanup blocks
+    "B017",   # assert Exception is ok when testing generic error handling
 ]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
@@ -250,6 +255,10 @@ ignore = [
 ]
 "scripts/**/*.py" = [
     "SIM102",  # nested ifs more readable in utility scripts
+    "S603",    # subprocess call ok in CI/utility scripts (trusted input)
+    "S607",    # partial executable paths ok in CI scripts (uv, npm, pytest)
+    "ARG001",  # unused arguments reserved for future use
+    "F841",    # unused variables reserved for future use (e.g., OpenAPI fields)
 ]
 
 [tool.ruff.format]

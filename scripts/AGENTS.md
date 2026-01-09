@@ -59,7 +59,7 @@ scripts/
   test_model_outputs_comprehensive.py # Full AI model output test
   trigger-filewatcher.sh             # Trigger file watcher with images
 
-  # Pre-commit Hooks
+  # Pre-commit Hooks & Test Validation
   check-test-mocks.py                # Pre-commit: mock validation
   check-test-timeouts.py             # Pre-commit: timeout validation
   check-api-coverage.sh              # API endpoint coverage check
@@ -67,6 +67,13 @@ scripts/
   check-api-contracts.sh             # API contract validation
   check-branch-name.sh               # Git branch naming convention check
   pre-push-rebase.sh                 # Auto-rebase before push
+
+  # Test Automation & Enforcement (NEM-2102)
+  check-test-coverage-gate.py        # PR gate: detect files without tests
+  generate-test-stubs.py             # Auto-generate test skeleton files
+  check-integration-tests.py         # Ensure integration tests for API/services
+  generate-api-tests.py              # Generate tests from OpenAPI spec
+  weekly-test-report.py              # Weekly coverage and quality report
 
   # Security Scripts
   check-trivyignore-expiry.sh        # Check for expired CVE review dates
@@ -951,6 +958,200 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/test_ca
 - Keyboard navigation
 - Screen reader compatibility
 - Focus management
+
+### Test Automation & Enforcement (NEM-2102)
+
+#### check-test-coverage-gate.py
+
+**Purpose:** PR gate for enforcing test coverage requirements on new/modified code.
+
+**Usage:**
+
+```bash
+# Check current branch against base branch
+./scripts/check-test-coverage-gate.py --base-branch origin/main
+
+# Strict mode - fail on any missing tests
+./scripts/check-test-coverage-gate.py --strict
+
+# Check coverage diff
+./scripts/check-test-coverage-gate.py --base-branch origin/main --strict
+```
+
+**What it does:**
+
+- Detects new backend files without corresponding test files
+- Verifies API routes have both unit and integration tests (95% coverage)
+- Ensures services have unit and integration tests (90% coverage)
+- Checks model files have unit tests (85% coverage)
+- Detects coverage regressions between branches
+
+**Requirements by Component:**
+
+| Type               | Required Tests     | Min Coverage | Enforcement        |
+| ------------------ | ------------------ | ------------ | ------------------ |
+| API Route          | Unit + Integration | 95%          | Strict (blocks PR) |
+| Service            | Unit + Integration | 90%          | Strict (blocks PR) |
+| ORM Model          | Unit               | 85%          | Warning            |
+| Frontend Component | Unit               | 80%          | Warning            |
+
+**Integration:** Used in `.github/workflows/test-coverage-gate.yml` CI job
+
+#### generate-test-stubs.py
+
+**Purpose:** Auto-generate test skeleton files for new source files.
+
+**Usage:**
+
+```bash
+# Generate test stub for backend file
+./scripts/generate-test-stubs.py backend/api/routes/cameras.py
+
+# Generate test stub for frontend component
+./scripts/generate-test-stubs.py frontend/src/components/RiskGauge.tsx
+
+# Frontend files auto-detected by extension
+./scripts/generate-test-stubs.py frontend/src/hooks/useWebSocket.ts
+```
+
+**Features:**
+
+- Generates appropriate test structure based on file location
+- Includes proper imports and fixtures
+- Provides TODO comments for implementation
+- Follows project test conventions
+- Supports both backend (pytest) and frontend (Vitest) patterns
+
+**Generated Test Locations:**
+
+- Backend API routes → `backend/tests/integration/test_<name>.py`
+- Backend services → `backend/tests/unit/test_<name>.py`
+- Backend models → `backend/tests/unit/test_<name>.py`
+- Frontend components → `frontend/src/components/<Name>.test.tsx`
+- Frontend hooks → `frontend/src/hooks/<name>.test.ts`
+
+**Next Steps:**
+
+1. Review generated test stub
+2. Replace TODO comments with actual test cases
+3. Follow patterns from `docs/TESTING_GUIDE.md`
+4. Run `./scripts/validate.sh` to verify tests work
+
+#### check-integration-tests.py
+
+**Purpose:** Pre-commit reminder to add integration tests for API/service changes.
+
+**Usage:**
+
+```bash
+# Automatically invoked by pre-commit hook
+./scripts/check-integration-tests.py file1.py file2.py
+
+# Manual check on changed files
+git diff --name-only HEAD~1 | xargs ./scripts/check-integration-tests.py
+```
+
+**What it checks:**
+
+- API routes have integration tests (required)
+- Services have integration tests (required)
+- Core utilities have integration tests (recommended)
+
+**Why integration tests matter:**
+
+- Verify database interactions work correctly
+- Test service-to-service communication
+- Validate error handling across components
+- Ensure external API calls are correct
+
+**Hook stage:** Runs on both commit and push
+
+**Skip (emergency only):**
+
+```bash
+SKIP=check-integration-tests git commit
+```
+
+#### generate-api-tests.py
+
+**Purpose:** Generate test cases from FastAPI OpenAPI specification.
+
+**Usage:**
+
+```bash
+# Generate tests for all endpoints
+./scripts/generate-api-tests.py
+
+# Save extracted OpenAPI spec
+./scripts/generate-api-tests.py --save-spec
+
+# Custom output directory
+./scripts/generate-api-tests.py --output-dir backend/tests/integration
+```
+
+**Features:**
+
+- Extracts endpoint definitions from FastAPI app
+- Generates test method stubs for each endpoint
+- Includes happy path and error case tests
+- Creates proper test class structure
+- Follows project naming conventions
+
+**Generated Tests Include:**
+
+- Happy path test (successful request)
+- Error handling test (404, 400, 500)
+- Input validation test
+- Authorization test (if applicable)
+
+**Workflow:**
+
+1. Run script to extract OpenAPI spec and generate tests
+2. Review generated test files in `backend/tests/integration/`
+3. Implement test logic (replace TODO comments)
+4. Run `uv run pytest backend/tests/integration/test_*_endpoints.py -v`
+
+#### weekly-test-report.py
+
+**Purpose:** Generate comprehensive weekly test coverage and quality report.
+
+**Usage:**
+
+```bash
+# Generate full report
+./scripts/weekly-test-report.py
+
+# Save report to JSON
+./scripts/weekly-test-report.py --output weekly-report.json
+
+# Skip frontend tests
+./scripts/weekly-test-report.py --no-frontend
+```
+
+**What it collects:**
+
+- Overall test coverage (backend and frontend)
+- Test execution time by suite
+- Flaky test detection and patterns
+- Coverage trend analysis
+- Test gap analysis (untested code paths)
+- Performance benchmarks
+
+**Report includes:**
+
+- Summary statistics
+- Coverage metrics by component
+- Flaky test list with pass rates
+- Coverage gaps (files under 80%)
+- Execution time trends
+
+**Output Format:**
+
+- Console output with formatted summary
+- JSON report (if `--output` specified) for trend analysis
+- Test artifacts uploaded to GitHub Actions
+
+**Integration:** Runs weekly via `.github/workflows/weekly-test-report.yml` (Mondays 9 AM UTC)
 
 ### Utility Scripts
 
