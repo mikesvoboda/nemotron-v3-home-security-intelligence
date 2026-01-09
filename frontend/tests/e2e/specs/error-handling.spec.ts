@@ -31,22 +31,24 @@ test.describe('Dashboard Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    // In error state, wait directly for error elements (pageTitle not shown)
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 8000 });
   });
 
   test('shows reload button on error', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 8000 });
   });
 
   test('error message is descriptive', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, { timeout: 15000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, { timeout: 8000 });
   });
 });
 
@@ -58,8 +60,9 @@ test.describe('Timeline Error Handling', () => {
     // For error tests, wait directly for the error message instead of using
     // waitForTimelineLoad() which is designed for success scenarios and may
     // time out before the error state renders
-    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 10000 });
-    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 10000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 8000 });
+    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 8000 });
   });
 
   test('error message mentions events', async ({ page }) => {
@@ -67,8 +70,9 @@ test.describe('Timeline Error Handling', () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     // Wait for page structure then error message
-    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 10000 });
-    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: 10000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 8000 });
+    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: 8000 });
   });
 });
 
@@ -79,8 +83,9 @@ test.describe('Alerts Error Handling', () => {
     await alertsPage.goto();
     // For error tests, wait directly for the error message instead of using
     // waitForAlertsLoad() which is designed for success scenarios
-    await expect(alertsPage.pageTitle).toBeVisible({ timeout: 10000 });
-    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 10000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(alertsPage.pageTitle).toBeVisible({ timeout: 8000 });
+    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 8000 });
   });
 });
 
@@ -112,13 +117,14 @@ test.describe('System Page Error Handling', () => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     // Wait for network to settle as errors need to propagate
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+    // Error UI should appear quickly once API returns 500
+    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {
       // Ignore timeout - we check content below
     });
     // Wait for any content to appear in main (error, failed, System, or page title)
     // The page title contains "System" and should be visible even if data fails
     const mainContent = page.locator('main').first();
-    await mainContent.waitFor({ state: 'attached', timeout: 10000 }).catch(() => {
+    await mainContent.waitFor({ state: 'attached', timeout: 8000 }).catch(() => {
       // Ignore timeout
     });
     // Just verify the page didn't crash - check body is visible
@@ -183,6 +189,7 @@ test.describe('Network Error Messages', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     // Should show a friendly message, not a raw error
-    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 15000 });
+    // Error UI should appear quickly once API returns 500
+    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 8000 });
   });
 });
