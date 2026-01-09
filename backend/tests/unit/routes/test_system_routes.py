@@ -348,6 +348,7 @@ def test_get_worker_statuses_with_running_workers() -> None:
     original_cleanup = system_routes._cleanup_service
     original_broadcaster = system_routes._system_broadcaster
     original_watcher = system_routes._file_watcher
+    original_pipeline = system_routes._pipeline_manager
 
     try:
         # Create running mock workers
@@ -367,6 +368,7 @@ def test_get_worker_statuses_with_running_workers() -> None:
         system_routes._cleanup_service = mock_cleanup
         system_routes._system_broadcaster = mock_broadcaster
         system_routes._file_watcher = mock_watcher
+        system_routes._pipeline_manager = None  # Exclude pipeline workers from count
 
         statuses = system_routes._get_worker_statuses()
 
@@ -381,6 +383,7 @@ def test_get_worker_statuses_with_running_workers() -> None:
         system_routes._cleanup_service = original_cleanup
         system_routes._system_broadcaster = original_broadcaster
         system_routes._file_watcher = original_watcher
+        system_routes._pipeline_manager = original_pipeline
 
 
 def test_get_worker_statuses_with_stopped_workers() -> None:
@@ -388,6 +391,9 @@ def test_get_worker_statuses_with_stopped_workers() -> None:
     # Save original values
     original_gpu = system_routes._gpu_monitor
     original_cleanup = system_routes._cleanup_service
+    original_broadcaster = system_routes._system_broadcaster
+    original_watcher = system_routes._file_watcher
+    original_pipeline = system_routes._pipeline_manager
 
     try:
         # Create stopped mock workers
@@ -401,6 +407,7 @@ def test_get_worker_statuses_with_stopped_workers() -> None:
         system_routes._cleanup_service = mock_cleanup
         system_routes._system_broadcaster = None
         system_routes._file_watcher = None
+        system_routes._pipeline_manager = None  # Exclude pipeline workers from count
 
         statuses = system_routes._get_worker_statuses()
 
@@ -412,8 +419,9 @@ def test_get_worker_statuses_with_stopped_workers() -> None:
         # Restore original values
         system_routes._gpu_monitor = original_gpu
         system_routes._cleanup_service = original_cleanup
-        system_routes._system_broadcaster = None
-        system_routes._file_watcher = None
+        system_routes._system_broadcaster = original_broadcaster
+        system_routes._file_watcher = original_watcher
+        system_routes._pipeline_manager = original_pipeline
 
 
 def test_get_worker_statuses_mixed_status() -> None:
@@ -421,6 +429,9 @@ def test_get_worker_statuses_mixed_status() -> None:
     # Save original values
     original_gpu = system_routes._gpu_monitor
     original_cleanup = system_routes._cleanup_service
+    original_broadcaster = system_routes._system_broadcaster
+    original_watcher = system_routes._file_watcher
+    original_pipeline = system_routes._pipeline_manager
 
     try:
         mock_gpu = MagicMock()
@@ -433,6 +444,7 @@ def test_get_worker_statuses_mixed_status() -> None:
         system_routes._cleanup_service = mock_cleanup
         system_routes._system_broadcaster = None
         system_routes._file_watcher = None
+        system_routes._pipeline_manager = None  # Exclude pipeline workers from count
 
         statuses = system_routes._get_worker_statuses()
 
@@ -449,8 +461,9 @@ def test_get_worker_statuses_mixed_status() -> None:
         # Restore original values
         system_routes._gpu_monitor = original_gpu
         system_routes._cleanup_service = original_cleanup
-        system_routes._system_broadcaster = None
-        system_routes._file_watcher = None
+        system_routes._system_broadcaster = original_broadcaster
+        system_routes._file_watcher = original_watcher
+        system_routes._pipeline_manager = original_pipeline
 
 
 # =============================================================================
