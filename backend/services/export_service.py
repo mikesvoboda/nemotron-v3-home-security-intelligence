@@ -352,7 +352,9 @@ def events_to_excel(
             raw_value = getattr(event, field_name, None)
 
             if isinstance(raw_value, datetime):
-                cell_value: Any = raw_value  # Excel handles datetime natively
+                # Excel/openpyxl doesn't support timezone-aware datetimes
+                # Convert to naive datetime by removing tzinfo
+                cell_value: Any = raw_value.replace(tzinfo=None)
             elif isinstance(raw_value, bool):
                 cell_value = "Yes" if raw_value else "No"
             elif isinstance(raw_value, int | float):
