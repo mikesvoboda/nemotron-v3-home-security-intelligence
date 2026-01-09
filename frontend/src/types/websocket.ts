@@ -77,6 +77,14 @@ export interface SecurityEventData {
 export interface EventMessage {
   type: 'event';
   data: SecurityEventData;
+  /** Monotonically increasing sequence number for ordering (NEM-2019) */
+  sequence?: number;
+  /** ISO 8601 timestamp when the message was created */
+  timestamp?: string;
+  /** Whether the client should acknowledge receipt (high-priority events) */
+  requires_ack?: boolean;
+  /** Whether this is a replayed message from the buffer (on reconnection) */
+  replay?: boolean;
 }
 
 // ============================================================================
@@ -146,6 +154,12 @@ export interface SystemStatusMessage {
   data: SystemStatusData;
   /** ISO timestamp of the status update */
   timestamp: string;
+  /** Monotonically increasing sequence number for ordering (NEM-2019) */
+  sequence?: number;
+  /** Whether the client should acknowledge receipt */
+  requires_ack?: boolean;
+  /** Whether this is a replayed message from the buffer (on reconnection) */
+  replay?: boolean;
 }
 
 // ============================================================================
@@ -184,6 +198,12 @@ export interface ServiceStatusMessage {
   type: 'service_status';
   data: ServiceStatusData;
   timestamp: string;
+  /** Monotonically increasing sequence number for ordering (NEM-2019) */
+  sequence?: number;
+  /** Whether the client should acknowledge receipt */
+  requires_ack?: boolean;
+  /** Whether this is a replayed message from the buffer (on reconnection) */
+  replay?: boolean;
 }
 
 // ============================================================================
@@ -203,6 +223,36 @@ export interface HeartbeatMessage {
  */
 export interface PongMessage {
   type: 'pong';
+}
+
+// ============================================================================
+// Sequence Control Message Types (NEM-2019)
+// ============================================================================
+
+/**
+ * Resync request message from frontend to backend.
+ *
+ * Sent when the frontend detects a gap in sequence numbers that exceeds
+ * the threshold, requesting missed messages from the backend buffer.
+ */
+export interface ResyncRequestMessage {
+  type: 'resync';
+  /** Last sequence number successfully received (0 if none) */
+  last_sequence: number;
+  /** Channel to resync (e.g., 'events', 'system') */
+  channel: string;
+}
+
+/**
+ * Acknowledgment message from frontend to backend.
+ *
+ * Sent to acknowledge receipt of high-priority messages
+ * (events with risk_score >= 80 or risk_level === 'critical').
+ */
+export interface AckMessage {
+  type: 'ack';
+  /** Sequence number being acknowledged */
+  sequence: number;
 }
 
 // ============================================================================

@@ -492,3 +492,132 @@ class WebSocketSceneChangeMessage(BaseModel):
             }
         }
     )
+
+
+# Outgoing message schemas with sequence numbers (NEM-2019)
+
+
+class WebSocketSequencedMessage(BaseModel):
+    """Base schema for sequenced WebSocket messages.
+
+    All outgoing WebSocket messages include a monotonically increasing
+    sequence number per channel, enabling:
+    - Frontend event ordering
+    - Gap detection
+    - Duplicate filtering
+    - Resync requests
+
+    Fields:
+        type: Message type identifier
+        sequence: Monotonically increasing sequence number (1+)
+        timestamp: ISO 8601 timestamp when the message was created
+        requires_ack: Whether the client should acknowledge receipt
+        replay: Whether this is a replayed message from buffer
+    """
+
+    type: str = Field(
+        ...,
+        description="Message type identifier",
+        min_length=1,
+        max_length=50,
+    )
+    sequence: int = Field(
+        ...,
+        ge=1,
+        description="Monotonically increasing sequence number (starting from 1)",
+    )
+    timestamp: str = Field(
+        ...,
+        description="ISO 8601 timestamp when the message was created",
+    )
+    requires_ack: bool = Field(
+        default=False,
+        description="Whether the client should acknowledge receipt of this message",
+    )
+    replay: bool = Field(
+        default=False,
+        description="Whether this is a replayed message from the buffer (on reconnection)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "event",
+                "sequence": 42,
+                "timestamp": "2025-12-23T12:00:00.000Z",
+                "requires_ack": False,
+                "replay": False,
+            }
+        }
+    )
+
+
+class WebSocketResyncRequest(BaseModel):
+    """Request schema for frontend to request missed messages.
+
+    When the frontend detects a gap in sequence numbers that exceeds
+    the threshold, it sends a resync request to the backend to retrieve
+    missed messages from the buffer.
+
+    Fields:
+        type: Must be "resync"
+        last_sequence: Last sequence number successfully received (0 if none)
+        channel: Channel to resync (e.g., "events", "system")
+    """
+
+    type: Literal["resync"] = Field(
+        default="resync",
+        description="Message type, must be 'resync'",
+    )
+    last_sequence: int = Field(
+        ...,
+        ge=0,
+        description="Last sequence number successfully received (0 if none received)",
+    )
+    channel: str = Field(
+        ...,
+        description="Channel to resync (e.g., 'events', 'system')",
+        min_length=1,
+        max_length=50,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "resync",
+                "last_sequence": 42,
+                "channel": "events",
+            }
+        }
+    )
+
+
+class WebSocketAckMessage(BaseModel):
+    """Acknowledgment message from frontend to backend.
+
+    Sent by the frontend to acknowledge receipt of high-priority messages
+    (events with risk_score >= 80 or risk_level == 'critical').
+
+    Fields:
+        type: Must be "ack"
+        sequence: Sequence number being acknowledged
+    """
+
+    type: Literal["ack"] = Field(
+        default="ack",
+        description="Message type, must be 'ack'",
+    )
+    sequence: int = Field(
+        ...,
+        ge=1,
+        description="Sequence number of the message being acknowledged",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "ack",
+                "sequence": 42,
+            }
+        }
+    )
