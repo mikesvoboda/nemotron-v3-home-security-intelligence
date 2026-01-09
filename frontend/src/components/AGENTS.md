@@ -23,6 +23,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **logs/**           | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                                                                                                                 |
 | **search/**         | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                                                                                                     |
 | **settings/**       | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                                                                                                             |
+| **status/**         | AI service health status components              | AIServiceStatus                                                                                                                                                                                                                      |
 | **system/**         | System monitoring page                           | SystemMonitoringPage, SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, ModelZooPanel, PipelineMetricsPanel, CircuitBreakerPanel, SeverityConfigPanel, PerformanceAlerts, TimeRangeSelector |
 | **video/**          | Video playback components                        | VideoPlayer                                                                                                                                                                                                                         |
 | **zones/**          | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                                                                                                          |
@@ -318,6 +319,11 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 - `TimeRangeSelector.test.tsx` - Test suite for TimeRangeSelector
 - `index.ts` - Barrel exports
 
+### status/
+
+- `AIServiceStatus.tsx` - AI service health status with expandable service details
+- `AIServiceStatus.test.tsx` - Test suite for AIServiceStatus
+
 ### video/
 
 - `VideoPlayer.tsx` - HLS/MP4 video player with controls
@@ -343,6 +349,7 @@ Each subdirectory contains its own `AGENTS.md` with detailed component documenta
 - `logs/AGENTS.md` - Log viewing and filtering dashboard
 - `search/AGENTS.md` - Full-text search components
 - `settings/AGENTS.md` - Configuration pages and settings
+- `status/AGENTS.md` - AI service health status and degradation display
 - `system/AGENTS.md` - System monitoring components with redesigned page
 - `video/AGENTS.md` - Video playback components
 - `zones/AGENTS.md` - Zone management and configuration

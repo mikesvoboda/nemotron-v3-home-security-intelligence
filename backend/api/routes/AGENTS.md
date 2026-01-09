@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/routes/` directory contains FastAPI router modules that define HTTP endpoints for the home security monitoring system. Each file groups related endpoints by resource type (cameras, events, detections, system, media, WebSocket, DLQ, metrics).
+The `backend/api/routes/` directory contains FastAPI router modules that define HTTP endpoints for the home security monitoring system. Each file groups related endpoints by resource type (cameras, events, detections, system, media, WebSocket, DLQ, metrics, analytics, notification preferences, RUM, services, and more).
 
 ## Files
 
@@ -16,7 +16,7 @@ Package initialization with public exports:
 - `logs_router` - Logs API router
 - `zones_router` - Camera zones API router
 
-Note: Other routers (cameras, events, detections, system, media, websocket, dlq, metrics, notification, admin, ai_audit, prompt_management) are imported directly via FastAPI app.include_router() in main.py.
+Note: Other routers (cameras, events, detections, system, media, websocket, dlq, metrics, notification, admin, ai_audit, prompt_management, analytics, notification_preferences, rum, services, calibration, debug) are imported directly via FastAPI app.include_router() in main.py.
 
 ### `cameras.py`
 
@@ -557,6 +557,140 @@ AI pipeline audit management for model performance, quality scoring, recommendat
 - Full prompt version history with change descriptions
 - Export/import for backup and sharing configurations
 - A/B testing prompts against events or images
+
+### `analytics.py`
+
+Analytics endpoints for detection trends, risk history, camera uptime, and object distribution.
+
+**Router prefix:** `/api/analytics`
+
+**Endpoints:**
+
+| Method | Path                           | Purpose                            |
+| ------ | ------------------------------ | ---------------------------------- |
+| GET    | `/api/analytics/trends`        | Detection counts aggregated by day |
+| GET    | `/api/analytics/risk-history`  | Risk level distribution over time  |
+| GET    | `/api/analytics/camera-uptime` | Uptime percentage per camera       |
+| GET    | `/api/analytics/objects`       | Detection counts by object type    |
+
+**Query Parameters:**
+
+- `start_date` - Start of date range (ISO format, required)
+- `end_date` - End of date range (ISO format, required)
+- `camera_id` - Filter by camera ID (optional)
+
+**Key Features:**
+
+- Time-series data for dashboard charts
+- Risk level breakdown (low, medium, high, critical)
+- Camera uptime calculation based on detection activity
+- Object type distribution with percentages
+
+### `calibration.py`
+
+Camera calibration endpoints (placeholder for future implementation).
+
+**Router prefix:** `/api/calibration`
+
+**Note:** This module is currently a placeholder for future camera calibration functionality.
+
+### `notification_preferences.py`
+
+User notification preferences including global settings, per-camera settings, and quiet hours.
+
+**Router prefix:** `/api/notifications/preferences`
+
+**Global Preferences Endpoints:**
+
+| Method | Path                             | Purpose                             |
+| ------ | -------------------------------- | ----------------------------------- |
+| GET    | `/api/notifications/preferences` | Get global notification settings    |
+| PATCH  | `/api/notifications/preferences` | Update global notification settings |
+
+**Camera-Specific Settings Endpoints:**
+
+| Method | Path                                                 | Purpose                               |
+| ------ | ---------------------------------------------------- | ------------------------------------- |
+| GET    | `/api/notifications/preferences/cameras`             | List per-camera notification settings |
+| GET    | `/api/notifications/preferences/cameras/{camera_id}` | Get settings for specific camera      |
+| PATCH  | `/api/notifications/preferences/cameras/{camera_id}` | Update settings for specific camera   |
+
+**Quiet Hours Endpoints:**
+
+| Method | Path                                              | Purpose                         |
+| ------ | ------------------------------------------------- | ------------------------------- |
+| GET    | `/api/notifications/preferences/quiet-hours`      | List all quiet hours periods    |
+| POST   | `/api/notifications/preferences/quiet-hours`      | Create new quiet hours period   |
+| GET    | `/api/notifications/preferences/quiet-hours/{id}` | Get specific quiet hours period |
+| PUT    | `/api/notifications/preferences/quiet-hours/{id}` | Update quiet hours period       |
+| DELETE | `/api/notifications/preferences/quiet-hours/{id}` | Delete quiet hours period       |
+
+**Key Features:**
+
+- Global enable/disable for all notifications
+- Sound selection (none, default, alert, chime, urgent)
+- Risk level filters (which levels trigger notifications)
+- Per-camera enable/disable and risk threshold
+- Quiet hours with day-of-week scheduling
+- Overlapping quiet periods supported
+
+### `rum.py`
+
+Real User Monitoring (RUM) endpoints for Core Web Vitals ingestion.
+
+**Router prefix:** `/api/rum`
+
+**Endpoints:**
+
+| Method | Path              | Purpose                                 |
+| ------ | ----------------- | --------------------------------------- |
+| POST   | `/api/rum/ingest` | Ingest batch of Core Web Vitals metrics |
+
+**Request Body (RUMBatchRequest):**
+
+- `metrics` - List of WebVitalMetric objects (LCP, FID, INP, CLS, TTFB, FCP)
+- `session_id` - Optional session identifier
+- `user_agent` - Optional user agent string
+
+**Metric Fields:**
+
+- `name` - Metric name (LCP, FID, INP, CLS, TTFB, FCP)
+- `value` - Metric value (milliseconds or dimensionless for CLS)
+- `rating` - Performance rating (good, needs-improvement, poor)
+- `delta` - Delta since last report
+- `id` - Unique metric identifier from web-vitals library
+- `navigationType` - Navigation type (navigate, reload, back_forward, prerender)
+- `path` - Page path where metric was measured
+
+**Key Features:**
+
+- Batch ingestion for reduced API calls
+- Frontend web-vitals library integration
+- Session and user agent tracking
+- All Core Web Vitals metrics supported
+
+### `services.py`
+
+Container orchestrator service management for monitoring and control.
+
+**Router prefix:** `/api/services`
+
+**Endpoints:**
+
+| Method | Path                                   | Purpose                        |
+| ------ | -------------------------------------- | ------------------------------ |
+| GET    | `/api/services`                        | List all container services    |
+| GET    | `/api/services/{service_name}`         | Get status of specific service |
+| POST   | `/api/services/{service_name}/restart` | Restart a service              |
+| POST   | `/api/services/{service_name}/start`   | Start a stopped service        |
+| POST   | `/api/services/{service_name}/stop`    | Stop a running service         |
+
+**Key Features:**
+
+- Service health monitoring
+- Container lifecycle management
+- Integration with Docker/Podman
+- Service restart for recovery from failures
 
 ### `entities.py`
 

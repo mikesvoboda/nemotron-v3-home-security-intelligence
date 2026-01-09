@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains all project documentation including design specifications, implementation plans, setup guides, architecture decisions, reference materials, and visual assets.
+This directory contains all project documentation including design specifications, implementation plans, setup guides, architecture decisions, reference materials, and visual assets. The documentation is organized into 18 subdirectories with AGENTS.md files, plus root-level guides for critical topics.
 
 ## Directory Structure
 
@@ -11,21 +11,46 @@ docs/
   AGENTS.md                       # This file - guide to documentation
   README.md                       # Documentation navigation hub
   ROADMAP.md                      # Post-MVP roadmap ideas
-  MUTATION_TESTING.md             # Mutation testing guide (mutmut + Stryker)
+  TESTING_GUIDE.md                # Comprehensive testing patterns guide
+
+  # Setup and Deployment
   AI_SETUP.md                     # AI services setup guide
   RUNTIME_CONFIG.md               # Authoritative port/env reference
   DOCKER_DEPLOYMENT.md            # Docker deployment guide
+  DOCKER_SECRETS.md               # Docker secrets management
+  DEPLOYMENT.md                   # Production deployment guide
+  DEPLOYMENT_RUNBOOK.md           # Deployment operations runbook
+  DEPLOYMENT_SAFETY_CHECKLIST.md  # Pre-deployment safety checklist
+  DEPLOYMENT_TROUBLESHOOTING.md   # Deployment troubleshooting guide
+  DEPLOYMENT_VERIFICATION_CHECKLIST.md  # Post-deployment verification
+  HEALTH_CHECK_STRATEGY.md        # Health check design and patterns
+  SERVICE_DEPENDENCIES.md         # Service dependency documentation
+  SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
+
+  # Development Tools
   CHROME_DEVTOOLS_MCP.md          # Chrome DevTools MCP server guide
   COPILOT_SETUP.md                # GitHub Copilot Free tier setup guide
   GITHUB_MODELS.md                # GitHub Models integration guide
-  SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
   LINEAR_SETUP_PROMPT.md          # Linear issue tracking setup prompt
-  LINEAR-GITHUB-INTEGRATION.md    # Linear-GitHub bi-directional sync documentation
+  LINEAR-GITHUB-INTEGRATION.md    # Linear-GitHub bi-directional sync
+  MUTATION_TESTING.md             # Mutation testing guide (mutmut + Stryker)
+  TEST_PERFORMANCE_METRICS.md     # Test suite performance metrics
+
+  # API and Contracts
+  API_COVERAGE.md                 # API coverage analysis
+  WEBSOCKET_CONTRACTS.md          # WebSocket message contracts
+
+  # Security
   METRICS_ENDPOINT_HARDENING.md   # Metrics endpoint security hardening
   PEER_DEPS_CONFLICT.md           # NPM peer dependency conflict resolution
   SECURITY_API_KEYS.md            # API key security documentation
   SECURITY.md                     # Security policies and practices
-  TEST_PERFORMANCE_METRICS.md     # Test suite performance metrics and baselines
+
+  # Operations
+  slo-definitions.md              # Service Level Objective definitions
+  MODEL_LOADER_MIGRATION.md       # Model loader migration guide
+
+  # Documentation Hubs
   developer-hub.md                # Developer documentation hub
   operator-hub.md                 # Operator documentation hub
   user-hub.md                     # User documentation hub
@@ -41,7 +66,7 @@ docs/
   api-reference/                  # API documentation (canonical location)
     AGENTS.md                     # API reference directory guide
     overview.md                   # API overview
-    ai-audit.md                   # AI audit API (placeholder - empty)
+    ai-audit.md                   # AI audit API reference (626 lines)
     alerts.md                     # Alerts API reference
     audit.md                      # Audit logging API reference
     cameras.md                    # Cameras API reference
@@ -49,10 +74,10 @@ docs/
     dlq.md                        # Dead Letter Queue API reference
     enrichment.md                 # Prompt enrichment API reference
     entities.md                   # Entity tracking API reference
-    events.md                     # Events API reference (placeholder - empty)
+    events.md                     # Events API reference (752 lines)
     logs.md                       # Logs API reference
     media.md                      # Media serving API reference
-    model-zoo.md                  # Model Zoo API (placeholder - empty)
+    model-zoo.md                  # Model Zoo API reference (634 lines)
     prompts.md                    # Prompt management API reference
     system.md                     # System API reference
     websocket.md                  # WebSocket API reference
@@ -66,8 +91,8 @@ docs/
     decisions.md                  # Architecture decisions
     frontend-hooks.md             # Frontend React hooks documentation
     real-time.md                  # Real-time communication architecture
-    resilience.md                 # Resilience patterns (placeholder - empty)
-    system-page-pipeline-visualization.md  # System page pipeline viz (placeholder - empty)
+    resilience.md                 # Resilience patterns (1248 lines - comprehensive)
+    system-page-pipeline-visualization.md  # System page pipeline viz (655 lines)
 
   benchmarks/                     # Performance benchmark results
     AGENTS.md                     # Benchmarks directory guide
@@ -92,7 +117,12 @@ docs/
 
   development/                    # Development workflow documentation
     AGENTS.md                     # Development directory guide
+    AGENT_COORDINATION.md         # Multi-agent coordination patterns
+    code-quality.md               # Code quality tools and standards
     contributing.md               # Contribution guidelines
+    coverage.md                   # Test coverage requirements
+    git-worktree-workflow.md      # Git worktree workflow guide
+    hooks.md                      # Git hooks documentation
     patterns.md                   # Code patterns and conventions
     setup.md                      # Development environment setup
     testing.md                    # Testing guide
@@ -122,6 +152,7 @@ docs/
   operator/                       # Operator-focused documentation
     AGENTS.md                     # Operator directory guide
     ai-configuration.md           # AI model configuration
+    ai-ghcr-deployment.md         # AI GHCR container deployment
     ai-installation.md            # AI service installation
     ai-overview.md                # AI services overview
     ai-performance.md             # AI performance tuning
@@ -130,7 +161,9 @@ docs/
     ai-troubleshooting.md         # AI troubleshooting quick fixes
     backup.md                     # Backup and recovery
     database.md                   # Database management
+    deployment-modes.md           # Deployment mode configurations
     gpu-setup.md                  # GPU and NVIDIA setup
+    redis.md                      # Redis configuration and management
 
   plans/                          # Design and implementation plans
     AGENTS.md                     # Plans directory guide
@@ -151,12 +184,27 @@ docs/
     2025-12-31-documentation-overhaul-design.md
     2025-12-31-system-performance-design.md
     2025-12-31-system-performance-plan.md
-    2026-01-01-*.md               # Recent design documents
+    2026-01-01-claude-code-tooling-design.md
+    2026-01-01-prompt-enrichment-design.md
+    2026-01-01-vision-extraction-design.md
+    2026-01-02-ai-performance-audit-implementation.md
+    2026-01-02-ai-performance-audit.md
+    2026-01-02-interactive-setup-script-design.md
+    2026-01-02-interactive-setup-script-implementation.md
+    2026-01-03-websocket-deduplication-design.md
+    2026-01-04-ai-audit-redesign.md
+    2026-01-04-ai-performance-page-redesign.md
+    2026-01-04-system-page-redesign.md
+    2026-01-05-container-orchestrator-design.md
+    2026-01-05-grafana-operations-dashboard-design.md
+    2026-01-05-grafana-operations-dashboard-implementation.md
+    2026-01-05-prompt-playground-apply-suggestion-design.md
     prompt-enrichment-tasks.md    # Prompt enrichment task list
 
   reference/                      # Authoritative reference documentation
     AGENTS.md                     # Reference directory guide
     glossary.md                   # Terms and definitions
+    stability.md                  # API stability definitions
     api/                          # API endpoint reference
       AGENTS.md                   # API reference guide
       overview.md                 # API conventions
@@ -235,13 +283,36 @@ Post-MVP roadmap ideas organized into 8 themes:
 
 ### Setup and Deployment Guides
 
-| File                          | Purpose                                    | Key Sections                                                                |
-| ----------------------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
-| `AI_SETUP.md`                 | AI inference services setup                | Hardware requirements, model downloads, service management, troubleshooting |
-| `DOCKER_DEPLOYMENT.md`        | Docker Compose deployment                  | Quick start, configuration, health checks, volume management                |
-| `SELF_HOSTED_RUNNER.md`       | Self-hosted GitHub Actions runner with GPU | Installation, security, maintenance                                         |
-| `RUNTIME_CONFIG.md`           | Authoritative port and environment config  | Service ports, environment variables, networking                            |
-| `TEST_PERFORMANCE_METRICS.md` | Test suite performance metrics             | Baselines, thresholds, CI timing, parallelization strategy                  |
+| File                                   | Purpose                                    | Key Sections                                                                |
+| -------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
+| `AI_SETUP.md`                          | AI inference services setup                | Hardware requirements, model downloads, service management, troubleshooting |
+| `DOCKER_DEPLOYMENT.md`                 | Docker Compose deployment                  | Quick start, configuration, health checks, volume management                |
+| `DOCKER_SECRETS.md`                    | Docker secrets management                  | Secret creation, rotation, service integration                              |
+| `DEPLOYMENT.md`                        | Production deployment guide                | Pre-deployment checks, rollout procedures, post-deployment                  |
+| `DEPLOYMENT_RUNBOOK.md`                | Deployment operations runbook              | Step-by-step procedures, rollback, incident response                        |
+| `DEPLOYMENT_SAFETY_CHECKLIST.md`       | Pre-deployment safety checklist            | Required verifications before deployment                                    |
+| `DEPLOYMENT_TROUBLESHOOTING.md`        | Deployment troubleshooting guide           | Common issues, debugging steps, resolution                                  |
+| `DEPLOYMENT_VERIFICATION_CHECKLIST.md` | Post-deployment verification               | Health checks, smoke tests, monitoring setup                                |
+| `HEALTH_CHECK_STRATEGY.md`             | Health check design and patterns           | Liveness, readiness, dependency health                                      |
+| `SERVICE_DEPENDENCIES.md`              | Service dependency documentation           | Startup order, connectivity requirements                                    |
+| `SELF_HOSTED_RUNNER.md`                | Self-hosted GitHub Actions runner with GPU | Installation, security, maintenance                                         |
+| `RUNTIME_CONFIG.md`                    | Authoritative port and environment config  | Service ports, environment variables, networking                            |
+| `TEST_PERFORMANCE_METRICS.md`          | Test suite performance metrics             | Baselines, thresholds, CI timing, parallelization strategy                  |
+| `TESTING_GUIDE.md`                     | Comprehensive testing patterns guide       | Fixtures, factories, test strategies, coverage                              |
+
+### API and Contracts
+
+| File                     | Purpose                     | Key Sections                            |
+| ------------------------ | --------------------------- | --------------------------------------- |
+| `API_COVERAGE.md`        | API coverage analysis       | Coverage metrics, uncovered endpoints   |
+| `WEBSOCKET_CONTRACTS.md` | WebSocket message contracts | Message formats, channel specifications |
+
+### Operations
+
+| File                        | Purpose                             | Key Sections                         |
+| --------------------------- | ----------------------------------- | ------------------------------------ |
+| `slo-definitions.md`        | Service Level Objective definitions | SLOs, SLIs, error budgets            |
+| `MODEL_LOADER_MIGRATION.md` | Model loader migration guide        | Migration steps, compatibility notes |
 
 ### Developer Tools
 
@@ -347,9 +418,14 @@ See `reference/AGENTS.md` for detailed information.
 
 **Subdirectories:**
 
-- `api-reference/` - Complete API reference
+- `reference/api/` - API endpoint reference (alternate format)
 - `reference/config/` - Configuration reference
 - `reference/troubleshooting/` - Problem-solving guides
+
+**Additional files:**
+
+- `reference/glossary.md` - Terms and definitions
+- `reference/stability.md` - API stability definitions
 
 ### user/
 
@@ -375,7 +451,7 @@ See `testing/AGENTS.md` for detailed information.
 - `TESTING_PATTERNS.md` - Common testing patterns
 - `HYPOTHESIS_GUIDE.md` - Property-based testing with Hypothesis
 
-**Note:** These files are currently empty placeholders and need content.
+**Note:** See also the root-level `TESTING_GUIDE.md` for comprehensive testing documentation.
 
 ## Documentation Flow
 
@@ -459,6 +535,45 @@ All AGENTS.md files follow this structure:
 - Key files and what they do
 - Important patterns and conventions
 - Entry points for understanding the code
+
+## Documentation Statistics
+
+This documentation directory contains comprehensive coverage of the project:
+
+| Category                | Count | Description                                          |
+| ----------------------- | ----- | ---------------------------------------------------- |
+| **AGENTS.md files**     | 19    | Navigation files across 18 subdirectories + root     |
+| **Subdirectories**      | 18    | Organized by topic (18 with AGENTS.md files)         |
+| **Root-level docs**     | 34    | Guides for deployment, security, testing, operations |
+| **API reference files** | 18    | Comprehensive endpoint documentation                 |
+| **Design plans**        | 32    | Date-prefixed design and implementation plans        |
+| **Architecture docs**   | 9     | System design, resilience, real-time, data model     |
+
+### AGENTS.md File Locations
+
+All 19 AGENTS.md files in the docs directory:
+
+| Path                                       | Purpose                         |
+| ------------------------------------------ | ------------------------------- |
+| `docs/AGENTS.md`                           | Documentation root navigation   |
+| `docs/admin-guide/AGENTS.md`               | Admin guide directory           |
+| `docs/api-reference/AGENTS.md`             | API reference directory         |
+| `docs/architecture/AGENTS.md`              | Architecture directory          |
+| `docs/benchmarks/AGENTS.md`                | Benchmarks directory            |
+| `docs/decisions/AGENTS.md`                 | ADR directory                   |
+| `docs/developer/AGENTS.md`                 | Developer docs directory        |
+| `docs/development/AGENTS.md`               | Development workflow directory  |
+| `docs/getting-started/AGENTS.md`           | Quick start guides directory    |
+| `docs/images/AGENTS.md`                    | Visual assets directory         |
+| `docs/operator/AGENTS.md`                  | Operator docs directory         |
+| `docs/plans/AGENTS.md`                     | Plans directory                 |
+| `docs/reference/AGENTS.md`                 | Reference root directory        |
+| `docs/reference/api/AGENTS.md`             | Reference API subdirectory      |
+| `docs/reference/config/AGENTS.md`          | Configuration reference         |
+| `docs/reference/troubleshooting/AGENTS.md` | Troubleshooting guides          |
+| `docs/testing/AGENTS.md`                   | Testing guides directory        |
+| `docs/user/AGENTS.md`                      | User docs (hub-and-spoke)       |
+| `docs/user-guide/AGENTS.md`                | User guide (original structure) |
 
 ## Related Documentation
 

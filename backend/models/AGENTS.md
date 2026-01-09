@@ -34,6 +34,9 @@ backend/models/
 ├── scene_change.py    # Scene change detection for camera tampering alerts
 ├── event_detection.py # Junction table for Event-Detection many-to-many relationship
 ├── enums.py           # Shared enumerations (Severity)
+├── event_feedback.py  # User feedback on security events (NEM-1794)
+├── notification_preferences.py  # Notification settings models
+├── user_calibration.py  # Personalized risk threshold calibration
 └── README.md          # Detailed model documentation
 ```
 
@@ -47,7 +50,13 @@ backend/models/
 - `Event` - Security event model
 - `EventAudit` - AI pipeline audit model
 - `EventDetection`, `event_detections` - Junction table model and SQLAlchemy Table for Event-Detection relationship
+- `EventFeedback`, `FeedbackType` - User feedback on security events and feedback type enum (NEM-1794)
 - `Alert`, `AlertRule`, `AlertSeverity`, `AlertStatus` - Alerting system models and enums
+- `NotificationPreferences` - Global notification settings (singleton)
+- `CameraNotificationSetting` - Per-camera notification settings
+- `QuietHoursPeriod` - Time periods when notifications are muted
+- `RiskLevel`, `NotificationSound`, `DayOfWeek` - Notification-related enums
+- `UserCalibration` - Personalized risk threshold calibration
 - `Zone`, `ZoneType`, `ZoneShape` - Zone definition models and enums
 - `ActivityBaseline`, `ClassBaseline` - Anomaly detection baseline models
 - `AuditLog`, `AuditAction`, `AuditStatus` - Audit trail model and enums
@@ -783,6 +792,175 @@ This pattern provides:
 - **Audit trail**: Query `PromptVersion` for history and rollback capability
 - **Version consistency**: Both tables track the same version number
 
+## `event_feedback.py` - Event Feedback Model (NEM-1794)
+
+**Model:** `EventFeedback`
+**Table:** `event_feedback`
+**Purpose:** Tracks user feedback on security events for calibrating personalized risk thresholds
+
+**Enum:** `FeedbackType`
+
+| Value              | Description                                 |
+| ------------------ | ------------------------------------------- |
+| `FALSE_POSITIVE`   | Event was incorrectly flagged as concerning |
+| `MISSED_DETECTION` | System failed to detect a concerning event  |
+
+**Fields:**
+
+| Field           | Type                    | Description                                        |
+| --------------- | ----------------------- | -------------------------------------------------- |
+| `id`            | int (PK, autoincrement) | Unique feedback ID                                 |
+| `event_id`      | int (FK->events.id)     | Source event reference (unique, cascade delete)    |
+| `feedback_type` | FeedbackType enum       | Type of feedback (false_positive/missed_detection) |
+| `notes`         | text (nullable)         | Optional user notes                                |
+| `created_at`    | datetime (timezone)     | Feedback creation timestamp (UTC)                  |
+
+**Relationships:**
+
+- `event` - One-to-one with Event (back_populates="feedback")
+
+**Indexes:**
+
+- `idx_event_feedback_event_id` - Index on event_id for event lookups
+- `idx_event_feedback_type` - Index on feedback_type for filtering by type
+- `idx_event_feedback_created_at` - Index on created_at for time-based queries
+
+**Constraints:**
+
+- `ck_event_feedback_type` - CHECK constraint for valid feedback types
+
+## `notification_preferences.py` - Notification Models
+
+### Model: `NotificationPreferences`
+
+**Table:** `notification_preferences`
+**Purpose:** Global notification settings (singleton table with id=1)
+
+**Enums:**
+
+| Enum                | Values                              | Description                   |
+| ------------------- | ----------------------------------- | ----------------------------- |
+| `RiskLevel`         | CRITICAL, HIGH, MEDIUM, LOW         | Risk level categories         |
+| `NotificationSound` | NONE, DEFAULT, ALERT, CHIME, URGENT | Available notification sounds |
+| `DayOfWeek`         | MONDAY through SUNDAY               | Days for quiet hours config   |
+
+**Fields:**
+
+| Field          | Type       | Description                                      |
+| -------------- | ---------- | ------------------------------------------------ |
+| `id`           | int (PK)   | Always 1 (singleton constraint)                  |
+| `enabled`      | bool       | Master notification toggle                       |
+| `sound`        | str        | Notification sound (from NotificationSound enum) |
+| `risk_filters` | ARRAY(str) | Risk levels that trigger notifications           |
+
+**Constraints:**
+
+- `ck_notification_preferences_singleton` - CHECK(id = 1) ensures singleton
+- `ck_notification_preferences_sound` - CHECK for valid sound values
+
+**Default Values:**
+
+- `enabled`: True
+- `sound`: "default"
+- `risk_filters`: ["critical", "high", "medium"]
+
+### Model: `CameraNotificationSetting`
+
+**Table:** `camera_notification_settings`
+**Purpose:** Per-camera notification settings for individual camera configuration
+
+**Fields:**
+
+| Field            | Type                 | Description                                 |
+| ---------------- | -------------------- | ------------------------------------------- |
+| `id`             | UUID (PK)            | Unique setting ID                           |
+| `camera_id`      | str (FK->cameras.id) | Camera reference (unique, cascade delete)   |
+| `enabled`        | bool                 | Notifications enabled for this camera       |
+| `risk_threshold` | int                  | Minimum risk score to trigger notifications |
+
+**Relationships:**
+
+- `camera` - Many-to-one with Camera (backref="notification_setting")
+
+**Indexes:**
+
+- `idx_camera_notification_settings_camera_id` - Unique index on camera_id
+
+**Constraints:**
+
+- `ck_camera_notification_settings_risk_threshold` - CHECK(risk_threshold >= 0 AND <= 100)
+
+### Model: `QuietHoursPeriod`
+
+**Table:** `quiet_hours_periods`
+**Purpose:** Defines time ranges when notifications are muted
+
+**Fields:**
+
+| Field        | Type       | Description                        |
+| ------------ | ---------- | ---------------------------------- |
+| `id`         | UUID (PK)  | Unique period ID                   |
+| `label`      | str        | Human-readable name for the period |
+| `start_time` | time       | Start of quiet period              |
+| `end_time`   | time       | End of quiet period                |
+| `days`       | ARRAY(str) | Days when this period is active    |
+
+**Indexes:**
+
+- `idx_quiet_hours_periods_start_end` - Composite index on (start_time, end_time)
+
+**Constraints:**
+
+- `ck_quiet_hours_periods_time_range` - CHECK(start_time < end_time)
+
+**Default Values:**
+
+- `days`: All days of the week
+
+## `user_calibration.py` - User Calibration Model
+
+**Model:** `UserCalibration`
+**Table:** `user_calibration`
+**Purpose:** Stores personalized risk thresholds that adapt based on user feedback
+
+**Fields:**
+
+| Field                    | Type                    | Description                                     |
+| ------------------------ | ----------------------- | ----------------------------------------------- |
+| `id`                     | int (PK, autoincrement) | Unique calibration ID                           |
+| `user_id`                | str (unique)            | User identifier (one calibration per user)      |
+| `low_threshold`          | int                     | Low risk threshold (default: 30)                |
+| `medium_threshold`       | int                     | Medium risk threshold (default: 60)             |
+| `high_threshold`         | int                     | High/critical threshold (default: 85)           |
+| `decay_factor`           | float                   | Learning rate for adjustments (default: 0.1)    |
+| `false_positive_count`   | int                     | Count of false positive feedback (default: 0)   |
+| `missed_detection_count` | int                     | Count of missed detection feedback (default: 0) |
+| `created_at`             | datetime (timezone)     | Creation timestamp (UTC)                        |
+| `updated_at`             | datetime (timezone)     | Last update timestamp (auto-updated)            |
+
+**Indexes:**
+
+- `idx_user_calibration_user_id` - Index on user_id for user lookups
+
+**Constraints:**
+
+- `ck_user_calibration_low_range` - CHECK(low_threshold >= 0 AND <= 100)
+- `ck_user_calibration_medium_range` - CHECK(medium_threshold >= 0 AND <= 100)
+- `ck_user_calibration_high_range` - CHECK(high_threshold >= 0 AND <= 100)
+- `ck_user_calibration_threshold_order` - CHECK(low < medium < high)
+- `ck_user_calibration_decay_range` - CHECK(decay_factor >= 0.0 AND <= 1.0)
+- `ck_user_calibration_fp_count` - CHECK(false_positive_count >= 0)
+- `ck_user_calibration_md_count` - CHECK(missed_detection_count >= 0)
+
+**Default Thresholds:**
+
+- 0-29: Low risk
+- 30-59: Medium risk
+- 60-84: High risk
+- 85-100: Critical risk
+
+**Note:** This model works in conjunction with EventFeedback to provide adaptive risk thresholds. When users provide feedback, the thresholds adjust based on the decay_factor.
+
 ## SQLAlchemy Patterns Used
 
 ### Modern SQLAlchemy 2.0 Syntax
@@ -837,9 +1015,11 @@ Camera (1) ----< (many) Zone
 Camera (1) ----< (many) SceneChange
 Camera (1) ----< (many) ActivityBaseline (via backref)
 Camera (1) ----< (many) ClassBaseline (via backref)
+Camera (1) ---- (one) CameraNotificationSetting (via backref)
 
 Event (1) ----< (many) Alert
 Event (1) ---- (one) EventAudit
+Event (1) ---- (one) EventFeedback
 Event (1) ----< (many) EventDetection (junction table)
 
 Detection (1) ----< (many) EventDetection (junction table)
@@ -853,13 +1033,18 @@ PromptVersion (standalone, no foreign key relationships - historical prompt vers
 Log (standalone, no foreign key relationships - for reliability)
 AuditLog (standalone, no foreign key relationships)
 EventDetection (junction table between Event and Detection)
+EventFeedback (one-to-one with Event for user feedback)
+NotificationPreferences (standalone singleton - global notification settings)
+CameraNotificationSetting (one-to-one with Camera for per-camera notification settings)
+QuietHoursPeriod (standalone - quiet hours configuration)
+UserCalibration (standalone - personalized risk thresholds)
 ```
 
 **Cascade Behavior:**
 
-- Deleting a Camera cascades to delete all its Detections, Events, Zones, SceneChanges, and Baselines
+- Deleting a Camera cascades to delete all its Detections, Events, Zones, SceneChanges, Baselines, and CameraNotificationSetting
 - Deleting an Event or Detection cascades to delete EventDetection junction records
-- Deleting an Event cascades to delete all its Alerts and EventAudit
+- Deleting an Event cascades to delete all its Alerts, EventAudit, and EventFeedback
 - Deleting an AlertRule sets Alert.rule_id to NULL (SET NULL on delete)
 - `cascade="all, delete-orphan"` ensures orphaned records are removed
 

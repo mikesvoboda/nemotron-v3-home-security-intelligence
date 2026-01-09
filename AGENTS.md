@@ -23,29 +23,32 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Configuration Files
 
-| File                      | Purpose                                                                |
-| ------------------------- | ---------------------------------------------------------------------- |
-| `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings   |
-| `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)      |
-| `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits |
-| `docker-compose.ghcr.yml` | GitHub Container Registry Docker configuration                         |
-| `docker-compose.ci.yml`   | CI-specific Docker configuration for GitHub Actions                    |
-| `docker-compose.test.yml` | Test containers (postgres-test, redis-test) for CI                     |
-| `.env.example`            | Environment variable template                                          |
-| `semgrep.yml`             | Semgrep security scanning configuration                                |
-| `vulture_whitelist.py`    | False positive suppressions for Vulture dead code detection            |
-| `.prettierrc`             | Prettier code formatting configuration                                 |
-| `codecov.yml`             | Codecov coverage reporting configuration                               |
-| `commitlint.config.js`    | Commit message linting configuration                                   |
+| File                         | Purpose                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `pyproject.toml`             | Python project config with Ruff, mypy, pytest, and coverage settings    |
+| `.pre-commit-config.yaml`    | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)       |
+| `docker-compose.prod.yml`    | Production Docker services with multi-stage builds and resource limits  |
+| `docker-compose.staging.yml` | Staging environment Docker configuration with staging-specific settings |
+| `docker-compose.ghcr.yml`    | GitHub Container Registry Docker configuration                          |
+| `docker-compose.ci.yml`      | CI-specific Docker configuration for GitHub Actions                     |
+| `docker-compose.test.yml`    | Test containers (postgres-test, redis-test) for CI                      |
+| `.env.example`               | Environment variable template                                           |
+| `semgrep.yml`                | Semgrep security scanning configuration                                 |
+| `vulture_whitelist.py`       | False positive suppressions for Vulture dead code detection             |
+| `.prettierrc`                | Prettier code formatting configuration                                  |
+| `codecov.yml`                | Codecov coverage reporting configuration                                |
+| `commitlint.config.js`       | Commit message linting configuration                                    |
 
 ### Documentation
 
-| File           | Purpose                                  |
-| -------------- | ---------------------------------------- |
-| `README.md`    | Project overview and quick start guide   |
-| `LICENSE`      | Mozilla Public License 2.0               |
-| `CHANGELOG.md` | Release history and notable changes      |
-| `llms.txt`     | LLM-readable project documentation index |
+| File                          | Purpose                                             |
+| ----------------------------- | --------------------------------------------------- |
+| `README.md`                   | Project overview and quick start guide              |
+| `LICENSE`                     | Mozilla Public License 2.0                          |
+| `CHANGELOG.md`                | Release history and notable changes                 |
+| `llms.txt`                    | LLM-readable project documentation index            |
+| `CI_FAILURE_INVESTIGATION.md` | CI failure analysis and debugging documentation     |
+| `requirements-audit.txt`      | Python dependency audit results and security review |
 
 > **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
 
@@ -91,30 +94,48 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── alembic/          # Database migrations (PostgreSQL)
 │   ├── api/              # REST endpoints and WebSocket routes
 │   │   ├── routes/       # FastAPI route handlers
-│   │   └── schemas/      # Pydantic request/response schemas
-│   ├── core/             # Database, Redis, config
+│   │   ├── schemas/      # Pydantic request/response schemas
+│   │   ├── helpers/      # Route helper functions (enrichment transformers)
+│   │   ├── middleware/   # HTTP middleware (auth, rate limiting, logging, security)
+│   │   └── utils/        # API utility functions (field filtering)
+│   ├── core/             # Database, Redis, config, metrics, logging
 │   ├── models/           # SQLAlchemy ORM models
+│   ├── repositories/     # Data access layer (base, camera, detection, event repos)
 │   ├── services/         # Business logic (file watcher, detector, batch aggregator)
 │   └── tests/            # Unit and integration tests
 ├── custom/               # Custom resources (test clips, configurations)
 │   └── clips/            # Video clips for testing
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
 ├── docs/                 # Documentation
+│   ├── admin-guide/      # Administrator documentation
+│   ├── api-reference/    # Complete REST API documentation
 │   ├── architecture/     # Technical architecture documentation
-│   ├── user-guide/       # End-user documentation
-│   ├── user/             # Hub-and-spoke user docs
+│   ├── benchmarks/       # Performance benchmarks (model-zoo)
+│   ├── decisions/        # Architecture Decision Records (ADRs)
 │   ├── developer/        # Developer-focused documentation
+│   ├── development/      # Development workflow documentation
+│   ├── getting-started/  # Installation and first-run guides
+│   ├── images/           # Visual assets (mockups, diagrams)
 │   ├── operator/         # Operator-focused documentation
 │   ├── plans/            # Design and implementation plans
-│   ├── decisions/        # Architecture Decision Records (ADRs)
+│   ├── reference/        # Reference docs (api, config, troubleshooting)
 │   ├── testing/          # Testing guides (TDD, Hypothesis, patterns)
-│   └── images/           # Visual assets (mockups, diagrams)
+│   ├── user/             # Hub-and-spoke user docs
+│   └── user-guide/       # End-user documentation
 ├── frontend/             # React dashboard (TypeScript)
 │   ├── src/
 │   │   ├── components/   # React components
+│   │   ├── config/       # Environment configuration and tour steps
+│   │   ├── contexts/     # React contexts (SystemData, Toast)
 │   │   ├── hooks/        # Custom hooks (WebSocket, event streams)
+│   │   ├── mocks/        # MSW mock handlers for testing
 │   │   ├── services/     # API client
-│   │   └── styles/       # CSS/Tailwind
+│   │   ├── styles/       # CSS/Tailwind
+│   │   ├── test/         # Test setup and configuration
+│   │   ├── __tests__/    # Global test files (API contracts, matchers)
+│   │   ├── test-utils/   # Test utilities (factories, renderWithProviders)
+│   │   ├── types/        # TypeScript type definitions
+│   │   └── utils/        # Utility functions
 │   ├── tests/            # E2E and integration tests (Playwright)
 │   └── public/           # Static assets (favicon, images)
 ├── monitoring/           # Prometheus + Grafana configuration
@@ -240,18 +261,28 @@ cd frontend && npm test
 
 ### Understanding the Codebase
 
-| Area            | Entry Point                                      |
-| --------------- | ------------------------------------------------ |
-| Backend config  | `backend/core/config.py`                         |
-| Frontend app    | `frontend/src/App.tsx`                           |
-| AI Pipeline     | `backend/services/`                              |
-| Database schema | `backend/models/`                                |
-| API Routes      | `backend/api/routes/`                            |
-| Tests           | `backend/tests/` and `frontend/src/**/*.test.ts` |
-| Components      | `frontend/src/components/`                       |
-| Hooks           | `frontend/src/hooks/`                            |
-| Design docs     | `docs/plans/`                                    |
-| Scripts         | `scripts/`                                       |
+| Area               | Entry Point                                      |
+| ------------------ | ------------------------------------------------ |
+| Backend config     | `backend/core/config.py`                         |
+| Frontend app       | `frontend/src/App.tsx`                           |
+| AI Pipeline        | `backend/services/`                              |
+| Database schema    | `backend/models/`                                |
+| Data access layer  | `backend/repositories/`                          |
+| API Routes         | `backend/api/routes/`                            |
+| API Middleware     | `backend/api/middleware/`                        |
+| API Dependencies   | `backend/api/dependencies.py`                    |
+| Exception handling | `backend/api/exception_handlers.py`              |
+| Tests              | `backend/tests/` and `frontend/src/**/*.test.ts` |
+| Components         | `frontend/src/components/`                       |
+| Hooks              | `frontend/src/hooks/`                            |
+| React Contexts     | `frontend/src/contexts/`                         |
+| Frontend Config    | `frontend/src/config/`                           |
+| Test Utilities     | `frontend/src/test-utils/`                       |
+| API Mocks          | `frontend/src/mocks/`                            |
+| Design docs        | `docs/plans/`                                    |
+| API Reference      | `docs/api-reference/`                            |
+| Getting Started    | `docs/getting-started/`                          |
+| Scripts            | `scripts/`                                       |
 
 ## Important Patterns
 
@@ -262,6 +293,12 @@ cd frontend && npm test
 - **Type hints:** Required on all functions
 - **Models:** SQLAlchemy ORM for database
 - **Config:** Environment variables via pydantic Settings
+- **Repository pattern:** Data access layer in `repositories/` for clean separation
+- **API layer files:**
+  - `api/dependencies.py` - FastAPI dependency injection (auth, DB, pagination)
+  - `api/exception_handlers.py` - RFC 7807 Problem Details error responses
+  - `api/validators.py` - Request validation utilities
+  - `api/pagination.py` - Cursor and offset pagination helpers
 
 ### Frontend
 
@@ -270,6 +307,12 @@ cd frontend && npm test
 - **Styling:** Tailwind utility classes + Tremor components
 - **State:** React hooks (useState, useEffect, custom hooks)
 - **API:** Centralized client in `services/api.ts`
+- **Contexts:** Global state providers in `contexts/` (SystemData, Toast)
+- **Testing infrastructure:**
+  - `test/setup.ts` - Vitest setup and configuration
+  - `test-utils/` - Test factories and render helpers
+  - `mocks/` - MSW handlers for API mocking
+  - `__tests__/` - Global test files and custom matchers
 
 ### Testing
 

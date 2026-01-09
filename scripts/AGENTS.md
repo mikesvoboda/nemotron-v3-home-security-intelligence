@@ -64,6 +64,7 @@ scripts/
   check-test-timeouts.py             # Pre-commit: timeout validation
   check-api-coverage.sh              # API endpoint coverage check
   check-api-compatibility.sh         # API backward compatibility check
+  check-api-contracts.sh             # API contract validation
   check-branch-name.sh               # Git branch naming convention check
   pre-push-rebase.sh                 # Auto-rebase before push
 
@@ -89,6 +90,11 @@ scripts/
   # Utilities
   github-models-examples.py          # GitHub Models API examples
   migrate_beads_to_linear.py         # Migrate beads to Linear (one-time)
+  update_loaders.py                  # Update loader configurations
+  validate-api-types.sh              # Validate API type definitions
+
+  # Accessibility Testing
+  a11y-smoke-test.sh                 # Accessibility smoke tests
 ```
 
 ## Key Scripts
@@ -890,6 +896,73 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/test_ca
 - `fix/description`
 - `hotfix/description`
 - `chore/description`
+
+#### check-api-contracts.sh
+
+**Purpose:** Validate API contract consistency between backend schemas and frontend types.
+
+**Usage:**
+
+```bash
+./scripts/check-api-contracts.sh
+```
+
+**Checks:**
+
+- OpenAPI schema matches backend implementation
+- Frontend types match OpenAPI definitions
+- Request/response schemas are synchronized
+
+#### validate-api-types.sh
+
+**Purpose:** Validate TypeScript API types are current and match backend schemas.
+
+**Usage:**
+
+```bash
+./scripts/validate-api-types.sh              # Validate types are current
+./scripts/validate-api-types.sh --generate   # Regenerate if outdated
+```
+
+**What it does:**
+
+- Compares generated types with committed types
+- Fails if types are out of sync
+- Can auto-regenerate with `--generate` flag
+
+### Accessibility Scripts
+
+#### a11y-smoke-test.sh
+
+**Purpose:** Run accessibility smoke tests on the frontend.
+
+**Usage:**
+
+```bash
+./scripts/a11y-smoke-test.sh                  # Run all a11y tests
+./scripts/a11y-smoke-test.sh --component Nav  # Test specific component
+./scripts/a11y-smoke-test.sh --verbose        # Verbose output
+```
+
+**Tests:**
+
+- WCAG 2.1 compliance
+- Color contrast ratios
+- Keyboard navigation
+- Screen reader compatibility
+- Focus management
+
+### Utility Scripts
+
+#### update_loaders.py
+
+**Purpose:** Update loader configurations for the project.
+
+**Usage:**
+
+```bash
+python scripts/update_loaders.py
+```
 
 ## Usage Patterns
 
