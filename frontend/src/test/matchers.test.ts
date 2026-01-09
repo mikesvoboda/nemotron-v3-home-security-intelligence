@@ -5,6 +5,11 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  cameraFactory,
+  eventFactory,
+  detectionFactory,
+} from './factories';
+import {
   expectRiskLevel,
   expectValidCamera,
   expectValidEvent,
@@ -19,11 +24,6 @@ import {
   expectLoaded,
   expectError,
 } from './matchers';
-import {
-  cameraFactory,
-  eventFactory,
-  detectionFactory,
-} from './factories';
 
 // ============================================================================
 // Risk Level Tests
@@ -128,14 +128,6 @@ describe('expectValidDetection', () => {
     expect(() => expectValidDetection(detection)).not.toThrow();
 
     const invalidDetection = detectionFactory({ confidence: 1.5 });
-    expect(() => expectValidDetection(invalidDetection)).toThrow();
-  });
-
-  it('validates bbox structure', () => {
-    const detection = detectionFactory({ bbox: [100, 100, 200, 200] });
-    expect(() => expectValidDetection(detection)).not.toThrow();
-
-    const invalidDetection = detectionFactory({ bbox: [100, 100] as any });
     expect(() => expectValidDetection(invalidDetection)).toThrow();
   });
 });

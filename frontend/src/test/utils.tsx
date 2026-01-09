@@ -51,8 +51,9 @@
  * @module test/utils
  */
 
-import { render, type RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, type RenderOptions } from '@testing-library/react';
+
 import type { ReactElement, ReactNode } from 'react';
 
 // ============================================================================
@@ -198,6 +199,7 @@ export function renderWithProviders(
  * import { renderWithProviders, screen, waitFor } from '@/test/utils';
  * ```
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export * from '@testing-library/react';
 
 // Override the default render with our custom version

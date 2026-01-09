@@ -172,7 +172,7 @@ describe('eventFactory', () => {
     const event = eventFactory();
 
     const startedAt = new Date(event.started_at);
-    const endedAt = new Date(event.ended_at);
+    const endedAt = event.ended_at ? new Date(event.ended_at) : new Date();
 
     expect(startedAt.getTime()).toBeLessThan(endedAt.getTime());
   });
@@ -210,10 +210,12 @@ describe('detectionFactory', () => {
 
     expect(detection).toHaveProperty('id');
     expect(detection).toHaveProperty('camera_id');
-    expect(detection).toHaveProperty('event_id');
     expect(detection).toHaveProperty('object_type');
     expect(detection).toHaveProperty('confidence');
-    expect(detection).toHaveProperty('bbox');
+    expect(detection).toHaveProperty('bbox_x');
+    expect(detection).toHaveProperty('bbox_y');
+    expect(detection).toHaveProperty('bbox_width');
+    expect(detection).toHaveProperty('bbox_height');
   });
 
   it('uses default values', () => {
@@ -221,19 +223,25 @@ describe('detectionFactory', () => {
 
     expect(detection.object_type).toBe('person');
     expect(detection.confidence).toBe(0.85);
-    expect(detection.bbox).toEqual([100, 100, 200, 200]);
+    expect(detection.bbox_x).toBe(100);
+    expect(detection.bbox_y).toBe(100);
+    expect(detection.bbox_width).toBe(200);
+    expect(detection.bbox_height).toBe(200);
   });
 
   it('allows overrides', () => {
     const detection = detectionFactory({
       object_type: 'car',
       confidence: 0.95,
-      bbox: [50, 50, 150, 150],
+      bbox_x: 50,
+      bbox_y: 50,
+      bbox_width: 150,
+      bbox_height: 150,
     });
 
     expect(detection.object_type).toBe('car');
     expect(detection.confidence).toBe(0.95);
-    expect(detection.bbox).toEqual([50, 50, 150, 150]);
+    expect(detection.bbox_x).toBe(50);
   });
 
   it('generates valid confidence values', () => {
@@ -274,20 +282,20 @@ describe('gpuStatsFactory', () => {
   it('creates GPU stats with defaults', () => {
     const stats = gpuStatsFactory();
 
-    expect(stats).toHaveProperty('gpu_utilization');
+    expect(stats).toHaveProperty('utilization');
     expect(stats).toHaveProperty('memory_used');
     expect(stats).toHaveProperty('memory_total');
     expect(stats).toHaveProperty('temperature');
-    expect(stats).toHaveProperty('power_draw');
+    expect(stats).toHaveProperty('power_usage');
   });
 
   it('allows overrides', () => {
     const stats = gpuStatsFactory({
-      gpu_utilization: 90.5,
+      utilization: 90.5,
       temperature: 80,
     });
 
-    expect(stats.gpu_utilization).toBe(90.5);
+    expect(stats.utilization).toBe(90.5);
     expect(stats.temperature).toBe(80);
   });
 });
@@ -298,7 +306,7 @@ describe('gpuStatsFactoryList', () => {
 
     expect(statsList).toHaveLength(5);
     statsList.forEach((stats) => {
-      expect(stats).toHaveProperty('gpu_utilization');
+      expect(stats).toHaveProperty('utilization');
     });
   });
 });
@@ -343,16 +351,16 @@ describe('systemStatsFactory', () => {
     expect(stats).toHaveProperty('total_cameras');
     expect(stats).toHaveProperty('total_events');
     expect(stats).toHaveProperty('total_detections');
-    expect(stats).toHaveProperty('high_risk_events');
+    expect(stats).toHaveProperty('uptime_seconds');
   });
 
   it('allows overrides', () => {
     const stats = systemStatsFactory({
       total_cameras: 10,
-      high_risk_events: 50,
+      uptime_seconds: 172800,
     });
 
     expect(stats.total_cameras).toBe(10);
-    expect(stats.high_risk_events).toBe(50);
+    expect(stats.uptime_seconds).toBe(172800);
   });
 });

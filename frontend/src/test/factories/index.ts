@@ -187,17 +187,20 @@ export function eventFactoryList(
  * ```
  */
 export function detectionFactory(overrides: Partial<Detection> = {}): Detection {
-  return {
+  const defaults: Detection = {
     id: counter++,
     camera_id: uniqueId('camera'),
-    event_id: counter,
-    timestamp: new Date().toISOString(),
+    detected_at: new Date().toISOString(),
     object_type: 'person',
     confidence: 0.85,
-    bbox: [100, 100, 200, 200],
-    image_path: '/path/to/image.jpg',
-    ...overrides,
+    bbox_x: 100,
+    bbox_y: 100,
+    bbox_width: 200,
+    bbox_height: 200,
+    file_path: '/path/to/image.jpg',
+    media_type: 'image',
   };
+  return { ...defaults, ...overrides };
 }
 
 /**
@@ -229,14 +232,13 @@ export function detectionFactoryList(
  */
 export function gpuStatsFactory(overrides: Partial<GPUStats> = {}): GPUStats {
   return {
-    gpu_utilization: 45.5,
+    utilization: 45.5,
     memory_used: 8192,
     memory_total: 24576,
-    memory_percent: 33.3,
     temperature: 65,
-    power_draw: 150,
-    power_limit: 300,
-    timestamp: new Date().toISOString(),
+    power_usage: 150,
+    gpu_name: 'NVIDIA RTX A5500',
+    inference_fps: 30,
     ...overrides,
   };
 }
@@ -300,10 +302,7 @@ export function systemStatsFactory(
     total_cameras: 4,
     total_events: 150,
     total_detections: 450,
-    high_risk_events: 12,
-    unreviewed_events: 25,
-    disk_usage_gb: 125.5,
-    disk_total_gb: 500.0,
+    uptime_seconds: 86400,
     ...overrides,
   };
 }

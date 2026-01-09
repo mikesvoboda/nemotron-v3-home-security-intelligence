@@ -4,8 +4,8 @@
  * This ensures our custom testing utilities work correctly.
  */
 
-import { renderHook, waitFor } from '@testing-library/react';
 import { useQuery } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 
 import { renderWithProviders, createWrapper, createTestQueryClient } from './utils';

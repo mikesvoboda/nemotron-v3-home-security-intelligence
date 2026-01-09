@@ -2,8 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
-import { server } from '../mocks/server';
 import { resetCounter } from './factories';
+import { server } from '../mocks/server';
 
 /**
  * Fix HeadlessUI focus issue with jsdom

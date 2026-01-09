@@ -40,6 +40,7 @@
  */
 
 import { http, HttpResponse, delay } from 'msw';
+import { vi } from 'vitest';
 
 // ============================================================================
 // Types
@@ -178,13 +179,13 @@ export function mockApiNotFound(endpoint: string) {
  * @param status - HTTP status code (default: 201)
  * @returns MSW request handler
  */
-export function mockApiPost(
+export function mockApiPost<T>(
   endpoint: string,
-  responseData: unknown,
+  responseData: T,
   status = 201
 ) {
   return http.post(endpoint, () => {
-    return HttpResponse.json(responseData, { status });
+    return HttpResponse.json(responseData as object, { status });
   });
 }
 
@@ -195,9 +196,9 @@ export function mockApiPost(
  * @param responseData - Response data to return
  * @returns MSW request handler
  */
-export function mockApiPut(endpoint: string, responseData: unknown) {
+export function mockApiPut<T>(endpoint: string, responseData: T) {
   return http.put(endpoint, () => {
-    return HttpResponse.json(responseData, { status: 200 });
+    return HttpResponse.json(responseData as object, { status: 200 });
   });
 }
 

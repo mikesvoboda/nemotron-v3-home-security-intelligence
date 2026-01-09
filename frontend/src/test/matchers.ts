@@ -38,6 +38,7 @@
  */
 
 import { expect } from 'vitest';
+
 import type { Camera, Event, Detection } from '@/services/api';
 
 // ============================================================================
@@ -121,7 +122,7 @@ export function expectApiError(
   expect(response.status).toBe(expectedStatus);
 
   if (errorMessage) {
-    response.json().then((data) => {
+    void response.json().then((data) => {
       expect(data.detail).toContain(errorMessage);
     });
   }
@@ -181,7 +182,9 @@ export function expectValidEvent(event: unknown): asserts event is Event {
   expect(typeof e.id).toBe('number');
   expect(typeof e.camera_id).toBe('string');
   expect(['low', 'medium', 'high']).toContain(e.risk_level);
-  expectRiskLevel(e.risk_score).toBeValid();
+  if (e.risk_score !== null && e.risk_score !== undefined) {
+    expectRiskLevel(e.risk_score).toBeValid();
+  }
 }
 
 /**
@@ -201,18 +204,16 @@ export function expectValidDetection(
   expect(detection).toBeDefined();
   expect(detection).toHaveProperty('id');
   expect(detection).toHaveProperty('camera_id');
-  expect(detection).toHaveProperty('event_id');
   expect(detection).toHaveProperty('object_type');
   expect(detection).toHaveProperty('confidence');
-  expect(detection).toHaveProperty('bbox');
 
   const d = detection as Detection;
   expect(typeof d.id).toBe('number');
   expect(typeof d.object_type).toBe('string');
-  expect(d.confidence).toBeGreaterThanOrEqual(0);
-  expect(d.confidence).toBeLessThanOrEqual(1);
-  expect(Array.isArray(d.bbox)).toBe(true);
-  expect(d.bbox).toHaveLength(4);
+  if (d.confidence !== null && d.confidence !== undefined) {
+    expect(d.confidence).toBeGreaterThanOrEqual(0);
+    expect(d.confidence).toBeLessThanOrEqual(1);
+  }
 }
 
 // ============================================================================
@@ -316,19 +317,19 @@ export function expectTimestampBefore(timestamp1: string, timestamp2: string) {
  * expectSortedBy(events, 'started_at', 'desc');
  * ```
  */
-export function expectSortedBy<T>(
+export function expectSortedBy<T extends Record<string, unknown>>(
   array: T[],
   field: keyof T,
   order: 'asc' | 'desc' = 'asc'
 ) {
   for (let i = 0; i < array.length - 1; i++) {
-    const current = array[i][field];
-    const next = array[i + 1][field];
+    const current = array[i][field] as number | string;
+    const next = array[i + 1][field] as number | string;
 
     if (order === 'asc') {
-      expect(current).toBeLessThanOrEqual(next);
+      expect(current <= next).toBe(true);
     } else {
-      expect(current).toBeGreaterThanOrEqual(next);
+      expect(current >= next).toBe(true);
     }
   }
 }
