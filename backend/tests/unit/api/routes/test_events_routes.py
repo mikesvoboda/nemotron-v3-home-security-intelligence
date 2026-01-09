@@ -407,6 +407,8 @@ class TestGetEventRoute:
         """Test that get_event returns event with calculated detection count."""
         from backend.api.routes.events import get_event
 
+        mock_request = MagicMock()
+        mock_request.url_for = MagicMock(return_value="/api/events/1")
         mock_db = AsyncMock(spec=AsyncSession)
 
         # Mock event
@@ -425,7 +427,7 @@ class TestGetEventRoute:
         mock_event.detection_ids = "[1, 2, 3]"
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event(event_id=1, db=mock_db)
+            result = await get_event(event_id=1, request=mock_request, db=mock_db)
 
         assert result["id"] == 1
         assert result["detection_count"] == 3
