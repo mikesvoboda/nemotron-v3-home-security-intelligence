@@ -16,15 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import TYPE_CHECKING
 
 import pytest
 
 from backend.core.redis import RedisClient
 from backend.services.cache_service import CACHE_PREFIX, CacheService
-
-if TYPE_CHECKING:
-    pass
 
 pytestmark = pytest.mark.integration
 

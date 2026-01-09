@@ -16,12 +16,10 @@ Tests follow TDD approach and cover:
 """
 
 import logging
-from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, Response
 from fastapi.testclient import TestClient
-from starlette.requests import Request
 
 from backend.api.middleware.deprecation_logger import (
     DEPRECATED_CALLS_TOTAL,
@@ -162,7 +160,8 @@ class TestDeprecationLogging:
 
         # Check that a deprecation warning was logged
         deprecation_logs = [
-            r for r in caplog.records
+            r
+            for r in caplog.records
             if "deprecated" in r.message.lower() and r.levelno == logging.WARNING
         ]
         assert len(deprecation_logs) >= 1
@@ -174,10 +173,7 @@ class TestDeprecationLogging:
         with caplog.at_level(logging.WARNING):
             client.get("/deprecated")
 
-        deprecation_logs = [
-            r for r in caplog.records
-            if "deprecated" in r.message.lower()
-        ]
+        deprecation_logs = [r for r in caplog.records if "deprecated" in r.message.lower()]
         assert len(deprecation_logs) >= 1
         assert "/deprecated" in deprecation_logs[0].message
 
@@ -188,10 +184,7 @@ class TestDeprecationLogging:
         with caplog.at_level(logging.WARNING):
             client.get("/deprecated")
 
-        deprecation_logs = [
-            r for r in caplog.records
-            if "deprecated" in r.message.lower()
-        ]
+        deprecation_logs = [r for r in caplog.records if "deprecated" in r.message.lower()]
         assert len(deprecation_logs) >= 1
         assert "GET" in deprecation_logs[0].message
 
@@ -202,10 +195,7 @@ class TestDeprecationLogging:
         with caplog.at_level(logging.WARNING):
             client.get("/deprecated", headers={"X-Client-ID": "test-client-v2"})
 
-        deprecation_logs = [
-            r for r in caplog.records
-            if "deprecated" in r.message.lower()
-        ]
+        deprecation_logs = [r for r in caplog.records if "deprecated" in r.message.lower()]
         assert len(deprecation_logs) >= 1
         # Check extra fields contain client_id
         assert hasattr(deprecation_logs[0], "client_id")
@@ -218,10 +208,7 @@ class TestDeprecationLogging:
         with caplog.at_level(logging.WARNING):
             client.get("/deprecated", headers={"User-Agent": "TestClient/1.0"})
 
-        deprecation_logs = [
-            r for r in caplog.records
-            if "deprecated" in r.message.lower()
-        ]
+        deprecation_logs = [r for r in caplog.records if "deprecated" in r.message.lower()]
         assert len(deprecation_logs) >= 1
         assert hasattr(deprecation_logs[0], "user_agent")
         assert "TestClient" in deprecation_logs[0].user_agent
@@ -241,10 +228,7 @@ class TestDeprecationLogging:
             response = client.get("/normal")
 
         assert response.status_code == 200
-        deprecation_logs = [
-            r for r in caplog.records
-            if "deprecated" in r.message.lower()
-        ]
+        deprecation_logs = [r for r in caplog.records if "deprecated" in r.message.lower()]
         assert len(deprecation_logs) == 0
 
 
@@ -464,8 +448,7 @@ class TestDeprecationMiddlewareEdgeCases:
 
         # Client ID with special characters
         response = client.get(
-            "/deprecated",
-            headers={"X-Client-ID": "test<script>alert(1)</script>client"}
+            "/deprecated", headers={"X-Client-ID": "test<script>alert(1)</script>client"}
         )
 
         # Should complete without error

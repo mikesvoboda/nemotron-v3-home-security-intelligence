@@ -139,9 +139,7 @@ class TestGetShutdownEvent:
         assert isinstance(event, asyncio.Event)
         assert not event.is_set()
 
-    def test_returns_same_event_on_multiple_calls(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    def test_returns_same_event_on_multiple_calls(self, reset_signal_handler_state: None) -> None:
         """Test that get_shutdown_event returns the same event on multiple calls."""
         from backend.main import get_shutdown_event
 
@@ -165,9 +163,7 @@ class TestInstallSignalHandlers:
     """Tests for install_signal_handlers() function."""
 
     @pytest.mark.asyncio
-    async def test_installs_sigterm_handler(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    async def test_installs_sigterm_handler(self, reset_signal_handler_state: None) -> None:
         """Test that SIGTERM handler is installed."""
         from backend.main import install_signal_handlers
 
@@ -185,9 +181,7 @@ class TestInstallSignalHandlers:
         assert signal.SIGTERM in captured_handlers
 
     @pytest.mark.asyncio
-    async def test_installs_sigint_handler(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    async def test_installs_sigint_handler(self, reset_signal_handler_state: None) -> None:
         """Test that SIGINT handler is installed."""
         from backend.main import install_signal_handlers
 
@@ -205,9 +199,7 @@ class TestInstallSignalHandlers:
         assert signal.SIGINT in captured_handlers
 
     @pytest.mark.asyncio
-    async def test_handler_sets_shutdown_event(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    async def test_handler_sets_shutdown_event(self, reset_signal_handler_state: None) -> None:
         """Test that signal handler sets the shutdown event."""
         from backend.main import get_shutdown_event, install_signal_handlers
 
@@ -235,9 +227,7 @@ class TestInstallSignalHandlers:
         assert event.is_set()
 
     @pytest.mark.asyncio
-    async def test_idempotent_installation(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    async def test_idempotent_installation(self, reset_signal_handler_state: None) -> None:
         """Test that calling install_signal_handlers multiple times is safe."""
         from backend.main import install_signal_handlers
 
@@ -259,9 +249,7 @@ class TestInstallSignalHandlers:
         assert call_count == 2
 
     @pytest.mark.asyncio
-    async def test_handles_not_implemented_error(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    async def test_handles_not_implemented_error(self, reset_signal_handler_state: None) -> None:
         """Test that NotImplementedError is handled gracefully (e.g., Windows)."""
         from backend.main import install_signal_handlers
 
@@ -275,15 +263,11 @@ class TestInstallSignalHandlers:
             install_signal_handlers()
 
     @pytest.mark.asyncio
-    async def test_handles_runtime_error(
-        self, reset_signal_handler_state: None
-    ) -> None:
+    async def test_handles_runtime_error(self, reset_signal_handler_state: None) -> None:
         """Test that RuntimeError is handled gracefully (e.g., not main thread)."""
         from backend.main import install_signal_handlers
 
-        with patch(
-            "asyncio.get_running_loop", side_effect=RuntimeError("no running event loop")
-        ):
+        with patch("asyncio.get_running_loop", side_effect=RuntimeError("no running event loop")):
             # Should not raise
             install_signal_handlers()
 
