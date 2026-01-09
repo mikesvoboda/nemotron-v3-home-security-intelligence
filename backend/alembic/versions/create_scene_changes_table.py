@@ -32,11 +32,9 @@ def upgrade() -> None:
     - scene_changes table with all required columns
     - scene_change_type_enum PostgreSQL enum type
     - B-tree indexes for common query patterns
+    - BRIN index on detected_at for time-series queries
+    - Partial index on acknowledged=false for dashboard queries
     - CHECK constraint for similarity_score range (0.0 to 1.0)
-
-    Note: The BRIN index on detected_at is NOT created here - it was already
-    defined in the add_gin_brin_specialized_indexes migration. This migration
-    must run first to create the table before that migration can create the index.
     """
     # Create the enum type first
     scene_change_type_enum = sa.Enum(
@@ -92,16 +90,38 @@ def upgrade() -> None:
         ["camera_id", "acknowledged"],
     )
 
+    # BRIN index for time-series queries on detected_at (append-only chronological data)
+    # Much smaller than B-tree (~1000x) and ideal for range queries on ordered timestamps
+    op.create_index(
+        "ix_scene_changes_detected_at_brin",
+        "scene_changes",
+        ["detected_at"],
+        unique=False,
+        postgresql_using="brin",
+    )
+
+    # Partial index for unacknowledged scene changes (dashboard queries)
+    # Only indexes rows where acknowledged = false for faster dashboard queries
+    op.create_index(
+        "idx_scene_changes_acknowledged_false",
+        "scene_changes",
+        ["acknowledged"],
+        unique=False,
+        postgresql_where=sa.text("acknowledged = false"),
+    )
+
 
 def downgrade() -> None:
     """Drop the scene_changes table and associated objects.
 
     Drops:
-    - All indexes on scene_changes table
+    - All indexes on scene_changes table (B-tree, BRIN, partial)
     - scene_changes table
     - scene_change_type_enum PostgreSQL enum type
     """
-    # Drop indexes first
+    # Drop indexes first (in reverse order of creation)
+    op.drop_index("idx_scene_changes_acknowledged_false", table_name="scene_changes")
+    op.drop_index("ix_scene_changes_detected_at_brin", table_name="scene_changes")
     op.drop_index("idx_scene_changes_camera_acknowledged", table_name="scene_changes")
     op.drop_index("idx_scene_changes_acknowledged", table_name="scene_changes")
     op.drop_index("idx_scene_changes_detected_at", table_name="scene_changes")

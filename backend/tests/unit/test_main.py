@@ -2,9 +2,15 @@
 
 Tests cover:
 - init_circuit_breakers() pre-registration of known service circuit breakers
+- Signal handling for graceful shutdown (SIGTERM/SIGINT)
+- Shutdown event coordination
 """
 
 from __future__ import annotations
+
+import asyncio
+import signal
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -109,3 +115,217 @@ class TestInitCircuitBreakers:
         registry = _get_registry()
         all_status = registry.get_all_status()
         assert len(all_status) == 4
+
+
+@pytest.fixture
+def reset_signal_handler_state():
+    """Reset signal handler state before and after each test."""
+    from backend.main import reset_signal_handlers
+
+    reset_signal_handlers()
+    yield
+    reset_signal_handlers()
+
+
+class TestGetShutdownEvent:
+    """Tests for get_shutdown_event() function."""
+
+    def test_returns_asyncio_event(self, reset_signal_handler_state: None) -> None:
+        """Test that get_shutdown_event returns an asyncio.Event."""
+        from backend.main import get_shutdown_event
+
+        event = get_shutdown_event()
+
+        assert isinstance(event, asyncio.Event)
+        assert not event.is_set()
+
+    def test_returns_same_event_on_multiple_calls(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that get_shutdown_event returns the same event on multiple calls."""
+        from backend.main import get_shutdown_event
+
+        event1 = get_shutdown_event()
+        event2 = get_shutdown_event()
+
+        assert event1 is event2
+
+    def test_event_can_be_set(self, reset_signal_handler_state: None) -> None:
+        """Test that the shutdown event can be set."""
+        from backend.main import get_shutdown_event
+
+        event = get_shutdown_event()
+        assert not event.is_set()
+
+        event.set()
+        assert event.is_set()
+
+
+class TestInstallSignalHandlers:
+    """Tests for install_signal_handlers() function."""
+
+    @pytest.mark.asyncio
+    async def test_installs_sigterm_handler(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that SIGTERM handler is installed."""
+        from backend.main import install_signal_handlers
+
+        mock_loop = MagicMock()
+        captured_handlers: dict[signal.Signals, MagicMock] = {}
+
+        def capture_handler(sig: signal.Signals, handler: MagicMock) -> None:
+            captured_handlers[sig] = handler
+
+        mock_loop.add_signal_handler = capture_handler
+
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
+            install_signal_handlers()
+
+        assert signal.SIGTERM in captured_handlers
+
+    @pytest.mark.asyncio
+    async def test_installs_sigint_handler(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that SIGINT handler is installed."""
+        from backend.main import install_signal_handlers
+
+        mock_loop = MagicMock()
+        captured_handlers: dict[signal.Signals, MagicMock] = {}
+
+        def capture_handler(sig: signal.Signals, handler: MagicMock) -> None:
+            captured_handlers[sig] = handler
+
+        mock_loop.add_signal_handler = capture_handler
+
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
+            install_signal_handlers()
+
+        assert signal.SIGINT in captured_handlers
+
+    @pytest.mark.asyncio
+    async def test_handler_sets_shutdown_event(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that signal handler sets the shutdown event."""
+        from backend.main import get_shutdown_event, install_signal_handlers
+
+        mock_loop = MagicMock()
+        captured_handlers: dict[signal.Signals, MagicMock] = {}
+
+        def capture_handler(sig: signal.Signals, handler: MagicMock) -> None:
+            captured_handlers[sig] = handler
+
+        mock_loop.add_signal_handler = capture_handler
+
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
+            install_signal_handlers()
+
+        # Get the shutdown event
+        event = get_shutdown_event()
+        assert not event.is_set()
+
+        # Call the SIGTERM handler - the logger is imported inside the function
+        # so we patch at the source module
+        with patch("backend.core.logging.get_logger"):
+            captured_handlers[signal.SIGTERM]()
+
+        # Event should be set
+        assert event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_idempotent_installation(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that calling install_signal_handlers multiple times is safe."""
+        from backend.main import install_signal_handlers
+
+        mock_loop = MagicMock()
+        call_count = 0
+
+        def count_handler(sig: signal.Signals, handler: MagicMock) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        mock_loop.add_signal_handler = count_handler
+
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
+            install_signal_handlers()
+            install_signal_handlers()
+            install_signal_handlers()
+
+        # Should only install handlers once (2 handlers: SIGTERM and SIGINT)
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_handles_not_implemented_error(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that NotImplementedError is handled gracefully (e.g., Windows)."""
+        from backend.main import install_signal_handlers
+
+        mock_loop = MagicMock()
+        mock_loop.add_signal_handler.side_effect = NotImplementedError(
+            "Signals not supported on Windows"
+        )
+
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
+            # Should not raise
+            install_signal_handlers()
+
+    @pytest.mark.asyncio
+    async def test_handles_runtime_error(
+        self, reset_signal_handler_state: None
+    ) -> None:
+        """Test that RuntimeError is handled gracefully (e.g., not main thread)."""
+        from backend.main import install_signal_handlers
+
+        with patch(
+            "asyncio.get_running_loop", side_effect=RuntimeError("no running event loop")
+        ):
+            # Should not raise
+            install_signal_handlers()
+
+
+class TestResetSignalHandlers:
+    """Tests for reset_signal_handlers() function."""
+
+    def test_resets_shutdown_event(self) -> None:
+        """Test that reset_signal_handlers clears the shutdown event."""
+        from backend.main import get_shutdown_event, reset_signal_handlers
+
+        # Create and set the event
+        event1 = get_shutdown_event()
+        event1.set()
+
+        # Reset
+        reset_signal_handlers()
+
+        # New event should be created
+        event2 = get_shutdown_event()
+        assert event2 is not event1
+        assert not event2.is_set()
+
+    @pytest.mark.asyncio
+    async def test_allows_reinstallation_of_handlers(self) -> None:
+        """Test that after reset, handlers can be installed again."""
+        from backend.main import install_signal_handlers, reset_signal_handlers
+
+        mock_loop = MagicMock()
+        call_count = 0
+
+        def count_handler(sig: signal.Signals, handler: MagicMock) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        mock_loop.add_signal_handler = count_handler
+
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
+            install_signal_handlers()
+            assert call_count == 2  # SIGTERM and SIGINT
+
+            reset_signal_handlers()
+
+            install_signal_handlers()
+            assert call_count == 4  # Should install again after reset

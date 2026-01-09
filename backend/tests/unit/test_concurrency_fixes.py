@@ -1,4 +1,4 @@
-"""Tests for concurrency bug fixes (NEM-1998).
+"""Tests for concurrency bug fixes (NEM-1998, NEM-2012).
 
 These tests verify that race conditions are properly handled:
 1. EventDetection junction table race condition (ON CONFLICT DO NOTHING)
@@ -37,6 +37,19 @@ class TestEventDetectionRaceCondition:
 
         # Verify the NEM-1998 fix is present
         assert "NEM-1998" in source
+        assert "on_conflict_do_nothing" in source
+        assert "pg_insert" in source
+
+    def test_nemotron_streaming_uses_on_conflict(self):
+        """Verify nemotron_streaming.py contains ON CONFLICT DO NOTHING pattern (NEM-2012)."""
+        import inspect
+
+        from backend.services import nemotron_streaming
+
+        source = inspect.getsource(nemotron_streaming)
+
+        # Verify the NEM-2012 fix is present
+        assert "NEM-2012" in source
         assert "on_conflict_do_nothing" in source
         assert "pg_insert" in source
 
@@ -148,3 +161,88 @@ class TestFrontendDedupSetBounding:
             source = use_event_stream.read_text()
             assert "NEM-1998" in source
             assert "seenEventIdsRef.current.delete" in source
+
+
+class TestEventDetectionConcurrentInsertion:
+    """Tests for concurrent EventDetection insertion handling (NEM-2012)."""
+
+    def test_on_conflict_do_nothing_generates_valid_sql(self):
+        """Verify ON CONFLICT DO NOTHING generates valid PostgreSQL SQL."""
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from backend.models.event_detection import event_detections
+
+        # Simulate concurrent insertion of same event_id/detection_id pair
+        stmt = (
+            pg_insert(event_detections)
+            .values(event_id=42, detection_id=100)
+            .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+        )
+
+        # Compile to PostgreSQL dialect
+        from sqlalchemy.dialects import postgresql
+
+        compiled = stmt.compile(dialect=postgresql.dialect())
+        sql = str(compiled)
+
+        # Verify the SQL structure
+        assert "INSERT INTO event_detections" in sql
+        assert "ON CONFLICT" in sql
+        assert "DO NOTHING" in sql
+        # Verify column names are in the conflict clause
+        assert "event_id" in sql
+        assert "detection_id" in sql
+
+    def test_multiple_inserts_with_same_key_compile_correctly(self):
+        """Verify multiple ON CONFLICT statements for same key compile correctly."""
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from backend.models.event_detection import event_detections
+
+        # Simulate two concurrent inserts for the same junction record
+        event_id = 1
+        detection_id = 100
+
+        stmt1 = (
+            pg_insert(event_detections)
+            .values(event_id=event_id, detection_id=detection_id)
+            .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+        )
+
+        stmt2 = (
+            pg_insert(event_detections)
+            .values(event_id=event_id, detection_id=detection_id)
+            .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+        )
+
+        # Both should compile without error (actual DB behavior tests in integration)
+        from sqlalchemy.dialects import postgresql
+
+        sql1 = str(stmt1.compile(dialect=postgresql.dialect()))
+        sql2 = str(stmt2.compile(dialect=postgresql.dialect()))
+
+        # Both should produce identical SQL (idempotent)
+        assert sql1 == sql2
+        assert "ON CONFLICT" in sql1
+        assert "DO NOTHING" in sql1
+
+    def test_event_detections_table_has_unique_constraint(self):
+        """Verify event_detections table has composite primary key (unique constraint)."""
+        from backend.models.event_detection import event_detections
+
+        # Check primary key constraint exists
+        pk = event_detections.primary_key
+        pk_column_names = [col.name for col in pk.columns]
+
+        # Composite primary key on (event_id, detection_id) acts as unique constraint
+        assert "event_id" in pk_column_names
+        assert "detection_id" in pk_column_names
+        assert len(pk_column_names) == 2
+
+    def test_event_detection_orm_model_maps_to_same_table(self):
+        """Verify EventDetection ORM model maps to same table as event_detections Table."""
+        from backend.models.event_detection import EventDetection, event_detections
+
+        # Both should reference the same underlying table
+        assert EventDetection.__tablename__ == event_detections.name
+        assert EventDetection.__tablename__ == "event_detections"

@@ -33,8 +33,7 @@ Partial indexes created:
 6. idx_prompt_versions_is_active_true: Index on prompt_versions WHERE is_active = true
    - Use case: AI services only load active prompt versions
 
-7. idx_scene_changes_acknowledged_false: Index on scene_changes WHERE acknowledged = false
-   - Use case: Dashboard shows unacknowledged scene changes for review
+Note: idx_scene_changes_acknowledged_false is handled by create_scene_changes_table migration.
 """
 
 from collections.abc import Sequence
@@ -107,19 +106,13 @@ def upgrade() -> None:
         postgresql_where=sa.text("is_active = true"),
     )
 
-    # Scene Changes: Index unacknowledged changes (dashboard queries)
-    op.create_index(
-        "idx_scene_changes_acknowledged_false",
-        "scene_changes",
-        ["acknowledged"],
-        unique=False,
-        postgresql_where=sa.text("acknowledged = false"),
-    )
+    # NOTE: idx_scene_changes_acknowledged_false is handled by create_scene_changes_table
+    # migration which creates all scene_changes indexes. Do not duplicate here.
 
 
 def downgrade() -> None:
     """Remove partial indexes for boolean columns."""
-    op.drop_index("idx_scene_changes_acknowledged_false", table_name="scene_changes")
+    # NOTE: idx_scene_changes_acknowledged_false is managed by create_scene_changes_table
     op.drop_index("idx_prompt_versions_is_active_true", table_name="prompt_versions")
     op.drop_index("idx_api_keys_is_active_true", table_name="api_keys")
     op.drop_index("idx_alert_rules_enabled_true", table_name="alert_rules")
