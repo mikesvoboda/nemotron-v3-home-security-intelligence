@@ -68,7 +68,11 @@ class LogEntry(BaseModel):
 
 
 class LogsResponse(BaseModel):
-    """Schema for paginated logs response."""
+    """Schema for paginated logs response.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Cursor-based pagination offers better performance for large datasets.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -92,6 +96,8 @@ class LogsResponse(BaseModel):
                 "count": 1,
                 "limit": 50,
                 "offset": 0,
+                "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",  # pragma: allowlist secret
+                "has_more": False,
             }
         }
     )
@@ -99,7 +105,14 @@ class LogsResponse(BaseModel):
     logs: list[LogEntry] = Field(..., description="List of log entries")
     count: int = Field(..., ge=0, description="Total count matching filters")
     limit: int = Field(..., ge=1, le=1000, description="Page size (1-1000)")
-    offset: int = Field(..., ge=0, description="Page offset (0-based)")
+    offset: int = Field(..., ge=0, description="Page offset (0-based, deprecated)")
+    next_cursor: str | None = Field(
+        None, description="Cursor for next page (use this instead of offset)"
+    )
+    has_more: bool = Field(False, description="Whether more results are available")
+    deprecation_warning: str | None = Field(
+        None, description="Warning when using deprecated offset pagination"
+    )
 
 
 class LogStats(BaseModel):

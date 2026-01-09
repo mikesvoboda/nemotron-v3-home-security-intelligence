@@ -5,6 +5,21 @@ This module provides centralized exception handling that:
 2. Logs errors appropriately (with request context)
 3. Sanitizes error messages to prevent information leakage
 4. Integrates with request tracing (request IDs)
+5. Implements RFC 7807 Problem Details for HTTP API errors
+
+RFC 7807 Support:
+    HTTPException errors are returned in RFC 7807 "Problem Details" format
+    with media type "application/problem+json". This provides a standardized,
+    machine-readable format for error responses.
+
+    Example RFC 7807 response:
+        {
+            "type": "about:blank",
+            "title": "Not Found",
+            "status": 404,
+            "detail": "Camera 'front_door' does not exist",
+            "instance": "/api/cameras/front_door"
+        }
 
 Usage:
     In main.py, register the handlers:
@@ -16,6 +31,7 @@ Usage:
 
 from __future__ import annotations
 
+import html
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
@@ -26,6 +42,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from backend.api.schemas.problem_details import ProblemDetail, get_status_phrase
 from backend.core.exceptions import (
     CircuitBreakerOpenError,
     ExternalServiceError,
@@ -96,6 +113,80 @@ def build_error_response(
         status_code=status_code,
         content={"error": error_body},
         headers=headers,
+    )
+
+
+async def problem_details_exception_handler(
+    request: Request,
+    exc: StarletteHTTPException,
+) -> JSONResponse:
+    """Handle HTTPException using RFC 7807 Problem Details format.
+
+    This handler converts standard HTTP exceptions to RFC 7807 "Problem Details"
+    format, which provides a standardized, machine-readable error response format.
+
+    RFC 7807 specifies these members:
+    - type: A URI reference identifying the problem type (default: "about:blank")
+    - title: A short, human-readable summary (uses HTTP status phrase)
+    - status: The HTTP status code
+    - detail: A human-readable explanation specific to this occurrence
+    - instance: A URI reference identifying the specific occurrence (request path)
+
+    The response uses media type "application/problem+json" per RFC 7807.
+
+    Args:
+        request: The FastAPI request
+        exc: The HTTPException
+
+    Returns:
+        JSONResponse with RFC 7807 Problem Details format
+
+    References:
+        - RFC 7807: https://tools.ietf.org/html/rfc7807
+    """
+    # Get the standard HTTP status phrase for the title
+    title = get_status_phrase(exc.status_code)
+
+    # Determine the detail message
+    # Fall back to status phrase if detail is None or empty
+    detail = str(exc.detail) if exc.detail else title
+
+    # Log appropriately based on status code
+    log_context = {
+        "status_code": exc.status_code,
+        "path": str(request.url.path),
+        "method": request.method,
+    }
+
+    request_id = get_request_id(request)
+    if request_id:
+        log_context["request_id"] = request_id
+
+    if exc.status_code >= 500:
+        logger.error(f"HTTP error: {detail}", extra=log_context)
+    elif exc.status_code == 429:
+        logger.warning(f"Rate limit: {detail}", extra=log_context)
+    elif exc.status_code >= 400:
+        logger.info(f"Client error: {detail}", extra=log_context)
+
+    # Create RFC 7807 Problem Detail object
+    # Sanitize the instance path to prevent XSS attacks
+    # The path could contain user-supplied input (e.g., /api/cameras/<script>alert('XSS')</script>)
+    sanitized_instance = html.escape(str(request.url.path))
+    problem = ProblemDetail(
+        type="about:blank",
+        title=title,
+        status=exc.status_code,
+        detail=detail,
+        instance=sanitized_instance,
+    )
+
+    # Build response with proper media type
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=problem.model_dump(exclude_none=True),
+        media_type="application/problem+json",
+        headers=exc.headers,
     )
 
 
@@ -548,10 +639,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         pydantic_validation_handler,  # type: ignore[arg-type]
     )
 
-    # Standard HTTP exceptions
+    # Standard HTTP exceptions - RFC 7807 Problem Details format
     app.add_exception_handler(
         StarletteHTTPException,
-        http_exception_handler,  # type: ignore[arg-type]
+        problem_details_exception_handler,  # type: ignore[arg-type]
     )
 
     # Catch-all for any unhandled exceptions

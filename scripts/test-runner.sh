@@ -63,27 +63,27 @@ print_failure() {
 
 print_section "Backend Tests (Python/pytest)"
 
+# Check for uv (mandatory)
+if ! command -v uv &> /dev/null; then
+    echo -e "${RED}Error: uv is required but not installed.${NC}"
+    echo "Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    echo "Or with Homebrew: brew install uv"
+    exit 1
+fi
+
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
     echo "Creating Python virtual environment..."
-    if command -v uv &> /dev/null; then
-        uv venv .venv
-    else
-        python3 -m venv .venv
-    fi
+    uv venv .venv
 fi
 
-# Activate virtual environment and install dependencies
+# Activate virtual environment
 source .venv/bin/activate
 
-# Install dependencies if needed
+# Install dependencies if needed (using uv sync)
 if ! python -c "import pytest" 2>/dev/null; then
     echo "Installing backend dependencies..."
-    if command -v uv &> /dev/null; then
-        uv pip install -r backend/requirements.txt
-    else
-        pip install -r backend/requirements.txt
-    fi
+    uv sync --extra dev
 fi
 
 # Run backend tests with coverage
