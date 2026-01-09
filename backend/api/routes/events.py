@@ -38,6 +38,12 @@ from backend.api.schemas.events import (
 )
 from backend.api.schemas.hateoas import build_event_links
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
+from backend.api.utils.field_filter import (
+    FieldFilterError,
+    filter_fields,
+    parse_fields_param,
+    validate_fields,
+)
 from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger, sanitize_log_value
@@ -57,6 +63,24 @@ router = APIRouter(prefix="/api/events", tags=["events"])
 
 # Valid severity values for search filter
 VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
+
+# Valid fields for sparse fieldsets on list_events endpoint (NEM-1434)
+VALID_EVENT_LIST_FIELDS = frozenset(
+    {
+        "id",
+        "camera_id",
+        "started_at",
+        "ended_at",
+        "risk_score",
+        "risk_level",
+        "summary",
+        "reasoning",
+        "reviewed",
+        "detection_count",
+        "detection_ids",
+        "thumbnail_url",
+    }
+)
 
 
 def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
@@ -192,12 +216,22 @@ async def list_events(  # noqa: PLR0912
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to include in response (sparse fieldsets). "
+        "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
+        "reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List events with optional filtering and cursor-based pagination.
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Cursor-based pagination offers better performance for large datasets.
+
+    Sparse Fieldsets (NEM-1434):
+    Use the `fields` parameter to request only specific fields in the response,
+    reducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed
 
     Args:
         camera_id: Optional camera ID to filter by
@@ -209,6 +243,7 @@ async def list_events(  # noqa: PLR0912
         limit: Maximum number of results to return (1-100, default 50)
         offset: Number of results to skip (deprecated, use cursor instead)
         cursor: Pagination cursor from previous response's next_cursor field
+        fields: Comma-separated list of fields to include (sparse fieldsets)
         db: Database session
 
     Returns:
@@ -217,9 +252,20 @@ async def list_events(  # noqa: PLR0912
     Raises:
         HTTPException: 400 if start_date is after end_date
         HTTPException: 400 if cursor is invalid
+        HTTPException: 400 if invalid fields are requested
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
+    requested_fields = parse_fields_param(fields)
+    try:
+        validated_fields = validate_fields(requested_fields, set(VALID_EVENT_LIST_FIELDS))
+    except FieldFilterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
     # Decode cursor if provided
     cursor_data: CursorData | None = None
@@ -332,7 +378,9 @@ async def list_events(  # noqa: PLR0912
             "detection_ids": parsed_detection_ids,
             "thumbnail_url": thumbnail_url,
         }
-        events_with_counts.append(event_dict)
+        # Apply sparse fieldsets filter if fields parameter was provided (NEM-1434)
+        filtered_event = filter_fields(event_dict, validated_fields)
+        events_with_counts.append(filtered_event)
 
     # Generate next cursor from the last event
     next_cursor: str | None = None

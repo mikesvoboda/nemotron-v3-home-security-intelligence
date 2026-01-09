@@ -32,6 +32,12 @@ from backend.api.schemas.detections import (
     VehicleEnrichmentData,
 )
 from backend.api.schemas.enrichment import EnrichmentResponse
+from backend.api.utils.field_filter import (
+    FieldFilterError,
+    filter_fields,
+    parse_fields_param,
+    validate_fields,
+)
 from backend.api.validators import validate_date_range
 from backend.core.database import get_db
 from backend.core.logging import get_logger
@@ -44,6 +50,30 @@ from backend.services.video_processor import VideoProcessor
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
+
+# Valid fields for sparse fieldsets on list_detections endpoint (NEM-1434)
+VALID_DETECTION_LIST_FIELDS = frozenset(
+    {
+        "id",
+        "camera_id",
+        "file_path",
+        "file_type",
+        "detected_at",
+        "object_type",
+        "confidence",
+        "bbox_x",
+        "bbox_y",
+        "bbox_width",
+        "bbox_height",
+        "thumbnail_path",
+        "media_type",
+        "duration",
+        "video_codec",
+        "video_width",
+        "video_height",
+        "enrichment_data",
+    }
+)
 
 # ============================================================================
 # Error Sanitization
@@ -127,12 +157,23 @@ async def list_detections(  # noqa: PLR0912
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to include in response (sparse fieldsets). "
+        "Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, "
+        "bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, "
+        "video_codec, video_width, video_height, enrichment_data",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """List detections with optional filtering and cursor-based pagination.
 
     Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
     Cursor-based pagination offers better performance for large datasets.
+
+    Sparse Fieldsets (NEM-1434):
+    Use the `fields` parameter to request only specific fields in the response,
+    reducing payload size. Example: ?fields=id,camera_id,object_type,confidence
 
     Args:
         camera_id: Optional camera ID to filter by
@@ -143,6 +184,7 @@ async def list_detections(  # noqa: PLR0912
         limit: Maximum number of results to return (1-100, default 50)
         offset: Number of results to skip (deprecated, use cursor instead)
         cursor: Pagination cursor from previous response's next_cursor field
+        fields: Comma-separated list of fields to include (sparse fieldsets)
         db: Database session
 
     Returns:
@@ -151,9 +193,20 @@ async def list_detections(  # noqa: PLR0912
     Raises:
         HTTPException: 400 if start_date is after end_date
         HTTPException: 400 if cursor is invalid
+        HTTPException: 400 if invalid fields are requested
     """
     # Validate date range
     validate_date_range(start_date, end_date)
+
+    # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
+    requested_fields = parse_fields_param(fields)
+    try:
+        validated_fields = validate_fields(requested_fields, set(VALID_DETECTION_LIST_FIELDS))
+    except FieldFilterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
     # Decode cursor if provided
     cursor_data: CursorData | None = None
@@ -230,8 +283,40 @@ async def list_detections(  # noqa: PLR0912
     # Get deprecation warning if using offset without cursor
     deprecation_warning = get_deprecation_warning(cursor, offset)
 
+    # Convert ORM objects to dicts and apply sparse fieldsets filter if requested (NEM-1434)
+    detections_output: list[Detection] | list[dict[str, Any]]
+    if validated_fields is not None:
+        detection_dicts: list[dict[str, Any]] = []
+        for detection in detections:
+            detection_dict: dict[str, Any] = {
+                "id": detection.id,
+                "camera_id": detection.camera_id,
+                "file_path": detection.file_path,
+                "file_type": detection.file_type,
+                "detected_at": detection.detected_at,
+                "object_type": detection.object_type,
+                "confidence": detection.confidence,
+                "bbox_x": detection.bbox_x,
+                "bbox_y": detection.bbox_y,
+                "bbox_width": detection.bbox_width,
+                "bbox_height": detection.bbox_height,
+                "thumbnail_path": detection.thumbnail_path,
+                "media_type": detection.media_type,
+                "duration": detection.duration,
+                "video_codec": detection.video_codec,
+                "video_width": detection.video_width,
+                "video_height": detection.video_height,
+                "enrichment_data": detection.enrichment_data,
+            }
+            filtered_detection = filter_fields(detection_dict, validated_fields)
+            detection_dicts.append(filtered_detection)
+        detections_output = detection_dicts
+    else:
+        # No field filtering - return ORM objects directly (Pydantic will serialize)
+        detections_output = detections
+
     return {
-        "detections": detections,
+        "detections": detections_output,
         "count": total_count,
         "limit": limit,
         "offset": offset,

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -809,3 +810,340 @@ async def get_profile_stats(
         last_profile_path=manager.last_profile_path,
         timestamp=datetime.now(UTC).isoformat(),
     )
+
+
+# =============================================================================
+# Request Recording and Replay Endpoints (NEM-1646)
+# =============================================================================
+
+# Default recordings directory (can be overridden for testing)
+RECORDINGS_DIR = "data/recordings"
+
+
+def _safe_recording_path(recording_id: str, base_dir: str = RECORDINGS_DIR) -> Path | None:
+    """Safely resolve a recording path, preventing path traversal.
+
+    Args:
+        recording_id: The recording ID to resolve
+        base_dir: Base directory for recordings
+
+    Returns:
+        Resolved path if valid, None if path traversal detected
+    """
+    # Sanitize recording_id to prevent path traversal
+    safe_id = "".join(c for c in recording_id if c.isalnum() or c in "-_")
+    if not safe_id:
+        return None
+
+    base_path = Path(base_dir).resolve()
+    filepath = (base_path / f"{safe_id}.json").resolve()
+
+    # Validate path is within base directory
+    if not str(filepath).startswith(str(base_path)):
+        return None
+
+    return filepath
+
+
+class RecordingResponse(BaseModel):
+    """Response for a single recording."""
+
+    recording_id: str = Field(description="Unique recording ID")
+    timestamp: str = Field(description="ISO timestamp when recorded")
+    method: str = Field(description="HTTP method")
+    path: str = Field(description="Request path")
+    status_code: int = Field(description="HTTP response status code")
+    duration_ms: float = Field(description="Request duration in milliseconds")
+    body_truncated: bool = Field(default=False, description="Whether body was truncated")
+
+
+class RecordingsListResponse(BaseModel):
+    """Response for listing recordings."""
+
+    recordings: list[RecordingResponse] = Field(description="List of recordings")
+    total: int = Field(description="Total number of recordings")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+class ReplayResponse(BaseModel):
+    """Response for request replay."""
+
+    recording_id: str = Field(description="ID of the replayed recording")
+    original_status_code: int = Field(description="Original response status code")
+    replay_status_code: int = Field(description="Replay response status code")
+    replay_response: Any = Field(description="Response from replayed request")
+    replay_metadata: dict[str, Any] = Field(description="Metadata about the replay")
+    timestamp: str = Field(description="ISO timestamp of replay")
+
+
+@router.get("/recordings", response_model=RecordingsListResponse)
+async def list_recordings(
+    limit: int = 50,
+    _debug: None = Depends(require_debug_mode),
+) -> RecordingsListResponse:
+    """List available request recordings.
+
+    Returns a list of recorded requests, sorted by timestamp (newest first).
+    Use the recording_id to replay a specific request.
+
+    NEM-1646: Request recording and replay for debugging
+
+    Args:
+        limit: Maximum number of recordings to return (default: 50)
+
+    Returns:
+        List of recordings with metadata
+    """
+    from pathlib import Path
+
+    recordings_path = Path(RECORDINGS_DIR)
+    recordings: list[RecordingResponse] = []
+
+    if recordings_path.exists():
+        # Get all JSON files, sorted by modification time (newest first)
+        json_files = sorted(
+            recordings_path.glob("*.json"),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True,
+        )
+
+        for filepath in json_files[:limit]:
+            try:
+                import json
+
+                # filepath comes from glob within recordings_path, so it's safe
+                with filepath.open() as f:
+                    data = json.load(f)
+
+                recordings.append(
+                    RecordingResponse(
+                        recording_id=data.get("recording_id", filepath.stem),
+                        timestamp=data.get("timestamp", ""),
+                        method=data.get("method", ""),
+                        path=data.get("path", ""),
+                        status_code=data.get("status_code", 0),
+                        duration_ms=data.get("duration_ms", 0.0),
+                        body_truncated=data.get("body_truncated", False),
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Failed to read recording {filepath}: {e}")
+
+    return RecordingsListResponse(
+        recordings=recordings,
+        total=len(recordings),
+        timestamp=datetime.now(UTC).isoformat(),
+    )
+
+
+@router.get("/recordings/{recording_id}")
+async def get_recording(
+    recording_id: str,
+    _debug: None = Depends(require_debug_mode),
+) -> dict[str, Any]:
+    """Get details of a specific recording.
+
+    Returns the full recording data including headers, body, and response.
+
+    NEM-1646: Request recording and replay for debugging
+
+    Args:
+        recording_id: ID of the recording to retrieve
+
+    Returns:
+        Full recording data
+
+    Raises:
+        HTTPException: 404 if recording not found
+    """
+    import json
+
+    recording_path = _safe_recording_path(recording_id, RECORDINGS_DIR)
+
+    if recording_path is None or not recording_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recording '{recording_id}' not found",
+        )
+
+    try:
+        # Path is validated by _safe_recording_path
+        with recording_path.open() as f:
+            data = json.load(f)
+
+        return {
+            **data,
+            "retrieved_at": datetime.now(UTC).isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to read recording {recording_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read recording: {e}",
+        ) from e
+
+
+@router.post("/replay/{recording_id}", response_model=ReplayResponse)
+async def replay_request(
+    recording_id: str,
+    request: Request,
+    _debug: None = Depends(require_debug_mode),
+) -> ReplayResponse:
+    """Replay a recorded request for debugging.
+
+    Reconstructs the original request from the recording and executes it
+    against the current application. This is useful for:
+    - Reproducing production issues locally
+    - Testing fixes for error scenarios
+    - Debugging intermittent failures
+
+    SECURITY: This endpoint is only available when debug=True and requires
+    the request to pass through the debug mode gate.
+
+    NEM-1646: Request recording and replay for debugging
+
+    Args:
+        recording_id: ID of the recording to replay
+
+    Returns:
+        Replay response with original and new status codes
+
+    Raises:
+        HTTPException: 404 if recording not found
+    """
+    import json
+
+    import httpx
+
+    recording_path = _safe_recording_path(recording_id, RECORDINGS_DIR)
+
+    if recording_path is None or not recording_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recording '{recording_id}' not found",
+        )
+
+    try:
+        # Path is validated by _safe_recording_path
+        with recording_path.open() as f:
+            recording_data = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read recording {recording_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read recording: {e}",
+        ) from e
+
+    # Extract request details from recording
+    method = recording_data.get("method", "GET")
+    path = recording_data.get("path", "/")
+    headers = recording_data.get("headers", {})
+    body = recording_data.get("body")
+    query_params = recording_data.get("query_params", {})
+    original_status = recording_data.get("status_code", 0)
+
+    # Remove headers that shouldn't be replayed
+    headers_to_remove = {"host", "content-length", "transfer-encoding"}
+    replay_headers = {k: v for k, v in headers.items() if k.lower() not in headers_to_remove}
+
+    # Add replay marker header
+    replay_headers["X-Replay-Request"] = "true"
+    replay_headers["X-Original-Recording-ID"] = recording_id
+
+    # Build the replay URL using the current request's base URL
+    # This ensures we hit the same server that received the original request
+    base_url = str(request.base_url).rstrip("/")
+    replay_url = f"{base_url}{path}"
+
+    # Add query params
+    if query_params:
+        from urllib.parse import urlencode
+
+        replay_url = f"{replay_url}?{urlencode(query_params)}"
+
+    # Execute the replay request
+    replay_start = datetime.now(UTC)
+    replay_response_data: Any = None
+    replay_status = 0
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            if body:
+                response = await client.request(
+                    method=method,
+                    url=replay_url,
+                    headers=replay_headers,
+                    json=body,
+                )
+            else:
+                response = await client.request(
+                    method=method,
+                    url=replay_url,
+                    headers=replay_headers,
+                )
+
+            replay_status = response.status_code
+
+            # Try to parse response as JSON
+            try:
+                replay_response_data = response.json()
+            except Exception:
+                replay_response_data = response.text
+
+    except httpx.HTTPError as e:
+        replay_status = 500
+        replay_response_data = {"error": str(e), "type": type(e).__name__}
+
+    replay_duration = (datetime.now(UTC) - replay_start).total_seconds() * 1000
+
+    return ReplayResponse(
+        recording_id=recording_id,
+        original_status_code=original_status,
+        replay_status_code=replay_status,
+        replay_response=replay_response_data,
+        replay_metadata={
+            "original_timestamp": recording_data.get("timestamp"),
+            "original_path": path,
+            "original_method": method,
+            "replay_duration_ms": round(replay_duration, 2),
+            "replayed_at": replay_start.isoformat(),
+        },
+        timestamp=datetime.now(UTC).isoformat(),
+    )
+
+
+@router.delete("/recordings/{recording_id}")
+async def delete_recording(
+    recording_id: str,
+    _debug: None = Depends(require_debug_mode),
+) -> dict[str, str]:
+    """Delete a specific recording.
+
+    NEM-1646: Request recording management
+
+    Args:
+        recording_id: ID of the recording to delete
+
+    Returns:
+        Confirmation message
+
+    Raises:
+        HTTPException: 404 if recording not found
+    """
+    recording_path = _safe_recording_path(recording_id, RECORDINGS_DIR)
+
+    if recording_path is None or not recording_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recording '{recording_id}' not found",
+        )
+
+    try:
+        recording_path.unlink()
+        return {"message": f"Recording '{recording_id}' deleted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to delete recording {recording_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete recording: {e}",
+        ) from e
