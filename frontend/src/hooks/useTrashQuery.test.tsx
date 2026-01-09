@@ -5,10 +5,10 @@
  * Tests are written first, then implementation to make them pass.
  */
 
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ReactNode } from 'react';
+
 
 import {
   useDeletedEventsQuery,
@@ -16,7 +16,9 @@ import {
   usePermanentDeleteMutation,
 } from './useTrashQuery';
 import * as api from '../services/api';
+
 import type { DeletedEvent, Event } from '../services/api';
+import type { ReactNode } from 'react';
 
 // Mock the API module
 vi.mock('../services/api', () => ({
@@ -162,7 +164,7 @@ describe('useDeletedEventsQuery', () => {
     expect(result.current.deletedEvents).toEqual([]);
   });
 
-  it('can be disabled with enabled option', async () => {
+  it('can be disabled with enabled option', () => {
     const { result } = renderHook(
       () => useDeletedEventsQuery({ enabled: false }),
       {

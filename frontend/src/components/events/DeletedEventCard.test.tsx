@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import DeletedEventCard from './DeletedEventCard';
+
 import type { DeletedEvent } from '../../services/api';
 
 // Factory for creating mock deleted events
