@@ -26,6 +26,7 @@ backend/core/
 ├── async_utils.py                # Non-blocking I/O wrappers (sleep, subprocess, file I/O)
 ├── circuit_breaker.py            # Shared circuit breaker for AI service resilience
 ├── config.py                     # Pydantic Settings configuration
+├── config_validation.py          # Configuration validation and startup summary (NEM-2026)
 ├── constants.py                  # Application-wide constants (queue names, DLQ names)
 ├── database.py                   # SQLAlchemy async database layer
 ├── docker_client.py              # Async Docker/Podman client wrapper
@@ -56,6 +57,13 @@ The `__init__.py` file provides a clean public API for the core module:
 
 - `Settings` - Pydantic settings class
 - `get_settings()` - Get cached settings instance
+
+**Exported from config_validation.py (NEM-2026):**
+
+- `ConfigValidationResult` - Result dataclass containing validation status and items
+- `ValidationItem` - Individual validation item with name, status, and message
+- `validate_config()` - Validate application settings and return structured result
+- `log_config_summary()` - Log formatted validation summary at startup
 
 **Exported from database.py:**
 

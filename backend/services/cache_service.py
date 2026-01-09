@@ -128,7 +128,7 @@ class CacheService:
             record_cache_miss(metric_type)
             return None
 
-    def _infer_cache_type(self, key: str) -> str:
+    def _infer_cache_type(self, key: str) -> str:  # noqa: PLR0911
         """Infer cache type from key prefix for metrics.
 
         Args:
@@ -145,6 +145,10 @@ class CacheService:
             return "system"
         elif key.startswith("events:"):
             return "events"
+        elif key.startswith("alerts:"):
+            return "alerts"
+        elif key.startswith("detections:"):
+            return "detections"
         else:
             return "other"
 
@@ -330,6 +334,34 @@ class CacheService:
             Number of keys deleted
         """
         return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
+
+    async def invalidate_alerts(self, reason: str = "alert_rule_created") -> int:
+        """Invalidate all alert rules cache entries.
+
+        Should be called when alert rules are created, updated, or deleted
+        to ensure alert rule endpoints return fresh data.
+
+        Args:
+            reason: Reason for invalidation (default: "alert_rule_created")
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("alerts:*", reason=reason, cache_type="alerts")
+
+    async def invalidate_detections(self, reason: str = "detection_created") -> int:
+        """Invalidate all detections cache entries.
+
+        Should be called when detections are created, updated, or deleted
+        to ensure detection endpoints return fresh data.
+
+        Args:
+            reason: Reason for invalidation (default: "detection_created")
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("detections:*", reason=reason, cache_type="detections")
 
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.
