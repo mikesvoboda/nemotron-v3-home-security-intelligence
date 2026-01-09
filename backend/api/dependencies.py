@@ -132,6 +132,7 @@ async def get_orchestrator(request: Request) -> ContainerOrchestrator:
 async def get_camera_or_404(
     camera_id: str,
     db: AsyncSession,
+    include_deleted: bool = False,
 ) -> Camera:
     """Get a camera by ID or raise 404 if not found.
 
@@ -141,6 +142,8 @@ async def get_camera_or_404(
     Args:
         camera_id: The camera ID to look up
         db: Database session
+        include_deleted: If True, include soft-deleted cameras in the lookup.
+                         Required for restore operations (NEM-1955).
 
     Returns:
         Camera object if found
@@ -148,7 +151,11 @@ async def get_camera_or_404(
     Raises:
         HTTPException: 404 if camera not found
     """
-    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    query = select(Camera).where(Camera.id == camera_id)
+    if not include_deleted:
+        query = query.where(Camera.deleted_at.is_(None))
+
+    result = await db.execute(query)
     camera = result.scalar_one_or_none()
 
     if not camera:
@@ -163,6 +170,7 @@ async def get_camera_or_404(
 async def get_event_or_404(
     event_id: int,
     db: AsyncSession,
+    include_deleted: bool = False,
 ) -> Event:
     """Get an event by ID or raise 404 if not found.
 
@@ -172,6 +180,8 @@ async def get_event_or_404(
     Args:
         event_id: The event ID to look up
         db: Database session
+        include_deleted: If True, include soft-deleted events in the lookup.
+                         Required for restore operations (NEM-1955).
 
     Returns:
         Event object if found
@@ -179,7 +189,11 @@ async def get_event_or_404(
     Raises:
         HTTPException: 404 if event not found
     """
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    query = select(Event).where(Event.id == event_id)
+    if not include_deleted:
+        query = query.where(Event.deleted_at.is_(None))
+
+    result = await db.execute(query)
     event = result.scalar_one_or_none()
 
     if not event:

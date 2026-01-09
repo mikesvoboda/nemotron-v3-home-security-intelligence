@@ -254,3 +254,39 @@ class EventStatsResponse(BaseModel):
     total_events: int = Field(..., description="Total number of events")
     events_by_risk_level: EventsByRiskLevel = Field(..., description="Events grouped by risk level")
     events_by_camera: list[EventsByCamera] = Field(..., description="Events grouped by camera")
+
+
+class DeletedEventsListResponse(BaseModel):
+    """Schema for listing soft-deleted events (trash view).
+
+    NEM-1955: Provides a trash view of soft-deleted events that can be restored.
+    Events are ordered by deleted_at descending (most recently deleted first).
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "events": [
+                    {
+                        "id": 1,
+                        "camera_id": "front_door",
+                        "started_at": "2025-12-23T12:00:00Z",
+                        "ended_at": "2025-12-23T12:02:30Z",
+                        "risk_score": 75,
+                        "risk_level": "medium",
+                        "summary": "Person detected near front entrance",
+                        "reasoning": "Analysis details",
+                        "reviewed": False,
+                        "notes": None,
+                        "detection_count": 5,
+                        "detection_ids": [1, 2, 3, 4, 5],
+                        "thumbnail_url": "/api/media/detections/1",
+                    }
+                ],
+                "count": 1,
+            }
+        }
+    )
+
+    events: list[EventResponse] = Field(..., description="List of soft-deleted events")
+    count: int = Field(..., description="Total number of deleted events")
