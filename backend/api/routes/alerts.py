@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_alert_rule_or_404
+from backend.api.dependencies import get_alert_rule_engine_dep, get_alert_rule_or_404
 from backend.api.schemas.alerts import (
     AlertRuleCreate,
     AlertRuleListResponse,
@@ -33,6 +33,9 @@ from backend.core.database import get_db
 from backend.models import AlertRule, Event
 from backend.models import AlertSeverity as ModelAlertSeverity
 from backend.services.alert_engine import AlertRuleEngine
+
+# Type alias for dependency injection
+AlertRuleEngineDep = AlertRuleEngine
 
 router = APIRouter(prefix="/api/alerts/rules", tags=["alert-rules"])
 
@@ -327,6 +330,7 @@ async def test_rule(
     rule_id: str,
     test_data: RuleTestRequest,
     db: AsyncSession = Depends(get_db),
+    engine: AlertRuleEngineDep = Depends(get_alert_rule_engine_dep),
 ) -> dict[str, Any]:
     """Test a rule against historical events.
 
@@ -337,6 +341,7 @@ async def test_rule(
         rule_id: Rule UUID
         test_data: Test configuration (event IDs, time override)
         db: Database session
+        engine: AlertRuleEngine injected via Depends()
 
     Returns:
         RuleTestResponse with per-event match results
@@ -367,8 +372,7 @@ async def test_rule(
             "results": [],
         }
 
-    # Test the rule against each event
-    engine = AlertRuleEngine(db)
+    # Test the rule against each event (engine injected via DI)
     test_time = test_data.test_time or datetime.now(UTC)
 
     test_results = await engine.test_rule_against_events(rule, events, test_time)

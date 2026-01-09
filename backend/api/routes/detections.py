@@ -11,7 +11,11 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_detection_or_404
+from backend.api.dependencies import (
+    get_detection_or_404,
+    get_thumbnail_generator_dep,
+    get_video_processor_dep,
+)
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.pagination import CursorData, decode_cursor, encode_cursor, get_deprecation_warning
 from backend.api.schemas.bulk import (
@@ -47,6 +51,10 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.thumbnail_generator import ThumbnailGenerator
 from backend.services.video_processor import VideoProcessor
+
+# Type aliases for dependency injection
+ThumbnailGeneratorDep = ThumbnailGenerator
+VideoProcessorDep = VideoProcessor
 
 logger = get_logger(__name__)
 
@@ -141,9 +149,8 @@ def _sanitize_errors(errors: list[str]) -> list[str]:
 # These endpoints are exempt from auth but need rate limiting for abuse prevention
 detection_media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
-# Initialize thumbnail generator and video processor
-thumbnail_generator = ThumbnailGenerator()
-video_processor = VideoProcessor()
+# NOTE: ThumbnailGenerator and VideoProcessor are now injected via Depends()
+# instead of module-level instantiation (NEM-2032)
 
 
 @router.get(
@@ -551,6 +558,7 @@ async def get_detection_thumbnail(
     detection_id: int,
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(detection_media_rate_limiter),
+    thumbnail_generator: ThumbnailGeneratorDep = Depends(get_thumbnail_generator_dep),
 ) -> FileResponse:
     """Serve detection thumbnail image.
 
@@ -565,6 +573,7 @@ async def get_detection_thumbnail(
     Args:
         detection_id: Detection ID
         db: Database session
+        thumbnail_generator: ThumbnailGenerator injected via Depends()
 
     Returns:
         FileResponse with the thumbnail image (JPEG or PNG)
@@ -944,6 +953,7 @@ async def get_detection_image(
     full: bool = Query(False, description="Return full-size original image instead of thumbnail"),
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(detection_media_rate_limiter),
+    thumbnail_generator: ThumbnailGeneratorDep = Depends(get_thumbnail_generator_dep),
 ) -> Response:
     """Get detection image with bounding box overlay, or full-size original.
 
@@ -963,6 +973,7 @@ async def get_detection_image(
         detection_id: Detection ID
         full: If true, return the original full-size image instead of thumbnail
         db: Database session
+        thumbnail_generator: ThumbnailGenerator injected via Depends()
 
     Returns:
         JPEG image (thumbnail with bounding box, or full-size original)
@@ -1245,6 +1256,7 @@ async def get_video_thumbnail(
     detection_id: int,
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(detection_media_rate_limiter),
+    video_processor: VideoProcessorDep = Depends(get_video_processor_dep),
 ) -> Response:
     """Get thumbnail frame from a video detection.
 
@@ -1259,6 +1271,7 @@ async def get_video_thumbnail(
     Args:
         detection_id: Detection ID
         db: Database session
+        video_processor: VideoProcessor injected via Depends()
 
     Returns:
         JPEG thumbnail image
