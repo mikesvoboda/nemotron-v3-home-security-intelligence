@@ -1724,14 +1724,26 @@ async def test_wait_for_file_stability_file_becomes_stable(file_watcher, temp_ca
     # Create an image file (stable from the start)
     create_valid_test_image(image_path)
 
-    # File should become stable quickly since it's not being modified
-    result = await file_watcher._wait_for_file_stability(str(image_path), stability_time=0.2)
+    # Mock time functions to make test instant
+    simulated_time = [0.0]
+
+    async def fake_sleep(delay: float) -> None:
+        simulated_time[0] += delay
+
+    def fake_monotonic() -> float:
+        return simulated_time[0]
+
+    with (
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
+        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+    ):
+        # File should become stable since it's not being modified
+        result = await file_watcher._wait_for_file_stability(str(image_path), stability_time=0.2)
 
     assert result is True
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
 async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, mock_redis_client):
     """Test _wait_for_file_stability returns False when file keeps changing."""
     # Create watcher with short stability time for faster test
@@ -1746,49 +1758,43 @@ async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, m
     file_path = camera_dir / "unstable.txt"
     file_path.write_text("initial")
 
-    # Event to coordinate test
-    started_modifying = asyncio.Event()
-    stop_modifying = asyncio.Event()
+    # Mock time functions to make test instant
+    # Simulate file size changing on every loop iteration
+    simulated_time = [0.0]
+    check_count = [0]
 
-    async def keep_modifying():
-        """Keep modifying the file to simulate ongoing FTP upload."""
-        i = 0
-        # Signal that we've started
-        started_modifying.set()
-        while not stop_modifying.is_set():
-            # Modify more frequently than the check interval
-            await asyncio.sleep(0.01)  # Reduced from 0.1 for faster test
-            # Write different amounts to ensure size changes
-            file_path.write_text(f"content_{i}_" * (100 + i * 10))
-            i += 1
+    async def fake_sleep(delay: float) -> None:
+        simulated_time[0] += delay
+        # Modify file after each sleep so next stat() sees a different size
+        # This simulates ongoing FTP upload where file keeps growing
+        check_count[0] += 1
+        file_path.write_text(f"content_{check_count[0]}_" * (100 + check_count[0] * 50))
 
-    # Mock asyncio.sleep to speed up the stability check while yielding control
-    original_sleep = asyncio.sleep
+    def fake_monotonic() -> float:
+        return simulated_time[0]
 
-    async def fast_sleep(delay: float) -> None:
-        """Sleep for minimal time but still yield to event loop."""
-        await original_sleep(min(delay, 0.01))
+    # Use mock for Path.stat to return changing file sizes
+    # This ensures the stability check sees different sizes each iteration
+    original_stat = Path.stat
+    stat_calls = [0]
 
-    # Start modifying the file in the background
-    modify_task = asyncio.create_task(keep_modifying())
+    def mock_stat(self: Path):
+        """Return changing file size for our test file, real stats otherwise."""
+        if str(self) == str(file_path):
+            stat_calls[0] += 1
+            result = original_stat(self)
+            return result
+        return original_stat(self)
 
-    try:
-        # Wait for modifier to start
-        await asyncio.wait_for(started_modifying.wait(), timeout=1.0)
-        # Give it a moment to make a modification
-        await asyncio.sleep(0.02)
+    with (
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
+        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+        patch.object(Path, "stat", mock_stat),
+    ):
+        # File should never stabilize because it keeps changing
+        result = await watcher._wait_for_file_stability(str(file_path), stability_time=0.3)
 
-        # File should never stabilize because we keep modifying it
-        with patch("backend.services.file_watcher.asyncio.sleep", side_effect=fast_sleep):
-            result = await watcher._wait_for_file_stability(str(file_path), stability_time=0.05)
-        assert result is False
-    finally:
-        stop_modifying.set()
-        modify_task.cancel()
-        try:
-            await modify_task
-        except asyncio.CancelledError:
-            pass
+    assert result is False
 
 
 @pytest.mark.asyncio
@@ -1798,24 +1804,29 @@ async def test_wait_for_file_stability_file_deleted_during_check(file_watcher, t
     file_path = camera_dir / "deleted.txt"
     file_path.write_text("will be deleted")
 
-    async def delete_file():
-        """Delete the file after a short delay."""
-        await asyncio.sleep(0.1)
-        file_path.unlink()
+    # Mock time functions to make test instant
+    # Delete the file after first check
+    simulated_time = [0.0]
+    check_count = [0]
 
-    # Start delete task
-    delete_task = asyncio.create_task(delete_file())
+    async def fake_sleep(delay: float) -> None:
+        simulated_time[0] += delay
+        check_count[0] += 1
+        # Delete file after first sleep (simulating deletion during check)
+        if check_count[0] == 1 and file_path.exists():
+            file_path.unlink()
 
-    try:
+    def fake_monotonic() -> float:
+        return simulated_time[0]
+
+    with (
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
+        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+    ):
         # File should return False because it was deleted
         result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=1.0)
-        assert result is False
-    finally:
-        delete_task.cancel()
-        try:
-            await delete_task
-        except asyncio.CancelledError:
-            pass
+
+    assert result is False
 
 
 @pytest.mark.asyncio
@@ -1830,22 +1841,32 @@ async def test_wait_for_file_stability_nonexistent_file(file_watcher):
 @pytest.mark.asyncio
 async def test_wait_for_file_stability_custom_stability_time(file_watcher, temp_camera_root):
     """Test _wait_for_file_stability respects custom stability_time parameter."""
-    import time
-
     camera_dir = temp_camera_root / "camera1"
     file_path = camera_dir / "custom_time.txt"
     file_path.write_text("content")
 
-    start = time.monotonic()
+    # Mock time functions to make test instant and verify stability_time is respected
+    simulated_time = [0.0]
+    sleep_calls: list[float] = []
 
-    # With very short stability time, should return quickly
-    result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.1)
+    async def fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+        simulated_time[0] += delay
 
-    elapsed = time.monotonic() - start
+    def fake_monotonic() -> float:
+        return simulated_time[0]
+
+    with (
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
+        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+    ):
+        # With custom stability time, should still complete successfully
+        result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.1)
 
     assert result is True
-    # Should complete in roughly stability_time + 1 check interval
-    assert elapsed < 1.0
+    # Verify that we slept for at least the custom stability time
+    total_slept = sum(sleep_calls)
+    assert total_slept >= 0.1, f"Expected to simulate >= 0.1s of sleep, got {total_slept}s"
 
 
 @pytest.mark.asyncio
@@ -1972,25 +1993,27 @@ async def test_stability_check_file_grows_then_stabilizes(file_watcher, temp_cam
     file_path = camera_dir / "growing.bin"
     file_path.write_bytes(b"x" * 1000)
 
-    async def simulate_upload():
-        """Simulate file being uploaded in chunks."""
-        for i in range(3):
-            await asyncio.sleep(0.15)
+    # Mock time functions to make test instant
+    # Simulate file growing for first 3 checks, then stabilizing
+    simulated_time = [0.0]
+    check_count = [0]
+
+    async def fake_sleep(delay: float) -> None:
+        simulated_time[0] += delay
+        check_count[0] += 1
+        # Grow file for first 3 checks, then stop (simulates upload completing)
+        if check_count[0] <= 3:
             current_content = file_path.read_bytes()
             file_path.write_bytes(current_content + b"x" * 1000)
-        # After 3 chunks, stop uploading (file stabilizes)
 
-    # Start simulated upload
-    upload_task = asyncio.create_task(simulate_upload())
+    def fake_monotonic() -> float:
+        return simulated_time[0]
 
-    try:
-        # Should detect stability after upload completes
+    with (
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
+        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+    ):
+        # Should detect stability after simulated upload completes
         result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.5)
-        assert result is True
-    finally:
-        if not upload_task.done():
-            upload_task.cancel()
-            try:
-                await upload_task
-            except asyncio.CancelledError:
-                pass
+
+    assert result is True

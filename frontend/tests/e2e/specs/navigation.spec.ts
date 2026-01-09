@@ -3,9 +3,12 @@
  *
  * These tests verify that navigation between pages works correctly.
  * All API calls are mocked, so navigation should be fast.
+ *
+ * Optimized with serial mode to share page state between tests,
+ * reducing setup overhead for navigation-focused tests.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import {
   DashboardPage,
   TimelinePage,
@@ -20,102 +23,121 @@ import { BasePage } from '../pages/BasePage';
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
 
 test.describe('Navigation Tests', () => {
-  test.beforeEach(async ({ page }) => {
+  let page: Page;
+  let context: BrowserContext;
+
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    context = await browser.newContext();
+    page = await context.newPage();
+
+    // Disable the product tour to prevent overlay from blocking interactions
+    await page.addInitScript(() => {
+      localStorage.setItem('nemotron-tour-completed', 'true');
+      localStorage.setItem('nemotron-tour-skipped', 'true');
+    });
+
     await setupApiMocks(page, defaultMockConfig);
     // Block images, fonts, and analytics to speed up navigation tests
     const basePage = new BasePage(page);
     await basePage.blockUnnecessaryResources();
   });
 
-  test('can navigate to dashboard from root', async ({ page }) => {
+  test.afterAll(async () => {
+    await page?.close();
+    await context?.close();
+  });
+
+  test('can navigate to dashboard from root', async () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
   });
 
-  test('can navigate to timeline page', async ({ page }) => {
+  test('can navigate to timeline page', async () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
   });
 
-  test('can navigate to alerts page', async ({ page }) => {
+  test('can navigate to alerts page', async () => {
     const alertsPage = new AlertsPage(page);
     await alertsPage.goto();
     await alertsPage.waitForAlertsLoad();
   });
 
-  test('can navigate to entities page', async ({ page }) => {
+  test('can navigate to entities page', async () => {
     const entitiesPage = new EntitiesPage(page);
     await entitiesPage.goto();
     await entitiesPage.waitForEntitiesLoad();
   });
 
-  test('can navigate to logs page', async ({ page }) => {
+  test('can navigate to logs page', async () => {
     const logsPage = new LogsPage(page);
     await logsPage.goto();
     await logsPage.waitForLogsLoad();
   });
 
-  test('can navigate to audit page', async ({ page }) => {
+  test('can navigate to audit page', async () => {
     const auditPage = new AuditPage(page);
     await auditPage.goto();
     await auditPage.waitForAuditLoad();
   });
 
-  test('can navigate to system page', async ({ page }) => {
+  test('can navigate to system page', async () => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
   });
 
-  test('can navigate to settings page', async ({ page }) => {
+  test('can navigate to settings page', async () => {
     const settingsPage = new SettingsPage(page);
     await settingsPage.goto();
     await settingsPage.waitForSettingsLoad();
   });
 
-  test('URL reflects current page - dashboard', async ({ page }) => {
+  test('URL reflects current page - dashboard', async () => {
     await page.goto('/');
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test('URL reflects current page - timeline', async ({ page }) => {
+  test('URL reflects current page - timeline', async () => {
     await page.goto('/timeline');
     await expect(page).toHaveURL(/\/timeline$/);
   });
 
-  test('URL reflects current page - alerts', async ({ page }) => {
+  test('URL reflects current page - alerts', async () => {
     await page.goto('/alerts');
     await expect(page).toHaveURL(/\/alerts$/);
   });
 
-  test('URL reflects current page - entities', async ({ page }) => {
+  test('URL reflects current page - entities', async () => {
     await page.goto('/entities');
     await expect(page).toHaveURL(/\/entities$/);
   });
 
-  test('URL reflects current page - logs', async ({ page }) => {
+  test('URL reflects current page - logs', async () => {
     await page.goto('/logs');
     await expect(page).toHaveURL(/\/logs$/);
   });
 
-  test('URL reflects current page - audit', async ({ page }) => {
+  test('URL reflects current page - audit', async () => {
     await page.goto('/audit');
     await expect(page).toHaveURL(/\/audit$/);
   });
 
-  test('URL reflects current page - system', async ({ page }) => {
+  test('URL reflects current page - system', async () => {
     await page.goto('/system');
     await expect(page).toHaveURL(/\/system$/);
   });
 
-  test('URL reflects current page - settings', async ({ page }) => {
+  test('URL reflects current page - settings', async () => {
     await page.goto('/settings');
     await expect(page).toHaveURL(/\/settings$/);
   });
 
-  test('page transitions preserve layout', async ({ page }) => {
+  test('page transitions preserve layout', async () => {
     const dashboardPage = new DashboardPage(page);
     const settingsPage = new SettingsPage(page);
 
@@ -135,7 +157,7 @@ test.describe('Navigation Tests', () => {
     ]);
   });
 
-  test('sidebar persists across page transitions', async ({ page }) => {
+  test('sidebar persists across page transitions', async () => {
     const dashboardPage = new DashboardPage(page);
     const timelinePage = new TimelinePage(page);
 
@@ -155,27 +177,46 @@ test.describe('Navigation Tests', () => {
 });
 
 test.describe('All Routes Smoke Tests', () => {
-  test.beforeEach(async ({ page }) => {
+  let page: Page;
+  let context: BrowserContext;
+
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser, browserName }) => {
+    // Skip on Firefox/WebKit - individual route tests already cover these browsers,
+    // and sequential navigation is slower on secondary browsers.
+    test.skip(
+      browserName === 'firefox' || browserName === 'webkit',
+      'Sequential multi-route test too slow on secondary browsers'
+    );
+
+    context = await browser.newContext();
+    page = await context.newPage();
+
+    // Disable the product tour to prevent overlay from blocking interactions
+    await page.addInitScript(() => {
+      localStorage.setItem('nemotron-tour-completed', 'true');
+      localStorage.setItem('nemotron-tour-skipped', 'true');
+    });
+
     await setupApiMocks(page, defaultMockConfig);
     // Block images, fonts, and analytics to speed up navigation tests
     const basePage = new BasePage(page);
     await basePage.blockUnnecessaryResources();
   });
 
+  test.afterAll(async () => {
+    await page?.close();
+    await context?.close();
+  });
+
   /**
    * Smoke test: Verifies all 8 routes load without error.
    * This test navigates sequentially through all routes to catch any navigation failures.
    * Routes are mocked, so reduced timeouts (5s/2s) are appropriate.
-   *
-   * Skip on Firefox/WebKit - individual route tests already cover these browsers,
-   * and sequential navigation is slower on secondary browsers.
    */
-  test('all 8 routes load without error', async ({ page, browserName }) => {
+  test('all 8 routes load without error', async () => {
     test.setTimeout(30000); // Increase timeout for 8-route navigation
-    test.skip(
-      browserName === 'firefox' || browserName === 'webkit',
-      'Sequential multi-route test too slow on secondary browsers'
-    );
 
     const routes = [
       { path: '/', title: /Security Dashboard/i },
