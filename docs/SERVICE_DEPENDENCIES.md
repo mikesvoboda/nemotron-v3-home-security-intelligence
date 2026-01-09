@@ -15,51 +15,11 @@ This document describes the service dependency hierarchy, startup order requirem
 
 ## Service Dependency Diagram
 
-### ASCII Diagram
+### Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           Frontend (React + Nginx)                       │
-│                         Port 5173 (or FRONTEND_PORT)                     │
-└─────────────────┬───────────────────────────────────────────────────────┘
-                  │
-                  │ HTTP/WebSocket
-                  │
-┌─────────────────▼───────────────────────────────────────────────────────┐
-│                       Backend (FastAPI + uvicorn)                        │
-│                              Port 8000                                   │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  Services:                                                       │   │
-│  │  - FileWatcher          - GPUMonitor                            │   │
-│  │  - PipelineWorkers      - CleanupService                        │   │
-│  │  - EventBroadcaster     - SystemBroadcaster                     │   │
-│  │  - PerformanceCollector - ServiceHealthMonitor                  │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└──┬────────────┬────────────┬────────────────────────────────────────┬───┘
-   │            │            │                                        │
-   │ SQL        │ Redis      │ HTTP                                   │ pynvml
-   │            │            │                                        │
-┌──▼─────┐  ┌──▼─────┐  ┌──▼─────────────────────────────────────┐  │
-│Postgres│  │ Redis  │  │        AI Services (GPU)               │  │
-│Port    │  │Port    │  │  ┌──────────┐  ┌──────────┐           │  │
-│5432    │  │6379    │  │  │ RT-DETRv2│  │ Nemotron │           │  │
-└────────┘  └────────┘  │  │Port 8090 │  │Port 8091 │           │  │
-                        │  └──────────┘  └──────────┘           │  │
-                        │  ┌──────────┐  ┌──────────┐           │  │
-                        │  │Florence-2│  │   CLIP   │           │  │
-                        │  │Port 8092 │  │Port 8093 │ (optional)│  │
-                        │  └──────────┘  └──────────┘           │  │
-                        │  ┌────────────────────────┐           │  │
-                        │  │     Enrichment         │           │  │
-                        │  │      Port 8094         │ (optional)│  │
-                        │  └────────────────────────┘           │  │
-                        └────────────────────────────────────────┘  │
-                                                                     │
-┌────────────────────────────────────────────────────────────────────▼───┐
-│                           NVIDIA GPU (CUDA)                             │
-│                     RTX A5500 or similar (24GB VRAM)                    │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+![Service Dependencies Architecture](images/architecture/service-dependencies.png)
+
+_Complete microservices topology showing all 9 services, their connections, and the GPU hardware layer._
 
 ### Mermaid Diagram
 

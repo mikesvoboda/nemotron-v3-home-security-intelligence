@@ -126,28 +126,9 @@ Any NVIDIA GPU with sufficient VRAM and CUDA support:
 
 ### Container Architecture (9 Services)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Docker/Podman                           │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │  Frontend   │  │   Backend   │  │      AI Services        │  │
-│  │   (nginx)   │  │  (FastAPI)  │  │  ┌───────┐ ┌─────────┐  │  │
-│  │    57 MB    │  │    17 GB*   │  │  │RT-DETR│ │Nemotron │  │  │
-│  └─────────────┘  └─────────────┘  │  │ 8.5GB │ │  3.6GB  │  │  │
-│                                     │  └───────┘ └─────────┘  │  │
-│  ┌─────────────┐  ┌─────────────┐  │  ┌───────┐ ┌─────────┐  │  │
-│  │  PostgreSQL │  │    Redis    │  │  │Florence│ │  CLIP   │  │  │
-│  │   279 MB    │  │    42 MB    │  │  │ 8.3GB │ │  8.3GB  │  │  │
-│  └─────────────┘  └─────────────┘  │  └───────┘ └─────────┘  │  │
-│                                     │  ┌─────────────────┐    │  │
-│                                     │  │   Enrichment    │    │  │
-│                                     │  │     8.3 GB      │    │  │
-│                                     │  └─────────────────┘    │  │
-│                                     └─────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-* Backend image includes Python ML dependencies
-```
+![Container Architecture](docs/images/architecture/container-architecture.png)
+
+_Docker/Podman deployment showing all containers with memory allocations, GPU services, and volume mounts._
 
 ### Runtime Resource Usage
 

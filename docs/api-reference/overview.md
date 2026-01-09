@@ -262,6 +262,20 @@ Date filter parameters accept ISO 8601 format:
 ?start_date=2025-12-23T00:00:00Z&end_date=2025-12-24T00:00:00Z
 ```
 
+## API Architecture
+
+![API Endpoint Graph](../images/architecture/api-endpoint-graph.png)
+
+_API endpoint relationships showing the connections between different resource endpoints._
+
+![Request Response Flow](../images/architecture/request-response-flow.png)
+
+_Request/response flow through the API middleware chain._
+
+![Pydantic Schema Hierarchy](../images/architecture/pydantic-schema-hierarchy.png)
+
+_Pydantic schema hierarchy showing the inheritance and relationships between API schemas._
+
 ## API Endpoints Summary
 
 ### Cameras API

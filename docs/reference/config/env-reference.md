@@ -7,6 +7,14 @@
 
 ---
 
+## Configuration Cascade
+
+![Environment Variable Cascade](../../images/architecture/env-variable-cascade.png)
+
+_Configuration priority hierarchy and feature toggles overview._
+
+---
+
 ## Overview
 
 Configuration is managed through environment variables. Set these in:

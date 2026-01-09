@@ -490,6 +490,10 @@ All services include health checks:
 
 ## Service Dependencies
 
+![Container Architecture](images/architecture/container-architecture.png)
+
+_Container architecture diagram showing service relationships and network topology._
+
 Services start in order based on health checks:
 
 1. **Redis** starts first

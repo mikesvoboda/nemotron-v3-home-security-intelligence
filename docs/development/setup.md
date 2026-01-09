@@ -99,6 +99,10 @@ npm install
 cd ..
 ```
 
+![Script Dependency Graph](../images/architecture/script-dependency-graph.png)
+
+_Script dependency graph showing relationships between setup scripts, validation tools, and test runners._
+
 ### 4. Pre-commit Hooks
 
 Install pre-commit hooks to enforce code quality on every commit:

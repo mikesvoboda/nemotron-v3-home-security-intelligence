@@ -53,6 +53,10 @@ Configuration for `ai/start_llm.sh` (development) and `ai/start_nemotron.sh` (pr
 | `GPU_LAYERS`          | Layers offloaded to GPU | `35`                                                              |
 | `CTX_SIZE`            | Context window size     | `131072` (128K)                                                   |
 
+![Model Zoo State Machine](../images/architecture/model-zoo-state-machine.png)
+
+_Model Zoo state machine showing model lifecycle transitions: loading, loaded, unloading, and error states._
+
 **Model Options:**
 
 | Deployment      | Model                                                                                        | File                                    | VRAM     | Context |

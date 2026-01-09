@@ -425,6 +425,10 @@ GPU_POLL_INTERVAL_SECONDS=2
 
 ## UI Mockups & Design Decisions
 
+![Dashboard Wireframe](../images/architecture/dashboard-wireframe.png)
+
+_Dashboard wireframe showing the main layout with camera grid, activity feed, and risk gauge._
+
 ### Branding
 
 - **App Name:** NVIDIA SECURITY

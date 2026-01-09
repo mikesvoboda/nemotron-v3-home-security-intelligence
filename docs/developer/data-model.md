@@ -58,6 +58,10 @@ All models are exported from `backend/models/__init__.py`.
 
 ## Entity Relationship Diagram
 
+![Database Cascade Delete](../images/architecture/database-cascade-delete.png)
+
+_Database cascade delete diagram showing foreign key relationships and deletion behavior._
+
 ```mermaid
 erDiagram
     cameras ||--o{ detections : "has many"

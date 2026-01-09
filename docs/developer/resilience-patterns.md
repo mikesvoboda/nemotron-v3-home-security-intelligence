@@ -18,6 +18,12 @@ source_refs:
 
 This guide covers the resilience and security patterns used throughout the Home Security Intelligence codebase. These patterns protect against cascading failures, handle transient errors gracefully, and prevent security vulnerabilities in LLM interactions.
 
+## Architecture Overview
+
+![Resilience Patterns](../images/architecture/resilience-patterns.png)
+
+_Resilience patterns diagram showing circuit breakers, retry logic, and fallback strategies._
+
 ## Table of Contents
 
 1. [Circuit Breaker Pattern](#circuit-breaker-pattern)
