@@ -260,7 +260,8 @@ def generate_interface(model: type[BaseModel], indent: int = 0) -> str:
         docstring = textwrap.dedent(docstring).strip()
         lines.append(f"{indent_str}/**")
         for line in docstring.split("\n"):
-            lines.append(f"{indent_str} * {line}")
+            # Use rstrip() to avoid trailing whitespace on empty lines
+            lines.append(f"{indent_str} * {line}".rstrip())
         lines.append(f"{indent_str} */")
 
     lines.append(f"{indent_str}export interface {model.__name__} {{")
@@ -308,7 +309,8 @@ def generate_enum(enum_class: type[Enum], indent: int = 0) -> str:
         docstring = textwrap.dedent(docstring).strip()
         lines.append(f"{indent_str}/**")
         for line in docstring.split("\n"):
-            lines.append(f"{indent_str} * {line}")
+            # Use rstrip() to avoid trailing whitespace on empty lines
+            lines.append(f"{indent_str} * {line}".rstrip())
         lines.append(f"{indent_str} */")
 
     # Generate as type union of string literals
@@ -335,7 +337,8 @@ def generate_error_codes(error_code_class: type) -> str:
         docstring = textwrap.dedent(docstring).strip()
         lines.append("/**")
         for line in docstring.split("\n"):
-            lines.append(f" * {line}")
+            # Use rstrip() to avoid trailing whitespace on empty lines
+            lines.append(f" * {line}".rstrip())
         lines.append(" */")
 
     lines.append("export const WebSocketErrorCode = {")
