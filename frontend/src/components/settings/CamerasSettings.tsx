@@ -240,7 +240,7 @@ export default function CamerasSettings() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="settings-cameras">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -384,6 +384,7 @@ export default function CamerasSettings() {
                           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                           aria-label={`Edit ${camera.name}`}
                           title="Edit camera settings"
+                          data-testid={`edit-camera-${camera.id}`}
                         >
                           <Edit2 className="h-5 w-5" />
                         </button>
@@ -459,6 +460,7 @@ export default function CamerasSettings() {
                       <input
                         type="text"
                         id="name"
+                        data-testid="camera-name-input"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className={clsx(
@@ -533,6 +535,7 @@ export default function CamerasSettings() {
                       <button
                         type="submit"
                         disabled={submitting}
+                        data-testid="save-settings"
                         className="rounded-lg bg-primary px-4 py-2 font-medium text-gray-900 transition-all hover:bg-primary-400 hover:shadow-nvidia-glow focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                       >
                         {submitting ? 'Saving...' : editingCamera ? 'Update' : 'Add Camera'}

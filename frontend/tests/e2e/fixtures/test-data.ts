@@ -55,8 +55,13 @@ export const mockEvents = {
     risk_score: 25,
     risk_level: 'low',
     summary: 'Person detected at front door - appears to be delivery',
+    reasoning: 'Single person approaching front door during daytime hours. Carrying a package, consistent with delivery behavior. No signs of suspicious activity.',
     reviewed: false,
     notes: '',
+    detections: [
+      { label: 'person', confidence: 0.95 },
+      { label: 'package', confidence: 0.82 },
+    ],
   },
   mediumRisk: {
     id: 2,
@@ -68,8 +73,12 @@ export const mockEvents = {
     risk_score: 55,
     risk_level: 'medium',
     summary: 'Unknown person lingering near back fence',
+    reasoning: 'Unidentified individual observed near property boundary for extended period. Movement patterns suggest surveillance. Elevated risk due to unusual behavior.',
     reviewed: false,
     notes: '',
+    detections: [
+      { label: 'person', confidence: 0.88 },
+    ],
   },
   highRisk: {
     id: 3,
@@ -81,8 +90,14 @@ export const mockEvents = {
     risk_score: 78,
     risk_level: 'high',
     summary: 'Suspicious vehicle parked with occupants inside',
+    reasoning: 'Unknown vehicle stationary in driveway for over 10 minutes. Multiple occupants visible inside vehicle. No interaction with property. High risk due to potential surveillance or casing behavior.',
     reviewed: false,
     notes: '',
+    detections: [
+      { label: 'car', confidence: 0.97 },
+      { label: 'person', confidence: 0.72 },
+      { label: 'person', confidence: 0.68 },
+    ],
   },
   criticalRisk: {
     id: 4,
@@ -94,8 +109,14 @@ export const mockEvents = {
     risk_score: 92,
     risk_level: 'critical',
     summary: 'Multiple unknown individuals attempting door entry',
+    reasoning: 'Multiple unidentified individuals gathered at front door. Attempting to manipulate door lock. Critical risk - immediate attention required. Evidence of forced entry attempt.',
     reviewed: true,
     notes: 'Reported to authorities',
+    detections: [
+      { label: 'person', confidence: 0.94 },
+      { label: 'person', confidence: 0.91 },
+      { label: 'person', confidence: 0.89 },
+    ],
   },
 };
 

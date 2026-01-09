@@ -64,7 +64,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#121212] p-8">
+    <div className="min-h-screen bg-[#121212] p-8" data-testid="settings-page">
       <div className="mx-auto max-w-[1920px]">
         {/* Header */}
         <div className="mb-8">
